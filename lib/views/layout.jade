@@ -22,7 +22,7 @@ html
 						button.btn.btn-block.btn-default(ui-sref="addPlaybook") Add Playbook
 
 						li(ng-repeat="playbook in playbooks")
-							a(ui-sref="playbook({ pid: playbook._id })") {{ playbook.name }}
+							a(ui-sref="playbook.view({ playbook_id: playbook._id })") {{ playbook.name }}
 
 				.col-sm-9.col-lg-10
 					block content

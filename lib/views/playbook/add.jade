@@ -1,1 +1,21 @@
 h1 Add Playbook
+
+form.form-horizontal
+	.form-group
+		label.control-label.col-sm-4 Name
+		.col-sm-7
+			input.form-control(type="text" placeholder="Playbook Name" ng-model="playbook.data.name")
+
+	.form-group
+		label.control-label.col-sm-4 Location
+		.col-sm-7
+			input.form-control(type="text" placeholder="Git Location" ng-model="playbook.data.location")
+
+	.form-group
+		label.control-label.col-sm-4 Vault Password
+		.col-sm-7
+			input.form-control(type="text" placeholder="Vault Password" ng-model="playbook.data.vault_password")
+
+	.form-group
+		.col-sm-7.col-sm-offset-4
+			button.btn.btn-default(ng-click="playbook.add()") Add
