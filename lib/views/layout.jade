@@ -1,7 +1,7 @@
 doctype
 html
 	head
-		meta(http-equiv="Content-Type", content="text/html; charset=utf-8;")
+		meta(http-equiv="Content-Type" content="text/html; charset=utf-8;")
 		meta(name="viewport" content="width=device-width, initial-scale=1.0")
 		block meta
 		title(ng-bind-template="{{ pageTitle }} - Semaphore") Semaphore
@@ -19,6 +19,7 @@ html
 				.col-sm-3.col-lg-2
 					ul.nav
 						h2.text-center: a(ui-sref="homepage") Semaphore
+						button.btn.btn-block.btn-default(ui-sref="addPlaybook") Add Playbook
 
 						li(ng-repeat="playbook in playbooks")
 							a(ui-sref="playbook({ pid: playbook._id })") {{ playbook.name }}

@@ -1,6 +1,7 @@
 define([
 	'app',
-	'services/user'
+	'services/user',
+	'routes/playbooks'
 ], function(app) {
 	app.config(function($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
 		$locationProvider.html5Mode(true);
@@ -29,7 +30,7 @@ define([
 		user.getUser(function() {})
 	
 		$http.get('/playbooks').success(function(data, status) {
-			$rootScope.playbooks = data.playbooks;
+			$rootScope.playbooks = data;
 		})
 	})
 })

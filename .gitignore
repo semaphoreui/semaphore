@@ -2,6 +2,7 @@ lib/credentials.js
 lib/credentials.json
 public/vendor
 dist/
+.vagrant
 
 # Logs
 logs
