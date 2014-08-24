@@ -20,7 +20,10 @@ html
 					ul.nav
 						h2.text-center: a(ui-sref="homepage") Semaphore
 						button.btn.btn-block.btn-default(ui-sref="addPlaybook") Add Playbook
-
+						button.btn.btn-block.btn-default(ui-sref="credentials.list") Credentials
+						
+						br
+						
 						li(ng-repeat="playbook in playbooks")
 							a(ui-sref="playbook.view({ playbook_id: playbook._id })") {{ playbook.name }}
 

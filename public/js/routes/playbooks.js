@@ -22,10 +22,15 @@ define([
 				$scope.playbook = playbook;
 			},
 			resolve: {
-				playbook: function (Playbook, $stateParams, $q) {
+				playbook: function (Playbook, $stateParams, $q, $state) {
 					var deferred = $q.defer();
 
 					var playbook = new Playbook($stateParams.playbook_id, function (err, errStatus) {
+						if (err && errStatus == 404) {
+							$state.transitionTo('homepage');
+							return deferred.reject();
+						}
+						
 						deferred.resolve(playbook);
 					});
 
