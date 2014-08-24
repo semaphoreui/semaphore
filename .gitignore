@@ -3,6 +3,7 @@ lib/credentials.json
 public/vendor
 dist/
 .vagrant
+bin/setup.js
 
 # Logs
 logs
