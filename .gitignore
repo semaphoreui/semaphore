@@ -1,3 +1,8 @@
+lib/credentials.js
+lib/credentials.json
+public/vendor
+dist/
+
 # Logs
 logs
 *.log

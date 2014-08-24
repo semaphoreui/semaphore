@@ -1,0 +1,21 @@
+.panel.panel-default
+	.panel-heading
+		h3.panel-title Semaphore Log In
+	.panel-body
+		form.form-horizontal
+			.form-group(ng-if="status.length > 0")
+				.col-sm-7.col-sm-offset-4
+					span(ng-bind="status")
+
+			.form-group
+				label.control-label.col-sm-4 Email
+				.col-sm-7
+					input.form-control(type="email" ng-model="user.auth" placeholder="Email Address")
+			.form-group
+				label.control-label.col-sm-4 Password
+				.col-sm-7
+					input.form-control(type="password" ng-model="user.password" placeholder="Password")
+			
+			.form-group
+				.col-sm-7.col-sm-offset-4
+					button.btn.btn-default(ng-click="authenticate(user)") Log in

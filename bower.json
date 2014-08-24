@@ -1,0 +1,16 @@
+{
+  "name": "semaphore",
+  "version": "0.0.0",
+  "dependencies": {
+    "angular": "latest",
+    "requirejs": "latest",
+    "fontawesome": "latest",
+    "jquery": "latest",
+    "bootstrap": "latest",
+    "moment": "latest",
+    "d3": "latest",
+    "async": "latest",
+    "angular-couch-potato": "~0.1.1",
+    "angular-ui-router": "~0.2.10"
+  }
+}

@@ -1,0 +1,39 @@
+doctype
+html
+	head
+		meta(http-equiv="Content-Type", content="text/html; charset=utf-8;")
+		meta(name="viewport" content="width=device-width, initial-scale=1.0")
+		block meta
+		title(ng-bind-template="{{ pageTitle }} - Semaphore") Semaphore
+		link(href="/favicon.ico" type="image/x-icon" rel="icon")
+		link(href="/favicon.ico" type="image/x-icon" rel="shortcut icon")
+
+		//- all css goes here
+		block css
+
+		link(rel="stylesheet" href="/css/semaphore.css")
+
+	body
+		.container-fluid
+			.row
+				.col-sm-3.col-lg-2
+					ul.nav
+						h2.text-center: a(ui-sref="homepage") Semaphore
+
+						li(ng-repeat="playbook in playbooks")
+							a(ui-sref="playbook({ pid: playbook._id })") {{ playbook.name }}
+
+				.col-sm-9.col-lg-10
+					block content
+						ui-view(autoscroll="false")
+							p.lead.text-center
+								i.fa.fa-spin.fa-cog
+								|  Loading...
+
+		block js
+			script(src="/vendor/requirejs/require.js" data-main="/js/semaphore.js")
+			if use_analytics
+				!= newrelic.getBrowserTimingHeader()
+
+		//- page-specific js
+		block addonjs
