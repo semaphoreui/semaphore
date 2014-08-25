@@ -1,7 +1,9 @@
 define([
 	'app',
 	'services/user',
-	'routes/playbooks'
+	'routes/playbooks',
+	'routes/credentials',
+	'services/playbooks'
 ], function(app) {
 	app.config(function($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
 		$locationProvider.html5Mode(true);
@@ -23,14 +25,11 @@ define([
 			}
 		})
 	})
-	.run(function($rootScope, $state, $stateParams, $http, user) {
+	.run(function($rootScope, $state, $stateParams, $http, user, playbooks) {
 		$rootScope.$state = $state
 		$rootScope.$stateParams = $stateParams
 
-		user.getUser(function() {})
-	
-		$http.get('/playbooks').success(function(data, status) {
-			$rootScope.playbooks = data;
-		})
+		user.getUser(function() {});
+		playbooks.getPlaybooks(function() {});
 	})
 })

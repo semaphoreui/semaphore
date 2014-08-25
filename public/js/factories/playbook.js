@@ -11,15 +11,15 @@ define(['app'], function (app) {
 		}
 
 		Playbook.prototype.save = function () {
-			$http.put('/playbook/'+this.data._id, this.data);
+			return $http.put('/playbook/'+this.data._id, this.data);
 		}
 
 		Playbook.prototype.add = function () {
-			$http.post('/playbooks', this.data);
+			return $http.post('/playbooks', this.data);
 		}
 
 		Playbook.prototype.delete = function () {
-			$http.delete('/playbook/'+this.data._id, this.data);	
+			return $http.delete('/playbook/'+this.data._id);	
 		}
 
 		Playbook.prototype.get = function (cb) {

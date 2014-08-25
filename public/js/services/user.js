@@ -1,7 +1,7 @@
 define([
 	'app'
 ], function(app) {
-	app.service('user', function($http, $rootScope) {
+	app.registerService('user', function($http, $rootScope) {
 		var self = this;
 
 		self.getUser = function(cb) {
