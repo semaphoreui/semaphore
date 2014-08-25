@@ -5,7 +5,6 @@ define([
 	'factories/job'
 ], function(app, $) {
 	app.registerController('JobsCtrl', ['$scope', 'jobs', function($scope, jobs) {
-		
 		$scope.jobs = jobs;
 		
 		jobs.get($scope.playbook, function () {
@@ -20,6 +19,10 @@ define([
 
 			jobs.get($scope.playbook, function () {
 			});
+		}
+
+		$scope.runJob = function (job) {
+			job.run($scope.playbook);
 		}
 	}]);
 

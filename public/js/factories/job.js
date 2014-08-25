@@ -24,6 +24,10 @@ define(['app'], function (app) {
 			return $http.get('/playbook/'+playbook.data._id+'/job/'+this.id);
 		}
 
+		Job.prototype.run = function (playbook) {
+			return $http.post('/playbook/'+playbook.data._id+'/job/'+this.data._id+'/run');
+		}
+
 		return Job;
 	}])
 })

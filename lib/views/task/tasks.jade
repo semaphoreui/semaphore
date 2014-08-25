@@ -2,35 +2,4 @@ h2 Tasks
 
 div(ng-repeat="task in tasks.tasks")
 	h3 {{ task.data.job.name }} ~ {{ task.data.job.play_file }}
-		.btn-group.pull-right
-			button.btn.btn-default(ng-click="runJob(job)"): i.fa.fa-fw.fa-play
-			button.btn.btn-danger(ng-click="deleteJob(job)"): i.fa.fa-trash-o.fa-fw
-
-#addJob.modal.fade
-	.modal-dialog
-		.modal-content(ng-controller="AddJobCtrl")
-			.modal-header
-				button(data-dismiss="modal").close: span &times;
-				h4.modal-title Add Job
-			.modal-body
-				form.form-horizontal
-					.form-group
-						label.control-label.col-sm-4 Name
-						.col-sm-7
-							input.form-control(type="text" placeholder="Group Name" ng-model="job.data.name")
-
-					.form-group
-						label.control-label.col-sm-4 Play
-						.col-sm-7
-							input.form-control(type="text" placeholder="myplay.yml" ng-model="job.data.play_file")
-
-					.form-group
-						.col-sm-7.col-sm-offset-4
-							.checkbox
-								label
-									input(type="checkbox" ng-model="job.data.use_vault")
-									| Use Vault
-					
-					.form-group
-						.col-sm-7.col-sm-offset-4
-							button.btn.btn-default(ng-click="add()") Add Job
+		span  - State: {{ task.data.status }}

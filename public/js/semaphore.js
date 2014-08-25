@@ -5,7 +5,8 @@ require.config({
 		jquery: '../vendor/jquery/dist/jquery.min',
 		moment: '../vendor/moment/moment',
 		bootstrap: '../vendor/bootstrap/dist/js/bootstrap.min',
-		couchPotato: '../vendor/angular-couch-potato/dist/angular-couch-potato'
+		couchPotato: '../vendor/angular-couch-potato/dist/angular-couch-potato',
+		socketio: '/socket.io/socket.io.js'
 	},
 	shim: {
 		angular: {
@@ -14,7 +15,10 @@ require.config({
 		uiRouter: {
 			deps: ['angular']
 		},
-		bootstrap: ['jquery']
+		bootstrap: ['jquery'],
+		socketio: {
+			exports: 'io'
+		}
 	}
 });
 
