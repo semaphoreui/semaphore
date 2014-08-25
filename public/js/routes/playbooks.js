@@ -17,7 +17,7 @@ define([
 		.state('playbook', {
 			abstract: true,
 			url: '/playbook/:playbook_id',
-			templateUrl: '/view/abstract',
+			templateUrl: '/view/playbook/view',
 			controller: function ($scope, playbook) {
 				$scope.playbook = playbook;
 			},
@@ -42,9 +42,21 @@ define([
 		.state('playbook.view', {
 			url: '/',
 			controller: 'PlaybookCtrl',
-			templateUrl: '/view/playbook/view',
 			resolve: {
-				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook'])
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook',
+						'controllers/host/hosts'])
+			},
+			views: {
+				tasks: {
+					templateUrl: '/view/task/tasks'
+				},
+				jobs: {
+					templateUrl: '/view/job/jobs'
+				},
+				hosts: {
+					templateUrl: '/view/host/hosts',
+					controller: 'HostsCtrl'
+				}
 			}
 		})
 	})

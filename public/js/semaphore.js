@@ -28,6 +28,8 @@ require([
 ], function($, angular) {
 	var $html = angular.element(document.getElementsByTagName('html')[0]);
 	
+	require(['bootstrap'], function () {});
+	
 	angular.element().ready(function() {
 		angular.bootstrap($html, ['semaphore'])
 	});

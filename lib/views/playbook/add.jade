@@ -17,5 +17,11 @@ form.form-horizontal
 			input.form-control(type="text" placeholder="Vault Password" ng-model="playbook.data.vault_password")
 
 	.form-group
+		label.control-label.col-sm-4 Credentials
+		.col-sm-7
+			select.form-control(ng-options="credential._id as credential.name for credential in credentials" ng-model="playbook.data.credential")
+				option(value="") None Selected
+	
+	.form-group
 		.col-sm-7.col-sm-offset-4
 			button.btn.btn-default(ng-click="add()") Add

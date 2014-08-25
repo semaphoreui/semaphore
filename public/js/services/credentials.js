@@ -6,7 +6,7 @@ define([
 
 		self.getCredentials = function(cb) {
 			$http.get('/credentials').success(function(data) {
-				$rootScope.credentials = self.credentials = data;
+				self.credentials = data;
 				
 				cb();
 			});

@@ -1,0 +1,45 @@
+h2 Hosts
+	button.btn.btn-default.pull-right(ng-click="add()") Add Group
+
+div(ng-repeat="hostgroup in hostgroups.hostgroups")
+	h3 [{{ hostgroup.data.name }}]
+		.btn-group.pull-right
+			button.btn.btn-success(ng-click="showAddHost(hostgroup)") Add Host
+			button.btn.btn-danger(ng-click="deleteHostGroup(hostgroup)"): i.fa.fa-trash-o.fa-fw
+
+	form.form-horizontal(ng-if="hostgroup.showingAdd")
+		.form-group
+			label.control-label.col-sm-4 Name
+			.col-sm-7
+				input.form-control(type="text" placeholder="Host Name" ng-model="hostgroup.newHost.data.name")
+		.form-group
+			label.control-label.col-sm-4 Hostname
+			.col-sm-7
+				input.form-control(type="text" placeholder="Hostname" ng-model="hostgroup.newHost.data.hostname")
+		
+		.form-group
+			.col-sm-7.col-sm-offset-4
+				button.btn.btn-default(ng-click="addHost(hostgroup)") Add Host
+
+	div(ng-repeat="host in hostgroup.hosts")
+		h4 {{ host.data.name }} ({{ host.data.hostname }})
+			.btn-group.pull-right
+				button.btn.btn-danger.btn-xs(ng-click="deleteHost(hostgroup, host)"): i.fa.fa-trash-o.fa-fw
+		.clearfix
+
+#addHostGroup.modal.fade
+	.modal-dialog
+		.modal-content(ng-controller="AddHostGroupCtrl")
+			.modal-header
+				button(data-dismiss="modal").close: span &times;
+				h4.modal-title Add Host Group
+			.modal-body
+				form.form-horizontal
+					.form-group
+						label.control-label.col-sm-4 Name
+						.col-sm-7
+							input.form-control(type="text" placeholder="Group Name" ng-model="hostgroup.data.name")
+					
+					.form-group
+						.col-sm-7.col-sm-offset-4
+							button.btn.btn-default(ng-click="add()") Add HostGroup

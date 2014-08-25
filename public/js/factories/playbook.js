@@ -35,6 +35,18 @@ define(['app'], function (app) {
 			})
 		}
 
+		Playbook.prototype.getHostGroups = function (cb) {
+			$http.get('/playbook/'+this.data._id+'/hosts')
+			.success(function (data, status) {
+				
+				self.hosts = data;
+				cb();
+			})
+			.error(function (data, status) {
+				cb(data, status);
+			})
+		}
+
 		return Playbook;
 	}])
 })

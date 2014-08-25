@@ -1,6 +1,6 @@
 define(['app'], function (app) {
-	app.registerFactory('Playbook', ['$http', function ($http) {
-		var Playbook = function (id) {
+	app.registerFactory('Credential', ['$http', function ($http) {
+		var Credential = function (id) {
 			if (!id) {
 				return;
 			}
@@ -8,22 +8,22 @@ define(['app'], function (app) {
 			this.id = id;
 		}
 
-		Playbook.prototype.save = function () {
+		Credential.prototype.save = function () {
 			return $http.put('/credential/'+this.data._id, this.data);
 		}
 
-		Playbook.prototype.add = function () {
+		Credential.prototype.add = function () {
 			return $http.post('/credentials', this.data);
 		}
 
-		Playbook.prototype.delete = function () {
+		Credential.prototype.delete = function () {
 			return $http.delete('/credential/'+this.data._id);	
 		}
 
-		Playbook.prototype.get = function (cb) {
+		Credential.prototype.get = function () {
 			return $http.get('/credential/'+this.id);
 		}
 
-		return Playbook;
+		return Credential;
 	}])
 })

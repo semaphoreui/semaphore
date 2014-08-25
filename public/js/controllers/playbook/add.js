@@ -1,10 +1,15 @@
 define([
 	'app',
 	'factories/playbook',
-	'services/playbooks'
+	'services/playbooks',
+	'services/credentials'
 ], function(app) {
-	app.registerController('AddPlaybookCtrl', ['$scope', 'Playbook', 'playbooks', '$state', function($scope, Playbook, playbooks, $state) {
+	app.registerController('AddPlaybookCtrl', ['$scope', 'Playbook', 'playbooks', '$state', 'credentials', function($scope, Playbook, playbooks, $state, credentials) {
 		$scope.playbook = new Playbook();
+		
+		credentials.getCredentials(function () {
+			$scope.credentials = credentials.credentials;
+		});
 
 		$scope.add = function () {
 			$scope.playbook.add()

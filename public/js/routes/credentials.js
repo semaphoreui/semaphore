@@ -1,6 +1,6 @@
 define([
 	'app',
-	'factories/playbook'
+	'factories/credential'
 ], function(app) {
 	app.config(function($stateProvider, $couchPotatoProvider) {
 		$stateProvider

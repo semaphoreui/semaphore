@@ -1,4 +1,14 @@
 h1 {{ playbook.data.name }}
 	button.btn.btn-danger.pull-right(ng-click="delete()") Delete
 
-pre: code: {{ playbook }}
+hr
+
+ui-view(name="tasks")
+
+hr
+
+ui-view(name="jobs")
+
+hr
+
+ui-view(name="hosts")

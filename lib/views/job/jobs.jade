@@ -1,0 +1,7 @@
+h2 Jobs
+	button.btn.btn-default.pull-right Add Job
+
+table.table
+	tbody
+		tr(ng-repeat="job in jobs")
+			td: pre: code(ng-bind="job")
