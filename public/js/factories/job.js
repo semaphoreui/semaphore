@@ -8,20 +8,20 @@ define(['app'], function (app) {
 			this.id = id;
 		}
 
-		Job.prototype.save = function () {
-			return $http.put('/job/'+this.data._id, this.data);
+		Job.prototype.save = function (playbook) {
+			return $http.put('/playbook/'+playbook.data._id+'/job/'+this.data._id, this.data);
 		}
 
-		Job.prototype.add = function () {
-			return $http.post('/jobs', this.data);
+		Job.prototype.add = function (playbook) {
+			return $http.post('/playbook/'+playbook.data._id+'/jobs', this.data);
 		}
 
-		Job.prototype.delete = function () {
-			return $http.delete('/job/'+this.data._id);	
+		Job.prototype.delete = function (playbook) {
+			return $http.delete('/playbook/'+playbook.data._id+'/job/'+this.data._id);	
 		}
 
-		Job.prototype.get = function () {
-			return $http.get('/job/'+this.id);
+		Job.prototype.get = function (playbook) {
+			return $http.get('/playbook/'+playbook.data._id+'/job/'+this.id);
 		}
 
 		return Job;

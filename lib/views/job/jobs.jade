@@ -1,7 +1,36 @@
 h2 Jobs
-	button.btn.btn-default.pull-right Add Job
+	button.btn.btn-default.pull-right(ng-click="add()") Add Job
 
-table.table
-	tbody
-		tr(ng-repeat="job in jobs")
-			td: pre: code(ng-bind="job")
+div(ng-repeat="job in jobs.jobs")
+	h3 {{ job.data.name }} ~ {{ job.data.play_file }}
+		.btn-group.pull-right
+			button.btn.btn-danger(ng-click="deleteJob(job)"): i.fa.fa-trash-o.fa-fw
+
+#addJob.modal.fade
+	.modal-dialog
+		.modal-content(ng-controller="AddJobCtrl")
+			.modal-header
+				button(data-dismiss="modal").close: span &times;
+				h4.modal-title Add Job
+			.modal-body
+				form.form-horizontal
+					.form-group
+						label.control-label.col-sm-4 Name
+						.col-sm-7
+							input.form-control(type="text" placeholder="Group Name" ng-model="job.data.name")
+
+					.form-group
+						label.control-label.col-sm-4 Play
+						.col-sm-7
+							input.form-control(type="text" placeholder="myplay.yml" ng-model="job.data.play_file")
+
+					.form-group
+						.col-sm-7.col-sm-offset-4
+							.checkbox
+								label
+									input(type="checkbox" ng-model="job.data.use_vault")
+									| Use Vault
+					
+					.form-group
+						.col-sm-7.col-sm-offset-4
+							button.btn.btn-default(ng-click="add()") Add Job

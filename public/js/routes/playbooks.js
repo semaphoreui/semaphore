@@ -44,14 +44,16 @@ define([
 			controller: 'PlaybookCtrl',
 			resolve: {
 				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook',
-						'controllers/host/hosts'])
+						'controllers/host/hosts',
+						'controllers/job/jobs'])
 			},
 			views: {
 				tasks: {
 					templateUrl: '/view/task/tasks'
 				},
 				jobs: {
-					templateUrl: '/view/job/jobs'
+					templateUrl: '/view/job/jobs',
+					controller: 'JobsCtrl'
 				},
 				hosts: {
 					templateUrl: '/view/host/hosts',

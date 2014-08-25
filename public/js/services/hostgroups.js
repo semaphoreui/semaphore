@@ -1,6 +1,6 @@
 define([
 	'app',
-	'factories/HostGroup'
+	'factories/hostgroup'
 ], function(app) {
 	app.registerService('hostgroups', ['$http', 'HostGroup', function($http, HostGroup) {
 		var self = this;
