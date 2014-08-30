@@ -1,5 +1,36 @@
-h2 Tasks
+h2 Tasks 
+	small(ng-if="status.length > 0" ng-bind="status")
 
-div(ng-repeat="task in tasks.tasks")
-	h3 {{ task.data.job.name }} ~ {{ task.data.job.play_file }}
-		span  - State: {{ task.data.status }}
+table.table.table-hover
+	thead
+		tr
+			th Job Name
+			th Play File
+			th Status
+			th &nbsp;
+	tbody
+		tr(ng-repeat="task in tasks.tasks")
+			td {{ task.data.job.name }}
+			td {{ task.data.job.play_file }}
+			td
+				i.fa.fa-fw.fa-spin.fa-cog(ng-if="task.data.status == 'Running'")
+				i.fa.fa-fw.fa-check(ng-if="task.data.status == 'Completed'")
+				i.fa.fa-fw.fa-times(ng-if="task.data.status == 'Failed'")
+				|  {{ task.data.status }}
+			td
+				.btn-group.pull-right
+					button.btn.btn-default.btn-xs(ng-click="openOutput(task)" ng-if="task.data.status != 'Queued'")
+						i.fa.fa-fw.fa-file-code-o
+						|  See Output
+					button.btn.btn-danger.btn-xs(ng-click="removeTask(task)" ng-if="task.data.status != 'Running'")
+						i.fa.fa-fw.fa-times
+						|  Remove Task
+
+#taskOutput.modal.fade
+	.modal-dialog.modal-lg
+		.modal-content
+			.modal-header
+				button(data-dismiss="modal").close: span &times;
+				h4.modal-title Task Output
+			.modal-body
+				pre: code: {{ openTask.data.output }}

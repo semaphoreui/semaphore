@@ -1,11 +1,20 @@
 h2 Jobs
 	button.btn.btn-default.pull-right(ng-click="add()") Add Job
 
-div(ng-repeat="job in jobs.jobs")
-	h3 {{ job.data.name }} ~ {{ job.data.play_file }}
-		.btn-group.pull-right
-			button.btn.btn-default(ng-click="runJob(job)"): i.fa.fa-fw.fa-play
-			button.btn.btn-danger(ng-click="deleteJob(job)"): i.fa.fa-trash-o.fa-fw
+table.table.table-hover
+	thead
+		tr
+			th Job Name
+			th Play File
+			th &nbsp;
+	tbody
+		tr(ng-repeat="job in jobs.jobs")
+			td {{ job.data.name }}
+			td {{ job.data.play_file }}
+			td
+				.btn-group.pull-right
+					button.btn.btn-default(ng-click="runJob(job)"): i.fa.fa-fw.fa-play
+					button.btn.btn-danger(ng-click="deleteJob(job)"): i.fa.fa-trash-o.fa-fw
 
 #addJob.modal.fade
 	.modal-dialog
