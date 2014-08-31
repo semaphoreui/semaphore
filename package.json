@@ -50,6 +50,7 @@
     "hiredis": "latest",
     "jade": "latest",
     "load-grunt-tasks": "latest",
+    "logtrail": "0.0.1-1",
     "moment": "latest",
     "mongodb": "latest",
     "mongoose": "latest",
