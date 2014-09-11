@@ -4,6 +4,16 @@ define([
 ], function(app) {
 	app.config(function($stateProvider, $couchPotatoProvider) {
 		$stateProvider
+
+		.state('playbooks', {
+			url: '/playbooks',
+			pageTitle: 'Playbooks',
+			templateUrl: '/view/playbook/list',
+			controller: 'PlaybooksCtrl',
+			resolve: {
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/list'])
+			}
+		})
 		.state('addPlaybook', {
 			url: '/add',
 			pageTitle: 'Add Playbook',

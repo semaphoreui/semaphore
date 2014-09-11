@@ -1,0 +1,8 @@
+h1 Identities
+	button.btn.btn-default.pull-right(ui-sref="identities.add")
+		i.fa.fa-fw.fa-plus
+		|  Add
+
+table.table
+	tr(ng-repeat="identity in identities")
+		td: a(ui-sref="identity.view({ identity_id: identity._id })") {{ identity.name }}

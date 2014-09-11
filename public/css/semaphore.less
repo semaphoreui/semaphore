@@ -11,3 +11,15 @@
 
 @import '../vendor/bootstrap/less/bootstrap.less';
 @import '../vendor/fontawesome/less/font-awesome.less';
+
+.navbar {
+	border-radius:0;
+	border-left:0;
+	border-right: 0;
+}
+
+ui-view {
+	& > h1, & > h2, & > h3, & > h4, & > h5, & > h6 {
+		margin-top: 0;
+	}
+}

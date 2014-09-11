@@ -1,27 +1,34 @@
 h1 Add Playbook
 
-form.form-horizontal
-	.form-group
-		label.control-label.col-sm-4 Name
-		.col-sm-7
-			input.form-control(type="text" placeholder="Playbook Name" ng-model="playbook.data.name")
+.row
+	.col-md-6
+		.panel.panel-default
+			.panel-body
 
-	.form-group
-		label.control-label.col-sm-4 Location
-		.col-sm-7
-			input.form-control(type="text" placeholder="Git Location" ng-model="playbook.data.location")
+				form.form-horizontal(name="playbookForm")
+					.form-group
+						label.control-label.col-sm-4 Name
+						.col-sm-7
+							input.form-control(type="text" placeholder="Playbook Name" ng-model="playbook.data.name" required autofocus)
 
-	.form-group
-		label.control-label.col-sm-4 Vault Password
-		.col-sm-7
-			input.form-control(type="text" placeholder="Vault Password" ng-model="playbook.data.vault_password")
+					.form-group
+						label.control-label.col-sm-4 Playbook Location
+						.col-sm-7
+							input.form-control(type="text" placeholder="Playbook Git URL" ng-model="playbook.data.location" required)
 
-	.form-group
-		label.control-label.col-sm-4 Credentials
-		.col-sm-7
-			select.form-control(ng-options="credential._id as credential.name for credential in credentials" ng-model="playbook.data.credential")
-				option(value="") None Selected
-	
-	.form-group
-		.col-sm-7.col-sm-offset-4
-			button.btn.btn-default(ng-click="add()") Add
+					.form-group
+						label.control-label.col-sm-4 Vault Password
+						.col-sm-7
+							input.form-control(type="text" placeholder="Vault Password" ng-model="playbook.data.vault_password")
+
+					.form-group
+						label.control-label.col-sm-4 Identity
+						.col-sm-7
+							select.form-control(ng-options="identity._id as identity.name for identity in identitys" ng-model="playbook.data.identity")
+								option(value="") None Selected
+					
+					.form-group
+						.col-sm-7.col-sm-offset-4
+							button.btn.btn-success(ng-click="add()" ng-disabled="playbookForm.$invalid") Add
+	.col-md-6
+		p.lead It is recommended you use create an identity before creating palybooks.

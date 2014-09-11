@@ -3,7 +3,7 @@ define([
 	'socketio',
 	'services/user',
 	'routes/playbooks',
-	'routes/credentials',
+	'routes/identities',
 	'services/playbooks'
 ], function(app, io) {
 	app.config(function($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {

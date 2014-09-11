@@ -1,0 +1,8 @@
+h1 Playbooks
+	button.btn.btn-default.pull-right(ui-sref="addPlaybook")
+		i.fa.fa-fw.fa-plus
+		|  Add
+
+table.table
+	tr(ng-repeat="playbook in playbooks")
+		td: a(ui-sref="playbook.view({ playbook_id: playbook._id })") {{ playbook.name }}

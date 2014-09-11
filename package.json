@@ -5,7 +5,8 @@
   "main": "bin/semaphore.js",
   "scripts": {
     "test": "mocha -R spec",
-    "start": "node bin/semaphore.js"
+    "start": "node bin/semaphore.js",
+    "prepublish": "./node_modules/.bin/bower --allow-root install && ./node_modules/.bin/grunt build"
   },
   "repository": {
     "type": "git",
@@ -68,7 +69,7 @@
     "socket.io": "latest",
     "socket.io-client": "latest",
     "speakeasy": "latest",
-    "validator": "latest"
+    "validator": "^3.18.0"
   },
   "devDependencies": {
     "should": "latest",
