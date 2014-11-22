@@ -24,7 +24,7 @@
         with_items:
             - grunt-cli
             - bower
-      - git: repo=https://github.com/tjheeta/semaphore dest={{ homedir }}
+      - git: repo=https://github.com/CastawayLabs/semaphore dest={{ homedir }}
       - file: src=/usr/bin/nodejs dest=/usr/bin/node state=link
       - shell: bower install --allow-root && npm install > {{ homedir }}/somelog.txt
         args:
