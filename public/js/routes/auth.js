@@ -2,7 +2,11 @@ define([
 	'app'
 ], function(app) {
 	app.config(function($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
-		$locationProvider.html5Mode(true);
+		$locationProvider.html5Mode({
+			enabled: true,
+			requireBase: false
+		})
+
 
 		$urlRouterProvider.otherwise('/');
 
