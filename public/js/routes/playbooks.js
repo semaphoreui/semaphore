@@ -27,11 +27,13 @@ define([
 		.state('playbook', {
 			abstract: true,
 			url: '/playbook/:playbook_id',
+			controller: 'PlaybookCtrl',
 			templateUrl: '/view/playbook/view',
-			controller: ['$scope', 'playbook', function ($scope, playbook) {
-				$scope.playbook = playbook;
-			}],
 			resolve: {
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook',
+						'controllers/host/hosts',
+						'controllers/job/jobs',
+						'controllers/task/tasks']),
 				playbook: function (Playbook, $stateParams, $q, $state) {
 					var deferred = $q.defer();
 
@@ -50,14 +52,7 @@ define([
 		})
 
 		.state('playbook.view', {
-			url: '/',
-			controller: 'PlaybookCtrl',
-			resolve: {
-				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook',
-						'controllers/host/hosts',
-						'controllers/job/jobs',
-						'controllers/task/tasks'])
-			},
+			url: '',
 			views: {
 				tasks: {
 					templateUrl: '/view/task/tasks',

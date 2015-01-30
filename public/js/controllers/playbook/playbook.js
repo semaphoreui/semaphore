@@ -2,8 +2,8 @@ define([
 	'app',
 	'services/playbooks'
 ], function(app) {
-	app.registerController('PlaybookCtrl', ['$scope', '$state', 'playbooks', function($scope, $state, playbooks) {
-		console.log($scope.playbook);
+	app.registerController('PlaybookCtrl', ['$scope', '$state', 'playbooks', 'playbook', function($scope, $state, playbooks, playbook) {
+		$scope.playbook = playbook;
 
 		$scope.delete = function () {
 			$scope.playbook.delete();
