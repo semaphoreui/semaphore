@@ -16,7 +16,7 @@ div(ng-repeat="hostgroup in hostgroups.hostgroups")
 			label.control-label.col-sm-4 Hostname
 			.col-sm-7
 				input.form-control(type="text" placeholder="Hostname" ng-model="hostgroup.newHost.data.hostname")
-		
+
 		.form-group
 			.col-sm-7.col-sm-offset-4
 				button.btn.btn-default(ng-click="addHost(hostgroup)") Add Host
@@ -39,7 +39,9 @@ div(ng-repeat="hostgroup in hostgroups.hostgroups")
 						label.control-label.col-sm-4 Name
 						.col-sm-7
 							input.form-control(type="text" placeholder="Group Name" ng-model="hostgroup.data.name")
-					
+
 					.form-group
 						.col-sm-7.col-sm-offset-4
 							button.btn.btn-default(ng-click="add()") Add HostGroup
+
+blockquote Hosts are like Ansible inventories. They define host groups and hosts which are used to connect to remote servers.

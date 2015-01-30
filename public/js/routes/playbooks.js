@@ -28,9 +28,9 @@ define([
 			abstract: true,
 			url: '/playbook/:playbook_id',
 			templateUrl: '/view/playbook/view',
-			controller: function ($scope, playbook) {
+			controller: ['$scope', 'playbook', function ($scope, playbook) {
 				$scope.playbook = playbook;
-			},
+			}],
 			resolve: {
 				playbook: function (Playbook, $stateParams, $q, $state) {
 					var deferred = $q.defer();
@@ -40,7 +40,7 @@ define([
 							$state.transitionTo('homepage');
 							return deferred.reject();
 						}
-						
+
 						deferred.resolve(playbook);
 					});
 
@@ -70,6 +70,21 @@ define([
 				hosts: {
 					templateUrl: '/view/host/hosts',
 					controller: 'HostsCtrl'
+				}
+			}
+		})
+
+		.state('playbook.edit', {
+			url: '/edit',
+			templateUrl: "/view/playbook/add",
+			controller: 'EditPlaybookCtrl',
+			resolve: {
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/edit'])
+			},
+			views: {
+				tasks: {
+					templateUrl: '/view/playbook/add',
+					controller: 'EditPlaybookCtrl'
 				}
 			}
 		})

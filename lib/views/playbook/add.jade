@@ -4,7 +4,6 @@ h1 Add Playbook
 	.col-md-6
 		.panel.panel-default
 			.panel-body
-
 				form.form-horizontal(name="playbookForm")
 					.form-group
 						label.control-label.col-sm-4 Name
@@ -24,11 +23,13 @@ h1 Add Playbook
 					.form-group
 						label.control-label.col-sm-4 Identity
 						.col-sm-7
-							select.form-control(ng-options="identity._id as identity.name for identity in identitys" ng-model="playbook.data.identity")
+							select.form-control(ng-options="identity._id as identity.name for identity in identities" ng-model="playbook.data.identity")
 								option(value="") None Selected
-					
+
 					.form-group
 						.col-sm-7.col-sm-offset-4
-							button.btn.btn-success(ng-click="add()" ng-disabled="playbookForm.$invalid") Add
+							button.btn.btn-success(ng-click="add()" ng-disabled="playbookForm.$invalid")
+								span(ng-if="!playbook.data._id") Add
+								span(ng-if="playbook.data._id.length > 0") Edit
 	.col-md-6
 		p.lead It is recommended you use create an identity before creating palybooks.

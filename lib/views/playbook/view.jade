@@ -1,5 +1,7 @@
 h1 {{ playbook.data.name }}
-	button.btn.btn-danger.pull-right(ng-click="delete()") Delete
+	.btn-group.pull-right
+		button.btn.btn-success(ui-sref="playbook.edit({ playbook_id: playbook.data._id })") Edit
+		button.btn.btn-danger(ng-click="delete()") Delete
 
 hr
 

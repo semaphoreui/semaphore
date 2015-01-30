@@ -6,3 +6,7 @@ h1 Identities
 table.table
 	tr(ng-repeat="identity in identities")
 		td: a(ui-sref="identity.view({ identity_id: identity._id })") {{ identity.name }}
+
+p(ng-show="identities.length == 0") No Identities
+
+blockquote Identities give Semaphore access to git repositories and remote servers.

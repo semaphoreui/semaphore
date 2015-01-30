@@ -4,8 +4,8 @@ define([
 	'services/playbooks',
 	'services/identities'
 ], function(app) {
-	app.registerController('AddPlaybookCtrl', ['$scope', 'Playbook', 'playbooks', '$state', 'identities', function($scope, Playbook, playbooks, $state, identities) {
-		$scope.playbook = new Playbook();
+	app.registerController('EditPlaybookCtrl', ['$scope', 'playbook', 'playbooks', '$state', 'identities', function($scope, playbook, playbooks, $state, identities) {
+		$scope.playbook = playbook;
 
 		identities.getIdentities(function () {
 			$scope.identities = identities.identities;
@@ -15,7 +15,7 @@ define([
 		});
 
 		$scope.add = function () {
-			$scope.playbook.add()
+			$scope.playbook.save()
 			.success(function (data) {
 				playbooks.getPlaybooks(function () {
 					$state.transitionTo('playbook.view', {
@@ -24,7 +24,6 @@ define([
 				});
 			})
 			.error(function (data) {
-
 			})
 		}
 	}]);

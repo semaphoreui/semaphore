@@ -1,4 +1,4 @@
-h2 Tasks 
+h2 Tasks
 	small(ng-if="status.length > 0" ng-bind="status")
 
 table.table.table-hover
@@ -33,4 +33,4 @@ table.table.table-hover
 				button(data-dismiss="modal").close: span &times;
 				h4.modal-title Task Output
 			.modal-body
-				pre: code: {{ openTask.data.output }}
+				pre: code {{ openTask.data.output }}
