@@ -4,6 +4,7 @@ define([
 	'services/user',
 	'routes/playbooks',
 	'routes/identities',
+	'routes/users',
 	'services/playbooks'
 ], function(app, io) {
 	app.config(function($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
@@ -11,16 +12,16 @@ define([
 			enabled: true,
 			requireBase: false
 		})
-		
+
 		$urlRouterProvider.otherwise('');
-		
+
 		$stateProvider
 		.state('homepage', {
 			url: '/',
 			pageTitle: 'Homepage',
 			templateUrl: "/view/homepage"
 		})
-		
+
 		.state('logout', {
 			url: '/logout',
 			pageTitle: 'Log Out',

@@ -1,0 +1,14 @@
+h1 {{ user.data.name }}
+  button.btn.pull-right.btn-danger(ng-click="delete()")
+    i.fa.fa-trash.fa-fw
+    |  Delete
+
+p Created on {{ user.data.created }}
+
+hr
+
+h3 Username
+  code {{ user.data.username }}
+
+h3 Email
+  code {{ user.data.email }}
