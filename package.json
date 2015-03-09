@@ -6,7 +6,7 @@
   "scripts": {
     "test": "mocha -R spec",
     "start": "node bin/semaphore.js",
-    "prepublish": "./node_modules/.bin/bower --allow-root install && ./node_modules/.bin/grunt build"
+    "prepublish": "./node_modules/.bin/bower --allow-root install"
   },
   "repository": {
     "type": "git",
@@ -15,7 +15,17 @@
   "keywords": [
     "ansible"
   ],
-  "author": "Matej Kramny <matej@matej.me>",
+  "author": "Matej Kramny <github@matej.me>",
+  "contributors": [{
+    "name": "Matej Kramny",
+    "email": "github@gmail.com"
+  }, {
+    "name": "tjheeta",
+    "email": ""
+  }, {
+    "name": "Alan Campbell",
+    "email": "alan.campbell@castawaylabs.com"
+  }],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/CastawayLabs/semaphore/issues"
@@ -36,23 +46,16 @@
     "jade": "latest",
     "less-middleware": "^2.0.1",
     "logtrail": "0.0.1-1",
-    "moment": "latest",
     "mongodb": "latest",
     "mongoose": "latest",
     "morgan": "^1.2.2",
-    "mysql": "latest",
-    "newrelic": "latest",
-    "nodemailer": "latest",
-    "nodemailer-smtp-transport": "latest",
     "passport": "latest",
     "passport.socketio": "latest",
-    "ratelimiter": "^1.0.1",
     "redis": "latest",
     "request": "^2.40.0",
     "serve-static": "latest",
     "socket.io": "latest",
     "socket.io-client": "latest",
-    "speakeasy": "latest",
     "validator": "^3.18.0"
   },
   "devDependencies": {

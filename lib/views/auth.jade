@@ -25,8 +25,6 @@ html
 
 		block js
 			script(src="/vendor/requirejs/require.js" data-main="/js/semaphore_auth.js")
-			if use_analytics
-				!= newrelic.getBrowserTimingHeader()
 
 		//- page-specific js
 		block addonjs
