@@ -32,7 +32,7 @@ Install requirements:
 
 1. `cp lib/credentials.example.json lib/credentials.json` (<- make custom to your environment)
 2. `bower install`
-3. `grunt serve`
+3. `node bin/semaphore`
 
 Initial Login
 -------------

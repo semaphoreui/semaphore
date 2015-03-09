@@ -7,7 +7,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.synced_folder ".", "/opt/semaphore",
     type: "rsync",
-    rsync__exclude: [".git", ".vagrant"],
+    rsync__exclude: [".git", ".vagrant", "node_modules"],
     rsync__options: ["--verbose", "--archive", "--copy-links"]
 
   config.vm.provider "virtualbox" do |vb|
