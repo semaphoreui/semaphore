@@ -4,9 +4,9 @@ define([
 	'services/jobs',
 	'factories/job'
 ], function(app, $) {
-	app.registerController('JobsCtrl', ['$scope', 'jobs', function($scope, jobs) {
+	app.registerController('PlaybookJobsCtrl', ['$scope', 'jobs', function($scope, jobs) {
 		$scope.jobs = jobs;
-		
+
 		jobs.get($scope.playbook, function () {
 		});
 

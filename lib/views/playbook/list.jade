@@ -5,6 +5,6 @@ h1 Playbooks
 
 table.table
 	tr(ng-repeat="playbook in playbooks")
-		td: a(ui-sref="playbook.view({ playbook_id: playbook._id })") {{ playbook.name }}
+		td: a(ui-sref="playbook.tasks({ playbook_id: playbook._id })") {{ playbook.name }}
 
 blockquote Playbooks are ansible playbooks. Each playbook defines a git repository with the playbook code. Semaphore downloads the playbook and runs the task file.

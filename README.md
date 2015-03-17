@@ -3,36 +3,63 @@ semaphore
 
 Open Source Alternative to Ansible Tower
 
-![](public/img/screenshot.png)
+![screenshot](public/img/screenshot.png)
 
 Features
 --------
 
 The basics of Ansible Tower, but in addition:
 
-- Fast, Simple interface that doesn’t get in the way
-- Task output is streamed live via websocket
-- Free. MIT Licensed. Do what you want.
+- [x] Fast, Simple interface (not having to submit a million forms to get something simple done)
+- [x] Task output is streamed live via websocket
+- [x] Create inventories per playbook
+- [x] Add rsa keys (to authenticate git repositories)
+- [x] Run playbooks against specified hosts
+- [ ] Multiple Users support
 
-How to run:
------------
+Docker quickstart
+-----------------
 
-1. Install Vagrant
-2. Run `vagrant up`
-3. Open [localhost:3000](http://localhost:3000)
+1. Get Docker
+2. Run redis
+
+```
+docker run -d \
+  --name=redisio \
+  -v /var/lib/redisio:/var/lib/redis \
+  -p 127.0.0.1:6379:6379 \
+  castawaylabs/redis-docker
+```
+
+3. Run mongodb
+
+```
+docker run -d \
+  --name=mongodb \
+  -v /var/lib/mongodb:/var/lib/mongodb \
+  -p 127.0.0.1:6379:6379 \
+  castawaylabs/mongo-docker
+```
+
+4. Run semaphore
+
+```
+docker run -d \
+  --name=semaphroe \
+  --restart=always \
+  --link redisio:redis \
+  --link mongodb:mongo \
+  -p 80:80 \
+  castawaylabs/semaphore
+```
 
 Development steps:
 
 Install requirements:
-- node.js >= 0.11.x
-- an isolated environment (e.g. Docker / NodeGear)
-- ansible (the tool)
+- node.js / io.js
+- an isolated environment (e.g. Docker / Vagrant)
+- ansible
 - mongodb & redis
-- Sudo access (this might change). To run jobs, this tool writes private keys to /root/.ssh and copies playbook directories to /root/.
-
-1. Copy `lib/credentials.default.json` to `lib/credentials.json` and customise, or export relevant environment variables
-2. `bower install`
-3. `node bin/semaphore`
 
 Initial Login
 -------------
@@ -58,9 +85,22 @@ Use these variables to override the config.
 | SMTP_PASS     | Mandrill smtp password |                                 |
 | MONGODB_URL   | Mongodb URL            | `mongodb://127.0.0.1/semaphore` |
 
+Vision and goals
+----------------
+
+- Be able to specify environment information per playbook / per task
+- Schedule jobs
+- Email alerts
+>>>>>>> 1199a52... Update site layout
+
 Note to Ansible guys
 --------------------
 
 > Thanks very much for making Ansible, and Ansible Tower. It is a great tool!. Your UI is pretty horrible though, and so we'd be happy if you could learn and use parts of this tool in your Tower.
 
 It would be amazing if this could be your `Community Edition` of Ansible Tower.
+
+License
+-------
+
+MIT
