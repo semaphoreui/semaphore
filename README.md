@@ -47,9 +47,8 @@ Environment Variables
 
 Use these variables to override the config.
 
-+---------------+------------------------+---------------------------------+
 | Variable Name | Description            | Default Value                   |
-+---------------+------------------------+---------------------------------+
+| ------------- | ---------------------- | ------------------------------- |
 | PORT          | Web Port               | `80`                            |
 | REDIS_PORT    | Redis Port             | `6379`                          |
 | REDIS_HOST    | Redis Hostname         | `127.0.0.1`                     |
@@ -58,7 +57,6 @@ Use these variables to override the config.
 | SMTP_USER     | Mandrill smtp username |                                 |
 | SMTP_PASS     | Mandrill smtp password |                                 |
 | MONGODB_URL   | Mongodb URL            | `mongodb://127.0.0.1/semaphore` |
-+---------------+------------------------+---------------------------------+
 
 Note to Ansible guys
 --------------------
