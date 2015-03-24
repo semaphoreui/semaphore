@@ -54,12 +54,6 @@ define([
 			controller: 'EditPlaybookCtrl',
 			resolve: {
 				dummy: $couchPotatoProvider.resolve(['controllers/playbook/edit'])
-			},
-			views: {
-				tasks: {
-					templateUrl: '/view/playbook/add',
-					controller: 'EditPlaybookCtrl'
-				}
 			}
 		})
 

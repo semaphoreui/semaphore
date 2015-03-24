@@ -10,7 +10,6 @@ mixin menuItem(state, name)
 			+menuItem("playbook.hosts", "Hosts")
 		br
 		ul.nav
-			li: a(ui-sref="playbook.edit({ playbook_id: playbook.data._id })") Edit
-			li: a(ng-click="delete()") Delete
+			li: a(ui-sref="playbook.edit") Edit
 	.col-sm-9.col-lg-10
 		ui-view

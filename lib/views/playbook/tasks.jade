@@ -1,7 +1,7 @@
-h1 Tasks
+h1(ng-if="tasks.tasks.length") Tasks
 	small(ng-if="status.length > 0" ng-bind="status")
 
-table.table.table-hover
+table.table.table-hover(ng-if="tasks.tasks.length")
 	thead
 		tr
 			th Job Name
@@ -34,3 +34,7 @@ table.table.table-hover
 				h4.modal-title Task Output
 			.modal-body
 				pre: code {{ openTask.data.output }}
+
+h4.text-center.text-muted(ng-if="!tasks.tasks.length" style="margin-top: 15px;") It seems no&nbsp;
+	a(ui-sref="playbook.jobs") jobs
+	| &nbsp;have been run yet.
