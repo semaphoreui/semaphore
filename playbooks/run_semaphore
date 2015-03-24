@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd /opt/semaphore/
-exec grunt serve
+node bin/semaphore.js
