@@ -35,7 +35,7 @@
       - shell: chown -R {{ username }} {{ homedir }}
 
       # copy over the example credentials
-      - shell: cp -p {{ homedir }}/lib/credentials.example.json {{ homedir }}/lib/credentials.json
+      - shell: cp -p {{ homedir }}/lib/credentials.default.json {{ homedir }}/lib/credentials.json
 
       # Setup runit and logging to /var/log/runit_semaphore
       - file: path={{ homedir }}/runit_semaphore/log state=directory

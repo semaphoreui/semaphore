@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd /opt/semaphore/
-exec grunt serve
+PORT=3000 node bin/semaphore.js
