@@ -1,12 +1,10 @@
-semaphore
-=========
+# semaphore
 
 Open Source Alternative to Ansible Tower
 
 ![screenshot](public/img/screenshot.png)
 
-Features
---------
+## Features
 
 The basics of Ansible Tower, but in addition:
 
@@ -17,60 +15,67 @@ The basics of Ansible Tower, but in addition:
 - [x] Run playbooks against specified hosts
 - [ ] Multiple Users support
 
-Docker quickstart
------------------
+## Docker quickstart
 
-1. Get Docker
-2. Run redis
+### Run redis
 
 ```
 docker run -d \
   --name=redisio \
+  --restart=always \
   -v /var/lib/redisio:/var/lib/redis \
   -p 127.0.0.1:6379:6379 \
   castawaylabs/redis-docker
 ```
 
-3. Run mongodb
+### Run mongodb
 
 ```
 docker run -d \
   --name=mongodb \
+  --restart=always \
   -v /var/lib/mongodb:/var/lib/mongodb \
-  -p 127.0.0.1:6379:6379 \
-  castawaylabs/mongo-docker
+  -p 127.0.0.1:27017:27017 \
+  castawaylabs/mongodb-docker
 ```
 
-4. Run semaphore
+### Run semaphore
 
 ```
 docker run -d \
-  --name=semaphroe \
+  --name=semaphore \
   --restart=always \
   --link redisio:redis \
   --link mongodb:mongo \
+  -e MONGODB_URL="mongodb://mongo/semaphore" \
+  -e REDIS_HOST="redis" \
   -p 80:80 \
   castawaylabs/semaphore
 ```
 
-Development steps:
+## Development
 
-Install requirements:
-- node.js / io.js
-- an isolated environment (e.g. Docker / Vagrant)
-- ansible
-- mongodb & redis
+1. Install VirtualBox & Vagrant
+2. Run `vagrant plugin install gatling-rsync-auto`
+3. Run `vagrant up` to start the vagrant box
+4. Run `vagrant gatling-rsync-auto` to synchronise changes from your local machine to vagrant
 
-Initial Login
--------------
+### Running semaphore inside vagrant
+
+1. `vagrant ssh`, `cd /opt/semaphore`
+2. `npm install`
+3. `bower install`
+4. `npm install -g nodemon`
+5. `nodemon bin/semaphore`
+
+## Initial Login
 
 ```
 Email:			'admin@semaphore.local'
 Password:		'CastawayLabs'
 ```
 
-Environment Variables
----------------------
+## Environment Variables
 
 Use these variables to override the config.
 
@@ -85,22 +90,23 @@ Use these variables to override the config.
 | SMTP_PASS     | Mandrill smtp password |                                 |
 | MONGODB_URL   | Mongodb URL            | `mongodb://127.0.0.1/semaphore` |
 
-Vision and goals
-----------------
+## Vision and goals for v1
 
 - Be able to specify environment information per playbook / per task
 - Schedule jobs
 - Email alerts
+<<<<<<< HEAD
 >>>>>>> 1199a52... Update site layout
+=======
+- Multiple user support
+>>>>>>> 7282f8a... Improve readme & Dockerfile
 
-Note to Ansible guys
---------------------
+## Note to Ansible guys
 
 > Thanks very much for making Ansible, and Ansible Tower. It is a great tool!. Your UI is pretty horrible though, and so we'd be happy if you could learn and use parts of this tool in your Tower.
 
 It would be amazing if this could be your `Community Edition` of Ansible Tower.
 
-License
--------
+## License
 
 MIT
