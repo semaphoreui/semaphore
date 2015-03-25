@@ -95,11 +95,7 @@ Use these variables to override the config.
 - Be able to specify environment information per playbook / per task
 - Schedule jobs
 - Email alerts
-<<<<<<< HEAD
->>>>>>> 1199a52... Update site layout
-=======
 - Multiple user support
->>>>>>> 7282f8a... Improve readme & Dockerfile
 
 ## Note to Ansible guys
 
