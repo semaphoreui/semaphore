@@ -30,10 +30,7 @@ define([
 			controller: 'PlaybookCtrl',
 			templateUrl: '/view/playbook/view',
 			resolve: {
-				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook',
-						'controllers/host/hosts',
-						'controllers/job/jobs',
-						'controllers/task/tasks']),
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/playbook']),
 				playbook: function (Playbook, $stateParams, $q, $state) {
 					var deferred = $q.defer();
 
@@ -51,36 +48,37 @@ define([
 			}
 		})
 
-		.state('playbook.view', {
-			url: '',
-			views: {
-				tasks: {
-					templateUrl: '/view/task/tasks',
-					controller: 'TasksCtrl'
-				},
-				jobs: {
-					templateUrl: '/view/job/jobs',
-					controller: 'JobsCtrl'
-				},
-				hosts: {
-					templateUrl: '/view/host/hosts',
-					controller: 'HostsCtrl'
-				}
-			}
-		})
-
 		.state('playbook.edit', {
 			url: '/edit',
 			templateUrl: "/view/playbook/add",
 			controller: 'EditPlaybookCtrl',
 			resolve: {
 				dummy: $couchPotatoProvider.resolve(['controllers/playbook/edit'])
-			},
-			views: {
-				tasks: {
-					templateUrl: '/view/playbook/add',
-					controller: 'EditPlaybookCtrl'
-				}
+			}
+		})
+
+		.state('playbook.tasks', {
+			url: '/tasks',
+			templateUrl: "/view/playbook/tasks",
+			controller: 'PlaybookTasksCtrl',
+			resolve: {
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/tasks'])
+			}
+		})
+		.state('playbook.jobs', {
+			url: '/jobs',
+			templateUrl: "/view/playbook/jobs",
+			controller: 'PlaybookJobsCtrl',
+			resolve: {
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/jobs'])
+			}
+		})
+		.state('playbook.hosts', {
+			url: '/hosts',
+			templateUrl: "/view/playbook/hosts",
+			controller: 'PlaybookHostsCtrl',
+			resolve: {
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/hosts'])
 			}
 		})
 	})

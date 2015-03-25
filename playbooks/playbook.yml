@@ -22,7 +22,6 @@
             - runit
       - npm: name={{ item }} global=yes
         with_items:
-            - grunt-cli
             - bower
 
       # source is copied using ansible.

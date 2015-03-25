@@ -7,9 +7,9 @@ define([
 ], function(app, $, io) {
 	var socket = io();
 
-	app.registerController('TasksCtrl', ['$scope', 'tasks', 'Task', function($scope, tasks, Task) {
+	app.registerController('PlaybookTasksCtrl', ['$scope', 'tasks', 'Task', function($scope, tasks, Task) {
 		$scope.tasks = tasks;
-		
+
 		tasks.get($scope.playbook, function () {
 		});
 
@@ -40,7 +40,7 @@ define([
 			if (!task.data.output) {
 				task.data.output = "";
 			}
-			
+
 			task.data.output += data.output;
 
 			if (!$scope.$$phase) {

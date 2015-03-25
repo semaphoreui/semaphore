@@ -1,7 +1,9 @@
-h1 Add Playbook
+h1
+	span(ng-if="!playbook.data._id") Add Playbook
+	span(ng-if="playbook.data._id.length > 0") Edit Playbook
 
 .row
-	.col-md-6
+	div(ng-class="{ 'col-md-6': !playbook.data._id, 'col-md-12': playbook.data._id.length > 0 }")
 		.panel.panel-default
 			.panel-body
 				form.form-horizontal(name="playbookForm")
@@ -31,5 +33,6 @@ h1 Add Playbook
 							button.btn.btn-success(ng-click="add()" ng-disabled="playbookForm.$invalid")
 								span(ng-if="!playbook.data._id") Add
 								span(ng-if="playbook.data._id.length > 0") Edit
-	.col-md-6
+							a.btn.btn-danger(ng-if="playbook.data._id.length > 0" ng-click="delete()" style="margin-left: 10px;") Delete
+	.col-md-6(ng-if="!playbook.data._id")
 		p.lead It is recommended you create an identity before creating playbooks.

@@ -5,10 +5,10 @@ define([
 	'factories/hostgroup',
 	'factories/host'
 ], function(app, $) {
-	app.registerController('HostsCtrl', ['$scope', '$state', 'hostgroups', 'Host', function($scope, $state, hostgroups, Host) {
-		
+	app.registerController('PlaybookHostsCtrl', ['$scope', '$state', 'hostgroups', 'Host', function($scope, $state, hostgroups, Host) {
+
 		$scope.hostgroups = hostgroups;
-		
+
 		hostgroups.get($scope.playbook, function () {
 		});
 

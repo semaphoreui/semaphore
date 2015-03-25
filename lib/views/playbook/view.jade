@@ -1,16 +1,15 @@
-h1 {{ playbook.data.name }}
-	.btn-group.pull-right
-		button.btn.btn-success(ui-sref="playbook.edit({ playbook_id: playbook.data._id })") Edit
-		button.btn.btn-danger(ng-click="delete()") Delete
+mixin menuItem(state, name)
+	li(ng-class="{ active: $state.includes('#{state}') }"): a(ui-sref=state+"({ playbook_id: playbook.data._id })")= name
 
-hr
-
-ui-view(name="tasks")
-
-hr
-
-ui-view(name="jobs")
-
-hr
-
-ui-view(name="hosts")
+.row
+	.col-sm-3.col-lg-2
+		ul.nav
+			h2.no-top-margin {{ playbook.data.name }}
+			+menuItem("playbook.tasks", "Tasks")
+			+menuItem("playbook.jobs", "Jobs")
+			+menuItem("playbook.hosts", "Hosts")
+		br
+		ul.nav
+			li: a(ui-sref="playbook.edit") Edit
+	.col-sm-9.col-lg-10
+		ui-view

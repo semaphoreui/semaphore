@@ -27,19 +27,12 @@ html
 					li: a(ui-sref="addPlaybook") Add Playbook
 
 		.container-fluid
-			.row
-				.col-sm-3.col-lg-2
-					ul.nav
-						h2.no-top-margin Playbooks
-						li(ng-repeat="playbook in playbooks")
-							a(ui-sref="playbook.view({ playbook_id: playbook._id })") {{ playbook.name }}
-
-				.col-sm-9.col-lg-10
-					block content
-						ui-view(autoscroll="false")
-							p.lead.text-center
-								i.fa.fa-spin.fa-cog
-								|  Loading...
+			.col-lg-12
+				block content
+					ui-view(autoscroll="false")
+						p.lead.text-center
+							i.fa.fa-spin.fa-cog
+							|  Loading...
 
 		block js
 			script(src="/vendor/requirejs/require.js" data-main="/js/semaphore.js")
