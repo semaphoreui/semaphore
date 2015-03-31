@@ -1,0 +1,30 @@
+redis:
+  name: redis:2.8.19
+  image: redis
+  expose:
+    - 6379
+  volumes:
+    - /tmp/redis:/data
+
+
+mongodb:
+  image: mongo:2.6
+  command: mongod --smallfiles --directoryperdb --noprealloc
+  hostname: mongodb
+  volumes:
+    - /tmp/mongodb:/data/db
+  expose:
+    - 27017
+
+semaphore:
+  image: semaphore:latest
+  environment:
+    MONGODB_URL: mongodb://mongodb/semaphore
+    REDIS_HOST: redis
+  expose:
+    - 80
+  ports:
+    - 8081:80
+  links:
+    - redis:redis
+    - mongodb:mongodb
