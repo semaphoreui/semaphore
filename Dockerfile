@@ -9,7 +9,7 @@ ENV USE_SSL=
 ENV ADMIN_EMAIL=admin@semaphore.local
 ENV ADMIN_USERNAME=semaphore
 ENV ADMIN_REALNAME=Administrator
-ENV PASSWORD_HASH=CastawayLabs
+ENV ADMIN_PASSWORD=CastawayLabs
 
 # mongodb
 ENV MONGODB_URL mongodb://127.0.0.1/semaphore
