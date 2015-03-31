@@ -1,0 +1,22 @@
+---
+
+redis:
+  image: redis
+  ports:
+    - 6379:6379
+
+mongo:
+  image: mongo
+  ports:
+    - 27017:27017
+
+semaphore:
+  image: semaphore
+  links:
+    - mongo
+    - redis
+  environment:
+    - MONGODB_URL=mongodb://mongo/semaphore
+    - REDIS_HOST=redis
+  ports:
+    - 80:80
