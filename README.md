@@ -36,7 +36,7 @@ docker run -d \
   --restart=always \
   -v /var/lib/mongodb:/var/lib/mongodb \
   -p 127.0.0.1:27017:27017 \
-  castawaylabs/mongodb-docker
+  mongo
 ```
 
 ### Run semaphore
@@ -50,7 +50,7 @@ docker run -d \
   -e MONGODB_URL="mongodb://mongo/semaphore" \
   -e REDIS_HOST="redis" \
   -p 80:80 \
-  castawaylabs/semaphore
+  redis
 ```
 
 ## Development
