@@ -10,15 +10,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/CastawayLabs/semaphore.git"
+    "url": "git://github.com/ansible-semaphore/semaphore.git"
   },
   "keywords": [
     "ansible"
   ],
-  "author": "Matej Kramny <github@matej.me>",
+  "author": "Matej Kramny",
   "contributors": [{
     "name": "Matej Kramny",
-    "email": "github@gmail.com"
+    "email": "github@matej.me"
   }, {
     "name": "tjheeta",
     "email": ""
@@ -28,9 +28,9 @@
   }],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/CastawayLabs/semaphore/issues"
+    "url": "https://github.com/ansible-semaphore/semaphore/issues"
   },
-  "homepage": "https://github.com/CastawayLabs/semaphore",
+  "homepage": "https://github.com/ansible-semaphore/semaphore",
   "dependencies": {
     "async": "latest",
     "bcrypt": "^0.8.0",
