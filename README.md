@@ -25,7 +25,7 @@ docker run -d \
   --restart=always \
   -v /var/lib/redisio:/var/lib/redis \
   -p 127.0.0.1:6379:6379 \
-  castawaylabs/redis-docker
+  redis
 ```
 
 ### Run mongodb
@@ -50,7 +50,7 @@ docker run -d \
   -e MONGODB_URL="mongodb://mongo/semaphore" \
   -e REDIS_HOST="redis" \
   -p 80:80 \
-  redis
+  castawaylabs/semaphore
 ```
 
 ## Development
