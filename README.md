@@ -22,9 +22,6 @@ The basics of Ansible Tower, but in addition:
 ```
 docker run -d \
   --name=redisio \
-  --restart=always \
-  -v /var/lib/redisio:/var/lib/redis \
-  -p 127.0.0.1:6379:6379 \
   redis
 ```
 
@@ -33,8 +30,6 @@ docker run -d \
 ```
 docker run -d \
   --name=mongodb \
-  --restart=always \
-  -v /var/lib/mongodb:/var/lib/mongodb \
   -p 127.0.0.1:27017:27017 \
   mongo
 ```
