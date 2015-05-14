@@ -92,11 +92,9 @@ Use these variables to override the config.
 - Email alerts
 - Multiple user support
 
-## Note to Ansible guys
+## Articles
 
-> Thanks very much for making Ansible, and Ansible Tower. It is a great tool!. Your UI is pretty horrible though, and so we'd be happy if you could learn and use parts of this tool in your Tower.
-
-It would be amazing if this could be your `Community Edition` of Ansible Tower.
+- http://code-complete.com/code/?p=40
 
 ## License
 
