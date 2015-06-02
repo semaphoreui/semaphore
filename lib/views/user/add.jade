@@ -3,30 +3,30 @@ h1 New User
     i.fa.fa-fw.fa-chevron-left
     |  Back
 .row
-  .col-md-6
+  .col-md-6.col-md-offset-3
     .panel.panel-default
       .panel-body
         form.form-horizontal(name="userForm")
           .form-group
             label.control-label.col-sm-4(for="name") Name
             .col-sm-7
-              input#name.form-control(type="text" placeholder="Display Name" ng-model="user.data.name" autofocus required)
+              input#name.form-control(type="text" placeholder="Display Name" ng-model="user.name" autofocus required)
+          .form-group
+            label.control-label.col-sm-4(for="username") Username
+            .col-sm-7
+              input#username.form-control(type="text" placeholder="Username" ng-model="user.username" required)
+          .form-group
+            label.control-label.col-sm-4(for="email") Email
+            .col-sm-7
+              input#email.form-control(type="email" placeholder="Email Address" ng-model="user.email" required)
 
           .form-group
             label.control-label.col-sm-4(for="password") Password
             .col-sm-7
-              input#password.form-control(type="password" placeholder="Vault Password" ng-model="user.data.password" required)
+              input#password.form-control(type="password" placeholder="User Password" ng-model="user.password" required)
 
-          .form-group
-            label.control-label.col-sm-4(for="username") Username
-            .col-sm-7
-              input#username.form-control(type="text" placeholder="Private Key" ng-model="user.data.username" required)
 
-          .form-group
-            label.control-label.col-sm-4(for="email") Email
-            .col-sm-7
-              textarea#email.form-control(type="text" placeholder="Public Key Contents" ng-model="user.data.email" required)
-          
+
           .form-group
             .col-sm-7.col-sm-offset-4
               button.btn.btn-success(ng-click="add()" ng-disabled="userForm.$invalid") Add
