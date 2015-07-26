@@ -5,6 +5,8 @@ dist/
 .vagrant
 bin/setup.js
 
+public/css/semaphore.css
+
 # Logs
 logs
 *.log
