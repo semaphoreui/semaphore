@@ -13,7 +13,7 @@ The basics of Ansible Tower, but in addition:
 - [x] Create inventories per playbook
 - [x] Add rsa keys (to authenticate git repositories)
 - [x] Run playbooks against specified hosts
-- [ ] Multiple Users support
+- [x] Multiple Users support
 
 ## Docker quickstart
 
