@@ -1,0 +1,35 @@
+h1
+	span(ng-if="!job.data._id") Add Job
+	span(ng-if="job.data._id.length > 0") Edit Job
+
+.row
+	div(ng-class="{ 'col-md-6': !job.data._id, 'col-md-12': job.data._id.length > 0 }")
+		.panel.panel-default
+			.panel-body
+				form.form-horizontal
+					.form-group
+						label.control-label.col-sm-4 Name
+						.col-sm-7
+							input.form-control(type="text" placeholder="Group Name" ng-model="job.data.name")
+
+					.form-group
+						label.control-label.col-sm-4 Play
+						.col-sm-7
+							input.form-control(type="text" placeholder="myplay.yml" ng-model="job.data.play_file")
+
+					.form-group
+						label.control-label.col-sm-4 Extra vars
+						.col-sm-7
+							input.form-control(type="text" placeholder="env=prod" ng-model="job.data.extra_vars")
+
+					.form-group
+						.col-sm-7.col-sm-offset-4
+							.checkbox
+								label
+									input(type="checkbox" ng-model="job.data.use_vault")
+									| Use Vault
+
+					.form-group
+						.col-sm-7.col-sm-offset-4
+							button.btn.btn-default( ng-if="!job.data._id" ng-click="add()") Add Job
+							button.btn.btn-default( ng-if="job.data._id.length > 0" ng-click="edit()") Edit Job
