@@ -6,7 +6,6 @@ redis:
   volumes:
     - /tmp/redis:/data
 
-
 mongodb:
   image: mongo:latest
   command: mongod --smallfiles --directoryperdb --noprealloc

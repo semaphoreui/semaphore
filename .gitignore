@@ -1,3 +1,6 @@
+gin-bin
+util/bindata.go
+
 lib/credentials.js
 lib/credentials.json
 public/vendor

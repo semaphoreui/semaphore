@@ -1,0 +1,23 @@
+dependencies:
+  pre:
+    - sudo apt-add-repository -y 'deb
+      http://ppa.launchpad.net/ondrej/mysql-experimental/ubuntu precise
+      main'
+    - sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get
+      install -y mysql-server-5.6
+    - go get github.com/tools/godep
+    - go get github.com/jteeuwen/go-bindata/...
+    - godep restore
+
+  override:
+    - mkdir -p "/home/ubuntu/.go_workspace/src/github.com/castawaylabs"
+    - ln -fs /home/ubuntu/semaphore /home/ubuntu/.go_workspace/src/github.com/castawaylabs
+
+test:
+  pre:
+    - ./make.sh ci_test
+    - go run ./main.go --migrate
+
+  override:
+    - go vet ./...
+    - go test ./...
