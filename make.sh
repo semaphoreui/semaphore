@@ -26,6 +26,8 @@ if [ "$1" == "ci_test" ]; then
 EOF
 fi
 
+echo "Adding bindata"
+
 go-bindata $BINDATA_ARGS config.json database/sql_migrations/ $(find ./public -type d -print)
 
 echo "Building into build/"
