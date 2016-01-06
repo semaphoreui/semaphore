@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 BINDATA_ARGS="-o util/bindata.go -pkg util"
 
 if [ "$1" == "dev" ]; then
@@ -30,12 +31,21 @@ echo "Adding bindata"
 
 go-bindata $BINDATA_ARGS config.json database/sql_migrations/ $(find ./public -type d -print)
 
-echo "Building into build/"
+echo ""
 
 mkdir -p build
-GOOS=linux GOARCH=amd64 go build -o build/amd64 main.go
-GOOS=windows GOARCH=?? go build -o build/windows main.go
-GOOS=macos GOARCH=darwin go build -o build/darwin main.go
+echo "build/darwin_amd64"
+GOOS=darwin GOARCH=amd64 go build -o build/darwin_amd64 main.go
+echo "build/linux_386"
+GOOS=linux GOARCH=386 go build -o build/linux_386 main.go
+echo "build/linux_amd64"
+GOOS=linux GOARCH=amd64 go build -o build/linux_amd64 main.go
+echo "build/linux_arm"
+GOOS=linux GOARCH=arm go build -o build/linux_arm main.go
+# echo "build/windows_386"
+# GOOS=windows GOARCH=386 go build -o build/windows_386 main.go
+# echo "build/windows_amd64"
+# GOOS=windows GOARCH=amd64 go build -o build/windows_amd64 main.go
 
 chmod +x build/*
 
