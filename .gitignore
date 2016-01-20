@@ -1,5 +1,6 @@
 gin-bin
 util/bindata.go
+build/
 
 lib/credentials.js
 lib/credentials.json
