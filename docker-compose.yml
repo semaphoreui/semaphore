@@ -1,6 +1,6 @@
 redis:
-  name: redis:latest
-  image: redis
+  image: redis:latest
+  hostname: redis
   expose:
     - 6379
   volumes:
