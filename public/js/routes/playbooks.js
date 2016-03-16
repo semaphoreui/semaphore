@@ -1,6 +1,7 @@
 define([
 	'app',
-	'factories/playbook'
+	'factories/playbook',
+	'factories/job'
 ], function(app) {
 	app.config(function($stateProvider, $couchPotatoProvider) {
 		$stateProvider
@@ -79,6 +80,36 @@ define([
 			controller: 'PlaybookHostsCtrl',
 			resolve: {
 				dummy: $couchPotatoProvider.resolve(['controllers/playbook/hosts'])
+			}
+		})
+		.state('playbook.job', {
+			url: '/job/:job_id',
+			templateUrl: "/view/playbook/job",
+			controller: 'PlaybookJobCtrl',
+			resolve:{
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/job']),
+				job: function (Job, playbook, $stateParams, $q, $state) {
+					var deferred = $q.defer();
+
+					var job = new Job(playbook,$stateParams.job_id, function (err, errStatus) {
+						if (err && errStatus == 404) {
+							$state.transitionTo('homepage');
+							return deferred.reject();
+						}
+
+						deferred.resolve(job);
+					});
+
+					return deferred.promise;
+				}
+			}
+		})
+		.state('playbook.newjob', {
+			url: '/job/new',
+			templateUrl: "/view/playbook/job",
+			controller: 'PlaybookJobCtrl',
+			resolve:{
+				dummy: $couchPotatoProvider.resolve(['controllers/playbook/job'])
 			}
 		})
 	})

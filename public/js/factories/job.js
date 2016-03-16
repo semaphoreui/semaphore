@@ -1,11 +1,12 @@
 define(['app'], function (app) {
 	app.registerFactory('Job', ['$http', function ($http) {
-		var Job = function (id) {
-			if (!id) {
+		var Job = function (playbook,id,cb) {
+			if (!id || !playbook) {
 				return;
 			}
-			
+
 			this.id = id;
+			this.get(playbook,cb);
 		}
 
 		Job.prototype.save = function (playbook) {
@@ -17,11 +18,20 @@ define(['app'], function (app) {
 		}
 
 		Job.prototype.delete = function (playbook) {
-			return $http.delete('/playbook/'+playbook.data._id+'/job/'+this.data._id);	
+			return $http.delete('/playbook/'+playbook.data._id+'/job/'+this.data._id);
 		}
 
-		Job.prototype.get = function (playbook) {
-			return $http.get('/playbook/'+playbook.data._id+'/job/'+this.id);
+		Job.prototype.get = function (playbook,cb) {
+			var self = this;
+
+			return $http.get('/playbook/'+playbook.data._id+'/job/'+this.id).success(function (data, status) {
+				self.data = data;
+				cb();
+			})
+			.error(function (data, status) {
+				console.log(status);
+				cb(data, status);
+			});
 		}
 
 		Job.prototype.run = function (playbook) {
