@@ -2,7 +2,8 @@ package database
 
 import (
 	"database/sql"
-	"github.com/castawaylabs/semaphore/util"
+
+	"github.com/ansible-semaphore/semaphore/util"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	"gopkg.in/gorp.v1"
 )

@@ -2,10 +2,11 @@ package migration
 
 import (
 	"fmt"
-	"github.com/castawaylabs/semaphore/database"
-	"github.com/castawaylabs/semaphore/util"
-	"github.com/go-sql-driver/mysql"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/database"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-sql-driver/mysql"
 )
 
 func (version *DBVersion) CheckExists() (bool, error) {

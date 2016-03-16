@@ -1,9 +1,10 @@
 package routes
 
 import (
-	"github.com/castawaylabs/semaphore/util"
-	"github.com/gin-gonic/gin"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/gin-gonic/gin"
 )
 
 // Declare all routes

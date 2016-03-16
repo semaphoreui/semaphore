@@ -2,9 +2,10 @@ package database
 
 import (
 	"fmt"
-	"github.com/castawaylabs/semaphore/util"
-	"gopkg.in/redis.v3"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/util"
+	"gopkg.in/redis.v3"
 )
 
 // Redis pool

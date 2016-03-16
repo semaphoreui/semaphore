@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
 	"github.com/mattbaird/gochimp"
-	"os"
 )
 
 var mandrillAPI *gochimp.MandrillAPI
@@ -93,7 +94,7 @@ func init() {
 		ReleaseStage:        stage,
 		NotifyReleaseStages: []string{"production"},
 		AppVersion:          Version,
-		ProjectPackages:     []string{"github.com/castawaylabs/semaphore/**"},
+		ProjectPackages:     []string{"github.com/ansible-semaphore/semaphore/**"},
 	})
 }
 

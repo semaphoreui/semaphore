@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/ansible-semaphore/semaphore/database"
+	"github.com/ansible-semaphore/semaphore/migration"
+	"github.com/ansible-semaphore/semaphore/routes"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/bugsnag/bugsnag-go"
-	"github.com/castawaylabs/semaphore/database"
-	"github.com/castawaylabs/semaphore/migration"
-	"github.com/castawaylabs/semaphore/routes"
-	"github.com/castawaylabs/semaphore/util"
 	"github.com/gin-gonic/gin"
 )
 

@@ -4,15 +4,16 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"github.com/castawaylabs/semaphore/database"
-	"github.com/castawaylabs/semaphore/models"
-	"github.com/castawaylabs/semaphore/util"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/redis.v3"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/database"
+	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/gin-gonic/gin"
+	"gopkg.in/redis.v3"
 )
 
 func resetSessionExpiry(sessionID string) {

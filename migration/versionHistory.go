@@ -2,9 +2,10 @@ package migration
 
 import (
 	"fmt"
-	"github.com/castawaylabs/semaphore/util"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type DBVersion struct {
