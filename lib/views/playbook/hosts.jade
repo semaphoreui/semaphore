@@ -16,13 +16,17 @@ div(ng-repeat="hostgroup in hostgroups.hostgroups")
 			label.control-label.col-sm-4 Hostname
 			.col-sm-7
 				input.form-control(type="text" placeholder="Hostname" ng-model="hostgroup.newHost.data.hostname")
+		.form-group
+			label.control-label.col-sm-4 Variables
+			.col-sm-7
+				input.form-control(type="text" placeholder="Variables" ng-model="hostgroup.newHost.data.vars")
 
 		.form-group
 			.col-sm-7.col-sm-offset-4
 				button.btn.btn-default(ng-click="addHost(hostgroup)") Add Host
 
 	div(ng-repeat="host in hostgroup.hosts")
-		h4 {{ host.data.name }} ({{ host.data.hostname }})
+		h4 {{ host.data.name }} ({{ host.data.hostname }} {{ host.data.vars }})
 			.btn-group.pull-right
 				button.btn.btn-danger.btn-xs(ng-click="deleteHost(hostgroup, host)"): i.fa.fa-trash-o.fa-fw
 		.clearfix
