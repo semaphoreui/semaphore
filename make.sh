@@ -1,9 +1,9 @@
 #!/bin/bash
-
 set -e
+
 BINDATA_ARGS="-o util/bindata.go -pkg util"
 
-if [ "$1" == "dev" ]; then
+if [ "$1" == "watch" ]; then
 	BINDATA_ARGS="-debug ${BINDATA_ARGS}"
 	echo "Creating util/bindata.go with file proxy"
 else
@@ -27,9 +27,35 @@ if [ "$1" == "ci_test" ]; then
 EOF
 fi
 
+if [ "$1" == "production" ]; then
+	cd public
+
+	# html
+	cd html
+	jade *.jade */*.jade */*/*.jade
+	cd -
+
+	# css
+	cd css
+	lessc --clean-css="--s1 --advanced --compatibility=ie8" --autoprefix="ie 8-10,iOS 7," semaphore.less > semaphore.css
+	cd -
+fi
+
+cd public
+node ./bundler.js
+cd -
+
 echo "Adding bindata"
 
 go-bindata $BINDATA_ARGS config.json database/sql_migrations/ $(find ./public -type d -print)
+
+if [ "$1" == "watch" ]; then
+	cd public
+
+	nodemon -w js -i bundle.js -e js bundler.js &
+	nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
+	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade
+fi
 
 echo ""
 

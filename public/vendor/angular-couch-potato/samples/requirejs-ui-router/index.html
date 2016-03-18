@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <base href="/angular-couch-potato/samples/requirejs-ui-router/"/>
+
+    <!-- using twitter bootstrap, but of course -->
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+    <!-- styles for ng-animate are located here -->
+    <link rel="stylesheet" type="text/css" href="css/styles.css">
+
+    <!-- take note: the requirejs script is at the bottom of the body -->
+
+    <!-- could easily use a custom property of the state here instead of 'name' -->
+    <title ng-bind="$state.current.name + ' - Couch Potato with RequireJS/ui-router'">Couch Potato and ui-router</title>
+  </head>
+  <body ng-cloak>
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner"><div class="container">
+
+        <!-- ui-sref is a great directive for linking a state location with an anchor link.
+             You should almost always use ui-sref instead of href on your links when you want
+             then to navigate to a state. When this link is clicked it will take the application
+             to the 'home' state. Behind the scenes the directive also adds the correct href attr
+             and url. -->
+        <a class="brand" ui-sref="home">Couch Potato and ui-router</a>
+        <ul class="nav">
+
+        <!-- Here you can see ui-sref in action again. Also notice the use of $state.includes, which
+             will set the links to 'active' if, for example on the first link, 'contacts' or any of
+             its descendant states are activated. -->
+          <li ng-class="{ active: $state.includes('contacts') }"><a ui-sref="contacts.list">Contacts</a></li>
+          <li ng-class="{ active: $state.includes('about') }"><a ui-sref="about">About</a></li>
+        </ul>
+
+        <!-- Here is a named ui-view. ui-views don't have to be named, but we'll be populate this
+             on from various different child states and we want a name to help us target. -->
+        <p ui-view="hint" class="navbar-text pull-right"></p>
+      </div></div>
+    </div>
+
+    <div class="container" style="margin-top:50px" >
+      <h5>Sample Notes</h5>
+      <p>See the <a href="#/about">about</a> page for notes on the sample.<p>
+
+      <ul class="menu">
+        <li><a href="../">go to samples index</a></li>
+        <li><a href="../../docs/" target="_blank">open Couch Potato docs</a></li>
+        <li><a href="https://github.com/laurelnaiad/angular-couch-potato/tree/master/samples/requirejs-ui-router" target="_blank">open source code</a></li>
+      </ul>
+    </div>
+
+    <!-- Here is the main ui-view (unnamed) and will be populate by its immediate children's templates
+         unless otherwise explicitly named views are targeted. It's also employing ng-animate. -->
+    <div ng-cloak ui-view class="container" ng-animate="{enter:'fade-enter'}"></div>
+
+
+    <hr ng-cloak>
+    <pre ng-cloak>
+      <!-- Here's some values to keep an eye on in the sample in order to understand $state and $stateParams -->
+      $state = {{$state.current.name}}
+      $stateParams = {{$stateParams}}
+      $state full url = {{ $state.$current.url.source }}
+      <!-- $state.$current is not a public api, we are using it to
+           display the full url for learning purposes-->
+    </pre>
+
+    <script src="../../dependencies/requirejs.js"></script>
+    <script>
+require.config({
+
+  baseUrl: 'app',
+
+  paths: {
+
+    'angular'               : '../../../dependencies/angular',
+    'angular-ui-router'     : '../../../dependencies/angular-ui-router',
+    'angular-couch-potato'  : '../../../angular-couch-potato',
+    'views'                 : '../views'
+
+  },
+
+  shim: {
+
+    'angular': {
+      exports   : 'angular'
+    },
+
+    'angular-ui-router': {
+      deps      : ['angular']
+    }
+
+  }
+
+});
+
+// run is required to force the app to run, not because we need to interact
+// with it.  Anything required here will by default be combined/minified by
+// r.js if you use it.
+require(['app', 'angular', 'app-init'], function(app, angular) {
+
+  angular.element(document).ready(function() {
+
+    angular.bootstrap(document, [app['name'], function() {
+
+      // for good measure, put ng-app on the html element
+      // studiously avoiding jQuery because angularjs.org says we shouldn't
+      // use it.  In real life, there are a ton of reasons to use it.
+      // karma likes to have ng-app on the html element when using requirejs.
+      angular.element(document).find('html').addClass('ng-app');
+
+    }]);
+
+  });
+
+});
+    </script>
+
+  </body>
+</html>

@@ -1,0 +1,10 @@
+<div>
+  <h2>{{contact.name}}</h2>
+  <p class="muted">{{something}}</p>
+  <ul>
+    <li ng-repeat="item in contact.items">
+      <a href="#/contacts/{{contact.id}}/item/{{item.id}}">{{item.type}}</a>
+    </li>
+  </ul>
+  <div ui-view ng-animate="{enter:'fade-enter'}"></div>
+</div>

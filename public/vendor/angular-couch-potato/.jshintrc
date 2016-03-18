@@ -1,0 +1,19 @@
+{
+  "boss": true,
+  "quotmark": true,
+  "laxcomma" : true,
+  "laxbreak": true,
+  "curly":true,
+  "eqeqeq":true,
+  "immed":true,
+  "latedef":true,
+  "newcap":true,
+  "noarg":true,
+  "sub":true,
+  "eqnull":true,
+
+  "globals" : {
+    "angular" : false
+  }
+}
+

@@ -1,4 +1,4 @@
-define(['app'], function (app) {
+define(function () {
 	app.registerController('AddUserCtrl', ['$scope', '$state', '$http', function($scope, $state, $http) {
 		$scope.user = {};
 

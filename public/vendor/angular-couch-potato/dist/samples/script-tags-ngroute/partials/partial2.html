@@ -1,0 +1,14 @@
+<p>This is the partial for view 2.</p>
+<p>
+	{{ welcomeMessage }}
+</p>
+<p>
+  Showing of 'interpolator' filter:
+  <!--
+  Angular does not like to see a filter called inline before it is registered.
+  Thus ng-bind is used instead of inline {{ }} syntax
+  -->
+
+  <span ng-bind="'Current version is v%VERSION%.' | interpolator"></span>
+</p>
+

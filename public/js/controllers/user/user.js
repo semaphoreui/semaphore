@@ -1,6 +1,4 @@
-define([
-	'app'
-], function(app) {
+define(function () {
 	app.registerController('UserCtrl', ['$scope', '$state', function($scope, $state) {
 		$scope.delete = function () {
 			$scope.user.delete();

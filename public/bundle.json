@@ -1,0 +1,20 @@
+[
+	"/vendor/jquery.min",
+	"/vendor/angular-1.2.29",
+	"/vendor/angular-couch-potato/dist/angular-couch-potato",
+	"/vendor/angular-ui-router/release/angular-ui-router.min",
+	"/vendor/angular-ui.min",
+	"/vendor/angular-loading-bar/loading-bar",
+	"/vendor/moment/moment.min",
+	"/vendor/sweetalert/sweetalert.min",
+
+	"app",
+	"routes/router",
+	"routes/auth",
+	"routes/identities",
+	"routes/playbooks",
+	"routes/users",
+
+	"/vendor/require.min",
+	"../require_config"
+]

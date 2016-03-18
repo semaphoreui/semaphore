@@ -1,0 +1,30 @@
+{
+  "name": "angular-couch-potato",
+  "version": "0.2.3",
+  "homepage": "https://github.com/laurelnaiad/angular-couch-potato",
+  "main": [
+    "dist/angular-couch-potato.js"
+  ],
+  "description": "Provider/Service to Lazy-Load Components in AngularJS Applications",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/laurelnaiad/angular-couch-potato.git"
+  },
+  "ignore": [
+    "dist/docs",
+    "docs",
+    "src",
+    "./*.js",
+    "./*.jshintrc",
+    "./*.gitignore",
+    "package.json"
+  ],
+  "dependencies": {
+  },
+  "devDependencies": {
+    "requirejs": "~2.1.8",
+    "angular-ui-router": "~0.2.0",
+    "angular": "~1.2.0",
+    "angular-route": "~1.2.0"
+  }
+}

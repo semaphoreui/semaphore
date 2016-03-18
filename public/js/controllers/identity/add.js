@@ -1,11 +1,10 @@
 define([
-	'app',
 	'factories/identity',
 	'services/identities'
-], function(app) {
+], function () {
 	app.registerController('AddIdentityCtrl', ['$scope', '$state', 'Identity', function($scope, $state, Identity) {
 		$scope.identity = new Identity();
-		
+
 		$scope.add = function () {
 			$scope.identity.add()
 			.success(function (data) {

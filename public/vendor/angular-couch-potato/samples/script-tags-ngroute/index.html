@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" ng-app="app">
+  <head>
+    <title>Couch Potato ngRoute Sample</title>
+    <script src="../../dependencies/angular.js"></script>
+    <script src="../../dependencies/angular-route.js"></script>
+    <!--
+      load Couch Potato before requirejs so that Couch Potato
+      *doesn't* try to load itself via AMD - we're only using RequireJS
+      for lazy loading angular components, not using it as the overall
+      dependency management of the app.
+    -->
+    <script src="../../angular-couch-potato.js"></script>
+    <script src="../../dependencies/requirejs.js"></script>
+    <script src="js/app.js"></script>
+    <base href="/angular-couch-potato/samples/script-tags-ngroute/"/>
+    <link rel="stylesheet" href="css/app.css"></link>
+  </head>
+  <body >
+    <h1>Couch Potato ngRoute Sample</h1>
+
+    <div>
+      <ul class="menu">
+        <li><a href="../">go to samples index</a></li>
+        <li><a href="../../docs/" target="_blank">open Couch Potato docs</a></li>
+        <li><a href="https://github.com/laurelnaiad/angular-couch-potato/tree/master/samples/script-tags-ngroute" target="_blank">open source code</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h3>Sample Notes:</h3>
+      <ul>
+        <li>use your debugger to see components being lazy-loaded</li>
+        <li>uses &lt;script&gt; tags application architecture</li>
+        <li>uses ngRoute</li>
+        <li>similar to
+          <a href="https://github.com/angular/angular-seed" target="blank">angular-seed</a>
+        </li>
+    </div>
+    <ul class="menu">
+      <li><a href="#/view1">View 1</a></li>
+      <li><a href="#/view2">View 2</a></li>
+    </ul>
+    <div ng-view></div>
+
+
+</body>
+</html>

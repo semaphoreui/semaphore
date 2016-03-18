@@ -66,13 +66,13 @@ func authentication(c *gin.Context) {
 	sess.ID = cookie.Value
 	c.Set("session", sess)
 
-	if sess.Login != nil {
-		user := &models.User{}
-		// user.Parse(*sess.Login)
-
-		// if err := user.GetUser(); err != nil {
-		// 	panic(err)
-		// }
+	if sess.UserID != nil {
+		user, err := models.FetchUser(*sess.UserID)
+		if err != nil {
+			fmt.Println("Can't find user", err)
+			c.AbortWithStatus(403)
+			return
+		}
 
 		c.Set("user", user)
 	}

@@ -1,0 +1,44 @@
+[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+  display: none !important;
+}
+
+.fade-enter-setup, .fade-leave-setup {
+  transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0s;
+}
+.fade-enter-setup,
+.fade-leave-setup.fade-leave-start {
+  opacity: 0;
+}
+.fade-leave-setup,
+.fade-enter-setup.fade-enter-start {
+  opacity: 1;
+}
+
+.menu {
+  list-style: none;
+  border-bottom: 0.1em solid black;
+  margin-bottom: 2em;
+  padding: 0 0 0.5em;
+}
+
+.menu:before {
+  content: "[";
+}
+
+.menu:after {
+  content: "]";
+}
+
+.menu > li {
+  display: inline;
+}
+
+.menu > li:before {
+  content: "|";
+  padding-right: 0.3em;
+}
+
+.menu > li:nth-child(1):before {
+  content: "";
+  padding: 0;
+}
