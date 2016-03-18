@@ -2,6 +2,22 @@ var app = angular.module('semaphore', ['scs.couch-potato', 'ui.router', 'ui.boot
 
 couchPotato.configureApp(app);
 
+app.config(['$httpProvider', function ($httpProvider) {
+	$httpProvider.interceptors.push(['$q', '$injector', '$log', function ($q, $injector, $log) {
+		return {
+			request: function (request) {
+				var url = request.url;
+				if (!(url.indexOf('/public') !== -1 || url.indexOf('://') !== -1)) {
+					request.url = "/api" + request.url;
+					request.headers['Cache-Control'] = 'no-cache';
+				}
+
+				return request || $q.when(request);
+			}
+		};
+	}]);
+}]);
+
 app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http', function ($rootScope, $window, $couchPotato, $injector, $state, $http) {
 	app.lazy = $couchPotato;
 
@@ -30,7 +46,7 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 		$rootScope.user = null;
 		$rootScope.loggedIn = false;
 
-		$http.get('/api/user')
+		$http.get('/user')
 		.then(function (user) {
 			$rootScope.user = user;
 			$rootScope.loggedIn = true;

@@ -3,6 +3,7 @@ package routes
 import (
 	"strings"
 
+	"github.com/ansible-semaphore/semaphore/routes/auth"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
 )
@@ -20,7 +21,9 @@ func Route(r *gin.Engine) {
 
 	api.Use(authentication)
 
-	// serve /api/auth
+	func(api *gin.RouterGroup) {
+		api.POST("/login", auth.Login)
+	}(api.Group("/auth"))
 
 	api.Use(MustAuthenticate)
 
@@ -30,6 +33,11 @@ func Route(r *gin.Engine) {
 
 func servePublic(c *gin.Context) {
 	path := c.Request.URL.Path
+
+	if strings.HasPrefix(path, "/api") {
+		c.Next()
+		return
+	}
 
 	if !strings.HasPrefix(path, "/public") {
 		path = "/public/html/index.html"

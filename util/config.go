@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
 	"github.com/mattbaird/gochimp"
@@ -45,7 +47,17 @@ func init() {
 	flag.BoolVar(&Migration, "migrate", false, "execute migrations")
 	path := flag.String("config", "", "config path")
 
+	var pwd string
+	flag.StringVar(&pwd, "hash", "", "generate hash of given password")
+
 	flag.Parse()
+
+	if len(pwd) > 0 {
+		password, _ := bcrypt.GenerateFromPassword([]byte(pwd), 11)
+		fmt.Println("Generated password: ", string(password))
+
+		os.Exit(0)
+	}
 
 	if path != nil && len(*path) > 0 {
 		// load
