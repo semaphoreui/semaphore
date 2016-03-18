@@ -1,9 +1,8 @@
 define([
-	'app',
 	'factories/playbook',
 	'services/playbooks',
 	'services/identities'
-], function(app) {
+], function () {
 	app.registerController('AddPlaybookCtrl', ['$scope', 'Playbook', 'playbooks', '$state', 'identities', function($scope, Playbook, playbooks, $state, identities) {
 		$scope.playbook = new Playbook();
 

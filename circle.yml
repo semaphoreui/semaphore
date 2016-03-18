@@ -11,7 +11,7 @@ dependencies:
 
   override:
     - mkdir -p "/home/ubuntu/.go_workspace/src/github.com/castawaylabs"
-    - ln -fs /home/ubuntu/semaphore /home/ubuntu/.go_workspace/src/github.com/castawaylabs
+    - ln -fs /home/ubuntu/semaphore /home/ubuntu/.go_workspace/src/github.com/ansible-semaphore
 
 test:
   pre:

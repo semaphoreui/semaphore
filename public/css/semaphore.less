@@ -9,8 +9,31 @@
 @font-family-monospace: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 @font-family-base: @font-family-sans-serif;
 
+@headings-font-weight: 300;
+
+@border-radius-base: 2px;
+@border-radius-large: @border-radius-base;
+@border-radius-small: @border-radius-base;
+
+@brand-primary: #00ab54;
+@brand-success: #0058ab;
+@input-color-placeholder: #BBB;
+@input-border-focus: @brand-primary;
+
 @import '../vendor/bootstrap/less/bootstrap.less';
 @import '../vendor/fontawesome/less/font-awesome.less';
+@import (less) '../vendor/angular-loading-bar/loading-bar.css';
+@import (less) '../vendor/sweetalert/sweetalert.css';
+
+@import 'login.less';
+
+input, button.btn {
+	font-weight: @headings-font-weight;
+}
+
+.form-control:focus {
+	box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 2px rgba(0, 171, 169, 0.6);
+}
 
 .navbar {
 	border-radius:0;
@@ -33,5 +56,35 @@ h1, h2, h3, h4, h5, h6 {
 ul.nav {
 	& > li.active a {
 		background-color: #eee;
+	}
+}
+
+.github-corner svg{
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	transform: scale(-1,-1);
+	mix-blend-mode: darken;
+	color: #ffffff;
+	fill: #000000;
+}
+.octo-arm {
+	transform-origin: 130px 110px;
+}
+.github-corner:hover .octo-arm{
+	animation:octocat-wave .56s;
+}
+
+@keyframes octocat-wave {
+	0%, 100% {
+		transform: rotate(0);
+	}
+
+	20%, 60% {
+		transform:rotate(-20deg);
+	}
+
+	40%, 80% {
+		transform:rotate(10deg);
 	}
 }

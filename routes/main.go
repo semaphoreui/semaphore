@@ -24,7 +24,7 @@ func Route(r *gin.Engine) {
 
 	api.Use(MustAuthenticate)
 
-	// api.GET("/user", misc.GetUser)
+	api.GET("/user", getUser)
 	// api.PUT("/user", misc.UpdateUser)
 }
 
@@ -32,8 +32,7 @@ func servePublic(c *gin.Context) {
 	path := c.Request.URL.Path
 
 	if !strings.HasPrefix(path, "/public") {
-		c.Next()
-		return
+		path = "/public/html/index.html"
 	}
 
 	path = strings.Replace(path, "/", "", 1)
@@ -70,4 +69,8 @@ func servePublic(c *gin.Context) {
 
 	c.Writer.Header().Set("content-type", contentType)
 	c.String(200, string(res))
+}
+
+func getUser(c *gin.Context) {
+	c.JSON(200, c.MustGet("user"))
 }

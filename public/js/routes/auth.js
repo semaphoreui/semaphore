@@ -1,23 +1,11 @@
-define([
-	'app'
-], function(app) {
-	app.config(function($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
-		$locationProvider.html5Mode({
-			enabled: true,
-			requireBase: false
-		})
-
-
-		$urlRouterProvider.otherwise('/');
-
-		$stateProvider.state('login', {
-			url: '/',
-			pageTitle: "Sign In",
-			templateUrl: "/view/auth/login",
-			controller: "SignInCtrl",
-			resolve: {
-				dummy: $couchPotatoProvider.resolveDependencies(['controllers/auth/login'])
-			}
-		})
-	});
+app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
+	$stateProvider.state('login', {
+		url: '/',
+		pageTitle: "Sign In",
+		templateUrl: "/public/html/auth/login.html",
+		controller: "SignInCtrl",
+		resolve: {
+			dummy: $couchPotatoProvider.resolveDependencies(['controllers/auth/login'])
+		}
+	})
 });
