@@ -12,7 +12,7 @@ define(function () {
 			var pwd = user.password;
 			user.password = "";
 
-			$http.post('/auth/password', {
+			$http.post('/auth/login', {
 				auth: user.auth,
 				password: pwd
 			}).success(function (data, status) {
