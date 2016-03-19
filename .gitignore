@@ -2,3 +2,6 @@ gin-bin
 util/bindata.go
 build/
 node_modules
+public/js/bundle.js
+config.json
+lib/credentials.json
