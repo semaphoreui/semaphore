@@ -9,6 +9,12 @@ WORKDIR /srv/semaphore
 RUN npm install
 RUN ./node_modules/.bin/bower install --allow-root
 
+ENV TINI_VERSION v0.9.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+
+ENTRYPOINT [ "/tini", "--" ]
+
 ENV NODE_ENV production
 ENV REDIS_PORT 6379
 CMD ["node", "/srv/semaphore/bin/semaphore"]
