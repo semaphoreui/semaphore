@@ -23,6 +23,7 @@ func Route(r *gin.Engine) {
 
 	func(api *gin.RouterGroup) {
 		api.POST("/login", auth.Login)
+		api.POST("/logout", auth.Logout)
 	}(api.Group("/auth"))
 
 	api.Use(MustAuthenticate)

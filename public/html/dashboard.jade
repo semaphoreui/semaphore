@@ -1,0 +1,11 @@
+.container-fluid
+	.row
+		.col-md-8
+			ul
+				li Scheduled job {x} was successfully executed. Took 30s
+		.col-md-4
+			.panel.panel-default
+				.panel-heading Projects
+					button.btn.btn-default.btn-xs.pull-right: i.fa.fa-fw.fa-plus
+				ul.list-group
+					li.list-group-item(ng-repeat="project in projects") {{ project.name }}

@@ -10,24 +10,25 @@ html(lang="en" ng-app="semaphore")
 		link(rel="stylesheet" href="/public/css/semaphore.css")
 
 	body
-		.navbar.navbar-default(ng-if="loggedIn"): .container
+		.navbar.navbar-default(ng-if="loggedIn"): .container-fluid
 			.navbar-header
-				a.navbar-brand(ui-sref="homepage") Semaphore
+				a.navbar-brand(ui-sref="homepage") SEMAPHORE
 
-			nav.nav.navbar-nav
-				li: a(ui-sref="playbooks") Playbooks
-				li: a(ui-sref="identities.list") Identities
-				li: a(ui-sref="users.list") Users
+			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
+				li(uib-dropdown)
+					a(uib-dropdown-toggle)
+						i.fa.fa-fw.fa-user
+						i.caret
+					ul(uib-dropdown-menu)
+						li: a(ui-sref="user") Profile
+						li: a Settings
+						li.divider
+						li: a(ui-sref="auth.logout") Log out
 
-			nav.nav.navbar-nav.pull-right
-				li: a(ui-sref="addPlaybook") Add Playbook
-
-		.container
-			.col-lg-12
-				ui-view(autoscroll="false")
-					p.lead.text-center
-						i.fa.fa-spin.fa-cog
-						|  Loading...
+		ui-view(autoscroll="false")
+			p.lead.text-center
+				i.fa.fa-spin.fa-cog
+				|  Loading...
 
 		footer: a.github-corner(href="https://github.com/ansible-semaphore/semaphore" target="_blank" title="Ansible-Semaphore on GitHub")
 			svg(width="80" height="80" viewbox="0 0 250 250")
