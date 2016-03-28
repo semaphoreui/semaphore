@@ -2,7 +2,6 @@ package auth
 
 import (
 	"database/sql"
-	"fmt"
 	"net/mail"
 	"strings"
 	"time"
@@ -38,7 +37,6 @@ func Login(c *gin.Context) {
 	}
 
 	query, args, _ := q.ToSql()
-	fmt.Println(query, args)
 
 	var user models.User
 	if err := database.Mysql.SelectOne(&user, query, args...); err != nil {
@@ -60,6 +58,15 @@ func Login(c *gin.Context) {
 
 	status := database.Redis.Set("session:"+session.ID, string(session.Encode()), 7*24*time.Hour)
 	if err := status.Err(); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
+}
+
+func Logout(c *gin.Context) {
+	session := c.MustGet("session").(models.Session)
+	if err := database.Redis.Del("session:" + session.ID).Err(); err != nil {
 		panic(err)
 	}
 

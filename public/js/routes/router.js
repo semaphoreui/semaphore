@@ -7,19 +7,15 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
 	$urlRouterProvider.otherwise('/');
 
 	$stateProvider
-	.state('homepage', {
+	.state('dashboard', {
 		url: '/',
-		pageTitle: 'Homepage',
-		templateUrl: "/public/html/homepage.html"
-	})
-
-	.state('logout', {
-		url: '/logout',
-		pageTitle: 'Log Out',
-		controller: function ($scope) {
-			window.location = "/logout";
+		pageTitle: 'Dashboard',
+		templateUrl: '/tpl/dashboard.html',
+		controller: 'DashboardCtrl',
+		resolve: {
+			$d: $couchPotatoProvider.resolveDependencies(['controllers/dashboard'])
 		}
-	})
+	});
 });
 
 app.run(function($rootScope, $state, $stateParams, $http) {

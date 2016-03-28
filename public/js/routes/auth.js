@@ -1,11 +1,27 @@
 app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $couchPotatoProvider) {
-	$stateProvider.state('login', {
+	$stateProvider.state('auth', {
+		url: '/auth',
+		abstract: true,
+		templateUrl: '/tpl/abstract.html'
+	})
+	.state('auth.login', {
 		url: '/login',
 		pageTitle: "Sign In",
-		templateUrl: "/public/html/auth/login.html",
+		templateUrl: '/tpl/auth/login.html',
 		controller: "SignInCtrl",
 		resolve: {
-			dummy: $couchPotatoProvider.resolveDependencies(['controllers/auth/login'])
+			$d: $couchPotatoProvider.resolveDependencies(['controllers/auth/login'])
 		}
 	})
+	.state('auth.logout', {
+		url: '/logout',
+		public: true,
+		templateUrl: '/tpl/auth/logout.html',
+		controller: ['$http', '$rootScope', '$state', function ($http, $rootScope, $state) {
+			$http.post('/auth/logout').success(function () {
+				$rootScope.refreshUser();
+				$state.go('auth.login');
+			});
+		}]
+	});
 });

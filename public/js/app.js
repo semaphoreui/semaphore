@@ -7,6 +7,10 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return {
 			request: function (request) {
 				var url = request.url;
+				if (url.indexOf('/tpl/') !== -1) {
+					request.url = url = url.replace('/tpl/', '/public/html/');
+				}
+
 				if (!(url.indexOf('/public') !== -1 || url.indexOf('://') !== -1)) {
 					request.url = "/api" + request.url;
 					request.headers['Cache-Control'] = 'no-cache';
@@ -51,7 +55,7 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 			$rootScope.user = user;
 			$rootScope.loggedIn = true;
 		}, function () {
-			$state.go('login');
+			$state.go('auth.login');
 		});
 	}
 

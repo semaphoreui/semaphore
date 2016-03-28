@@ -14,16 +14,3 @@ mongodb:
     - /tmp/mongodb:/data/db
   expose:
     - 27017
-
-semaphore:
-  image: castawaylabs/semaphore:latest
-  environment:
-    MONGODB_URL: mongodb://mongodb/semaphore
-    REDIS_HOST: redis
-  expose:
-    - 80
-  ports:
-    - 8088:80
-  links:
-    - redis:redis
-    - mongodb:mongodb
