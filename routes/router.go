@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/ansible-semaphore/semaphore/routes/auth"
+	"github.com/ansible-semaphore/semaphore/routes/projects"
+	"github.com/ansible-semaphore/semaphore/routes/sockets"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
 )
@@ -28,8 +30,43 @@ func Route(r *gin.Engine) {
 
 	api.Use(MustAuthenticate)
 
+	api.GET("/ws", sockets.Handler)
+
 	api.GET("/user", getUser)
 	// api.PUT("/user", misc.UpdateUser)
+
+	api.GET("/projects", projects.GetProjects)
+	api.POST("/projects", projects.AddProject)
+
+	func(api *gin.RouterGroup) {
+		api.Use(projects.ProjectMiddleware)
+
+		api.GET("", projects.GetProject)
+
+		api.GET("/users", projects.GetProjectUsers)
+		api.POST("/users", projects.AddProjectUser)
+		api.DELETE("/users/:user_id", projects.RemoveProjectUser)
+
+		api.GET("/keys", projects.GetProjectKeys)
+		api.POST("/keys", projects.AddProjectKey)
+		api.DELETE("/keys", projects.RemoveProjectKey)
+
+		api.GET("/repositories", projects.GetProjectRepositories)
+		api.POST("/repositories", projects.AddProjectRepository)
+		api.DELETE("/repositories/:user_id", projects.RemoveProjectRepository)
+
+		api.GET("/inventory", projects.GetProjectInventories)
+		api.POST("/inventory", projects.AddProjectInventory)
+		api.DELETE("/inventory/:user_id", projects.RemoveProjectInventory)
+
+		api.GET("/environment", projects.GetProjectEnvironment)
+		api.POST("/environment", projects.AddProjectEnvironment)
+		api.DELETE("/environment/:user_id", projects.RemoveProjectEnvironment)
+
+		api.GET("/templates", projects.GetProjectUsers)
+		api.POST("/templates", projects.AddProjectUser)
+		api.DELETE("/templates/:user_id", projects.RemoveProjectUser)
+	}(api.Group("/project/:project_id"))
 }
 
 func servePublic(c *gin.Context) {

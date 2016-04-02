@@ -11,7 +11,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					request.url = url = url.replace('/tpl/', '/public/html/');
 				}
 
-				if (!(url.indexOf('/public') !== -1 || url.indexOf('://') !== -1)) {
+				if (!(url.indexOf('/public') !== -1 || url.indexOf('://') !== -1 || url.indexOf('uib/template') !== -1)) {
 					request.url = "/api" + request.url;
 					request.headers['Cache-Control'] = 'no-cache';
 				}
@@ -50,13 +50,34 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 		$rootScope.user = null;
 		$rootScope.loggedIn = false;
 
+		$rootScope.ws = null;
+
 		$http.get('/user')
 		.then(function (user) {
 			$rootScope.user = user;
 			$rootScope.loggedIn = true;
+
+			$rootScope.startWS();
 		}, function () {
 			$state.go('auth.login');
 		});
+	}
+
+	$rootScope.startWS = function () {
+		var ws_proto = 'ws:';
+		if (document.location.protocol == 'https:') {
+			ws_proto = 'wss:';
+		}
+
+		$rootScope.ws = new WebSocket(ws_proto + '//' + document.location.host + '/api/ws');
+		$rootScope.ws.onclose = function () {
+			console.log('WS closed, retrying');
+			setTimeout($rootScope.startWS, 2000);
+		}
+
+		$rootScope.ws.onmessage = function (e) {
+			console.log('msg', e);
+		}
 	}
 
 	$rootScope.refreshUser();

@@ -6,6 +6,6 @@
 		.col-md-4
 			.panel.panel-default
 				.panel-heading Projects
-					button.btn.btn-default.btn-xs.pull-right: i.fa.fa-fw.fa-plus
+					button.btn.btn-default.btn-xs.pull-right(ng-click="addProject()"): i.fa.fa-fw.fa-plus
 				ul.list-group
-					li.list-group-item(ng-repeat="project in projects") {{ project.name }}
+					li.list-group-item(ng-repeat="project in projects"): a(ui-sref="project.dashboard({ project_id: project.id })") {{ project.name }}
