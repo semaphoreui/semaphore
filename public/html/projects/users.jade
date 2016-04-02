@@ -1,0 +1,8 @@
+h4 Users
+
+table.table
+	tbody: tr(ng-repeat="user in users")
+		td {{ user.name }}
+		td {{ user.username }}
+		td {{ user.email }}
+		td: button.btn.btn-default.pull-right.btn-xs(ng-click="remove(user)") remove

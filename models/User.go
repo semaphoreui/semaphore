@@ -12,7 +12,7 @@ type User struct {
 	Username string    `db:"username" json:"username"`
 	Name     string    `db:"name" json:"name"`
 	Email    string    `db:"email" json:"email"`
-	Password string    `db:"password" json:"password"`
+	Password string    `db:"password" json:"-"`
 }
 
 func FetchUser(userID int) (*User, error) {

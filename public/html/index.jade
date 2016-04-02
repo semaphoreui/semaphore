@@ -12,7 +12,13 @@ html(lang="en" ng-app="semaphore")
 	body
 		.navbar.navbar-default(ng-if="loggedIn"): .container-fluid
 			.navbar-header
-				a.navbar-brand(ui-sref="homepage") SEMAPHORE
+				a.navbar-brand(ui-sref="dashboard") SEMAPHORE
+
+			ul.nav.navbar-nav
+				li(ng-class="{ active: $state.includes('dashboard') }")
+					a(ui-sref="dashboard") Dashboard
+				li(ng-class="{ active: $state.includes('keys') }")
+					a(ui-sref="keys") Key Store
 
 			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
 				li(uib-dropdown)
