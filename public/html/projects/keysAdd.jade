@@ -1,0 +1,52 @@
+.modal-header
+	h4.modal-title Create Access Key
+
+.modal-body
+	form.form-horizontal
+		.form-group
+			label.control-label.col-sm-4 Key Name
+			.col-sm-6
+				input.form-control(type="text" placeholder="Name" ng-model="key.name")
+		.form-group
+			label.control-label.col-sm-4 Key Type
+			.col-sm-6
+				select.form-control(ng-model="key.type")
+					option(value="") -- Please select type --
+					option(value="ssh") SSH Key
+					option(value="aws") AWS IAM credentials
+					option(value="gcloud") Google Cloud API Key
+					option(value="do") DigitalOcean API Key
+
+		.form-group(ng-if="key.type == 'ssh'")
+			label.control-label.col-sm-4 Public Key
+			.col-sm-6
+				textarea.form-control(ng-model="key.key" rows="4")
+		.form-group(ng-if="key.type == 'ssh'")
+			label.control-label.col-sm-4 Private Key
+			.col-sm-6
+				textarea.form-control(ng-model="key.secret" rows="10")
+
+		.form-group(ng-if="key.type == 'aws'")
+			label.control-label.col-sm-4 Access Key
+			.col-sm-6
+				textarea.form-control(ng-model="key.key" rows="4")
+		.form-group(ng-if="key.type == 'aws'")
+			label.control-label.col-sm-4 Secret Key
+			.col-sm-6
+				textarea.form-control(ng-model="key.secret" rows="10")
+
+		.form-group(ng-if="key.type == 'gcloud'")
+			label.control-label.col-sm-4 Service Key JSON
+			.col-sm-6
+				textarea.form-control(ng-model="key.secret" rows="10")
+				p.help-text: a(href="https://support.google.com/cloud/answer/6158849?hl=en#serviceaccounts" target="_blank") https://support.google.com/cloud/answer/6158849
+				p.help-text Download as JSON & Paste contents here
+
+		.form-group(ng-if="key.type == 'do'")
+			label.control-label.col-sm-4 API Key
+			.col-sm-6
+				input.form-control(type="text" ng-model="key.secret")
+
+.modal-footer
+	button.btn.btn-success(ng-click="$close(key)") Save
+	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
