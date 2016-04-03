@@ -3,6 +3,7 @@ package projects
 import (
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
 	"github.com/masterminds/squirrel"
 )
@@ -25,7 +26,33 @@ func GetProjectUsers(c *gin.Context) {
 }
 
 func AddProjectUser(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	var user struct {
+		UserID int  `json:"user_id" binding:"required"`
+		Admin  bool `json:"admin"`
+	}
+
+	if err := c.Bind(&user); err != nil {
+		return
+	}
+
+	if _, err := database.Mysql.Exec("insert into project__user set user_id=?, project_id=?, admin=?", user.UserID, project.ID, user.Admin); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
 }
 
 func RemoveProjectUser(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	userID, err := util.GetIntParam("user_id", c)
+	if err != nil {
+		return
+	}
+
+	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", userID, project.ID); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
 }

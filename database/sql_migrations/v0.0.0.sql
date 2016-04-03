@@ -29,7 +29,7 @@ create table project__user (
 create table access_key (
 	`id` int(11) not null primary key auto_increment,
 	`name` varchar(255) not null,
-	`type` varchar(255) not null comment 'aws/do/gcloud',
+	`type` varchar(255) not null comment 'aws/do/gcloud/ssh',
 
 	`project_id` int(11) null,
 	`key` text null,

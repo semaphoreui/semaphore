@@ -49,7 +49,8 @@ func Route(r *gin.Engine) {
 
 		api.GET("/keys", projects.GetProjectKeys)
 		api.POST("/keys", projects.AddProjectKey)
-		api.DELETE("/keys", projects.RemoveProjectKey)
+		api.PUT("/keys/:key_id", projects.UpdateProjectKey)
+		api.DELETE("/keys/:key_id", projects.RemoveProjectKey)
 
 		api.GET("/repositories", projects.GetProjectRepositories)
 		api.POST("/repositories", projects.AddProjectRepository)
