@@ -8,14 +8,23 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func GetProjectKeys(c *gin.Context) {
+func KeyMiddleware(c *gin.Context) {
+	c.Next()
+}
+
+func GetKeys(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var keys []models.AccessKey
 
-	query, args, _ := squirrel.Select("*").
+	q := squirrel.Select("*").
 		From("access_key").
-		Where("project_id=?", project.ID).
-		ToSql()
+		Where("project_id=?", project.ID)
+
+	if len(c.Query("type")) > 0 {
+		q = q.Where("type=?", c.Query("type"))
+	}
+
+	query, args, _ := q.ToSql()
 
 	if _, err := database.Mysql.Select(&keys, query, args...); err != nil {
 		panic(err)
@@ -24,7 +33,7 @@ func GetProjectKeys(c *gin.Context) {
 	c.JSON(200, keys)
 }
 
-func AddProjectKey(c *gin.Context) {
+func AddKey(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var key models.AccessKey
 
@@ -47,10 +56,11 @@ func AddProjectKey(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func UpdateProjectKey(c *gin.Context) {
+func UpdateKey(c *gin.Context) {
+	c.AbortWithStatus(501)
 }
 
-func RemoveProjectKey(c *gin.Context) {
+func RemoveKey(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	keyID, err := util.GetIntParam("key_id", c)
 	if err != nil {

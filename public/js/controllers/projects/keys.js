@@ -17,6 +17,12 @@ define(function () {
 		$scope.add = function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/keysAdd.html'
+			}).result.then(function (key) {
+				$http.post(Project.getURL() + '/keys', key).success(function () {
+					$scope.reload();
+				}).error(function (_, status) {
+					swal('error', 'could not add key:' + status, 'error');
+				});
 			});
 		}
 

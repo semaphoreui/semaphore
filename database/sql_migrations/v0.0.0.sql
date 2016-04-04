@@ -52,7 +52,7 @@ create table project__inventory (
 	`id` int(11) not null primary key auto_increment,
 	`project_id` int(11) not null,
 	`type` varchar(255) not null comment 'can be static/aws/do/gcloud',
-	`key_id` int(11) not null comment 'references keys to authenticate remote services',
+	`key_id` int(11) null comment 'references keys to authenticate remote services',
 	`inventory` longtext not null,
 
 	foreign key (`project_id`) references project(`id`) on delete cascade,
@@ -74,7 +74,7 @@ create table project__template (
 	`project_id` int(11) not null,
 	`inventory_id` int(11) not null,
 	`repository_id` int(11) not null,
-	`environment_id` int(11) not null,
+	`environment_id` int(11) null,
 	`playbook` varchar(255) not null comment 'playbook name (ansible.yml)',
 
 	foreign key (`project_id`) references project(`id`) on delete cascade,

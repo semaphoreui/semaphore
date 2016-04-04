@@ -7,6 +7,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/migration"
 	"github.com/ansible-semaphore/semaphore/routes"
 	"github.com/ansible-semaphore/semaphore/routes/sockets"
+	"github.com/ansible-semaphore/semaphore/routes/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
@@ -36,6 +37,7 @@ func main() {
 
 	routes.Route(r)
 
+	go tasks.StartRunner()
 	r.Run(util.Config.Port)
 }
 

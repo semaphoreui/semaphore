@@ -113,3 +113,8 @@ func Handler(context *gin.Context) {
 	go c.writePump()
 	c.readPump()
 }
+
+func Broadcast(msg []byte) {
+	fmt.Println("broadcasting", string(msg))
+	h.broadcast <- msg
+}
