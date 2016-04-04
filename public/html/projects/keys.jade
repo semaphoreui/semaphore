@@ -1,2 +1,12 @@
 h4 Keys
 	button.btn.btn-default.pull-right(ng-click="add()") Create Key
+
+table.table
+	thead: tr
+		th Name
+		th Type
+		th Key
+	tbody: tr(ng-repeat="key in keys")
+		td {{ key.name }}
+		td {{ key.type }}
+		td {{ key.key }}

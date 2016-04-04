@@ -6,6 +6,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/routes/auth"
 	"github.com/ansible-semaphore/semaphore/routes/projects"
 	"github.com/ansible-semaphore/semaphore/routes/sockets"
+	"github.com/ansible-semaphore/semaphore/routes/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
 )
@@ -43,30 +44,36 @@ func Route(r *gin.Engine) {
 
 		api.GET("", projects.GetProject)
 
-		api.GET("/users", projects.GetProjectUsers)
-		api.POST("/users", projects.AddProjectUser)
-		api.DELETE("/users/:user_id", projects.RemoveProjectUser)
+		api.GET("/users", projects.GetUsers)
+		api.POST("/users", projects.AddUser)
+		api.POST("/users/:user_id/admin", projects.UserMiddleware, projects.MakeUserAdmin)
+		api.DELETE("/users/:user_id/admin", projects.UserMiddleware, projects.MakeUserAdmin)
+		api.DELETE("/users/:user_id", projects.UserMiddleware, projects.RemoveUser)
 
-		api.GET("/keys", projects.GetProjectKeys)
-		api.POST("/keys", projects.AddProjectKey)
-		api.PUT("/keys/:key_id", projects.UpdateProjectKey)
-		api.DELETE("/keys/:key_id", projects.RemoveProjectKey)
+		api.GET("/keys", projects.GetKeys)
+		api.POST("/keys", projects.AddKey)
+		api.PUT("/keys/:key_id", projects.KeyMiddleware, projects.UpdateKey)
+		api.DELETE("/keys/:key_id", projects.KeyMiddleware, projects.RemoveKey)
 
-		api.GET("/repositories", projects.GetProjectRepositories)
-		api.POST("/repositories", projects.AddProjectRepository)
-		api.DELETE("/repositories/:user_id", projects.RemoveProjectRepository)
+		api.GET("/repositories", projects.GetRepositories)
+		api.POST("/repositories", projects.AddRepository)
+		api.DELETE("/repositories/:repository_id", projects.RepositoryMiddleware, projects.RemoveRepository)
 
-		api.GET("/inventory", projects.GetProjectInventories)
-		api.POST("/inventory", projects.AddProjectInventory)
-		api.DELETE("/inventory/:user_id", projects.RemoveProjectInventory)
+		api.GET("/inventory", projects.GetInventory)
+		api.POST("/inventory", projects.AddInventory)
+		api.PUT("/inventory/:inventory_id", projects.InventoryMiddleware, projects.UpdateInventory)
+		api.DELETE("/inventory/:inventory_id", projects.InventoryMiddleware, projects.RemoveInventory)
 
-		api.GET("/environment", projects.GetProjectEnvironment)
-		api.POST("/environment", projects.AddProjectEnvironment)
-		api.DELETE("/environment/:user_id", projects.RemoveProjectEnvironment)
+		api.GET("/environment", projects.GetEnvironment)
+		api.POST("/environment", projects.AddEnvironment)
+		api.DELETE("/environment/:user_id", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
 
-		api.GET("/templates", projects.GetProjectUsers)
-		api.POST("/templates", projects.AddProjectUser)
-		api.DELETE("/templates/:user_id", projects.RemoveProjectUser)
+		api.GET("/templates", projects.GetTemplates)
+		api.POST("/templates", projects.AddTemplate)
+		api.PUT("/templates/:template_id", projects.TemplatesMiddleware, projects.UpdateTemplate)
+		api.DELETE("/templates/:template_id", projects.TemplatesMiddleware, projects.RemoveTemplate)
+
+		api.POST("/tasks", tasks.AddTask)
 	}(api.Group("/project/:project_id"))
 }
 
@@ -79,6 +86,11 @@ func servePublic(c *gin.Context) {
 	}
 
 	if !strings.HasPrefix(path, "/public") {
+		if len(strings.Split(path, ".")) > 1 {
+			c.AbortWithStatus(404)
+			return
+		}
+
 		path = "/public/html/index.html"
 	}
 

@@ -8,7 +8,11 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func GetProjectUsers(c *gin.Context) {
+func UserMiddleware(c *gin.Context) {
+	c.Next()
+}
+
+func GetUsers(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var users []models.User
 
@@ -25,7 +29,7 @@ func GetProjectUsers(c *gin.Context) {
 	c.JSON(200, users)
 }
 
-func AddProjectUser(c *gin.Context) {
+func AddUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var user struct {
 		UserID int  `json:"user_id" binding:"required"`
@@ -43,7 +47,7 @@ func AddProjectUser(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func RemoveProjectUser(c *gin.Context) {
+func RemoveUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	userID, err := util.GetIntParam("user_id", c)
 	if err != nil {
@@ -55,4 +59,12 @@ func RemoveProjectUser(c *gin.Context) {
 	}
 
 	c.AbortWithStatus(204)
+}
+
+func MakeUserAdmin(c *gin.Context) {
+	if c.Request.Method == "DELETE" {
+		// strip admin
+	}
+
+	c.AbortWithStatus(501)
 }

@@ -2,11 +2,18 @@ package projects
 
 import "github.com/gin-gonic/gin"
 
-func GetProjectEnvironment(c *gin.Context) {
+func EnvironmentMiddleware(c *gin.Context) {
+	c.AbortWithStatus(501)
 }
 
-func AddProjectEnvironment(c *gin.Context) {
+func GetEnvironment(c *gin.Context) {
+	c.AbortWithStatus(501)
 }
 
-func RemoveProjectEnvironment(c *gin.Context) {
+func AddEnvironment(c *gin.Context) {
+	c.AbortWithStatus(501)
+}
+
+func RemoveEnvironment(c *gin.Context) {
+	c.AbortWithStatus(501)
 }
