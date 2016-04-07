@@ -1,8 +1,15 @@
-h4 Users
+h3 Users
 
 table.table
+	thead: tr
+		th Name
+		th Username
+		th Email
+		th Admin
+		th &nbsp;
 	tbody: tr(ng-repeat="user in users")
 		td {{ user.name }}
 		td {{ user.username }}
 		td {{ user.email }}
+		td: i.fa.fa-fw(ng-class="{ 'fa-times': !user.admin, 'fa-check': user.admin }")
 		td: button.btn.btn-default.pull-right.btn-xs(ng-click="remove(user)") remove

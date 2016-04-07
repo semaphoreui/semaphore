@@ -18,6 +18,7 @@ func main() {
 	fmt.Printf("Port %v\n", util.Config.Port)
 	fmt.Printf("MySQL %v@%v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname)
 	fmt.Printf("Redis %v\n", util.Config.SessionDb)
+	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
 	defer database.Mysql.Db.Close()
 	database.RedisPing()

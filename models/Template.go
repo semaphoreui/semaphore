@@ -1,5 +1,7 @@
 package models
 
+import "github.com/ansible-semaphore/semaphore/database"
+
 type Template struct {
 	ID            int    `db:"id" json:"id"`
 	SshKeyID      int    `db:"ssh_key_id" json:"ssh_key_id"`
@@ -13,4 +15,8 @@ type Template struct {
 type TemplateSchedule struct {
 	TemplateID int    `db:"template_id" json:"template_id"`
 	CronFormat string `db:"cron_format" json:"cron_format"`
+}
+
+func init() {
+	database.Mysql.AddTableWithName(Template{}, "project__template").SetKeys(true, "id")
 }

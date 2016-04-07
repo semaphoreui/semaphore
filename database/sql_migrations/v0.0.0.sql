@@ -103,6 +103,7 @@ create table task (
 
 create table task__output (
 	`task_id` int(11) not null,
+	`task` varchar(255) not null,
 	`time` datetime not null default NOW(),
 	`output` longtext not null,
 

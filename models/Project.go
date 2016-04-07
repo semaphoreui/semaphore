@@ -7,9 +7,9 @@ import (
 )
 
 type Project struct {
-	ID      int       `json:"id"`
-	Name    string    `json:"name" binding:"required"`
-	Created time.Time `json:"created"`
+	ID      int       `db:"id" json:"id"`
+	Name    string    `db:"name" json:"name" binding:"required"`
+	Created time.Time `db:"created" json:"created"`
 }
 
 func (project *Project) CreateProject() error {
@@ -27,4 +27,8 @@ func (project *Project) CreateProject() error {
 	project.Created = time.Now()
 
 	return nil
+}
+
+func init() {
+	database.Mysql.AddTableWithName(Project{}, "project").SetKeys(true, "id")
 }
