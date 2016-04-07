@@ -76,7 +76,7 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 		}
 
 		$rootScope.ws.onmessage = function (e) {
-			console.log('msg', e);
+			console.log('msg', e.data);
 		}
 	}
 

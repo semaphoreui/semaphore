@@ -95,6 +95,10 @@ func init() {
 		mandrillAPI = api
 	}
 
+	if len(Config.TmpPath) == 0 {
+		Config.TmpPath = "/tmp/semaphore"
+	}
+
 	stage := ""
 	if gin.Mode() == "release" {
 		stage = "production"
