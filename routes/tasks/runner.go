@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/ansible-semaphore/semaphore/routes/sockets"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -22,10 +22,6 @@ type task struct {
 	inventory   models.Inventory
 	repository  models.Repository
 	environment models.Environment
-}
-
-func (t *task) log(msg string) {
-	sockets.Broadcast([]byte(msg))
 }
 
 func (t *task) run() {
@@ -53,6 +49,17 @@ func (t *task) run() {
 		return
 	}
 
+	if err := t.installInventory(); err != nil {
+		t.log("Failed to install inventory: " + err.Error())
+		return
+	}
+
+	// todo: write environment
+
+	if err := t.runPlaybook(); err != nil {
+		t.log("Running playbook failed: " + err.Error())
+		return
+	}
 }
 
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
@@ -90,6 +97,20 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
+	// get inventory services key
+	if t.inventory.KeyID != nil {
+		if err := t.fetch("Inventory AccessKey not found!", &t.inventory.Key, "select * from access_key where id=?", *t.inventory.KeyID); err != nil {
+			return err
+		}
+	}
+
+	// get inventory ssh key
+	if t.inventory.SshKeyID != nil {
+		if err := t.fetch("Inventory Ssh Key not found!", &t.inventory.SshKey, "select * from access_key where id=?", *t.inventory.SshKeyID); err != nil {
+			return err
+		}
+	}
+
 	// get repository
 	if err := t.fetch("Repository not found!", &t.repository, "select * from project__repository where id=?", t.template.RepositoryID); err != nil {
 		return err
@@ -118,65 +139,86 @@ func (t *task) populateDetails() error {
 }
 
 func (t *task) installKey(key models.AccessKey) error {
-	t.log("installing Access key: " + key.Name)
+	t.log("access key " + key.Name + " installed")
+	err := ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
 
-	// create .ssh directory
-	err := os.MkdirAll(util.Config.TmpPath+"/.ssh", 448)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(util.Config.TmpPath+"/.ssh/id_rsa", []byte(*key.Secret), 0600)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(util.Config.TmpPath+"/.ssh/id_rsa.pub", []byte(*key.Key), 0644)
-	if err != nil {
-		return err
-	}
-
-	t.log("key " + key.Name + " installed")
-	return nil
+	return err
 }
 
 func (t *task) updateRepository() error {
 	repoName := "repository_" + strconv.Itoa(t.repository.ID)
-
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
-	if err != nil && os.IsNotExist(err) {
-		t.log("Cloning repository")
 
-		cmd := exec.Command("git", "clone", t.repository.GitUrl, repoName)
-		cmd.Env = []string{
-			"HOME=" + util.Config.TmpPath,
-			"PWD=" + util.Config.TmpPath,
-			"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i " + util.Config.TmpPath + "/.ssh/id_rsa",
-			// "GIT_FLUSH=1",
-		}
-		cmd.Dir = util.Config.TmpPath
-
-		out, err := cmd.CombinedOutput()
-		fmt.Println(string(out))
-
-		return err
-	} else if err != nil {
-		return err
-	}
-
-	t.log("Updating repository")
-
-	// update instead of cloning
-	cmd := exec.Command("git", "pull", "origin", "master")
+	cmd := exec.Command("git")
+	cmd.Dir = util.Config.TmpPath + "/" + repoName
 	cmd.Env = []string{
 		"HOME=" + util.Config.TmpPath,
 		"PWD=" + util.Config.TmpPath,
-		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i " + util.Config.TmpPath + "/.ssh/id_rsa",
+		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath(),
+		// "GIT_FLUSH=1",
 	}
-	cmd.Dir = util.Config.TmpPath + "/" + repoName
 
-	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
+	if err != nil && os.IsNotExist(err) {
+		t.log("Cloning repository")
+		cmd.Args = append(cmd.Args, "clone", t.repository.GitUrl, repoName)
+	} else if err != nil {
+		return err
+	} else {
+		t.log("Updating repository")
+		cmd.Args = append(cmd.Args, "pull", "origin", "master")
+	}
 
-	return nil
+	t.logCmd(cmd)
+	return cmd.Run()
+}
+
+func (t *task) runPlaybook() error {
+	playbookName := t.task.Playbook
+	if len(playbookName) == 0 {
+		playbookName = t.template.Playbook
+	}
+
+	args := []string{
+		"-i", util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID),
+	}
+
+	if t.inventory.SshKeyID != nil {
+		args = append(args, "--private-key="+t.inventory.SshKey.GetPath())
+	}
+
+	if t.task.Debug {
+		args = append(args, "-vvvv")
+	}
+
+	if len(t.environment.JSON) > 0 {
+		args = append(args, "--extra-vars", t.environment.JSON)
+	}
+
+	var extraArgs []string
+	if t.template.Arguments != nil {
+		err := json.Unmarshal([]byte(*t.template.Arguments), &extraArgs)
+		if err != nil {
+			t.log("Could not unmarshal arguments to []string")
+			return err
+		}
+	}
+
+	if t.template.OverrideArguments {
+		args = extraArgs
+	} else {
+		args = append(args, extraArgs...)
+		args = append(args, playbookName)
+	}
+
+	cmd := exec.Command("ansible-playbook", args...)
+	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Env = []string{
+		"HOME=" + util.Config.TmpPath,
+		"PWD=" + cmd.Dir,
+		"PYTHONUNBUFFERED=1",
+		// "GIT_FLUSH=1",
+	}
+
+	t.logCmd(cmd)
+	return cmd.Run()
 }

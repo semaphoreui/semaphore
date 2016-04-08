@@ -1,6 +1,11 @@
 package models
 
-import "github.com/ansible-semaphore/semaphore/database"
+import (
+	"strconv"
+
+	"github.com/ansible-semaphore/semaphore/database"
+	"github.com/ansible-semaphore/semaphore/util"
+)
 
 type AccessKey struct {
 	ID   int    `db:"id" json:"id"`
@@ -15,4 +20,8 @@ type AccessKey struct {
 
 func init() {
 	database.Mysql.AddTableWithName(AccessKey{}, "access_key").SetKeys(true, "id")
+}
+
+func (key AccessKey) GetPath() string {
+	return util.Config.TmpPath + "/access_key_" + strconv.Itoa(key.ID)
 }

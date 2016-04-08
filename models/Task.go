@@ -4,9 +4,13 @@ import "time"
 import "github.com/ansible-semaphore/semaphore/database"
 
 type Task struct {
-	ID          int    `db:"id" json:"id"`
-	TemplateID  int    `db:"template_id" json:"template_id" binding:"required"`
-	Status      string `db:"status" json:"status"`
+	ID         int `db:"id" json:"id"`
+	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
+
+	Status string `db:"status" json:"status"`
+	Debug  bool   `db:"debug" json:"debug"`
+
+	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`
 }

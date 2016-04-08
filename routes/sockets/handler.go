@@ -115,6 +115,6 @@ func Handler(context *gin.Context) {
 }
 
 func Broadcast(msg []byte) {
-	fmt.Println("broadcasting", string(msg))
+	fmt.Printf("-> %v\n", string(msg))
 	h.broadcast <- msg
 }
