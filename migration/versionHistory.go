@@ -56,5 +56,6 @@ func init() {
 	Versions = []*DBVersion{
 		{},
 		{Major: 1},
+		{Major: 1, Minor: 1},
 	}
 }

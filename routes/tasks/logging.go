@@ -13,7 +13,7 @@ func (t *task) log(msg string) {
 	sockets.Broadcast([]byte(msg))
 
 	go func() {
-		_, err := database.Mysql.Exec("insert into task__output set task_id=?, output=?", t.task.ID, msg)
+		_, err := database.Mysql.Exec("insert into task__output set task_id=?, output=?, time=NOW(6)", t.task.ID, msg)
 		if err != nil {
 			sockets.Broadcast([]byte("Error logging task output" + err.Error()))
 		}
