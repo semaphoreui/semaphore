@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/database"
@@ -16,55 +17,66 @@ import (
 	"gopkg.in/redis.v3"
 )
 
-func resetSessionExpiry(sessionID string) {
-	if err := database.Redis.Expire(sessionID, 7*24*time.Hour).Err(); err != nil {
+func resetSessionExpiry(sessionID string, ttl time.Duration) {
+	var cmd *redis.BoolCmd
+
+	if ttl == 0 {
+		cmd = database.Redis.Persist(sessionID)
+	} else {
+		cmd = database.Redis.Expire(sessionID, ttl)
+	}
+
+	if err := cmd.Err(); err != nil {
 		fmt.Println("Cannot reset session expiry:", err)
 	}
 }
 
 func authentication(c *gin.Context) {
-	cookie, err := c.Request.Cookie("semaphore")
-	if err != nil {
-		// create cookie
-		new_cookie := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, new_cookie); err != nil {
-			panic(err)
+	var redisKey string
+	ttl := 7 * 24 * time.Hour
+
+	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 {
+		redisKey = "token-session:" + strings.Replace(authHeader, "bearer ", "", 1)
+		ttl = 0
+	} else {
+		cookie, err := c.Request.Cookie("semaphore")
+		if err != nil {
+			// create cookie
+			new_cookie := make([]byte, 32)
+			if _, err := io.ReadFull(rand.Reader, new_cookie); err != nil {
+				panic(err)
+			}
+
+			cookie_value := url.QueryEscape(base64.URLEncoding.EncodeToString(new_cookie))
+			cookie = &http.Cookie{Name: "semaphore", Value: cookie_value, Path: "/", HttpOnly: true}
+			http.SetCookie(c.Writer, cookie)
 		}
 
-		cookie_value := url.QueryEscape(base64.URLEncoding.EncodeToString(new_cookie))
-		cookie = &http.Cookie{Name: "semaphore", Value: cookie_value, Path: "/", HttpOnly: true}
-		http.SetCookie(c.Writer, cookie)
+		redisKey = "session:" + cookie.Value
 	}
 
-	redis_key := "session:" + cookie.Value
-	s, err := database.Redis.Get(redis_key).Result()
+	s, err := database.Redis.Get(redisKey).Result()
 	if err == redis.Nil {
 		// create a session
 		temp_session := models.Session{}
 		s = string(temp_session.Encode())
 
-		if err := database.Redis.Set(redis_key, s, 0).Err(); err != nil {
+		if err := database.Redis.Set(redisKey, s, 0).Err(); err != nil {
 			panic(err)
 		}
 	} else if err != nil {
-		fmt.Println("Cannot get cookie from redis:", err)
+		fmt.Println("Cannot get session from redis:", err)
 		c.AbortWithStatus(500)
 
 		return
 	}
 
-	// reset session expiry
-	go resetSessionExpiry(redis_key)
-
-	sess, err := models.DecodeSession(cookie.Value, s)
+	sess, err := models.DecodeSession(redisKey, s)
 	if err != nil {
 		fmt.Println("Cannot decode session:", err)
 		util.AuthFailed(c)
 		return
 	}
-
-	sess.ID = cookie.Value
-	c.Set("session", sess)
 
 	if sess.UserID != nil {
 		user, err := models.FetchUser(*sess.UserID)
@@ -77,6 +89,10 @@ func authentication(c *gin.Context) {
 		c.Set("user", user)
 	}
 
+	// reset session expiry
+	go resetSessionExpiry(redisKey, ttl)
+
+	c.Set("session", sess)
 	c.Next()
 }
 

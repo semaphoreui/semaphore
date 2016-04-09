@@ -1,6 +1,8 @@
 package projects
 
 import (
+	"database/sql"
+
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -9,6 +11,23 @@ import (
 )
 
 func RepositoryMiddleware(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	repositoryID, err := util.GetIntParam("repository_id", c)
+	if err != nil {
+		return
+	}
+
+	var repository models.Repository
+	if err := database.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
+		if err == sql.ErrNoRows {
+			c.AbortWithStatus(404)
+			return
+		}
+
+		panic(err)
+	}
+
+	c.Set("repository", repository)
 	c.Next()
 }
 
@@ -44,15 +63,23 @@ func AddRepository(c *gin.Context) {
 }
 
 func UpdateRepository(c *gin.Context) {
-	c.AbortWithStatus(501)
+	project := c.MustGet("project").(models.Project)
+	var repository models.Repository
+
+	if err := c.Bind(&repository); err != nil {
+		return
+	}
+
+	if _, err := database.Mysql.Exec("update project__repository set git_url=?, ssh_key_id=? where id=?", repository.GitUrl, repository.SshKeyID, c.MustGet("repository").(models.Repository).ID); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
 }
 
 func RemoveRepository(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	repositoryID, err := util.GetIntParam("repository_id", c)
-	if err != nil {
-		return
-	}
+	repository := c.MustGet("repository").(models.Repository)
 
 	if _, err := database.Mysql.Exec("delete from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
 		panic(err)

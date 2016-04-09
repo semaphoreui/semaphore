@@ -3,7 +3,6 @@ package routes
 import (
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/routes/auth"
 	"github.com/ansible-semaphore/semaphore/routes/projects"
 	"github.com/ansible-semaphore/semaphore/routes/sockets"
 	"github.com/ansible-semaphore/semaphore/routes/tasks"
@@ -25,16 +24,22 @@ func Route(r *gin.Engine) {
 	api.Use(authentication)
 
 	func(api *gin.RouterGroup) {
-		api.POST("/login", auth.Login)
-		api.POST("/logout", auth.Logout)
+		api.POST("/login", login)
+		api.POST("/logout", logout)
 	}(api.Group("/auth"))
 
 	api.Use(MustAuthenticate)
 
 	api.GET("/ws", sockets.Handler)
 
-	api.GET("/user", getUser)
-	// api.PUT("/user", misc.UpdateUser)
+	func(api *gin.RouterGroup) {
+		api.GET("", getUser)
+		// api.PUT("/user", misc.UpdateUser)
+
+		api.GET("/tokens", getAPITokens)
+		api.POST("/tokens", createAPIToken)
+		api.DELETE("/tokens/:token_id", expireAPIToken)
+	}(api.Group("/user"))
 
 	api.GET("/projects", projects.GetProjects)
 	api.POST("/projects", projects.AddProject)
@@ -128,8 +133,4 @@ func servePublic(c *gin.Context) {
 
 	c.Writer.Header().Set("content-type", contentType)
 	c.String(200, string(res))
-}
-
-func getUser(c *gin.Context) {
-	c.JSON(200, c.MustGet("user"))
 }
