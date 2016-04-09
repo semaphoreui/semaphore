@@ -67,6 +67,94 @@ definitions:
       created:
         type: string
         format: date-time
+  AccessKey:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+      project_id:
+        type: integer
+      key:
+        type: string
+      secret:
+        type: string
+  Environment:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      password:
+        type: string
+      json:
+        type: string
+  Inventory:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      inventory:
+        type: string
+      key_id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      type:
+        type: string
+  Repository:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      git_url:
+        type: string
+      ssh_key_id:
+        type: integer
+  Task:
+    type: object
+    properties:
+      id:
+        type: integer
+      template_id:
+        type: integer
+      status:
+        type: string
+      debug:
+        type: boolean
+      playbook:
+        type: string
+      environment:
+        type: string
+  Template:
+    type: object
+    properties:
+      id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      project_id:
+        type: integer
+      inventory_id:
+        type: integer
+      repository_id:
+        type: integer
+      environment_id:
+        type: integer
+      playbook:
+        type: string
+      arguments:
+        type: string
+      override_args:
+        type: boolean
 
 # securityDefinitions:
 #   cookie:
@@ -88,6 +176,36 @@ parameters:
   user_id:
     name: user_id
     description: User ID
+    in: path
+    type: integer
+    required: true
+  key_id:
+    name: key_id
+    description: key ID
+    in: path
+    type: integer
+    required: true
+  repository_id:
+    name: repository_id
+    description: repository ID
+    in: path
+    type: integer
+    required: true
+  inventory_id:
+    name: inventory_id
+    description: inventory ID
+    in: path
+    type: integer
+    required: true
+  environment_id:
+    name: environment_id
+    description: environment ID
+    in: path
+    type: integer
+    required: true
+  template_id:
+    name: template_id
+    description: template ID
     in: path
     type: integer
     required: true
@@ -295,3 +413,266 @@ paths:
       responses:
         204:
           description: User admin privileges revoked
+
+  # project access keys
+  /project/{project_id}/keys:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get access keys linked to project
+      responses:
+        200:
+          description: Access Keys
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AccessKey"
+    post:
+      tags:
+        - project
+      summary: Add access key
+      parameters:
+        - name: Access Key
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AccessKey"
+      responses:
+        204:
+          description: Access Key created
+        400:
+          description: Bad type
+  /project/{project_id}/keys/{key_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/key_id"
+    put:
+      tags:
+        - project
+      summary: Updates access key
+      parameters:
+        - name: Access Key
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AccessKey"
+      responses:
+        204:
+          description: Key updated
+        400:
+          description: Bad type
+    delete:
+      tags:
+        - project
+      summary: Removes access key
+      responses:
+        204:
+          description: access key removed
+
+  # project repositories
+  /project/{project_id}/repositories:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get repositories
+      responses:
+        200:
+          description: repositories
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Repository"
+    post:
+      tags:
+        - project
+      summary: Add repository
+      parameters:
+        - name: Repository
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Repository"
+      responses:
+        204:
+          description: Repository created
+  /project/{project_id}/repositories/{repository_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/repository_id"
+    delete:
+      tags:
+        - project
+      summary: Removes repository
+      responses:
+        204:
+          description: repository removed
+
+  # project inventory
+  /project/{project_id}/inventory:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get inventory
+      responses:
+        200:
+          description: inventory
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Inventory"
+    post:
+      tags:
+        - project
+      summary: create inventory
+      parameters:
+        - name: Inventory
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Inventory"
+      responses:
+        204:
+          description: inventory created
+  /project/{project_id}/inventory/{inventory_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - project
+      summary: Updates inventory
+      parameters:
+        - name: Inventory
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Inventory"
+      responses:
+        204:
+          description: Inventory updated
+    delete:
+      tags:
+        - project
+      summary: Removes inventory
+      responses:
+        204:
+          description: inventory removed
+
+  # project environment
+  /project/{project_id}/environment:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get environment
+      responses:
+        200:
+          description: environment
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Environment"
+    post:
+      tags:
+        - project
+      summary: Add environment
+      parameters:
+        - name: environment
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Environment"
+      responses:
+        204:
+          description: Environment created
+  /project/{project_id}/environment/{environment_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/environment_id"
+    delete:
+      tags:
+        - project
+      summary: Removes environment
+      responses:
+        204:
+          description: environment removed
+
+  # project templates
+  /project/{project_id}/template:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get template
+      responses:
+        200:
+          description: template
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Template"
+    post:
+      tags:
+        - project
+      summary: create template
+      parameters:
+        - name: template
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Template"
+      responses:
+        204:
+          description: template created
+  /project/{project_id}/template/{template_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    put:
+      tags:
+        - project
+      summary: Updates template
+      parameters:
+        - name: template
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Template"
+      responses:
+        204:
+          description: template updated
+    delete:
+      tags:
+        - project
+      summary: Removes template
+      responses:
+        204:
+          description: template removed
+
+  # tasks
+  /project/{project_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    post:
+      tags:
+        - project
+      summary: Starts a job
+      parameters:
+        - name: job
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Task"
+      responses:
+        201:
+          description: Task queued
+          schema:
+            $ref: "#/definitions/Task"

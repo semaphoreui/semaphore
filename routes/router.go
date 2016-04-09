@@ -71,7 +71,7 @@ func Route(r *gin.Engine) {
 
 		api.GET("/environment", projects.GetEnvironment)
 		api.POST("/environment", projects.AddEnvironment)
-		api.DELETE("/environment/:user_id", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
+		api.DELETE("/environment/:environment_id", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
 
 		api.GET("/templates", projects.GetTemplates)
 		api.POST("/templates", projects.AddTemplate)
