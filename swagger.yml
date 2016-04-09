@@ -30,6 +30,7 @@ definitions:
         description: Password
   PONG:
     type: string
+    format: PONG
   User:
     type: object
     properties:
@@ -57,7 +58,7 @@ paths:
       summary: PING test
       responses:
         200:
-          description: Successful PONG reply
+          description: Successful "PONG" reply
           schema:
             $ref: "#/definitions/PONG"
   /auth/login:
