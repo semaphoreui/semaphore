@@ -1,6 +1,8 @@
 package projects
 
 import (
+	"database/sql"
+
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -9,6 +11,23 @@ import (
 )
 
 func UserMiddleware(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	userID, err := util.GetIntParam("user_id", c)
+	if err != nil {
+		return
+	}
+
+	var user models.User
+	if err := database.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
+		if err == sql.ErrNoRows {
+			c.AbortWithStatus(404)
+			return
+		}
+
+		panic(err)
+	}
+
+	c.Set("projectUser", user)
 	c.Next()
 }
 
@@ -49,12 +68,9 @@ func AddUser(c *gin.Context) {
 
 func RemoveUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	userID, err := util.GetIntParam("user_id", c)
-	if err != nil {
-		return
-	}
+	user := c.MustGet("projectUser").(models.User)
 
-	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", userID, project.ID); err != nil {
+	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
 		panic(err)
 	}
 
@@ -62,9 +78,18 @@ func RemoveUser(c *gin.Context) {
 }
 
 func MakeUserAdmin(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	user := c.MustGet("projectUser").(models.User)
+	admin := 1
+
 	if c.Request.Method == "DELETE" {
 		// strip admin
+		admin = 0
 	}
 
-	c.AbortWithStatus(501)
+	if _, err := database.Mysql.Exec("update project__user set admin=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
 }

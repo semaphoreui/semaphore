@@ -1,4 +1,4 @@
-package auth
+package routes
 
 import (
 	"database/sql"
@@ -14,7 +14,7 @@ import (
 	sq "github.com/masterminds/squirrel"
 )
 
-func Login(c *gin.Context) {
+func login(c *gin.Context) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -56,7 +56,7 @@ func Login(c *gin.Context) {
 	session := c.MustGet("session").(models.Session)
 	session.UserID = &user.ID
 
-	status := database.Redis.Set("session:"+session.ID, string(session.Encode()), 7*24*time.Hour)
+	status := database.Redis.Set(session.ID, string(session.Encode()), 7*24*time.Hour)
 	if err := status.Err(); err != nil {
 		panic(err)
 	}
@@ -64,9 +64,9 @@ func Login(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func Logout(c *gin.Context) {
+func logout(c *gin.Context) {
 	session := c.MustGet("session").(models.Session)
-	if err := database.Redis.Del("session:" + session.ID).Err(); err != nil {
+	if err := database.Redis.Del(session.ID).Err(); err != nil {
 		panic(err)
 	}
 

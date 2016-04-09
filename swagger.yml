@@ -45,12 +45,52 @@ definitions:
       created:
         type: string
         format: date-time
+  APIToken:
+    type: object
+    properties:
+      id:
+        type: string
+      created:
+        type: string
+        format: date-time
+      expired:
+        type: boolean
+      user_id:
+        type: integer
+  Project:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      created:
+        type: string
+        format: date-time
 
-securityDefinitions:
-  cookie:
-    type: apiKey
-    name: Cookie
-    in: header
+# securityDefinitions:
+#   cookie:
+#     type: apiKey
+#     name: Cookie
+#     in: header
+#   bearer:
+#     type: apiKey
+#     name: Authorization
+#     in: header
+
+parameters:
+  project_id:
+    name: project_id
+    description: Project ID
+    in: path
+    type: integer
+    required: true
+  user_id:
+    name: user_id
+    description: User ID
+    in: path
+    type: integer
+    required: true
 
 paths:
   /ping:
@@ -61,8 +101,25 @@ paths:
           description: Successful "PONG" reply
           schema:
             $ref: "#/definitions/PONG"
+
+  /ws:
+    get:
+      summary: Websocket handler
+      schemes:
+        - ws
+        - wss
+      responses:
+        200:
+          description: OK
+      # security:
+      #   - cookie: []
+      #   - bearer: []
+
+  # Authentication
   /auth/login:
     post:
+      tags:
+        - authentication
       summary: Performs Login
       description: |
         Upon success you will be logged in
@@ -79,26 +136,162 @@ paths:
           description: something in body is missing / is invalid
   /auth/logout:
     post:
+      tags:
+        - authentication
       summary: Destroys current session
       responses:
         204:
           description: Your session was successfully nuked
-  /ws:
-    get:
-      summary: Websocket handler
-      schemes:
-        - ws
-        - wss
-      responses:
-        200:
-          description: OK
-      security:
-        - cookie: []
+
+  # User stuff
   /user:
     get:
+      tags:
+        - user
       summary: Fetch logged in user
       responses:
         200:
           description: User
           schema:
             $ref: "#/definitions/User"
+
+  /user/tokens:
+    get:
+      tags:
+        - authentication
+        - user
+      summary: Fetch API tokens for user
+      responses:
+        200:
+          description: API Tokens
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/APIToken"
+    post:
+      tags:
+        - authentication
+        - user
+      summary: Create an API token
+      responses:
+        201:
+          description: API Token
+          schema:
+            $ref: "#/definitions/APIToken"
+  /user/tokens/{api_token_id}:
+    parameters:
+      - name: api_token_id
+        in: path
+        type: string
+        required: true
+    delete:
+      tags:
+        - authentication
+        - user
+      summary: Expires API token
+      responses:
+        204:
+          description: Expired API Token
+
+  # Projects
+  /projects:
+    get:
+      tags:
+        - projects
+      summary: Get projects
+      responses:
+        200:
+          description: List of projects
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Project"
+    post:
+      tags:
+        - projects
+      summary: Create a new project
+      parameters:
+        - name: Project
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Project'
+      responses:
+        200:
+          description: Created project
+  /project/{project_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Fetch project
+      responses:
+        200:
+          description: Project
+          schema:
+            $ref: "#/definitions/Project"
+
+  # User management
+  /project/{project_id}/users:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get users linked to project
+      responses:
+        200:
+          description: Users
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+    post:
+      tags:
+        - project
+      summary: Link user to project
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                format: userID
+              admin:
+                type: boolean
+      responses:
+        204:
+          description: User added
+  /project/{project_id}/users/{user_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/user_id"
+    delete:
+      tags:
+        - project
+      summary: Removes user from project
+      responses:
+        204:
+          description: User removed
+  /project/{project_id}/users/{user_id}/admin:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/user_id"
+    post:
+      tags:
+        - project
+      summary: Makes user admin
+      responses:
+        204:
+          description: User made administrator
+    delete:
+      tags:
+        - project
+      summary: Revoke admin privileges
+      responses:
+        204:
+          description: User admin privileges revoked
