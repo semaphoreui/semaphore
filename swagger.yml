@@ -6,6 +6,14 @@ info:
 
 host: localhost:3000
 
+tags:
+  - name: authentication
+    description: Authentication, Logout & API Tokens
+  - name: project
+    description: Everything related to a project
+  - name: user
+    description: User-related API
+
 schemes:
   - http
   - https
