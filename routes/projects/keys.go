@@ -98,10 +98,9 @@ func UpdateKey(c *gin.Context) {
 }
 
 func RemoveKey(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
 	key := c.MustGet("accessKey").(models.AccessKey)
 
-	if _, err := database.Mysql.Exec("delete from access_key where project_id=? and id=?", project.ID, key.ID); err != nil {
+	if _, err := database.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
 		panic(err)
 	}
 

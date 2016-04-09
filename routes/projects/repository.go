@@ -78,10 +78,9 @@ func UpdateRepository(c *gin.Context) {
 }
 
 func RemoveRepository(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
 	repository := c.MustGet("repository").(models.Repository)
 
-	if _, err := database.Mysql.Exec("delete from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
+	if _, err := database.Mysql.Exec("delete from project__repository where project_id=? and id=?", project.ID, repository.ID); err != nil {
 		panic(err)
 	}
 
