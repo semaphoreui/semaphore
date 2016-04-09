@@ -1,0 +1,103 @@
+swagger: '2.0'
+info:
+  title: SEMAPHORE
+  description: Semaphore API
+  version: "2.0.0"
+
+host: localhost:3000
+
+schemes:
+  - http
+  - https
+
+basePath: /api
+produces:
+  - application/json
+
+definitions:
+  Login:
+    type: object
+    required:
+      - auth
+      - password
+    properties:
+      auth:
+        type: string
+        description: Username/Email address
+      password:
+        type: string
+        format: password
+        description: Password
+  PONG:
+    type: string
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      username:
+        type: string
+      email:
+        type: string
+      created:
+        type: string
+        format: date-time
+
+securityDefinitions:
+  cookie:
+    type: apiKey
+    name: Cookie
+    in: header
+
+paths:
+  /ping:
+    get:
+      summary: PING test
+      responses:
+        200:
+          description: Successful PONG reply
+          schema:
+            $ref: "#/definitions/PONG"
+  /auth/login:
+    post:
+      summary: Performs Login
+      description: |
+        Upon success you will be logged in
+      parameters:
+        - name: Login Body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Login'
+      responses:
+        204:
+          description: You are logged in
+        400:
+          description: something in body is missing / is invalid
+  /auth/logout:
+    post:
+      summary: Destroys current session
+      responses:
+        204:
+          description: Your session was successfully nuked
+  /ws:
+    get:
+      summary: Websocket handler
+      schemes:
+        - ws
+        - wss
+      responses:
+        200:
+          description: OK
+      security:
+        - cookie: []
+  /user:
+    get:
+      summary: Fetch logged in user
+      responses:
+        200:
+          description: User
+          schema:
+            $ref: "#/definitions/User"
