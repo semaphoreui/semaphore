@@ -49,8 +49,8 @@ func GetRepositories(c *gin.Context) {
 
 func AddRepository(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var repository models.Repository
 
+	var repository models.Repository
 	if err := c.Bind(&repository); err != nil {
 		return
 	}
@@ -63,9 +63,7 @@ func AddRepository(c *gin.Context) {
 }
 
 func UpdateRepository(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
 	var repository models.Repository
-
 	if err := c.Bind(&repository); err != nil {
 		return
 	}
@@ -80,7 +78,7 @@ func UpdateRepository(c *gin.Context) {
 func RemoveRepository(c *gin.Context) {
 	repository := c.MustGet("repository").(models.Repository)
 
-	if _, err := database.Mysql.Exec("delete from project__repository where project_id=? and id=?", project.ID, repository.ID); err != nil {
+	if _, err := database.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
 		panic(err)
 	}
 

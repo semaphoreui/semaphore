@@ -9,9 +9,9 @@ import (
 type User struct {
 	ID       int       `db:"id" json:"id"`
 	Created  time.Time `db:"created" json:"created"`
-	Username string    `db:"username" json:"username"`
-	Name     string    `db:"name" json:"name"`
-	Email    string    `db:"email" json:"email"`
+	Username string    `db:"username" json:"username" binding:"required"`
+	Name     string    `db:"name" json:"name" binding:"required"`
+	Email    string    `db:"email" json:"email" binding:"required"`
 	Password string    `db:"password" json:"-"`
 }
 

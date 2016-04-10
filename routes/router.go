@@ -44,6 +44,11 @@ func Route(r *gin.Engine) {
 	api.GET("/projects", projects.GetProjects)
 	api.POST("/projects", projects.AddProject)
 
+	api.GET("/users", getUsers)
+	api.POST("/users", addUser)
+	api.PUT("/users/:user_id", getUserMiddleware, updateUser)
+	api.POST("/users/:user_id/password", getUserMiddleware, updateUserPassword)
+
 	func(api *gin.RouterGroup) {
 		api.Use(projects.ProjectMiddleware)
 

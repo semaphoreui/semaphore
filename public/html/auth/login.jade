@@ -2,8 +2,7 @@
 	h3.text-center SEMAPHORE
 
 	form.form-horizontal
-		.form-group(ng-if="status.length > 0"): .col-sm-12
-			span(ng-bind="status")
+		.form-group(ng-if="status.length > 0"): .col-sm-12: p.help-block.text-center(ng-bind="status")
 
 		.form-group(style="margin-top: 25px"): .col-sm-12
 			input.text-center.form-control.input-lg(type="text" ng-model="user.auth" placeholder="Email / Username")

@@ -1,0 +1,17 @@
+.container-fluid: .row: .col-sm-12
+	h3.no-top-margin Users
+		button.btn.btn-default.pull-right.btn-xs(ng-click="addUser()") Create User
+
+	table.table
+		thead: tr
+			th Name
+			th Username
+			th Email
+			th &nbsp;
+		tr(ng-repeat="u in users" ng-class="{ info: u.id == user.data.id }")
+			td {{ u.name }}
+			td {{ u.username }}
+			td {{ u.email }}
+			td: button.btn.btn-default.btn-xs.pull-right(ng-click="changePassword(u)") Change Password
+
+	p(ng-show="users.length == 0") No Users

@@ -35,7 +35,7 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 	.state('project.users', {
 		url: '/users',
 		pageTitle: 'Users',
-		templateUrl: '/tpl/projects/users.html',
+		templateUrl: '/tpl/projects/users/list.html',
 		controller: 'ProjectUsersCtrl',
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/users'])
@@ -75,7 +75,7 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 	.state('project.keys', {
 		url: '/keys',
 		pageTitle: 'Keys',
-		templateUrl: '/tpl/projects/keys.html',
+		templateUrl: '/tpl/projects/keys/list.html',
 		controller: 'ProjectKeysCtrl',
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/keys'])

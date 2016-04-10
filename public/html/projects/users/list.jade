@@ -1,0 +1,16 @@
+h3 Users
+	button.btn.btn-success.pull-right.btn-xs(ng-click="addUser()") Add User
+
+table.table
+	thead: tr
+		th Name
+		th Username
+		th Email
+		th Admin
+		th &nbsp;
+	tbody: tr(ng-repeat="u in users" ng-class="{ info: u.id == user.data.id }")
+		td {{ u.name }}
+		td {{ u.username }}
+		td {{ u.email }}
+		td: i.fa.fa-fw(ng-class="{ 'fa-times': !u.admin, 'fa-check': u.admin }")
+		td: button.btn.btn-danger.pull-right.btn-xs(ng-click="remove(u)") remove

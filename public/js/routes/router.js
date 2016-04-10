@@ -15,7 +15,16 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/dashboard'])
 		}
-	});
+	})
+	.state('users', {
+    url: '/users',
+    pageTitle: 'Users',
+    templateUrl: "/tpl/users/list.html",
+    controller: 'UsersCtrl',
+    resolve: {
+      $d: $couchPotatoProvider.resolve(['controllers/users'])
+    }
+  });
 });
 
 app.run(function($rootScope, $state, $stateParams, $http) {

@@ -19,6 +19,8 @@ html(lang="en" ng-app="semaphore")
 					a(ui-sref="dashboard") Dashboard
 				li(ng-class="{ active: $state.includes('keys') }")
 					a(ui-sref="keys") Key Store
+				li(ng-class="{ active: $state.includes('users') }")
+					a(ui-sref="users") Users
 
 			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
 				li(uib-dropdown)
