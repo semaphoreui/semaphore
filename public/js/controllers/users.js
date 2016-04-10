@@ -21,5 +21,17 @@ define(function () {
 				});
 			});
 		}
+
+		$scope.changePassword = function (user) {
+			$modal.open({
+				templateUrl: '/tpl/users/password.html'
+			}).result.then(function (password) {
+				$http.post('/users/' + user.id + '/password', {
+					password: password
+				}).error(function (_, status) {
+					swal('Error', 'Setting password failed, API responded with HTTP ' + status, 'error');
+				});
+			});
+		}
 	}]);
 });
