@@ -22,6 +22,9 @@ define(function () {
 				if (status == 400) {
 					// Login Failed
 					$scope.status = data.message;
+					if (!data.message) {
+						$scope.status = "Invalid login"
+					}
 
 					return;
 				}

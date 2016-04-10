@@ -16,7 +16,7 @@ define(function () {
 
 		$scope.add = function () {
 			$modal.open({
-				templateUrl: '/tpl/projects/keysAdd.html'
+				templateUrl: '/tpl/projects/keys/add.html'
 			}).result.then(function (key) {
 				$http.post(Project.getURL() + '/keys', key).success(function () {
 					$scope.reload();

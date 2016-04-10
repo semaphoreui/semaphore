@@ -11,9 +11,6 @@
 	"routes/router",
 	"routes/auth",
 	"routes/project",
-	"routes/identities",
-	"routes/playbooks",
-	"routes/users",
 
 	"factories/project",
 

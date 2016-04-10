@@ -684,3 +684,75 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+
+  # users
+  /users:
+    get:
+      tags:
+        - user
+      summary: Fetches all users
+      responses:
+        200:
+          description: Users
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+    post:
+      tags:
+        - user
+      summary: Creates a user
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+      responses:
+        201:
+          description: User created
+          schema:
+            $ref: "#/definitions/User"
+  /users/{user_id}:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    put:
+      tags:
+        - user
+      summary: Updates user details
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+      responses:
+        204:
+          description: User Updated
+    delete:
+      tags:
+        - user
+      summary: Deletes user
+      responses:
+        204:
+          description: User deleted
+  /users/{user_id}/password:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    post:
+      tags:
+        - user
+      summary: Updates user password
+      parameters:
+        - name: Password
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              password:
+                type: string
+                format: password
+      responses:
+        204:
+          description: Password updated
