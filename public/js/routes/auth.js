@@ -10,7 +10,7 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
 		templateUrl: '/tpl/auth/login.html',
 		controller: "SignInCtrl",
 		resolve: {
-			$d: $couchPotatoProvider.resolveDependencies(['controllers/auth/login'])
+			$d: $couchPotatoProvider.resolveDependencies(['controllers/login'])
 		}
 	})
 	.state('auth.logout', {
