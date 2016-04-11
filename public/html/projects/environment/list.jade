@@ -1,0 +1,11 @@
+h3 Environment
+
+table.table
+	thead: tr
+		th Name
+		th &nbsp;
+		th &nbsp;
+	tbody: tr(ng-repeat="env in environment")
+		td {{ env.name }}
+		td: button.btn.btn-default.btn-xs(ng-click="editEnvironment(env)") edit environment
+		td: button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(env)") delete
