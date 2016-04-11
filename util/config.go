@@ -50,7 +50,26 @@ func init() {
 	var pwd string
 	flag.StringVar(&pwd, "hash", "", "generate hash of given password")
 
+	var printConfig bool
+	flag.BoolVar(&printConfig, "printConfig", false, "print example configuration")
+
 	flag.Parse()
+
+	if printConfig {
+		b, _ := json.MarshalIndent(&configType{
+			MySQL: mySQLConfig{
+				Hostname: "127.0.0.1:3306",
+				Username: "root",
+				DbName:   "semaphore",
+			},
+			SessionDb: "127.0.0.1:6379",
+			Port:      ":3000",
+			TmpPath:   "/tmp/semaphore",
+		}, "", "\t")
+		fmt.Println(string(b))
+
+		os.Exit(0)
+	}
 
 	if len(pwd) > 0 {
 		password, _ := bcrypt.GenerateFromPassword([]byte(pwd), 11)
