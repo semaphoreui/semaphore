@@ -1,5 +1,7 @@
 # V2 branch
 
+[![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
+
 Beware WIP
 
 ## Requirements
