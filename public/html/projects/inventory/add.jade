@@ -1,0 +1,31 @@
+.modal-header
+	h4.modal-title New Inventory
+.modal-body
+	form.form-horizontal
+		.form-group
+			label.control-label.col-sm-4 Name
+			.col-sm-6
+				input.form-control(type="text" ng-model="inventory.name")
+
+		.form-group
+			label.control-label.col-sm-4 Type
+			.col-sm-6
+				select.form-control(ng-model="inventory.type")
+					option(value="static") Static
+					option(disabled value="aws") AWS
+					option(disabled value="do") DigitalOcean
+					option(disabled value="gcloud") Google Cloud
+		.form-group
+			label.control-label.col-sm-4 Remote inventory key
+			.col-sm-6
+				select.form-control(ng-model="inventory.key_id" ng-options="key.id as key.name for key in remote_keys")
+					option(value="") -- Select Key --
+		.form-group
+			label.control-label.col-sm-4 SSH Key
+			.col-sm-6
+				select.form-control(ng-model="inventory.ssh_key_id" ng-options="key.id as key.name for key in sshKeys")
+					option(value="") -- Select SSH Key --
+
+.modal-footer
+	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
+	button.btn.btn-success(ng-click="$close(inventory)") Create

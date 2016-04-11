@@ -55,7 +55,7 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 	.state('project.inventory', {
 		url: '/inventory',
 		pageTitle: 'Inventory',
-		templateUrl: '/tpl/projects/inventory.html',
+		templateUrl: '/tpl/projects/inventory/list.html',
 		controller: 'ProjectInventoryCtrl',
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/inventory'])
@@ -65,7 +65,7 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 	.state('project.environment', {
 		url: '/environment',
 		pageTitle: 'Environment',
-		templateUrl: '/tpl/projects/environment.html',
+		templateUrl: '/tpl/projects/environment/list.html',
 		controller: 'ProjectEnvironmentCtrl',
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/environment'])
