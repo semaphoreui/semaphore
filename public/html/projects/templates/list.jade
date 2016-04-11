@@ -1,0 +1,16 @@
+h3 Task Templates
+	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") New Template
+
+table.table
+	thead: tr
+		th Playbook
+		th SSH Key
+		th Inventory
+		th Environment
+		th Repository
+	tbody: tr(ng-repeat="tpl in templates")
+		td {{ tpl.playbook }}
+		td {{ sshKeysAssoc[tpl.ssh_key_id].name }}
+		td {{ inventoryAssoc[tpl.inventory_id].name }}
+		td {{ environmentAssoc[tpl.environment_id].name }}
+		td {{ reposAssoc[tpl.repository_id].name }}

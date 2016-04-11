@@ -1,0 +1,14 @@
+h3 Repositories
+	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") Create Repository
+
+table.table
+	thead: tr
+		th Name
+		th Git URL
+		th SSH Key
+		th &nbsp;
+	tbody: tr(ng-repeat="repo in repositories")
+		td {{ repo.name }}
+		td {{ repo.git_url }}
+		td {{ repo.ssh_key_id }}
+		td: button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(repo)") delete

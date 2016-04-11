@@ -45,7 +45,7 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 	.state('project.templates', {
 		url: '/templates',
 		pageTitle: 'Templates',
-		templateUrl: '/tpl/projects/templates.html',
+		templateUrl: '/tpl/projects/templates/list.html',
 		controller: 'ProjectTemplatesCtrl',
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/templates'])
@@ -85,7 +85,7 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 	.state('project.repositories', {
 		url: '/repositories',
 		pageTitle: 'Repositories',
-		templateUrl: '/tpl/projects/repositories.html',
+		templateUrl: '/tpl/projects/repositories/list.html',
 		controller: 'ProjectRepositoriesCtrl',
 		resolve: {
 			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/repositories'])

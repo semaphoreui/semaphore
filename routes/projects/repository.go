@@ -50,7 +50,10 @@ func GetRepositories(c *gin.Context) {
 func AddRepository(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	var repository models.Repository
+	var repository struct {
+		GitUrl   string `json:"git_url" binding:"required"`
+		SshKeyID int    `json:"ssh_key_id" binding:"required"`
+	}
 	if err := c.Bind(&repository); err != nil {
 		return
 	}

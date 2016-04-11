@@ -4,6 +4,7 @@ import "github.com/ansible-semaphore/semaphore/database"
 
 type Inventory struct {
 	ID        int    `db:"id" json:"id"`
+	Name      string `db:"name" json:"name" binding:"required"`
 	ProjectID int    `db:"project_id" json:"project_id"`
 	Inventory string `db:"inventory" json:"inventory"`
 

@@ -95,6 +95,8 @@ definitions:
     properties:
       id:
         type: integer
+      name:
+        type: string
       project_id:
         type: integer
       password:
@@ -106,6 +108,8 @@ definitions:
     properties:
       id:
         type: integer
+      name:
+        type: string
       project_id:
         type: integer
       inventory:
@@ -121,6 +125,8 @@ definitions:
     properties:
       id:
         type: integer
+      name:
+        type: string
       project_id:
         type: integer
       git_url:
@@ -430,6 +436,13 @@ paths:
       tags:
         - project
       summary: Get access keys linked to project
+      parameters:
+        - name: Key type
+          in: query
+          required: false
+          type: string
+          format: ssh/aws/gcloud/do
+          description: Filter by key type
       responses:
         200:
           description: Access Keys

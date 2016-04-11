@@ -1,0 +1,45 @@
+.modal-header
+	h4.modal-title New Template
+.modal-body
+	form.form-horizontal
+		.form-group
+			label.control-label.col-sm-4 Playbook Name
+			.col-sm-6
+				input.form-control(type="text" placeholder="play.yml" ng-model="tpl.playbook")
+
+		.form-group
+			label.control-label.col-sm-4 SSH Key
+			.col-sm-6
+				select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as key.name for key in keys")
+					option(value="") -- Select SSH Key --
+		.form-group
+			label.control-label.col-sm-4 Inventory
+			.col-sm-6
+				select.form-control(ng-model="tpl.inventory_id" ng-options="inv.id as inv.name for inv in inventory")
+					option(value="") -- Select Inventory --
+		.form-group
+			label.control-label.col-sm-4 Playbook Repository
+			.col-sm-6
+				select.form-control(ng-model="tpl.repository_id" ng-options="repo.id as repo.name for repo in repositories")
+					option(value="") -- Select Playbook Repository --
+		.form-group
+			label.control-label.col-sm-4 Environment
+			.col-sm-6
+				select.form-control(ng-model="tpl.environment_id" ng-options="env.id as env.name for env in environment")
+					option(value="") -- Select Task Environment --
+
+		hr
+		.form-group
+			label.control-label.col-sm-4 Extra CLI Arguments
+			.col-sm-6
+				textarea.form-control(placeholder='*MUST* be a JSON array! Each argument must be an element of the array, for example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]' ng-model="tpl.arguments" rows="5")
+
+		.form-group
+			.col-sm-6.col-sm-offset-4
+				.checkbox: label
+					input(type="checkbox" ng-model="user.admin")
+					| Override semaphore arguments
+				p.help-block Usually semaphore prepends arguments like `--private-key=/location/id_rsa` to make sure everything goes smoothly. This option is for special needs, where semaphore conflicts with one of your arguments.
+.modal-footer
+	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
+	button.btn.btn-success(ng-click="$close(user)") Create
