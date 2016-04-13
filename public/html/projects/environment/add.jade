@@ -6,6 +6,10 @@
 			label.control-label.col-sm-4 Name
 			.col-sm-6
 				input.form-control(type="text" ng-model="env.name")
+		.form-group
+			.col-sm-12
+				textarea.form-control(ng-model="env.json" rows="20" ng-init="env.json = '{}'")
+				p.help-block Must be valid JSON
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
 	button.btn.btn-success(ng-click="$close(env)") Create
