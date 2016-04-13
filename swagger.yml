@@ -617,6 +617,19 @@ paths:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/environment_id"
+    put:
+      tags:
+        - project
+      summary: Update environment
+      parameters:
+        - name: environment
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Environment"
+      responses:
+        204:
+          description: Environment Updated
     delete:
       tags:
         - project

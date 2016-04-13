@@ -1,0 +1,10 @@
+.modal-header
+	h3.modal-title Edit Environment
+
+.modal-body
+	p.help-block Must be valid JSON
+	textarea.form-control(ng-model="env" rows="20")
+
+.modal-footer
+	button.btn.btn-default.pull-left(ng-click="$dismiss()") Cancel
+	button.btn.btn-success(ng-click="$close(env)") Save Changes
