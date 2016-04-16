@@ -43,6 +43,7 @@ func Route(r *gin.Engine) {
 
 	api.GET("/projects", projects.GetProjects)
 	api.POST("/projects", projects.AddProject)
+	api.GET("/events", getEvents)
 
 	api.GET("/users", getUsers)
 	api.POST("/users", addUser)
@@ -53,6 +54,8 @@ func Route(r *gin.Engine) {
 		api.Use(projects.ProjectMiddleware)
 
 		api.GET("", projects.GetProject)
+
+		api.GET("/events", getEvents)
 
 		api.GET("/users", projects.GetUsers)
 		api.POST("/users", projects.AddUser)

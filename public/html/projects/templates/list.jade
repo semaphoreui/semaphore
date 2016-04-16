@@ -8,9 +8,11 @@ table.table
 		th Inventory
 		th Environment
 		th Repository
+		th &nbsp;
 	tbody: tr(ng-repeat="tpl in templates")
 		td {{ tpl.playbook }}
 		td {{ sshKeysAssoc[tpl.ssh_key_id].name }}
 		td {{ inventoryAssoc[tpl.inventory_id].name }}
 		td {{ environmentAssoc[tpl.environment_id].name }}
 		td {{ reposAssoc[tpl.repository_id].name }}
+		td: button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(tpl)") remove

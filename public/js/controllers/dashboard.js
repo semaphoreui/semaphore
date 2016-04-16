@@ -4,7 +4,11 @@ define(['controllers/projects/edit'], function () {
 
 		$http.get('/projects').success(function (projects) {
 			$scope.projects = projects;
-		})
+		});
+
+		$http.get('/events').success(function (events) {
+			$scope.events = events;
+		});
 
 		$scope.addProject = function () {
 			$modal.open({

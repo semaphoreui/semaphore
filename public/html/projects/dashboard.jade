@@ -1,1 +1,13 @@
-h3 Project activity
+.row
+	.col-sm-7
+		h3.no-top-margin Project activity
+		ul.list-unstyled
+			li(ng-repeat="event in events")
+				a(ng-if="event.project_id != null" ui-sref="project.dashboard({ project_id: event.project_id })") {{ event.project_name }}
+				span(ng-if="event.project_id != null") &nbsp;
+				span(ng-bind="event.object_name")
+				span  - {{ event.description }}
+	.col-sm-5
+		h4.no-top-margin Task history
+		ul.list-group
+			li.list-group-item(ng-repeat="task in history"): a(ng-click="openTask()") {{ task.playbook }}

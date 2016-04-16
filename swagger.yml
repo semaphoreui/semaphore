@@ -169,6 +169,17 @@ definitions:
         type: string
       override_args:
         type: boolean
+  Event:
+    type: object
+    properties:
+      project_id:
+        type: integer
+      object_id:
+        type: integer
+      object_type:
+        type: string
+      description:
+        type: string
 
 # securityDefinitions:
 #   cookie:
@@ -351,6 +362,17 @@ paths:
       responses:
         200:
           description: Created project
+  /events:
+    get:
+      summary: Get Events related to Semaphore and projects you are part of
+      responses:
+        200:
+          description: Array of events in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Event'
+
   /project/{project_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -363,6 +385,21 @@ paths:
           description: Project
           schema:
             $ref: "#/definitions/Project"
+
+  /project/{project_id}/events:
+    parameters:
+      - $ref: '#/parameters/project_id'
+    get:
+      tags:
+        - project
+      summary: Get Events related to this project
+      responses:
+        200:
+          description: Array of events in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Event'
 
   # User management
   /project/{project_id}/users:
@@ -664,8 +701,10 @@ paths:
           schema:
             $ref: "#/definitions/Template"
       responses:
-        204:
+        201:
           description: template created
+          schema:
+            $ref: "#/definitions/Template"
   /project/{project_id}/template/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
