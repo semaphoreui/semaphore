@@ -39,8 +39,8 @@ define(function () {
 			});
 		}
 
-		$scope.remove = function (environment) {
-			$http.delete(Project.getURL() + '/templates/' + environment.id).success(function () {
+		$scope.remove = function (template) {
+			$http.delete(Project.getURL() + '/templates/' + template.id).success(function () {
 				$scope.reload();
 			}).error(function () {
 				swal('error', 'could not delete template..', 'error');

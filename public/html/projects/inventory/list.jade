@@ -10,5 +10,5 @@ table.table
 	tbody: tr(ng-repeat="inv in inventory")
 		td {{ inv.name }}
 		td {{ inv.type }}
-		td: button.btn.btn-default.btn-xs(ng-click="editInventory(inv)") edit inventory
+		td: button.btn.btn-default.btn-xs(ng-click="edit(inv)") edit inventory
 		td: button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(inv)") delete

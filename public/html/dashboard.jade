@@ -1,8 +1,13 @@
 .container-fluid
 	.row
 		.col-md-8
-			ul
-				li Scheduled job {x} was successfully executed. Took 30s
+			h4.no-top-margin Events
+			ul.list-unstyled
+				li(ng-repeat="event in events")
+					a(ng-if="event.project_id != null" ui-sref="project.dashboard({ project_id: event.project_id })") {{ event.project_name }}
+					span(ng-if="event.project_id != null") &nbsp;
+					span(ng-bind="event.object_name")
+					span  - {{ event.description }}
 		.col-md-4
 			.panel.panel-default
 				.panel-heading Projects

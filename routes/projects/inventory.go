@@ -55,7 +55,13 @@ func GetInventory(c *gin.Context) {
 
 func AddInventory(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var inventory models.Inventory
+	var inventory struct {
+		Name      string `json:"name" binding:"required"`
+		KeyID     *int   `json:"key_id"`
+		SshKeyID  int    `json:"ssh_key_id"`
+		Type      string `json:"type"`
+		Inventory string `json:"inventory"`
+	}
 
 	if err := c.Bind(&inventory); err != nil {
 		return
@@ -69,7 +75,7 @@ func AddInventory(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__inventory set project_id=?, type=?, key_id=?, inventory=?", project.ID, inventory.Type, inventory.KeyID, inventory.Inventory); err != nil {
+	if _, err := database.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory); err != nil {
 		panic(err)
 	}
 
@@ -77,7 +83,33 @@ func AddInventory(c *gin.Context) {
 }
 
 func UpdateInventory(c *gin.Context) {
-	c.AbortWithStatus(501)
+	oldInventory := c.MustGet("inventory").(models.Inventory)
+
+	var inventory struct {
+		Name      string `json:"name" binding:"required"`
+		KeyID     *int   `json:"key_id"`
+		SshKeyID  int    `json:"ssh_key_id"`
+		Type      string `json:"type"`
+		Inventory string `json:"inventory"`
+	}
+
+	if err := c.Bind(&inventory); err != nil {
+		return
+	}
+
+	switch inventory.Type {
+	case "static", "aws", "do", "gcloud":
+		break
+	default:
+		c.AbortWithStatus(400)
+		return
+	}
+
+	if _, err := database.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
 }
 
 func RemoveInventory(c *gin.Context) {
