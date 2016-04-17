@@ -3,11 +3,21 @@
 		h3.no-top-margin Project activity
 		ul.list-unstyled
 			li(ng-repeat="event in events")
-				a(ng-if="event.project_id != null" ui-sref="project.dashboard({ project_id: event.project_id })") {{ event.project_name }}
-				span(ng-if="event.project_id != null") &nbsp;
+				time(ng-bind="event.created | date:'short'")
+				span :&nbsp;
 				span(ng-bind="event.object_name")
 				span  - {{ event.description }}
 	.col-sm-5
 		h4.no-top-margin Task history
 		ul.list-group
-			li.list-group-item(ng-repeat="task in history"): a(ng-click="openTask()") {{ task.playbook }}
+			li.list-group-item(ng-repeat="task in tasks"): a(ng-click="openTask()" href="#")
+				i.fa.fa-fw.fa-clock-o.text-warning(ng-if="task.status == 'waiting'")
+				i.fa.fa-fw.fa-times.text-danger(ng-if="task.status == 'error'")
+				i.fa.fa-fw.fa-times.text-success(ng-if="task.status == 'success'")
+				| &nbsp;
+				span(ng-if="task.playbook.length == 0") {{ task.tpl_playbook }}
+				span(ng-if="task.playbook.length > 0") {{ task.playbook }}
+				span.pull-right {{ task.created | date:'short' }}
+				br
+				i Duration
+				span.pull-right {{ task.duration }}

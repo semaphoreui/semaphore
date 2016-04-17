@@ -4,6 +4,8 @@
 			h4.no-top-margin Events
 			ul.list-unstyled
 				li(ng-repeat="event in events")
+					time(ng-bind="event.created | date:'short'")
+					span :&nbsp;
 					a(ng-if="event.project_id != null" ui-sref="project.dashboard({ project_id: event.project_id })") {{ event.project_name }}
 					span(ng-if="event.project_id != null") &nbsp;
 					span(ng-bind="event.object_name")

@@ -15,4 +15,6 @@ table.table
 		td {{ inventoryAssoc[tpl.inventory_id].name }}
 		td {{ environmentAssoc[tpl.environment_id].name }}
 		td {{ reposAssoc[tpl.repository_id].name }}
-		td: button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(tpl)") remove
+		td
+			button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(tpl)") remove
+			button.btn.btn-success.btn-xs.pull-right(ng-click="run(tpl)" style="margin-right: 10px;") run

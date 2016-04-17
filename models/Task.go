@@ -13,6 +13,10 @@ type Task struct {
 	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`
+
+	Created time.Time  `db:"created" json:"created"`
+	Start   *time.Time `db:"start" json:"start"`
+	End     *time.Time `db:"end" json:"end"`
 }
 
 type TaskOutput struct {
