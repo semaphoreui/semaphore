@@ -15,11 +15,11 @@ func getEvents(c *gin.Context) {
 		LeftJoin("project as p on event.project_id=p.id").
 		OrderBy("created desc")
 
-	projectObj, exists := c.Get("event")
+	projectObj, exists := c.Get("project")
 	if exists == true {
 		// limit query to project
 		project := projectObj.(models.Project)
-		q = q.Where("project_id=?", project.ID)
+		q = q.Where("event.project_id=?", project.ID)
 	} else {
 		q = q.LeftJoin("project__user as pu on pu.project_id=p.id").
 			Where("p.id IS NULL or pu.user_id=?", user.ID)
