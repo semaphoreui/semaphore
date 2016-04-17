@@ -2,6 +2,7 @@ package projects
 
 import (
 	"database/sql"
+	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
@@ -63,6 +64,17 @@ func AddUser(c *gin.Context) {
 		panic(err)
 	}
 
+	objType := "user"
+	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
+	if err := (models.Event{
+		ProjectID:   &project.ID,
+		ObjectType:  &objType,
+		ObjectID:    &user.UserID,
+		Description: &desc,
+	}.Insert()); err != nil {
+		panic(err)
+	}
+
 	c.AbortWithStatus(204)
 }
 
@@ -71,6 +83,17 @@ func RemoveUser(c *gin.Context) {
 	user := c.MustGet("projectUser").(models.User)
 
 	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
+		panic(err)
+	}
+
+	objType := "user"
+	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
+	if err := (models.Event{
+		ProjectID:   &project.ID,
+		ObjectType:  &objType,
+		ObjectID:    &user.ID,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 

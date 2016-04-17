@@ -52,13 +52,13 @@ func (c *connection) readPump() {
 	for {
 		_, message, err := c.ws.ReadMessage()
 		fmt.Println(string(message))
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		h.broadcast <- message
 	}
 }
 
@@ -114,7 +114,9 @@ func Handler(context *gin.Context) {
 	c.readPump()
 }
 
-func Broadcast(msg []byte) {
-	fmt.Printf("-> %v\n", string(msg))
-	h.broadcast <- msg
+func Message(userID int, message []byte) {
+	h.broadcast <- &sendRequest{
+		userID: userID,
+		msg:    message,
+	}
 }

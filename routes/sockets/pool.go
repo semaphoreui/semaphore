@@ -7,7 +7,7 @@ type hub struct {
 	connections map[*connection]bool
 
 	// Inbound messages from the connections.
-	broadcast chan []byte
+	broadcast chan *sendRequest
 
 	// Register requests from the connections.
 	register chan *connection
@@ -16,8 +16,13 @@ type hub struct {
 	unregister chan *connection
 }
 
+type sendRequest struct {
+	userID int
+	msg    []byte
+}
+
 var h = hub{
-	broadcast:   make(chan []byte),
+	broadcast:   make(chan *sendRequest),
 	register:    make(chan *connection),
 	unregister:  make(chan *connection),
 	connections: make(map[*connection]bool),
@@ -35,8 +40,12 @@ func (h *hub) run() {
 			}
 		case m := <-h.broadcast:
 			for c := range h.connections {
+				if m.userID > 0 && m.userID != c.userID {
+					continue
+				}
+
 				select {
-				case c.send <- m:
+				case c.send <- m.msg:
 				default:
 					close(c.send)
 					delete(h.connections, c)

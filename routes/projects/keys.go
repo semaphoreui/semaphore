@@ -67,7 +67,22 @@ func AddKey(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, key.Secret); err != nil {
+	res, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, key.Secret)
+	if err != nil {
+		panic(err)
+	}
+
+	insertID, _ := res.LastInsertId()
+	insertIDInt := int(insertID)
+	objType := "key"
+
+	desc := "Access Key " + key.Name + " created"
+	if err := (models.Event{
+		ProjectID:   &project.ID,
+		ObjectType:  &objType,
+		ObjectID:    &insertIDInt,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 
@@ -94,6 +109,17 @@ func UpdateKey(c *gin.Context) {
 		panic(err)
 	}
 
+	desc := "Access Key " + key.Name + " updated"
+	objType := "key"
+	if err := (models.Event{
+		ProjectID:   oldKey.ProjectID,
+		Description: &desc,
+		ObjectID:    &oldKey.ID,
+		ObjectType:  &objType,
+	}.Insert()); err != nil {
+		panic(err)
+	}
+
 	c.AbortWithStatus(204)
 }
 
@@ -101,6 +127,14 @@ func RemoveKey(c *gin.Context) {
 	key := c.MustGet("accessKey").(models.AccessKey)
 
 	if _, err := database.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
+		panic(err)
+	}
+
+	desc := "Access Key " + key.Name + " deleted"
+	if err := (models.Event{
+		ProjectID:   key.ProjectID,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 

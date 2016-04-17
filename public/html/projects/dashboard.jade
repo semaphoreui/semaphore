@@ -6,7 +6,8 @@
 				time(ng-bind="event.created | date:'short'")
 				span :&nbsp;
 				span(ng-bind="event.object_name")
-				span  - {{ event.description }}
+				span(ng-if="event.object_name.length > 0")  -&nbsp;
+				span {{ event.description }}
 	.col-sm-5
 		h4.no-top-margin Task history
 		ul.list-group
