@@ -2,13 +2,15 @@ define(['controllers/projects/edit'], function () {
 	app.registerController('DashboardCtrl', ['$scope', '$http', '$uibModal', function ($scope, $http, $modal) {
 		$scope.projects = [];
 
-		$http.get('/projects').success(function (projects) {
-			$scope.projects = projects;
-		});
+		$scope.refresh = function () {
+			$http.get('/projects').success(function (projects) {
+				$scope.projects = projects;
+			});
 
-		$http.get('/events').success(function (events) {
-			$scope.events = events;
-		});
+			$http.get('/events').success(function (events) {
+				$scope.events = events;
+			});
+		}
 
 		$scope.addProject = function () {
 			$modal.open({
@@ -16,10 +18,13 @@ define(['controllers/projects/edit'], function () {
 			}).result.then(function (project) {
 				$http.post('/projects', project)
 				.success(function () {
+					$scope.refresh();
 				}).error(function (data, status) {
 					swal('Error', 'Could not create project: ' + status, 'error');
 				});
 			});
 		}
+
+		$scope.refresh();
 	}]);
 });
