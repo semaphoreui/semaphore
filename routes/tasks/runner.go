@@ -24,33 +24,56 @@ type task struct {
 	environment models.Environment
 }
 
+func (t *task) fail() {
+	t.task.Status = "error"
+	if _, err := database.Mysql.Exec("update task set status='error' where id=?", t.task.ID); err != nil {
+		panic(err)
+	}
+}
+
 func (t *task) run() {
 	pool.running = t
 
 	defer func() {
 		fmt.Println("Stopped running tasks")
 		pool.running = nil
+
+		if _, err := database.Mysql.Exec("update task set end=NOW() where id=?", t.task.ID); err != nil {
+			fmt.Println("Failed to update task end time")
+			t.log("Fatal error with database!")
+			panic(err)
+		}
 	}()
+
+	if _, err := database.Mysql.Exec("update task set status='running', start=NOW() where id=?", t.task.ID); err != nil {
+		fmt.Println("Failed to update task start time")
+		t.log("Fatal error with database!")
+		panic(err)
+	}
 
 	t.log("Started: " + strconv.Itoa(t.task.ID) + "\n")
 
 	if err := t.populateDetails(); err != nil {
 		t.log("Error: " + err.Error())
+		t.fail()
 		return
 	}
 
 	if err := t.installKey(t.repository.SshKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
+		t.fail()
 		return
 	}
 
 	if err := t.updateRepository(); err != nil {
 		t.log("Failed updating repository: " + err.Error())
+		t.fail()
 		return
 	}
 
 	if err := t.installInventory(); err != nil {
 		t.log("Failed to install inventory: " + err.Error())
+		t.fail()
 		return
 	}
 
@@ -58,7 +81,13 @@ func (t *task) run() {
 
 	if err := t.runPlaybook(); err != nil {
 		t.log("Running playbook failed: " + err.Error())
+		t.fail()
 		return
+	}
+
+	t.task.Status = "success"
+	if _, err := database.Mysql.Exec("update task set status='success' where id=?", t.task.ID); err != nil {
+		panic(err)
 	}
 }
 
@@ -70,6 +99,7 @@ func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...inter
 	}
 
 	if err != nil {
+		t.fail()
 		panic(err)
 	}
 

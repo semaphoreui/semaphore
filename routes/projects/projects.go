@@ -42,5 +42,13 @@ func AddProject(c *gin.Context) {
 		panic(err)
 	}
 
+	desc := "Project Created"
+	if err := (models.Event{
+		ProjectID:   &body.ID,
+		Description: &desc,
+	}.Insert()); err != nil {
+		panic(err)
+	}
+
 	c.JSON(201, body)
 }

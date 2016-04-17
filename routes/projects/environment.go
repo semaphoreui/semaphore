@@ -76,7 +76,22 @@ func AddEnvironment(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", project.ID, env.Name, env.JSON, env.Password); err != nil {
+	res, err := database.Mysql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", project.ID, env.Name, env.JSON, env.Password)
+	if err != nil {
+		panic(err)
+	}
+
+	insertID, _ := res.LastInsertId()
+	insertIDInt := int(insertID)
+	objType := "environment"
+
+	desc := "Environment " + env.Name + " created"
+	if err := (models.Event{
+		ProjectID:   &project.ID,
+		ObjectType:  &objType,
+		ObjectID:    &insertIDInt,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 
@@ -87,6 +102,14 @@ func RemoveEnvironment(c *gin.Context) {
 	env := c.MustGet("environment").(models.Environment)
 
 	if _, err := database.Mysql.Exec("delete from project__environment where id=?", env.ID); err != nil {
+		panic(err)
+	}
+
+	desc := "Environment " + env.Name + " deleted"
+	if err := (models.Event{
+		ProjectID:   &env.ProjectID,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 

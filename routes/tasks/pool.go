@@ -7,6 +7,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/gin-gonic/gin"
+	"github.com/masterminds/squirrel"
 )
 
 type taskPool struct {
@@ -60,6 +61,9 @@ func AddTask(c *gin.Context) {
 		return
 	}
 
+	taskObj.Created = time.Now()
+	taskObj.Status = "waiting"
+
 	if err := database.Mysql.Insert(&taskObj); err != nil {
 		panic(err)
 	}
@@ -69,4 +73,26 @@ func AddTask(c *gin.Context) {
 	}
 
 	c.JSON(201, taskObj)
+}
+
+func GetAll(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+
+	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook").
+		From("task").
+		Join("project__template as tpl on task.template_id=tpl.id").
+		Where("tpl.project_id=?", project.ID).
+		OrderBy("task.created desc").
+		ToSql()
+
+	var tasks []struct {
+		models.Task
+
+		TemplatePlaybook string `db:"tpl_playbook" json:"tpl_playbook"`
+	}
+	if _, err := database.Mysql.Select(&tasks, query, args...); err != nil {
+		panic(err)
+	}
+
+	c.JSON(200, tasks)
 }

@@ -1,4 +1,4 @@
-define(function () {
+define(['controllers/projects/taskRunner'], function () {
 	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
 		$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
 			$scope.sshKeys = keys;
@@ -64,6 +64,21 @@ define(function () {
 					swal('error', 'could not add template:' + status, 'error');
 				});
 			});
+		}
+
+		$scope.run = function (tpl) {
+			$modal.open({
+				templateUrl: '/tpl/projects/createTaskModal.html',
+				controller: 'CreateTaskCtrl',
+				resolve: {
+					Project: function () {
+						return Project;
+					},
+					Template: function () {
+						return tpl;
+					}
+				}
+			})
 		}
 
 		$scope.reload();

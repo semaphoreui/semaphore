@@ -87,6 +87,7 @@ func Route(r *gin.Engine) {
 		api.PUT("/templates/:template_id", projects.TemplatesMiddleware, projects.UpdateTemplate)
 		api.DELETE("/templates/:template_id", projects.TemplatesMiddleware, projects.RemoveTemplate)
 
+		api.GET("/tasks", tasks.GetAll)
 		api.POST("/tasks", tasks.AddTask)
 	}(api.Group("/project/:project_id"))
 }
