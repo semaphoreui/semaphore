@@ -2,6 +2,7 @@ package projects
 
 import (
 	"database/sql"
+	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
@@ -68,6 +69,17 @@ func AddTemplate(c *gin.Context) {
 
 	template.ID = int(insertID)
 
+	objType := "template"
+	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
+	if err := (models.Event{
+		ProjectID:   &project.ID,
+		ObjectType:  &objType,
+		ObjectID:    &template.ID,
+		Description: &desc,
+	}.Insert()); err != nil {
+		panic(err)
+	}
+
 	c.JSON(201, template)
 }
 
@@ -83,6 +95,17 @@ func UpdateTemplate(c *gin.Context) {
 		panic(err)
 	}
 
+	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
+	objType := "template"
+	if err := (models.Event{
+		ProjectID:   &oldTemplate.ProjectID,
+		Description: &desc,
+		ObjectID:    &oldTemplate.ID,
+		ObjectType:  &objType,
+	}.Insert()); err != nil {
+		panic(err)
+	}
+
 	c.AbortWithStatus(204)
 }
 
@@ -90,6 +113,14 @@ func RemoveTemplate(c *gin.Context) {
 	tpl := c.MustGet("template").(models.Template)
 
 	if _, err := database.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
+		panic(err)
+	}
+
+	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
+	if err := (models.Event{
+		ProjectID:   &tpl.ProjectID,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 

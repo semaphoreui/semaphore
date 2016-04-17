@@ -22,6 +22,7 @@ type task struct {
 	inventory   models.Inventory
 	repository  models.Repository
 	environment models.Environment
+	users       []int
 }
 
 func (t *task) fail() {
@@ -110,6 +111,19 @@ func (t *task) populateDetails() error {
 	// get template
 	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
 		return err
+	}
+
+	// get project users
+	var users []struct {
+		ID int `db:"id"`
+	}
+	if _, err := database.Mysql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
+		return err
+	}
+
+	t.users = []int{}
+	for _, user := range users {
+		t.users = append(t.users, user.ID)
 	}
 
 	// get access key

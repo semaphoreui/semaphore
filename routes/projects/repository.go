@@ -58,7 +58,22 @@ func AddRepository(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?", project.ID, repository.GitUrl, repository.SshKeyID); err != nil {
+	res, err := database.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?", project.ID, repository.GitUrl, repository.SshKeyID)
+	if err != nil {
+		panic(err)
+	}
+
+	insertID, _ := res.LastInsertId()
+	insertIDInt := int(insertID)
+	objType := "repository"
+
+	desc := "Repository (" + repository.GitUrl + ") created"
+	if err := (models.Event{
+		ProjectID:   &project.ID,
+		ObjectType:  &objType,
+		ObjectID:    &insertIDInt,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 
@@ -66,12 +81,24 @@ func AddRepository(c *gin.Context) {
 }
 
 func UpdateRepository(c *gin.Context) {
+	oldRepo := c.MustGet("repository").(models.Repository)
 	var repository models.Repository
 	if err := c.Bind(&repository); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__repository set git_url=?, ssh_key_id=? where id=?", repository.GitUrl, repository.SshKeyID, c.MustGet("repository").(models.Repository).ID); err != nil {
+	if _, err := database.Mysql.Exec("update project__repository set git_url=?, ssh_key_id=? where id=?", repository.GitUrl, repository.SshKeyID, oldRepo.ID); err != nil {
+		panic(err)
+	}
+
+	desc := "Repository (" + repository.GitUrl + ") updated"
+	objType := "inventory"
+	if err := (models.Event{
+		ProjectID:   &oldRepo.ProjectID,
+		Description: &desc,
+		ObjectID:    &oldRepo.ID,
+		ObjectType:  &objType,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 
@@ -82,6 +109,14 @@ func RemoveRepository(c *gin.Context) {
 	repository := c.MustGet("repository").(models.Repository)
 
 	if _, err := database.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
+		panic(err)
+	}
+
+	desc := "Repository (" + repository.GitUrl + ") deleted"
+	if err := (models.Event{
+		ProjectID:   &repository.ProjectID,
+		Description: &desc,
+	}.Insert()); err != nil {
 		panic(err)
 	}
 
