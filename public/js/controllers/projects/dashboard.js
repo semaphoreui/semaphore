@@ -24,7 +24,8 @@ define(['controllers/projects/taskRunner'], function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/taskModal.html',
 				controller: 'TaskCtrl',
-				scope: scope
+				scope: scope,
+				size: 'lg'
 			});
 		}
 	}]);

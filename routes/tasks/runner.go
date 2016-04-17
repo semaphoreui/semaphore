@@ -23,6 +23,7 @@ type task struct {
 	repository  models.Repository
 	environment models.Environment
 	users       []int
+	projectID   int
 }
 
 func (t *task) fail() {
@@ -44,11 +45,35 @@ func (t *task) run() {
 			t.log("Fatal error with database!")
 			panic(err)
 		}
+
+		objType := "task"
+		desc := "Task ID " + strconv.Itoa(t.task.ID) + " finished"
+		if err := (models.Event{
+			ProjectID:   &t.projectID,
+			ObjectType:  &objType,
+			ObjectID:    &t.task.ID,
+			Description: &desc,
+		}.Insert()); err != nil {
+			t.log("Fatal error inserting an event")
+			panic(err)
+		}
 	}()
 
 	if _, err := database.Mysql.Exec("update task set status='running', start=NOW() where id=?", t.task.ID); err != nil {
 		fmt.Println("Failed to update task start time")
 		t.log("Fatal error with database!")
+		panic(err)
+	}
+
+	objType := "task"
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " is running"
+	if err := (models.Event{
+		ProjectID:   &t.projectID,
+		ObjectType:  &objType,
+		ObjectID:    &t.task.ID,
+		Description: &desc,
+	}.Insert()); err != nil {
+		t.log("Fatal error inserting an event")
 		panic(err)
 	}
 

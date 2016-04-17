@@ -11,14 +11,17 @@
 	.col-sm-5
 		h4.no-top-margin Task history
 		ul.list-group
-			li.list-group-item(ng-repeat="task in tasks"): a(ng-click="openTask()" href="#")
+			li.list-group-item(ng-repeat="task in tasks"): a(ng-click="openTask(task)" href="#")
 				i.fa.fa-fw.fa-clock-o.text-warning(ng-if="task.status == 'waiting'")
 				i.fa.fa-fw.fa-times.text-danger(ng-if="task.status == 'error'")
-				i.fa.fa-fw.fa-times.text-success(ng-if="task.status == 'success'")
+				i.fa.fa-fw.fa-check.text-success(ng-if="task.status == 'success'")
+				i.fa.fa-fw.fa-play.text-warning(ng-if="task.status == 'running'")
 				| &nbsp;
 				span(ng-if="task.playbook.length == 0") {{ task.tpl_playbook }}
 				span(ng-if="task.playbook.length > 0") {{ task.playbook }}
-				span.pull-right {{ task.created | date:'short' }}
+				span.pull-right(ng-if="task.status == 'waiting'") {{ task.created | date:'short' }}
+				span.pull-right(ng-if="task.status != 'waiting'") {{ task.start | date:'short' }}
+
 				br
-				i Duration
+				span Duration
 				span.pull-right {{ task.duration }}
