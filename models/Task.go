@@ -21,6 +21,7 @@ type Task struct {
 
 type TaskOutput struct {
 	TaskID int       `db:"task_id" json:"task_id"`
+	Task   string    `db:"task" json:"task"`
 	Time   time.Time `db:"time" json:"time"`
 	Output string    `db:"output" json:"output"`
 }

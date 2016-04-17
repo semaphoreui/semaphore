@@ -14,5 +14,14 @@ define(function () {
 	}]);
 
 	app.registerController('TaskCtrl', ['$scope', '$http', function ($scope, $http) {
+		$http.get($scope.project.getURL() + '/tasks/' + $scope.task.id + '/output')
+		.success(function (output) {
+			var out = [];
+			output.forEach(function (o) {
+				out.push(moment(o.time).format('HH:mm:ss') + ': ' + o.output);
+			});
+
+			$scope.output_formatted = out.join('\n');
+		});
 	}]);
 });

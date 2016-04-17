@@ -148,6 +148,18 @@ definitions:
         type: string
       environment:
         type: string
+  Task:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      task:
+        type: string
+      time:
+        type: string
+        format: date-time
+      output:
+        type: string
   Template:
     type: object
     properties:
@@ -231,6 +243,12 @@ parameters:
   template_id:
     name: template_id
     description: template ID
+    in: path
+    type: integer
+    required: true
+  task_id:
+    name: task_id
+    description: task ID
     in: path
     type: integer
     required: true
@@ -749,6 +767,21 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+  /project/{project_id}/tasks/{task_id}/output:
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/task_id'
+    get:
+      tags:
+        - project
+      summary: Get task output
+      responses:
+        200:
+          description: output
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TaskOutput"
 
   # users
   /users:

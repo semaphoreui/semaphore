@@ -89,6 +89,7 @@ func Route(r *gin.Engine) {
 
 		api.GET("/tasks", tasks.GetAll)
 		api.POST("/tasks", tasks.AddTask)
+		api.GET("/tasks/:task_id/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
 	}(api.Group("/project/:project_id"))
 }
 
