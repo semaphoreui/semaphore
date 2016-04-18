@@ -18,7 +18,7 @@ create table project (
 
 create table project__user (
 	`project_id` int(11) not null,
-	`user_id` varchar (255) not null comment "User ID",
+	`user_id` int (11) not null comment "User ID",
 	`admin` tinyint (1) not null default 0 comment 'Gives user god-like privileges',
 
 	unique key `id` (`project_id`, `user_id`),

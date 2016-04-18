@@ -3,7 +3,7 @@
 		h3.no-top-margin Project activity
 		ul.list-unstyled
 			li(ng-repeat="event in events")
-				time(ng-bind="event.created | date:'short'")
+				strong: time(ng-bind="event.created | date:'short'")
 				span :&nbsp;
 				span(ng-bind="event.object_name")
 				span(ng-if="event.object_name.length > 0")  -&nbsp;
