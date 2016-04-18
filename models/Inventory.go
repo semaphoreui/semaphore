@@ -1,7 +1,5 @@
 package models
 
-import "github.com/ansible-semaphore/semaphore/database"
-
 type Inventory struct {
 	ID        int    `db:"id" json:"id"`
 	Name      string `db:"name" json:"name" binding:"required"`
@@ -17,8 +15,4 @@ type Inventory struct {
 
 	// static/aws/do/gcloud
 	Type string `db:"type" json:"type"`
-}
-
-func init() {
-	database.Mysql.AddTableWithName(Inventory{}, "project__inventory").SetKeys(true, "id")
 }

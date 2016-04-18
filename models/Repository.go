@@ -1,7 +1,5 @@
 package models
 
-import "github.com/ansible-semaphore/semaphore/database"
-
 type Repository struct {
 	ID        int    `db:"id" json:"id"`
 	Name      string `db:"name" json:"name" binding:"required"`
@@ -10,8 +8,4 @@ type Repository struct {
 	SshKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required"`
 
 	SshKey AccessKey `db:"-" json:"-"`
-}
-
-func init() {
-	database.Mysql.AddTableWithName(Repository{}, "project__repository").SetKeys(true, "id")
 }

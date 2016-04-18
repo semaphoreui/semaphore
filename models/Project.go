@@ -28,7 +28,3 @@ func (project *Project) CreateProject() error {
 
 	return nil
 }
-
-func init() {
-	database.Mysql.AddTableWithName(Project{}, "project").SetKeys(true, "id")
-}

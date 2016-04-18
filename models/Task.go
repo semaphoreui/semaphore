@@ -1,7 +1,6 @@
 package models
 
 import "time"
-import "github.com/ansible-semaphore/semaphore/database"
 
 type Task struct {
 	ID         int `db:"id" json:"id"`
@@ -24,9 +23,4 @@ type TaskOutput struct {
 	Task   string    `db:"task" json:"task"`
 	Time   time.Time `db:"time" json:"time"`
 	Output string    `db:"output" json:"output"`
-}
-
-func init() {
-	database.Mysql.AddTableWithName(Task{}, "task").SetKeys(true, "id")
-	database.Mysql.AddTableWithName(TaskOutput{}, "task__output").SetUniqueTogether("task_id", "time")
 }

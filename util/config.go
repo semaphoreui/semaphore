@@ -15,6 +15,7 @@ import (
 
 var mandrillAPI *gochimp.MandrillAPI
 var Migration bool
+var InteractiveSetup bool
 
 type mySQLConfig struct {
 	Hostname string `json:"host"`
@@ -44,6 +45,7 @@ type configType struct {
 var Config configType
 
 func init() {
+	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
 	flag.BoolVar(&Migration, "migrate", false, "execute migrations")
 	path := flag.String("config", "", "config path")
 
@@ -155,4 +157,28 @@ func MandrillRecipient(name string, email string) gochimp.Recipient {
 
 func MandrillSend(message gochimp.Message) ([]gochimp.SendResponse, error) {
 	return mandrillAPI.MessageSend(message, false)
+}
+
+func ScanSetup() configType {
+	var conf configType
+
+	fmt.Print("DB Hostname (example 127.0.0.1:3306): ")
+	fmt.Scanln(&conf.MySQL.Hostname)
+
+	fmt.Print("DB User (example root): ")
+	fmt.Scanln(&conf.MySQL.Username)
+
+	fmt.Print("DB Password: ")
+	fmt.Scanln(&conf.MySQL.Password)
+
+	fmt.Print("DB Name: ")
+	fmt.Scanln(&conf.MySQL.DbName)
+
+	fmt.Print("Redis Connection (example 127.0.0.1:6379): ")
+	fmt.Scanln(&conf.SessionDb)
+
+	fmt.Print("Playbook path (will be auto-created if does not exist): ")
+	fmt.Scanln(&conf.TmpPath)
+
+	return conf
 }
