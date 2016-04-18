@@ -21,7 +21,3 @@ func FetchUser(userID int) (*User, error) {
 	err := database.Mysql.SelectOne(&user, "select * from user where id=?", userID)
 	return &user, err
 }
-
-func init() {
-	database.Mysql.AddTableWithName(User{}, "user").SetKeys(true, "id")
-}

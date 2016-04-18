@@ -11,19 +11,20 @@ import (
 var Mysql *gorp.DbMap
 
 // Mysql database
-func init() {
+func Connect() error {
 	url := util.Config.MySQL.Username + ":" + util.Config.MySQL.Password + "@tcp(" + util.Config.MySQL.Hostname + ")/" + util.Config.MySQL.DbName + "?parseTime=true&interpolateParams=true"
 
 	db, err := sql.Open("mysql", url)
-
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	err = db.Ping()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	Mysql = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}}
+
+	return nil
 }

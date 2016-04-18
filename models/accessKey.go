@@ -3,7 +3,6 @@ package models
 import (
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -16,10 +15,6 @@ type AccessKey struct {
 	ProjectID *int    `db:"project_id" json:"project_id"`
 	Key       *string `db:"key" json:"key"`
 	Secret    *string `db:"secret" json:"secret"`
-}
-
-func init() {
-	database.Mysql.AddTableWithName(AccessKey{}, "access_key").SetKeys(true, "id")
 }
 
 func (key AccessKey) GetPath() string {
