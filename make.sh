@@ -57,22 +57,4 @@ if [ "$1" == "watch" ]; then
 	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade
 fi
 
-echo ""
-
-mkdir -p build
-echo "build/darwin_amd64"
-GOOS=darwin GOARCH=amd64 go build -o build/darwin_amd64 main.go
-echo "build/linux_386"
-GOOS=linux GOARCH=386 go build -o build/linux_386 main.go
-echo "build/linux_amd64"
-GOOS=linux GOARCH=amd64 go build -o build/linux_amd64 main.go
-echo "build/linux_arm"
-GOOS=linux GOARCH=arm go build -o build/linux_arm main.go
-# echo "build/windows_386"
-# GOOS=windows GOARCH=386 go build -o build/windows_386 main.go
-# echo "build/windows_amd64"
-# GOOS=windows GOARCH=amd64 go build -o build/windows_amd64 main.go
-
-chmod +x build/*
-
-echo "Build finished"
+gox -os="linux darwin windows openbsd" ./...
