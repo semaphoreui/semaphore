@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -101,8 +102,12 @@ Hello, you will now be guided through a setup to:
 		break
 	}
 
-	fmt.Print("Configuration written to /tmp/semaphore_config.json\n")
-	if err := ioutil.WriteFile("/tmp/semaphore_config.json", b, 0644); err != nil {
+	fmt.Printf("Running: mkdir -p %v\n", setup.TmpPath)
+	os.MkdirAll(setup.TmpPath, 0755)
+
+	configPath := path.Join(setup.TmpPath, "/semaphore_config.json")
+	fmt.Printf("Configuration written to %v\n", setup.TmpPath)
+	if err := ioutil.WriteFile(configPath, b, 0644); err != nil {
 		panic(err)
 	}
 
@@ -144,7 +149,7 @@ Hello, you will now be guided through a setup to:
 	}
 
 	fmt.Printf("\nYou are all setup %v\n", user.Name)
-	fmt.Println("Re-launch this program pointing to the configuration file\n./semaphore -config /tmp/semaphore_config.json")
+	fmt.Printf("Re-launch this program pointing to the configuration file\n./semaphore -config %v\n", configPath)
 	fmt.Println("Your login is %v or %v.", user.Email, user.Username)
 
 	return 0
