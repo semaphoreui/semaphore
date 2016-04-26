@@ -17,6 +17,7 @@ import (
 var mandrillAPI *gochimp.MandrillAPI
 var Migration bool
 var InteractiveSetup bool
+var Upgrade bool
 
 type mySQLConfig struct {
 	Hostname string `json:"host"`
@@ -48,6 +49,7 @@ var Config configType
 func init() {
 	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
 	flag.BoolVar(&Migration, "migrate", false, "execute migrations")
+	flag.BoolVar(&Upgrade, "upgrade", false, "upgrade semaphore")
 	path := flag.String("config", "", "config path")
 
 	var pwd string

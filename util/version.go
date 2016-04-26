@@ -1,3 +1,3 @@
 package util
 
-var Version string = "0.0.0"
+var Version string = "2.0-beta"

@@ -9583,13 +9583,16 @@ ul.nav > li.active a {
   position: absolute;
   left: 0;
   bottom: 0;
-  transform: scale(-1, -1);
+  transform: rotate(360deg) scale(-1, -1);
   mix-blend-mode: darken;
   color: #ffffff;
   fill: #000000;
 }
+.octo-body {
+  transform: rotate(-226deg) translate(-250px, -260px);
+}
 .octo-arm {
-  transform-origin: 130px 110px;
+  transform: rotate(-226deg) translate(-250px, -260px);
 }
 .github-corner:hover .octo-arm {
   animation: octocat-wave 0.56s;
@@ -9597,14 +9600,14 @@ ul.nav > li.active a {
 @keyframes octocat-wave {
   0%,
   100% {
-    transform: rotate(0);
+    transform: rotate(-226deg) translate(-250px, -260px);
   }
   20%,
   60% {
-    transform: rotate(-20deg);
+    transform: rotate(-227deg) translate(-250px, -260px);
   }
   40%,
   80% {
-    transform: rotate(10deg);
+    transform: rotate(-226deg) translate(-250px, -260px);
   }
 }

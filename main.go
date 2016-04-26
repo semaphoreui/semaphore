@@ -16,6 +16,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/routes"
 	"github.com/ansible-semaphore/semaphore/routes/sockets"
 	"github.com/ansible-semaphore/semaphore/routes/tasks"
+	"github.com/ansible-semaphore/semaphore/upgrade"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,14 @@ import (
 func main() {
 	if util.InteractiveSetup {
 		os.Exit(doSetup())
+	}
+
+	if util.Upgrade {
+		if err := upgrade.Upgrade(util.Version); err != nil {
+			panic(err)
+		}
+
+		os.Exit(0)
 	}
 
 	fmt.Printf("Semaphore %v\n", util.Version)
