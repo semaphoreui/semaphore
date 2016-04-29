@@ -2,6 +2,7 @@ package routes
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
@@ -24,6 +25,8 @@ func addUser(c *gin.Context) {
 	if err := c.Bind(&user); err != nil {
 		return
 	}
+
+	user.Created = time.Now()
 
 	if err := database.Mysql.Insert(&user); err != nil {
 		panic(err)

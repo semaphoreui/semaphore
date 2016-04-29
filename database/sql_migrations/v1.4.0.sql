@@ -9,6 +9,6 @@ CREATE TABLE `event` (
   KEY `created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-alter table task add `created` datetime not null default CURRENT_TIMESTAMP,
+alter table task add `created` datetime not null,
 	add `start` datetime null,
 	add `end` datetime null;

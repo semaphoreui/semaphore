@@ -1,6 +1,6 @@
 create table user (
 	`id` int(11) not null auto_increment primary key,
-	`created` datetime not null default NOW(),
+	`created` datetime not null,
 	`username` varchar(255) not null comment "Username, unique",
 	`name` varchar(255) not null comment "Full name",
 	`email` varchar(255) not null comment "Email, unique",
@@ -12,7 +12,7 @@ create table user (
 
 create table project (
 	`id` int(11) not null auto_increment primary key,
-	`created` datetime not null default NOW() comment "Created timestamp",
+	`created` datetime not null comment "Created timestamp",
 	`name` varchar(255) not null comment "Project name"
 ) ENGINE=InnoDB CHARSET=utf8;
 
@@ -104,7 +104,7 @@ create table task (
 create table task__output (
 	`task_id` int(11) not null,
 	`task` varchar(255) not null,
-	`time` datetime not null default NOW(),
+	`time` datetime not null,
 	`output` longtext not null,
 
 	unique key `id` (`task_id`, `time`),
