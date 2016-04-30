@@ -4,30 +4,10 @@
 
 Tests in progress.
 
-## [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
-
-## Common errors & pitfalls
-
-```
- Cannot connect to database!
- Error 1045: Access denied for user 'root'@'localhost' (using password: NO)
-```
-
-Your password for database is empty and is required.
-
----
-
-```
- Database migrations failed!
- ... error here ...
-```
-
-Please open an issue, tell us you database version & configuration.
-
----
-
-## [Milestones](https://github.com/ansible-semaphore/semaphore/milestones)
-## [Releases](https://github.com/ansible-semaphore/semaphore/releases)
+- [Releases](https://github.com/ansible-semaphore/semaphore/releases)
+- [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
+- [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
+- [Milestones](https://github.com/ansible-semaphore/semaphore/milestones)
 
 ## Articles
 
