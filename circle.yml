@@ -5,12 +5,12 @@ dependencies:
       main'
     - sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get
       install -y mysql-server-5.6
-    - go get github.com/tools/godep
     - go get github.com/jteeuwen/go-bindata/...
-    - godep restore
+    - go get github.com/mitchellh/gox
+    - go get github.com/cespare/reflex
 
   override:
-    - mkdir -p "/home/ubuntu/.go_workspace/src/github.com/castawaylabs"
+    - mkdir -p "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore"
     - ln -fs /home/ubuntu/semaphore /home/ubuntu/.go_workspace/src/github.com/ansible-semaphore
 
 test:

@@ -5,6 +5,44 @@
 Tests in progress.
 
 ## [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
+
+## Common errors & pitfalls
+
+```
+ Cannot connect to database!
+ Error 1045: Access denied for user 'root'@'localhost' (using password: NO)
+```
+
+Your password for database is empty and is required.
+
+---
+
+```
+ Database migrations failed!
+ ... error here ...
+```
+
+Please open an issue, tell us you database version & configuration.
+
+---
+
+```
+PING to redis unsuccessful
+... panic here ...
+```
+
+The program cannot reach your redis instance. Check the configuration and test manually with:
+
+```
+nc <IP> 6379
+PING
++PONG
+```
+
+if `netcat` returns immediately, the port is not reachable.
+
+---
+
 ## [Milestones](https://github.com/ansible-semaphore/semaphore/milestones)
 ## [Releases](https://github.com/ansible-semaphore/semaphore/releases)
 

@@ -165,34 +165,34 @@ func MandrillSend(message gochimp.Message) ([]gochimp.SendResponse, error) {
 func ScanSetup() configType {
 	var conf configType
 
-	fmt.Print("DB Hostname (default 127.0.0.1:3306): ")
+	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
 	fmt.Scanln(&conf.MySQL.Hostname)
 	if len(conf.MySQL.Hostname) == 0 {
 		conf.MySQL.Hostname = "127.0.0.1:3306"
 	}
 
-	fmt.Print("DB User (default root): ")
+	fmt.Print(" > DB User (default root): ")
 	fmt.Scanln(&conf.MySQL.Username)
 	if len(conf.MySQL.Username) == 0 {
 		conf.MySQL.Username = "root"
 	}
 
-	fmt.Print("DB Password: ")
+	fmt.Print(" > DB Password: ")
 	fmt.Scanln(&conf.MySQL.Password)
 
-	fmt.Print("DB Name (default semaphore): ")
+	fmt.Print(" > DB Name (default semaphore): ")
 	fmt.Scanln(&conf.MySQL.DbName)
 	if len(conf.MySQL.DbName) == 0 {
 		conf.MySQL.DbName = "semaphore"
 	}
 
-	fmt.Print("Redis Connection (default 127.0.0.1:6379): ")
+	fmt.Print(" > Redis Connection (default 127.0.0.1:6379): ")
 	fmt.Scanln(&conf.SessionDb)
 	if len(conf.SessionDb) == 0 {
 		conf.SessionDb = "127.0.0.1:6379"
 	}
 
-	fmt.Print("Playbook path (will be auto-created if does not exist): ")
+	fmt.Print(" > Playbook path: ")
 	fmt.Scanln(&conf.TmpPath)
 
 	if len(conf.TmpPath) == 0 {

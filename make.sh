@@ -54,7 +54,11 @@ if [ "$1" == "watch" ]; then
 
 	nodemon -w js -i bundle.js -e js bundler.js &
 	nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
-	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade
+	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade &
+
+	cd ../
+	reflex -r '\.go$' -s -d none -- sh -c 'go run main.go'
+	exit 0
 fi
 
 gox -os="linux darwin windows openbsd" ./...

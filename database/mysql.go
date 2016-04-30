@@ -24,11 +24,11 @@ func Connect() error {
 	}
 
 	if _, err := db.Exec("create database if not exists " + util.Config.MySQL.DbName); err != nil {
-		panic(err)
+		return err
 	}
 
 	if _, err := db.Exec("use " + util.Config.MySQL.DbName); err != nil {
-		panic(err)
+		return err
 	}
 
 	Mysql = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}}

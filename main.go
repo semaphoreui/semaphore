@@ -8,8 +8,6 @@ import (
 	"path"
 	"strings"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/migration"
 	"github.com/ansible-semaphore/semaphore/models"
@@ -20,6 +18,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -76,13 +75,13 @@ func recovery(c *gin.Context) {
 
 func doSetup() int {
 	fmt.Print(`
-Hello, you will now be guided through a setup to:
+ Hello! You will now be guided through a setup to:
 
-- Set up configuration for a MySQL/MariaDB database
-- Set up redis for session storage
-- Set up a path for your playbooks
-- Run DB Migrations
-- Set up your user and password
+ 1. Set up configuration for a MySQL/MariaDB database
+ 2. Set up redis for session storage
+ 3. Set up a path for your playbooks (auto-created)
+ 4. Run database Migrations
+ 5. Set up initial seamphore user & password
 
 `)
 
@@ -90,63 +89,61 @@ Hello, you will now be guided through a setup to:
 	setup := util.ScanSetup()
 	for true {
 		var err error
-		b, err = json.MarshalIndent(&setup, "", "\t")
+		b, err = json.MarshalIndent(&setup, " ", "\t")
 		if err != nil {
 			panic(err)
 		}
 
-		fmt.Printf("Config:\n%v\n\n", string(b))
-		fmt.Print("Is this correct? (yes/no): ")
+		fmt.Printf("\n Generated configuration:\n %v\n\n", string(b))
+		fmt.Print(" > Is this correct? (yes/no): ")
 
 		var answer string
 		fmt.Scanln(&answer)
-
-		if !(answer == "yes" || answer == "y") {
-			fmt.Println()
-			setup = util.ScanSetup()
-
-			continue
+		if answer == "yes" || answer == "y" {
+			break
 		}
 
-		break
+		fmt.Println()
+		setup = util.ScanSetup()
 	}
 
-	fmt.Printf("Running: mkdir -p %v\n", setup.TmpPath)
+	fmt.Printf(" Running: mkdir -p %v..\n", setup.TmpPath)
 	os.MkdirAll(setup.TmpPath, 0755)
 
 	configPath := path.Join(setup.TmpPath, "/semaphore_config.json")
-	fmt.Printf("Configuration written to %v\n", setup.TmpPath)
+	fmt.Printf(" Configuration written to %v..\n", setup.TmpPath)
 	if err := ioutil.WriteFile(configPath, b, 0644); err != nil {
 		panic(err)
 	}
 
-	fmt.Println("\nPinging database...")
+	fmt.Println(" Pinging database..")
 	util.Config = setup
 
 	if err := database.Connect(); err != nil {
-		fmt.Println("Connection to database unsuccessful.")
-		panic(err)
+		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
+		os.Exit(1)
 	}
 
-	fmt.Println("Pinging redis...")
+	fmt.Println(" Pinging redis..")
 	database.RedisPing()
 
-	fmt.Println("\nRunning DB Migrations")
+	fmt.Println("\n Running DB Migrations..")
 	if err := migration.MigrateAll(); err != nil {
-		panic(err)
+		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
+		os.Exit(1)
 	}
 
 	var user models.User
-	fmt.Print("\n\nYour name: ")
+	fmt.Print("\n\n > Your name: ")
 	fmt.Scanln(&user.Name)
 
-	fmt.Print("Username: ")
+	fmt.Print(" > Username: ")
 	fmt.Scanln(&user.Username)
 
-	fmt.Print("Email: ")
+	fmt.Print(" > Email: ")
 	fmt.Scanln(&user.Email)
 
-	fmt.Print("Password: ")
+	fmt.Print(" > Password: ")
 	fmt.Scanln(&user.Password)
 
 	pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
@@ -154,12 +151,14 @@ Hello, you will now be guided through a setup to:
 	user.Email = strings.ToLower(user.Email)
 
 	if _, err := database.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, created=NOW()", user.Name, user.Username, user.Email, pwdHash); err != nil {
-		panic(err)
+		fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
+		os.Exit(1)
 	}
 
-	fmt.Printf("\nYou are all setup %v\n", user.Name)
-	fmt.Printf("Re-launch this program pointing to the configuration file\n./semaphore -config %v\n", configPath)
-	fmt.Println("Your login is %v or %v.", user.Email, user.Username)
+	fmt.Printf("\n You are all setup %v!\n", user.Name)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore -config %v\n\n", configPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore -config %v &\n\n", configPath)
+	fmt.Println(" Your login is %v or %v.", user.Email, user.Username)
 
 	return 0
 }

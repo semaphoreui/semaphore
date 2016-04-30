@@ -9,15 +9,17 @@ When creating a pull-request you should:
 # Installing dependencies
 
 ```
-go get -u ./...
-go get -u github.com/jteeuwen/go-bindata/...
+go get github.com/jteeuwen/go-bindata/...
 go get github.com/mitchellh/gox
-npm install -g nodemon less jade
+go get github.com/cespare/reflex
+go get -u ./...
+
+npm i -g nodemon less jade
 ```
 
 # Running in development
 
 ```
-# edit config.json file
+$EDITOR config.json
 ./make.sh watch
 ```
