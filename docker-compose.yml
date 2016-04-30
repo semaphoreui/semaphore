@@ -1,11 +1,3 @@
-redis:
-  name: redis:latest
-  image: redis
-  expose:
-    - 6379
-  volumes:
-    - /tmp/redis:/data
-
 mongodb:
   image: mongo:latest
   command: mongod --smallfiles --directoryperdb --noprealloc

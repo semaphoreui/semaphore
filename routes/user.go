@@ -45,13 +45,6 @@ func createAPIToken(c *gin.Context) {
 		panic(err)
 	}
 
-	temp_session := models.Session{
-		UserID: &user.ID,
-	}
-	if err := database.Redis.Set("token-session:"+token.ID, temp_session.Encode(), 0).Err(); err != nil {
-		panic(err)
-	}
-
 	c.JSON(201, token)
 }
 
@@ -69,11 +62,9 @@ func expireAPIToken(c *gin.Context) {
 		panic(err)
 	}
 
-	if affected > 0 {
-		// remove from redis
-		if err := database.Redis.Del("token-session:" + tokenID).Err(); err != nil {
-			panic(err)
-		}
+	if affected == 0 {
+		c.AbortWithStatus(400)
+		return
 	}
 
 	c.AbortWithStatus(204)

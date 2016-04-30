@@ -1,20 +1,20 @@
 package util
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
-	"github.com/mattbaird/gochimp"
+	"github.com/gorilla/securecookie"
+	"golang.org/x/crypto/bcrypt"
 )
 
-var mandrillAPI *gochimp.MandrillAPI
+var Cookie *securecookie.SecureCookie
 var Migration bool
 var InteractiveSetup bool
 var Upgrade bool
@@ -26,25 +26,25 @@ type mySQLConfig struct {
 	DbName   string `json:"name"`
 }
 
-type mandrillConfig struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 type configType struct {
 	MySQL mySQLConfig `json:"mysql"`
-	// Format as is with net.Dial
-	SessionDb string         `json:"session_db"`
-	Mandrill  mandrillConfig `json:"mandrill"`
 	// Format `:port_num` eg, :3000
 	Port       string `json:"port"`
 	BugsnagKey string `json:"bugsnag_key"`
 
 	// semaphore stores projects here
 	TmpPath string `json:"tmp_path"`
+
+	// cookie hashing & encryption
+	CookieHash       string `json:"cookie_hash"`
+	CookieEncryption string `json:"cookie_encryption"`
 }
 
-var Config configType
+var Config *configType
+
+func NewConfig() *configType {
+	return &configType{}
+}
 
 func init() {
 	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
@@ -61,16 +61,18 @@ func init() {
 	flag.Parse()
 
 	if printConfig {
-		b, _ := json.MarshalIndent(&configType{
+		cfg := &configType{
 			MySQL: mySQLConfig{
 				Hostname: "127.0.0.1:3306",
 				Username: "root",
 				DbName:   "semaphore",
 			},
-			SessionDb: "127.0.0.1:6379",
-			Port:      ":3000",
-			TmpPath:   "/tmp/semaphore",
-		}, "", "\t")
+			Port:    ":3000",
+			TmpPath: "/tmp/semaphore",
+		}
+		cfg.GenerateCookieSecrets()
+
+		b, _ := json.MarshalIndent(cfg, "", "\t")
 		fmt.Println(string(b))
 
 		os.Exit(0)
@@ -114,14 +116,19 @@ func init() {
 		Config.Port = ":3000"
 	}
 
-	if len(Config.Mandrill.Password) > 0 {
-		api, _ := gochimp.NewMandrill(Config.Mandrill.Password)
-		mandrillAPI = api
-	}
-
 	if len(Config.TmpPath) == 0 {
 		Config.TmpPath = "/tmp/semaphore"
 	}
+
+	var encryption []byte
+	encryption = nil
+
+	hash, _ := base64.StdEncoding.DecodeString(Config.CookieHash)
+	if len(Config.CookieEncryption) > 0 {
+		encryption, _ = base64.StdEncoding.DecodeString(Config.CookieEncryption)
+	}
+
+	Cookie = securecookie.New(hash, encryption)
 
 	stage := ""
 	if gin.Mode() == "release" {
@@ -138,33 +145,15 @@ func init() {
 	})
 }
 
-// encapsulate mandrill providing some defaults
+func (conf *configType) GenerateCookieSecrets() {
+	hash := securecookie.GenerateRandomKey(32)
+	encryption := securecookie.GenerateRandomKey(32)
 
-func MandrillMessage(important bool) gochimp.Message {
-	return gochimp.Message{
-		AutoText:  true,
-		InlineCss: true,
-		Important: important,
-		FromName:  "Semaphore Daemon",
-		FromEmail: "noreply@semaphore.local",
-	}
+	conf.CookieHash = base64.StdEncoding.EncodeToString(hash)
+	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
 }
 
-func MandrillRecipient(name string, email string) gochimp.Recipient {
-	return gochimp.Recipient{
-		Email: email,
-		Name:  name,
-		Type:  "to",
-	}
-}
-
-func MandrillSend(message gochimp.Message) ([]gochimp.SendResponse, error) {
-	return mandrillAPI.MessageSend(message, false)
-}
-
-func ScanSetup() configType {
-	var conf configType
-
+func (conf *configType) Scan() {
 	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
 	fmt.Scanln(&conf.MySQL.Hostname)
 	if len(conf.MySQL.Hostname) == 0 {
@@ -186,12 +175,6 @@ func ScanSetup() configType {
 		conf.MySQL.DbName = "semaphore"
 	}
 
-	fmt.Print(" > Redis Connection (default 127.0.0.1:6379): ")
-	fmt.Scanln(&conf.SessionDb)
-	if len(conf.SessionDb) == 0 {
-		conf.SessionDb = "127.0.0.1:6379"
-	}
-
 	fmt.Print(" > Playbook path: ")
 	fmt.Scanln(&conf.TmpPath)
 
@@ -199,6 +182,4 @@ func ScanSetup() configType {
 		conf.TmpPath = "/tmp/semaphore"
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
-
-	return conf
 }

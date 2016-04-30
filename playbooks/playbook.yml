@@ -17,7 +17,6 @@
             - nodejs
             - npm
             - mongodb-server
-            - redis-server
             - ansible
             - runit
       - npm: name={{ item }} global=yes

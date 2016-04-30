@@ -1,12 +1,8 @@
 package routes
 
 import (
-	"crypto/rand"
-	"encoding/base64"
+	"database/sql"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -14,93 +10,76 @@ import (
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/redis.v3"
 )
 
-func resetSessionExpiry(sessionID string, ttl time.Duration) {
-	var cmd *redis.BoolCmd
-
-	if ttl == 0 {
-		cmd = database.Redis.Persist(sessionID)
-	} else {
-		cmd = database.Redis.Expire(sessionID, ttl)
-	}
-
-	if err := cmd.Err(); err != nil {
-		fmt.Println("Cannot reset session expiry:", err)
-	}
-}
-
 func authentication(c *gin.Context) {
-	var redisKey string
-	ttl := 7 * 24 * time.Hour
+	var userID int
 
 	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 {
-		redisKey = "token-session:" + strings.Replace(authHeader, "bearer ", "", 1)
-		ttl = 0
-	} else {
-		cookie, err := c.Request.Cookie("semaphore")
-		if err != nil {
-			// create cookie
-			new_cookie := make([]byte, 32)
-			if _, err := io.ReadFull(rand.Reader, new_cookie); err != nil {
-				panic(err)
+		var token models.APIToken
+		if err := database.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
+			if err == sql.ErrNoRows {
+				c.AbortWithStatus(403)
+				return
 			}
 
-			cookie_value := url.QueryEscape(base64.URLEncoding.EncodeToString(new_cookie))
-			cookie = &http.Cookie{Name: "semaphore", Value: cookie_value, Path: "/", HttpOnly: true}
-			http.SetCookie(c.Writer, cookie)
-		}
-
-		redisKey = "session:" + cookie.Value
-	}
-
-	s, err := database.Redis.Get(redisKey).Result()
-	if err == redis.Nil {
-		// create a session
-		temp_session := models.Session{}
-		s = string(temp_session.Encode())
-
-		if err := database.Redis.Set(redisKey, s, 0).Err(); err != nil {
 			panic(err)
 		}
-	} else if err != nil {
-		fmt.Println("Cannot get session from redis:", err)
-		c.AbortWithStatus(500)
 
-		return
-	}
-
-	sess, err := models.DecodeSession(redisKey, s)
-	if err != nil {
-		fmt.Println("Cannot decode session:", err)
-		util.AuthFailed(c)
-		return
-	}
-
-	if sess.UserID != nil {
-		user, err := models.FetchUser(*sess.UserID)
+		userID = token.UserID
+	} else {
+		// fetch session from cookie
+		cookie, err := c.Request.Cookie("semaphore")
 		if err != nil {
-			fmt.Println("Can't find user", err)
 			c.AbortWithStatus(403)
 			return
 		}
 
-		c.Set("user", user)
+		value := make(map[string]interface{})
+		if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
+			c.AbortWithStatus(403)
+			panic(err)
+		}
+
+		user, ok := value["user"]
+		sessionVal, okSession := value["session"]
+		if !ok || !okSession {
+			c.AbortWithStatus(403)
+			return
+		}
+
+		userID = user.(int)
+		sessionID := sessionVal.(int)
+
+		// fetch session
+		var session models.Session
+		if err := database.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
+			c.AbortWithStatus(403)
+			return
+		}
+
+		if time.Now().Sub(session.LastActive).Hours() > 7*24 {
+			// more than week old unused session
+			// destroy.
+			if _, err := database.Mysql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
+				panic(err)
+			}
+
+			c.AbortWithStatus(403)
+			return
+		}
+
+		if _, err := database.Mysql.Exec("update session set last_active=NOW() where id=?", sessionID); err != nil {
+			panic(err)
+		}
 	}
 
-	// reset session expiry
-	go resetSessionExpiry(redisKey, ttl)
-
-	c.Set("session", sess)
-	c.Next()
-}
-
-func MustAuthenticate(c *gin.Context) {
-	if _, exists := c.Get("user"); !exists {
-		util.AuthFailed(c)
+	user, err := models.FetchUser(userID)
+	if err != nil {
+		fmt.Println("Can't find user", err)
+		c.AbortWithStatus(403)
 		return
 	}
 
-	c.Next()
+	c.Set("user", user)
 }

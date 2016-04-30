@@ -2,16 +2,17 @@ package routes
 
 import (
 	"database/sql"
+	"net/http"
 	"net/mail"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
 	sq "github.com/masterminds/squirrel"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func login(c *gin.Context) {
@@ -53,22 +54,36 @@ func login(c *gin.Context) {
 		return
 	}
 
-	session := c.MustGet("session").(models.Session)
-	session.UserID = &user.ID
-
-	status := database.Redis.Set(session.ID, string(session.Encode()), 7*24*time.Hour)
-	if err := status.Err(); err != nil {
+	session := models.Session{
+		UserID:     user.ID,
+		Created:    time.Now(),
+		LastActive: time.Now(),
+		IP:         c.ClientIP(),
+		UserAgent:  c.Request.Header.Get("user-agent"),
+		Expired:    false,
+	}
+	if err := database.Mysql.Insert(&session); err != nil {
 		panic(err)
 	}
+
+	encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
+		"user":    user.ID,
+		"session": session.ID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:  "semaphore",
+		Value: encoded,
+		Path:  "/",
+	})
 
 	c.AbortWithStatus(204)
 }
 
 func logout(c *gin.Context) {
-	session := c.MustGet("session").(models.Session)
-	if err := database.Redis.Del(session.ID).Err(); err != nil {
-		panic(err)
-	}
-
+	c.SetCookie("semaphore", "", -1, "/", "", false, true)
 	c.AbortWithStatus(204)
 }

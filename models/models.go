@@ -13,4 +13,5 @@ func SetupDBLink() {
 	database.Mysql.AddTableWithName(TaskOutput{}, "task__output").SetUniqueTogether("task_id", "time")
 	database.Mysql.AddTableWithName(Template{}, "project__template").SetKeys(true, "id")
 	database.Mysql.AddTableWithName(User{}, "user").SetKeys(true, "id")
+	database.Mysql.AddTableWithName(Session{}, "session").SetKeys(true, "id")
 }

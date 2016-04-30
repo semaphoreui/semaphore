@@ -1,29 +1,13 @@
 package models
 
-import (
-	"encoding/json"
-)
+import "time"
 
 type Session struct {
-	ID string `json:"-"`
-
-	UserID *int `json:"user_id"`
-}
-
-func (session *Session) Encode() []byte {
-	js, err := json.Marshal(session)
-	if err != nil {
-		panic(err)
-	}
-
-	return js
-}
-
-func DecodeSession(ID string, sess string) (Session, error) {
-	var session Session
-	err := json.Unmarshal([]byte(sess), &session)
-
-	session.ID = ID
-
-	return session, err
+	ID         int       `db:"id" json:"id"`
+	UserID     int       `db:"user_id" json:"user_id"`
+	Created    time.Time `db:"created" json:"created"`
+	LastActive time.Time `db:"last_active" json:"last_active"`
+	IP         string    `db:"ip" json:"ip"`
+	UserAgent  string    `db:"user_agent" json:"user_agent"`
+	Expired    bool      `db:"expired" json:"expired"`
 }

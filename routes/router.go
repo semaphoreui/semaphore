@@ -21,14 +21,12 @@ func Route(r *gin.Engine) {
 	// set up the namespace
 	api := r.Group("/api")
 
-	api.Use(authentication)
-
 	func(api *gin.RouterGroup) {
 		api.POST("/login", login)
 		api.POST("/logout", logout)
 	}(api.Group("/auth"))
 
-	api.Use(MustAuthenticate)
+	api.Use(authentication)
 
 	api.GET("/ws", sockets.Handler)
 

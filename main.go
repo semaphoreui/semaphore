@@ -37,7 +37,6 @@ func main() {
 	fmt.Printf("Semaphore %v\n", util.Version)
 	fmt.Printf("Port %v\n", util.Config.Port)
 	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
-	fmt.Printf("Redis %v\n", util.Config.SessionDb)
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
 	if err := database.Connect(); err != nil {
@@ -47,7 +46,6 @@ func main() {
 	models.SetupDBLink()
 
 	defer database.Mysql.Db.Close()
-	database.RedisPing()
 
 	if util.Migration {
 		fmt.Println("\n Running DB Migrations")
@@ -78,16 +76,17 @@ func doSetup() int {
  Hello! You will now be guided through a setup to:
 
  1. Set up configuration for a MySQL/MariaDB database
- 2. Set up redis for session storage
- 3. Set up a path for your playbooks (auto-created)
- 4. Run database Migrations
- 5. Set up initial seamphore user & password
+ 2. Set up a path for your playbooks (auto-created)
+ 3. Run database Migrations
+ 4. Set up initial seamphore user & password
 
 `)
 
 	var b []byte
-	setup := util.ScanSetup()
+	setup := util.NewConfig()
 	for true {
+		setup.Scan()
+
 		var err error
 		b, err = json.MarshalIndent(&setup, " ", "\t")
 		if err != nil {
@@ -104,8 +103,10 @@ func doSetup() int {
 		}
 
 		fmt.Println()
-		setup = util.ScanSetup()
+		setup = util.NewConfig()
 	}
+
+	setup.GenerateCookieSecrets()
 
 	fmt.Printf(" Running: mkdir -p %v..\n", setup.TmpPath)
 	os.MkdirAll(setup.TmpPath, 0755)
@@ -123,9 +124,6 @@ func doSetup() int {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
-
-	fmt.Println(" Pinging redis..")
-	database.RedisPing()
 
 	fmt.Println("\n Running DB Migrations..")
 	if err := migration.MigrateAll(); err != nil {
