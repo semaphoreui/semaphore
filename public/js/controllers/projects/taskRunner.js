@@ -14,6 +14,10 @@ define(function () {
 	}]);
 
 	app.registerController('TaskCtrl', ['$scope', '$http', function ($scope, $http) {
+		$scope.$on('remote.log', function (evt, data) {
+			$scope.output_formatted.splice(0, 0, data);
+		});
+
 		$http.get($scope.project.getURL() + '/tasks/' + $scope.task.id + '/output')
 		.success(function (output) {
 			var out = [];

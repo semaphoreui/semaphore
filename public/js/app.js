@@ -76,7 +76,13 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 		}
 
 		$rootScope.ws.onmessage = function (e) {
-			console.log('msg', e.data);
+			try {
+				var d = JSON.parse(e.data);
+				console.log(d);
+				setTimeout(function () {
+					$rootScope.$broadcast('remote.' + d.type, d);
+				}, 3000);
+			} catch (_) {}
 		}
 	}
 

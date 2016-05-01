@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"bufio"
+	"encoding/json"
 	"os/exec"
 
 	"github.com/ansible-semaphore/semaphore/database"
@@ -10,7 +11,18 @@ import (
 
 func (t *task) log(msg string) {
 	for _, user := range t.users {
-		sockets.Message(user, []byte(msg))
+		b, err := json.Marshal(&map[string]interface{}{
+			"type":       "log",
+			"m":          msg,
+			"task_id":    t.task.ID,
+			"project_id": t.projectID,
+		})
+
+		if err != nil {
+			panic(err)
+		}
+
+		sockets.Message(user, b)
 	}
 
 	go func() {
