@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os/exec"
+	"time"
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/routes/sockets"
@@ -13,7 +14,8 @@ func (t *task) log(msg string) {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
 			"type":       "log",
-			"m":          msg,
+			"output":     msg,
+			"time":       time.Now(),
 			"task_id":    t.task.ID,
 			"project_id": t.projectID,
 		})

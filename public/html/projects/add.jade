@@ -1,13 +1,13 @@
 .modal-header
-	h4.modal-title Add Project
+	h4.modal-title New Project
 
 .modal-body
 	form.form-horizontal
 		.form-group
-			label.control-label.col-sm-4 Name
+			label.control-label.col-sm-4 Project Name
 			.col-sm-6
 				input.form-control(type="text" placeholder="Project Name" ng-model="project.name" required)
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="$close(project)") Save
+	button.btn.btn-success(ng-click="$close(project)") Create

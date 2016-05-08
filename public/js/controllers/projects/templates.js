@@ -78,6 +78,17 @@ define(['controllers/projects/taskRunner'], function () {
 						return tpl;
 					}
 				}
+			}).result.then(function (task) {
+				var scope = $rootScope.$new();
+				scope.task = task;
+				scope.project = Project;
+
+				$modal.open({
+					templateUrl: '/tpl/projects/taskModal.html',
+					controller: 'TaskCtrl',
+					scope: scope,
+					size: 'lg'
+				});
 			})
 		}
 

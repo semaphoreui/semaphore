@@ -7,6 +7,7 @@ define(function () {
 			task.template_id = Template.id;
 
 			$http.post(Project.getURL() + '/tasks', task).success(function (t) {
+				$scope.$close(t);
 			}).error(function (_, status) {
 				swal('Error', 'error launching task: HTTP ' + status, 'error');
 			});
@@ -15,7 +16,10 @@ define(function () {
 
 	app.registerController('TaskCtrl', ['$scope', '$http', function ($scope, $http) {
 		$scope.$on('remote.log', function (evt, data) {
-			$scope.output_formatted.splice(0, 0, data);
+			console.log('data');
+			$scope.output_formatted += moment(data.time).format('HH:mm:ss') + ': ' + data.output + '\n';
+
+			if (!$scope.$$phase) $scope.$digest();
 		});
 
 		$http.get($scope.project.getURL() + '/tasks/' + $scope.task.id + '/output')

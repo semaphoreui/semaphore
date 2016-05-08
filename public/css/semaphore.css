@@ -9548,6 +9548,41 @@ button.close {
 .login-page {
   margin-top: 30vh;
 }
+.github-corner svg {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  transform: rotate(360deg) scale(-1, -1);
+  mix-blend-mode: darken;
+  color: #ffffff;
+  fill: #000000;
+}
+.octo-body {
+  transform: rotate(-226deg) translate(-250px, -260px);
+}
+.octo-arm {
+  transform: rotate(-226deg) translate(-250px, -260px);
+}
+.github-corner:hover .octo-arm {
+  animation: octocat-wave 0.56s;
+}
+@keyframes octocat-wave {
+  0%,
+  100% {
+    transform: rotate(-226deg) translate(-250px, -260px);
+  }
+  20%,
+  60% {
+    transform: rotate(-227deg) translate(-250px, -260px);
+  }
+  40%,
+  80% {
+    transform: rotate(-226deg) translate(-250px, -260px);
+  }
+}
+body {
+  padding-bottom: 75px;
+}
 input,
 button.btn {
   font-weight: 300;
@@ -9579,35 +9614,15 @@ h6.no-top-margin {
 ul.nav > li.active a {
   background-color: #eee;
 }
-.github-corner svg {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  transform: rotate(360deg) scale(-1, -1);
-  mix-blend-mode: darken;
-  color: #ffffff;
-  fill: #000000;
+ul.nav.nav-pills li > a {
+  border-bottom: 1px solid #EEE;
 }
-.octo-body {
-  transform: rotate(-226deg) translate(-250px, -260px);
+ul.nav.nav-pills li > a:hover {
+  background: none;
+  border-bottom: 1px solid #00ab54;
 }
-.octo-arm {
-  transform: rotate(-226deg) translate(-250px, -260px);
-}
-.github-corner:hover .octo-arm {
-  animation: octocat-wave 0.56s;
-}
-@keyframes octocat-wave {
-  0%,
-  100% {
-    transform: rotate(-226deg) translate(-250px, -260px);
-  }
-  20%,
-  60% {
-    transform: rotate(-227deg) translate(-250px, -260px);
-  }
-  40%,
-  80% {
-    transform: rotate(-226deg) translate(-250px, -260px);
-  }
+ul.nav.nav-pills li.active > a {
+  background: none;
+  border-bottom: 1px solid #0058ab;
+  color: #003e78;
 }

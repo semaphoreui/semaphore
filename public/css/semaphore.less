@@ -26,6 +26,11 @@
 @import (less) '../vendor/sweetalert/sweetalert.css';
 
 @import 'login.less';
+@import 'octocat.less';
+
+body {
+	padding-bottom: 75px;
+}
 
 input, button.btn {
 	font-weight: @headings-font-weight;
@@ -59,36 +64,17 @@ ul.nav {
 	}
 }
 
-.github-corner svg{
-	position: absolute;
-	left: 0;
-	bottom: 0;
-	transform: rotate(360deg) scale(-1,-1);
-	mix-blend-mode: darken;
-	color: #ffffff;
-	fill: #000000;
-}
-.octo-body {
-	transform: rotate(-226deg) translate(-250px, -260px);
-}
-.octo-arm {
-	transform: rotate(-226deg) translate(-250px, -260px);
-}
-.github-corner:hover .octo-arm{
-	animation:octocat-wave .56s;
+ul.nav.nav-pills li > a {
+	border-bottom: 1px solid #EEE;
 }
 
-@keyframes octocat-wave {
-  0%,
-  100% {
-    transform: rotate(-226deg) translate(-250px, -260px);
-  }
-  20%,
-  60% {
-    transform: rotate(-227deg) translate(-250px, -260px);
-  }
-  40%,
-  80% {
-    transform: rotate(-226deg) translate(-250px, -260px);
-  }
+ul.nav.nav-pills li > a:hover {
+	background: none;
+	border-bottom: 1px solid @brand-primary;
+}
+
+ul.nav.nav-pills li.active > a {
+	background: none;
+	border-bottom: 1px solid @brand-success;
+	color: darken(@brand-success, 10%);
 }
