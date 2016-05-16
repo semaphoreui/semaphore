@@ -58,23 +58,39 @@ h1, h2, h3, h4, h5, h6 {
 	}
 }
 
+.project-name {
+	padding-left: 15px;
+}
+
 ul.nav {
 	& > li.active a {
 		background-color: #eee;
 	}
 }
 
-ul.nav.nav-pills li > a {
-	border-bottom: 1px solid #EEE;
+ul.nav.nav-pills li {
+ & > a {
+		border-bottom: 1px solid #EEE;
+		transition: color 0.2s linear, border-bottom 0.2s linear;
+	}
+
+	& > a:hover {
+		background: none;
+		border-bottom: 1px solid #CCC;
+		border-radius: 0;
+	}
+
+	&.active > a {
+		border-bottom: 1px solid #CCC;
+		border-radius: 0;
+		background: none;
+		color: darken(@brand-success, 10%);
+	}
 }
 
-ul.nav.nav-pills li > a:hover {
-	background: none;
-	border-bottom: 1px solid @brand-primary;
-}
-
-ul.nav.nav-pills li.active > a {
-	background: none;
-	border-bottom: 1px solid @brand-success;
-	color: darken(@brand-success, 10%);
+.task-history-list {
+	li > a {
+		padding-left: 0;
+		padding-right: 0;
+	}
 }

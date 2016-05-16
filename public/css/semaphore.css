@@ -9611,18 +9611,28 @@ h5.no-top-margin,
 h6.no-top-margin {
   margin-top: 0;
 }
+.project-name {
+  padding-left: 15px;
+}
 ul.nav > li.active a {
   background-color: #eee;
 }
 ul.nav.nav-pills li > a {
   border-bottom: 1px solid #EEE;
+  transition: color 0.2s linear, border-bottom 0.2s linear;
 }
 ul.nav.nav-pills li > a:hover {
   background: none;
-  border-bottom: 1px solid #00ab54;
+  border-bottom: 1px solid #CCC;
+  border-radius: 0;
 }
 ul.nav.nav-pills li.active > a {
+  border-bottom: 1px solid #CCC;
+  border-radius: 0;
   background: none;
-  border-bottom: 1px solid #0058ab;
   color: #003e78;
+}
+.task-history-list li > a {
+  padding-left: 0;
+  padding-right: 0;
 }

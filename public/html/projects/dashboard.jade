@@ -8,20 +8,16 @@
 				span(ng-bind="event.object_name")
 				span(ng-if="event.object_name.length > 0")  -&nbsp;
 				span {{ event.description }}
-	.col-sm-5
+	.col-sm-5(style="border-left: 1px solid #EEE;")
 		h4.no-top-margin Task history
-		ul.nav.nav-pills.nav-stacked
+		ul.nav.nav-pills.nav-stacked.task-history-list
 			li(ng-repeat="task in tasks"): a(ng-click="openTask(task)" href="#")
-				i.fa.fa-fw.fa-clock-o.text-warning(ng-if="task.status == 'waiting'")
-				i.fa.fa-fw.fa-times.text-danger(ng-if="task.status == 'error'")
-				i.fa.fa-fw.fa-check.text-success(ng-if="task.status == 'success'")
-				i.fa.fa-fw.fa-play.text-warning(ng-if="task.status == 'running'")
-				| &nbsp;
-				span(ng-if="task.playbook.length == 0") {{ task.tpl_playbook }}
-				span(ng-if="task.playbook.length > 0") {{ task.playbook }}
+				span(ng-class="{ 'text-warning': task.status == 'waiting' || task.status == 'running', 'text-danger': task.status == 'error', 'text-success': task.status == 'success' }")
+					span(ng-if="task.playbook.length == 0") {{ task.tpl_playbook }}
+					span(ng-if="task.playbook.length > 0") {{ task.playbook }}
 				span.pull-right(ng-if="task.status == 'waiting'") {{ task.created | date:'short' }}
 				span.pull-right(ng-if="task.status != 'waiting'") {{ task.start | date:'short' }}
 
 				br
-				span Duration
-				span.pull-right {{ task.duration }}
+				span &nbsp;
+				span.pull-right {{ task.duration }} minutes

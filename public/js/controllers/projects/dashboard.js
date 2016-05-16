@@ -12,7 +12,8 @@ define(['controllers/projects/taskRunner'], function () {
 					return;
 				}
 
-				t.duration = moment(t.start).from(moment(t.end), true);
+				// t.duration = moment(t.start).from(moment(t.end), true);
+				t.duration = moment(t.start).diff(moment(t.end), 'minutes');
 			})
 		});
 
