@@ -1,8 +1,7 @@
 gin-bin
 util/bindata.go
 build/
-node_modules
 public/js/bundle.js
+public/css/semaphore.css
 config.json
-lib/credentials.json
 .DS_Store
