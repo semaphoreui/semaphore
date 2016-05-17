@@ -1,8 +1,0 @@
-mongodb:
-  image: mongo:latest
-  command: mongod --smallfiles --directoryperdb --noprealloc
-  hostname: mongodb
-  volumes:
-    - /tmp/mongodb:/data/db
-  expose:
-    - 27017
