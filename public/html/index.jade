@@ -12,7 +12,7 @@ html(lang="en" ng-app="semaphore")
 	body
 		.navbar.navbar-default(ng-if="loggedIn"): .container-fluid
 			.navbar-header
-				a.navbar-brand(ui-sref="dashboard") SEMAPHORE
+				a.navbar-brand(ui-sref="dashboard") semaphore
 
 			ul.nav.navbar-nav
 				li(ng-class="{ active: $state.includes('dashboard') }")
@@ -25,10 +25,18 @@ html(lang="en" ng-app="semaphore")
 			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
 				li(uib-dropdown)
 					a(uib-dropdown-toggle)
-						i.fa.fa-fw.fa-user
-						i.caret
+						i.fa.fa-fw.fa-cog
 					ul(uib-dropdown-menu)
-						li: a(ui-sref="auth.logout") Log out
+						li.dropdown-header semaphore v{{ semaphore.version }}
+						li: a(ui-sref="admin")
+							span(ng-if="semaphore.update")
+								i.fa.fa-fw.fa-exclamation-circle
+								| &nbsp;
+							| System info
+						li.divider
+						li: a(ui-sref="auth.logout")
+							i.fa.fa-fw.fa-sign-out
+							| &nbsp;Log out
 
 		ui-view(autoscroll="false")
 			p.lead.text-center

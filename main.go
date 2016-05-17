@@ -62,6 +62,7 @@ func main() {
 
 	routes.Route(r)
 
+	go upgrade.CheckUpdate(util.Version)
 	go tasks.StartRunner()
 	r.Run(util.Config.Port)
 }

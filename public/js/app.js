@@ -57,6 +57,7 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 			$rootScope.user = user;
 			$rootScope.loggedIn = true;
 
+			$rootScope.refreshInfo();
 			$rootScope.startWS();
 		}, function () {
 			$state.go('auth.login');
@@ -84,6 +85,17 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 				}, 3000);
 			} catch (_) {}
 		}
+	}
+
+	$rootScope.refreshInfo = function (cb) {
+		if (typeof cb != 'function') cb = function () {}
+
+		$http.get('/info').success(function (info) {
+			$rootScope.semaphore = info;
+			cb();
+		}).error(function () {
+			cb(true);
+		});
 	}
 
 	$rootScope.refreshUser();

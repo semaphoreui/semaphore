@@ -275,6 +275,18 @@ paths:
       # security:
       #   - cookie: []
       #   - bearer: []
+  /info:
+    get:
+      summary: Fetches information about semaphore
+      description: you must be authenticated to use this
+      responses:
+        200:
+          description: ok
+          schema:
+            type: object
+            properties:
+              version:
+                type: string
 
   # Authentication
   /auth/login:

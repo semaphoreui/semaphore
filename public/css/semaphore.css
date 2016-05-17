@@ -9606,6 +9606,9 @@ button.btn {
 }
 .navbar-default ul.nav.navbar-nav .dropdown-menu li > a {
   color: black !important;
+}
+.navbar-default ul.nav.navbar-nav .dropdown-menu li > a,
+.navbar-default ul.nav.navbar-nav .dropdown-menu li.dropdown-header {
   padding-left: 15px;
   padding-right: 15px;
 }
@@ -9624,7 +9627,8 @@ button.btn {
 .btn {
   text-transform: lowercase;
 }
-.btn:focus {
+.btn:focus,
+[ng-click]:focus {
   outline: none;
 }
 ui-view > h1,

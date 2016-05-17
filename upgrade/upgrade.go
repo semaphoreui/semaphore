@@ -9,31 +9,23 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/google/go-github/github"
 )
 
 // Adapted from github.com/apex/apex
 
+var UpdateAvailable *github.RepositoryRelease
+
 func Upgrade(version string) error {
 	fmt.Printf("current release is v%s\n", version)
 
-	// fetch releases
-	gh := github.NewClient(nil)
-	releases, _, err := gh.Repositories.ListReleases("ansible-semaphore", "semaphore", nil)
-	if err != nil {
+	if err := CheckUpdate(version); err != nil || UpdateAvailable == nil {
 		return err
 	}
 
-	// see if it's new
-	latest := releases[0]
-	fmt.Printf("latest release is %s\n", *latest.TagName)
-
-	if (*latest.TagName)[1:] == version {
-		return nil
-	}
-
-	asset := findAsset(&latest)
+	asset := findAsset(UpdateAvailable)
 	if asset == nil {
 		return errors.New("cannot find binary for your system")
 	}
@@ -72,6 +64,11 @@ func Upgrade(version string) error {
 	}
 
 	fmt.Println("visit https://github.com/ansible-semaphore/semaphore/releases for the changelog")
+	go func() {
+		time.Sleep(time.Second * 3)
+		os.Exit(0)
+	}()
+
 	return nil
 }
 
@@ -81,6 +78,22 @@ func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 		if *asset.Name == fmt.Sprintf("semaphore_%s_%s", runtime.GOOS, runtime.GOARCH) {
 			return &asset
 		}
+	}
+
+	return nil
+}
+
+func CheckUpdate(version string) error {
+	// fetch releases
+	gh := github.NewClient(nil)
+	releases, _, err := gh.Repositories.ListReleases("ansible-semaphore", "semaphore", nil)
+	if err != nil {
+		return err
+	}
+
+	UpdateAvailable = nil
+	if (*releases[0].TagName)[1:] != version {
+		UpdateAvailable = &releases[0]
 	}
 
 	return nil

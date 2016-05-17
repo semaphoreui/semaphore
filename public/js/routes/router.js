@@ -19,11 +19,20 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
 	.state('users', {
     url: '/users',
     pageTitle: 'Users',
-    templateUrl: "/tpl/users/list.html",
+    templateUrl: '/tpl/users/list.html',
     controller: 'UsersCtrl',
     resolve: {
       $d: $couchPotatoProvider.resolve(['controllers/users'])
     }
+  })
+  .state('admin', {
+  	url: '/admin',
+  	pageTitle: 'System Info',
+  	templateUrl: '/tpl/admin.html',
+  	controller: 'AdminCtrl',
+  	resolve: {
+  		$d: $couchPotatoProvider.resolve(['controllers/admin'])
+  	}
   });
 });
 
