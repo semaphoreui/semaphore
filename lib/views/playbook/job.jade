@@ -8,17 +8,20 @@ h1
 			.panel-body
 				form.form-horizontal
 					.form-group
-						label.control-label.col-sm-4 Name
+						label.control-label.col-sm-3 Name
 						.col-sm-7
 							input.form-control(type="text" placeholder="Group Name" ng-model="job.data.name")
 
 					.form-group
-						label.control-label.col-sm-4 Play
+						label.control-label.col-sm-3 Play
 						.col-sm-7
 							input.form-control(type="text" placeholder="myplay.yml" ng-model="job.data.play_file")
-
 					.form-group
-						label.control-label.col-sm-4 Extra vars
+						label.control-label.col-sm-3 Executable Options
+						.col-sm-7
+							input.form-control(type="text" placeholder="-v" ng-model="job.data.exec_options")
+					.form-group
+						label.control-label.col-sm-3 Extra vars
 						.col-sm-7
 							input.form-control(type="text" placeholder="env=prod" ng-model="job.data.extra_vars")
 

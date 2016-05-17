@@ -6,12 +6,14 @@ table.table.table-hover
 		tr
 			th Job Name
 			th Play File
+			th Executable Options
 			th Extra Vars
 			th &nbsp;
 	tbody
 		tr(ng-repeat="job in jobs.jobs")
 			td {{ job.data.name }}
 			td {{ job.data.play_file }}
+			td {{ job.data.exec_options }}
 			td {{ job.data.extra_vars }}
 			td
 				.btn-group.pull-right
