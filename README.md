@@ -1,8 +1,6 @@
-# V2 branch
+![semaphore](public/img/logo.png)
 
 [![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
-
-Tests in progress.
 
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
 - [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)

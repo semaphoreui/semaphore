@@ -9597,6 +9597,7 @@ button.btn {
 }
 .navbar-default .navbar-brand {
   font-family: Hack, source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-style: oblique;
 }
 .navbar-default .navbar-brand,
 .navbar-default ul.nav.navbar-nav li > a {
