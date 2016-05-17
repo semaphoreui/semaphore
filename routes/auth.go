@@ -38,7 +38,7 @@ func authentication(c *gin.Context) {
 		value := make(map[string]interface{})
 		if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
 			c.AbortWithStatus(403)
-			panic(err)
+			return
 		}
 
 		user, ok := value["user"]

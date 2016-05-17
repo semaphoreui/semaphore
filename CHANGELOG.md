@@ -1,4 +1,4 @@
-## v2.0
+## v2.0 | 17-5-2016
 
 - Removed redis dependency
 - Upgrade semaphore from UI

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -87,6 +88,7 @@ func doSetup() int {
 	setup := util.NewConfig()
 	for true {
 		setup.Scan()
+		setup.GenerateCookieSecrets()
 
 		var err error
 		b, err = json.MarshalIndent(&setup, " ", "\t")
@@ -107,13 +109,11 @@ func doSetup() int {
 		setup = util.NewConfig()
 	}
 
-	setup.GenerateCookieSecrets()
-
 	fmt.Printf(" Running: mkdir -p %v..\n", setup.TmpPath)
 	os.MkdirAll(setup.TmpPath, 0755)
 
 	configPath := path.Join(setup.TmpPath, "/semaphore_config.json")
-	fmt.Printf(" Configuration written to %v..\n", setup.TmpPath)
+	fmt.Printf(" Configuration written to %v..\n", configPath)
 	if err := ioutil.WriteFile(configPath, b, 0644); err != nil {
 		panic(err)
 	}
@@ -132,18 +132,13 @@ func doSetup() int {
 		os.Exit(1)
 	}
 
+	stdin := bufio.NewReader(os.Stdin)
+
 	var user models.User
-	fmt.Print("\n\n > Your name: ")
-	fmt.Scanln(&user.Name)
-
-	fmt.Print(" > Username: ")
-	fmt.Scanln(&user.Username)
-
-	fmt.Print(" > Email: ")
-	fmt.Scanln(&user.Email)
-
-	fmt.Print(" > Password: ")
-	fmt.Scanln(&user.Password)
+	user.Name = readNewline("\n\n > Your name: ", stdin)
+	user.Username = readNewline(" > Username: ", stdin)
+	user.Email = readNewline(" > Email: ", stdin)
+	user.Password = readNewline(" > Password: ", stdin)
 
 	pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 	user.Username = strings.ToLower(user.Username)
@@ -157,7 +152,16 @@ func doSetup() int {
 	fmt.Printf("\n You are all setup %v!\n", user.Name)
 	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore -config %v\n\n", configPath)
 	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore -config %v &\n\n", configPath)
-	fmt.Println(" Your login is %v or %v.", user.Email, user.Username)
+	fmt.Printf(" You can login with %v or %v.\n", user.Email, user.Username)
 
 	return 0
+}
+
+func readNewline(pre string, stdin *bufio.Reader) string {
+	fmt.Print(pre)
+
+	str, _ := stdin.ReadString('\n')
+	str = strings.Replace(str, "\n", "", -1)
+
+	return str
 }

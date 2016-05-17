@@ -27,20 +27,6 @@ if [ "$1" == "ci_test" ]; then
 EOF
 fi
 
-if [ "$1" == "production" ]; then
-	cd public
-
-	# html
-	cd html
-	jade *.jade */*.jade */*/*.jade
-	cd -
-
-	# css
-	cd css
-	lessc --clean-css="--s1 --advanced --compatibility=ie8" --autoprefix="ie 8-10,iOS 7," semaphore.less > semaphore.css
-	cd -
-fi
-
 cd public
 node ./bundler.js
 cd -
