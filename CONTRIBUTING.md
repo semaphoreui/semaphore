@@ -8,6 +8,8 @@ When creating a pull-request you should:
 
 # Installing dependencies
 
+> note: You should clone semaphore with all submodules
+
 ```
 go get github.com/jteeuwen/go-bindata/...
 go get github.com/mitchellh/gox
