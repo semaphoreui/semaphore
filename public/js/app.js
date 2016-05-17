@@ -79,9 +79,8 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 		$rootScope.ws.onmessage = function (e) {
 			try {
 				var d = JSON.parse(e.data);
-				console.log(d);
 				setTimeout(function () {
-					$rootScope.$broadcast('remote.' + d.type, d);
+					$rootScope.$broadcast('task.' + d.type, d);
 				}, 3000);
 			} catch (_) {}
 		}

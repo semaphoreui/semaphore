@@ -1,3 +1,13 @@
+## v2.0
+
+- Removed redis dependency
+- Upgrade semaphore from UI
+- System info page
+- new branding
+- raw output option for logs (no time prefix)
+- fix ws logging
+- status updates from ws
+
 ## v2.0-beta-2 | 29-4-2016
 
 - Fix SQL migrations to work under strict mode (#81)

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/models"
@@ -28,9 +29,7 @@ type task struct {
 
 func (t *task) fail() {
 	t.task.Status = "error"
-	if _, err := database.Mysql.Exec("update task set status='error' where id=?", t.task.ID); err != nil {
-		panic(err)
-	}
+	t.updateStatus()
 }
 
 func (t *task) run() {
@@ -40,11 +39,9 @@ func (t *task) run() {
 		fmt.Println("Stopped running tasks")
 		pool.running = nil
 
-		if _, err := database.Mysql.Exec("update task set end=NOW() where id=?", t.task.ID); err != nil {
-			fmt.Println("Failed to update task end time")
-			t.log("Fatal error with database!")
-			panic(err)
-		}
+		now := time.Now()
+		t.task.End = &now
+		t.updateStatus()
 
 		objType := "task"
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " finished"
@@ -59,10 +56,18 @@ func (t *task) run() {
 		}
 	}()
 
-	if _, err := database.Mysql.Exec("update task set status='running', start=NOW() where id=?", t.task.ID); err != nil {
-		fmt.Println("Failed to update task start time")
-		t.log("Fatal error with database!")
-		panic(err)
+	if err := t.populateDetails(); err != nil {
+		t.log("Error: " + err.Error())
+		t.fail()
+		return
+	}
+
+	{
+		fmt.Println(t.users)
+		now := time.Now()
+		t.task.Status = "running"
+		t.task.Start = &now
+		t.updateStatus()
 	}
 
 	objType := "task"
@@ -78,12 +83,6 @@ func (t *task) run() {
 	}
 
 	t.log("Started: " + strconv.Itoa(t.task.ID) + "\n")
-
-	if err := t.populateDetails(); err != nil {
-		t.log("Error: " + err.Error())
-		t.fail()
-		return
-	}
 
 	if err := t.installKey(t.repository.SshKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
@@ -112,9 +111,7 @@ func (t *task) run() {
 	}
 
 	t.task.Status = "success"
-	if _, err := database.Mysql.Exec("update task set status='success' where id=?", t.task.ID); err != nil {
-		panic(err)
-	}
+	t.updateStatus()
 }
 
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
@@ -219,7 +216,7 @@ func (t *task) updateRepository() error {
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
 
 	cmd := exec.Command("git")
-	cmd.Dir = util.Config.TmpPath + "/" + repoName
+	cmd.Dir = util.Config.TmpPath
 	cmd.Env = []string{
 		"HOME=" + util.Config.TmpPath,
 		"PWD=" + util.Config.TmpPath,
@@ -234,6 +231,7 @@ func (t *task) updateRepository() error {
 		return err
 	} else {
 		t.log("Updating repository")
+		cmd.Dir += "/" + repoName
 		cmd.Args = append(cmd.Args, "pull", "origin", "master")
 	}
 

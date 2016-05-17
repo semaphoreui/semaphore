@@ -10,8 +10,10 @@
 		dd {{ task.end | date:'short' }}
 		dt Created
 		dd {{ task.created | date:'short' }}
+		dt Raw output
+		dd: input(type="checkbox" ng-model="raw" title="show logs unbesmirched")
 	pre: code {{ output_formatted }}
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="restart(task)") Re-Run
+	//- button.btn.btn-success(ng-click="restart(task)") Re-Run

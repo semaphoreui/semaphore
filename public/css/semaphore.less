@@ -1,12 +1,11 @@
 @import '../vendor/bootstrap/less/variables.less';
 @import '../vendor/fontawesome/less/variables.less';
 @import '//fonts.googleapis.com/css?family=Roboto:300,400,400italic,700,500,700italic';
-@import '//fonts.googleapis.com/css?family=Source+Code+Pro:300,400,500,700:latin';
 
 @fa-font-path: "../vendor/fontawesome/fonts";
 
 @font-family-sans-serif: Roboto, Arial, sans-serif;
-@font-family-monospace: Hack, source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+@font-family-monospace: Hack, Menlo, Monaco, Consolas, "Courier New", monospace;
 @font-family-base: @font-family-sans-serif;
 
 @headings-font-weight: 300;
@@ -33,6 +32,12 @@
 
 @input-color-placeholder: #BBB;
 @input-border-focus: @brand-primary;
+
+@modal-backdrop-bg: darken(desaturate(@brand-success, 10%), 20%);
+@modal-backdrop-opacity: .7;
+
+@pre-bg: #fefefe;
+@pre-color: #000;
 
 @import '../vendor/bootstrap/less/bootstrap.less';
 @import '../vendor/fontawesome/less/font-awesome.less';
@@ -149,4 +154,16 @@ ul.nav.nav-pills li {
 		padding-left: 0;
 		padding-right: 0;
 	}
+}
+
+.modal-content {
+	border-radius: 0;
+}
+
+label.control-label {
+	font-weight: 500;
+}
+
+pre {
+	font-size: 12px;
 }

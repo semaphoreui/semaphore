@@ -87,7 +87,7 @@ func GetTaskOutput(c *gin.Context) {
 	task := c.MustGet("task").(models.Task)
 
 	var output []models.TaskOutput
-	if _, err := database.Mysql.Select(&output, "select * from task__output where task_id=? order by time desc", task.ID); err != nil {
+	if _, err := database.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
 		panic(err)
 	}
 
