@@ -51,6 +51,7 @@ func AddRepository(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
 	var repository struct {
+		Name     string `json:"name" binding:"required"`
 		GitUrl   string `json:"git_url" binding:"required"`
 		SshKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
@@ -58,7 +59,7 @@ func AddRepository(c *gin.Context) {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?", project.ID, repository.GitUrl, repository.SshKeyID)
+	res, err := database.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitUrl, repository.SshKeyID, repository.Name)
 	if err != nil {
 		panic(err)
 	}
