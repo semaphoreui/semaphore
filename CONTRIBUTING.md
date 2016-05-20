@@ -11,6 +11,7 @@ When creating a pull-request you should:
 Clone the project to `$GOPATH/src/github.com/ansible-semaphore/semaphore` (more on GOPATHS below)
 
 > note: You should clone semaphore with all submodules
+> - you should have latest go installed and node with ES6 (used to be a special `harmony` flag) capability
 
 ```
 go get github.com/jteeuwen/go-bindata/...
