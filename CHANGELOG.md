@@ -1,3 +1,11 @@
+## v2.0.1 | 20-5-2016
+
+- Add details to contribution guide
+- Fix sql errors with project creation (resolves #92, #83)
+- Check for updates every day
+- Display alert next to settings cog when update is available
+- Fixed bugs #91, #93
+
 ## v2.0 | 17-5-2016
 
 - Removed redis dependency
