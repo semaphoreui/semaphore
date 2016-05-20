@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/migration"
@@ -63,7 +64,7 @@ func main() {
 
 	routes.Route(r)
 
-	go upgrade.CheckUpdate(util.Version)
+	go checkUpdates()
 	go tasks.StartRunner()
 	r.Run(util.Config.Port)
 }
@@ -164,4 +165,14 @@ func readNewline(pre string, stdin *bufio.Reader) string {
 	str = strings.Replace(str, "\n", "", -1)
 
 	return str
+}
+
+func checkUpdates() {
+	upgrade.CheckUpdate(util.Version)
+
+	t := time.NewTicker(time.Hour * 24)
+
+	for range t.C {
+		upgrade.CheckUpdate(util.Version)
+	}
 }

@@ -25,6 +25,9 @@ html(lang="en" ng-app="semaphore")
 			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
 				li(uib-dropdown)
 					a(uib-dropdown-toggle)
+						span(ng-if="semaphore.update")
+							i.fa.fa-fw.fa-exclamation-circle
+							| &nbsp;
 						i.fa.fa-fw.fa-cog
 					ul(uib-dropdown-menu)
 						li.dropdown-header semaphore v{{ semaphore.version }}

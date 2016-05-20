@@ -55,6 +55,7 @@ func (version *DBVersion) GetSQL(path string) []string {
 func init() {
 	Versions = []*DBVersion{
 		{},
+		{Minor: 1},
 		{Major: 1},
 		{Major: 1, Minor: 1},
 		{Major: 1, Minor: 2},

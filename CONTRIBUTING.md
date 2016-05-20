@@ -8,6 +8,8 @@ When creating a pull-request you should:
 
 # Installing dependencies
 
+Clone the project to `$GOPATH/src/github.com/ansible-semaphore/semaphore` (more on GOPATHS below)
+
 > note: You should clone semaphore with all submodules
 
 ```
@@ -19,7 +21,20 @@ go get -u ./...
 npm i -g nodemon less jade
 ```
 
+## Gopaths
+
+To develop in Go, you need to setup a gopath where go code, libraries & executables live.
+
+Follow either of these ([go wiki](https://github.com/golang/go/wiki/GOPATH), [tutorial](http://www.ryanday.net/2012/10/01/installing-go-and-gopath/), [SO question](https://stackoverflow.com/questions/21001387/how-do-i-set-the-gopath-environment-variable-on-ubuntu-what-file-must-i-edit)).
+
+1. `mkdir -p $GOPATH/src/github.com/ansible-semaphore`
+2. `cd $GOPATH/src/github.com/ansible-semaphore`
+3. `git clone --recursive git@github.com:ansible-semaphore/semaphore.git`
+4. Now install dependencies above
+
 # Running in development
+
+You will need to have a local `config.json` file because it is linked to. It should contain your local configuration.
 
 ```
 $EDITOR config.json
