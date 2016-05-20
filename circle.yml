@@ -4,12 +4,14 @@ machine:
 
 dependencies:
   pre:
+    - git submodule update --init --recursive
     - sudo apt-add-repository -y 'deb
       http://ppa.launchpad.net/ondrej/mysql-experimental/ubuntu precise
       main'
     - sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get
       install -y mysql-server-5.6
-    - npm i -g nodemon less jade async
+    - npm i -g nodemon less jade
+    - npm i async
     - go get github.com/jteeuwen/go-bindata/...
     - go get github.com/mitchellh/gox
     - go get github.com/cespare/reflex
@@ -17,12 +19,14 @@ dependencies:
   override:
     - mkdir -p $CPATH
     - rsync -azC --delete ./ $CPATH
+    - cd $CPATH && ./make.sh ci_test
+    - cd $CPATH && go get ./...
 
 test:
   pre:
-    - cd $CPATH && ./make.sh ci_test
     - cd $CPATH && go run ./main.go --migrate
 
   override:
     - cd $CPATH && go vet ./...
     - cd $CPATH && go test ./...
+    - cd $CPATH && ./make.sh

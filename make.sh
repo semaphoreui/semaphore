@@ -35,6 +35,10 @@ echo "Adding bindata"
 
 go-bindata $BINDATA_ARGS config.json database/sql_migrations/ $(find ./public -type d -print)
 
+if [ "$1" == "ci_test" ]; then
+	exit 0
+fi
+
 if [ "$1" == "watch" ]; then
 	cd public
 
