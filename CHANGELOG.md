@@ -1,3 +1,14 @@
+## v2.0.2 | 23-5-2016
+
+- Improve upgrade process (fixes #106)
+- Improve upgrade UI
+- Delete Users API
+- Fetch User API
+- User update API & UI
+- Security improvement (does not spill access key secret over api)
+- Improve setup (fixes #100)
+- Fix sql migrations for new setups
+
 ## v2.0.1 | 20-5-2016
 
 - Add details to contribution guide

@@ -25,6 +25,11 @@ if [ "$1" == "ci_test" ]; then
 	"port": ":8010"
 }
 EOF
+
+	cd public
+	lessc css/semaphore.less > css/semaphore.css
+	jade html/*.jade html/*/*.jade html/*/*/*.jade &
+	cd -
 fi
 
 cd public
