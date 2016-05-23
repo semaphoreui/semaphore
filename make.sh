@@ -52,3 +52,8 @@ if [ "$1" == "watch" ]; then
 fi
 
 gox -os="linux darwin windows openbsd" ./...
+
+if [ "$CIRCLE_ARTIFACTS" != "" ]; then
+	rsync -a semaphore_* $CIRCLE_ARTIFACTS/
+	exit 0
+fi
