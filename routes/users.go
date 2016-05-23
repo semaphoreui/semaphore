@@ -71,13 +71,9 @@ func updateUser(c *gin.Context) {
 }
 
 func updateUserPassword(c *gin.Context) {
+	user := c.MustGet("_user").(models.User)
 	var pwd struct {
 		Pwd string `json:"password"`
-	}
-
-	userID, err := util.GetIntParam("user_id", c)
-	if err != nil {
-		return
 	}
 
 	if err := c.Bind(&pwd); err != nil {
@@ -85,7 +81,20 @@ func updateUserPassword(c *gin.Context) {
 	}
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
-	if _, err := database.Mysql.Exec("update user set password=? where id=?", string(password), userID); err != nil {
+	if _, err := database.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
+}
+
+func deleteUser(c *gin.Context) {
+	user := c.MustGet("_user").(models.User)
+
+	if _, err := database.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
+		panic(err)
+	}
+	if _, err := database.Mysql.Exec("delete from user where id=?", user.ID); err != nil {
 		panic(err)
 	}
 

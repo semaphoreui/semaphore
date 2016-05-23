@@ -8,7 +8,7 @@ table.table
 		th Email
 		th Admin
 		th &nbsp;
-	tbody: tr(ng-repeat="u in users" ng-class="{ info: u.id == user.data.id }")
+	tbody: tr(ng-repeat="u in users" ng-class="{ info: u.id == user.id }")
 		td {{ u.name }}
 		td {{ u.username }}
 		td {{ u.email }}

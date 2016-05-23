@@ -13,6 +13,11 @@ import (
 )
 
 func getUser(c *gin.Context) {
+	if u, exists := c.Get("_user"); exists {
+		c.JSON(200, u)
+		return
+	}
+
 	c.JSON(200, c.MustGet("user"))
 }
 

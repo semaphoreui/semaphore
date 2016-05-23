@@ -11,7 +11,11 @@
 				li.list-group-item: a(href="https://ansible-semaphore.github.io/semaphore/" target="_blank") API Documentation
 		.col-sm-4
 			div(ng-if="upgrade.updateBody")
-				button.btn.btn-primary.btn-block(ng-click="doUpgrade()") upgrade to {{ upgrade.update.tag_name }}
+				button.btn.btn-primary.btn-block(ng-click="doUpgrade()" ng-disabled="upgrade.config.cmdPath.length == 0") upgrade to {{ upgrade.update.tag_name }}
+				p.text-center(ng-if="upgrade.config.cmdPath.length == 0")
+					a(href="https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting#upgrades-failing" target="_blank") Upgrading isn't possible!
+					br
+					| You should fix this error or upgrade manually.
 				div(ng-bind-html="upgrade.updateBody")
 		.col-sm-4
 			dl
@@ -20,4 +24,11 @@
 				dt Playbook Path
 				dd: code {{ upgrade.config.path }}
 				dt semaphore location
-				dd: code {{ upgrade.config.cmdPath }}
+				dd
+					span(ng-if="upgrade.config.cmdPath.length == 0")
+						code semaphore
+						| &nbsp;not found in&nbsp;
+						code $PATH
+						| . Upgrading&nbsp;
+						a(href="https://github.com/ansible-semaphore/semaphore/wiki/Installation#install-instructions" target="_blank") will not work
+					code(ng-if="upgrade.config.cmdPath.length > 0") {{ upgrade.config.cmdPath }}

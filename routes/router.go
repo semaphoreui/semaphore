@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"os/exec"
 	"strings"
 
 	"github.com/russross/blackfriday"
@@ -53,8 +52,10 @@ func Route(r *gin.Engine) {
 
 	api.GET("/users", getUsers)
 	api.POST("/users", addUser)
+	api.GET("/users/:user_id", getUserMiddleware, getUser)
 	api.PUT("/users/:user_id", getUserMiddleware, updateUser)
 	api.POST("/users/:user_id/password", getUserMiddleware, updateUserPassword)
+	api.DELETE("/users/:user_id", getUserMiddleware, deleteUser)
 
 	func(api *gin.RouterGroup) {
 		api.Use(projects.ProjectMiddleware)
@@ -153,7 +154,6 @@ func servePublic(c *gin.Context) {
 }
 
 func getSystemInfo(c *gin.Context) {
-	cmdPath, _ := exec.LookPath("semaphore")
 	body := map[string]interface{}{
 		"version": util.Version,
 		"update":  upgrade.UpdateAvailable,
@@ -162,7 +162,7 @@ func getSystemInfo(c *gin.Context) {
 			"dbName":  util.Config.MySQL.DbName,
 			"dbUser":  util.Config.MySQL.Username,
 			"path":    util.Config.TmpPath,
-			"cmdPath": cmdPath,
+			"cmdPath": upgrade.FindSemaphore(),
 		},
 	}
 

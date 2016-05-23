@@ -35,7 +35,7 @@ func GetKeys(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var keys []models.AccessKey
 
-	q := squirrel.Select("*").
+	q := squirrel.Select("id, name, type, project_id, `key`").
 		From("access_key").
 		Where("project_id=?", project.ID)
 

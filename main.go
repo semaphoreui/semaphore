@@ -87,7 +87,7 @@ func doSetup() int {
 
 	var b []byte
 	setup := util.NewConfig()
-	for true {
+	for {
 		setup.Scan()
 		setup.GenerateCookieSecrets()
 
@@ -136,21 +136,30 @@ func doSetup() int {
 	stdin := bufio.NewReader(os.Stdin)
 
 	var user models.User
-	user.Name = readNewline("\n\n > Your name: ", stdin)
-	user.Username = readNewline(" > Username: ", stdin)
-	user.Email = readNewline(" > Email: ", stdin)
-	user.Password = readNewline(" > Password: ", stdin)
-
-	pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+	user.Username = readNewline("\n\n > Username: ", stdin)
 	user.Username = strings.ToLower(user.Username)
+	user.Email = readNewline(" > Email: ", stdin)
 	user.Email = strings.ToLower(user.Email)
 
-	if _, err := database.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, created=NOW()", user.Name, user.Username, user.Email, pwdHash); err != nil {
-		fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
-		os.Exit(1)
+	var existingUser models.User
+	database.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
+
+	if existingUser.ID > 0 {
+		// user already exists
+		fmt.Printf("\n Welcome back, %v! (a user with this username/email is already set up..)\n\n", existingUser.Name)
+	} else {
+		user.Name = readNewline(" > Your name: ", stdin)
+		user.Password = readNewline(" > Password: ", stdin)
+		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+
+		if _, err := database.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, created=NOW()", user.Name, user.Username, user.Email, pwdHash); err != nil {
+			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
+			os.Exit(1)
+		}
+
+		fmt.Printf("\n You are all setup %v!\n", user.Name)
 	}
 
-	fmt.Printf("\n You are all setup %v!\n", user.Name)
 	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore -config %v\n\n", configPath)
 	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore -config %v &\n\n", configPath)
 	fmt.Printf(" You can login with %v or %v.\n", user.Email, user.Username)

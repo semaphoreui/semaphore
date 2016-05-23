@@ -8,10 +8,12 @@
 			th Username
 			th Email
 			th &nbsp;
-		tr(ng-repeat="u in users" ng-class="{ info: u.id == user.data.id }")
+		tr(ng-repeat="u in users" ng-class="{ info: u.id == user.id }")
 			td {{ u.name }}
 			td {{ u.username }}
 			td {{ u.email }}
-			td: button.btn.btn-default.btn-xs.pull-right(ng-click="changePassword(u)") Change Password
+			td
+				.btn-group.pull-right
+					button.btn.btn-info.btn-xs(ui-sref="users.user({ user_id: u.id })") Update User
 
 	p(ng-show="users.length == 0") No Users

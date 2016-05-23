@@ -54,7 +54,7 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 
 		$http.get('/user')
 		.then(function (user) {
-			$rootScope.user = user;
+			$rootScope.user = user.data;
 			$rootScope.loggedIn = true;
 
 			$rootScope.refreshInfo();

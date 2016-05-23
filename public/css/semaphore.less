@@ -76,13 +76,25 @@ input, button.btn {
 		font-family: @font-family-monospace;
 	}
 
-	ul.nav.navbar-nav .dropdown-menu li > a {
-		color: black !important;
+	ul.nav.navbar-nav {
+		li > a {
+			margin-right: 2px;
+			cursor: pointer;
+			transition: background 0.1s linear;
+		}
+
+		.dropdown-menu {
+			li > a {
+				color: black !important;
+			}
+
+			li > a, li.dropdown-header {
+				padding-left: 15px;
+				padding-right: 15px;
+			}
+		}
 	}
-	ul.nav.navbar-nav .dropdown-menu li > a, ul.nav.navbar-nav .dropdown-menu li.dropdown-header {
-		padding-left: 15px;
-		padding-right: 15px;
-	}
+
 
 	.navbar-brand:hover, .navbar-brand:focus, ul.nav.navbar-nav li > a:hover, ul.nav.navbar-nav li > a:active, ul.nav.navbar-nav li > a:focus {
 		color: darken(white, 5%);

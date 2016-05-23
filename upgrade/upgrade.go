@@ -52,9 +52,9 @@ func Upgrade(version string) error {
 	}
 
 	// replace it
-	cmdPath, err := exec.LookPath("semaphore")
-	if err != nil {
-		return err
+	cmdPath := FindSemaphore()
+	if len(cmdPath) == 0 {
+		return errors.New("Cannot find semaphore binary")
 	}
 
 	fmt.Printf("replacing %s\n", cmdPath)
@@ -70,6 +70,16 @@ func Upgrade(version string) error {
 	}()
 
 	return nil
+}
+
+func FindSemaphore() string {
+	cmdPath, _ := exec.LookPath("semaphore")
+
+	if len(cmdPath) == 0 {
+		cmdPath, _ = filepath.Abs(os.Args[0])
+	}
+
+	return cmdPath
 }
 
 // findAsset returns the binary for this platform.

@@ -18,11 +18,28 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
 	})
 	.state('users', {
     url: '/users',
+    abstract: true,
+    templateUrl: '/tpl/abstract.html'
+  })
+	.state('users.list', {
+    url: '',
     pageTitle: 'Users',
     templateUrl: '/tpl/users/list.html',
     controller: 'UsersCtrl',
     resolve: {
       $d: $couchPotatoProvider.resolve(['controllers/users'])
+    }
+  })
+  .state('users.user', {
+    url: '/:user_id',
+    pageTitle: 'User',
+    templateUrl: '/tpl/users/user.html',
+    controller: 'UserCtrl',
+    resolve: {
+      $d: $couchPotatoProvider.resolve(['controllers/user']),
+      user: ['$http', '$stateParams', function ($http, $stateParams) {
+      	return $http.get('/users/' + $stateParams.user_id);
+      }]
     }
   })
   .state('admin', {
@@ -32,6 +49,18 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
   	controller: 'AdminCtrl',
   	resolve: {
   		$d: $couchPotatoProvider.resolve(['controllers/admin'])
+  	}
+  })
+  .state('user', {
+  	url: '/user',
+  	pageTitle: 'User',
+  	templateUrl: '/tpl/users/user.html',
+  	controller: 'UserCtrl',
+  	resolve: {
+  		$d: $couchPotatoProvider.resolve(['controllers/user']),
+  		user: ['$http', function ($http) {
+  			return $http.get('/user');
+  		}]
   	}
   });
 });

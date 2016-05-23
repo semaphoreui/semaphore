@@ -20,9 +20,13 @@ html(lang="en" ng-app="semaphore")
 				//- li(ng-class="{ active: $state.includes('keys') }")
 				//- 	a(ui-sref="keys") Key Store
 				li(ng-class="{ active: $state.includes('users') }")
-					a(ui-sref="users") Users
+					a(ui-sref="users.list") Users
 
 			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
+				li(ng-class="{ active: $state.includes('user') }")
+					a(ui-sref="user")
+						i.fa.fa-fw.fa-user
+						| &nbsp;{{ user.name }}
 				li(uib-dropdown)
 					a(uib-dropdown-toggle)
 						span(ng-if="semaphore.update")

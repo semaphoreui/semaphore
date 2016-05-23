@@ -851,6 +851,15 @@ paths:
   /users/{user_id}:
     parameters:
       - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Fetches a user profile
+      responses:
+        200:
+          description: User profile
+          schema:
+            $ref: "#/definitions/User"
     put:
       tags:
         - user
