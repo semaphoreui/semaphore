@@ -24,7 +24,7 @@ dependencies:
 
 test:
   pre:
-    - cd $CPATH && go run ./main.go --migrate
+    - cd $CPATH && go run cli/main.go --migrate
 
   override:
     - cd $CPATH && go vet ./...
