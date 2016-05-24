@@ -2,7 +2,7 @@ swagger: '2.0'
 info:
   title: SEMAPHORE
   description: Semaphore API
-  version: "2.0.0"
+  version: "2.0.2"
 
 host: localhost:3000
 
