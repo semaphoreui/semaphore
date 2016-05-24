@@ -1,4 +1,0 @@
-#!/bin/bash
-
-cd /opt/semaphore/
-PORT=3000 node bin/semaphore.js

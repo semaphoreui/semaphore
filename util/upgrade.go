@@ -1,4 +1,4 @@
-package upgrade
+package util
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ import (
 
 var UpdateAvailable *github.RepositoryRelease
 
-func Upgrade(version string) error {
+func DoUpgrade(version string) error {
 	fmt.Printf("current release is v%s\n", version)
 
 	if err := CheckUpdate(version); err != nil || UpdateAvailable == nil {

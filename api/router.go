@@ -1,16 +1,14 @@
-package routes
+package api
 
 import (
 	"strings"
 
-	"github.com/russross/blackfriday"
-
-	"github.com/ansible-semaphore/semaphore/routes/projects"
-	"github.com/ansible-semaphore/semaphore/routes/sockets"
-	"github.com/ansible-semaphore/semaphore/routes/tasks"
-	"github.com/ansible-semaphore/semaphore/upgrade"
+	"github.com/ansible-semaphore/semaphore/api/projects"
+	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"
+	"github.com/russross/blackfriday"
 )
 
 // Declare all routes
@@ -156,30 +154,30 @@ func servePublic(c *gin.Context) {
 func getSystemInfo(c *gin.Context) {
 	body := map[string]interface{}{
 		"version": util.Version,
-		"update":  upgrade.UpdateAvailable,
+		"update":  util.UpdateAvailable,
 		"config": map[string]string{
 			"dbHost":  util.Config.MySQL.Hostname,
 			"dbName":  util.Config.MySQL.DbName,
 			"dbUser":  util.Config.MySQL.Username,
 			"path":    util.Config.TmpPath,
-			"cmdPath": upgrade.FindSemaphore(),
+			"cmdPath": util.FindSemaphore(),
 		},
 	}
 
-	if upgrade.UpdateAvailable != nil {
-		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*upgrade.UpdateAvailable.Body)))
+	if util.UpdateAvailable != nil {
+		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
 	}
 
 	c.JSON(200, body)
 }
 
 func checkUpgrade(c *gin.Context) {
-	if err := upgrade.CheckUpdate(util.Version); err != nil {
+	if err := util.CheckUpdate(util.Version); err != nil {
 		c.JSON(500, err)
 		return
 	}
 
-	if upgrade.UpdateAvailable != nil {
+	if util.UpdateAvailable != nil {
 		getSystemInfo(c)
 		return
 	}
@@ -188,5 +186,5 @@ func checkUpgrade(c *gin.Context) {
 }
 
 func doUpgrade(c *gin.Context) {
-	upgrade.Upgrade(util.Version)
+	util.DoUpgrade(util.Version)
 }

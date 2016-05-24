@@ -10,13 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/database"
-	"github.com/ansible-semaphore/semaphore/migration"
+	"github.com/ansible-semaphore/semaphore/api"
+	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/api/tasks"
+	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/ansible-semaphore/semaphore/routes"
-	"github.com/ansible-semaphore/semaphore/routes/sockets"
-	"github.com/ansible-semaphore/semaphore/routes/tasks"
-	"github.com/ansible-semaphore/semaphore/upgrade"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
@@ -29,7 +27,7 @@ func main() {
 	}
 
 	if util.Upgrade {
-		if err := upgrade.Upgrade(util.Version); err != nil {
+		if err := util.DoUpgrade(util.Version); err != nil {
 			panic(err)
 		}
 
@@ -51,7 +49,7 @@ func main() {
 
 	if util.Migration {
 		fmt.Println("\n Running DB Migrations")
-		if err := migration.MigrateAll(); err != nil {
+		if err := database.MigrateAll(); err != nil {
 			panic(err)
 		}
 
@@ -62,7 +60,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery(), recovery, gin.Logger())
 
-	routes.Route(r)
+	api.Route(r)
 
 	go checkUpdates()
 	go tasks.StartRunner()
@@ -128,7 +126,7 @@ func doSetup() int {
 	}
 
 	fmt.Println("\n Running DB Migrations..")
-	if err := migration.MigrateAll(); err != nil {
+	if err := database.MigrateAll(); err != nil {
 		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -177,11 +175,11 @@ func readNewline(pre string, stdin *bufio.Reader) string {
 }
 
 func checkUpdates() {
-	upgrade.CheckUpdate(util.Version)
+	util.CheckUpdate(util.Version)
 
 	t := time.NewTicker(time.Hour * 24)
 
 	for range t.C {
-		upgrade.CheckUpdate(util.Version)
+		util.CheckUpdate(util.Version)
 	}
 }

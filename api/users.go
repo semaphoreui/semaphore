@@ -1,10 +1,10 @@
-package routes
+package api
 
 import (
 	"database/sql"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/database"
+	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gin-gonic/gin"

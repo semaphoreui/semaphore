@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/database"
+	database "github.com/ansible-semaphore/semaphore/db"
 )
 
 type Project struct {

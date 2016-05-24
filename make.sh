@@ -38,7 +38,7 @@ cd -
 
 echo "Adding bindata"
 
-go-bindata $BINDATA_ARGS config.json database/sql_migrations/ $(find ./public -type d -print)
+go-bindata $BINDATA_ARGS config.json db/migrations/ $(find ./public -type d -print)
 
 if [ "$1" == "ci_test" ]; then
 	exit 0
@@ -52,11 +52,12 @@ if [ "$1" == "watch" ]; then
 	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade &
 
 	cd ../
-	reflex -r '\.go$' -s -d none -- sh -c 'go run main.go'
+	reflex -r '\.go$' -s -d none -- sh -c 'go run cli/main.go'
 	exit 0
 fi
 
-gox -os="linux darwin windows openbsd" ./...
+cd cli
+gox -os="linux darwin windows openbsd" -output="semaphore_{{.OS}}_{{.Arch}}" ./...
 
 if [ "$CIRCLE_ARTIFACTS" != "" ]; then
 	rsync -a semaphore_* $CIRCLE_ARTIFACTS/

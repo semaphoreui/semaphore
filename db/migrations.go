@@ -1,16 +1,15 @@
-package migration
+package db
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/database"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-sql-driver/mysql"
 )
 
 func (version *DBVersion) CheckExists() (bool, error) {
-	exists, err := database.Mysql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
+	exists, err := Mysql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
 
 	if err != nil {
 		switch err.(type) {
@@ -21,7 +20,7 @@ func (version *DBVersion) CheckExists() (bool, error) {
 			}
 
 			fmt.Println("Creating migrations table")
-			if _, err := database.Mysql.Exec(initialSQL); err != nil {
+			if _, err := Mysql.Exec(initialSQL); err != nil {
 				panic(err)
 			}
 
@@ -37,7 +36,7 @@ func (version *DBVersion) CheckExists() (bool, error) {
 func (version *DBVersion) Run() error {
 	fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
 
-	tx, err := database.Mysql.Begin()
+	tx, err := Mysql.Begin()
 	if err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func (version *DBVersion) TryRollback() {
 	for _, query := range sql {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 
-		if _, err := database.Mysql.Exec(query); err != nil {
+		if _, err := Mysql.Exec(query); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}

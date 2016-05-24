@@ -1,4 +1,4 @@
-package migration
+package db
 
 import (
 	"fmt"
@@ -41,10 +41,10 @@ func (version *DBVersion) HumanoidVersion() string {
 }
 
 func (version *DBVersion) GetPath() string {
-	return "database/sql_migrations/v" + version.VersionString() + ".sql"
+	return "db/migrations/v" + version.VersionString() + ".sql"
 }
 func (version *DBVersion) GetErrPath() string {
-	return "database/sql_migrations/v" + version.VersionString() + ".err.sql"
+	return "db/migrations/v" + version.VersionString() + ".err.sql"
 }
 
 func (version *DBVersion) GetSQL(path string) []string {
