@@ -31,7 +31,7 @@ func (t *task) log(msg string) {
 	}
 
 	go func() {
-		_, err := database.Mysql.Exec("insert into task__output set task_id=?, output=?, time=?", t.task.ID, msg, now)
+		_, err := database.Mysql.Exec("insert into task__output set task_id=?, task='', output=?, time=?", t.task.ID, msg, now)
 		if err != nil {
 			panic(err)
 		}

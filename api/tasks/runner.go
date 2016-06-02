@@ -67,6 +67,7 @@ func (t *task) run() {
 		now := time.Now()
 		t.task.Status = "running"
 		t.task.Start = &now
+
 		t.updateStatus()
 	}
 
