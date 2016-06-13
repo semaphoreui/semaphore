@@ -1,12 +1,16 @@
 define(function () {
-	app.registerController('UsersCtrl', ['$scope', '$http', '$uibModal', function ($scope, $http, $modal) {
+	app.registerController('UsersCtrl', ['$scope', '$http', '$uibModal', '$rootScope', function ($scope, $http, $modal, $rootScope) {
 		$http.get('/users').success(function (users) {
 			$scope.users = users;
 		});
 
 		$scope.addUser = function () {
+			var scope = $rootScope.$new();
+			scope.user = {}
+
 			$modal.open({
-				templateUrl: '/tpl/users/add.html'
+				templateUrl: '/tpl/users/add.html',
+				scope: scope
 			}).result.then(function (_user) {
 				$http.post('/users', _user).success(function (user) {
 					$scope.users.push(user);
