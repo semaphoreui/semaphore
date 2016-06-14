@@ -11,4 +11,6 @@ table.table
 		td {{ repo.name }}
 		td {{ repo.git_url }}
 		td {{ repo.ssh_key_id }}
-		td: button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(repo)") delete
+		td: .btn-group.pull-right
+			button.btn.btn-default.btn-xs(ng-click="update(repo)") update
+			button.btn.btn-danger.btn-xs(ng-click="remove(repo)") delete

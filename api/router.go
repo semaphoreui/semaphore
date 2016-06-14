@@ -75,6 +75,7 @@ func Route(r *gin.Engine) {
 
 		api.GET("/repositories", projects.GetRepositories)
 		api.POST("/repositories", projects.AddRepository)
+		api.PUT("/repositories/:repository_id", projects.RepositoryMiddleware, projects.UpdateRepository)
 		api.DELETE("/repositories/:repository_id", projects.RepositoryMiddleware, projects.RemoveRepository)
 
 		api.GET("/inventory", projects.GetInventory)

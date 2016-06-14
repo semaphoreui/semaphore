@@ -14,8 +14,27 @@ define(function () {
 			});
 		}
 
+		$scope.update = function (repo) {
+			$scope.getKeys(function (keys) {
+				var scope = $rootScope.$new();
+				scope.keys = keys;
+				scope.repo = JSON.parse(JSON.stringify(repo));
+
+				$modal.open({
+					templateUrl: '/tpl/projects/repositories/add.html',
+					scope: scope
+				}).result.then(function (repo) {
+					$http.put(Project.getURL() + '/repositories/' + repo.id, repo).success(function () {
+						$scope.reload();
+					}).error(function (_, status) {
+						swal('Error', 'Repository not updated: ' + status, 'error');
+					})
+				});
+			});
+		}
+
 		$scope.add = function () {
-			$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
+			$scope.getKeys(function (keys) {
 				var scope = $rootScope.$new();
 				scope.keys = keys;
 
@@ -31,6 +50,11 @@ define(function () {
 					});
 				});
 			});
+		}
+
+		$scope.getKeys = function (cb) {
+			$http.get(Project.getURL() + '/keys?type=ssh')
+			.success(cb);
 		}
 
 		$scope.reload();

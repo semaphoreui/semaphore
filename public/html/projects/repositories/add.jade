@@ -1,5 +1,8 @@
 .modal-header
-	h4.modal-title Create Repository
+	h4.modal-title
+		span(ng-if="!repository.id") Create Repository
+		span(ng-if="repository.id") Update Repository
+
 .modal-body
 	form.form-horizontal
 		.form-group
@@ -15,6 +18,9 @@
 			.col-sm-6
 				select.form-control(ng-model="repo.ssh_key_id" ng-options="key.id as key.name for key in keys")
 					option(value="") -- Select SSH Key --
+
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="$close(repo)") Create
+	button.btn.btn-success(ng-click="$close(repo)")
+		span(ng-if="!repository.id") Create
+		span(ng-if="repository.id") Update
