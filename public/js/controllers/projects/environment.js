@@ -15,8 +15,14 @@ define(function () {
 		}
 
 		$scope.add = function () {
+			var scope = $rootScope.$new();
+			scope.env = {
+				json: '{}'
+			};
+
 			$modal.open({
-				templateUrl: '/tpl/projects/environment/add.html'
+				templateUrl: '/tpl/projects/environment/add.html',
+				scope: scope
 			}).result.then(function (env) {
 				$http.post(Project.getURL() + '/environment', env)
 				.success(function () {
@@ -29,14 +35,13 @@ define(function () {
 
 		$scope.editEnvironment = function (env) {
 			var scope = $rootScope.$new();
-			scope.env = env.json;
+			scope.env = env;
 
 			$modal.open({
-				templateUrl: '/tpl/projects/environment/environment.html',
+				templateUrl: '/tpl/projects/environment/add.html',
 				scope: scope
 			}).result.then(function (v) {
-				env.json = v;
-				$http.put(Project.getURL() + '/environment/' + env.id, env)
+				$http.put(Project.getURL() + '/environment/' + env.id, v)
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
