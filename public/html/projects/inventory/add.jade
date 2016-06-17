@@ -1,5 +1,7 @@
 .modal-header
-	h4.modal-title New Inventory
+	h4.modal-title
+		span(ng-if="!inventory.id") New Inventory
+		span(ng-if="inventory.id") Update Inventory
 .modal-body
 	form.form-horizontal
 		.form-group
@@ -30,4 +32,7 @@
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="$close(inventory)") Create
+	button.btn.btn-danger(ng-click="$close({ remove: true })") Delete
+	button.btn.btn-success(ng-click="$close({ inventory: inventory })")
+		span(ng-if="!inventory.id") Create
+		span(ng-if="inventory.id") Update

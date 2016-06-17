@@ -1,5 +1,7 @@
 .modal-header
-	h4.modal-title New Template
+	h4.modal-title
+		span(ng-if="!tpl.id") New Template
+		span(ng-if="tpl.id") Update Template
 .modal-body
 	form.form-horizontal
 		.form-group
@@ -10,22 +12,22 @@
 		.form-group
 			label.control-label.col-sm-4 SSH Key
 			.col-sm-6
-				select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as key.name for key in keys")
+				select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as key.name disable when key.removed for key in keys")
 					option(value="") -- Select SSH Key --
 		.form-group
 			label.control-label.col-sm-4 Inventory
 			.col-sm-6
-				select.form-control(ng-model="tpl.inventory_id" ng-options="inv.id as inv.name for inv in inventory")
+				select.form-control(ng-model="tpl.inventory_id" ng-options="inv.id as inv.name disable when inv.removed for inv in inventory")
 					option(value="") -- Select Inventory --
 		.form-group
 			label.control-label.col-sm-4 Playbook Repository
 			.col-sm-6
-				select.form-control(ng-model="tpl.repository_id" ng-options="repo.id as repo.name for repo in repositories")
+				select.form-control(ng-model="tpl.repository_id" ng-options="repo.id as repo.name disable when repo.removed for repo in repositories")
 					option(value="") -- Select Playbook Repository --
 		.form-group
 			label.control-label.col-sm-4 Environment
 			.col-sm-6
-				select.form-control(ng-model="tpl.environment_id" ng-options="env.id as env.name for env in environment")
+				select.form-control(ng-model="tpl.environment_id" ng-options="env.id as env.name disable when env.removed for env in environment")
 					option(value="") -- Select Task Environment --
 
 		hr
@@ -42,4 +44,7 @@
 				p.help-block Usually semaphore prepends arguments like `--private-key=/location/id_rsa` to make sure everything goes smoothly. This option is for special needs, where semaphore conflicts with one of your arguments.
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="$close(tpl)") Create
+	button.btn.btn-danger(ng-if="tpl.id" ng-click="$close({ remove: true })") remove
+	button.btn.btn-success(ng-click="$close({ template: tpl })")
+		span(ng-if="!tpl.id") Create
+		span(ng-if="tpl.id") Update

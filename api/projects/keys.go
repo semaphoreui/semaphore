@@ -35,7 +35,7 @@ func GetKeys(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var keys []models.AccessKey
 
-	q := squirrel.Select("id, name, type, project_id, `key`").
+	q := squirrel.Select("id, name, type, project_id, `key`, removed").
 		From("access_key").
 		Where("project_id=?", project.ID)
 
@@ -60,10 +60,19 @@ func AddKey(c *gin.Context) {
 	}
 
 	switch key.Type {
-	case "aws", "gcloud", "do", "ssh":
+	case "aws", "gcloud", "do":
 		break
+	case "ssh":
+		if key.Secret == nil || len(*key.Secret) == 0 {
+			c.JSON(400, map[string]string{
+				"error": "SSH Secret empty",
+			})
+			return
+		}
 	default:
-		c.AbortWithStatus(400)
+		c.JSON(400, map[string]string{
+			"error": "Invalid key type",
+		})
 		return
 	}
 
@@ -98,14 +107,28 @@ func UpdateKey(c *gin.Context) {
 	}
 
 	switch key.Type {
-	case "aws", "gcloud", "do", "ssh":
+	case "aws", "gcloud", "do":
 		break
+	case "ssh":
+		if key.Secret == nil || len(*key.Secret) == 0 {
+			c.JSON(400, map[string]string{
+				"error": "SSH Secret empty",
+			})
+			return
+		}
 	default:
-		c.AbortWithStatus(400)
+		c.JSON(400, map[string]string{
+			"error": "Invalid key type",
+		})
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	if key.Secret == nil || len(*key.Secret) == 0 {
+		// override secret
+		key.Secret = oldKey.Secret
+	}
+
+	if _, err := database.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
 		panic(err)
 	}
 
@@ -125,6 +148,34 @@ func UpdateKey(c *gin.Context) {
 
 func RemoveKey(c *gin.Context) {
 	key := c.MustGet("accessKey").(models.AccessKey)
+
+	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	inventoryC, err := database.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	if templatesC > 0 || inventoryC > 0 {
+		if len(c.Query("setRemoved")) == 0 {
+			c.JSON(400, map[string]interface{}{
+				"error": "Key is in use by one or more templates / inventory",
+				"inUse": true,
+			})
+
+			return
+		}
+
+		if _, err := database.Mysql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
+			panic(err)
+		}
+
+		c.AbortWithStatus(204)
+		return
+	}
 
 	if _, err := database.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
 		panic(err)

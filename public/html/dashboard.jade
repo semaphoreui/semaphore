@@ -15,4 +15,4 @@
 				.panel-heading Projects
 					button.btn.btn-default.btn-xs.pull-right(ng-click="addProject()"): i.fa.fa-fw.fa-plus
 				ul.list-group
-					li.list-group-item(ng-repeat="project in projects"): a(ui-sref="project.dashboard({ project_id: project.id })") {{ project.name }}
+					li.list-group-item(ng-repeat="project in projects" ui-sref="project.dashboard({ project_id: project.id })" style="cursor: pointer;") {{ project.name }}

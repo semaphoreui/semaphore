@@ -14,6 +14,7 @@
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="$close(env)")
+	button.btn.btn-danger(ng-click="$close({ remove: true })") Delete
+	button.btn.btn-success(ng-click="$close({ environment: env })")
 		span(ng-if="!env.id") Create
 		span(ng-if="env.id") Update

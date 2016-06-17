@@ -65,6 +65,15 @@ define(function () {
 			});
 		}
 
+		$scope.remove = function () {
+			$http.delete($scope.project.getURL() + '/tasks/' + $scope.task.id)
+			.success(function () {
+				$scope.$close();
+			}).error(function () {
+				swal("Error", 'Could not delete task', 'error');
+			})
+		}
+
 		$scope.$watch('raw', function () {
 			$scope.reload();
 		});
@@ -74,6 +83,6 @@ define(function () {
 			onDestroy.forEach(function (f) {
 				f();
 			});
-		})
+		});
 	}]);
 });

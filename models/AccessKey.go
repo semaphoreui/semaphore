@@ -15,6 +15,8 @@ type AccessKey struct {
 	ProjectID *int    `db:"project_id" json:"project_id"`
 	Key       *string `db:"key" json:"key"`
 	Secret    *string `db:"secret" json:"secret"`
+
+	Removed bool `db:"removed" json:"removed"`
 }
 
 func (key AccessKey) GetPath() string {

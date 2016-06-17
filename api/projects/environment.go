@@ -101,6 +101,29 @@ func AddEnvironment(c *gin.Context) {
 func RemoveEnvironment(c *gin.Context) {
 	env := c.MustGet("environment").(models.Environment)
 
+	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	if templatesC > 0 {
+		if len(c.Query("setRemoved")) == 0 {
+			c.JSON(400, map[string]interface{}{
+				"error": "Environment is in use by one or more templates",
+				"inUse": true,
+			})
+
+			return
+		}
+
+		if _, err := database.Mysql.Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
+			panic(err)
+		}
+
+		c.AbortWithStatus(204)
+		return
+	}
+
 	if _, err := database.Mysql.Exec("delete from project__environment where id=?", env.ID); err != nil {
 		panic(err)
 	}

@@ -38,6 +38,7 @@ func GetRepositories(c *gin.Context) {
 	query, args, _ := squirrel.Select("*").
 		From("project__repository").
 		Where("project_id=?", project.ID).
+		OrderBy("name asc").
 		ToSql()
 
 	if _, err := database.Mysql.Select(&repos, query, args...); err != nil {
@@ -112,6 +113,29 @@ func UpdateRepository(c *gin.Context) {
 
 func RemoveRepository(c *gin.Context) {
 	repository := c.MustGet("repository").(models.Repository)
+
+	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	if templatesC > 0 {
+		if len(c.Query("setRemoved")) == 0 {
+			c.JSON(400, map[string]interface{}{
+				"error":        "Repository is in use by one or more templates",
+				"templatesUse": true,
+			})
+
+			return
+		}
+
+		if _, err := database.Mysql.Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
+			panic(err)
+		}
+
+		c.AbortWithStatus(204)
+		return
+	}
 
 	if _, err := database.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
 		panic(err)

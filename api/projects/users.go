@@ -34,9 +34,12 @@ func UserMiddleware(c *gin.Context) {
 
 func GetUsers(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var users []models.User
+	var users []struct {
+		models.User
+		Admin bool `db:"admin" json:"admin"`
+	}
 
-	query, args, _ := squirrel.Select("u.*").
+	query, args, _ := squirrel.Select("u.*").Column("pu.admin").
 		From("project__user as pu").
 		Join("user as u on pu.user_id=u.id").
 		Where("pu.project_id=?", project.ID).

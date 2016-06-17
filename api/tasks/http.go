@@ -92,3 +92,21 @@ func GetTaskOutput(c *gin.Context) {
 
 	c.JSON(200, output)
 }
+
+func RemoveTask(c *gin.Context) {
+	task := c.MustGet("task").(models.Task)
+
+	statements := []string{
+		"delete from task__output where task_id=?",
+		"delete from task where id=?",
+	}
+
+	for _, statement := range statements {
+		_, err := database.Mysql.Exec(statement, task.ID)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	c.AbortWithStatus(204)
+}

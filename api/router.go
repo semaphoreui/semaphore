@@ -59,14 +59,16 @@ func Route(r *gin.Engine) {
 		api.Use(projects.ProjectMiddleware)
 
 		api.GET("", projects.GetProject)
+		api.PUT("", projects.MustBeAdmin, projects.UpdateProject)
+		api.DELETE("", projects.MustBeAdmin, projects.DeleteProject)
 
 		api.GET("/events", getEvents)
 
 		api.GET("/users", projects.GetUsers)
-		api.POST("/users", projects.AddUser)
-		api.POST("/users/:user_id/admin", projects.UserMiddleware, projects.MakeUserAdmin)
-		api.DELETE("/users/:user_id/admin", projects.UserMiddleware, projects.MakeUserAdmin)
-		api.DELETE("/users/:user_id", projects.UserMiddleware, projects.RemoveUser)
+		api.POST("/users", projects.MustBeAdmin, projects.AddUser)
+		api.POST("/users/:user_id/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
+		api.DELETE("/users/:user_id/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
+		api.DELETE("/users/:user_id", projects.MustBeAdmin, projects.UserMiddleware, projects.RemoveUser)
 
 		api.GET("/keys", projects.GetKeys)
 		api.POST("/keys", projects.AddKey)
@@ -96,6 +98,7 @@ func Route(r *gin.Engine) {
 		api.GET("/tasks", tasks.GetAll)
 		api.POST("/tasks", tasks.AddTask)
 		api.GET("/tasks/:task_id/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
+		api.DELETE("/tasks/:task_id", tasks.GetTaskMiddleware, tasks.RemoveTask)
 	}(api.Group("/project/:project_id"))
 }
 

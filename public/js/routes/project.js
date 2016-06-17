@@ -22,6 +22,15 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 			}]
 		}
 	})
+	.state('project.edit', {
+		url: '/edit',
+		pageTitle: 'Edit Project',
+		templateUrl: '/tpl/projects/edit.html',
+		controller: 'ProjectEditCtrl',
+		resolve: {
+			$d: $couchPotatoProvider.resolveDependencies(['controllers/projects/edit'])
+		}
+	})
 	.state('project.dashboard', {
 		url: '',
 		pageTitle: 'Project Dashboard',

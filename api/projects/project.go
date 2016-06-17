@@ -42,3 +42,70 @@ func ProjectMiddleware(c *gin.Context) {
 func GetProject(c *gin.Context) {
 	c.JSON(200, c.MustGet("project"))
 }
+
+func MustBeAdmin(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	user := c.MustGet("user").(*models.User)
+
+	userC, err := database.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	if userC == 0 {
+		c.AbortWithStatus(403)
+		return
+	}
+}
+
+func UpdateProject(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+	var body struct {
+		Name string `json:"name"`
+	}
+
+	if err := c.Bind(&body); err != nil {
+		return
+	}
+
+	if _, err := database.Mysql.Exec("update project set name=? where id=?", body.Name, project.ID); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
+}
+
+func DeleteProject(c *gin.Context) {
+	project := c.MustGet("project").(models.Project)
+
+	tx, err := database.Mysql.Begin()
+	if err != nil {
+		panic(err)
+	}
+
+	statements := []string{
+		"delete tao from task__output as tao join task as t on t.id=tao.task_id join project__template as pt on pt.id=t.template_id where pt.project_id=?",
+		"delete t from task as t join project__template as pt on pt.id=t.template_id where pt.project_id=?",
+		"delete from project__template where project_id=?",
+		"delete from project__user where project_id=?",
+		"delete from project__repository where project_id=?",
+		"delete from project__inventory where project_id=?",
+		"delete from access_key where project_id=?",
+		"delete from project where id=?",
+	}
+
+	for _, statement := range statements {
+		_, err := tx.Exec(statement, project.ID)
+
+		if err != nil {
+			tx.Rollback()
+			panic(err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
+}

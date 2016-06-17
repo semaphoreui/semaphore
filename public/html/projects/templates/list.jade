@@ -1,7 +1,7 @@
 h3 Task Templates
 	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") New Template
 
-table.table
+table.table.table-hover
 	thead: tr
 		th Playbook
 		th SSH Key
@@ -9,12 +9,11 @@ table.table
 		th Environment
 		th Repository
 		th &nbsp;
-	tbody: tr(ng-repeat="tpl in templates")
+	tbody: tr(ng-repeat="tpl in templates" ng-click="update(tpl)" style="cursor: pointer;")
 		td {{ tpl.playbook }}
 		td {{ sshKeysAssoc[tpl.ssh_key_id].name }}
 		td {{ inventoryAssoc[tpl.inventory_id].name }}
 		td {{ environmentAssoc[tpl.environment_id].name }}
 		td {{ reposAssoc[tpl.repository_id].name }}
 		td
-			button.btn.btn-danger.btn-xs.pull-right(ng-click="remove(tpl)") remove
-			button.btn.btn-success.btn-xs.pull-right(ng-click="run(tpl)" style="margin-right: 10px;") run
+			button.btn.btn-success.btn-xs.pull-right(ng-click="run(tpl); $event.stopPropagation();") run

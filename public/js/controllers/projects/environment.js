@@ -9,8 +9,26 @@ define(function () {
 		$scope.remove = function (environment) {
 			$http.delete(Project.getURL() + '/environment/' + environment.id).success(function () {
 				$scope.reload();
-			}).error(function () {
-				swal('error', 'could not delete environment key..', 'error');
+			}).error(function (d) {
+				if (!(d && d.inUse)) {
+					swal('error', 'could not delete environment..', 'error');
+					return;
+				}
+
+				swal({
+					title: 'Environment in use',
+					text: d.error,
+					type: 'error',
+					showCancelButton: true,
+					confirmButtonColor: "#DD6B55",
+					confirmButtonText: 'Mark as removed'
+				}, function () {
+					$http.delete(Project.getURL() + '/environment/' + environment.id + '?setRemoved=1').success(function () {
+						$scope.reload();
+					}).error(function () {
+						swal('error', 'could not delete environment..', 'error');
+					});
+				});
 			});
 		}
 
@@ -40,8 +58,12 @@ define(function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/environment/add.html',
 				scope: scope
-			}).result.then(function (v) {
-				$http.put(Project.getURL() + '/environment/' + env.id, v)
+			}).result.then(function (opts) {
+				if (opts.remove) {
+					return $scope.remove(env);
+				}
+
+				$http.put(Project.getURL() + '/environment/' + env.id, opts.environment)
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {

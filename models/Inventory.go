@@ -15,4 +15,6 @@ type Inventory struct {
 
 	// static/aws/do/gcloud
 	Type string `db:"type" json:"type"`
+
+	Removed bool `db:"removed" json:"removed"`
 }

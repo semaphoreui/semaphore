@@ -141,6 +141,29 @@ func UpdateInventory(c *gin.Context) {
 func RemoveInventory(c *gin.Context) {
 	inventory := c.MustGet("inventory").(models.Inventory)
 
+	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	if templatesC > 0 {
+		if len(c.Query("setRemoved")) == 0 {
+			c.JSON(400, map[string]interface{}{
+				"error": "Inventory is in use by one or more templates",
+				"inUse": true,
+			})
+
+			return
+		}
+
+		if _, err := database.Mysql.Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
+			panic(err)
+		}
+
+		c.AbortWithStatus(204)
+		return
+	}
+
 	if _, err := database.Mysql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
 		panic(err)
 	}

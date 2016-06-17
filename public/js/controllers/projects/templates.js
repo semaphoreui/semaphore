@@ -5,6 +5,7 @@ define(['controllers/projects/taskRunner'], function () {
 
 			$scope.sshKeysAssoc = {};
 			keys.forEach(function (k) {
+				if (k.removed) k.name = '[removed] - ' + k.name;
 				$scope.sshKeysAssoc[k.id] = k;
 			});
 		});
@@ -13,6 +14,7 @@ define(['controllers/projects/taskRunner'], function () {
 
 			$scope.inventoryAssoc = {};
 			inv.forEach(function (i) {
+				if (i.removed) i.name = '[removed] - ' + i.name;
 				$scope.inventoryAssoc[i.id] = i;
 			});
 		});
@@ -21,6 +23,8 @@ define(['controllers/projects/taskRunner'], function () {
 
 			$scope.reposAssoc = {};
 			repos.forEach(function (i) {
+				if (i.removed) i.name = '[removed] - ' + i.name;
+
 				$scope.reposAssoc[i.id] = i;
 			});
 		});
@@ -29,6 +33,8 @@ define(['controllers/projects/taskRunner'], function () {
 
 			$scope.environmentAssoc = {};
 			env.forEach(function (i) {
+				if (i.removed) i.name = '[removed] - ' + i.name;
+
 				$scope.environmentAssoc[i.id] = i;
 			});
 		});
@@ -57,8 +63,34 @@ define(['controllers/projects/taskRunner'], function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/templates/add.html',
 				scope: scope
-			}).result.then(function (tpl) {
+			}).result.then(function (opts) {
+				var tpl = opts.template;
 				$http.post(Project.getURL() + '/templates', tpl).success(function () {
+					$scope.reload();
+				}).error(function (_, status) {
+					swal('error', 'could not add template:' + status, 'error');
+				});
+			});
+		}
+
+		$scope.update = function (template) {
+			var scope = $rootScope.$new();
+			scope.tpl = template;
+			scope.keys = $scope.sshKeys;
+			scope.inventory = $scope.inventory;
+			scope.repositories = $scope.repos;
+			scope.environment = $scope.environment;
+
+			$modal.open({
+				templateUrl: '/tpl/projects/templates/add.html',
+				scope: scope
+			}).result.then(function (opts) {
+				if (opts.remove) {
+					return $scope.remove(template);
+				}
+
+				var tpl = opts.template;
+				$http.put(Project.getURL() + '/templates/' + template.id, tpl).success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
 					swal('error', 'could not add template:' + status, 'error');

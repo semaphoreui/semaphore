@@ -4,18 +4,21 @@ define(['controllers/projects/taskRunner'], function () {
 			$scope.events = events;
 		});
 
-		$http.get(Project.getURL() + '/tasks').success(function (tasks) {
-			$scope.tasks = tasks;
+		$scope.reload = function () {
+			$http.get(Project.getURL() + '/tasks').success(function (tasks) {
+				$scope.tasks = tasks;
 
-			$scope.tasks.forEach(function (t) {
-				if (!t.start || !t.end) {
-					return;
-				}
+				$scope.tasks.forEach(function (t) {
+					if (!t.start || !t.end) {
+						return;
+					}
 
-				// t.duration = moment(t.start).from(moment(t.end), true);
-				t.duration = moment(t.start).diff(moment(t.end), 'minutes');
-			})
-		});
+					// t.duration = moment(t.start).from(moment(t.end), true);
+					t.duration = moment(t.start).diff(moment(t.end), 'minutes');
+				});
+			});
+		}
+		$scope.reload();
 
 		$scope.openTask = function (task) {
 			var scope = $rootScope.$new();
@@ -27,6 +30,8 @@ define(['controllers/projects/taskRunner'], function () {
 				controller: 'TaskCtrl',
 				scope: scope,
 				size: 'lg'
+			}).result.then(function () {
+				$scope.reload();
 			});
 		}
 	}]);

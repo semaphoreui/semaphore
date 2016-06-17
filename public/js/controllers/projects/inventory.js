@@ -6,16 +6,34 @@ define(function () {
 			});
 		}
 
-		$scope.remove = function (environment) {
-			$http.delete(Project.getURL() + '/inventory/' + environment.id).success(function () {
+		$scope.remove = function (inventory) {
+			$http.delete(Project.getURL() + '/inventory/' + inventory.id).success(function () {
 				$scope.reload();
-			}).error(function () {
-				swal('error', 'could not delete inventory..', 'error');
+			}).error(function (d) {
+				if (!(d && d.inUse)) {
+					swal('error', 'could not delete inventory..', 'error');
+					return;
+				}
+
+				swal({
+					title: 'Inventory in use',
+					text: d.error,
+					type: 'error',
+					showCancelButton: true,
+					confirmButtonColor: "#DD6B55",
+					confirmButtonText: 'Mark as removed'
+				}, function () {
+					$http.delete(Project.getURL() + '/inventory/' + inventory.id + '?setRemoved=1').success(function () {
+						$scope.reload();
+					}).error(function () {
+						swal('error', 'could not delete inventory..', 'error');
+					});
+				});
 			});
 		}
 
 		$scope.add = function () {
-			$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
+			$scope.getKeys(function (keys) {
 				var scope = $rootScope.$new();
 				scope.sshKeys = keys;
 
@@ -34,6 +52,31 @@ define(function () {
 		}
 
 		$scope.edit = function (inventory) {
+			$scope.getKeys(function (keys) {
+				var scope = $rootScope.$new();
+				scope.sshKeys = keys;
+				scope.inventory = JSON.parse(JSON.stringify(inventory));
+
+				$modal.open({
+					templateUrl: '/tpl/projects/inventory/add.html',
+					scope: scope
+				}).result.then(function (opts) {
+					if (opts.remove) {
+						console.log(inventory)
+						return $scope.remove(inventory);
+					}
+
+					$http.put(Project.getURL() + '/inventory/' + inventory.id, opts.inventory)
+					.success(function () {
+						$scope.reload();
+					}).error(function (_, status) {
+						swal('Erorr', 'Inventory not updated: ' + status, 'error');
+					});
+				});
+			});
+		}
+
+		$scope.editContent = function (inventory) {
 			var scope = $rootScope.$new();
 			scope.inventory = inventory.inventory;
 
@@ -48,6 +91,14 @@ define(function () {
 				}).error(function (_, status) {
 					swal('Erorr', 'Inventory not updated: ' + status, 'error');
 				});
+			});
+		}
+
+		$scope.getKeys = function (cb) {
+			if (typeof cb != 'function') cb = function () {}
+
+			$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
+				cb(keys);
 			});
 		}
 

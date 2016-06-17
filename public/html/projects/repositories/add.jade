@@ -1,7 +1,7 @@
 .modal-header
 	h4.modal-title
-		span(ng-if="!repository.id") Create Repository
-		span(ng-if="repository.id") Update Repository
+		span(ng-if="!repo.id") Create Repository
+		span(ng-if="repo.id") Update Repository
 
 .modal-body
 	form.form-horizontal
@@ -21,6 +21,7 @@
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-success(ng-click="$close(repo)")
-		span(ng-if="!repository.id") Create
-		span(ng-if="repository.id") Update
+	button.btn.btn-danger(ng-if="repo.id" ng-click="$close({ remove: true })") Delete
+	button.btn.btn-success(ng-click="$close({ repo: repo })")
+		span(ng-if="!repo.id") Create
+		span(ng-if="repo.id") Update

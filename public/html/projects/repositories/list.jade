@@ -1,16 +1,12 @@
 h3 Repositories
 	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") Create Repository
 
-table.table
+table.table.table-hover
 	thead: tr
 		th Name
 		th Git URL
 		th SSH Key
-		th &nbsp;
-	tbody: tr(ng-repeat="repo in repositories")
+	tbody: tr(ng-repeat="repo in repositories" ng-class="{ danger: repo.removed }" ng-click="update(repo)" style="cursor: pointer;")
 		td {{ repo.name }}
 		td {{ repo.git_url }}
-		td {{ repo.ssh_key_id }}
-		td: .btn-group.pull-right
-			button.btn.btn-default.btn-xs(ng-click="update(repo)") update
-			button.btn.btn-danger.btn-xs(ng-click="remove(repo)") delete
+		td(title="Key ID: {{ repo.ssh_key_id }}") {{ repo.ssh_key.name }}

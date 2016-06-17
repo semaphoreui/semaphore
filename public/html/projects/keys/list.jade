@@ -1,12 +1,8 @@
 h3 Keys
 	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") Create Key
 
-table.table
-	thead: tr
-		th.col-sm-2 Name
-		th.col-sm-2 Type
-		th.col-sm-8 Key
-	tbody: tr(ng-repeat="key in keys")
-		td {{ key.name }}
-		td: code {{ key.type }}
-		td: pre: code {{ key.key }}
+table.table.table-hover
+	tbody: tr(ng-repeat="key in keys" ng-click="update(key)" style="cursor: pointer;" ng-class="{ danger: key.removed }")
+		td
+			code {{ key.type }}
+			| &nbsp; {{ key.name }}

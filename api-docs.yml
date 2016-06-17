@@ -440,6 +440,29 @@ paths:
           description: Project
           schema:
             $ref: "#/definitions/Project"
+    put:
+      tags:
+        - project
+      summary: Update project
+      parameters:
+        - name: Project
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+      responses:
+        204:
+          description: Project saved
+    delete:
+      tags:
+        - project
+      summary: Delete project
+      responses:
+        204:
+          description: Project deleted
 
   /project/{project_id}/events:
     parameters:
@@ -819,6 +842,17 @@ paths:
             type: array
             items:
               $ref: "#/definitions/TaskOutput"
+  /project/{project_id}/tasks/{task_id}:
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/task_id'
+    delete:
+      tags:
+        - project
+      summary: Deletes task (including output)
+      responses:
+        204:
+          description: task deleted
 
   # users
   /users:

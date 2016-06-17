@@ -1,5 +1,7 @@
 .modal-header
-	h4.modal-title Create Access Key
+	h4.modal-title
+		span(ng-if="!key.id") Create Access Key
+		span(ng-if="key.id") Update Access Key
 
 .modal-body
 	form.form-horizontal
@@ -21,10 +23,12 @@
 			label.control-label.col-sm-4 Public Key
 			.col-sm-6
 				textarea.form-control(ng-model="key.key" rows="4")
+				p.help-text Public key is <strong>optional</strong> however you should set it so you can identify your private key by its fingerprint. Private keys are not available for reading later from the UI.
 		.form-group(ng-if="key.type == 'ssh'")
 			label.control-label.col-sm-4 Private Key
 			.col-sm-6
-				textarea.form-control(ng-model="key.secret" rows="10")
+				textarea.form-control(ng-if="!key.id" ng-model="key.secret" rows="10" placeholder="Insert private key")
+				textarea.form-control(ng-if="key.id" ng-model="key.secret" rows="10" placeholder="Omitted for security - set to override")
 
 		.form-group(ng-if="key.type == 'aws'")
 			label.control-label.col-sm-4 Access Key
@@ -48,5 +52,8 @@
 				input.form-control(type="text" ng-model="key.secret")
 
 .modal-footer
-	button.btn.btn-success(ng-click="$close(key)") Save
+	button.btn.btn-danger(ng-click="$close({ delete: true })") Delete
+	button.btn.btn-success(ng-click="$close({ key: key })")
+		span(ng-if="!key.id") Create
+		span(ng-if="key.id") Update
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
