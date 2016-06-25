@@ -63,6 +63,12 @@ define(function () {
 
 				$scope.output_formatted = out.join('\n') + '\n';
 			});
+			if ($scope.task.user_id) {
+				$http.get('/users/' + $scope.task.user_id)
+				.success(function (output) {
+					$scope.task.user_name = output.name;
+				});
+			}
 		}
 
 		$scope.remove = function () {

@@ -13,6 +13,7 @@ import (
 
 func AddTask(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
+	user := c.MustGet("user").(*models.User)
 
 	var taskObj models.Task
 	if err := c.Bind(&taskObj); err != nil {
@@ -21,6 +22,7 @@ func AddTask(c *gin.Context) {
 
 	taskObj.Created = time.Now()
 	taskObj.Status = "waiting"
+	taskObj.UserID = &user.ID
 
 	if err := database.Mysql.Insert(&taskObj); err != nil {
 		panic(err)
@@ -48,9 +50,10 @@ func AddTask(c *gin.Context) {
 func GetAll(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook").
+	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name").
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
+		LeftJoin("user on task.user_id=user.id").
 		Where("tpl.project_id=?", project.ID).
 		OrderBy("task.created desc").
 		ToSql()
@@ -58,7 +61,8 @@ func GetAll(c *gin.Context) {
 	var tasks []struct {
 		models.Task
 
-		TemplatePlaybook string `db:"tpl_playbook" json:"tpl_playbook"`
+		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
+		UserName         *string `db:"user_name" json:"user_name"`
 	}
 	if _, err := database.Mysql.Select(&tasks, query, args...); err != nil {
 		panic(err)
