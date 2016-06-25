@@ -1,3 +1,10 @@
+## v2.0.3 | 25-6-2016
+
+- Much better UI
+- Editable Project
+- Fix SQL bug
+- Admin privileges in projects are more relevant
+
 ## v2.0.2 | 23-5-2016
 
 - Improve upgrade process (fixes #106)
