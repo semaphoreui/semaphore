@@ -103,7 +103,7 @@ func CheckUpdate(version string) error {
 
 	UpdateAvailable = nil
 	if (*releases[0].TagName)[1:] != version {
-		UpdateAvailable = &releases[0]
+		UpdateAvailable = releases[0]
 	}
 
 	return nil
