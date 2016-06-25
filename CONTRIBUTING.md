@@ -19,7 +19,8 @@ go get github.com/mitchellh/gox
 go get github.com/cespare/reflex
 go get -u ./...
 
-npm i -g nodemon less jade async
+npm i -g nodemon less jade
+npm i async
 ```
 
 ## Gopaths
