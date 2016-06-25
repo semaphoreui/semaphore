@@ -35,8 +35,8 @@ define(function () {
 		$scope.add = function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/keys/add.html'
-			}).result.then(function (key) {
-				$http.post(Project.getURL() + '/keys', key.key).success(function () {
+			}).result.then(function (opts) {
+				$http.post(Project.getURL() + '/keys', opts.key).success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
 					swal('error', 'could not add key:' + status, 'error');
