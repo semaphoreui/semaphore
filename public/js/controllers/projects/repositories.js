@@ -74,7 +74,7 @@ define(function () {
 				templateUrl: '/tpl/projects/repositories/add.html',
 				scope: scope
 			}).result.then(function (repo) {
-				$http.post(Project.getURL() + '/repositories', repo)
+				$http.post(Project.getURL() + '/repositories', repo.repo)
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {

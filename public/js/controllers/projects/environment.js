@@ -42,7 +42,7 @@ define(function () {
 				templateUrl: '/tpl/projects/environment/add.html',
 				scope: scope
 			}).result.then(function (env) {
-				$http.post(Project.getURL() + '/environment', env)
+				$http.post(Project.getURL() + '/environment', env.environment)
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {

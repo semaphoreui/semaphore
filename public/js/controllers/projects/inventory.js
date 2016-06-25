@@ -41,7 +41,7 @@ define(function () {
 					templateUrl: '/tpl/projects/inventory/add.html',
 					scope: scope
 				}).result.then(function (inventory) {
-					$http.post(Project.getURL() + '/inventory', inventory)
+					$http.post(Project.getURL() + '/inventory', inventory.inventory)
 					.success(function () {
 						$scope.reload();
 					}).error(function (_, status) {
