@@ -36,7 +36,7 @@ define(function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/keys/add.html'
 			}).result.then(function (key) {
-				$http.post(Project.getURL() + '/keys', key).success(function () {
+				$http.post(Project.getURL() + '/keys', key.key).success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
 					swal('error', 'could not add key:' + status, 'error');
