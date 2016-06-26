@@ -13,6 +13,8 @@ type Task struct {
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`
 
+	UserID *int `db:"user_id" json:"user_id"`
+
 	Created time.Time  `db:"created" json:"created"`
 	Start   *time.Time `db:"start" json:"start"`
 	End     *time.Time `db:"end" json:"end"`

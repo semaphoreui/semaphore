@@ -22,3 +22,6 @@
 				br
 				span &nbsp;
 				span.pull-right {{ task.duration }} minutes
+				br
+				span &nbsp;
+				span.pull-right(ng-if="task.user_name") by {{ task.user_name }}

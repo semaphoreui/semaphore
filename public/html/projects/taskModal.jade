@@ -4,6 +4,8 @@
 	dl.dl-horizontal
 		dt Status
 		dd {{ task.status }}
+		dt User
+		dd {{ task.user_name }}
 		dt Started
 		dd {{ task.start | date:'short' }}
 		dt Ended
