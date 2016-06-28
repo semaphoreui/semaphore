@@ -1,3 +1,8 @@
+## v2.0.4 | 28-6-2016
+
+- Show user name for tasks (thanks @tokuhirom!)
+- Fix critical bug with creating things
+
 ## v2.0.3 | 25-6-2016
 
 - Much better UI
