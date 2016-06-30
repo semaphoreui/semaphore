@@ -258,6 +258,10 @@ func (t *task) runPlaybook() error {
 		args = append(args, "-vvvv")
 	}
 
+	if t.task.DryRun {
+		args = append(args, "--check")
+	}
+
 	if len(t.environment.JSON) > 0 {
 		args = append(args, "--extra-vars", t.environment.JSON)
 	}
