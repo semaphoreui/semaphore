@@ -105,6 +105,12 @@ func (t *task) run() {
 
 	// todo: write environment
 
+	if err := t.runGalaxy(); err != nil {
+		t.log("Running galaxy failed: " + err.Error())
+		t.fail()
+		return
+	}
+
 	if err := t.runPlaybook(); err != nil {
 		t.log("Running playbook failed: " + err.Error())
 		t.fail()
@@ -234,6 +240,34 @@ func (t *task) updateRepository() error {
 		t.log("Updating repository")
 		cmd.Dir += "/" + repoName
 		cmd.Args = append(cmd.Args, "pull", "origin", "master")
+	}
+
+	t.logCmd(cmd)
+	return cmd.Run()
+}
+
+func (t *task) runGalaxy() error {
+	args := []string{
+		"install",
+		"-r",
+		"roles/requirements.yml",
+		"-p",
+		"./roles/",
+		"--force",
+	}
+
+	cmd := exec.Command("ansible-galaxy", args...)
+	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Env = []string{
+		"HOME=" + util.Config.TmpPath,
+		"PWD=" + cmd.Dir,
+		"PYTHONUNBUFFERED=1",
+		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath(),
+		// "GIT_FLUSH=1",
+	}
+
+	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
+		return nil
 	}
 
 	t.logCmd(cmd)
