@@ -64,5 +64,6 @@ func init() {
 		{Minor: 1},
 		{Major: 1, Minor: 6},
 		{Major: 1, Minor: 7},
+		{Major: 1, Minor: 8},
 	}
 }

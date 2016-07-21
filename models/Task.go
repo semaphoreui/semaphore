@@ -9,6 +9,8 @@ type Task struct {
 	Status string `db:"status" json:"status"`
 	Debug  bool   `db:"debug" json:"debug"`
 
+	DryRun bool `db:"dry_run" json:"dry_run"`
+
 	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`

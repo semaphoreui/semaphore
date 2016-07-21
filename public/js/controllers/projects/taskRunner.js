@@ -3,10 +3,14 @@ define(function () {
 		console.log(Template);
 		$scope.task = {};
 
-		$scope.run = function (task) {
+		$scope.run = function (task, dryRun) {
 			task.template_id = Template.id;
 
-			$http.post(Project.getURL() + '/tasks', task).success(function (t) {
+			var params = angular.copy(task);
+			if (dryRun) {
+				params.dry_run = true;
+			}
+			$http.post(Project.getURL() + '/tasks', params).success(function (t) {
 				$scope.$close(t);
 			}).error(function (_, status) {
 				swal('Error', 'error launching task: HTTP ' + status, 'error');
