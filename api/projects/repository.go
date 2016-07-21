@@ -2,6 +2,8 @@ package projects
 
 import (
 	"database/sql"
+	"os"
+	"strconv"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
@@ -9,6 +11,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/masterminds/squirrel"
 )
+
+func clearRepositoryCache(repository models.Repository) error {
+	repoName := "repository_" + strconv.Itoa(repository.ID)
+	repoPath := util.Config.TmpPath + "/" + repoName
+	_, err := os.Stat(repoPath)
+	if err == nil {
+		return os.RemoveAll(repoPath)
+	}
+	return nil
+}
 
 func RepositoryMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
@@ -97,6 +109,10 @@ func UpdateRepository(c *gin.Context) {
 		panic(err)
 	}
 
+	if oldRepo.GitUrl != repository.GitUrl {
+		clearRepositoryCache(oldRepo)
+	}
+
 	desc := "Repository (" + repository.GitUrl + ") updated"
 	objType := "inventory"
 	if err := (models.Event{
@@ -140,6 +156,8 @@ func RemoveRepository(c *gin.Context) {
 	if _, err := database.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
 		panic(err)
 	}
+
+	clearRepositoryCache(repository)
 
 	desc := "Repository (" + repository.GitUrl + ") deleted"
 	if err := (models.Event{
