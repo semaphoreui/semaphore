@@ -226,12 +226,12 @@ func (t *task) updateRepository() error {
 	}
 
 	if err != nil && os.IsNotExist(err) {
-		t.log("Cloning repository")
+		t.log("Cloning repository " + t.repository.GitUrl)
 		cmd.Args = append(cmd.Args, "clone", t.repository.GitUrl, repoName)
 	} else if err != nil {
 		return err
 	} else {
-		t.log("Updating repository")
+		t.log("Updating repository " + t.repository.GitUrl)
 		cmd.Dir += "/" + repoName
 		cmd.Args = append(cmd.Args, "pull", "origin", "master")
 	}
