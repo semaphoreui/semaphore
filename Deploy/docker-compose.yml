@@ -1,0 +1,27 @@
+mysql:
+  image: mysql
+  environment:
+    MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+    MYSQL_DATABASE: semaphore
+    MYSQL_USER: semaphore
+    MYSQL_PASSWORD: semaphore
+  hostname: mysql
+  expose:
+    - 3306
+
+semaphore_api:
+  build: api
+  expose:
+    - 3000
+  ports:
+    - 8080:3000
+  links:
+    - mysql:mysql
+
+semaphore_proxy:
+  build: proxy
+  expose:
+    - 443
+    - 80
+  links:
+    - semaphore_api:semaphore_api
