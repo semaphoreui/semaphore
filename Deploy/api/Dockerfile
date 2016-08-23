@@ -1,6 +1,6 @@
 FROM fedora
 
-RUN dnf -y install git ansible python-mysql python-bcrypt mariadb; dnf -y clean all
+RUN dnf -y install git ansible mariadb; dnf -y clean all
 
 ENV SEMAPHORE_DB_USER semaphore
 ENV SEMAPHORE_DB_PASS semaphore
