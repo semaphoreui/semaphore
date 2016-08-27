@@ -227,7 +227,7 @@ func (t *task) updateRepository() error {
 
 	if err != nil && os.IsNotExist(err) {
 		t.log("Cloning repository " + t.repository.GitUrl)
-		cmd.Args = append(cmd.Args, "clone", "--recursive",t.repository.GitUrl, repoName)
+		cmd.Args = append(cmd.Args, "clone", "--recursive", t.repository.GitUrl, repoName)
 	} else if err != nil {
 		return err
 	} else {
