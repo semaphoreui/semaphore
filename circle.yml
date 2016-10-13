@@ -1,32 +1,27 @@
 machine:
-  environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
+  services:
+    - docker
 
 dependencies:
-  pre:
-    - git submodule update --init --recursive
-    - sudo apt-add-repository -y 'deb
-      http://ppa.launchpad.net/ondrej/mysql-experimental/ubuntu precise
-      main'
-    - sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get
-      install -y mysql-server-5.6
-    - npm i -g nodemon less jade
-    - npm i async
-    - go get github.com/jteeuwen/go-bindata/...
-    - go get github.com/mitchellh/gox
-    - go get github.com/cespare/reflex
-
   override:
-    - mkdir -p $CPATH
-    - rsync -azC --delete ./ $CPATH
-    - cd $CPATH && ./make.sh ci_test
-    - cd $CPATH && go get ./...
+    - docker info
+    - docker-compose --version
+    - cd Deploy; docker-compose pull
+    - cd Deploy; docker-compose build
 
 test:
-  pre:
-    - cd $CPATH && go run cli/main.go --migrate
-
   override:
-    - cd $CPATH && go vet ./...
-    - cd $CPATH && go test ./...
-    - cd $CPATH && ./make.sh
+    - cd Deploy; docker-compose up; sleep 10
+    - curl --retry 10 --retry-delay 5 -v http://localhost:8081
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - echo "{\"https://index.docker.io/v1/\":{\"auth\":\"<AUTH>\",\"email\":\"<EMAIL>\"}}" | sed "s/<EMAIL>/$HUB_EMAIL/;s/<AUTH>/$HUB_AUTH/" > ~/.dockercfg
+      - docker tag deploy_semaphore_api woorank/deploy_semaphore_api:v$CIRCLE_BUILD_NUM
+      - docker tag woorank/deploy_semaphore_api:v$CIRCLE_BUILD_NUM woorank/deploy_semaphore_api:latest
+      - docker push woorank/deploy_semaphore_api
+      - docker tag serpfront_front woorank/deploy_semaphore_proxy:v$CIRCLE_BUILD_NUM
+      - docker tag woorank/deploy_semaphore_proxy:v$CIRCLE_BUILD_NUM woorank/deploy_semaphore_proxy:latest
+      - docker push woorank/deploy_semaphore_proxy
