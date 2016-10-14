@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
+	"string"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
