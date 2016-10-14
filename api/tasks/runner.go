@@ -215,6 +215,14 @@ func (t *task) installKey(key models.AccessKey) error {
 func (t *task) updateRepository() error {
 	repoName := "repository_" + strconv.Itoa(t.repository.ID)
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
+	gitUrlFull := strings.Split(t.repository.GitUrl, "#")
+	gitUrl := ""
+	gitTag := "master"
+	if len(gitUrlFull) > 1 {
+		gitUrl, gitTag = gitUrlFull[0], gitUrlFull[1]
+	} else {
+		gitUrl = gitUrlFull[0]
+	}
 
 	cmd := exec.Command("git")
 	cmd.Dir = util.Config.TmpPath
@@ -227,13 +235,16 @@ func (t *task) updateRepository() error {
 
 	if err != nil && os.IsNotExist(err) {
 		t.log("Cloning repository")
-		cmd.Args = append(cmd.Args, "clone", t.repository.GitUrl, repoName)
+		cmd.Args = append(cmd.Args, "clone", gitUrl, repoName)
+		if gitTag != "master" {
+			cmd.Args = append(cmd.Args, "-b", gitTag)
+		}
 	} else if err != nil {
 		return err
 	} else {
 		t.log("Updating repository")
 		cmd.Dir += "/" + repoName
-		cmd.Args = append(cmd.Args, "pull", "origin", "master")
+		cmd.Args = append(cmd.Args, "pull", "origin", gitTag)
 	}
 
 	t.logCmd(cmd)
