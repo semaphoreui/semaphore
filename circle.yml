@@ -1,3 +1,6 @@
+general:
+  build_dir: Deploy
+
 machine:
   services:
     - docker
@@ -6,12 +9,12 @@ dependencies:
   override:
     - docker info
     - docker-compose --version
-    - cd Deploy; docker-compose pull
-    - cd Deploy; docker-compose build
+    - docker-compose pull
+    - docker-compose build
 
 test:
   override:
-    - cd Deploy; docker-compose up; sleep 10
+    - docker-compose up; sleep 10
     - curl --retry 10 --retry-delay 5 -v http://localhost:8081
 
 deployment:
