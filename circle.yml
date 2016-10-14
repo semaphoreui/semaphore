@@ -14,7 +14,7 @@ dependencies:
 
 test:
   override:
-    - docker-compose -d up; sleep 10
+    - docker-compose up -d; sleep 10
     - curl --retry 10 --retry-delay 5 -v http://localhost:8081
 
 deployment:
