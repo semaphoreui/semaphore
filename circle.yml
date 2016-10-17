@@ -15,7 +15,7 @@ test:
   override:
     - docker run -d -e MYSQL_RANDOM_ROOT_PASSWORD=yes -e MYSQL_DATABASE=semaphore -e MYSQL_USER=semaphore -e MYSQL_PASSWORD=semaphore -h mysql --expose 3306 --name mysql mysql
     - docker run -d -p "8081:3000" --name semaphore_deploy_test --link mysql:mysql semaphore
-    - curl --retry 10 --retry-delay 5 -v http://localhost:8081
+    - sleep 10; curl --retry 10 --retry-delay 5 -v http://localhost:8081
 
 deployment:
   hub:
