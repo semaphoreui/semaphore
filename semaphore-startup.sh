@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 echoerr() { printf "%s\n" "$*" >&2; }
 
