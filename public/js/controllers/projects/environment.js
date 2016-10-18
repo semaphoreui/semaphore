@@ -46,7 +46,7 @@ define(function () {
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
-					swal('Erorr', 'Environment not added: ' + status, 'error');
+					swal('Error', 'Environment not added: ' + status, 'error');
 				});
 			});
 		}
@@ -67,7 +67,7 @@ define(function () {
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
-					swal('Erorr', 'Environment not updated: ' + status, 'error');
+					swal('Error', 'Environment not updated: ' + status, 'error');
 				});
 			});
 		}

@@ -78,7 +78,7 @@ define(function () {
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
-					swal('Erorr', 'Repository not added: ' + status, 'error');
+					swal('Error', 'Repository not added: ' + status, 'error');
 				});
 			});
 		}
