@@ -1,6 +1,3 @@
-general:
-  build_dir: Deploy
-
 machine:
   services:
     - docker
@@ -9,7 +6,7 @@ dependencies:
   override:
     - docker info
     - docker pull mysql
-    - cd ./api; docker build -t semaphore .
+    - docker build -t semaphore .
 
 test:
   override:
