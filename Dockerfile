@@ -1,17 +1,6 @@
-FROM fedora
+FROM alpine
 
-RUN dnf -y install git ansible mariadb; dnf -y clean all
-
-ENV SEMAPHORE_DB_USER semaphore
-ENV SEMAPHORE_DB_PASS semaphore
-ENV SEMAPHORE_DB_HOST mysql
-ENV SEMAPHORE_DB_PORT 3306
-ENV SEMAPHORE_DB semaphore
-ENV SEMAPHORE_PLAYBOOK_PATH /etc/semaphore/
-ENV SEMAPHORE_ADMIN_PASSWORD cangetin
-ENV SEMAPHORE_ADMIN_NAME Default\ Administrator
-ENV SEMAPHORE_ADMIN_EMAIL admin@localhost
-ENV SEMAPHORE_ADMIN admin
+RUN apk add --no-cache git ansible mysql-client curl
 
 RUN curl -L https://github.com/ansible-semaphore/semaphore/releases/download/v2.0.4/semaphore_linux_amd64 > /usr/bin/semaphore && chmod +x /usr/bin/semaphore && mkdir -p /etc/semaphore/playbooks
 
