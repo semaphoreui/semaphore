@@ -1,32 +1,25 @@
 machine:
-  environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
+  services:
+    - docker
 
 dependencies:
-  pre:
-    - git submodule update --init --recursive
-    - sudo apt-add-repository -y 'deb
-      http://ppa.launchpad.net/ondrej/mysql-experimental/ubuntu precise
-      main'
-    - sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get
-      install -y mysql-server-5.6
-    - npm i -g nodemon less jade
-    - npm i async
-    - go get github.com/jteeuwen/go-bindata/...
-    - go get github.com/mitchellh/gox
-    - go get github.com/cespare/reflex
-
   override:
-    - mkdir -p $CPATH
-    - rsync -azC --delete ./ $CPATH
-    - cd $CPATH && ./make.sh ci_test
-    - cd $CPATH && go get ./...
+    - docker info
+    - docker pull mysql
+    - docker build -t semaphore .
 
 test:
-  pre:
-    - cd $CPATH && go run cli/main.go --migrate
-
   override:
-    - cd $CPATH && go vet ./...
-    - cd $CPATH && go test ./...
-    - cd $CPATH && ./make.sh
+    - docker run -d -e MYSQL_RANDOM_ROOT_PASSWORD=yes -e MYSQL_DATABASE=semaphore -e MYSQL_USER=semaphore -e MYSQL_PASSWORD=semaphore -h mysql --expose 3306 --name mysql mysql
+    - docker run -d -e SEMAPHORE_DB_USER=semaphore -e SEMAPHORE_DB_PASS=semaphore -e SEMAPHORE_DB_HOST=mysql -e SEMAPHORE_DB_PORT=3306 -e SEMAPHORE_DB=semaphore -e SEMAPHORE_PLAYBOOK_PATH="/etc/semaphore/" -p "8081:3000" --name semaphore_deploy_test --link mysql:mysql semaphore
+    - sleep 15; curl --retry 10 --retry-delay 5 -v http://localhost:8081
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - echo "{\"https://index.docker.io/v1/\":{\"auth\":\"<AUTH>\",\"email\":\"<EMAIL>\"}}" | sed "s/<EMAIL>/$HUB_EMAIL/;s/<AUTH>/$HUB_AUTH/" > ~/.dockercfg
+      - docker tag semaphore woorank/semaphore:2.0.4
+      - docker tag woorank/semaphore:2.0.4 woorank/semaphore:latest
+      - docker push woorank/semaphore
+
