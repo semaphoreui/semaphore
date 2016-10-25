@@ -1,6 +1,6 @@
 FROM alpine
 
-RUN apk add --no-cache git ansible mysql-client curl
+RUN apk add --no-cache git ansible mysql-client curl openssh-client
 
 RUN curl -L https://github.com/ansible-semaphore/semaphore/releases/download/v2.0.4/semaphore_linux_amd64 > /usr/bin/semaphore && chmod +x /usr/bin/semaphore && mkdir -p /etc/semaphore/playbooks
 
