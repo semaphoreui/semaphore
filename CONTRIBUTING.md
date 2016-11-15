@@ -49,12 +49,14 @@ export PATH GOPATH GOROOT NPM_CONFIG_PREFIX
 
 4) Clone project and Install go dependencies:
 
+```
 cd ~/GoProjects/src/github.com/ansible-semaphore/
 git clone --recursive https://github.com/ansible-semaphore/semaphore.git
 go get github.com/jteeuwen/go-bindata/...
 go get github.com/mitchellh/gox
 go get github.com/cespare/reflex
 go get -u ./...
+```
 
 5)  Install node.js dependencies:
 
