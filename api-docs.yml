@@ -175,6 +175,8 @@ definitions:
         type: integer
       environment_id:
         type: integer
+      alias:
+        type: string
       playbook:
         type: string
       arguments:

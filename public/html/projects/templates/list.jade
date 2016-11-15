@@ -3,6 +3,7 @@ h3 Task Templates
 
 table.table.table-hover
 	thead: tr
+		th Alias
 		th Playbook
 		th SSH Key
 		th Inventory
@@ -10,6 +11,7 @@ table.table.table-hover
 		th Repository
 		th &nbsp;
 	tbody: tr(ng-repeat="tpl in templates" ng-click="update(tpl)" style="cursor: pointer;")
+		td {{ tpl.alias }}
 		td {{ tpl.playbook }}
 		td {{ sshKeysAssoc[tpl.ssh_key_id].name }}
 		td {{ inventoryAssoc[tpl.inventory_id].name }}
