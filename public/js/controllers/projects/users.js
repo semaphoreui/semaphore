@@ -44,7 +44,7 @@ define(function () {
 					.success(function () {
 						$scope.reload();
 					}).error(function (_, status) {
-						swal('Erorr', 'User not added: ' + status, 'error');
+						swal('Error', 'User not added: ' + status, 'error');
 					});
 				});
 			});

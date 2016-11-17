@@ -45,7 +45,7 @@ define(function () {
 					.success(function () {
 						$scope.reload();
 					}).error(function (_, status) {
-						swal('Erorr', 'Inventory not added: ' + status, 'error');
+						swal('Error', 'Inventory not added: ' + status, 'error');
 					});
 				});
 			});
@@ -70,7 +70,7 @@ define(function () {
 					.success(function () {
 						$scope.reload();
 					}).error(function (_, status) {
-						swal('Erorr', 'Inventory not updated: ' + status, 'error');
+						swal('Error', 'Inventory not updated: ' + status, 'error');
 					});
 				});
 			});
@@ -89,7 +89,7 @@ define(function () {
 				.success(function () {
 					$scope.reload();
 				}).error(function (_, status) {
-					swal('Erorr', 'Inventory not updated: ' + status, 'error');
+					swal('Error', 'Inventory not updated: ' + status, 'error');
 				});
 			});
 		}
