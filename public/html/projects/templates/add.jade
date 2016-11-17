@@ -5,6 +5,11 @@
 .modal-body
 	form.form-horizontal
 		.form-group
+			label.control-label.col-sm-4 Playbook Alias
+			.col-sm-6
+				input.form-control(type="text" placeholder="USA Servers" ng-model="tpl.alias")
+
+		.form-group
 			label.control-label.col-sm-4 Playbook Name
 			.col-sm-6
 				input.form-control(type="text" placeholder="play.yml" ng-model="tpl.playbook")

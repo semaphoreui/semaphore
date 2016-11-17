@@ -28,7 +28,7 @@ EOF
 
 	cd public
 	lessc css/semaphore.less > css/semaphore.css
-	jade html/*.jade html/*/*.jade html/*/*/*.jade &
+	pug html/*.jade html/*/*.jade html/*/*/*.jade &
 	cd -
 fi
 
@@ -49,7 +49,7 @@ if [ "$1" == "watch" ]; then
 
 	nodemon -w js -i bundle.js -e js bundler.js &
 	nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
-	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade &
+	pug -w -P html/*.jade html/*/*.jade html/*/*/*.jade &
 
 	cd ../
 	reflex -r '\.go$' -s -d none -- sh -c 'go run cli/main.go'
