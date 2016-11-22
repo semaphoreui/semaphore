@@ -5,12 +5,7 @@ machine:
 dependencies:
   pre:
     - git submodule update --init --recursive
-    - sudo apt-add-repository -y 'deb
-      http://ppa.launchpad.net/ondrej/mysql-experimental/ubuntu precise
-      main'
-    - sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get
-      install -y mysql-server-5.6
-    - npm i -g nodemon less jade
+    - npm i -g nodemon less pug-cli
     - npm i async
     - go get github.com/jteeuwen/go-bindata/...
     - go get github.com/mitchellh/gox
