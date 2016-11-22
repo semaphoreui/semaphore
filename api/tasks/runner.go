@@ -216,14 +216,6 @@ func (t *task) installKey(key models.AccessKey) error {
 func (t *task) updateRepository() error {
 	repoName := "repository_" + strconv.Itoa(t.repository.ID)
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
-	gitUrlFull := strings.Split(t.repository.GitUrl, "#")
-	gitUrl := ""
-	gitTag := "master"
-	if len(gitUrlFull) > 1 {
-		gitUrl, gitTag = gitUrlFull[0], gitUrlFull[1]
-	} else {
-		gitUrl = gitUrlFull[0]
-	}
 
 	cmd := exec.Command("git")
 	cmd.Dir = util.Config.TmpPath
@@ -234,16 +226,20 @@ func (t *task) updateRepository() error {
 		// "GIT_FLUSH=1",
 	}
 
+	repoURL, repoTag := t.repository.GitUrl, "master"
+	if split := strings.Split(repoURL, "#"); len(split) > 1 {
+		repoURL, repoTag = split[0], split[1]
+	}
+
 	if err != nil && os.IsNotExist(err) {
-		t.log("Cloning repository " + t.repository.GitUrl)
-		cmd.Args = append(cmd.Args, "clone", "--recursive", gitUrl, repoName)
-		cmd.Args = append(cmd.Args, "-b", gitTag)
+		t.log("Cloning repository " + repoURL)
+		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, repoName)
 	} else if err != nil {
 		return err
 	} else {
-		t.log("Updating repository " + t.repository.GitUrl)
+		t.log("Updating repository " + repoURL)
 		cmd.Dir += "/" + repoName
-		cmd.Args = append(cmd.Args, "pull", "origin", gitTag)
+		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
 	}
 
 	t.logCmd(cmd)
