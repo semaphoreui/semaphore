@@ -41,11 +41,11 @@ define(function () {
 					scope: scope
 				}).result.then(function (user) {
 					$http.post(Project.getURL() + '/users', user)
-					.success(function () {
-						$scope.reload();
-					}).error(function (_, status) {
-						swal('Error', 'User not added: ' + status, 'error');
-					});
+						.success(function () {
+							$scope.reload();
+						}).error(function (_, status) {
+							swal('Error', 'User not added: ' + status, 'error');
+						});
 				});
 			});
 		}
@@ -53,6 +53,17 @@ define(function () {
 		$scope.setAdmin = function (user) {
 			var verb = $http.post;
 			if (user.admin) verb = $http.delete;
+
+			var numAdmins = 0;
+			this.users.forEach(function (user) {
+				user.admin && numAdmins++
+			})
+
+			if (user.admin && numAdmins == 1) {
+				swal('Administrator Required', 'There must be at least one administrator on the project', 'error');
+
+				return
+			}
 
 			verb(Project.getURL() + '/users/' + user.id + '/admin').success(function () {
 				$scope.reload();
