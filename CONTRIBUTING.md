@@ -62,7 +62,7 @@ go get -u ./...
 
 ```
 cd ~/GoProjects/src/github.com/ansible-semaphore/
-npm install -g less pug
+npm install -g less pug-cli
 npm install async
 ```
 
