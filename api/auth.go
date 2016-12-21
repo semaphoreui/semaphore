@@ -15,7 +15,7 @@ import (
 func authentication(c *gin.Context) {
 	var userID int
 
-	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 {
+	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 		var token models.APIToken
 		if err := database.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
 			if err == sql.ErrNoRows {
