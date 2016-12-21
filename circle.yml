@@ -4,12 +4,14 @@ machine:
 
 dependencies:
   pre:
+    - sudo rm -rf /usr/local/go
+    - sudo curl -L https://storage.googleapis.com/golang/go1.7.4.linux-amd64.tar.gz > /tmp/go.tar.gz
+    - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - git submodule update --init --recursive
-    - npm i -g nodemon less pug-cli
+    - npm i -g less pug-cli
     - npm i async
     - go get github.com/jteeuwen/go-bindata/...
     - go get github.com/mitchellh/gox
-    - go get github.com/cespare/reflex
 
   override:
     - mkdir -p $CPATH

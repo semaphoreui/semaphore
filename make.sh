@@ -57,7 +57,7 @@ if [ "$1" == "watch" ]; then
 fi
 
 cd cli
-gox -os="linux darwin windows openbsd" -output="semaphore_{{.OS}}_{{.Arch}}" ./...
+gox -output="semaphore_{{.OS}}_{{.Arch}}" ./...
 
 if [ "$CIRCLE_ARTIFACTS" != "" ]; then
 	rsync -a semaphore_* $CIRCLE_ARTIFACTS/
