@@ -2,7 +2,7 @@ swagger: '2.0'
 info:
   title: SEMAPHORE
   description: Semaphore API
-  version: "2.0.2"
+  version: "2.1.0"
 
 host: localhost:3000
 
@@ -819,11 +819,22 @@ paths:
         - project
       summary: Starts a job
       parameters:
-        - name: job
+        - name: task
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Task"
+            type: object
+            properties:
+              template_id:
+                type: integer
+              debug:
+                type: boolean
+              dry_run:
+                type: boolean
+              playbook:
+                type: string
+              environment:
+                type: string
       responses:
         201:
           description: Task queued
