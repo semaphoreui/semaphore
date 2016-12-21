@@ -3,7 +3,7 @@
 		h3.no-top-margin Project activity
 		ul.list-unstyled
 			li(ng-repeat="event in events")
-				strong: time(ng-bind="event.created | date:'short'")
+				strong: time(ng-bind="event.createdFormatted")
 				span :&nbsp;
 				span(ng-bind="event.object_name")
 				span(ng-if="event.object_name.length > 0")  -&nbsp;
@@ -16,8 +16,8 @@
 				span(ng-class="{ 'text-muted': task.status == 'waiting', 'text-info': task.status == 'running', 'text-danger': task.status == 'error', 'text-success': task.status == 'success' }")
 					span(ng-if="task.playbook.length == 0") {{ task.tpl_playbook }}
 					span(ng-if="task.playbook.length > 0") {{ task.playbook }}
-				span.pull-right(ng-if="task.status == 'waiting'") {{ task.created | date:'short' }}
-				span.pull-right(ng-if="task.status != 'waiting'") {{ task.start | date:'short' }}
+				span.pull-right(ng-if="task.status == 'waiting'") {{ task.createdFormatted }}
+				span.pull-right(ng-if="task.status != 'waiting'") {{ task.startFormatted }}
 
 				br
 				span &nbsp;

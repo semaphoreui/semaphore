@@ -7,11 +7,11 @@
 		dt User
 		dd {{ task.user_name }}
 		dt Started
-		dd {{ task.start | date:'short' }}
+		dd {{ task.startFormatted }}
 		dt Ended
-		dd {{ task.end | date:'short' }}
+		dd {{ task.endFormatted }}
 		dt Created
-		dd {{ task.created | date:'short' }}
+		dd {{ task.createdFormatted }}
 		dt Raw output
 		dd: input(type="checkbox" ng-model="raw" title="show logs unbesmirched")
 
