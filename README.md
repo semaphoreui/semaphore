@@ -6,11 +6,6 @@
 - [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
 - [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
 - [Milestones](https://github.com/ansible-semaphore/semaphore/milestones)
-- [Chat Room](https://chat.stackoverflow.com/rooms/128895/semaphore)
-
-## Articles
-
-- http://code-complete.com/code/?p=40
 
 ## Contributing
 
