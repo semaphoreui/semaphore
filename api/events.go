@@ -41,9 +41,10 @@ func getEvents(c *gin.Context) {
 
 		switch *evt.ObjectType {
 		case "task":
-			q = squirrel.Select("tpl.playbook as name").
+			q = squirrel.Select("case when length(task.playbook) > 0 then task.playbook else tpl.playbook end").
 				From("task").
-				Join("project__template as tpl on task.template_id=tpl.id")
+				Join("project__template as tpl on task.template_id=tpl.id").
+				Where("task.id=?", evt.ObjectID)
 		default:
 			continue
 		}
