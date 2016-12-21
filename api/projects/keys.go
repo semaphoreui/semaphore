@@ -76,7 +76,9 @@ func AddKey(c *gin.Context) {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, key.Secret)
+	secret := *key.Secret + "\n"
+
+	res, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, secret)
 	if err != nil {
 		panic(err)
 	}
@@ -126,6 +128,9 @@ func UpdateKey(c *gin.Context) {
 	if key.Secret == nil || len(*key.Secret) == 0 {
 		// override secret
 		key.Secret = oldKey.Secret
+	} else {
+		secret := *key.Secret + "\n"
+		key.Secret = &secret
 	}
 
 	if _, err := database.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
