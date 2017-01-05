@@ -756,7 +756,7 @@ paths:
           description: environment removed
 
   # project templates
-  /project/{project_id}/template:
+  /project/{project_id}/templates:
     parameters:
       - $ref: "#/parameters/project_id"
     get:
@@ -785,7 +785,7 @@ paths:
           description: template created
           schema:
             $ref: "#/definitions/Template"
-  /project/{project_id}/template/{template_id}:
+  /project/{project_id}/templates/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/template_id"
