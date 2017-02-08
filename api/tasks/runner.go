@@ -227,7 +227,7 @@ func (t *task) updateRepository() error {
 	cmd.Dir = util.Config.TmpPath
 
 	gitSshCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
-	cmd.Env = envVars(util.Config.TmpPath, util.Config.TmpPath, gitSshCommand)
+	cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, gitSshCommand)
 
 	repoURL, repoTag := t.repository.GitUrl, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
@@ -263,7 +263,7 @@ func (t *task) runGalaxy() error {
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 
 	gitSshCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
-	cmd.Env = envVars(util.Config.TmpPath, cmd.Dir, gitSshCommand)
+	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, gitSshCommand)
 
 	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
 		return nil
@@ -317,7 +317,7 @@ func (t *task) runPlaybook() error {
 
 	cmd := exec.Command("ansible-playbook", args...)
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
-	cmd.Env = envVars(util.Config.TmpPath, cmd.Dir, nil)
+	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)
 	return cmd.Run()
