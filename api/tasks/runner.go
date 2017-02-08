@@ -225,12 +225,9 @@ func (t *task) updateRepository() error {
 
 	cmd := exec.Command("git")
 	cmd.Dir = util.Config.TmpPath
-	cmd.Env = []string{
-		"HOME=" + util.Config.TmpPath,
-		"PWD=" + util.Config.TmpPath,
-		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath(),
-		// "GIT_FLUSH=1",
-	}
+
+	gitSshCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
+	cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSshCommand)
 
 	repoURL, repoTag := t.repository.GitUrl, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
@@ -264,13 +261,9 @@ func (t *task) runGalaxy() error {
 
 	cmd := exec.Command("ansible-galaxy", args...)
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
-	cmd.Env = []string{
-		"HOME=" + util.Config.TmpPath,
-		"PWD=" + cmd.Dir,
-		"PYTHONUNBUFFERED=1",
-		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath(),
-		// "GIT_FLUSH=1",
-	}
+
+	gitSshCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
+	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSshCommand)
 
 	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
 		return nil
@@ -324,13 +317,22 @@ func (t *task) runPlaybook() error {
 
 	cmd := exec.Command("ansible-playbook", args...)
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
-	cmd.Env = []string{
-		"HOME=" + util.Config.TmpPath,
-		"PWD=" + cmd.Dir,
-		"PYTHONUNBUFFERED=1",
-		// "GIT_FLUSH=1",
-	}
+	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)
 	return cmd.Run()
+}
+
+func (t *task) envVars(home string, pwd string, gitSshCommand *string) []string {
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("HOME=%s", home))
+	env = append(env, fmt.Sprintf("PWD=%s", pwd))
+	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
+	//env = append(env, fmt.Sprintln("GIT_FLUSH=1"))
+
+	if gitSshCommand != nil {
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", *gitSshCommand))
+	}
+
+	return env
 }

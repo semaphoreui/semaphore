@@ -38,7 +38,7 @@ cd -
 
 echo "Adding bindata"
 
-go-bindata $BINDATA_ARGS config.json db/migrations/ $(find ./public -type d -print)
+go-bindata $BINDATA_ARGS config.json db/migrations/ $(find public/* -type d -print)
 
 if [ "$1" == "ci_test" ]; then
 	exit 0
