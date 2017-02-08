@@ -227,7 +227,7 @@ func (t *task) updateRepository() error {
 	cmd.Dir = util.Config.TmpPath
 
 	gitSshCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
-	cmd.Env = envVars(util.Config.TmpPath, cmd.Dir, gitSshCommand)
+	cmd.Env = envVars(util.Config.TmpPath, util.Config.TmpPath, gitSshCommand)
 
 	repoURL, repoTag := t.repository.GitUrl, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
