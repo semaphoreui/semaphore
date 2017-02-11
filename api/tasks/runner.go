@@ -84,7 +84,8 @@ func (t *task) run() {
 		panic(err)
 	}
 
-	t.log("Started: " + strconv.Itoa(t.task.ID) + "\n")
+	t.log("Started: " + strconv.Itoa(t.task.ID))
+	t.log("Run task with template: " + t.template.Alias + "\n")
 
 	if err := t.installKey(t.repository.SshKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
