@@ -62,7 +62,7 @@ go get -u ./...
 
 ```
 cd ~/GoProjects/src/github.com/ansible-semaphore/
-npm install -g less pug-cli
+npm install -g less pug-cli nodemon
 npm install async
 ```
 
@@ -83,6 +83,7 @@ chmod +x semaphore_linux_amd64
 8) Created a config.json which have the Database information to start the development:
 
 ```
+cd ~/GoProjects/src/github.com/ansible-semaphore/semaphore
 cat <<EOT >> config.json
 {
     "mysql": {
@@ -100,6 +101,7 @@ EOT
 9) Start the Watch process:
 
 ```
+cd ~/GoProjects/src/github.com/ansible-semaphore/semaphore
 ./make.sh watch
 ```
 
