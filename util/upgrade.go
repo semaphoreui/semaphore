@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+	"context"
 
 	"github.com/google/go-github/github"
 )
@@ -96,7 +97,7 @@ func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 func CheckUpdate(version string) error {
 	// fetch releases
 	gh := github.NewClient(nil)
-	releases, _, err := gh.Repositories.ListReleases("ansible-semaphore", "semaphore", nil)
+	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "ansible-semaphore", "semaphore", nil)
 	if err != nil {
 		return err
 	}
