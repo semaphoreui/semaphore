@@ -26,7 +26,7 @@
 		.form-group
 			label.control-label.col-sm-4 SSH Key
 			.col-sm-6
-				select.form-control(ng-model="inventory.ssh_key_id" ng-options="key.id as key.name for key in sshKeys")
+				select.form-control(ng-model="inventory.ssh_key_id" ng-options="key.id as (key | sshKey) for key in sshKeys")
 					option(value="") -- Select SSH Key --
 				p.help-block Used to log into the servers in this inventory
 

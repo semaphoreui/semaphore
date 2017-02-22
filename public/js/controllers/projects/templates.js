@@ -1,6 +1,14 @@
 define(['controllers/projects/taskRunner'], function () {
-	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
-		$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
+	app.registerFilter('sshKey', ['$rootScope', function($rootScope) {
+		return function(input) {
+	try {
+					return "[" + input.type + "]" + input.name;
+	}  catch(e) {
+			return input;
+	}
+		};
+}]).registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
+		$http.get(Project.getURL() + '/keys?type=static').success(function (keys) {
 			$scope.sshKeys = keys;
 
 			$scope.sshKeysAssoc = {};
@@ -96,7 +104,7 @@ define(['controllers/projects/taskRunner'], function () {
 					swal('error', 'could not add template:' + status, 'error');
 				});
 			}).closed.then(function () {
-				$scope.reload();	
+				$scope.reload();
 			});
 		}
 

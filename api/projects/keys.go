@@ -40,7 +40,15 @@ func GetKeys(c *gin.Context) {
 		Where("project_id=?", project.ID)
 
 	if len(c.Query("type")) > 0 {
-		q = q.Where("type=?", c.Query("type"))
+		switch c.Query("type") {
+		case "static":
+			q = q.Where("type=? or type=?", "ssh", "ssh-cert")
+		case "ssh":
+			q = q.Where("type=?", "ssh")
+		default:
+			panic("Unknown type query")
+		}
+//		q = q.Where("type=?", c.Query("type"))
 	}
 
 	query, args, _ := q.ToSql()
@@ -62,12 +70,20 @@ func AddKey(c *gin.Context) {
 	switch key.Type {
 	case "aws", "gcloud", "do":
 		break
-	case "ssh":
+	case "ssh", "ssh-cert":
 		if key.Secret == nil || len(*key.Secret) == 0 {
 			c.JSON(400, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
+		}
+		if key.Type == "ssh-cert" {
+			if key.Key == nil || len(*key.Key) == 0 {
+				c.JSON(400, map[string]string{
+					"error": "SSH Public key empty",
+				})
+				return
+			}
 		}
 	default:
 		c.JSON(400, map[string]string{
@@ -111,12 +127,20 @@ func UpdateKey(c *gin.Context) {
 	switch key.Type {
 	case "aws", "gcloud", "do":
 		break
-	case "ssh":
+	case "ssh", "ssh-cert":
 		if key.Secret == nil || len(*key.Secret) == 0 {
 			c.JSON(400, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
+		}
+		if key.Type == "ssh-cert" {
+			if key.Key == nil || len(*key.Key) == 0 {
+				c.JSON(400, map[string]string{
+					"error": "SSH Public key empty",
+				})
+				return
+			}
 		}
 	default:
 		c.JSON(400, map[string]string{

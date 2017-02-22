@@ -14,6 +14,7 @@
 			.col-sm-6
 				select.form-control(ng-model="key.type")
 					option(value="") -- Please select type --
+					option(value="ssh-cert") SSH Certificate Key
 					option(value="ssh") SSH Key
 					option(value="aws") AWS IAM credentials
 					option(value="gcloud") Google Cloud API Key
@@ -25,6 +26,17 @@
 				textarea.form-control(ng-model="key.key" rows="4")
 				p.help-text Public key is <strong>optional</strong> however you should set it so you can identify your private key by its fingerprint. Private keys are not available for reading later from the UI.
 		.form-group(ng-if="key.type == 'ssh'")
+			label.control-label.col-sm-4 Private Key
+			.col-sm-6
+				textarea.form-control(ng-if="!key.id" ng-model="key.secret" rows="10" placeholder="Insert private key")
+				textarea.form-control(ng-if="key.id" ng-model="key.secret" rows="10" placeholder="Omitted for security - set to override")
+
+		.form-group(ng-if="key.type == 'ssh-cert'")
+			label.control-label.col-sm-4 Public Key
+			.col-sm-6
+				textarea.form-control(ng-model="key.key" rows="4")
+				p.help-text Public key is <strong>required</strong> for SSH certificates signed by a CA. 
+		.form-group(ng-if="key.type == 'ssh-cert'")
 			label.control-label.col-sm-4 Private Key
 			.col-sm-6
 				textarea.form-control(ng-if="!key.id" ng-model="key.secret" rows="10" placeholder="Insert private key")

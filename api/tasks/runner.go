@@ -162,7 +162,7 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	if t.sshKey.Type != "ssh" {
+	if t.sshKey.Type != "ssh" && t.sshKey.Type != "ssh-cert" {
 		t.log("Non ssh-type keys are currently not supported: " + t.sshKey.Type)
 		return errors.New("Unsupported SSH Key")
 	}
@@ -214,8 +214,16 @@ func (t *task) populateDetails() error {
 }
 
 func (t *task) installKey(key models.AccessKey) error {
-	t.log("access key " + key.Name + " installed")
-	err := ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
+	var err error
+	if key.Type == "ssh" {
+		t.log("access key " + key.Name + " installed")
+		err = ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
+	} else { // key type is ssh-cert
+		t.log("access key " + key.Name + " installed")
+		var path string = key.GetPath()
+		err = ioutil.WriteFile(path, []byte(*key.Secret), 0600)
+		ioutil.WriteFile(path+"-cert.pub", []byte(*key.Key), 0600)
+	}
 
 	return err
 }

@@ -22,7 +22,7 @@
 		.form-group
 			label.control-label.col-sm-4 SSH Key*
 			.col-sm-6
-				select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as key.name disable when key.removed for key in keys")
+				select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as (key | sshKey) disable when key.removed for key in keys")
 					option(value="") -- Select SSH Key --
 		.form-group
 			label.control-label.col-sm-4 Inventory*

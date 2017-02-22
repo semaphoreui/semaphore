@@ -1,5 +1,13 @@
 define(function () {
-	app.registerController('ProjectInventoryCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
+    app.registerFilter('sshKey', ['$rootScope', function($rootScope) {
+	    return function(input) {
+		try {
+	    	    return "[" + input.type + "]" + input.name;
+		}  catch(e) {
+		    return input;
+		}
+	    };
+	}]).registerController('ProjectInventoryCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/inventory').success(function (inventory) {
 				$scope.inventory = inventory;
@@ -35,7 +43,8 @@ define(function () {
 		$scope.add = function () {
 			$scope.getKeys(function (keys) {
 				var scope = $rootScope.$new();
-				scope.sshKeys = keys;
+			    scope.sshKeys = keys;
+
 
 				$modal.open({
 					templateUrl: '/tpl/projects/inventory/add.html',
@@ -53,8 +62,10 @@ define(function () {
 
 		$scope.edit = function (inventory) {
 			$scope.getKeys(function (keys) {
-				var scope = $rootScope.$new();
-				scope.sshKeys = keys;
+			    var scope = $rootScope.$new();
+			    scope.sshKeys = keys;
+
+
 				scope.inventory = JSON.parse(JSON.stringify(inventory));
 
 				$modal.open({
@@ -97,7 +108,7 @@ define(function () {
 		$scope.getKeys = function (cb) {
 			if (typeof cb != 'function') cb = function () {}
 
-			$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
+			$http.get(Project.getURL() + '/keys?type=static').success(function (keys) {
 				cb(keys);
 			});
 		}
