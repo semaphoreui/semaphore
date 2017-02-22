@@ -32,7 +32,7 @@
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
-	button.btn.btn-danger(ng-click="$close({ remove: true })") Delete
+	button.btn.btn-danger(ng-if="inventory.id" ng-click="$close({ remove: true })") Delete
 	button.btn.btn-success(ng-click="$close({ inventory: inventory })")
 		span(ng-if="!inventory.id") Create
 		span(ng-if="inventory.id") Update

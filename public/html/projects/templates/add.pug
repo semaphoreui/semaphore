@@ -9,7 +9,7 @@
 			.col-sm-6
 				input.form-control(type="text" placeholder="USA Servers" ng-model="tpl.alias")
 
-		.form-group
+		.form-group(ng-if="tpl.id")
 			label.control-label.col-sm-4 Template ID
 			.col-sm-6
 				input.form-control(type="text" readonly="readonly" ng-model="tpl.id")
@@ -40,7 +40,7 @@
 				select.form-control(ng-model="tpl.environment_id" ng-options="env.id as env.name disable when env.removed for env in environment")
 					option(value="") -- Select Task Environment --
 		.form-group
-			label.control-label.col-sm-4 (*) fields are required
+			label.control-label.col-sm-4(style="font-weight: normal;") (*) required fields
 
 		hr
 		.form-group
