@@ -2,17 +2,19 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
-	keyID, err := util.GetIntParam("key_id", c)
+	keyID, err := util.GetIntParam("key_id", w, r)
 	if err != nil {
 		return
 	}
@@ -27,8 +29,7 @@ func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("accessKey", key)
-	c.Next()
+	context.Set(r, "accessKey", key)
 }
 
 func GetKeys(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +40,8 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 		From("access_key").
 		Where("project_id=?", project.ID)
 
-	if len(c.Query("type")) > 0 {
-		q = q.Where("type=?", c.Query("type"))
+	if t := r.URL.Query().Get("type"); len(t) > 0 {
+		q = q.Where("type=?", t)
 	}
 
 	query, args, _ := q.ToSql()
@@ -48,7 +49,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, keys)
+	mulekick.WriteJSON(w, http.StatusOK, keys)
 }
 
 func AddKey(w http.ResponseWriter, r *http.Request) {
@@ -64,13 +65,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			c.JSON(400, map[string]string{
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		c.JSON(400, map[string]string{
+		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -113,13 +114,13 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			c.JSON(400, map[string]string{
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		c.JSON(400, map[string]string{
+		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -165,8 +166,8 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if templatesC > 0 || inventoryC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Key is in use by one or more templates / inventory",
 				"inUse": true,
 			})

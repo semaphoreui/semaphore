@@ -4,21 +4,24 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
 )
 
 func getUser(w http.ResponseWriter, r *http.Request) {
 	if u, exists := context.GetOk(r, "_user"); exists {
-		c.JSON(200, u)
+		mulekick.WriteJSON(w, http.StatusOK, u)
 		return
 	}
 
-	c.JSON(200, context.Get(r, "user"))
+	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +32,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, tokens)
+	mulekick.WriteJSON(w, http.StatusOK, tokens)
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
@@ -50,13 +53,13 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(201, token)
+	mulekick.WriteJSON(w, http.StatusCreated, token)
 }
 
 func expireAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*models.User)
 
-	tokenID := c.Param("token_id")
+	tokenID := mux.Vars(r)["token_id"]
 	res, err := database.Mysql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
 	if err != nil {
 		panic(err)

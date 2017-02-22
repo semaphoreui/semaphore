@@ -38,7 +38,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
-	userID, err := util.GetIntParam("user_id", c)
+	userID, err := util.GetIntParam("user_id", w, r)
 	if err != nil {
 		return
 	}

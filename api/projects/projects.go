@@ -1,9 +1,12 @@
 package projects
 
 import (
+	"net/http"
+
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
@@ -22,7 +25,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, projects)
+	mulekick.WriteJSON(w, http.StatusOK, projects)
 }
 
 func AddProject(w http.ResponseWriter, r *http.Request) {
@@ -50,5 +53,5 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(201, body)
+	mulekick.WriteJSON(w, http.StatusCreated, body)
 }

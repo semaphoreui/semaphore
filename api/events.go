@@ -1,9 +1,12 @@
 package api
 
 import (
+	"net/http"
+
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
@@ -60,5 +63,5 @@ func getEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	c.JSON(200, events)
+	mulekick.WriteJSON(w, http.StatusOK, events)
 }

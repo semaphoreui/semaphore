@@ -1,112 +1,115 @@
 package api
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/mux"
 	"github.com/russross/blackfriday"
 )
 
 // Declare all routes
-func Route(r *gin.Engine) {
-	r.GET("/api/ping", func(w http.ResponseWriter, r *http.Request) {
-		c.String(200, "PONG")
-	})
+func Route() mulekick.Router {
+	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware)
+	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
-	r.NoRoute(servePublic)
+	r.Get("/api/ping", mulekick.PongHandler)
 
 	// set up the namespace
 	api := r.Group("/api")
 
-	func(api *gin.RouterGroup) {
-		api.POST("/login", login)
-		api.POST("/logout", logout)
+	func(api mulekick.Router) {
+		api.Post("/login", login)
+		api.Post("/logout", logout)
 	}(api.Group("/auth"))
 
 	api.Use(authentication)
 
-	api.GET("/ws", sockets.Handler)
+	api.Get("/ws", sockets.Handler)
 
-	api.GET("/info", getSystemInfo)
-	api.GET("/upgrade", checkUpgrade)
-	api.POST("/upgrade", doUpgrade)
+	api.Get("/info", getSystemInfo)
+	api.Get("/upgrade", checkUpgrade)
+	api.Post("/upgrade", doUpgrade)
 
-	func(api *gin.RouterGroup) {
-		api.GET("", getUser)
+	func(api mulekick.Router) {
+		api.Get("", getUser)
 		// api.PUT("/user", misc.UpdateUser)
 
-		api.GET("/tokens", getAPITokens)
-		api.POST("/tokens", createAPIToken)
-		api.DELETE("/tokens/:token_id", expireAPIToken)
+		api.Get("/tokens", getAPITokens)
+		api.Post("/tokens", createAPIToken)
+		api.Delete("/tokens/:token_id", expireAPIToken)
 	}(api.Group("/user"))
 
-	api.GET("/projects", projects.GetProjects)
-	api.POST("/projects", projects.AddProject)
-	api.GET("/events", getEvents)
+	api.Get("/projects", projects.GetProjects)
+	api.Post("/projects", projects.AddProject)
+	api.Get("/events", getEvents)
 
-	api.GET("/users", getUsers)
-	api.POST("/users", addUser)
-	api.GET("/users/:user_id", getUserMiddleware, getUser)
-	api.PUT("/users/:user_id", getUserMiddleware, updateUser)
-	api.POST("/users/:user_id/password", getUserMiddleware, updateUserPassword)
-	api.DELETE("/users/:user_id", getUserMiddleware, deleteUser)
+	api.Get("/users", getUsers)
+	api.Post("/users", addUser)
+	api.Get("/users/{user_id}", getUserMiddleware, getUser)
+	api.Put("/users/{user_id}", getUserMiddleware, updateUser)
+	api.Post("/users/{user_id}/password", getUserMiddleware, updateUserPassword)
+	api.Delete("/users/{user_id}", getUserMiddleware, deleteUser)
 
-	func(api *gin.RouterGroup) {
+	func(api mulekick.Router) {
 		api.Use(projects.ProjectMiddleware)
 
-		api.GET("", projects.GetProject)
-		api.PUT("", projects.MustBeAdmin, projects.UpdateProject)
-		api.DELETE("", projects.MustBeAdmin, projects.DeleteProject)
+		api.Get("", projects.GetProject)
+		api.Put("", projects.MustBeAdmin, projects.UpdateProject)
+		api.Delete("", projects.MustBeAdmin, projects.DeleteProject)
 
-		api.GET("/events", getEvents)
+		api.Get("/events", getEvents)
 
-		api.GET("/users", projects.GetUsers)
-		api.POST("/users", projects.MustBeAdmin, projects.AddUser)
-		api.POST("/users/:user_id/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
-		api.DELETE("/users/:user_id/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
-		api.DELETE("/users/:user_id", projects.MustBeAdmin, projects.UserMiddleware, projects.RemoveUser)
+		api.Get("/users", projects.GetUsers)
+		api.Post("/users", projects.MustBeAdmin, projects.AddUser)
+		api.Post("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
+		api.Delete("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
+		api.Delete("/users/{user_id}", projects.MustBeAdmin, projects.UserMiddleware, projects.RemoveUser)
 
-		api.GET("/keys", projects.GetKeys)
-		api.POST("/keys", projects.AddKey)
-		api.PUT("/keys/:key_id", projects.KeyMiddleware, projects.UpdateKey)
-		api.DELETE("/keys/:key_id", projects.KeyMiddleware, projects.RemoveKey)
+		api.Get("/keys", projects.GetKeys)
+		api.Post("/keys", projects.AddKey)
+		api.Put("/keys/{key_id}", projects.KeyMiddleware, projects.UpdateKey)
+		api.Delete("/keys/{key_id}", projects.KeyMiddleware, projects.RemoveKey)
 
-		api.GET("/repositories", projects.GetRepositories)
-		api.POST("/repositories", projects.AddRepository)
-		api.PUT("/repositories/:repository_id", projects.RepositoryMiddleware, projects.UpdateRepository)
-		api.DELETE("/repositories/:repository_id", projects.RepositoryMiddleware, projects.RemoveRepository)
+		api.Get("/repositories", projects.GetRepositories)
+		api.Post("/repositories", projects.AddRepository)
+		api.Put("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.UpdateRepository)
+		api.Delete("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.RemoveRepository)
 
-		api.GET("/inventory", projects.GetInventory)
-		api.POST("/inventory", projects.AddInventory)
-		api.PUT("/inventory/:inventory_id", projects.InventoryMiddleware, projects.UpdateInventory)
-		api.DELETE("/inventory/:inventory_id", projects.InventoryMiddleware, projects.RemoveInventory)
+		api.Get("/inventory", projects.GetInventory)
+		api.Post("/inventory", projects.AddInventory)
+		api.Put("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.UpdateInventory)
+		api.Delete("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.RemoveInventory)
 
-		api.GET("/environment", projects.GetEnvironment)
-		api.POST("/environment", projects.AddEnvironment)
-		api.PUT("/environment/:environment_id", projects.EnvironmentMiddleware, projects.UpdateEnvironment)
-		api.DELETE("/environment/:environment_id", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
+		api.Get("/environment", projects.GetEnvironment)
+		api.Post("/environment", projects.AddEnvironment)
+		api.Put("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.UpdateEnvironment)
+		api.Delete("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
 
-		api.GET("/templates", projects.GetTemplates)
-		api.POST("/templates", projects.AddTemplate)
-		api.PUT("/templates/:template_id", projects.TemplatesMiddleware, projects.UpdateTemplate)
-		api.DELETE("/templates/:template_id", projects.TemplatesMiddleware, projects.RemoveTemplate)
+		api.Get("/templates", projects.GetTemplates)
+		api.Post("/templates", projects.AddTemplate)
+		api.Put("/templates/{template_id}", projects.TemplatesMiddleware, projects.UpdateTemplate)
+		api.Delete("/templates/{template_id}", projects.TemplatesMiddleware, projects.RemoveTemplate)
 
-		api.GET("/tasks", tasks.GetAll)
-		api.POST("/tasks", tasks.AddTask)
-		api.GET("/tasks/:task_id/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
-		api.DELETE("/tasks/:task_id", tasks.GetTaskMiddleware, tasks.RemoveTask)
-	}(api.Group("/project/:project_id"))
+		api.Get("/tasks", tasks.GetAll)
+		api.Post("/tasks", tasks.AddTask)
+		api.Get("/tasks/{task_id}/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
+		api.Delete("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.RemoveTask)
+	}(api.Group("/project/{project_id}"))
+
+	return r
 }
 
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	if strings.HasPrefix(path, "/api") {
-		c.Next()
+		mulekick.NotFoundHandler(w, r)
 		return
 	}
 
@@ -125,7 +128,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 
 	res, err := util.Asset(path)
 	if err != nil {
-		c.Next()
+		mulekick.NotFoundHandler(w, r)
 		return
 	}
 
@@ -151,8 +154,8 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		contentType = "text/html"
 	}
 
-	c.Writer.Header().Set("content-type", contentType)
-	c.String(200, string(res))
+	w.Header().Set("content-type", contentType)
+	w.Write(res)
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
@@ -172,17 +175,17 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
 	}
 
-	c.JSON(200, body)
+	mulekick.WriteJSON(w, http.StatusOK, body)
 }
 
 func checkUpgrade(w http.ResponseWriter, r *http.Request) {
 	if err := util.CheckUpdate(util.Version); err != nil {
-		c.JSON(500, err)
+		mulekick.WriteJSON(w, 500, err)
 		return
 	}
 
 	if util.UpdateAvailable != nil {
-		getSystemInfo(c)
+		getSystemInfo(w, r)
 		return
 	}
 

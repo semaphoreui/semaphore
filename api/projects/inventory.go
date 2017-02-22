@@ -2,17 +2,19 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
-	inventoryID, err := util.GetIntParam("inventory_id", c)
+	inventoryID, err := util.GetIntParam("inventory_id", w, r)
 	if err != nil {
 		return
 	}
@@ -33,8 +35,7 @@ func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("inventory", inventory)
-	c.Next()
+	context.Set(r, "inventory", inventory)
 }
 
 func GetInventory(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +51,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, inv)
+	mulekick.WriteJSON(w, http.StatusOK, inv)
 }
 
 func AddInventory(w http.ResponseWriter, r *http.Request) {
@@ -147,8 +148,8 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if templatesC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Inventory is in use by one or more templates",
 				"inUse": true,
 			})

@@ -2,18 +2,20 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 	"strconv"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
-	userID, err := util.GetIntParam("user_id", c)
+	userID, err := util.GetIntParam("user_id", w, r)
 	if err != nil {
 		return
 	}
@@ -28,8 +30,7 @@ func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("projectUser", user)
-	c.Next()
+	context.Set(r, "projectUser", user)
 }
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +50,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, users)
+	mulekick.WriteJSON(w, http.StatusOK, users)
 }
 
 func AddUser(w http.ResponseWriter, r *http.Request) {

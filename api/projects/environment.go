@@ -2,17 +2,19 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
-	envID, err := util.GetIntParam("environment_id", c)
+	envID, err := util.GetIntParam("environment_id", w, r)
 	if err != nil {
 		return
 	}
@@ -33,8 +35,7 @@ func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("environment", env)
-	c.Next()
+	context.Set(r, "environment", env)
 }
 
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +52,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, env)
+	mulekick.WriteJSON(w, http.StatusOK, env)
 }
 
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -107,8 +108,8 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if templatesC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Environment is in use by one or more templates",
 				"inUse": true,
 			})

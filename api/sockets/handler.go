@@ -3,10 +3,11 @@ package sockets
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 )
 
@@ -95,9 +96,9 @@ func (c *connection) writePump() {
 	}
 }
 
-func Handler(context *gin.Context) {
-	user := context.MustGet("user").(*models.User)
-	ws, err := upgrader.Upgrade(context.Writer, context.Request, nil)
+func Handler(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "user").(*models.User)
+	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		panic(err)
 	}

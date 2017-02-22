@@ -2,18 +2,20 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 	"strconv"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
-	templateID, err := util.GetIntParam("template_id", c)
+	templateID, err := util.GetIntParam("template_id", w, r)
 	if err != nil {
 		return
 	}
@@ -28,8 +30,7 @@ func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("template", template)
-	c.Next()
+	context.Set(r, "template", template)
 }
 
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, templates)
+	mulekick.WriteJSON(w, http.StatusOK, templates)
 }
 
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +81,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(201, template)
+	mulekick.WriteJSON(w, http.StatusCreated, template)
 }
 
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {

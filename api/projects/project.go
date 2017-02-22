@@ -2,18 +2,20 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*models.User)
 
-	projectID, err := util.GetIntParam("project_id", c)
+	projectID, err := util.GetIntParam("project_id", w, r)
 	if err != nil {
 		return
 	}
@@ -35,12 +37,11 @@ func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("project", project)
-	c.Next()
+	context.Set(r, "project", project)
 }
 
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	c.JSON(200, context.Get(r, "project"))
+	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
 func MustBeAdmin(w http.ResponseWriter, r *http.Request) {

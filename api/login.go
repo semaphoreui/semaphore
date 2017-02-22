@@ -27,8 +27,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
-	q := sq.Select("*").
-		From("user")
+	q := sq.Select("*").From("user")
 
 	_, err := mail.ParseAddress(login.Auth)
 	if err == nil {
@@ -58,7 +57,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
-		IP:         c.ClientIP(),
+		IP:         r.Header.Get("X-Real-IP"),
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
@@ -74,7 +73,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	http.SetCookie(c.Writer, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:  "semaphore",
 		Value: encoded,
 		Path:  "/",
@@ -84,6 +83,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
-	c.SetCookie("semaphore", "", -1, "/", "", false, true)
+	http.SetCookie(w, &http.Cookie{
+		Name:    "semaphore",
+		Value:   "",
+		Expires: time.Now().Add(24 * 7 * time.Hour * -1),
+		Path:    "/",
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }

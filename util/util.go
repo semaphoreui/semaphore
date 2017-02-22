@@ -1,9 +1,11 @@
 package util
 
 import (
-	"github.com/gin-gonic/gin"
+	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
@@ -16,22 +18,21 @@ func isXHR(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func AuthFailed(w http.ResponseWriter, r *http.Request) {
-	if isXHR(c) == false {
-		c.Redirect(302, "/?hai")
-	} else {
-		c.Writer.WriteHeader(401)
+	if isXHR(w, r) == false {
+		http.Redirect(w, r, "/?hai", http.StatusFound)
+		return
 	}
 
-	c.Abort()
-
+	w.WriteHeader(http.StatusUnauthorized)
 	return
 }
 
 func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, error) {
-	intParam, err := strconv.Atoi(c.Params.ByName(name))
+	intParam, err := strconv.Atoi(mux.Vars(r)[name])
+
 	if err != nil {
-		if isXHR(c) == false {
-			c.Redirect(302, "/404")
+		if isXHR(w, r) == false {
+			http.Redirect(w, r, "/404", http.StatusFound)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 		}

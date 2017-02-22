@@ -3,13 +3,14 @@ package api
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/context"
 )
 
 func authentication(w http.ResponseWriter, r *http.Request) {
@@ -81,5 +82,5 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Set("user", user)
+	context.Set(r, "user", user)
 }

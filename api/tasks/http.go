@@ -1,13 +1,15 @@
 package tasks
 
 import (
+	"net/http"
 	"strconv"
 	"time"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
@@ -44,7 +46,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(201, taskObj)
+	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
 func GetAll(w http.ResponseWriter, r *http.Request) {
@@ -69,11 +71,11 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, tasks)
+	mulekick.WriteJSON(w, http.StatusOK, tasks)
 }
 
 func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
-	taskID, err := util.GetIntParam("task_id", c)
+	taskID, err := util.GetIntParam("task_id", w, r)
 	if err != nil {
 		panic(err)
 	}
@@ -83,8 +85,7 @@ func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("task", task)
-	c.Next()
+	context.Set(r, "task", task)
 }
 
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +96,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, output)
+	mulekick.WriteJSON(w, http.StatusOK, output)
 }
 
 func RemoveTask(w http.ResponseWriter, r *http.Request) {

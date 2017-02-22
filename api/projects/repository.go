@@ -2,13 +2,15 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 	"os"
 	"strconv"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
@@ -24,7 +26,7 @@ func clearRepositoryCache(repository models.Repository) error {
 
 func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
-	repositoryID, err := util.GetIntParam("repository_id", c)
+	repositoryID, err := util.GetIntParam("repository_id", w, r)
 	if err != nil {
 		return
 	}
@@ -39,8 +41,7 @@ func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("repository", repository)
-	c.Next()
+	context.Set(r, "repository", repository)
 }
 
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +58,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, repos)
+	mulekick.WriteJSON(w, http.StatusOK, repos)
 }
 
 func AddRepository(w http.ResponseWriter, r *http.Request) {
@@ -136,8 +137,8 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if templatesC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error":        "Repository is in use by one or more templates",
 				"templatesUse": true,
 			})

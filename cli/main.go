@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -16,8 +17,7 @@ import (
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/bugsnag/bugsnag-go"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/handlers"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -57,19 +57,13 @@ func main() {
 	}
 
 	go sockets.StartWS()
-	r := gin.New()
-	r.Use(gin.Recovery(), recovery, gin.Logger())
-
-	api.Route(r)
-
 	go checkUpdates()
 	go tasks.StartRunner()
-	r.Run(util.Config.Port)
-}
 
-func recovery(w http.ResponseWriter, r *http.Request) {
-	defer bugsnag.AutoNotify()
-	c.Next()
+	var router http.Handler = api.Route()
+	router = handlers.ProxyHeaders(router)
+	http.Handle("/", router)
+	http.ListenAndServe(util.Config.Port, nil)
 }
 
 func doSetup() int {
