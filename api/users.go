@@ -2,12 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"net/http"
 	"time"
 
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,12 +19,12 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(200, users)
+	mulekick.WriteJSON(w, http.StatusOK, users)
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
-	if err := c.Bind(&user); err != nil {
+	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
@@ -32,7 +34,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.JSON(201, user)
+	mulekick.WriteJSON(w, http.StatusCreated, user)
 }
 
 func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
@@ -51,15 +53,14 @@ func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c.Set("_user", user)
-	c.Next()
+	context.Set(r, "_user", user)
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	oldUser := c.MustGet("_user").(models.User)
+	oldUser := context.Get(r, "_user").(models.User)
 
 	var user models.User
-	if err := c.Bind(&user); err != nil {
+	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
@@ -71,12 +72,12 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("_user").(models.User)
+	user := context.Get(r, "_user").(models.User)
 	var pwd struct {
 		Pwd string `json:"password"`
 	}
 
-	if err := c.Bind(&pwd); err != nil {
+	if err := mulekick.Bind(w, r, &pwd); err != nil {
 		return
 	}
 
@@ -89,7 +90,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("_user").(models.User)
+	user := context.Get(r, "_user").(models.User)
 
 	if _, err := database.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
 		panic(err)

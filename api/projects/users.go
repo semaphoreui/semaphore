@@ -12,7 +12,7 @@ import (
 )
 
 func UserMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	userID, err := util.GetIntParam("user_id", c)
 	if err != nil {
 		return
@@ -33,7 +33,7 @@ func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var users []struct {
 		models.User
 		Admin bool `db:"admin" json:"admin"`
@@ -53,13 +53,13 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddUser(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var user struct {
 		UserID int  `json:"user_id" binding:"required"`
 		Admin  bool `json:"admin"`
 	}
 
-	if err := c.Bind(&user); err != nil {
+	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
@@ -82,8 +82,8 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
-	user := c.MustGet("projectUser").(models.User)
+	project := context.Get(r, "project").(models.Project)
+	user := context.Get(r, "projectUser").(models.User)
 
 	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
 		panic(err)
@@ -104,8 +104,8 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
-	user := c.MustGet("projectUser").(models.User)
+	project := context.Get(r, "project").(models.Project)
+	user := context.Get(r, "projectUser").(models.User)
 	admin := 1
 
 	if r.Method == "DELETE" {

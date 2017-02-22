@@ -12,11 +12,11 @@ import (
 )
 
 func AddTask(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
-	user := c.MustGet("user").(*models.User)
+	project := context.Get(r, "project").(models.Project)
+	user := context.Get(r, "user").(*models.User)
 
 	var taskObj models.Task
-	if err := c.Bind(&taskObj); err != nil {
+	if err := mulekick.Bind(w, r, &taskObj); err != nil {
 		return
 	}
 
@@ -48,7 +48,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAll(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 
 	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
@@ -88,7 +88,7 @@ func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := c.MustGet("task").(models.Task)
+	task := context.Get(r, "task").(models.Task)
 
 	var output []models.TaskOutput
 	if _, err := database.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
@@ -99,7 +99,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	task := c.MustGet("task").(models.Task)
+	task := context.Get(r, "task").(models.Task)
 
 	statements := []string{
 		"delete from task__output where task_id=?",

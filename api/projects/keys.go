@@ -11,7 +11,7 @@ import (
 )
 
 func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	keyID, err := util.GetIntParam("key_id", c)
 	if err != nil {
 		return
@@ -32,7 +32,7 @@ func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetKeys(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var keys []models.AccessKey
 
 	q := squirrel.Select("id, name, type, project_id, `key`, removed").
@@ -52,10 +52,10 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddKey(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var key models.AccessKey
 
-	if err := c.Bind(&key); err != nil {
+	if err := mulekick.Bind(w, r, &key); err != nil {
 		return
 	}
 
@@ -102,9 +102,9 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key models.AccessKey
-	oldKey := c.MustGet("accessKey").(models.AccessKey)
+	oldKey := context.Get(r, "accessKey").(models.AccessKey)
 
-	if err := c.Bind(&key); err != nil {
+	if err := mulekick.Bind(w, r, &key); err != nil {
 		return
 	}
 
@@ -152,7 +152,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
-	key := c.MustGet("accessKey").(models.AccessKey)
+	key := context.Get(r, "accessKey").(models.AccessKey)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {

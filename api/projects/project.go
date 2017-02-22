@@ -11,7 +11,7 @@ import (
 )
 
 func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 
 	projectID, err := util.GetIntParam("project_id", c)
 	if err != nil {
@@ -40,12 +40,12 @@ func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	c.JSON(200, c.MustGet("project"))
+	c.JSON(200, context.Get(r, "project"))
 }
 
 func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
-	user := c.MustGet("user").(*models.User)
+	project := context.Get(r, "project").(models.Project)
+	user := context.Get(r, "user").(*models.User)
 
 	userC, err := database.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 	if err != nil {
@@ -59,12 +59,12 @@ func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var body struct {
 		Name string `json:"name"`
 	}
 
-	if err := c.Bind(&body); err != nil {
+	if err := mulekick.Bind(w, r, &body); err != nil {
 		return
 	}
 
@@ -76,7 +76,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 
 	tx, err := database.Mysql.Begin()
 	if err != nil {

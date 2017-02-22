@@ -8,14 +8,14 @@ import (
 )
 
 func getEvents(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
 		LeftJoin("project as p on event.project_id=p.id").
 		OrderBy("created desc")
 
-	projectObj, exists := c.Get("project")
+	projectObj, exists := context.GetOk(r, "project")
 	if exists == true {
 		// limit query to project
 		project := projectObj.(models.Project)

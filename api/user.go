@@ -13,16 +13,16 @@ import (
 )
 
 func getUser(w http.ResponseWriter, r *http.Request) {
-	if u, exists := c.Get("_user"); exists {
+	if u, exists := context.GetOk(r, "_user"); exists {
 		c.JSON(200, u)
 		return
 	}
 
-	c.JSON(200, c.MustGet("user"))
+	c.JSON(200, context.Get(r, "user"))
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 
 	var tokens []models.APIToken
 	if _, err := database.Mysql.Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
@@ -33,7 +33,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
@@ -54,7 +54,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func expireAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 
 	tokenID := c.Param("token_id")
 	res, err := database.Mysql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)

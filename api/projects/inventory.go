@@ -11,7 +11,7 @@ import (
 )
 
 func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	inventoryID, err := util.GetIntParam("inventory_id", c)
 	if err != nil {
 		return
@@ -38,7 +38,7 @@ func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetInventory(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var inv []models.Inventory
 
 	query, args, _ := squirrel.Select("*").
@@ -54,7 +54,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddInventory(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`
@@ -63,7 +63,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := c.Bind(&inventory); err != nil {
+	if err := mulekick.Bind(w, r, &inventory); err != nil {
 		return
 	}
 
@@ -98,7 +98,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
-	oldInventory := c.MustGet("inventory").(models.Inventory)
+	oldInventory := context.Get(r, "inventory").(models.Inventory)
 
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
@@ -108,7 +108,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := c.Bind(&inventory); err != nil {
+	if err := mulekick.Bind(w, r, &inventory); err != nil {
 		return
 	}
 
@@ -139,7 +139,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
-	inventory := c.MustGet("inventory").(models.Inventory)
+	inventory := context.Get(r, "inventory").(models.Inventory)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
 	if err != nil {

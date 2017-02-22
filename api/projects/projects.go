@@ -8,7 +8,7 @@ import (
 )
 
 func GetProjects(w http.ResponseWriter, r *http.Request) {
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 
 	query, args, _ := squirrel.Select("p.*").
 		From("project as p").
@@ -27,9 +27,9 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 
 func AddProject(w http.ResponseWriter, r *http.Request) {
 	var body models.Project
-	user := c.MustGet("user").(*models.User)
+	user := context.Get(r, "user").(*models.User)
 
-	if err := c.Bind(&body); err != nil {
+	if err := mulekick.Bind(w, r, &body); err != nil {
 		return
 	}
 

@@ -23,7 +23,7 @@ func clearRepositoryCache(repository models.Repository) error {
 }
 
 func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	repositoryID, err := util.GetIntParam("repository_id", c)
 	if err != nil {
 		return
@@ -44,7 +44,7 @@ func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var repos []models.Repository
 
 	query, args, _ := squirrel.Select("*").
@@ -61,14 +61,14 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddRepository(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
 		GitUrl   string `json:"git_url" binding:"required"`
 		SshKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := c.Bind(&repository); err != nil {
+	if err := mulekick.Bind(w, r, &repository); err != nil {
 		return
 	}
 
@@ -95,13 +95,13 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateRepository(w http.ResponseWriter, r *http.Request) {
-	oldRepo := c.MustGet("repository").(models.Repository)
+	oldRepo := context.Get(r, "repository").(models.Repository)
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
 		GitUrl   string `json:"git_url" binding:"required"`
 		SshKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := c.Bind(&repository); err != nil {
+	if err := mulekick.Bind(w, r, &repository); err != nil {
 		return
 	}
 
@@ -128,7 +128,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
-	repository := c.MustGet("repository").(models.Repository)
+	repository := context.Get(r, "repository").(models.Repository)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 )
 
 func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	envID, err := util.GetIntParam("environment_id", c)
 	if err != nil {
 		return
@@ -38,7 +38,7 @@ func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var env []models.Environment
 
 	q := squirrel.Select("*").
@@ -55,9 +55,9 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
-	oldEnv := c.MustGet("environment").(models.Environment)
+	oldEnv := context.Get(r, "environment").(models.Environment)
 	var env models.Environment
-	if err := c.Bind(&env); err != nil {
+	if err := mulekick.Bind(w, r, &env); err != nil {
 		return
 	}
 
@@ -69,10 +69,10 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddEnvironment(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var env models.Environment
 
-	if err := c.Bind(&env); err != nil {
+	if err := mulekick.Bind(w, r, &env); err != nil {
 		return
 	}
 
@@ -99,7 +99,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
-	env := c.MustGet("environment").(models.Environment)
+	env := context.Get(r, "environment").(models.Environment)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
 	if err != nil {

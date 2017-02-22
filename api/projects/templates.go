@@ -12,7 +12,7 @@ import (
 )
 
 func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	templateID, err := util.GetIntParam("template_id", c)
 	if err != nil {
 		return
@@ -33,7 +33,7 @@ func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 	var templates []models.Template
 
 	q := squirrel.Select("*").
@@ -50,10 +50,10 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
-	project := c.MustGet("project").(models.Project)
+	project := context.Get(r, "project").(models.Project)
 
 	var template models.Template
-	if err := c.Bind(&template); err != nil {
+	if err := mulekick.Bind(w, r, &template); err != nil {
 		return
 	}
 
@@ -84,10 +84,10 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	oldTemplate := c.MustGet("template").(models.Template)
+	oldTemplate := context.Get(r, "template").(models.Template)
 
 	var template models.Template
-	if err := c.Bind(&template); err != nil {
+	if err := mulekick.Bind(w, r, &template); err != nil {
 		return
 	}
 
@@ -110,7 +110,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
-	tpl := c.MustGet("template").(models.Template)
+	tpl := context.Get(r, "template").(models.Template)
 
 	if _, err := database.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
 		panic(err)
