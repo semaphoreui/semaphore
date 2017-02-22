@@ -50,7 +50,7 @@ func AddTask(c *gin.Context) {
 func GetAll(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name").
+	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("user on task.user_id=user.id").
@@ -62,6 +62,7 @@ func GetAll(c *gin.Context) {
 		models.Task
 
 		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
+		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
 	if _, err := database.Mysql.Select(&tasks, query, args...); err != nil {

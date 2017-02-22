@@ -13,6 +13,8 @@
 		h4.no-top-margin Task history
 		ul.nav.nav-pills.nav-stacked.task-history-list
 			li(ng-repeat="task in tasks"): a(ng-click="openTask(task)" href="#")
+				h4.center-block(ng-if="task.tpl_alias.length > 0") {{ task.tpl_alias }}
+				h4.center-block(ng-if="task.tpl_alias.length == 0") No alias
 				span(ng-class="{ 'text-muted': task.status == 'waiting', 'text-info': task.status == 'running', 'text-danger': task.status == 'error', 'text-success': task.status == 'success' }")
 					span(ng-if="task.playbook.length == 0") {{ task.tpl_playbook }}
 					span(ng-if="task.playbook.length > 0") {{ task.playbook }}
