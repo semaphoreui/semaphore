@@ -47,10 +47,17 @@ var Version string = "$VERSION"
 
 HEREDOC
 
-	git add util/version.go && git commit -m "bump version to $VERSION"
+	echo "Updating changelog:"
+	git changelog -t "v$VERSION"
+
+	echo "\nCommitting version.go and changelog update"
+	git add util/version.go CHANGELOG.md && git commit -m "update changelog, bump version to $VERSION"
+	echo "\nTagging release"
 	git tag -m "v$VERSION release" "v$VERSION"
+	echo "\nPushing to repository"
 	git push origin master "v$VERSION"
-	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION"
+	echo "\nCreating draft release v$VERSION"
+	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
 fi
 
 go-bindata $BINDATA_ARGS config.json db/migrations/ $(find public/* -type d -print)
@@ -81,5 +88,8 @@ if [ "$CIRCLE_ARTIFACTS" != "" ]; then
 fi
 
 if [ "$1" == "release" ]; then
-	github-release upload -u ansible-semaphore -r semaphore -t "v$2" -f "semaphore_*"
+	echo "Uploading files.."
+	VERSION=$2 find . -name "semaphore_*" -exec sh -c 'github-release upload -u ansible-semaphore -r semaphore -t "v$VERSION" -n "${1/.\/}" -f "$1"' _ {} \;
+	echo "Done"
+	rm -f semaphore_*
 fi
