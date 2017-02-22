@@ -5,3 +5,4 @@ public/js/bundle.js
 public/css/semaphore.css
 config.json
 .DS_Store
+node_modules

@@ -49,10 +49,11 @@ if [ "$1" == "watch" ]; then
 
 	nodemon -w js -i bundle.js -e js bundler.js &
 	nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
-	pug -w -P html/*.jade html/*/*.jade html/*/*/*.jade &
+	pug -w -P html/*.pug html/*/*.pug html/*/*/*.pug &
 
-	cd ../
-	reflex -r '\.go$' -s -d none -- sh -c 'go run cli/main.go'
+	cd -
+	reflex -r '\.go$' -R '^public/vendor/' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore cli/main.go && /tmp/semaphore'
+	
 	exit 0
 fi
 
