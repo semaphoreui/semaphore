@@ -28,7 +28,7 @@ EOF
 
 	cd public
 	lessc css/semaphore.less > css/semaphore.css
-	pug html/*.jade html/*/*.jade html/*/*/*.jade &
+	pug html/*.pug html/*/*.pug html/*/*/*.pug
 	cd -
 fi
 
