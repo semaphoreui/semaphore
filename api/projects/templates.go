@@ -11,7 +11,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func TemplatesMiddleware(c *gin.Context) {
+func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	templateID, err := util.GetIntParam("template_id", c)
 	if err != nil {
@@ -21,7 +21,7 @@ func TemplatesMiddleware(c *gin.Context) {
 	var template models.Template
 	if err := database.Mysql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -32,7 +32,7 @@ func TemplatesMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetTemplates(c *gin.Context) {
+func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var templates []models.Template
 
@@ -49,7 +49,7 @@ func GetTemplates(c *gin.Context) {
 	c.JSON(200, templates)
 }
 
-func AddTemplate(c *gin.Context) {
+func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 
 	var template models.Template
@@ -83,7 +83,7 @@ func AddTemplate(c *gin.Context) {
 	c.JSON(201, template)
 }
 
-func UpdateTemplate(c *gin.Context) {
+func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	oldTemplate := c.MustGet("template").(models.Template)
 
 	var template models.Template
@@ -106,10 +106,10 @@ func UpdateTemplate(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveTemplate(c *gin.Context) {
+func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 	tpl := c.MustGet("template").(models.Template)
 
 	if _, err := database.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
@@ -124,5 +124,5 @@ func RemoveTemplate(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

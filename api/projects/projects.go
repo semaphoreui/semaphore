@@ -7,7 +7,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func GetProjects(c *gin.Context) {
+func GetProjects(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("user").(*models.User)
 
 	query, args, _ := squirrel.Select("p.*").
@@ -25,7 +25,7 @@ func GetProjects(c *gin.Context) {
 	c.JSON(200, projects)
 }
 
-func AddProject(c *gin.Context) {
+func AddProject(w http.ResponseWriter, r *http.Request) {
 	var body models.Project
 	user := c.MustGet("user").(*models.User)
 

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func getUsers(c *gin.Context) {
+func getUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
 	if _, err := database.Mysql.Select(&users, "select * from user"); err != nil {
 		panic(err)
@@ -20,7 +20,7 @@ func getUsers(c *gin.Context) {
 	c.JSON(200, users)
 }
 
-func addUser(c *gin.Context) {
+func addUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := c.Bind(&user); err != nil {
 		return
@@ -35,7 +35,7 @@ func addUser(c *gin.Context) {
 	c.JSON(201, user)
 }
 
-func getUserMiddleware(c *gin.Context) {
+func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 	userID, err := util.GetIntParam("user_id", c)
 	if err != nil {
 		return
@@ -44,7 +44,7 @@ func getUserMiddleware(c *gin.Context) {
 	var user models.User
 	if err := database.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -55,7 +55,7 @@ func getUserMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func updateUser(c *gin.Context) {
+func updateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := c.MustGet("_user").(models.User)
 
 	var user models.User
@@ -67,10 +67,10 @@ func updateUser(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func updateUserPassword(c *gin.Context) {
+func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("_user").(models.User)
 	var pwd struct {
 		Pwd string `json:"password"`
@@ -85,10 +85,10 @@ func updateUserPassword(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func deleteUser(c *gin.Context) {
+func deleteUser(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("_user").(models.User)
 
 	if _, err := database.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
@@ -98,5 +98,5 @@ func deleteUser(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

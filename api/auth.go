@@ -12,14 +12,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func authentication(c *gin.Context) {
+func authentication(w http.ResponseWriter, r *http.Request) {
 	var userID int
 
-	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
+	if authHeader := strings.ToLower(r.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 		var token models.APIToken
 		if err := database.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
 			if err == sql.ErrNoRows {
-				c.AbortWithStatus(403)
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 
@@ -29,22 +29,22 @@ func authentication(c *gin.Context) {
 		userID = token.UserID
 	} else {
 		// fetch session from cookie
-		cookie, err := c.Request.Cookie("semaphore")
+		cookie, err := r.Cookie("semaphore")
 		if err != nil {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		value := make(map[string]interface{})
 		if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		user, ok := value["user"]
 		sessionVal, okSession := value["session"]
 		if !ok || !okSession {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
@@ -54,7 +54,7 @@ func authentication(c *gin.Context) {
 		// fetch session
 		var session models.Session
 		if err := database.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
@@ -65,7 +65,7 @@ func authentication(c *gin.Context) {
 				panic(err)
 			}
 
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
@@ -77,7 +77,7 @@ func authentication(c *gin.Context) {
 	user, err := models.FetchUser(userID)
 	if err != nil {
 		fmt.Println("Can't find user", err)
-		c.AbortWithStatus(403)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 

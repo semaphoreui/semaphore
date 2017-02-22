@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func isXHR(c *gin.Context) bool {
-	accept := c.Request.Header.Get("Accept")
+func isXHR(w http.ResponseWriter, r *http.Request) bool {
+	accept := r.Header.Get("Accept")
 	if strings.Contains(accept, "text/html") {
 		return false
 	}
@@ -15,7 +15,7 @@ func isXHR(c *gin.Context) bool {
 	return true
 }
 
-func AuthFailed(c *gin.Context) {
+func AuthFailed(w http.ResponseWriter, r *http.Request) {
 	if isXHR(c) == false {
 		c.Redirect(302, "/?hai")
 	} else {
@@ -27,13 +27,13 @@ func AuthFailed(c *gin.Context) {
 	return
 }
 
-func GetIntParam(name string, c *gin.Context) (int, error) {
+func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, error) {
 	intParam, err := strconv.Atoi(c.Params.ByName(name))
 	if err != nil {
 		if isXHR(c) == false {
 			c.Redirect(302, "/404")
 		} else {
-			c.AbortWithStatus(400)
+			w.WriteHeader(http.StatusBadRequest)
 		}
 
 		return 0, err

@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func getUser(c *gin.Context) {
+func getUser(w http.ResponseWriter, r *http.Request) {
 	if u, exists := c.Get("_user"); exists {
 		c.JSON(200, u)
 		return
@@ -21,7 +21,7 @@ func getUser(c *gin.Context) {
 	c.JSON(200, c.MustGet("user"))
 }
 
-func getAPITokens(c *gin.Context) {
+func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("user").(*models.User)
 
 	var tokens []models.APIToken
@@ -32,7 +32,7 @@ func getAPITokens(c *gin.Context) {
 	c.JSON(200, tokens)
 }
 
-func createAPIToken(c *gin.Context) {
+func createAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("user").(*models.User)
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
@@ -53,7 +53,7 @@ func createAPIToken(c *gin.Context) {
 	c.JSON(201, token)
 }
 
-func expireAPIToken(c *gin.Context) {
+func expireAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("user").(*models.User)
 
 	tokenID := c.Param("token_id")
@@ -68,9 +68,9 @@ func expireAPIToken(c *gin.Context) {
 	}
 
 	if affected == 0 {
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

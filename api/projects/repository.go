@@ -22,7 +22,7 @@ func clearRepositoryCache(repository models.Repository) error {
 	return nil
 }
 
-func RepositoryMiddleware(c *gin.Context) {
+func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	repositoryID, err := util.GetIntParam("repository_id", c)
 	if err != nil {
@@ -32,7 +32,7 @@ func RepositoryMiddleware(c *gin.Context) {
 	var repository models.Repository
 	if err := database.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -43,7 +43,7 @@ func RepositoryMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetRepositories(c *gin.Context) {
+func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var repos []models.Repository
 
@@ -60,7 +60,7 @@ func GetRepositories(c *gin.Context) {
 	c.JSON(200, repos)
 }
 
-func AddRepository(c *gin.Context) {
+func AddRepository(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 
 	var repository struct {
@@ -91,10 +91,10 @@ func AddRepository(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateRepository(c *gin.Context) {
+func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	oldRepo := c.MustGet("repository").(models.Repository)
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
@@ -124,10 +124,10 @@ func UpdateRepository(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveRepository(c *gin.Context) {
+func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	repository := c.MustGet("repository").(models.Repository)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
@@ -149,7 +149,7 @@ func RemoveRepository(c *gin.Context) {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -167,5 +167,5 @@ func RemoveRepository(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

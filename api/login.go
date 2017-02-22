@@ -10,18 +10,18 @@ import (
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
 	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func login(c *gin.Context) {
+func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 
-	if err := c.Bind(&login); err != nil {
+	if err := mulekick.Bind(w, r, &login); err != nil {
 		return
 	}
 
@@ -42,7 +42,7 @@ func login(c *gin.Context) {
 	var user models.User
 	if err := database.Mysql.SelectOne(&user, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -50,7 +50,7 @@ func login(c *gin.Context) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -59,7 +59,7 @@ func login(c *gin.Context) {
 		Created:    time.Now(),
 		LastActive: time.Now(),
 		IP:         c.ClientIP(),
-		UserAgent:  c.Request.Header.Get("user-agent"),
+		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
 	if err := database.Mysql.Insert(&session); err != nil {
@@ -80,10 +80,10 @@ func login(c *gin.Context) {
 		Path:  "/",
 	})
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func logout(c *gin.Context) {
+func logout(w http.ResponseWriter, r *http.Request) {
 	c.SetCookie("semaphore", "", -1, "/", "", false, true)
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

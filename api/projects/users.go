@@ -11,7 +11,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func UserMiddleware(c *gin.Context) {
+func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	userID, err := util.GetIntParam("user_id", c)
 	if err != nil {
@@ -21,7 +21,7 @@ func UserMiddleware(c *gin.Context) {
 	var user models.User
 	if err := database.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -32,7 +32,7 @@ func UserMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetUsers(c *gin.Context) {
+func GetUsers(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var users []struct {
 		models.User
@@ -52,7 +52,7 @@ func GetUsers(c *gin.Context) {
 	c.JSON(200, users)
 }
 
-func AddUser(c *gin.Context) {
+func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var user struct {
 		UserID int  `json:"user_id" binding:"required"`
@@ -78,10 +78,10 @@ func AddUser(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveUser(c *gin.Context) {
+func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("projectUser").(models.User)
 
@@ -100,15 +100,15 @@ func RemoveUser(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func MakeUserAdmin(c *gin.Context) {
+func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("projectUser").(models.User)
 	admin := 1
 
-	if c.Request.Method == "DELETE" {
+	if r.Method == "DELETE" {
 		// strip admin
 		admin = 0
 	}
@@ -117,5 +117,5 @@ func MakeUserAdmin(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

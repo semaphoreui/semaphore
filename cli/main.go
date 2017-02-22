@@ -67,7 +67,7 @@ func main() {
 	r.Run(util.Config.Port)
 }
 
-func recovery(c *gin.Context) {
+func recovery(w http.ResponseWriter, r *http.Request) {
 	defer bugsnag.AutoNotify()
 	c.Next()
 }

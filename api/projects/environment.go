@@ -10,7 +10,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func EnvironmentMiddleware(c *gin.Context) {
+func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	envID, err := util.GetIntParam("environment_id", c)
 	if err != nil {
@@ -26,7 +26,7 @@ func EnvironmentMiddleware(c *gin.Context) {
 	var env models.Environment
 	if err := database.Mysql.SelectOne(&env, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -37,7 +37,7 @@ func EnvironmentMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetEnvironment(c *gin.Context) {
+func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var env []models.Environment
 
@@ -54,7 +54,7 @@ func GetEnvironment(c *gin.Context) {
 	c.JSON(200, env)
 }
 
-func UpdateEnvironment(c *gin.Context) {
+func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := c.MustGet("environment").(models.Environment)
 	var env models.Environment
 	if err := c.Bind(&env); err != nil {
@@ -65,10 +65,10 @@ func UpdateEnvironment(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func AddEnvironment(c *gin.Context) {
+func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var env models.Environment
 
@@ -95,10 +95,10 @@ func AddEnvironment(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveEnvironment(c *gin.Context) {
+func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := c.MustGet("environment").(models.Environment)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
@@ -120,7 +120,7 @@ func RemoveEnvironment(c *gin.Context) {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -136,5 +136,5 @@ func RemoveEnvironment(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

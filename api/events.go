@@ -7,7 +7,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func getEvents(c *gin.Context) {
+func getEvents(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("user").(*models.User)
 
 	q := squirrel.Select("event.*, p.name as project_name").

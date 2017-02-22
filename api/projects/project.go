@@ -10,7 +10,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func ProjectMiddleware(c *gin.Context) {
+func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 	user := c.MustGet("user").(*models.User)
 
 	projectID, err := util.GetIntParam("project_id", c)
@@ -28,7 +28,7 @@ func ProjectMiddleware(c *gin.Context) {
 	var project models.Project
 	if err := database.Mysql.SelectOne(&project, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -39,11 +39,11 @@ func ProjectMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetProject(c *gin.Context) {
+func GetProject(w http.ResponseWriter, r *http.Request) {
 	c.JSON(200, c.MustGet("project"))
 }
 
-func MustBeAdmin(c *gin.Context) {
+func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("user").(*models.User)
 
@@ -53,12 +53,12 @@ func MustBeAdmin(c *gin.Context) {
 	}
 
 	if userC == 0 {
-		c.AbortWithStatus(403)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 }
 
-func UpdateProject(c *gin.Context) {
+func UpdateProject(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var body struct {
 		Name string `json:"name"`
@@ -72,10 +72,10 @@ func UpdateProject(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteProject(c *gin.Context) {
+func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 
 	tx, err := database.Mysql.Begin()
@@ -107,5 +107,5 @@ func DeleteProject(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

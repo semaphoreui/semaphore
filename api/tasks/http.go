@@ -11,7 +11,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func AddTask(c *gin.Context) {
+func AddTask(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("user").(*models.User)
 
@@ -47,7 +47,7 @@ func AddTask(c *gin.Context) {
 	c.JSON(201, taskObj)
 }
 
-func GetAll(c *gin.Context) {
+func GetAll(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 
 	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
@@ -72,7 +72,7 @@ func GetAll(c *gin.Context) {
 	c.JSON(200, tasks)
 }
 
-func GetTaskMiddleware(c *gin.Context) {
+func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 	taskID, err := util.GetIntParam("task_id", c)
 	if err != nil {
 		panic(err)
@@ -87,7 +87,7 @@ func GetTaskMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetTaskOutput(c *gin.Context) {
+func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := c.MustGet("task").(models.Task)
 
 	var output []models.TaskOutput
@@ -98,7 +98,7 @@ func GetTaskOutput(c *gin.Context) {
 	c.JSON(200, output)
 }
 
-func RemoveTask(c *gin.Context) {
+func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	task := c.MustGet("task").(models.Task)
 
 	statements := []string{
@@ -113,5 +113,5 @@ func RemoveTask(c *gin.Context) {
 		}
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

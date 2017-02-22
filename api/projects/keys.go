@@ -10,7 +10,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func KeyMiddleware(c *gin.Context) {
+func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	keyID, err := util.GetIntParam("key_id", c)
 	if err != nil {
@@ -20,7 +20,7 @@ func KeyMiddleware(c *gin.Context) {
 	var key models.AccessKey
 	if err := database.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -31,7 +31,7 @@ func KeyMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetKeys(c *gin.Context) {
+func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var keys []models.AccessKey
 
@@ -51,7 +51,7 @@ func GetKeys(c *gin.Context) {
 	c.JSON(200, keys)
 }
 
-func AddKey(c *gin.Context) {
+func AddKey(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var key models.AccessKey
 
@@ -97,10 +97,10 @@ func AddKey(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateKey(c *gin.Context) {
+func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key models.AccessKey
 	oldKey := c.MustGet("accessKey").(models.AccessKey)
 
@@ -148,10 +148,10 @@ func UpdateKey(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveKey(c *gin.Context) {
+func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := c.MustGet("accessKey").(models.AccessKey)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
@@ -178,7 +178,7 @@ func RemoveKey(c *gin.Context) {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -194,5 +194,5 @@ func RemoveKey(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

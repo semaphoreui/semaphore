@@ -13,7 +13,7 @@ import (
 
 // Declare all routes
 func Route(r *gin.Engine) {
-	r.GET("/api/ping", func(c *gin.Context) {
+	r.GET("/api/ping", func(w http.ResponseWriter, r *http.Request) {
 		c.String(200, "PONG")
 	})
 
@@ -102,8 +102,8 @@ func Route(r *gin.Engine) {
 	}(api.Group("/project/:project_id"))
 }
 
-func servePublic(c *gin.Context) {
-	path := c.Request.URL.Path
+func servePublic(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
 
 	if strings.HasPrefix(path, "/api") {
 		c.Next()
@@ -112,7 +112,7 @@ func servePublic(c *gin.Context) {
 
 	if !strings.HasPrefix(path, "/public") {
 		if len(strings.Split(path, ".")) > 1 {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -155,7 +155,7 @@ func servePublic(c *gin.Context) {
 	c.String(200, string(res))
 }
 
-func getSystemInfo(c *gin.Context) {
+func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 	body := map[string]interface{}{
 		"version": util.Version,
 		"update":  util.UpdateAvailable,
@@ -175,7 +175,7 @@ func getSystemInfo(c *gin.Context) {
 	c.JSON(200, body)
 }
 
-func checkUpgrade(c *gin.Context) {
+func checkUpgrade(w http.ResponseWriter, r *http.Request) {
 	if err := util.CheckUpdate(util.Version); err != nil {
 		c.JSON(500, err)
 		return
@@ -186,9 +186,9 @@ func checkUpgrade(c *gin.Context) {
 		return
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func doUpgrade(c *gin.Context) {
+func doUpgrade(w http.ResponseWriter, r *http.Request) {
 	util.DoUpgrade(util.Version)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func InventoryMiddleware(c *gin.Context) {
+func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	inventoryID, err := util.GetIntParam("inventory_id", c)
 	if err != nil {
@@ -26,7 +26,7 @@ func InventoryMiddleware(c *gin.Context) {
 	var inventory models.Inventory
 	if err := database.Mysql.SelectOne(&inventory, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -37,7 +37,7 @@ func InventoryMiddleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetInventory(c *gin.Context) {
+func GetInventory(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var inv []models.Inventory
 
@@ -53,7 +53,7 @@ func GetInventory(c *gin.Context) {
 	c.JSON(200, inv)
 }
 
-func AddInventory(c *gin.Context) {
+func AddInventory(w http.ResponseWriter, r *http.Request) {
 	project := c.MustGet("project").(models.Project)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
@@ -71,7 +71,7 @@ func AddInventory(c *gin.Context) {
 	case "static", "aws", "do", "gcloud":
 		break
 	default:
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -94,10 +94,10 @@ func AddInventory(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateInventory(c *gin.Context) {
+func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	oldInventory := c.MustGet("inventory").(models.Inventory)
 
 	var inventory struct {
@@ -116,7 +116,7 @@ func UpdateInventory(c *gin.Context) {
 	case "static", "aws", "do", "gcloud":
 		break
 	default:
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -135,10 +135,10 @@ func UpdateInventory(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveInventory(c *gin.Context) {
+func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := c.MustGet("inventory").(models.Inventory)
 
 	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
@@ -160,7 +160,7 @@ func RemoveInventory(c *gin.Context) {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -176,5 +176,5 @@ func RemoveInventory(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
