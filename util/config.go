@@ -38,6 +38,14 @@ type configType struct {
 	// cookie hashing & encryption
 	CookieHash       string `json:"cookie_hash"`
 	CookieEncryption string `json:"cookie_encryption"`
+
+	//email alerting
+	EmailSender string `json:"email_sender"`
+	EmailHost   string `json:"email_host"`
+	EmailPort   string `json:"email_port"`
+
+	//web host
+	WebHost string `json:"web_host"`
 }
 
 var Config *configType

@@ -31,6 +31,7 @@ type task struct {
 func (t *task) fail() {
 	t.task.Status = "error"
 	t.updateStatus()
+	t.sendMailAlert()
 }
 
 func (t *task) run() {
