@@ -23,7 +23,7 @@
 			label.control-label.col-sm-4 Public Key
 			.col-sm-6
 				textarea.form-control(ng-model="key.key" rows="4")
-				p.help-text Public key is <strong>optional</strong> however you should set it so you can identify your private key by its fingerprint. Private keys are not available for reading later from the UI.
+				p.help-text Public key is <strong>optional</strong> (unless you are using SSH certificates) however you should set it so you can identify your private key by its fingerprint. Private keys are not available for reading later from the UI.
 		.form-group(ng-if="key.type == 'ssh'")
 			label.control-label.col-sm-4 Private Key
 			.col-sm-6
