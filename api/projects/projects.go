@@ -3,15 +3,14 @@ package projects
 import (
 	"net/http"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 func GetProjects(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 	query, args, _ := squirrel.Select("p.*").
 		From("project as p").
@@ -20,8 +19,8 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 		OrderBy("p.name").
 		ToSql()
 
-	var projects []models.Project
-	if _, err := database.Mysql.Select(&projects, query, args...); err != nil {
+	var projects []db.Project
+	if _, err := db.Mysql.Select(&projects, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -29,8 +28,8 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddProject(w http.ResponseWriter, r *http.Request) {
-	var body models.Project
-	user := context.Get(r, "user").(*models.User)
+	var body db.Project
+	user := context.Get(r, "user").(*db.User)
 
 	if err := mulekick.Bind(w, r, &body); err != nil {
 		return
@@ -41,12 +40,12 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__user set project_id=?, user_id=?, admin=1", body.ID, user.ID); err != nil {
+	if _, err := db.Mysql.Exec("insert into project__user set project_id=?, user_id=?, admin=1", body.ID, user.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Project Created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &body.ID,
 		Description: &desc,
 	}.Insert()); err != nil {

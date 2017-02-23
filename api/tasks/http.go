@@ -5,8 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
@@ -14,10 +13,10 @@ import (
 )
 
 func AddTask(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "user").(*models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "user").(*db.User)
 
-	var taskObj models.Task
+	var taskObj db.Task
 	if err := mulekick.Bind(w, r, &taskObj); err != nil {
 		return
 	}
@@ -26,7 +25,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
 
-	if err := database.Mysql.Insert(&taskObj); err != nil {
+	if err := db.Mysql.Insert(&taskObj); err != nil {
 		panic(err)
 	}
 
@@ -37,7 +36,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 	objType := "task"
 	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &taskObj.ID,
@@ -50,7 +49,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAll(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
 	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
@@ -61,13 +60,13 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 		ToSql()
 
 	var tasks []struct {
-		models.Task
+		db.Task
 
 		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
 		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
-	if _, err := database.Mysql.Select(&tasks, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&tasks, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -80,8 +79,8 @@ func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	var task models.Task
-	if err := database.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+	var task db.Task
+	if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
 		panic(err)
 	}
 
@@ -89,10 +88,10 @@ func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, "task").(models.Task)
+	task := context.Get(r, "task").(db.Task)
 
-	var output []models.TaskOutput
-	if _, err := database.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
+	var output []db.TaskOutput
+	if _, err := db.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
 		panic(err)
 	}
 
@@ -100,7 +99,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, "task").(models.Task)
+	task := context.Get(r, "task").(db.Task)
 
 	statements := []string{
 		"delete from task__output where task_id=?",
@@ -108,7 +107,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, statement := range statements {
-		_, err := database.Mysql.Exec(statement, task.ID)
+		_, err := db.Mysql.Exec(statement, task.ID)
 		if err != nil {
 			panic(err)
 		}

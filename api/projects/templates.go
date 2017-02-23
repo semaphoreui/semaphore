@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
@@ -14,14 +13,14 @@ import (
 )
 
 func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	templateID, err := util.GetIntParam("template_id", w, r)
 	if err != nil {
 		return
 	}
 
-	var template models.Template
-	if err := database.Mysql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
+	var template db.Template
+	if err := db.Mysql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -34,8 +33,8 @@ func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	var templates []models.Template
+	project := context.Get(r, "project").(db.Project)
+	var templates []db.Template
 
 	q := squirrel.Select("*").
 		From("project__template").
@@ -43,7 +42,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 
 	query, args, _ := q.ToSql()
 
-	if _, err := database.Mysql.Select(&templates, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&templates, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -51,14 +50,14 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
-	var template models.Template
+	var template db.Template
 	if err := mulekick.Bind(w, r, &template); err != nil {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
+	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +71,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	objType := "template"
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &template.ID,
@@ -85,20 +84,20 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	oldTemplate := context.Get(r, "template").(models.Template)
+	oldTemplate := context.Get(r, "template").(db.Template)
 
-	var template models.Template
+	var template db.Template
 	if err := mulekick.Bind(w, r, &template); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
 	objType := "template"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &oldTemplate.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldTemplate.ID,
@@ -111,14 +110,14 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
-	tpl := context.Get(r, "template").(models.Template)
+	tpl := context.Get(r, "template").(db.Template)
 
-	if _, err := database.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &tpl.ProjectID,
 		Description: &desc,
 	}.Insert()); err != nil {

@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
@@ -14,14 +13,14 @@ import (
 )
 
 func UserMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	userID, err := util.GetIntParam("user_id", w, r)
 	if err != nil {
 		return
 	}
 
-	var user models.User
-	if err := database.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
+	var user db.User
+	if err := db.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -34,9 +33,9 @@ func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	var users []struct {
-		models.User
+		db.User
 		Admin bool `db:"admin" json:"admin"`
 	}
 
@@ -46,7 +45,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		Where("pu.project_id=?", project.ID).
 		ToSql()
 
-	if _, err := database.Mysql.Select(&users, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&users, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -54,7 +53,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	var user struct {
 		UserID int  `json:"user_id" binding:"required"`
 		Admin  bool `json:"admin"`
@@ -64,13 +63,13 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__user set user_id=?, project_id=?, admin=?", user.UserID, project.ID, user.Admin); err != nil {
+	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, admin=?", user.UserID, project.ID, user.Admin); err != nil {
 		panic(err)
 	}
 
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.UserID,
@@ -83,16 +82,16 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "projectUser").(models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "projectUser").(db.User)
 
-	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
 		panic(err)
 	}
 
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.ID,
@@ -105,8 +104,8 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "projectUser").(models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "projectUser").(db.User)
 	admin := 1
 
 	if r.Method == "DELETE" {
@@ -114,7 +113,7 @@ func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 		admin = 0
 	}
 
-	if _, err := database.Mysql.Exec("update project__user set admin=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__user set admin=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
 		panic(err)
 	}
 

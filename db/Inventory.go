@@ -1,4 +1,4 @@
-package models
+package db
 
 type Inventory struct {
 	ID        int    `db:"id" json:"id"`

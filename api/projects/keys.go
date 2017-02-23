@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
@@ -13,14 +12,14 @@ import (
 )
 
 func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	keyID, err := util.GetIntParam("key_id", w, r)
 	if err != nil {
 		return
 	}
 
-	var key models.AccessKey
-	if err := database.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
+	var key db.AccessKey
+	if err := db.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -33,8 +32,8 @@ func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetKeys(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	var keys []models.AccessKey
+	project := context.Get(r, "project").(db.Project)
+	var keys []db.AccessKey
 
 	q := squirrel.Select("id, name, type, project_id, `key`, removed").
 		From("access_key").
@@ -45,7 +44,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query, args, _ := q.ToSql()
-	if _, err := database.Mysql.Select(&keys, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&keys, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -53,8 +52,8 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddKey(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	var key models.AccessKey
+	project := context.Get(r, "project").(db.Project)
+	var key db.AccessKey
 
 	if err := mulekick.Bind(w, r, &key); err != nil {
 		return
@@ -79,7 +78,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	secret := *key.Secret + "\n"
 
-	res, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, secret)
+	res, err := db.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, secret)
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +88,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	objType := "key"
 
 	desc := "Access Key " + key.Name + " created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -102,8 +101,8 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateKey(w http.ResponseWriter, r *http.Request) {
-	var key models.AccessKey
-	oldKey := context.Get(r, "accessKey").(models.AccessKey)
+	var key db.AccessKey
+	oldKey := context.Get(r, "accessKey").(db.AccessKey)
 
 	if err := mulekick.Bind(w, r, &key); err != nil {
 		return
@@ -134,13 +133,13 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		key.Secret = &secret
 	}
 
-	if _, err := database.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	if _, err := db.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Access Key " + key.Name + " updated"
 	objType := "key"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldKey.ID,
@@ -153,14 +152,14 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
-	key := context.Get(r, "accessKey").(models.AccessKey)
+	key := context.Get(r, "accessKey").(db.AccessKey)
 
-	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	inventoryC, err := database.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	inventoryC, err := db.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -175,7 +174,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
+		if _, err := db.Mysql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
 			panic(err)
 		}
 
@@ -183,12 +182,12 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Access Key " + key.Name + " deleted"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   key.ProjectID,
 		Description: &desc,
 	}.Insert()); err != nil {

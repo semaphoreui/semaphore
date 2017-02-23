@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
@@ -13,7 +12,7 @@ import (
 )
 
 func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 	projectID, err := util.GetIntParam("project_id", w, r)
 	if err != nil {
@@ -27,8 +26,8 @@ func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 		Where("pu.user_id=?", user.ID).
 		ToSql()
 
-	var project models.Project
-	if err := database.Mysql.SelectOne(&project, query, args...); err != nil {
+	var project db.Project
+	if err := db.Mysql.SelectOne(&project, query, args...); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -45,10 +44,10 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "user").(*models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "user").(*db.User)
 
-	userC, err := database.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+	userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +59,7 @@ func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	var body struct {
 		Name string `json:"name"`
 	}
@@ -69,7 +68,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project set name=? where id=?", body.Name, project.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project set name=? where id=?", body.Name, project.ID); err != nil {
 		panic(err)
 	}
 
@@ -77,9 +76,9 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
-	tx, err := database.Mysql.Begin()
+	tx, err := db.Mysql.Begin()
 	if err != nil {
 		panic(err)
 	}

@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
 	sq "github.com/masterminds/squirrel"
@@ -38,8 +37,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	query, args, _ := q.ToSql()
 
-	var user models.User
-	if err := database.Mysql.SelectOne(&user, query, args...); err != nil {
+	var user db.User
+	if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -53,7 +52,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session := models.Session{
+	session := db.Session{
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
@@ -61,7 +60,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err := database.Mysql.Insert(&session); err != nil {
+	if err := db.Mysql.Insert(&session); err != nil {
 		panic(err)
 	}
 

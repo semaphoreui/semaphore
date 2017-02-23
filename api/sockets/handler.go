@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 )
@@ -97,7 +97,7 @@ func (c *connection) writePump() {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		panic(err)
