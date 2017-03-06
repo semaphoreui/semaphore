@@ -214,8 +214,14 @@ func (t *task) populateDetails() error {
 
 func (t *task) installKey(key db.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
-	err := ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
-
+	var path = key.GetPath()
+	err := ioutil.WriteFile(path, []byte(*key.Secret), 0600)
+	if key.Key != nil {
+		err2 := ioutil.WriteFile(path+"-cert.pub", []byte(*key.Key), 0600)
+		if err2 != nil {
+			return err2
+		}
+	}
 	return err
 }
 

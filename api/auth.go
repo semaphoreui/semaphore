@@ -69,7 +69,7 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Mysql.Exec("update session set last_active=NOW() where id=?", sessionID); err != nil {
+		if _, err := db.Mysql.Exec("update session set last_active=UTC_TIMESTAMP() where id=?", sessionID); err != nil {
 			panic(err)
 		}
 	}
