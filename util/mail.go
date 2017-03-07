@@ -5,7 +5,7 @@ import (
 	"net/smtp"
 )
 
-func SendMail(emailHost string, mailSender string, mailRecipient string, subject string, body string) error {
+func SendMail(emailHost string, mailSender string, mailRecipient string, mail bytes.Buffer) error {
 
 	c, err := smtp.Dial(emailHost)
 	if err != nil {
@@ -24,11 +24,9 @@ func SendMail(emailHost string, mailSender string, mailRecipient string, subject
 	}
 
 	defer wc.Close()
-	buf := bytes.NewBufferString("Subject: " + subject + "\r\n\r\n" + body + "\r\n")
-	if _, err = buf.WriteTo(wc); err != nil {
+	if _, err = mail.WriteTo(wc); err != nil {
 		return err
 	}
-
 	return nil
 
 }
