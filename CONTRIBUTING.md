@@ -12,9 +12,14 @@ When creating a pull-request you should:
 - Install MySQL / MariaDB
 - Install node.js
 
-1) Set up the gopath
+1) Set up GOPATH, GOBIN and Workspace
 
 ```
+cd {WORKING_DIRECTORY}
+export GOPATH=`pwd`
+export GOBIN=$GOPATH/bin
+export PATH=$PATH:$GOBIN
+
 mkdir -p $GOPATH/src/github.com/ansible-semaphore && cd $GOPATH/src/github.com/ansible-semaphore
 ```
 
@@ -27,7 +32,7 @@ git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semap
 3) Install dev dependencies
 
 ```
-go get ./... github.com/cespare/reflex github.com/jteeuwen/go-bindata/...
+go get ./... github.com/cespare/reflex github.com/jteeuwen/go-bindata/... github.com/mitchellh/gox
 npm install async
 npm install -g nodemon pug-cli less
 ```
@@ -48,6 +53,7 @@ cat <<EOT >> config.json
 EOT
 
 echo "create database semaphore;" | mysql -uroot -p
+go-bindata -debug -o util/bindata.go -pkg util config.json db/migrations/ $(find public/* -type d -print)
 go run cli/main.go -config ./config.json -migrate
 ```
 
