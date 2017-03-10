@@ -191,4 +191,44 @@ func (conf *configType) Scan() {
 		conf.TmpPath = "/tmp/semaphore"
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
+
+	var alertanswer string
+	fmt.Print(" > Do you need an email alerts (y/n, default n): ")
+	fmt.Scanln(&alertanswer)
+	if alertanswer == "yes" || alertanswer == "y" {
+
+		conf.EmailAlert = true
+
+		fmt.Print(" > Mail server host (default localhost): ")
+		fmt.Scanln(&conf.EmailHost)
+
+		if len(conf.EmailHost) == 0 {
+			conf.EmailHost = "localhost"
+		}
+
+		fmt.Print(" > Mail server port (default 25): ")
+		fmt.Scanln(&conf.EmailPort)
+
+		if len(conf.EmailPort) == 0 {
+			conf.EmailPort = "25"
+		}
+
+		fmt.Print(" > Mail sender address (default semaphore@localhost): ")
+		fmt.Scanln(&conf.EmailSender)
+
+		if len(conf.EmailSender) == 0 {
+			conf.EmailSender = "semaphore@localhost"
+		}
+
+		fmt.Print(" > Web root URL (default http://localhost:8010/): ")
+		fmt.Scanln(&conf.WebHost)
+
+		if len(conf.WebHost) == 0 {
+			conf.WebHost = "http://localhost:8010/"
+		}
+
+	} else {
+		conf.EmailAlert = false
+	}
+
 }
