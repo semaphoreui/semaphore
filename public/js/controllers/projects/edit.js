@@ -1,9 +1,10 @@
 define(function () {
 	app.registerController('ProjectEditCtrl', ['$scope', '$http', 'Project', '$state', function ($scope, $http, Project, $state) {
 		$scope.projectName = Project.name;
+		$scope.alert = Project.alert;
 
-		$scope.save = function (name) {
-			$http.put(Project.getURL(), { name: name }).success(function () {
+		$scope.save = function (name, alert) {
+			$http.put(Project.getURL(), { name: name, alert: alert }).success(function () {
 				swal('Saved', 'Project settings saved.', 'success');
 			}).error(function () {
 				swal('Error', 'Project settings were not saved', 'error');

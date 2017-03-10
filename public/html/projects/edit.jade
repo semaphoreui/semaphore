@@ -7,8 +7,12 @@ form.form-horizontal
 			input.form-control(type="text" ng-model="projectName" placeholder="Project Name")
 
 	.form-group
+		label.control-label.col-sm-4 Allow alerts for this project
+		.col-sm-1: input.form-control(type="checkbox" title="Send email alerts about failed tasks" ng-model="alert")
+
+	.form-group
 		.col-sm-6.col-sm-offset-4
-			button.btn.btn-success(ng-click="save(projectName)") Save
+			button.btn.btn-success(ng-click="save(projectName, alert)") Save
 
 hr
 

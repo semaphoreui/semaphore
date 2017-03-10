@@ -26,6 +26,7 @@ type task struct {
 	environment models.Environment
 	users       []int
 	projectID   int
+	alert       bool
 }
 
 func (t *task) fail() {
@@ -143,6 +144,8 @@ func (t *task) populateDetails() error {
 	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
 		return err
 	}
+
+	//TODO: add project alert population
 
 	// get project users
 	var users []struct {

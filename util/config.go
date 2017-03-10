@@ -40,6 +40,7 @@ type configType struct {
 	CookieEncryption string `json:"cookie_encryption"`
 
 	//email alerting
+	EmailAlert  bool   `json:"email_alert"`
 	EmailSender string `json:"email_sender"`
 	EmailHost   string `json:"email_host"`
 	EmailPort   string `json:"email_port"`
