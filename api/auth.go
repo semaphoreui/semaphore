@@ -69,7 +69,7 @@ func authentication(c *gin.Context) {
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update session set last_active=NOW() where id=?", sessionID); err != nil {
+		if _, err := database.Mysql.Exec("update session set last_active=UTC_TIMESTAMP() where id=?", sessionID); err != nil {
 			panic(err)
 		}
 	}

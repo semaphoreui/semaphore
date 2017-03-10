@@ -86,7 +86,8 @@ func (t *task) run() {
 		panic(err)
 	}
 
-	t.log("Started: " + strconv.Itoa(t.task.ID) + "\n")
+	t.log("Started: " + strconv.Itoa(t.task.ID))
+	t.log("Run task with template: " + t.template.Alias + "\n")
 
 	if err := t.installKey(t.repository.SshKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
@@ -221,8 +222,14 @@ func (t *task) populateDetails() error {
 
 func (t *task) installKey(key models.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
-	err := ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
-
+	var path = key.GetPath()
+	err := ioutil.WriteFile(path, []byte(*key.Secret), 0600)
+	if key.Key != nil {
+		err2 := ioutil.WriteFile(path+"-cert.pub", []byte(*key.Key), 0600)
+		if err2 != nil {
+			return err2
+		}
+	}
 	return err
 }
 

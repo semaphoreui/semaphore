@@ -1,4 +1,35 @@
 
+v2.2.0 / 2017-02-22
+===================
+
+  * bump version to 2.2.0
+  * update add templates, gh release script
+  * compile with go1.8
+  * Merge branch 'master' of github.com:ansible-semaphore/semaphore
+  * update contributing.md
+  * Merge pull request #257 from strangeman/dashboard-alias
+  * Merge pull request #262 from strangeman/templateid-ui
+  * Merge pull request #268 from nightvisi0n/fix_go-github-api-break
+  * fix api breaking of google/go-github
+  * Merge pull request #265 from ansible-semaphore/fix-264
+  * Reload on modal dismiss
+  * Merge pull request #258 from strangeman/docs-improve
+  * Add/Update Template dialog: Add Template ID field, mark some fields as required
+  * Add task template name to log too
+  * Small documentation improvements
+  * Add task template names for dashboard
+  * Merge pull request #256 from kpashka/master
+  * Remove trailing dot-slash in find output
+  * Copy-paste fixes
+  * It's method, not a function
+  * Use temp path for update repository function
+  * Pass OS environment variables to Ansible
+  * Added link to discord
+  * Merge pull request #244 from jerrygb/patch-1
+  * Update CONTRIBUTING.md
+  * Merge pull request #241 from pianzide1117/master
+  * fix error route   /project/{project_id}/template   ==>   /project/{project_id}/templates
+
 ## v2.1.0 | 22-12-2016
 
   * fix #202
