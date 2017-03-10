@@ -63,7 +63,7 @@ func updateUser(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update user set name=?, username=?, email=? where id=?", user.Name, user.Username, user.Email, oldUser.ID); err != nil {
+	if _, err := database.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
 		panic(err)
 	}
 
