@@ -3,6 +3,9 @@ define(function () {
 		$scope.projectName = Project.name;
 		$scope.alert = Project.alert;
 
+		console.log(Project.name);
+		console.log(Project);
+
 		$scope.save = function (name, alert) {
 			$http.put(Project.getURL(), { name: name, alert: alert }).success(function () {
 				swal('Saved', 'Project settings saved.', 'success');

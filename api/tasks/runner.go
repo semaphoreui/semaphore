@@ -145,7 +145,10 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	//TODO: add project alert population
+	//get project alert setting
+	if err := t.fetch("Alert setting not found!", &t.alert, "select alert from project where id=?", t.template.ProjectID); err != nil {
+		return err
+	}
 
 	// get project users
 	var users []struct {
