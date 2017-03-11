@@ -675,8 +675,10 @@ paths:
           schema:
             $ref: "#/definitions/Inventory"
       responses:
-        204:
+        201:
           description: inventory created
+          schema:
+              $ref: "#/definitions/Inventory"
   /project/{project_id}/inventory/{inventory_id}:
     parameters:
       - $ref: "#/parameters/project_id"
