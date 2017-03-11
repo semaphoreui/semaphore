@@ -675,7 +675,7 @@ paths:
           schema:
             $ref: "#/definitions/Inventory"
       responses:
-        200:
+        201:
           description: inventory created
           schema:
               $ref: "#/definitions/Inventory"
