@@ -95,15 +95,16 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	inv := db.Inventory{
-		ProjectID: project.ID,
+		ID: insertIDInt,
 		Name: inventory.Name,
-		Type: inventory.Type,
+		ProjectID: project.ID,
+		Inventory: inventory.Inventory,
 		KeyID: inventory.KeyID,
 		SshKeyID: &inventory.SshKeyID,
-		Inventory: inventory.Inventory,
+		Type: inventory.Type,
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, inv)
+	mulekick.WriteJSON(w, http.StatusCreated, inv)
 }
 
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
