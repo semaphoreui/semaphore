@@ -11,7 +11,7 @@ import (
 
 const emailTemplate = `Subject: Task '{{ .Alias }}' failed
 
-Task {{ .TaskId }} with template '{{ .Alias }}' was failed!
+Task {{ .TaskId }} with template '{{ .Alias }}' has failed!
 Task log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>`
 
 type Alert struct {
