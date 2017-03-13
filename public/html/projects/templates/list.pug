@@ -19,3 +19,4 @@ table.table.table-hover
 		td {{ reposAssoc[tpl.repository_id].name }}
 		td
 			button.btn.btn-success.btn-xs.pull-right(ng-click="run(tpl); $event.stopPropagation();") run
+			button.btn.btn-success.btn-xs.pull-right(ng-click="copy(tpl); $event.stopPropagation();") copy

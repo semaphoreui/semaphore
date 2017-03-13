@@ -126,6 +126,30 @@ define(['controllers/projects/taskRunner'], function () {
 			})
 		}
 
+		$scope.copy = function (template) {
+            var tpl = angular.copy(template);
+            tpl.id = null;
+
+		    var scope = $rootScope.$new();
+			scope.tpl = tpl;
+			scope.keys = $scope.sshKeys;
+			scope.inventory = $scope.inventory;
+			scope.repositories = $scope.repos;
+			scope.environment = $scope.environment;
+
+			$modal.open({
+				templateUrl: '/tpl/projects/templates/add.html',
+				scope: scope
+			}).result.then(function (opts) {
+				var tpl = opts.template;
+				$http.post(Project.getURL() + '/templates', tpl).success(function () {
+					$scope.reload();
+				}).error(function (_, status) {
+					swal('error', 'could not add template:' + status, 'error');
+				});
+			});
+		}
+
 		$scope.reload();
 	}]);
 });
