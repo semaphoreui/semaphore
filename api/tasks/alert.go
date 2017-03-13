@@ -22,50 +22,47 @@ type Alert struct {
 
 func (t *task) sendMailAlert() {
 
-	if util.Config.EmailAlert == true {
-
-		if t.alert == true {
-
-			mailHost := util.Config.EmailHost + ":" + util.Config.EmailPort
-
-			var mailBuffer bytes.Buffer
-			alert := Alert{TaskId: strconv.Itoa(t.task.ID), Alias: t.template.Alias, TaskUrl: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID)}
-			tpl := template.New("mail body template")
-			tpl, err := tpl.Parse(emailTemplate)
-			err = tpl.Execute(&mailBuffer, alert)
-
-			if err != nil {
-				t.log("Can't generate alert template!")
-				panic(err)
-			}
-
-			for _, user := range t.users {
-
-				userObj, err := models.FetchUser(user)
-
-				if userObj.Alert == true {
-					if err != nil {
-						t.log("Can't find user Email!")
-						panic(err)
-					}
-
-					t.log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
-					err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
-					if err != nil {
-						t.log("Can't send email!")
-						t.log("Error: " + err.Error())
-						panic(err)
-					}
-
-				} else {
-					t.log("Alerts disabled for user " + userObj.Name + ", nothing to do.")
-				}
-			}
-		} else {
-			t.log("Alerts disabled for this project, nothing to do.")
-		}
-	} else {
-		t.log("Alerts globally disabled, nothing to do.")
+	if util.Config.EmailAlert != true {
+		return
 	}
 
+	if t.alert != true {
+		return
+	}
+
+	mailHost := util.Config.EmailHost + ":" + util.Config.EmailPort
+
+	var mailBuffer bytes.Buffer
+	alert := Alert{TaskId: strconv.Itoa(t.task.ID), Alias: t.template.Alias, TaskUrl: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID)}
+	tpl := template.New("mail body template")
+	tpl, err := tpl.Parse(emailTemplate)
+	err = tpl.Execute(&mailBuffer, alert)
+
+	if err != nil {
+		t.log("Can't generate alert template!")
+		panic(err)
+	}
+
+	for _, user := range t.users {
+
+		userObj, err := models.FetchUser(user)
+
+		if userObj.Alert != true {
+			return
+		}
+
+		if err != nil {
+			t.log("Can't find user Email!")
+			panic(err)
+		}
+
+		t.log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
+		err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
+		if err != nil {
+			t.log("Can't send email!")
+			t.log("Error: " + err.Error())
+			panic(err)
+		}
+
+	}
 }

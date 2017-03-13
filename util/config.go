@@ -193,7 +193,7 @@ func (conf *configType) Scan() {
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
 	var alertanswer string
-	fmt.Print(" > Do you need an email alerts (y/n, default n): ")
+	fmt.Print(" > Enable email alerts (y/n, default n): ")
 	fmt.Scanln(&alertanswer)
 	if alertanswer == "yes" || alertanswer == "y" {
 

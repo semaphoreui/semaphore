@@ -5,7 +5,7 @@ import (
 	"net/smtp"
 )
 
-func SendMail(emailHost string, mailSender string, mailRecipient string, mail bytes.Buffer) error {
+func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) error {
 
 	c, err := smtp.Dial(emailHost)
 	if err != nil {
