@@ -91,6 +91,10 @@ func UpdateTemplate(c *gin.Context) {
 		return
 	}
 
+	if *template.Arguments == "" {
+		template.Arguments = nil
+	}
+
 	if _, err := database.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
 		panic(err)
 	}
