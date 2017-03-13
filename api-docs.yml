@@ -53,6 +53,8 @@ definitions:
       created:
         type: string
         format: date-time
+      alert:
+        type: boolean
   APIToken:
     type: object
     properties:
@@ -75,6 +77,8 @@ definitions:
       created:
         type: string
         format: date-time
+      alert:
+        type: boolean
   AccessKey:
     type: object
     properties:

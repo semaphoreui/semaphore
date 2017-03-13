@@ -22,7 +22,8 @@ if [ "$1" == "ci_test" ]; then
 		"name": "circle_test"
 	},
 	"session_db": "127.0.0.1:6379",
-	"port": ":8010"
+	"port": ":8010",
+	"email_alert": false
 }
 EOF
 

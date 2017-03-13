@@ -61,14 +61,15 @@ func MustBeAdmin(c *gin.Context) {
 func UpdateProject(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var body struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
+		Alert bool   `json:"alert"`
 	}
 
 	if err := c.Bind(&body); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project set name=? where id=?", body.Name, project.ID); err != nil {
+	if _, err := database.Mysql.Exec("update project set name=?, alert=? where id=?", body.Name, body.Alert, project.ID); err != nil {
 		panic(err)
 	}
 

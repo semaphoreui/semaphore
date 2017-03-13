@@ -26,11 +26,13 @@ type task struct {
 	environment models.Environment
 	users       []int
 	projectID   int
+	alert       bool
 }
 
 func (t *task) fail() {
 	t.task.Status = "error"
 	t.updateStatus()
+	t.sendMailAlert()
 }
 
 func (t *task) run() {
@@ -141,6 +143,11 @@ func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...inter
 func (t *task) populateDetails() error {
 	// get template
 	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
+		return err
+	}
+
+	//get project alert setting
+	if err := t.fetch("Alert setting not found!", &t.alert, "select alert from project where id=?", t.template.ProjectID); err != nil {
 		return err
 	}
 
