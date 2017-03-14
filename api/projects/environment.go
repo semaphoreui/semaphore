@@ -43,7 +43,8 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	q := squirrel.Select("*").
 		From("project__environment").
-		Where("project_id=?", project.ID)
+		Where("project_id=?", project.ID).
+		OrderBy("name asc")
 
 	query, args, _ := q.ToSql()
 

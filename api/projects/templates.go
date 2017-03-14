@@ -38,7 +38,8 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 
 	q := squirrel.Select("*").
 		From("project__template").
-		Where("project_id=?", project.ID)
+		Where("project_id=?", project.ID).
+		OrderBy("alias asc")
 
 	query, args, _ := q.ToSql()
 

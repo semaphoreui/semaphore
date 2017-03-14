@@ -44,6 +44,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	query, args, _ := squirrel.Select("*").
 		From("project__inventory").
 		Where("project_id=?", project.ID).
+		OrderBy("name asc").
 		ToSql()
 
 	if _, err := db.Mysql.Select(&inv, query, args...); err != nil {

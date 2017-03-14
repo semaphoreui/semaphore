@@ -43,6 +43,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		From("project__user as pu").
 		Join("user as u on pu.user_id=u.id").
 		Where("pu.project_id=?", project.ID).
+		OrderBy("name asc").
 		ToSql()
 
 	if _, err := db.Mysql.Select(&users, query, args...); err != nil {
