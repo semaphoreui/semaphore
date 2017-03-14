@@ -91,7 +91,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 
 	var output []db.TaskOutput
-	if _, err := db.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
+	if _, err := db.Mysql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
 		panic(err)
 	}
 
