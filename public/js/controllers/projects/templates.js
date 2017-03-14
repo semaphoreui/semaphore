@@ -127,10 +127,10 @@ define(['controllers/projects/taskRunner'], function () {
 		}
 
 		$scope.copy = function (template) {
-            var tpl = angular.copy(template);
-            tpl.id = null;
+			var tpl = angular.copy(template);
+			tpl.id = null;
 
-		    var scope = $rootScope.$new();
+			var scope = $rootScope.$new();
 			scope.tpl = tpl;
 			scope.keys = $scope.sshKeys;
 			scope.inventory = $scope.inventory;
