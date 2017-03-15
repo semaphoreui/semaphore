@@ -2,7 +2,7 @@ swagger: '2.0'
 info:
   title: SEMAPHORE
   description: Semaphore API
-  version: "2.1.0"
+  version: "2.2.0"
 
 host: localhost:3000
 
@@ -152,7 +152,7 @@ definitions:
         type: string
       environment:
         type: string
-  Task:
+  TaskOutput:
     type: object
     properties:
       task_id:
@@ -679,8 +679,10 @@ paths:
           schema:
             $ref: "#/definitions/Inventory"
       responses:
-        204:
+        201:
           description: inventory created
+          schema:
+              $ref: "#/definitions/Inventory"
   /project/{project_id}/inventory/{inventory_id}:
     parameters:
       - $ref: "#/parameters/project_id"

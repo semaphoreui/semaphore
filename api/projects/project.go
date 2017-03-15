@@ -2,18 +2,19 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func ProjectMiddleware(c *gin.Context) {
-	user := c.MustGet("user").(*models.User)
+func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "user").(*db.User)
 
-	projectID, err := util.GetIntParam("project_id", c)
+	projectID, err := util.GetIntParam("project_id", w, r)
 	if err != nil {
 		return
 	}
@@ -25,61 +26,60 @@ func ProjectMiddleware(c *gin.Context) {
 		Where("pu.user_id=?", user.ID).
 		ToSql()
 
-	var project models.Project
-	if err := database.Mysql.SelectOne(&project, query, args...); err != nil {
+	var project db.Project
+	if err := db.Mysql.SelectOne(&project, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		panic(err)
 	}
 
-	c.Set("project", project)
-	c.Next()
+	context.Set(r, "project", project)
 }
 
-func GetProject(c *gin.Context) {
-	c.JSON(200, c.MustGet("project"))
+func GetProject(w http.ResponseWriter, r *http.Request) {
+	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
-func MustBeAdmin(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	user := c.MustGet("user").(*models.User)
+func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "user").(*db.User)
 
-	userC, err := database.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+	userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 	if err != nil {
 		panic(err)
 	}
 
 	if userC == 0 {
-		c.AbortWithStatus(403)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 }
 
-func UpdateProject(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+func UpdateProject(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
 	var body struct {
 		Name  string `json:"name"`
 		Alert bool   `json:"alert"`
 	}
 
-	if err := c.Bind(&body); err != nil {
+	if err := mulekick.Bind(w, r, &body); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project set name=?, alert=? where id=?", body.Name, body.Alert, project.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project set name=? where id=?", body.Name, project.ID); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteProject(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+func DeleteProject(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
 
-	tx, err := database.Mysql.Begin()
+	tx, err := db.Mysql.Begin()
 	if err != nil {
 		panic(err)
 	}
@@ -108,5 +108,5 @@ func DeleteProject(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

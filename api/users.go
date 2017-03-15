@@ -2,101 +2,101 @@ package api
 
 import (
 	"database/sql"
+	"net/http"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func getUsers(c *gin.Context) {
-	var users []models.User
-	if _, err := database.Mysql.Select(&users, "select * from user"); err != nil {
+func getUsers(w http.ResponseWriter, r *http.Request) {
+	var users []db.User
+	if _, err := db.Mysql.Select(&users, "select * from user"); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, users)
+	mulekick.WriteJSON(w, http.StatusOK, users)
 }
 
-func addUser(c *gin.Context) {
-	var user models.User
-	if err := c.Bind(&user); err != nil {
+func addUser(w http.ResponseWriter, r *http.Request) {
+	var user db.User
+	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
 	user.Created = time.Now()
 
-	if err := database.Mysql.Insert(&user); err != nil {
+	if err := db.Mysql.Insert(&user); err != nil {
 		panic(err)
 	}
 
-	c.JSON(201, user)
+	mulekick.WriteJSON(w, http.StatusCreated, user)
 }
 
-func getUserMiddleware(c *gin.Context) {
-	userID, err := util.GetIntParam("user_id", c)
+func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
+	userID, err := util.GetIntParam("user_id", w, r)
 	if err != nil {
 		return
 	}
 
-	var user models.User
-	if err := database.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
+	var user db.User
+	if err := db.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		panic(err)
 	}
 
-	c.Set("_user", user)
-	c.Next()
+	context.Set(r, "_user", user)
 }
 
-func updateUser(c *gin.Context) {
-	oldUser := c.MustGet("_user").(models.User)
+func updateUser(w http.ResponseWriter, r *http.Request) {
+	oldUser := context.Get(r, "_user").(db.User)
 
-	var user models.User
-	if err := c.Bind(&user); err != nil {
+	var user db.User
+	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
+	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=? where id=?", user.Name, user.Username, user.Email, oldUser.ID); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func updateUserPassword(c *gin.Context) {
-	user := c.MustGet("_user").(models.User)
+func updateUserPassword(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
 	var pwd struct {
 		Pwd string `json:"password"`
 	}
 
-	if err := c.Bind(&pwd); err != nil {
+	if err := mulekick.Bind(w, r, &pwd); err != nil {
 		return
 	}
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
-	if _, err := database.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
+	if _, err := db.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func deleteUser(c *gin.Context) {
-	user := c.MustGet("_user").(models.User)
+func deleteUser(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
 
-	if _, err := database.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
 		panic(err)
 	}
-	if _, err := database.Mysql.Exec("delete from user where id=?", user.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from user where id=?", user.ID); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

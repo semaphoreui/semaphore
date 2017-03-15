@@ -3,23 +3,23 @@ package api
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/context"
 )
 
-func authentication(c *gin.Context) {
+func authentication(w http.ResponseWriter, r *http.Request) {
 	var userID int
 
-	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
-		var token models.APIToken
-		if err := database.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
+	if authHeader := strings.ToLower(r.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
+		var token db.APIToken
+		if err := db.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
 			if err == sql.ErrNoRows {
-				c.AbortWithStatus(403)
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 
@@ -29,22 +29,22 @@ func authentication(c *gin.Context) {
 		userID = token.UserID
 	} else {
 		// fetch session from cookie
-		cookie, err := c.Request.Cookie("semaphore")
+		cookie, err := r.Cookie("semaphore")
 		if err != nil {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		value := make(map[string]interface{})
 		if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		user, ok := value["user"]
 		sessionVal, okSession := value["session"]
 		if !ok || !okSession {
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
@@ -52,34 +52,34 @@ func authentication(c *gin.Context) {
 		sessionID := sessionVal.(int)
 
 		// fetch session
-		var session models.Session
-		if err := database.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
-			c.AbortWithStatus(403)
+		var session db.Session
+		if err := db.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		if time.Now().Sub(session.LastActive).Hours() > 7*24 {
 			// more than week old unused session
 			// destroy.
-			if _, err := database.Mysql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
+			if _, err := db.Mysql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
 				panic(err)
 			}
 
-			c.AbortWithStatus(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update session set last_active=UTC_TIMESTAMP() where id=?", sessionID); err != nil {
+		if _, err := db.Mysql.Exec("update session set last_active=UTC_TIMESTAMP() where id=?", sessionID); err != nil {
 			panic(err)
 		}
 	}
 
-	user, err := models.FetchUser(userID)
+	user, err := db.FetchUser(userID)
 	if err != nil {
 		fmt.Println("Can't find user", err)
-		c.AbortWithStatus(403)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	c.Set("user", user)
+	context.Set(r, "user", user)
 }

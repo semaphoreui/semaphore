@@ -1,22 +1,23 @@
 package tasks
 
 import (
+	"net/http"
 	"strconv"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func AddTask(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	user := c.MustGet("user").(*models.User)
+func AddTask(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "user").(*db.User)
 
-	var taskObj models.Task
-	if err := c.Bind(&taskObj); err != nil {
+	var taskObj db.Task
+	if err := mulekick.Bind(w, r, &taskObj); err != nil {
 		return
 	}
 
@@ -24,7 +25,7 @@ func AddTask(c *gin.Context) {
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
 
-	if err := database.Mysql.Insert(&taskObj); err != nil {
+	if err := db.Mysql.Insert(&taskObj); err != nil {
 		panic(err)
 	}
 
@@ -35,7 +36,7 @@ func AddTask(c *gin.Context) {
 
 	objType := "task"
 	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &taskObj.ID,
@@ -44,11 +45,11 @@ func AddTask(c *gin.Context) {
 		panic(err)
 	}
 
-	c.JSON(201, taskObj)
+	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
-func GetAll(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+func GetAll(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
 
 	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
@@ -59,47 +60,46 @@ func GetAll(c *gin.Context) {
 		ToSql()
 
 	var tasks []struct {
-		models.Task
+		db.Task
 
 		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
 		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
-	if _, err := database.Mysql.Select(&tasks, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&tasks, query, args...); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, tasks)
+	mulekick.WriteJSON(w, http.StatusOK, tasks)
 }
 
-func GetTaskMiddleware(c *gin.Context) {
-	taskID, err := util.GetIntParam("task_id", c)
+func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
+	taskID, err := util.GetIntParam("task_id", w, r)
 	if err != nil {
 		panic(err)
 	}
 
-	var task models.Task
-	if err := database.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+	var task db.Task
+	if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
 		panic(err)
 	}
 
-	c.Set("task", task)
-	c.Next()
+	context.Set(r, "task", task)
 }
 
-func GetTaskOutput(c *gin.Context) {
-	task := c.MustGet("task").(models.Task)
+func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
 
-	var output []models.TaskOutput
-	if _, err := database.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
+	var output []db.TaskOutput
+	if _, err := db.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, output)
+	mulekick.WriteJSON(w, http.StatusOK, output)
 }
 
-func RemoveTask(c *gin.Context) {
-	task := c.MustGet("task").(models.Task)
+func RemoveTask(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
 
 	statements := []string{
 		"delete from task__output where task_id=?",
@@ -107,11 +107,11 @@ func RemoveTask(c *gin.Context) {
 	}
 
 	for _, statement := range statements {
-		_, err := database.Mysql.Exec(statement, task.ID)
+		_, err := db.Mysql.Exec(statement, task.ID)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

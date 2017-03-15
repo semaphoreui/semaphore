@@ -1,14 +1,16 @@
 package projects
 
 import (
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
-	"github.com/gin-gonic/gin"
+	"net/http"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func GetProjects(c *gin.Context) {
-	user := c.MustGet("user").(*models.User)
+func GetProjects(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "user").(*db.User)
 
 	query, args, _ := squirrel.Select("p.*").
 		From("project as p").
@@ -17,19 +19,19 @@ func GetProjects(c *gin.Context) {
 		OrderBy("p.name").
 		ToSql()
 
-	var projects []models.Project
-	if _, err := database.Mysql.Select(&projects, query, args...); err != nil {
+	var projects []db.Project
+	if _, err := db.Mysql.Select(&projects, query, args...); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, projects)
+	mulekick.WriteJSON(w, http.StatusOK, projects)
 }
 
-func AddProject(c *gin.Context) {
-	var body models.Project
-	user := c.MustGet("user").(*models.User)
+func AddProject(w http.ResponseWriter, r *http.Request) {
+	var body db.Project
+	user := context.Get(r, "user").(*db.User)
 
-	if err := c.Bind(&body); err != nil {
+	if err := mulekick.Bind(w, r, &body); err != nil {
 		return
 	}
 
@@ -38,17 +40,17 @@ func AddProject(c *gin.Context) {
 		panic(err)
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__user set project_id=?, user_id=?, admin=1", body.ID, user.ID); err != nil {
+	if _, err := db.Mysql.Exec("insert into project__user set project_id=?, user_id=?, admin=1", body.ID, user.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Project Created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &body.ID,
 		Description: &desc,
 	}.Insert()); err != nil {
 		panic(err)
 	}
 
-	c.JSON(201, body)
+	mulekick.WriteJSON(w, http.StatusCreated, body)
 }

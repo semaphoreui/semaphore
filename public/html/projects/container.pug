@@ -13,4 +13,4 @@
 			li(ng-class="{ active: $state.includes('project.users') }"): a(ui-sref="project.users") Team
 
 	.col-sm-8.col-md-9(style="border-left: 1px solid #EEE;")
-		ui-view
+		ui-view(class="{{ pageTitle.toLowerCase().replace(' ', '_') }} ")

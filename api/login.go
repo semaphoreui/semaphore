@@ -7,28 +7,26 @@ import (
 	"strings"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
 	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func login(c *gin.Context) {
+func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 
-	if err := c.Bind(&login); err != nil {
+	if err := mulekick.Bind(w, r, &login); err != nil {
 		return
 	}
 
 	login.Auth = strings.ToLower(login.Auth)
 
-	q := sq.Select("*").
-		From("user")
+	q := sq.Select("*").From("user")
 
 	_, err := mail.ParseAddress(login.Auth)
 	if err == nil {
@@ -39,10 +37,10 @@ func login(c *gin.Context) {
 
 	query, args, _ := q.ToSql()
 
-	var user models.User
-	if err := database.Mysql.SelectOne(&user, query, args...); err != nil {
+	var user db.User
+	if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -50,19 +48,19 @@ func login(c *gin.Context) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	session := models.Session{
+	session := db.Session{
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
-		IP:         c.ClientIP(),
-		UserAgent:  c.Request.Header.Get("user-agent"),
+		IP:         r.Header.Get("X-Real-IP"),
+		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err := database.Mysql.Insert(&session); err != nil {
+	if err := db.Mysql.Insert(&session); err != nil {
 		panic(err)
 	}
 
@@ -74,16 +72,22 @@ func login(c *gin.Context) {
 		panic(err)
 	}
 
-	http.SetCookie(c.Writer, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:  "semaphore",
 		Value: encoded,
 		Path:  "/",
 	})
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func logout(c *gin.Context) {
-	c.SetCookie("semaphore", "", -1, "/", "", false, true)
-	c.AbortWithStatus(204)
+func logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:    "semaphore",
+		Value:   "",
+		Expires: time.Now().Add(24 * 7 * time.Hour * -1),
+		Path:    "/",
+	})
+
+	w.WriteHeader(http.StatusNoContent)
 }

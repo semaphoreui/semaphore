@@ -21,65 +21,66 @@
 // public/css/semaphore.less
 // public/html/.gitignore
 // public/html/abstract.html
-// public/html/abstract.jade
+// public/html/abstract.pug
 // public/html/admin.html
-// public/html/admin.jade
+// public/html/admin.pug
 // public/html/dashboard.html
-// public/html/dashboard.jade
+// public/html/dashboard.pug
 // public/html/index.html
-// public/html/index.jade
+// public/html/index.pug
 // public/html/tasks.html
-// public/html/tasks.jade
-// public/html/projects/add.html
-// public/html/projects/add.jade
-// public/html/projects/container.html
-// public/html/projects/container.jade
-// public/html/projects/createTaskModal.html
-// public/html/projects/createTaskModal.jade
-// public/html/projects/dashboard.html
-// public/html/projects/dashboard.jade
-// public/html/projects/edit.html
-// public/html/projects/edit.jade
-// public/html/projects/schedule.html
-// public/html/projects/schedule.jade
-// public/html/projects/taskModal.html
-// public/html/projects/taskModal.jade
-// public/html/projects/inventory/add.html
-// public/html/projects/inventory/add.jade
-// public/html/projects/inventory/edit.html
-// public/html/projects/inventory/edit.jade
-// public/html/projects/inventory/list.html
-// public/html/projects/inventory/list.jade
-// public/html/projects/repositories/add.html
-// public/html/projects/repositories/add.jade
-// public/html/projects/repositories/list.html
-// public/html/projects/repositories/list.jade
-// public/html/projects/users/add.html
-// public/html/projects/users/add.jade
-// public/html/projects/users/list.html
-// public/html/projects/users/list.jade
-// public/html/projects/keys/add.html
-// public/html/projects/keys/add.jade
-// public/html/projects/keys/list.html
-// public/html/projects/keys/list.jade
-// public/html/projects/templates/add.html
-// public/html/projects/templates/add.jade
-// public/html/projects/templates/list.html
-// public/html/projects/templates/list.jade
-// public/html/projects/environment/add.html
-// public/html/projects/environment/add.jade
-// public/html/projects/environment/list.html
-// public/html/projects/environment/list.jade
+// public/html/tasks.pug
 // public/html/auth/login.html
-// public/html/auth/login.jade
+// public/html/auth/login.pug
 // public/html/auth/logout.html
-// public/html/auth/logout.jade
+// public/html/auth/logout.pug
+// public/html/projects/add.html
+// public/html/projects/add.pug
+// public/html/projects/container.html
+// public/html/projects/container.pug
+// public/html/projects/createTaskModal.html
+// public/html/projects/createTaskModal.pug
+// public/html/projects/dashboard.html
+// public/html/projects/dashboard.pug
+// public/html/projects/edit.html
+// public/html/projects/edit.pug
+// public/html/projects/schedule.html
+// public/html/projects/schedule.pug
+// public/html/projects/taskModal.html
+// public/html/projects/taskModal.pug
+// public/html/projects/environment/add.html
+// public/html/projects/environment/add.pug
+// public/html/projects/environment/list.html
+// public/html/projects/environment/list.pug
+// public/html/projects/inventory/add.html
+// public/html/projects/inventory/add.pug
+// public/html/projects/inventory/edit.html
+// public/html/projects/inventory/edit.pug
+// public/html/projects/inventory/list.html
+// public/html/projects/inventory/list.pug
+// public/html/projects/keys/add.html
+// public/html/projects/keys/add.pug
+// public/html/projects/keys/list.html
+// public/html/projects/keys/list.pug
+// public/html/projects/repositories/add.html
+// public/html/projects/repositories/add.pug
+// public/html/projects/repositories/list.html
+// public/html/projects/repositories/list.pug
+// public/html/projects/templates/add.html
+// public/html/projects/templates/add.pug
+// public/html/projects/templates/list.html
+// public/html/projects/templates/list.pug
+// public/html/projects/users/add.html
+// public/html/projects/users/add.pug
+// public/html/projects/users/list.html
+// public/html/projects/users/list.pug
 // public/html/users/add.html
-// public/html/users/add.jade
+// public/html/users/add.pug
 // public/html/users/list.html
-// public/html/users/list.jade
+// public/html/users/list.pug
 // public/html/users/user.html
-// public/html/users/user.jade
+// public/html/users/user.pug
+// public/img/icon.png
 // public/img/logo.png
 // public/img/screenshot.png
 // public/js/app.js
@@ -125,36 +126,34 @@
 // public/vendor/angular.min.js
 // public/vendor/async.js
 // public/vendor/require.min.js
-// public/vendor/sweetalert/sweetalert.css
-// public/vendor/sweetalert/sweetalert.min.js
 // public/vendor/angular-loading-bar/loading-bar.css
 // public/vendor/angular-loading-bar/loading-bar.js
 // public/vendor/angular-loading-bar/loading-bar.min.js
-// public/vendor/fontawesome/less/animated.less
-// public/vendor/fontawesome/less/bordered-pulled.less
-// public/vendor/fontawesome/less/core.less
-// public/vendor/fontawesome/less/fixed-width.less
-// public/vendor/fontawesome/less/font-awesome.less
-// public/vendor/fontawesome/less/icons.less
-// public/vendor/fontawesome/less/larger.less
-// public/vendor/fontawesome/less/list.less
-// public/vendor/fontawesome/less/mixins.less
-// public/vendor/fontawesome/less/path.less
-// public/vendor/fontawesome/less/rotated-flipped.less
-// public/vendor/fontawesome/less/stacked.less
-// public/vendor/fontawesome/less/variables.less
-// public/vendor/fontawesome/fonts/FontAwesome.otf
-// public/vendor/fontawesome/fonts/fontawesome-webfont.eot
-// public/vendor/fontawesome/fonts/fontawesome-webfont.svg
-// public/vendor/fontawesome/fonts/fontawesome-webfont.ttf
-// public/vendor/fontawesome/fonts/fontawesome-webfont.woff
-// public/vendor/fontawesome/fonts/fontawesome-webfont.woff2
 // public/vendor/bootstrap/.editorconfig
 // public/vendor/bootstrap/.gitattributes
 // public/vendor/bootstrap/.gitignore
 // public/vendor/bootstrap/README.md
 // public/vendor/bootstrap/bower.json
 // public/vendor/bootstrap/package.json
+// public/vendor/bootstrap/dist/css/bootstrap-theme.css
+// public/vendor/bootstrap/dist/css/bootstrap-theme.css.map
+// public/vendor/bootstrap/dist/css/bootstrap-theme.min.css
+// public/vendor/bootstrap/dist/css/bootstrap.css
+// public/vendor/bootstrap/dist/css/bootstrap.css.map
+// public/vendor/bootstrap/dist/css/bootstrap.min.css
+// public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.eot
+// public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.svg
+// public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf
+// public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff
+// public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2
+// public/vendor/bootstrap/dist/js/bootstrap.js
+// public/vendor/bootstrap/dist/js/bootstrap.min.js
+// public/vendor/bootstrap/dist/js/npm.js
+// public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot
+// public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg
+// public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf
+// public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff
+// public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff2
 // public/vendor/bootstrap/less/.csscomb.json
 // public/vendor/bootstrap/less/.csslintrc
 // public/vendor/bootstrap/less/alerts.less
@@ -228,6 +227,7 @@
 // public/vendor/bootstrap/less/mixins/text-emphasis.less
 // public/vendor/bootstrap/less/mixins/text-overflow.less
 // public/vendor/bootstrap/less/mixins/vendor-prefixes.less
+<<<<<<< HEAD
 // public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot
 // public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg
 // public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf
@@ -247,10 +247,36 @@
 // public/vendor/bootstrap/dist/css/bootstrap.css
 // public/vendor/bootstrap/dist/css/bootstrap.css.map
 // public/vendor/bootstrap/dist/css/bootstrap.min.css
+=======
+// public/vendor/fontawesome/fonts/FontAwesome.otf
+// public/vendor/fontawesome/fonts/fontawesome-webfont.eot
+// public/vendor/fontawesome/fonts/fontawesome-webfont.svg
+// public/vendor/fontawesome/fonts/fontawesome-webfont.ttf
+// public/vendor/fontawesome/fonts/fontawesome-webfont.woff
+// public/vendor/fontawesome/fonts/fontawesome-webfont.woff2
+// public/vendor/fontawesome/less/animated.less
+// public/vendor/fontawesome/less/bordered-pulled.less
+// public/vendor/fontawesome/less/core.less
+// public/vendor/fontawesome/less/fixed-width.less
+// public/vendor/fontawesome/less/font-awesome.less
+// public/vendor/fontawesome/less/icons.less
+// public/vendor/fontawesome/less/larger.less
+// public/vendor/fontawesome/less/list.less
+// public/vendor/fontawesome/less/mixins.less
+// public/vendor/fontawesome/less/path.less
+// public/vendor/fontawesome/less/rotated-flipped.less
+// public/vendor/fontawesome/less/stacked.less
+// public/vendor/fontawesome/less/variables.less
+>>>>>>> develop
 // public/vendor/moment/moment-tz.js
 // public/vendor/moment/moment-tz.min.js
 // public/vendor/moment/moment.js
 // public/vendor/moment/moment.min.js
+<<<<<<< HEAD
+=======
+// public/vendor/sweetalert/sweetalert.css
+// public/vendor/sweetalert/sweetalert.min.js
+>>>>>>> develop
 // DO NOT EDIT!
 
 package util
@@ -279,7 +305,11 @@ type asset struct {
 
 // configJson reads file data from disk. It returns an error on failure.
 func configJson() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/config.json"
+=======
+	path := "/Users/m/p/semaphore/config.json"
+>>>>>>> develop
 	name := "config.json"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -297,7 +327,11 @@ func configJson() (*asset, error) {
 
 // dbMigrationsV000Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV000Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v0.0.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v0.0.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v0.0.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -315,7 +349,11 @@ func dbMigrationsV000Sql() (*asset, error) {
 
 // dbMigrationsV010Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV010Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v0.1.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v0.1.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v0.1.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -333,7 +371,11 @@ func dbMigrationsV010Sql() (*asset, error) {
 
 // dbMigrationsV100Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV100Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.0.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.0.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.0.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -351,7 +393,11 @@ func dbMigrationsV100Sql() (*asset, error) {
 
 // dbMigrationsV110Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV110Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.1.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.1.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.1.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -369,7 +415,11 @@ func dbMigrationsV110Sql() (*asset, error) {
 
 // dbMigrationsV120Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV120Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.2.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.2.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.2.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -387,7 +437,11 @@ func dbMigrationsV120Sql() (*asset, error) {
 
 // dbMigrationsV130Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV130Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.3.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.3.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.3.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -405,7 +459,11 @@ func dbMigrationsV130Sql() (*asset, error) {
 
 // dbMigrationsV140Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV140Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.4.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.4.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.4.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -423,7 +481,11 @@ func dbMigrationsV140Sql() (*asset, error) {
 
 // dbMigrationsV150Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV150Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.5.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.5.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.5.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -441,7 +503,11 @@ func dbMigrationsV150Sql() (*asset, error) {
 
 // dbMigrationsV160Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV160Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.6.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.6.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.6.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -459,7 +525,11 @@ func dbMigrationsV160Sql() (*asset, error) {
 
 // dbMigrationsV170Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV170Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.7.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.7.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.7.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -477,7 +547,11 @@ func dbMigrationsV170Sql() (*asset, error) {
 
 // dbMigrationsV180Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV180Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.8.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.8.0.sql"
+>>>>>>> develop
 	name := "db/migrations/v1.8.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -495,6 +569,7 @@ func dbMigrationsV180Sql() (*asset, error) {
 
 // dbMigrationsV190Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV190Sql() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v1.9.0.sql"
 	name := "db/migrations/v1.9.0.sql"
 	bytes, err := bindataRead(path, name)
@@ -515,6 +590,10 @@ func dbMigrationsV190Sql() (*asset, error) {
 func dbMigrationsV230Sql() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/db/migrations/v2.3.0.sql"
 	name := "db/migrations/v2.3.0.sql"
+=======
+	path := "/Users/m/p/semaphore/db/migrations/v1.9.0.sql"
+	name := "db/migrations/v1.9.0.sql"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -531,7 +610,11 @@ func dbMigrationsV230Sql() (*asset, error) {
 
 // publicCssGitignore reads file data from disk. It returns an error on failure.
 func publicCssGitignore() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/css/.gitignore"
+=======
+	path := "/Users/m/p/semaphore/public/css/.gitignore"
+>>>>>>> develop
 	name := "public/css/.gitignore"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -549,7 +632,11 @@ func publicCssGitignore() (*asset, error) {
 
 // publicCssLoginLess reads file data from disk. It returns an error on failure.
 func publicCssLoginLess() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/css/login.less"
+=======
+	path := "/Users/m/p/semaphore/public/css/login.less"
+>>>>>>> develop
 	name := "public/css/login.less"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -567,7 +654,11 @@ func publicCssLoginLess() (*asset, error) {
 
 // publicCssOctocatLess reads file data from disk. It returns an error on failure.
 func publicCssOctocatLess() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/css/octocat.less"
+=======
+	path := "/Users/m/p/semaphore/public/css/octocat.less"
+>>>>>>> develop
 	name := "public/css/octocat.less"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -585,7 +676,11 @@ func publicCssOctocatLess() (*asset, error) {
 
 // publicCssSemaphoreCss reads file data from disk. It returns an error on failure.
 func publicCssSemaphoreCss() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/css/semaphore.css"
+=======
+	path := "/Users/m/p/semaphore/public/css/semaphore.css"
+>>>>>>> develop
 	name := "public/css/semaphore.css"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -603,7 +698,11 @@ func publicCssSemaphoreCss() (*asset, error) {
 
 // publicCssSemaphoreLess reads file data from disk. It returns an error on failure.
 func publicCssSemaphoreLess() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/css/semaphore.less"
+=======
+	path := "/Users/m/p/semaphore/public/css/semaphore.less"
+>>>>>>> develop
 	name := "public/css/semaphore.less"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -621,7 +720,11 @@ func publicCssSemaphoreLess() (*asset, error) {
 
 // publicHtmlGitignore reads file data from disk. It returns an error on failure.
 func publicHtmlGitignore() (*asset, error) {
+<<<<<<< HEAD
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/.gitignore"
+	name := "public/html/.gitignore"
+=======
+	path := "/Users/m/p/semaphore/public/html/.gitignore"
 	name := "public/html/.gitignore"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -639,7 +742,7 @@ func publicHtmlGitignore() (*asset, error) {
 
 // publicHtmlAbstractHtml reads file data from disk. It returns an error on failure.
 func publicHtmlAbstractHtml() (*asset, error) {
-	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/abstract.html"
+	path := "/Users/m/p/semaphore/public/html/abstract.html"
 	name := "public/html/abstract.html"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -655,10 +758,10 @@ func publicHtmlAbstractHtml() (*asset, error) {
 	return a, err
 }
 
-// publicHtmlAbstractJade reads file data from disk. It returns an error on failure.
-func publicHtmlAbstractJade() (*asset, error) {
-	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/abstract.jade"
-	name := "public/html/abstract.jade"
+// publicHtmlAbstractPug reads file data from disk. It returns an error on failure.
+func publicHtmlAbstractPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/abstract.pug"
+	name := "public/html/abstract.pug"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -675,8 +778,9 @@ func publicHtmlAbstractJade() (*asset, error) {
 
 // publicHtmlAdminHtml reads file data from disk. It returns an error on failure.
 func publicHtmlAdminHtml() (*asset, error) {
-	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/admin.html"
+	path := "/Users/m/p/semaphore/public/html/admin.html"
 	name := "public/html/admin.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -691,10 +795,92 @@ func publicHtmlAdminHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
+// publicHtmlAbstractHtml reads file data from disk. It returns an error on failure.
+func publicHtmlAbstractHtml() (*asset, error) {
+	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/abstract.html"
+	name := "public/html/abstract.html"
+=======
+// publicHtmlAdminPug reads file data from disk. It returns an error on failure.
+func publicHtmlAdminPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/admin.pug"
+	name := "public/html/admin.pug"
+>>>>>>> develop
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
+<<<<<<< HEAD
+// publicHtmlAbstractJade reads file data from disk. It returns an error on failure.
+func publicHtmlAbstractJade() (*asset, error) {
+	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/abstract.jade"
+	name := "public/html/abstract.jade"
+=======
+// publicHtmlDashboardHtml reads file data from disk. It returns an error on failure.
+func publicHtmlDashboardHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/dashboard.html"
+	name := "public/html/dashboard.html"
+>>>>>>> develop
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
+<<<<<<< HEAD
+// publicHtmlAdminHtml reads file data from disk. It returns an error on failure.
+func publicHtmlAdminHtml() (*asset, error) {
+	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/admin.html"
+	name := "public/html/admin.html"
+=======
+// publicHtmlDashboardPug reads file data from disk. It returns an error on failure.
+func publicHtmlDashboardPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/dashboard.pug"
+	name := "public/html/dashboard.pug"
+>>>>>>> develop
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
+<<<<<<< HEAD
 // publicHtmlAdminJade reads file data from disk. It returns an error on failure.
 func publicHtmlAdminJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/admin.jade"
 	name := "public/html/admin.jade"
+=======
+// publicHtmlIndexHtml reads file data from disk. It returns an error on failure.
+func publicHtmlIndexHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/index.html"
+	name := "public/html/index.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -709,10 +895,17 @@ func publicHtmlAdminJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlDashboardHtml reads file data from disk. It returns an error on failure.
 func publicHtmlDashboardHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/dashboard.html"
 	name := "public/html/dashboard.html"
+=======
+// publicHtmlIndexPug reads file data from disk. It returns an error on failure.
+func publicHtmlIndexPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/index.pug"
+	name := "public/html/index.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -727,10 +920,17 @@ func publicHtmlDashboardHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlDashboardJade reads file data from disk. It returns an error on failure.
 func publicHtmlDashboardJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/dashboard.jade"
 	name := "public/html/dashboard.jade"
+=======
+// publicHtmlTasksHtml reads file data from disk. It returns an error on failure.
+func publicHtmlTasksHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/tasks.html"
+	name := "public/html/tasks.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -745,10 +945,17 @@ func publicHtmlDashboardJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlIndexHtml reads file data from disk. It returns an error on failure.
 func publicHtmlIndexHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/index.html"
 	name := "public/html/index.html"
+=======
+// publicHtmlTasksPug reads file data from disk. It returns an error on failure.
+func publicHtmlTasksPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/tasks.pug"
+	name := "public/html/tasks.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -763,10 +970,17 @@ func publicHtmlIndexHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlIndexJade reads file data from disk. It returns an error on failure.
 func publicHtmlIndexJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/index.jade"
 	name := "public/html/index.jade"
+=======
+// publicHtmlAuthLoginHtml reads file data from disk. It returns an error on failure.
+func publicHtmlAuthLoginHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/auth/login.html"
+	name := "public/html/auth/login.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -781,10 +995,17 @@ func publicHtmlIndexJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlTasksHtml reads file data from disk. It returns an error on failure.
 func publicHtmlTasksHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/tasks.html"
 	name := "public/html/tasks.html"
+=======
+// publicHtmlAuthLoginPug reads file data from disk. It returns an error on failure.
+func publicHtmlAuthLoginPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/auth/login.pug"
+	name := "public/html/auth/login.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -799,10 +1020,17 @@ func publicHtmlTasksHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlTasksJade reads file data from disk. It returns an error on failure.
 func publicHtmlTasksJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/tasks.jade"
 	name := "public/html/tasks.jade"
+=======
+// publicHtmlAuthLogoutHtml reads file data from disk. It returns an error on failure.
+func publicHtmlAuthLogoutHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/auth/logout.html"
+	name := "public/html/auth/logout.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -817,10 +1045,17 @@ func publicHtmlTasksJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/add.html"
 	name := "public/html/projects/add.html"
+=======
+// publicHtmlAuthLogoutPug reads file data from disk. It returns an error on failure.
+func publicHtmlAuthLogoutPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/auth/logout.pug"
+	name := "public/html/auth/logout.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -835,10 +1070,17 @@ func publicHtmlProjectsAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/add.jade"
 	name := "public/html/projects/add.jade"
+=======
+// publicHtmlProjectsAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/add.html"
+	name := "public/html/projects/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -853,10 +1095,17 @@ func publicHtmlProjectsAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsContainerHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsContainerHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/container.html"
 	name := "public/html/projects/container.html"
+=======
+// publicHtmlProjectsAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/add.pug"
+	name := "public/html/projects/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -871,10 +1120,17 @@ func publicHtmlProjectsContainerHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsContainerJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsContainerJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/container.jade"
 	name := "public/html/projects/container.jade"
+=======
+// publicHtmlProjectsContainerHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsContainerHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/container.html"
+	name := "public/html/projects/container.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -889,10 +1145,17 @@ func publicHtmlProjectsContainerJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsCreatetaskmodalHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsCreatetaskmodalHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/createTaskModal.html"
 	name := "public/html/projects/createTaskModal.html"
+=======
+// publicHtmlProjectsContainerPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsContainerPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/container.pug"
+	name := "public/html/projects/container.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -907,10 +1170,17 @@ func publicHtmlProjectsCreatetaskmodalHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsCreatetaskmodalJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsCreatetaskmodalJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/createTaskModal.jade"
 	name := "public/html/projects/createTaskModal.jade"
+=======
+// publicHtmlProjectsCreatetaskmodalHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsCreatetaskmodalHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/createTaskModal.html"
+	name := "public/html/projects/createTaskModal.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -925,10 +1195,17 @@ func publicHtmlProjectsCreatetaskmodalJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsDashboardHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsDashboardHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/dashboard.html"
 	name := "public/html/projects/dashboard.html"
+=======
+// publicHtmlProjectsCreatetaskmodalPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsCreatetaskmodalPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/createTaskModal.pug"
+	name := "public/html/projects/createTaskModal.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -943,10 +1220,17 @@ func publicHtmlProjectsDashboardHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsDashboardJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsDashboardJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/dashboard.jade"
 	name := "public/html/projects/dashboard.jade"
+=======
+// publicHtmlProjectsDashboardHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsDashboardHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/dashboard.html"
+	name := "public/html/projects/dashboard.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -961,10 +1245,17 @@ func publicHtmlProjectsDashboardJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsEditHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsEditHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/edit.html"
 	name := "public/html/projects/edit.html"
+=======
+// publicHtmlProjectsDashboardPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsDashboardPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/dashboard.pug"
+	name := "public/html/projects/dashboard.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -979,10 +1270,17 @@ func publicHtmlProjectsEditHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsEditJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsEditJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/edit.jade"
 	name := "public/html/projects/edit.jade"
+=======
+// publicHtmlProjectsEditHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsEditHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/edit.html"
+	name := "public/html/projects/edit.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -997,10 +1295,17 @@ func publicHtmlProjectsEditJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsScheduleHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsScheduleHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/schedule.html"
 	name := "public/html/projects/schedule.html"
+=======
+// publicHtmlProjectsEditPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsEditPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/edit.pug"
+	name := "public/html/projects/edit.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1015,10 +1320,17 @@ func publicHtmlProjectsScheduleHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsScheduleJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsScheduleJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/schedule.jade"
 	name := "public/html/projects/schedule.jade"
+=======
+// publicHtmlProjectsScheduleHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsScheduleHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/schedule.html"
+	name := "public/html/projects/schedule.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1033,10 +1345,17 @@ func publicHtmlProjectsScheduleJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsTaskmodalHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsTaskmodalHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/taskModal.html"
 	name := "public/html/projects/taskModal.html"
+=======
+// publicHtmlProjectsSchedulePug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsSchedulePug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/schedule.pug"
+	name := "public/html/projects/schedule.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1051,10 +1370,17 @@ func publicHtmlProjectsTaskmodalHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsTaskmodalJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsTaskmodalJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/taskModal.jade"
 	name := "public/html/projects/taskModal.jade"
+=======
+// publicHtmlProjectsTaskmodalHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsTaskmodalHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/taskModal.html"
+	name := "public/html/projects/taskModal.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1069,10 +1395,17 @@ func publicHtmlProjectsTaskmodalJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsInventoryAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsInventoryAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/inventory/add.html"
 	name := "public/html/projects/inventory/add.html"
+=======
+// publicHtmlProjectsTaskmodalPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsTaskmodalPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/taskModal.pug"
+	name := "public/html/projects/taskModal.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1087,10 +1420,17 @@ func publicHtmlProjectsInventoryAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsInventoryAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsInventoryAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/inventory/add.jade"
 	name := "public/html/projects/inventory/add.jade"
+=======
+// publicHtmlProjectsEnvironmentAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsEnvironmentAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/environment/add.html"
+	name := "public/html/projects/environment/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1105,10 +1445,17 @@ func publicHtmlProjectsInventoryAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsInventoryEditHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsInventoryEditHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/inventory/edit.html"
 	name := "public/html/projects/inventory/edit.html"
+=======
+// publicHtmlProjectsEnvironmentAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsEnvironmentAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/environment/add.pug"
+	name := "public/html/projects/environment/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1123,10 +1470,17 @@ func publicHtmlProjectsInventoryEditHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsInventoryEditJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsInventoryEditJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/inventory/edit.jade"
 	name := "public/html/projects/inventory/edit.jade"
+=======
+// publicHtmlProjectsEnvironmentListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsEnvironmentListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/environment/list.html"
+	name := "public/html/projects/environment/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1141,10 +1495,17 @@ func publicHtmlProjectsInventoryEditJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsInventoryListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsInventoryListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/inventory/list.html"
 	name := "public/html/projects/inventory/list.html"
+=======
+// publicHtmlProjectsEnvironmentListPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsEnvironmentListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/environment/list.pug"
+	name := "public/html/projects/environment/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1159,10 +1520,17 @@ func publicHtmlProjectsInventoryListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsInventoryListJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsInventoryListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/inventory/list.jade"
 	name := "public/html/projects/inventory/list.jade"
+=======
+// publicHtmlProjectsInventoryAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsInventoryAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/inventory/add.html"
+	name := "public/html/projects/inventory/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1177,10 +1545,17 @@ func publicHtmlProjectsInventoryListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsRepositoriesAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsRepositoriesAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/repositories/add.html"
 	name := "public/html/projects/repositories/add.html"
+=======
+// publicHtmlProjectsInventoryAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsInventoryAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/inventory/add.pug"
+	name := "public/html/projects/inventory/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1195,10 +1570,17 @@ func publicHtmlProjectsRepositoriesAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsRepositoriesAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsRepositoriesAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/repositories/add.jade"
 	name := "public/html/projects/repositories/add.jade"
+=======
+// publicHtmlProjectsInventoryEditHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsInventoryEditHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/inventory/edit.html"
+	name := "public/html/projects/inventory/edit.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1213,10 +1595,17 @@ func publicHtmlProjectsRepositoriesAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsRepositoriesListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsRepositoriesListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/repositories/list.html"
 	name := "public/html/projects/repositories/list.html"
+=======
+// publicHtmlProjectsInventoryEditPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsInventoryEditPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/inventory/edit.pug"
+	name := "public/html/projects/inventory/edit.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1231,10 +1620,17 @@ func publicHtmlProjectsRepositoriesListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsRepositoriesListJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsRepositoriesListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/repositories/list.jade"
 	name := "public/html/projects/repositories/list.jade"
+=======
+// publicHtmlProjectsInventoryListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsInventoryListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/inventory/list.html"
+	name := "public/html/projects/inventory/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1249,10 +1645,17 @@ func publicHtmlProjectsRepositoriesListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsUsersAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsUsersAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/users/add.html"
 	name := "public/html/projects/users/add.html"
+=======
+// publicHtmlProjectsInventoryListPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsInventoryListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/inventory/list.pug"
+	name := "public/html/projects/inventory/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1267,10 +1670,17 @@ func publicHtmlProjectsUsersAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsUsersAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsUsersAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/users/add.jade"
 	name := "public/html/projects/users/add.jade"
+=======
+// publicHtmlProjectsKeysAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsKeysAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/keys/add.html"
+	name := "public/html/projects/keys/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1285,10 +1695,17 @@ func publicHtmlProjectsUsersAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsUsersListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsUsersListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/users/list.html"
 	name := "public/html/projects/users/list.html"
+=======
+// publicHtmlProjectsKeysAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsKeysAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/keys/add.pug"
+	name := "public/html/projects/keys/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1303,10 +1720,17 @@ func publicHtmlProjectsUsersListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsUsersListJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsUsersListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/users/list.jade"
 	name := "public/html/projects/users/list.jade"
+=======
+// publicHtmlProjectsKeysListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsKeysListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/keys/list.html"
+	name := "public/html/projects/keys/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1321,10 +1745,17 @@ func publicHtmlProjectsUsersListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsKeysAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsKeysAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/keys/add.html"
 	name := "public/html/projects/keys/add.html"
+=======
+// publicHtmlProjectsKeysListPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsKeysListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/keys/list.pug"
+	name := "public/html/projects/keys/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1339,10 +1770,17 @@ func publicHtmlProjectsKeysAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsKeysAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsKeysAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/keys/add.jade"
 	name := "public/html/projects/keys/add.jade"
+=======
+// publicHtmlProjectsRepositoriesAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsRepositoriesAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/repositories/add.html"
+	name := "public/html/projects/repositories/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1357,10 +1795,17 @@ func publicHtmlProjectsKeysAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsKeysListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsKeysListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/keys/list.html"
 	name := "public/html/projects/keys/list.html"
+=======
+// publicHtmlProjectsRepositoriesAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsRepositoriesAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/repositories/add.pug"
+	name := "public/html/projects/repositories/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1375,10 +1820,17 @@ func publicHtmlProjectsKeysListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsKeysListJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsKeysListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/keys/list.jade"
 	name := "public/html/projects/keys/list.jade"
+=======
+// publicHtmlProjectsRepositoriesListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsRepositoriesListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/repositories/list.html"
+	name := "public/html/projects/repositories/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1393,10 +1845,17 @@ func publicHtmlProjectsKeysListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsTemplatesAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsTemplatesAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/templates/add.html"
 	name := "public/html/projects/templates/add.html"
+=======
+// publicHtmlProjectsRepositoriesListPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsRepositoriesListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/repositories/list.pug"
+	name := "public/html/projects/repositories/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1411,10 +1870,17 @@ func publicHtmlProjectsTemplatesAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsTemplatesAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsTemplatesAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/templates/add.jade"
 	name := "public/html/projects/templates/add.jade"
+=======
+// publicHtmlProjectsTemplatesAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsTemplatesAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/templates/add.html"
+	name := "public/html/projects/templates/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1429,10 +1895,17 @@ func publicHtmlProjectsTemplatesAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsTemplatesListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsTemplatesListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/templates/list.html"
 	name := "public/html/projects/templates/list.html"
+=======
+// publicHtmlProjectsTemplatesAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsTemplatesAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/templates/add.pug"
+	name := "public/html/projects/templates/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1447,10 +1920,17 @@ func publicHtmlProjectsTemplatesListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsTemplatesListJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsTemplatesListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/templates/list.jade"
 	name := "public/html/projects/templates/list.jade"
+=======
+// publicHtmlProjectsTemplatesListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsTemplatesListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/templates/list.html"
+	name := "public/html/projects/templates/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1465,10 +1945,17 @@ func publicHtmlProjectsTemplatesListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsEnvironmentAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsEnvironmentAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/environment/add.html"
 	name := "public/html/projects/environment/add.html"
+=======
+// publicHtmlProjectsTemplatesListPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsTemplatesListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/templates/list.pug"
+	name := "public/html/projects/templates/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1483,10 +1970,17 @@ func publicHtmlProjectsEnvironmentAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsEnvironmentAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsEnvironmentAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/environment/add.jade"
 	name := "public/html/projects/environment/add.jade"
+=======
+// publicHtmlProjectsUsersAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsUsersAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/users/add.html"
+	name := "public/html/projects/users/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1501,10 +1995,17 @@ func publicHtmlProjectsEnvironmentAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsEnvironmentListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsEnvironmentListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/environment/list.html"
 	name := "public/html/projects/environment/list.html"
+=======
+// publicHtmlProjectsUsersAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsUsersAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/users/add.pug"
+	name := "public/html/projects/users/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1519,10 +2020,17 @@ func publicHtmlProjectsEnvironmentListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlProjectsEnvironmentListJade reads file data from disk. It returns an error on failure.
 func publicHtmlProjectsEnvironmentListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/projects/environment/list.jade"
 	name := "public/html/projects/environment/list.jade"
+=======
+// publicHtmlProjectsUsersListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsUsersListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/users/list.html"
+	name := "public/html/projects/users/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1537,10 +2045,17 @@ func publicHtmlProjectsEnvironmentListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlAuthLoginHtml reads file data from disk. It returns an error on failure.
 func publicHtmlAuthLoginHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/auth/login.html"
 	name := "public/html/auth/login.html"
+=======
+// publicHtmlProjectsUsersListPug reads file data from disk. It returns an error on failure.
+func publicHtmlProjectsUsersListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/projects/users/list.pug"
+	name := "public/html/projects/users/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1555,10 +2070,17 @@ func publicHtmlAuthLoginHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlAuthLoginJade reads file data from disk. It returns an error on failure.
 func publicHtmlAuthLoginJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/auth/login.jade"
 	name := "public/html/auth/login.jade"
+=======
+// publicHtmlUsersAddHtml reads file data from disk. It returns an error on failure.
+func publicHtmlUsersAddHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/users/add.html"
+	name := "public/html/users/add.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1573,10 +2095,17 @@ func publicHtmlAuthLoginJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlAuthLogoutHtml reads file data from disk. It returns an error on failure.
 func publicHtmlAuthLogoutHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/auth/logout.html"
 	name := "public/html/auth/logout.html"
+=======
+// publicHtmlUsersAddPug reads file data from disk. It returns an error on failure.
+func publicHtmlUsersAddPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/users/add.pug"
+	name := "public/html/users/add.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1591,10 +2120,17 @@ func publicHtmlAuthLogoutHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlAuthLogoutJade reads file data from disk. It returns an error on failure.
 func publicHtmlAuthLogoutJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/auth/logout.jade"
 	name := "public/html/auth/logout.jade"
+=======
+// publicHtmlUsersListHtml reads file data from disk. It returns an error on failure.
+func publicHtmlUsersListHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/users/list.html"
+	name := "public/html/users/list.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1609,10 +2145,17 @@ func publicHtmlAuthLogoutJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlUsersAddHtml reads file data from disk. It returns an error on failure.
 func publicHtmlUsersAddHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/users/add.html"
 	name := "public/html/users/add.html"
+=======
+// publicHtmlUsersListPug reads file data from disk. It returns an error on failure.
+func publicHtmlUsersListPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/users/list.pug"
+	name := "public/html/users/list.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1627,10 +2170,17 @@ func publicHtmlUsersAddHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlUsersAddJade reads file data from disk. It returns an error on failure.
 func publicHtmlUsersAddJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/users/add.jade"
 	name := "public/html/users/add.jade"
+=======
+// publicHtmlUsersUserHtml reads file data from disk. It returns an error on failure.
+func publicHtmlUsersUserHtml() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/users/user.html"
+	name := "public/html/users/user.html"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1645,10 +2195,17 @@ func publicHtmlUsersAddJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlUsersListHtml reads file data from disk. It returns an error on failure.
 func publicHtmlUsersListHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/users/list.html"
 	name := "public/html/users/list.html"
+=======
+// publicHtmlUsersUserPug reads file data from disk. It returns an error on failure.
+func publicHtmlUsersUserPug() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/html/users/user.pug"
+	name := "public/html/users/user.pug"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1663,10 +2220,17 @@ func publicHtmlUsersListHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlUsersListJade reads file data from disk. It returns an error on failure.
 func publicHtmlUsersListJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/users/list.jade"
 	name := "public/html/users/list.jade"
+=======
+// publicImgIconPng reads file data from disk. It returns an error on failure.
+func publicImgIconPng() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/img/icon.png"
+	name := "public/img/icon.png"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1681,10 +2245,17 @@ func publicHtmlUsersListJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlUsersUserHtml reads file data from disk. It returns an error on failure.
 func publicHtmlUsersUserHtml() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/users/user.html"
 	name := "public/html/users/user.html"
+=======
+// publicImgLogoPng reads file data from disk. It returns an error on failure.
+func publicImgLogoPng() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/img/logo.png"
+	name := "public/img/logo.png"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1699,10 +2270,17 @@ func publicHtmlUsersUserHtml() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicHtmlUsersUserJade reads file data from disk. It returns an error on failure.
 func publicHtmlUsersUserJade() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/html/users/user.jade"
 	name := "public/html/users/user.jade"
+=======
+// publicImgScreenshotPng reads file data from disk. It returns an error on failure.
+func publicImgScreenshotPng() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/img/screenshot.png"
+	name := "public/img/screenshot.png"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1717,10 +2295,17 @@ func publicHtmlUsersUserJade() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicImgLogoPng reads file data from disk. It returns an error on failure.
 func publicImgLogoPng() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/img/logo.png"
 	name := "public/img/logo.png"
+=======
+// publicJsAppJs reads file data from disk. It returns an error on failure.
+func publicJsAppJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/app.js"
+	name := "public/js/app.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1735,10 +2320,17 @@ func publicImgLogoPng() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicImgScreenshotPng reads file data from disk. It returns an error on failure.
 func publicImgScreenshotPng() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/img/screenshot.png"
 	name := "public/img/screenshot.png"
+=======
+// publicJsBundleJs reads file data from disk. It returns an error on failure.
+func publicJsBundleJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/bundle.js"
+	name := "public/js/bundle.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1753,10 +2345,17 @@ func publicImgScreenshotPng() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsAppJs reads file data from disk. It returns an error on failure.
 func publicJsAppJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/app.js"
 	name := "public/js/app.js"
+=======
+// publicJsControllersAdminJs reads file data from disk. It returns an error on failure.
+func publicJsControllersAdminJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/admin.js"
+	name := "public/js/controllers/admin.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1771,10 +2370,17 @@ func publicJsAppJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsBundleJs reads file data from disk. It returns an error on failure.
 func publicJsBundleJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/bundle.js"
 	name := "public/js/bundle.js"
+=======
+// publicJsControllersDashboardJs reads file data from disk. It returns an error on failure.
+func publicJsControllersDashboardJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/dashboard.js"
+	name := "public/js/controllers/dashboard.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1789,10 +2395,17 @@ func publicJsBundleJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersAdminJs reads file data from disk. It returns an error on failure.
 func publicJsControllersAdminJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/admin.js"
 	name := "public/js/controllers/admin.js"
+=======
+// publicJsControllersLoginJs reads file data from disk. It returns an error on failure.
+func publicJsControllersLoginJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/login.js"
+	name := "public/js/controllers/login.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1807,10 +2420,17 @@ func publicJsControllersAdminJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersDashboardJs reads file data from disk. It returns an error on failure.
 func publicJsControllersDashboardJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/dashboard.js"
 	name := "public/js/controllers/dashboard.js"
+=======
+// publicJsControllersTasksJs reads file data from disk. It returns an error on failure.
+func publicJsControllersTasksJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/tasks.js"
+	name := "public/js/controllers/tasks.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1825,10 +2445,17 @@ func publicJsControllersDashboardJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersLoginJs reads file data from disk. It returns an error on failure.
 func publicJsControllersLoginJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/login.js"
 	name := "public/js/controllers/login.js"
+=======
+// publicJsControllersUserJs reads file data from disk. It returns an error on failure.
+func publicJsControllersUserJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/user.js"
+	name := "public/js/controllers/user.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1843,10 +2470,17 @@ func publicJsControllersLoginJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersTasksJs reads file data from disk. It returns an error on failure.
 func publicJsControllersTasksJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/tasks.js"
 	name := "public/js/controllers/tasks.js"
+=======
+// publicJsControllersUsersJs reads file data from disk. It returns an error on failure.
+func publicJsControllersUsersJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/users.js"
+	name := "public/js/controllers/users.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1861,10 +2495,17 @@ func publicJsControllersTasksJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersUserJs reads file data from disk. It returns an error on failure.
 func publicJsControllersUserJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/user.js"
 	name := "public/js/controllers/user.js"
+=======
+// publicJsControllersProjectsDashboardJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsDashboardJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/dashboard.js"
+	name := "public/js/controllers/projects/dashboard.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1879,10 +2520,17 @@ func publicJsControllersUserJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersUsersJs reads file data from disk. It returns an error on failure.
 func publicJsControllersUsersJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/users.js"
 	name := "public/js/controllers/users.js"
+=======
+// publicJsControllersProjectsEditJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsEditJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/edit.js"
+	name := "public/js/controllers/projects/edit.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1897,10 +2545,17 @@ func publicJsControllersUsersJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsDashboardJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsDashboardJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/dashboard.js"
 	name := "public/js/controllers/projects/dashboard.js"
+=======
+// publicJsControllersProjectsEnvironmentJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsEnvironmentJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/environment.js"
+	name := "public/js/controllers/projects/environment.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1915,10 +2570,17 @@ func publicJsControllersProjectsDashboardJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsEditJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsEditJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/edit.js"
 	name := "public/js/controllers/projects/edit.js"
+=======
+// publicJsControllersProjectsInventoryJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsInventoryJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/inventory.js"
+	name := "public/js/controllers/projects/inventory.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1933,10 +2595,17 @@ func publicJsControllersProjectsEditJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsEnvironmentJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsEnvironmentJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/environment.js"
 	name := "public/js/controllers/projects/environment.js"
+=======
+// publicJsControllersProjectsKeysJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsKeysJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/keys.js"
+	name := "public/js/controllers/projects/keys.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1951,10 +2620,17 @@ func publicJsControllersProjectsEnvironmentJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsInventoryJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsInventoryJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/inventory.js"
 	name := "public/js/controllers/projects/inventory.js"
+=======
+// publicJsControllersProjectsRepositoriesJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsRepositoriesJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/repositories.js"
+	name := "public/js/controllers/projects/repositories.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1969,10 +2645,17 @@ func publicJsControllersProjectsInventoryJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsKeysJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsKeysJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/keys.js"
 	name := "public/js/controllers/projects/keys.js"
+=======
+// publicJsControllersProjectsScheduleJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsScheduleJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/schedule.js"
+	name := "public/js/controllers/projects/schedule.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -1987,10 +2670,17 @@ func publicJsControllersProjectsKeysJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsRepositoriesJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsRepositoriesJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/repositories.js"
 	name := "public/js/controllers/projects/repositories.js"
+=======
+// publicJsControllersProjectsTaskrunnerJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsTaskrunnerJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/taskRunner.js"
+	name := "public/js/controllers/projects/taskRunner.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2005,10 +2695,17 @@ func publicJsControllersProjectsRepositoriesJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsScheduleJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsScheduleJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/schedule.js"
 	name := "public/js/controllers/projects/schedule.js"
+=======
+// publicJsControllersProjectsTemplatesJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsTemplatesJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/templates.js"
+	name := "public/js/controllers/projects/templates.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2023,10 +2720,17 @@ func publicJsControllersProjectsScheduleJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsTaskrunnerJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsTaskrunnerJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/taskRunner.js"
 	name := "public/js/controllers/projects/taskRunner.js"
+=======
+// publicJsControllersProjectsUsersJs reads file data from disk. It returns an error on failure.
+func publicJsControllersProjectsUsersJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/controllers/projects/users.js"
+	name := "public/js/controllers/projects/users.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2041,10 +2745,17 @@ func publicJsControllersProjectsTaskrunnerJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsTemplatesJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsTemplatesJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/templates.js"
 	name := "public/js/controllers/projects/templates.js"
+=======
+// publicJsFactoriesHostJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesHostJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/host.js"
+	name := "public/js/factories/host.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2059,10 +2770,17 @@ func publicJsControllersProjectsTemplatesJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsControllersProjectsUsersJs reads file data from disk. It returns an error on failure.
 func publicJsControllersProjectsUsersJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/controllers/projects/users.js"
 	name := "public/js/controllers/projects/users.js"
+=======
+// publicJsFactoriesHostgroupJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesHostgroupJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/hostgroup.js"
+	name := "public/js/factories/hostgroup.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2077,10 +2795,17 @@ func publicJsControllersProjectsUsersJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesHostJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesHostJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/host.js"
 	name := "public/js/factories/host.js"
+=======
+// publicJsFactoriesIdentityJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesIdentityJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/identity.js"
+	name := "public/js/factories/identity.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2095,10 +2820,17 @@ func publicJsFactoriesHostJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesHostgroupJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesHostgroupJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/hostgroup.js"
 	name := "public/js/factories/hostgroup.js"
+=======
+// publicJsFactoriesJobJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesJobJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/job.js"
+	name := "public/js/factories/job.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2113,10 +2845,17 @@ func publicJsFactoriesHostgroupJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesIdentityJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesIdentityJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/identity.js"
 	name := "public/js/factories/identity.js"
+=======
+// publicJsFactoriesPlaybookJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesPlaybookJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/playbook.js"
+	name := "public/js/factories/playbook.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2131,10 +2870,17 @@ func publicJsFactoriesIdentityJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesJobJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesJobJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/job.js"
 	name := "public/js/factories/job.js"
+=======
+// publicJsFactoriesProjectJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesProjectJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/project.js"
+	name := "public/js/factories/project.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2149,10 +2895,17 @@ func publicJsFactoriesJobJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesPlaybookJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesPlaybookJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/playbook.js"
 	name := "public/js/factories/playbook.js"
+=======
+// publicJsFactoriesTaskJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesTaskJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/task.js"
+	name := "public/js/factories/task.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2167,10 +2920,17 @@ func publicJsFactoriesPlaybookJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesProjectJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesProjectJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/project.js"
 	name := "public/js/factories/project.js"
+=======
+// publicJsFactoriesUserJs reads file data from disk. It returns an error on failure.
+func publicJsFactoriesUserJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/factories/user.js"
+	name := "public/js/factories/user.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2185,10 +2945,17 @@ func publicJsFactoriesProjectJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesTaskJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesTaskJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/task.js"
 	name := "public/js/factories/task.js"
+=======
+// publicJsRoutesAuthJs reads file data from disk. It returns an error on failure.
+func publicJsRoutesAuthJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/routes/auth.js"
+	name := "public/js/routes/auth.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2203,10 +2970,17 @@ func publicJsFactoriesTaskJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsFactoriesUserJs reads file data from disk. It returns an error on failure.
 func publicJsFactoriesUserJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/factories/user.js"
 	name := "public/js/factories/user.js"
+=======
+// publicJsRoutesProjectJs reads file data from disk. It returns an error on failure.
+func publicJsRoutesProjectJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/routes/project.js"
+	name := "public/js/routes/project.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2221,10 +2995,17 @@ func publicJsFactoriesUserJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsRoutesAuthJs reads file data from disk. It returns an error on failure.
 func publicJsRoutesAuthJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/routes/auth.js"
 	name := "public/js/routes/auth.js"
+=======
+// publicJsRoutesRouterJs reads file data from disk. It returns an error on failure.
+func publicJsRoutesRouterJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/routes/router.js"
+	name := "public/js/routes/router.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2239,10 +3020,17 @@ func publicJsRoutesAuthJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsRoutesProjectJs reads file data from disk. It returns an error on failure.
 func publicJsRoutesProjectJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/routes/project.js"
 	name := "public/js/routes/project.js"
+=======
+// publicJsServicesHostgroupsJs reads file data from disk. It returns an error on failure.
+func publicJsServicesHostgroupsJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/hostgroups.js"
+	name := "public/js/services/hostgroups.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2257,10 +3045,17 @@ func publicJsRoutesProjectJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsRoutesRouterJs reads file data from disk. It returns an error on failure.
 func publicJsRoutesRouterJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/routes/router.js"
 	name := "public/js/routes/router.js"
+=======
+// publicJsServicesIdentitiesJs reads file data from disk. It returns an error on failure.
+func publicJsServicesIdentitiesJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/identities.js"
+	name := "public/js/services/identities.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2275,10 +3070,17 @@ func publicJsRoutesRouterJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesHostgroupsJs reads file data from disk. It returns an error on failure.
 func publicJsServicesHostgroupsJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/hostgroups.js"
 	name := "public/js/services/hostgroups.js"
+=======
+// publicJsServicesJobsJs reads file data from disk. It returns an error on failure.
+func publicJsServicesJobsJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/jobs.js"
+	name := "public/js/services/jobs.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2293,10 +3095,17 @@ func publicJsServicesHostgroupsJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesIdentitiesJs reads file data from disk. It returns an error on failure.
 func publicJsServicesIdentitiesJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/identities.js"
 	name := "public/js/services/identities.js"
+=======
+// publicJsServicesPlaybooksJs reads file data from disk. It returns an error on failure.
+func publicJsServicesPlaybooksJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/playbooks.js"
+	name := "public/js/services/playbooks.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2311,10 +3120,17 @@ func publicJsServicesIdentitiesJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesJobsJs reads file data from disk. It returns an error on failure.
 func publicJsServicesJobsJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/jobs.js"
 	name := "public/js/services/jobs.js"
+=======
+// publicJsServicesTasksJs reads file data from disk. It returns an error on failure.
+func publicJsServicesTasksJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/tasks.js"
+	name := "public/js/services/tasks.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2329,10 +3145,17 @@ func publicJsServicesJobsJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesPlaybooksJs reads file data from disk. It returns an error on failure.
 func publicJsServicesPlaybooksJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/playbooks.js"
 	name := "public/js/services/playbooks.js"
+=======
+// publicJsServicesUserJs reads file data from disk. It returns an error on failure.
+func publicJsServicesUserJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/user.js"
+	name := "public/js/services/user.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2347,10 +3170,17 @@ func publicJsServicesPlaybooksJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesTasksJs reads file data from disk. It returns an error on failure.
 func publicJsServicesTasksJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/tasks.js"
 	name := "public/js/services/tasks.js"
+=======
+// publicJsServicesUsersJs reads file data from disk. It returns an error on failure.
+func publicJsServicesUsersJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/js/services/users.js"
+	name := "public/js/services/users.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2365,10 +3195,17 @@ func publicJsServicesTasksJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesUserJs reads file data from disk. It returns an error on failure.
 func publicJsServicesUserJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/user.js"
 	name := "public/js/services/user.js"
+=======
+// publicVendorGit reads file data from disk. It returns an error on failure.
+func publicVendorGit() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/.git"
+	name := "public/vendor/.git"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2383,10 +3220,17 @@ func publicJsServicesUserJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicJsServicesUsersJs reads file data from disk. It returns an error on failure.
 func publicJsServicesUsersJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/js/services/users.js"
 	name := "public/js/services/users.js"
+=======
+// publicVendorAngularCouchPotatoJs reads file data from disk. It returns an error on failure.
+func publicVendorAngularCouchPotatoJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular-couch-potato.js"
+	name := "public/vendor/angular-couch-potato.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2401,10 +3245,17 @@ func publicJsServicesUsersJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorGit reads file data from disk. It returns an error on failure.
 func publicVendorGit() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/.git"
 	name := "public/vendor/.git"
+=======
+// publicVendorAngularUiRouterMinJs reads file data from disk. It returns an error on failure.
+func publicVendorAngularUiRouterMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular-ui-router.min.js"
+	name := "public/vendor/angular-ui-router.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2419,10 +3270,17 @@ func publicVendorGit() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularCouchPotatoJs reads file data from disk. It returns an error on failure.
 func publicVendorAngularCouchPotatoJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular-couch-potato.js"
 	name := "public/vendor/angular-couch-potato.js"
+=======
+// publicVendorAngularUiMinJs reads file data from disk. It returns an error on failure.
+func publicVendorAngularUiMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular-ui.min.js"
+	name := "public/vendor/angular-ui.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2437,10 +3295,17 @@ func publicVendorAngularCouchPotatoJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularUiRouterMinJs reads file data from disk. It returns an error on failure.
 func publicVendorAngularUiRouterMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular-ui-router.min.js"
 	name := "public/vendor/angular-ui-router.min.js"
+=======
+// publicVendorAngularMinJs reads file data from disk. It returns an error on failure.
+func publicVendorAngularMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular.min.js"
+	name := "public/vendor/angular.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2455,10 +3320,17 @@ func publicVendorAngularUiRouterMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularUiMinJs reads file data from disk. It returns an error on failure.
 func publicVendorAngularUiMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular-ui.min.js"
 	name := "public/vendor/angular-ui.min.js"
+=======
+// publicVendorAsyncJs reads file data from disk. It returns an error on failure.
+func publicVendorAsyncJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/async.js"
+	name := "public/vendor/async.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2473,10 +3345,17 @@ func publicVendorAngularUiMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularMinJs reads file data from disk. It returns an error on failure.
 func publicVendorAngularMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular.min.js"
 	name := "public/vendor/angular.min.js"
+=======
+// publicVendorRequireMinJs reads file data from disk. It returns an error on failure.
+func publicVendorRequireMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/require.min.js"
+	name := "public/vendor/require.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2491,10 +3370,17 @@ func publicVendorAngularMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAsyncJs reads file data from disk. It returns an error on failure.
 func publicVendorAsyncJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/async.js"
 	name := "public/vendor/async.js"
+=======
+// publicVendorAngularLoadingBarLoadingBarCss reads file data from disk. It returns an error on failure.
+func publicVendorAngularLoadingBarLoadingBarCss() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular-loading-bar/loading-bar.css"
+	name := "public/vendor/angular-loading-bar/loading-bar.css"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2509,10 +3395,17 @@ func publicVendorAsyncJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorRequireMinJs reads file data from disk. It returns an error on failure.
 func publicVendorRequireMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/require.min.js"
 	name := "public/vendor/require.min.js"
+=======
+// publicVendorAngularLoadingBarLoadingBarJs reads file data from disk. It returns an error on failure.
+func publicVendorAngularLoadingBarLoadingBarJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular-loading-bar/loading-bar.js"
+	name := "public/vendor/angular-loading-bar/loading-bar.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2527,10 +3420,17 @@ func publicVendorRequireMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorSweetalertSweetalertCss reads file data from disk. It returns an error on failure.
 func publicVendorSweetalertSweetalertCss() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/sweetalert/sweetalert.css"
 	name := "public/vendor/sweetalert/sweetalert.css"
+=======
+// publicVendorAngularLoadingBarLoadingBarMinJs reads file data from disk. It returns an error on failure.
+func publicVendorAngularLoadingBarLoadingBarMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/angular-loading-bar/loading-bar.min.js"
+	name := "public/vendor/angular-loading-bar/loading-bar.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2545,10 +3445,17 @@ func publicVendorSweetalertSweetalertCss() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorSweetalertSweetalertMinJs reads file data from disk. It returns an error on failure.
 func publicVendorSweetalertSweetalertMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/sweetalert/sweetalert.min.js"
 	name := "public/vendor/sweetalert/sweetalert.min.js"
+=======
+// publicVendorBootstrapEditorconfig reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapEditorconfig() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/.editorconfig"
+	name := "public/vendor/bootstrap/.editorconfig"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2563,10 +3470,17 @@ func publicVendorSweetalertSweetalertMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularLoadingBarLoadingBarCss reads file data from disk. It returns an error on failure.
 func publicVendorAngularLoadingBarLoadingBarCss() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular-loading-bar/loading-bar.css"
 	name := "public/vendor/angular-loading-bar/loading-bar.css"
+=======
+// publicVendorBootstrapGitattributes reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapGitattributes() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/.gitattributes"
+	name := "public/vendor/bootstrap/.gitattributes"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2581,10 +3495,17 @@ func publicVendorAngularLoadingBarLoadingBarCss() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularLoadingBarLoadingBarJs reads file data from disk. It returns an error on failure.
 func publicVendorAngularLoadingBarLoadingBarJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular-loading-bar/loading-bar.js"
 	name := "public/vendor/angular-loading-bar/loading-bar.js"
+=======
+// publicVendorBootstrapGitignore reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapGitignore() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/.gitignore"
+	name := "public/vendor/bootstrap/.gitignore"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2599,10 +3520,17 @@ func publicVendorAngularLoadingBarLoadingBarJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorAngularLoadingBarLoadingBarMinJs reads file data from disk. It returns an error on failure.
 func publicVendorAngularLoadingBarLoadingBarMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/angular-loading-bar/loading-bar.min.js"
 	name := "public/vendor/angular-loading-bar/loading-bar.min.js"
+=======
+// publicVendorBootstrapReadmeMd reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapReadmeMd() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/README.md"
+	name := "public/vendor/bootstrap/README.md"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2617,10 +3545,17 @@ func publicVendorAngularLoadingBarLoadingBarMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessAnimatedLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessAnimatedLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/animated.less"
 	name := "public/vendor/fontawesome/less/animated.less"
+=======
+// publicVendorBootstrapBowerJson reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapBowerJson() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/bower.json"
+	name := "public/vendor/bootstrap/bower.json"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2635,10 +3570,17 @@ func publicVendorFontawesomeLessAnimatedLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessBorderedPulledLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessBorderedPulledLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/bordered-pulled.less"
 	name := "public/vendor/fontawesome/less/bordered-pulled.less"
+=======
+// publicVendorBootstrapPackageJson reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapPackageJson() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/package.json"
+	name := "public/vendor/bootstrap/package.json"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2653,10 +3595,17 @@ func publicVendorFontawesomeLessBorderedPulledLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessCoreLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessCoreLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/core.less"
 	name := "public/vendor/fontawesome/less/core.less"
+=======
+// publicVendorBootstrapDistCssBootstrapThemeCss reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistCssBootstrapThemeCss() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/css/bootstrap-theme.css"
+	name := "public/vendor/bootstrap/dist/css/bootstrap-theme.css"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2671,10 +3620,17 @@ func publicVendorFontawesomeLessCoreLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessFixedWidthLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessFixedWidthLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/fixed-width.less"
 	name := "public/vendor/fontawesome/less/fixed-width.less"
+=======
+// publicVendorBootstrapDistCssBootstrapThemeCssMap reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistCssBootstrapThemeCssMap() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/css/bootstrap-theme.css.map"
+	name := "public/vendor/bootstrap/dist/css/bootstrap-theme.css.map"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2689,10 +3645,17 @@ func publicVendorFontawesomeLessFixedWidthLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessFontAwesomeLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessFontAwesomeLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/font-awesome.less"
 	name := "public/vendor/fontawesome/less/font-awesome.less"
+=======
+// publicVendorBootstrapDistCssBootstrapThemeMinCss reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistCssBootstrapThemeMinCss() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/css/bootstrap-theme.min.css"
+	name := "public/vendor/bootstrap/dist/css/bootstrap-theme.min.css"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2707,10 +3670,17 @@ func publicVendorFontawesomeLessFontAwesomeLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessIconsLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessIconsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/icons.less"
 	name := "public/vendor/fontawesome/less/icons.less"
+=======
+// publicVendorBootstrapDistCssBootstrapCss reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistCssBootstrapCss() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/css/bootstrap.css"
+	name := "public/vendor/bootstrap/dist/css/bootstrap.css"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2725,10 +3695,17 @@ func publicVendorFontawesomeLessIconsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessLargerLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessLargerLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/larger.less"
 	name := "public/vendor/fontawesome/less/larger.less"
+=======
+// publicVendorBootstrapDistCssBootstrapCssMap reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistCssBootstrapCssMap() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/css/bootstrap.css.map"
+	name := "public/vendor/bootstrap/dist/css/bootstrap.css.map"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2743,10 +3720,17 @@ func publicVendorFontawesomeLessLargerLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessListLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessListLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/list.less"
 	name := "public/vendor/fontawesome/less/list.less"
+=======
+// publicVendorBootstrapDistCssBootstrapMinCss reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistCssBootstrapMinCss() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/css/bootstrap.min.css"
+	name := "public/vendor/bootstrap/dist/css/bootstrap.min.css"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2761,10 +3745,17 @@ func publicVendorFontawesomeLessListLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessMixinsLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessMixinsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/mixins.less"
 	name := "public/vendor/fontawesome/less/mixins.less"
+=======
+// publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularEot reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.eot"
+	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.eot"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2779,10 +3770,17 @@ func publicVendorFontawesomeLessMixinsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessPathLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessPathLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/path.less"
 	name := "public/vendor/fontawesome/less/path.less"
+=======
+// publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularSvg reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.svg"
+	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.svg"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2797,10 +3795,17 @@ func publicVendorFontawesomeLessPathLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessRotatedFlippedLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessRotatedFlippedLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/rotated-flipped.less"
 	name := "public/vendor/fontawesome/less/rotated-flipped.less"
+=======
+// publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularTtf reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf"
+	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2815,10 +3820,17 @@ func publicVendorFontawesomeLessRotatedFlippedLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessStackedLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessStackedLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/stacked.less"
 	name := "public/vendor/fontawesome/less/stacked.less"
+=======
+// publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff"
+	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2833,10 +3845,17 @@ func publicVendorFontawesomeLessStackedLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeLessVariablesLess reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeLessVariablesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/less/variables.less"
 	name := "public/vendor/fontawesome/less/variables.less"
+=======
+// publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff2 reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff2() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2"
+	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2851,10 +3870,17 @@ func publicVendorFontawesomeLessVariablesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeFontsFontawesomeOtf reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeFontsFontawesomeOtf() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/fonts/FontAwesome.otf"
 	name := "public/vendor/fontawesome/fonts/FontAwesome.otf"
+=======
+// publicVendorBootstrapDistJsBootstrapJs reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistJsBootstrapJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/js/bootstrap.js"
+	name := "public/vendor/bootstrap/dist/js/bootstrap.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2869,10 +3895,17 @@ func publicVendorFontawesomeFontsFontawesomeOtf() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeFontsFontawesomeWebfontEot reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeFontsFontawesomeWebfontEot() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.eot"
 	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.eot"
+=======
+// publicVendorBootstrapDistJsBootstrapMinJs reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistJsBootstrapMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/js/bootstrap.min.js"
+	name := "public/vendor/bootstrap/dist/js/bootstrap.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2887,10 +3920,17 @@ func publicVendorFontawesomeFontsFontawesomeWebfontEot() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeFontsFontawesomeWebfontSvg reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeFontsFontawesomeWebfontSvg() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.svg"
 	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.svg"
+=======
+// publicVendorBootstrapDistJsNpmJs reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapDistJsNpmJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/dist/js/npm.js"
+	name := "public/vendor/bootstrap/dist/js/npm.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2905,10 +3945,17 @@ func publicVendorFontawesomeFontsFontawesomeWebfontSvg() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeFontsFontawesomeWebfontTtf reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeFontsFontawesomeWebfontTtf() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.ttf"
 	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.ttf"
+=======
+// publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot"
+	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2923,10 +3970,17 @@ func publicVendorFontawesomeFontsFontawesomeWebfontTtf() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeFontsFontawesomeWebfontWoff reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeFontsFontawesomeWebfontWoff() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.woff"
 	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.woff"
+=======
+// publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg"
+	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2941,10 +3995,17 @@ func publicVendorFontawesomeFontsFontawesomeWebfontWoff() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorFontawesomeFontsFontawesomeWebfontWoff2 reads file data from disk. It returns an error on failure.
 func publicVendorFontawesomeFontsFontawesomeWebfontWoff2() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.woff2"
 	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.woff2"
+=======
+// publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf"
+	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2959,10 +4020,17 @@ func publicVendorFontawesomeFontsFontawesomeWebfontWoff2() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapEditorconfig reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapEditorconfig() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/.editorconfig"
 	name := "public/vendor/bootstrap/.editorconfig"
+=======
+// publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff"
+	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2977,10 +4045,17 @@ func publicVendorBootstrapEditorconfig() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapGitattributes reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapGitattributes() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/.gitattributes"
 	name := "public/vendor/bootstrap/.gitattributes"
+=======
+// publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff2 reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff2() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff2"
+	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff2"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -2995,10 +4070,17 @@ func publicVendorBootstrapGitattributes() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapGitignore reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapGitignore() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/.gitignore"
 	name := "public/vendor/bootstrap/.gitignore"
+=======
+// publicVendorBootstrapLessCsscombJson reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessCsscombJson() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/.csscomb.json"
+	name := "public/vendor/bootstrap/less/.csscomb.json"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3013,10 +4095,17 @@ func publicVendorBootstrapGitignore() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapReadmeMd reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapReadmeMd() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/README.md"
 	name := "public/vendor/bootstrap/README.md"
+=======
+// publicVendorBootstrapLessCsslintrc reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessCsslintrc() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/.csslintrc"
+	name := "public/vendor/bootstrap/less/.csslintrc"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3031,10 +4120,17 @@ func publicVendorBootstrapReadmeMd() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapBowerJson reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapBowerJson() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/bower.json"
 	name := "public/vendor/bootstrap/bower.json"
+=======
+// publicVendorBootstrapLessAlertsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessAlertsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/alerts.less"
+	name := "public/vendor/bootstrap/less/alerts.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3049,10 +4145,17 @@ func publicVendorBootstrapBowerJson() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapPackageJson reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapPackageJson() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/package.json"
 	name := "public/vendor/bootstrap/package.json"
+=======
+// publicVendorBootstrapLessBadgesLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessBadgesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/badges.less"
+	name := "public/vendor/bootstrap/less/badges.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3067,10 +4170,17 @@ func publicVendorBootstrapPackageJson() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessCsscombJson reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessCsscombJson() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/.csscomb.json"
 	name := "public/vendor/bootstrap/less/.csscomb.json"
+=======
+// publicVendorBootstrapLessBootstrapLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessBootstrapLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/bootstrap.less"
+	name := "public/vendor/bootstrap/less/bootstrap.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3085,10 +4195,17 @@ func publicVendorBootstrapLessCsscombJson() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessCsslintrc reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessCsslintrc() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/.csslintrc"
 	name := "public/vendor/bootstrap/less/.csslintrc"
+=======
+// publicVendorBootstrapLessBreadcrumbsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessBreadcrumbsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/breadcrumbs.less"
+	name := "public/vendor/bootstrap/less/breadcrumbs.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3103,10 +4220,17 @@ func publicVendorBootstrapLessCsslintrc() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessAlertsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessAlertsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/alerts.less"
 	name := "public/vendor/bootstrap/less/alerts.less"
+=======
+// publicVendorBootstrapLessButtonGroupsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessButtonGroupsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/button-groups.less"
+	name := "public/vendor/bootstrap/less/button-groups.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3121,10 +4245,17 @@ func publicVendorBootstrapLessAlertsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessBadgesLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessBadgesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/badges.less"
 	name := "public/vendor/bootstrap/less/badges.less"
+=======
+// publicVendorBootstrapLessButtonsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessButtonsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/buttons.less"
+	name := "public/vendor/bootstrap/less/buttons.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3139,10 +4270,17 @@ func publicVendorBootstrapLessBadgesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessBootstrapLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessBootstrapLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/bootstrap.less"
 	name := "public/vendor/bootstrap/less/bootstrap.less"
+=======
+// publicVendorBootstrapLessCarouselLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessCarouselLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/carousel.less"
+	name := "public/vendor/bootstrap/less/carousel.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3157,10 +4295,17 @@ func publicVendorBootstrapLessBootstrapLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessBreadcrumbsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessBreadcrumbsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/breadcrumbs.less"
 	name := "public/vendor/bootstrap/less/breadcrumbs.less"
+=======
+// publicVendorBootstrapLessCloseLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessCloseLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/close.less"
+	name := "public/vendor/bootstrap/less/close.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3175,10 +4320,17 @@ func publicVendorBootstrapLessBreadcrumbsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessButtonGroupsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessButtonGroupsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/button-groups.less"
 	name := "public/vendor/bootstrap/less/button-groups.less"
+=======
+// publicVendorBootstrapLessCodeLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessCodeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/code.less"
+	name := "public/vendor/bootstrap/less/code.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3193,10 +4345,17 @@ func publicVendorBootstrapLessButtonGroupsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessButtonsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessButtonsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/buttons.less"
 	name := "public/vendor/bootstrap/less/buttons.less"
+=======
+// publicVendorBootstrapLessComponentAnimationsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessComponentAnimationsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/component-animations.less"
+	name := "public/vendor/bootstrap/less/component-animations.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3211,10 +4370,17 @@ func publicVendorBootstrapLessButtonsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessCarouselLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessCarouselLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/carousel.less"
 	name := "public/vendor/bootstrap/less/carousel.less"
+=======
+// publicVendorBootstrapLessDropdownsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessDropdownsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/dropdowns.less"
+	name := "public/vendor/bootstrap/less/dropdowns.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3229,6 +4395,7 @@ func publicVendorBootstrapLessCarouselLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessCloseLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessCloseLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/close.less"
@@ -3269,6 +4436,12 @@ func publicVendorBootstrapLessCodeLess() (*asset, error) {
 func publicVendorBootstrapLessComponentAnimationsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/component-animations.less"
 	name := "public/vendor/bootstrap/less/component-animations.less"
+=======
+// publicVendorBootstrapLessFormsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessFormsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/forms.less"
+	name := "public/vendor/bootstrap/less/forms.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3283,10 +4456,17 @@ func publicVendorBootstrapLessComponentAnimationsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessDropdownsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessDropdownsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/dropdowns.less"
 	name := "public/vendor/bootstrap/less/dropdowns.less"
+=======
+// publicVendorBootstrapLessGlyphiconsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessGlyphiconsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/glyphicons.less"
+	name := "public/vendor/bootstrap/less/glyphicons.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3301,10 +4481,17 @@ func publicVendorBootstrapLessDropdownsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessFormsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessFormsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/forms.less"
 	name := "public/vendor/bootstrap/less/forms.less"
+=======
+// publicVendorBootstrapLessGridLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessGridLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/grid.less"
+	name := "public/vendor/bootstrap/less/grid.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3319,10 +4506,17 @@ func publicVendorBootstrapLessFormsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessGlyphiconsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessGlyphiconsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/glyphicons.less"
 	name := "public/vendor/bootstrap/less/glyphicons.less"
+=======
+// publicVendorBootstrapLessInputGroupsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessInputGroupsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/input-groups.less"
+	name := "public/vendor/bootstrap/less/input-groups.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3337,10 +4531,17 @@ func publicVendorBootstrapLessGlyphiconsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessGridLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessGridLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/grid.less"
 	name := "public/vendor/bootstrap/less/grid.less"
+=======
+// publicVendorBootstrapLessJumbotronLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessJumbotronLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/jumbotron.less"
+	name := "public/vendor/bootstrap/less/jumbotron.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3355,10 +4556,17 @@ func publicVendorBootstrapLessGridLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessInputGroupsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessInputGroupsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/input-groups.less"
 	name := "public/vendor/bootstrap/less/input-groups.less"
+=======
+// publicVendorBootstrapLessLabelsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessLabelsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/labels.less"
+	name := "public/vendor/bootstrap/less/labels.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3373,10 +4581,17 @@ func publicVendorBootstrapLessInputGroupsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessJumbotronLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessJumbotronLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/jumbotron.less"
 	name := "public/vendor/bootstrap/less/jumbotron.less"
+=======
+// publicVendorBootstrapLessListGroupLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessListGroupLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/list-group.less"
+	name := "public/vendor/bootstrap/less/list-group.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3391,10 +4606,17 @@ func publicVendorBootstrapLessJumbotronLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessLabelsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessLabelsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/labels.less"
 	name := "public/vendor/bootstrap/less/labels.less"
+=======
+// publicVendorBootstrapLessMediaLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMediaLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/media.less"
+	name := "public/vendor/bootstrap/less/media.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3409,10 +4631,17 @@ func publicVendorBootstrapLessLabelsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessListGroupLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessListGroupLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/list-group.less"
 	name := "public/vendor/bootstrap/less/list-group.less"
+=======
+// publicVendorBootstrapLessMixinsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins.less"
+	name := "public/vendor/bootstrap/less/mixins.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3427,10 +4656,17 @@ func publicVendorBootstrapLessListGroupLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMediaLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMediaLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/media.less"
 	name := "public/vendor/bootstrap/less/media.less"
+=======
+// publicVendorBootstrapLessModalsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessModalsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/modals.less"
+	name := "public/vendor/bootstrap/less/modals.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3445,10 +4681,17 @@ func publicVendorBootstrapLessMediaLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins.less"
 	name := "public/vendor/bootstrap/less/mixins.less"
+=======
+// publicVendorBootstrapLessNavbarLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessNavbarLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/navbar.less"
+	name := "public/vendor/bootstrap/less/navbar.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3463,10 +4706,17 @@ func publicVendorBootstrapLessMixinsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessModalsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessModalsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/modals.less"
 	name := "public/vendor/bootstrap/less/modals.less"
+=======
+// publicVendorBootstrapLessNavsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessNavsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/navs.less"
+	name := "public/vendor/bootstrap/less/navs.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3481,10 +4731,17 @@ func publicVendorBootstrapLessModalsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessNavbarLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessNavbarLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/navbar.less"
 	name := "public/vendor/bootstrap/less/navbar.less"
+=======
+// publicVendorBootstrapLessNormalizeLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessNormalizeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/normalize.less"
+	name := "public/vendor/bootstrap/less/normalize.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3499,10 +4756,17 @@ func publicVendorBootstrapLessNavbarLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessNavsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessNavsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/navs.less"
 	name := "public/vendor/bootstrap/less/navs.less"
+=======
+// publicVendorBootstrapLessPagerLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessPagerLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/pager.less"
+	name := "public/vendor/bootstrap/less/pager.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3517,10 +4781,17 @@ func publicVendorBootstrapLessNavsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessNormalizeLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessNormalizeLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/normalize.less"
 	name := "public/vendor/bootstrap/less/normalize.less"
+=======
+// publicVendorBootstrapLessPaginationLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessPaginationLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/pagination.less"
+	name := "public/vendor/bootstrap/less/pagination.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3535,10 +4806,17 @@ func publicVendorBootstrapLessNormalizeLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessPagerLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessPagerLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/pager.less"
 	name := "public/vendor/bootstrap/less/pager.less"
+=======
+// publicVendorBootstrapLessPanelsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessPanelsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/panels.less"
+	name := "public/vendor/bootstrap/less/panels.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3553,10 +4831,17 @@ func publicVendorBootstrapLessPagerLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessPaginationLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessPaginationLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/pagination.less"
 	name := "public/vendor/bootstrap/less/pagination.less"
+=======
+// publicVendorBootstrapLessPopoversLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessPopoversLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/popovers.less"
+	name := "public/vendor/bootstrap/less/popovers.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3571,10 +4856,17 @@ func publicVendorBootstrapLessPaginationLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessPanelsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessPanelsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/panels.less"
 	name := "public/vendor/bootstrap/less/panels.less"
+=======
+// publicVendorBootstrapLessPrintLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessPrintLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/print.less"
+	name := "public/vendor/bootstrap/less/print.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3589,10 +4881,17 @@ func publicVendorBootstrapLessPanelsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessPopoversLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessPopoversLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/popovers.less"
 	name := "public/vendor/bootstrap/less/popovers.less"
+=======
+// publicVendorBootstrapLessProgressBarsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessProgressBarsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/progress-bars.less"
+	name := "public/vendor/bootstrap/less/progress-bars.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3607,10 +4906,17 @@ func publicVendorBootstrapLessPopoversLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessPrintLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessPrintLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/print.less"
 	name := "public/vendor/bootstrap/less/print.less"
+=======
+// publicVendorBootstrapLessResponsiveEmbedLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessResponsiveEmbedLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/responsive-embed.less"
+	name := "public/vendor/bootstrap/less/responsive-embed.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3625,10 +4931,17 @@ func publicVendorBootstrapLessPrintLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessProgressBarsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessProgressBarsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/progress-bars.less"
 	name := "public/vendor/bootstrap/less/progress-bars.less"
+=======
+// publicVendorBootstrapLessResponsiveUtilitiesLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessResponsiveUtilitiesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/responsive-utilities.less"
+	name := "public/vendor/bootstrap/less/responsive-utilities.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3643,10 +4956,17 @@ func publicVendorBootstrapLessProgressBarsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessResponsiveEmbedLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessResponsiveEmbedLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/responsive-embed.less"
 	name := "public/vendor/bootstrap/less/responsive-embed.less"
+=======
+// publicVendorBootstrapLessScaffoldingLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessScaffoldingLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/scaffolding.less"
+	name := "public/vendor/bootstrap/less/scaffolding.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3661,10 +4981,17 @@ func publicVendorBootstrapLessResponsiveEmbedLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessResponsiveUtilitiesLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessResponsiveUtilitiesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/responsive-utilities.less"
 	name := "public/vendor/bootstrap/less/responsive-utilities.less"
+=======
+// publicVendorBootstrapLessTablesLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessTablesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/tables.less"
+	name := "public/vendor/bootstrap/less/tables.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3679,10 +5006,17 @@ func publicVendorBootstrapLessResponsiveUtilitiesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessScaffoldingLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessScaffoldingLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/scaffolding.less"
 	name := "public/vendor/bootstrap/less/scaffolding.less"
+=======
+// publicVendorBootstrapLessThemeLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessThemeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/theme.less"
+	name := "public/vendor/bootstrap/less/theme.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3697,10 +5031,17 @@ func publicVendorBootstrapLessScaffoldingLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessTablesLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessTablesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/tables.less"
 	name := "public/vendor/bootstrap/less/tables.less"
+=======
+// publicVendorBootstrapLessThumbnailsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessThumbnailsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/thumbnails.less"
+	name := "public/vendor/bootstrap/less/thumbnails.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3715,10 +5056,17 @@ func publicVendorBootstrapLessTablesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessThemeLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessThemeLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/theme.less"
 	name := "public/vendor/bootstrap/less/theme.less"
+=======
+// publicVendorBootstrapLessTooltipLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessTooltipLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/tooltip.less"
+	name := "public/vendor/bootstrap/less/tooltip.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3733,10 +5081,17 @@ func publicVendorBootstrapLessThemeLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessThumbnailsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessThumbnailsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/thumbnails.less"
 	name := "public/vendor/bootstrap/less/thumbnails.less"
+=======
+// publicVendorBootstrapLessTypeLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessTypeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/type.less"
+	name := "public/vendor/bootstrap/less/type.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3751,10 +5106,17 @@ func publicVendorBootstrapLessThumbnailsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessTooltipLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessTooltipLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/tooltip.less"
 	name := "public/vendor/bootstrap/less/tooltip.less"
+=======
+// publicVendorBootstrapLessUtilitiesLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessUtilitiesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/utilities.less"
+	name := "public/vendor/bootstrap/less/utilities.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3769,10 +5131,17 @@ func publicVendorBootstrapLessTooltipLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessTypeLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessTypeLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/type.less"
 	name := "public/vendor/bootstrap/less/type.less"
+=======
+// publicVendorBootstrapLessVariablesLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessVariablesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/variables.less"
+	name := "public/vendor/bootstrap/less/variables.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3787,10 +5156,17 @@ func publicVendorBootstrapLessTypeLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessUtilitiesLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessUtilitiesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/utilities.less"
 	name := "public/vendor/bootstrap/less/utilities.less"
+=======
+// publicVendorBootstrapLessWellsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessWellsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/wells.less"
+	name := "public/vendor/bootstrap/less/wells.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3805,10 +5181,17 @@ func publicVendorBootstrapLessUtilitiesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessVariablesLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessVariablesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/variables.less"
 	name := "public/vendor/bootstrap/less/variables.less"
+=======
+// publicVendorBootstrapLessMixinsAlertsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsAlertsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/alerts.less"
+	name := "public/vendor/bootstrap/less/mixins/alerts.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3823,10 +5206,17 @@ func publicVendorBootstrapLessVariablesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessWellsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessWellsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/wells.less"
 	name := "public/vendor/bootstrap/less/wells.less"
+=======
+// publicVendorBootstrapLessMixinsBackgroundVariantLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsBackgroundVariantLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/background-variant.less"
+	name := "public/vendor/bootstrap/less/mixins/background-variant.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3841,10 +5231,17 @@ func publicVendorBootstrapLessWellsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsAlertsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsAlertsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/alerts.less"
 	name := "public/vendor/bootstrap/less/mixins/alerts.less"
+=======
+// publicVendorBootstrapLessMixinsBorderRadiusLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsBorderRadiusLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/border-radius.less"
+	name := "public/vendor/bootstrap/less/mixins/border-radius.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3859,10 +5256,17 @@ func publicVendorBootstrapLessMixinsAlertsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsBackgroundVariantLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsBackgroundVariantLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/background-variant.less"
 	name := "public/vendor/bootstrap/less/mixins/background-variant.less"
+=======
+// publicVendorBootstrapLessMixinsButtonsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsButtonsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/buttons.less"
+	name := "public/vendor/bootstrap/less/mixins/buttons.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3877,10 +5281,17 @@ func publicVendorBootstrapLessMixinsBackgroundVariantLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsBorderRadiusLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsBorderRadiusLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/border-radius.less"
 	name := "public/vendor/bootstrap/less/mixins/border-radius.less"
+=======
+// publicVendorBootstrapLessMixinsCenterBlockLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsCenterBlockLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/center-block.less"
+	name := "public/vendor/bootstrap/less/mixins/center-block.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3895,10 +5306,17 @@ func publicVendorBootstrapLessMixinsBorderRadiusLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsButtonsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsButtonsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/buttons.less"
 	name := "public/vendor/bootstrap/less/mixins/buttons.less"
+=======
+// publicVendorBootstrapLessMixinsClearfixLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsClearfixLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/clearfix.less"
+	name := "public/vendor/bootstrap/less/mixins/clearfix.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3913,10 +5331,17 @@ func publicVendorBootstrapLessMixinsButtonsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsCenterBlockLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsCenterBlockLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/center-block.less"
 	name := "public/vendor/bootstrap/less/mixins/center-block.less"
+=======
+// publicVendorBootstrapLessMixinsFormsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsFormsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/forms.less"
+	name := "public/vendor/bootstrap/less/mixins/forms.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3931,10 +5356,17 @@ func publicVendorBootstrapLessMixinsCenterBlockLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsClearfixLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsClearfixLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/clearfix.less"
 	name := "public/vendor/bootstrap/less/mixins/clearfix.less"
+=======
+// publicVendorBootstrapLessMixinsGradientsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsGradientsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/gradients.less"
+	name := "public/vendor/bootstrap/less/mixins/gradients.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3949,10 +5381,17 @@ func publicVendorBootstrapLessMixinsClearfixLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsFormsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsFormsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/forms.less"
 	name := "public/vendor/bootstrap/less/mixins/forms.less"
+=======
+// publicVendorBootstrapLessMixinsGridFrameworkLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsGridFrameworkLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/grid-framework.less"
+	name := "public/vendor/bootstrap/less/mixins/grid-framework.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3967,10 +5406,17 @@ func publicVendorBootstrapLessMixinsFormsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsGradientsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsGradientsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/gradients.less"
 	name := "public/vendor/bootstrap/less/mixins/gradients.less"
+=======
+// publicVendorBootstrapLessMixinsGridLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsGridLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/grid.less"
+	name := "public/vendor/bootstrap/less/mixins/grid.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -3985,10 +5431,17 @@ func publicVendorBootstrapLessMixinsGradientsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsGridFrameworkLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsGridFrameworkLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/grid-framework.less"
 	name := "public/vendor/bootstrap/less/mixins/grid-framework.less"
+=======
+// publicVendorBootstrapLessMixinsHideTextLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsHideTextLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/hide-text.less"
+	name := "public/vendor/bootstrap/less/mixins/hide-text.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4003,10 +5456,17 @@ func publicVendorBootstrapLessMixinsGridFrameworkLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsGridLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsGridLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/grid.less"
 	name := "public/vendor/bootstrap/less/mixins/grid.less"
+=======
+// publicVendorBootstrapLessMixinsImageLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsImageLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/image.less"
+	name := "public/vendor/bootstrap/less/mixins/image.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4021,10 +5481,17 @@ func publicVendorBootstrapLessMixinsGridLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsHideTextLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsHideTextLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/hide-text.less"
 	name := "public/vendor/bootstrap/less/mixins/hide-text.less"
+=======
+// publicVendorBootstrapLessMixinsLabelsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsLabelsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/labels.less"
+	name := "public/vendor/bootstrap/less/mixins/labels.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4039,10 +5506,17 @@ func publicVendorBootstrapLessMixinsHideTextLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsImageLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsImageLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/image.less"
 	name := "public/vendor/bootstrap/less/mixins/image.less"
+=======
+// publicVendorBootstrapLessMixinsListGroupLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsListGroupLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/list-group.less"
+	name := "public/vendor/bootstrap/less/mixins/list-group.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4057,10 +5531,17 @@ func publicVendorBootstrapLessMixinsImageLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsLabelsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsLabelsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/labels.less"
 	name := "public/vendor/bootstrap/less/mixins/labels.less"
+=======
+// publicVendorBootstrapLessMixinsNavDividerLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsNavDividerLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/nav-divider.less"
+	name := "public/vendor/bootstrap/less/mixins/nav-divider.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4075,10 +5556,17 @@ func publicVendorBootstrapLessMixinsLabelsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsListGroupLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsListGroupLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/list-group.less"
 	name := "public/vendor/bootstrap/less/mixins/list-group.less"
+=======
+// publicVendorBootstrapLessMixinsNavVerticalAlignLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsNavVerticalAlignLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/nav-vertical-align.less"
+	name := "public/vendor/bootstrap/less/mixins/nav-vertical-align.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4093,10 +5581,17 @@ func publicVendorBootstrapLessMixinsListGroupLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsNavDividerLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsNavDividerLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/nav-divider.less"
 	name := "public/vendor/bootstrap/less/mixins/nav-divider.less"
+=======
+// publicVendorBootstrapLessMixinsOpacityLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsOpacityLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/opacity.less"
+	name := "public/vendor/bootstrap/less/mixins/opacity.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4111,10 +5606,17 @@ func publicVendorBootstrapLessMixinsNavDividerLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsNavVerticalAlignLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsNavVerticalAlignLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/nav-vertical-align.less"
 	name := "public/vendor/bootstrap/less/mixins/nav-vertical-align.less"
+=======
+// publicVendorBootstrapLessMixinsPaginationLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsPaginationLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/pagination.less"
+	name := "public/vendor/bootstrap/less/mixins/pagination.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4129,10 +5631,17 @@ func publicVendorBootstrapLessMixinsNavVerticalAlignLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsOpacityLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsOpacityLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/opacity.less"
 	name := "public/vendor/bootstrap/less/mixins/opacity.less"
+=======
+// publicVendorBootstrapLessMixinsPanelsLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsPanelsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/panels.less"
+	name := "public/vendor/bootstrap/less/mixins/panels.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4147,10 +5656,17 @@ func publicVendorBootstrapLessMixinsOpacityLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsPaginationLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsPaginationLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/pagination.less"
 	name := "public/vendor/bootstrap/less/mixins/pagination.less"
+=======
+// publicVendorBootstrapLessMixinsProgressBarLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsProgressBarLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/progress-bar.less"
+	name := "public/vendor/bootstrap/less/mixins/progress-bar.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4165,10 +5681,17 @@ func publicVendorBootstrapLessMixinsPaginationLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsPanelsLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsPanelsLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/panels.less"
 	name := "public/vendor/bootstrap/less/mixins/panels.less"
+=======
+// publicVendorBootstrapLessMixinsResetFilterLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsResetFilterLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/reset-filter.less"
+	name := "public/vendor/bootstrap/less/mixins/reset-filter.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4183,10 +5706,17 @@ func publicVendorBootstrapLessMixinsPanelsLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsProgressBarLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsProgressBarLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/progress-bar.less"
 	name := "public/vendor/bootstrap/less/mixins/progress-bar.less"
+=======
+// publicVendorBootstrapLessMixinsResetTextLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsResetTextLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/reset-text.less"
+	name := "public/vendor/bootstrap/less/mixins/reset-text.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4201,10 +5731,17 @@ func publicVendorBootstrapLessMixinsProgressBarLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsResetFilterLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsResetFilterLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/reset-filter.less"
 	name := "public/vendor/bootstrap/less/mixins/reset-filter.less"
+=======
+// publicVendorBootstrapLessMixinsResizeLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsResizeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/resize.less"
+	name := "public/vendor/bootstrap/less/mixins/resize.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4219,10 +5756,17 @@ func publicVendorBootstrapLessMixinsResetFilterLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsResetTextLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsResetTextLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/reset-text.less"
 	name := "public/vendor/bootstrap/less/mixins/reset-text.less"
+=======
+// publicVendorBootstrapLessMixinsResponsiveVisibilityLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsResponsiveVisibilityLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/responsive-visibility.less"
+	name := "public/vendor/bootstrap/less/mixins/responsive-visibility.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4237,10 +5781,17 @@ func publicVendorBootstrapLessMixinsResetTextLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsResizeLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsResizeLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/resize.less"
 	name := "public/vendor/bootstrap/less/mixins/resize.less"
+=======
+// publicVendorBootstrapLessMixinsSizeLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsSizeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/size.less"
+	name := "public/vendor/bootstrap/less/mixins/size.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4255,10 +5806,17 @@ func publicVendorBootstrapLessMixinsResizeLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsResponsiveVisibilityLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsResponsiveVisibilityLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/responsive-visibility.less"
 	name := "public/vendor/bootstrap/less/mixins/responsive-visibility.less"
+=======
+// publicVendorBootstrapLessMixinsTabFocusLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsTabFocusLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/tab-focus.less"
+	name := "public/vendor/bootstrap/less/mixins/tab-focus.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4273,10 +5831,17 @@ func publicVendorBootstrapLessMixinsResponsiveVisibilityLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsSizeLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsSizeLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/size.less"
 	name := "public/vendor/bootstrap/less/mixins/size.less"
+=======
+// publicVendorBootstrapLessMixinsTableRowLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsTableRowLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/table-row.less"
+	name := "public/vendor/bootstrap/less/mixins/table-row.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4291,10 +5856,17 @@ func publicVendorBootstrapLessMixinsSizeLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsTabFocusLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsTabFocusLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/tab-focus.less"
 	name := "public/vendor/bootstrap/less/mixins/tab-focus.less"
+=======
+// publicVendorBootstrapLessMixinsTextEmphasisLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsTextEmphasisLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/text-emphasis.less"
+	name := "public/vendor/bootstrap/less/mixins/text-emphasis.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4309,10 +5881,17 @@ func publicVendorBootstrapLessMixinsTabFocusLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsTableRowLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsTableRowLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/table-row.less"
 	name := "public/vendor/bootstrap/less/mixins/table-row.less"
+=======
+// publicVendorBootstrapLessMixinsTextOverflowLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsTextOverflowLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/text-overflow.less"
+	name := "public/vendor/bootstrap/less/mixins/text-overflow.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4327,10 +5906,17 @@ func publicVendorBootstrapLessMixinsTableRowLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsTextEmphasisLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsTextEmphasisLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/text-emphasis.less"
 	name := "public/vendor/bootstrap/less/mixins/text-emphasis.less"
+=======
+// publicVendorBootstrapLessMixinsVendorPrefixesLess reads file data from disk. It returns an error on failure.
+func publicVendorBootstrapLessMixinsVendorPrefixesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/bootstrap/less/mixins/vendor-prefixes.less"
+	name := "public/vendor/bootstrap/less/mixins/vendor-prefixes.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4345,10 +5931,17 @@ func publicVendorBootstrapLessMixinsTextEmphasisLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsTextOverflowLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsTextOverflowLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/text-overflow.less"
 	name := "public/vendor/bootstrap/less/mixins/text-overflow.less"
+=======
+// publicVendorFontawesomeFontsFontawesomeOtf reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeFontsFontawesomeOtf() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/fonts/FontAwesome.otf"
+	name := "public/vendor/fontawesome/fonts/FontAwesome.otf"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4363,10 +5956,17 @@ func publicVendorBootstrapLessMixinsTextOverflowLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapLessMixinsVendorPrefixesLess reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapLessMixinsVendorPrefixesLess() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/less/mixins/vendor-prefixes.less"
 	name := "public/vendor/bootstrap/less/mixins/vendor-prefixes.less"
+=======
+// publicVendorFontawesomeFontsFontawesomeWebfontEot reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeFontsFontawesomeWebfontEot() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.eot"
+	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.eot"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4381,10 +5981,17 @@ func publicVendorBootstrapLessMixinsVendorPrefixesLess() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot"
 	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot"
+=======
+// publicVendorFontawesomeFontsFontawesomeWebfontSvg reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeFontsFontawesomeWebfontSvg() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.svg"
+	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.svg"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4399,10 +6006,17 @@ func publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg"
 	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg"
+=======
+// publicVendorFontawesomeFontsFontawesomeWebfontTtf reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeFontsFontawesomeWebfontTtf() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.ttf"
+	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.ttf"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4417,10 +6031,17 @@ func publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf"
 	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf"
+=======
+// publicVendorFontawesomeFontsFontawesomeWebfontWoff reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeFontsFontawesomeWebfontWoff() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.woff"
+	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.woff"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4435,10 +6056,17 @@ func publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff"
 	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff"
+=======
+// publicVendorFontawesomeFontsFontawesomeWebfontWoff2 reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeFontsFontawesomeWebfontWoff2() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/fonts/fontawesome-webfont.woff2"
+	name := "public/vendor/fontawesome/fonts/fontawesome-webfont.woff2"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4453,10 +6081,17 @@ func publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff() (*asset, error) 
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff2 reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff2() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff2"
 	name := "public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff2"
+=======
+// publicVendorFontawesomeLessAnimatedLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessAnimatedLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/animated.less"
+	name := "public/vendor/fontawesome/less/animated.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4471,10 +6106,17 @@ func publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff2() (*asset, error)
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistJsBootstrapJs reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistJsBootstrapJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/js/bootstrap.js"
 	name := "public/vendor/bootstrap/dist/js/bootstrap.js"
+=======
+// publicVendorFontawesomeLessBorderedPulledLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessBorderedPulledLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/bordered-pulled.less"
+	name := "public/vendor/fontawesome/less/bordered-pulled.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4489,10 +6131,17 @@ func publicVendorBootstrapDistJsBootstrapJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistJsBootstrapMinJs reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistJsBootstrapMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/js/bootstrap.min.js"
 	name := "public/vendor/bootstrap/dist/js/bootstrap.min.js"
+=======
+// publicVendorFontawesomeLessCoreLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessCoreLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/core.less"
+	name := "public/vendor/fontawesome/less/core.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4507,10 +6156,17 @@ func publicVendorBootstrapDistJsBootstrapMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistJsNpmJs reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistJsNpmJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/js/npm.js"
 	name := "public/vendor/bootstrap/dist/js/npm.js"
+=======
+// publicVendorFontawesomeLessFixedWidthLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessFixedWidthLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/fixed-width.less"
+	name := "public/vendor/fontawesome/less/fixed-width.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4525,10 +6181,17 @@ func publicVendorBootstrapDistJsNpmJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularEot reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.eot"
 	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.eot"
+=======
+// publicVendorFontawesomeLessFontAwesomeLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessFontAwesomeLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/font-awesome.less"
+	name := "public/vendor/fontawesome/less/font-awesome.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4543,10 +6206,17 @@ func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularEot() (*asset, erro
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularSvg reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.svg"
 	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.svg"
+=======
+// publicVendorFontawesomeLessIconsLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessIconsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/icons.less"
+	name := "public/vendor/fontawesome/less/icons.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4561,10 +6231,17 @@ func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularSvg() (*asset, erro
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularTtf reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf"
 	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf"
+=======
+// publicVendorFontawesomeLessLargerLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessLargerLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/larger.less"
+	name := "public/vendor/fontawesome/less/larger.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4579,10 +6256,17 @@ func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularTtf() (*asset, erro
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff"
 	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff"
+=======
+// publicVendorFontawesomeLessListLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessListLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/list.less"
+	name := "public/vendor/fontawesome/less/list.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4597,10 +6281,17 @@ func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff() (*asset, err
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff2 reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff2() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2"
 	name := "public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2"
+=======
+// publicVendorFontawesomeLessMixinsLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessMixinsLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/mixins.less"
+	name := "public/vendor/fontawesome/less/mixins.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4615,10 +6306,17 @@ func publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff2() (*asset, er
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistCssBootstrapThemeCss reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistCssBootstrapThemeCss() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/css/bootstrap-theme.css"
 	name := "public/vendor/bootstrap/dist/css/bootstrap-theme.css"
+=======
+// publicVendorFontawesomeLessPathLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessPathLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/path.less"
+	name := "public/vendor/fontawesome/less/path.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4633,10 +6331,17 @@ func publicVendorBootstrapDistCssBootstrapThemeCss() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistCssBootstrapThemeCssMap reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistCssBootstrapThemeCssMap() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/css/bootstrap-theme.css.map"
 	name := "public/vendor/bootstrap/dist/css/bootstrap-theme.css.map"
+=======
+// publicVendorFontawesomeLessRotatedFlippedLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessRotatedFlippedLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/rotated-flipped.less"
+	name := "public/vendor/fontawesome/less/rotated-flipped.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4651,10 +6356,17 @@ func publicVendorBootstrapDistCssBootstrapThemeCssMap() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistCssBootstrapThemeMinCss reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistCssBootstrapThemeMinCss() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/css/bootstrap-theme.min.css"
 	name := "public/vendor/bootstrap/dist/css/bootstrap-theme.min.css"
+=======
+// publicVendorFontawesomeLessStackedLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessStackedLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/stacked.less"
+	name := "public/vendor/fontawesome/less/stacked.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4669,10 +6381,17 @@ func publicVendorBootstrapDistCssBootstrapThemeMinCss() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistCssBootstrapCss reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistCssBootstrapCss() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/css/bootstrap.css"
 	name := "public/vendor/bootstrap/dist/css/bootstrap.css"
+=======
+// publicVendorFontawesomeLessVariablesLess reads file data from disk. It returns an error on failure.
+func publicVendorFontawesomeLessVariablesLess() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/fontawesome/less/variables.less"
+	name := "public/vendor/fontawesome/less/variables.less"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4687,10 +6406,17 @@ func publicVendorBootstrapDistCssBootstrapCss() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistCssBootstrapCssMap reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistCssBootstrapCssMap() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/css/bootstrap.css.map"
 	name := "public/vendor/bootstrap/dist/css/bootstrap.css.map"
+=======
+// publicVendorMomentMomentTzJs reads file data from disk. It returns an error on failure.
+func publicVendorMomentMomentTzJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/moment/moment-tz.js"
+	name := "public/vendor/moment/moment-tz.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4705,10 +6431,17 @@ func publicVendorBootstrapDistCssBootstrapCssMap() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorBootstrapDistCssBootstrapMinCss reads file data from disk. It returns an error on failure.
 func publicVendorBootstrapDistCssBootstrapMinCss() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/bootstrap/dist/css/bootstrap.min.css"
 	name := "public/vendor/bootstrap/dist/css/bootstrap.min.css"
+=======
+// publicVendorMomentMomentTzMinJs reads file data from disk. It returns an error on failure.
+func publicVendorMomentMomentTzMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/moment/moment-tz.min.js"
+	name := "public/vendor/moment/moment-tz.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4723,10 +6456,17 @@ func publicVendorBootstrapDistCssBootstrapMinCss() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorMomentMomentTzJs reads file data from disk. It returns an error on failure.
 func publicVendorMomentMomentTzJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/moment/moment-tz.js"
 	name := "public/vendor/moment/moment-tz.js"
+=======
+// publicVendorMomentMomentJs reads file data from disk. It returns an error on failure.
+func publicVendorMomentMomentJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/moment/moment.js"
+	name := "public/vendor/moment/moment.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4741,10 +6481,17 @@ func publicVendorMomentMomentTzJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorMomentMomentTzMinJs reads file data from disk. It returns an error on failure.
 func publicVendorMomentMomentTzMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/moment/moment-tz.min.js"
 	name := "public/vendor/moment/moment-tz.min.js"
+=======
+// publicVendorMomentMomentMinJs reads file data from disk. It returns an error on failure.
+func publicVendorMomentMomentMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/moment/moment.min.js"
+	name := "public/vendor/moment/moment.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4759,10 +6506,17 @@ func publicVendorMomentMomentTzMinJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorMomentMomentJs reads file data from disk. It returns an error on failure.
 func publicVendorMomentMomentJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/moment/moment.js"
 	name := "public/vendor/moment/moment.js"
+=======
+// publicVendorSweetalertSweetalertCss reads file data from disk. It returns an error on failure.
+func publicVendorSweetalertSweetalertCss() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/sweetalert/sweetalert.css"
+	name := "public/vendor/sweetalert/sweetalert.css"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4777,10 +6531,17 @@ func publicVendorMomentMomentJs() (*asset, error) {
 	return a, err
 }
 
+<<<<<<< HEAD
 // publicVendorMomentMomentMinJs reads file data from disk. It returns an error on failure.
 func publicVendorMomentMomentMinJs() (*asset, error) {
 	path := "/mnt/src/sources/go/src/github.com/ansible-semaphore/semaphore/public/vendor/moment/moment.min.js"
 	name := "public/vendor/moment/moment.min.js"
+=======
+// publicVendorSweetalertSweetalertMinJs reads file data from disk. It returns an error on failure.
+func publicVendorSweetalertSweetalertMinJs() (*asset, error) {
+	path := "/Users/m/p/semaphore/public/vendor/sweetalert/sweetalert.min.js"
+	name := "public/vendor/sweetalert/sweetalert.min.js"
+>>>>>>> develop
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4860,7 +6621,10 @@ var _bindata = map[string]func() (*asset, error){
 	"db/migrations/v1.7.0.sql": dbMigrationsV170Sql,
 	"db/migrations/v1.8.0.sql": dbMigrationsV180Sql,
 	"db/migrations/v1.9.0.sql": dbMigrationsV190Sql,
+<<<<<<< HEAD
 	"db/migrations/v2.3.0.sql": dbMigrationsV230Sql,
+=======
+>>>>>>> develop
 	"public/css/.gitignore": publicCssGitignore,
 	"public/css/login.less": publicCssLoginLess,
 	"public/css/octocat.less": publicCssOctocatLess,
@@ -4868,6 +6632,7 @@ var _bindata = map[string]func() (*asset, error){
 	"public/css/semaphore.less": publicCssSemaphoreLess,
 	"public/html/.gitignore": publicHtmlGitignore,
 	"public/html/abstract.html": publicHtmlAbstractHtml,
+<<<<<<< HEAD
 	"public/html/abstract.jade": publicHtmlAbstractJade,
 	"public/html/admin.html": publicHtmlAdminHtml,
 	"public/html/admin.jade": publicHtmlAdminJade,
@@ -4927,6 +6692,68 @@ var _bindata = map[string]func() (*asset, error){
 	"public/html/users/list.jade": publicHtmlUsersListJade,
 	"public/html/users/user.html": publicHtmlUsersUserHtml,
 	"public/html/users/user.jade": publicHtmlUsersUserJade,
+=======
+	"public/html/abstract.pug": publicHtmlAbstractPug,
+	"public/html/admin.html": publicHtmlAdminHtml,
+	"public/html/admin.pug": publicHtmlAdminPug,
+	"public/html/dashboard.html": publicHtmlDashboardHtml,
+	"public/html/dashboard.pug": publicHtmlDashboardPug,
+	"public/html/index.html": publicHtmlIndexHtml,
+	"public/html/index.pug": publicHtmlIndexPug,
+	"public/html/tasks.html": publicHtmlTasksHtml,
+	"public/html/tasks.pug": publicHtmlTasksPug,
+	"public/html/auth/login.html": publicHtmlAuthLoginHtml,
+	"public/html/auth/login.pug": publicHtmlAuthLoginPug,
+	"public/html/auth/logout.html": publicHtmlAuthLogoutHtml,
+	"public/html/auth/logout.pug": publicHtmlAuthLogoutPug,
+	"public/html/projects/add.html": publicHtmlProjectsAddHtml,
+	"public/html/projects/add.pug": publicHtmlProjectsAddPug,
+	"public/html/projects/container.html": publicHtmlProjectsContainerHtml,
+	"public/html/projects/container.pug": publicHtmlProjectsContainerPug,
+	"public/html/projects/createTaskModal.html": publicHtmlProjectsCreatetaskmodalHtml,
+	"public/html/projects/createTaskModal.pug": publicHtmlProjectsCreatetaskmodalPug,
+	"public/html/projects/dashboard.html": publicHtmlProjectsDashboardHtml,
+	"public/html/projects/dashboard.pug": publicHtmlProjectsDashboardPug,
+	"public/html/projects/edit.html": publicHtmlProjectsEditHtml,
+	"public/html/projects/edit.pug": publicHtmlProjectsEditPug,
+	"public/html/projects/schedule.html": publicHtmlProjectsScheduleHtml,
+	"public/html/projects/schedule.pug": publicHtmlProjectsSchedulePug,
+	"public/html/projects/taskModal.html": publicHtmlProjectsTaskmodalHtml,
+	"public/html/projects/taskModal.pug": publicHtmlProjectsTaskmodalPug,
+	"public/html/projects/environment/add.html": publicHtmlProjectsEnvironmentAddHtml,
+	"public/html/projects/environment/add.pug": publicHtmlProjectsEnvironmentAddPug,
+	"public/html/projects/environment/list.html": publicHtmlProjectsEnvironmentListHtml,
+	"public/html/projects/environment/list.pug": publicHtmlProjectsEnvironmentListPug,
+	"public/html/projects/inventory/add.html": publicHtmlProjectsInventoryAddHtml,
+	"public/html/projects/inventory/add.pug": publicHtmlProjectsInventoryAddPug,
+	"public/html/projects/inventory/edit.html": publicHtmlProjectsInventoryEditHtml,
+	"public/html/projects/inventory/edit.pug": publicHtmlProjectsInventoryEditPug,
+	"public/html/projects/inventory/list.html": publicHtmlProjectsInventoryListHtml,
+	"public/html/projects/inventory/list.pug": publicHtmlProjectsInventoryListPug,
+	"public/html/projects/keys/add.html": publicHtmlProjectsKeysAddHtml,
+	"public/html/projects/keys/add.pug": publicHtmlProjectsKeysAddPug,
+	"public/html/projects/keys/list.html": publicHtmlProjectsKeysListHtml,
+	"public/html/projects/keys/list.pug": publicHtmlProjectsKeysListPug,
+	"public/html/projects/repositories/add.html": publicHtmlProjectsRepositoriesAddHtml,
+	"public/html/projects/repositories/add.pug": publicHtmlProjectsRepositoriesAddPug,
+	"public/html/projects/repositories/list.html": publicHtmlProjectsRepositoriesListHtml,
+	"public/html/projects/repositories/list.pug": publicHtmlProjectsRepositoriesListPug,
+	"public/html/projects/templates/add.html": publicHtmlProjectsTemplatesAddHtml,
+	"public/html/projects/templates/add.pug": publicHtmlProjectsTemplatesAddPug,
+	"public/html/projects/templates/list.html": publicHtmlProjectsTemplatesListHtml,
+	"public/html/projects/templates/list.pug": publicHtmlProjectsTemplatesListPug,
+	"public/html/projects/users/add.html": publicHtmlProjectsUsersAddHtml,
+	"public/html/projects/users/add.pug": publicHtmlProjectsUsersAddPug,
+	"public/html/projects/users/list.html": publicHtmlProjectsUsersListHtml,
+	"public/html/projects/users/list.pug": publicHtmlProjectsUsersListPug,
+	"public/html/users/add.html": publicHtmlUsersAddHtml,
+	"public/html/users/add.pug": publicHtmlUsersAddPug,
+	"public/html/users/list.html": publicHtmlUsersListHtml,
+	"public/html/users/list.pug": publicHtmlUsersListPug,
+	"public/html/users/user.html": publicHtmlUsersUserHtml,
+	"public/html/users/user.pug": publicHtmlUsersUserPug,
+	"public/img/icon.png": publicImgIconPng,
+>>>>>>> develop
 	"public/img/logo.png": publicImgLogoPng,
 	"public/img/screenshot.png": publicImgScreenshotPng,
 	"public/js/app.js": publicJsAppJs,
@@ -4972,11 +6799,10 @@ var _bindata = map[string]func() (*asset, error){
 	"public/vendor/angular.min.js": publicVendorAngularMinJs,
 	"public/vendor/async.js": publicVendorAsyncJs,
 	"public/vendor/require.min.js": publicVendorRequireMinJs,
-	"public/vendor/sweetalert/sweetalert.css": publicVendorSweetalertSweetalertCss,
-	"public/vendor/sweetalert/sweetalert.min.js": publicVendorSweetalertSweetalertMinJs,
 	"public/vendor/angular-loading-bar/loading-bar.css": publicVendorAngularLoadingBarLoadingBarCss,
 	"public/vendor/angular-loading-bar/loading-bar.js": publicVendorAngularLoadingBarLoadingBarJs,
 	"public/vendor/angular-loading-bar/loading-bar.min.js": publicVendorAngularLoadingBarLoadingBarMinJs,
+<<<<<<< HEAD
 	"public/vendor/fontawesome/less/animated.less": publicVendorFontawesomeLessAnimatedLess,
 	"public/vendor/fontawesome/less/bordered-pulled.less": publicVendorFontawesomeLessBorderedPulledLess,
 	"public/vendor/fontawesome/less/core.less": publicVendorFontawesomeLessCoreLess,
@@ -4996,12 +6822,33 @@ var _bindata = map[string]func() (*asset, error){
 	"public/vendor/fontawesome/fonts/fontawesome-webfont.ttf": publicVendorFontawesomeFontsFontawesomeWebfontTtf,
 	"public/vendor/fontawesome/fonts/fontawesome-webfont.woff": publicVendorFontawesomeFontsFontawesomeWebfontWoff,
 	"public/vendor/fontawesome/fonts/fontawesome-webfont.woff2": publicVendorFontawesomeFontsFontawesomeWebfontWoff2,
+=======
+>>>>>>> develop
 	"public/vendor/bootstrap/.editorconfig": publicVendorBootstrapEditorconfig,
 	"public/vendor/bootstrap/.gitattributes": publicVendorBootstrapGitattributes,
 	"public/vendor/bootstrap/.gitignore": publicVendorBootstrapGitignore,
 	"public/vendor/bootstrap/README.md": publicVendorBootstrapReadmeMd,
 	"public/vendor/bootstrap/bower.json": publicVendorBootstrapBowerJson,
 	"public/vendor/bootstrap/package.json": publicVendorBootstrapPackageJson,
+	"public/vendor/bootstrap/dist/css/bootstrap-theme.css": publicVendorBootstrapDistCssBootstrapThemeCss,
+	"public/vendor/bootstrap/dist/css/bootstrap-theme.css.map": publicVendorBootstrapDistCssBootstrapThemeCssMap,
+	"public/vendor/bootstrap/dist/css/bootstrap-theme.min.css": publicVendorBootstrapDistCssBootstrapThemeMinCss,
+	"public/vendor/bootstrap/dist/css/bootstrap.css": publicVendorBootstrapDistCssBootstrapCss,
+	"public/vendor/bootstrap/dist/css/bootstrap.css.map": publicVendorBootstrapDistCssBootstrapCssMap,
+	"public/vendor/bootstrap/dist/css/bootstrap.min.css": publicVendorBootstrapDistCssBootstrapMinCss,
+	"public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.eot": publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularEot,
+	"public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.svg": publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularSvg,
+	"public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf": publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularTtf,
+	"public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff": publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff,
+	"public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2": publicVendorBootstrapDistFontsGlyphiconsHalflingsRegularWoff2,
+	"public/vendor/bootstrap/dist/js/bootstrap.js": publicVendorBootstrapDistJsBootstrapJs,
+	"public/vendor/bootstrap/dist/js/bootstrap.min.js": publicVendorBootstrapDistJsBootstrapMinJs,
+	"public/vendor/bootstrap/dist/js/npm.js": publicVendorBootstrapDistJsNpmJs,
+	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot": publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot,
+	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg": publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg,
+	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf": publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf,
+	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff": publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff,
+	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.woff2": publicVendorBootstrapFontsGlyphiconsHalflingsRegularWoff2,
 	"public/vendor/bootstrap/less/.csscomb.json": publicVendorBootstrapLessCsscombJson,
 	"public/vendor/bootstrap/less/.csslintrc": publicVendorBootstrapLessCsslintrc,
 	"public/vendor/bootstrap/less/alerts.less": publicVendorBootstrapLessAlertsLess,
@@ -5075,6 +6922,7 @@ var _bindata = map[string]func() (*asset, error){
 	"public/vendor/bootstrap/less/mixins/text-emphasis.less": publicVendorBootstrapLessMixinsTextEmphasisLess,
 	"public/vendor/bootstrap/less/mixins/text-overflow.less": publicVendorBootstrapLessMixinsTextOverflowLess,
 	"public/vendor/bootstrap/less/mixins/vendor-prefixes.less": publicVendorBootstrapLessMixinsVendorPrefixesLess,
+<<<<<<< HEAD
 	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot": publicVendorBootstrapFontsGlyphiconsHalflingsRegularEot,
 	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg": publicVendorBootstrapFontsGlyphiconsHalflingsRegularSvg,
 	"public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf": publicVendorBootstrapFontsGlyphiconsHalflingsRegularTtf,
@@ -5094,10 +6942,36 @@ var _bindata = map[string]func() (*asset, error){
 	"public/vendor/bootstrap/dist/css/bootstrap.css": publicVendorBootstrapDistCssBootstrapCss,
 	"public/vendor/bootstrap/dist/css/bootstrap.css.map": publicVendorBootstrapDistCssBootstrapCssMap,
 	"public/vendor/bootstrap/dist/css/bootstrap.min.css": publicVendorBootstrapDistCssBootstrapMinCss,
+=======
+	"public/vendor/fontawesome/fonts/FontAwesome.otf": publicVendorFontawesomeFontsFontawesomeOtf,
+	"public/vendor/fontawesome/fonts/fontawesome-webfont.eot": publicVendorFontawesomeFontsFontawesomeWebfontEot,
+	"public/vendor/fontawesome/fonts/fontawesome-webfont.svg": publicVendorFontawesomeFontsFontawesomeWebfontSvg,
+	"public/vendor/fontawesome/fonts/fontawesome-webfont.ttf": publicVendorFontawesomeFontsFontawesomeWebfontTtf,
+	"public/vendor/fontawesome/fonts/fontawesome-webfont.woff": publicVendorFontawesomeFontsFontawesomeWebfontWoff,
+	"public/vendor/fontawesome/fonts/fontawesome-webfont.woff2": publicVendorFontawesomeFontsFontawesomeWebfontWoff2,
+	"public/vendor/fontawesome/less/animated.less": publicVendorFontawesomeLessAnimatedLess,
+	"public/vendor/fontawesome/less/bordered-pulled.less": publicVendorFontawesomeLessBorderedPulledLess,
+	"public/vendor/fontawesome/less/core.less": publicVendorFontawesomeLessCoreLess,
+	"public/vendor/fontawesome/less/fixed-width.less": publicVendorFontawesomeLessFixedWidthLess,
+	"public/vendor/fontawesome/less/font-awesome.less": publicVendorFontawesomeLessFontAwesomeLess,
+	"public/vendor/fontawesome/less/icons.less": publicVendorFontawesomeLessIconsLess,
+	"public/vendor/fontawesome/less/larger.less": publicVendorFontawesomeLessLargerLess,
+	"public/vendor/fontawesome/less/list.less": publicVendorFontawesomeLessListLess,
+	"public/vendor/fontawesome/less/mixins.less": publicVendorFontawesomeLessMixinsLess,
+	"public/vendor/fontawesome/less/path.less": publicVendorFontawesomeLessPathLess,
+	"public/vendor/fontawesome/less/rotated-flipped.less": publicVendorFontawesomeLessRotatedFlippedLess,
+	"public/vendor/fontawesome/less/stacked.less": publicVendorFontawesomeLessStackedLess,
+	"public/vendor/fontawesome/less/variables.less": publicVendorFontawesomeLessVariablesLess,
+>>>>>>> develop
 	"public/vendor/moment/moment-tz.js": publicVendorMomentMomentTzJs,
 	"public/vendor/moment/moment-tz.min.js": publicVendorMomentMomentTzMinJs,
 	"public/vendor/moment/moment.js": publicVendorMomentMomentJs,
 	"public/vendor/moment/moment.min.js": publicVendorMomentMomentMinJs,
+<<<<<<< HEAD
+=======
+	"public/vendor/sweetalert/sweetalert.css": publicVendorSweetalertSweetalertCss,
+	"public/vendor/sweetalert/sweetalert.min.js": publicVendorSweetalertSweetalertMinJs,
+>>>>>>> develop
 }
 
 // AssetDir returns the file names below a certain
@@ -5155,7 +7029,10 @@ var _bintree = &bintree{nil, map[string]*bintree{
 			"v1.7.0.sql": &bintree{dbMigrationsV170Sql, map[string]*bintree{}},
 			"v1.8.0.sql": &bintree{dbMigrationsV180Sql, map[string]*bintree{}},
 			"v1.9.0.sql": &bintree{dbMigrationsV190Sql, map[string]*bintree{}},
+<<<<<<< HEAD
 			"v2.3.0.sql": &bintree{dbMigrationsV230Sql, map[string]*bintree{}},
+=======
+>>>>>>> develop
 		}},
 	}},
 	"public": &bintree{nil, map[string]*bintree{
@@ -5169,85 +7046,90 @@ var _bintree = &bintree{nil, map[string]*bintree{
 		"html": &bintree{nil, map[string]*bintree{
 			".gitignore": &bintree{publicHtmlGitignore, map[string]*bintree{}},
 			"abstract.html": &bintree{publicHtmlAbstractHtml, map[string]*bintree{}},
-			"abstract.jade": &bintree{publicHtmlAbstractJade, map[string]*bintree{}},
+			"abstract.pug": &bintree{publicHtmlAbstractPug, map[string]*bintree{}},
 			"admin.html": &bintree{publicHtmlAdminHtml, map[string]*bintree{}},
-			"admin.jade": &bintree{publicHtmlAdminJade, map[string]*bintree{}},
+			"admin.pug": &bintree{publicHtmlAdminPug, map[string]*bintree{}},
 			"auth": &bintree{nil, map[string]*bintree{
 				"login.html": &bintree{publicHtmlAuthLoginHtml, map[string]*bintree{}},
-				"login.jade": &bintree{publicHtmlAuthLoginJade, map[string]*bintree{}},
+				"login.pug": &bintree{publicHtmlAuthLoginPug, map[string]*bintree{}},
 				"logout.html": &bintree{publicHtmlAuthLogoutHtml, map[string]*bintree{}},
-				"logout.jade": &bintree{publicHtmlAuthLogoutJade, map[string]*bintree{}},
+				"logout.pug": &bintree{publicHtmlAuthLogoutPug, map[string]*bintree{}},
 			}},
 			"dashboard.html": &bintree{publicHtmlDashboardHtml, map[string]*bintree{}},
-			"dashboard.jade": &bintree{publicHtmlDashboardJade, map[string]*bintree{}},
+			"dashboard.pug": &bintree{publicHtmlDashboardPug, map[string]*bintree{}},
 			"index.html": &bintree{publicHtmlIndexHtml, map[string]*bintree{}},
-			"index.jade": &bintree{publicHtmlIndexJade, map[string]*bintree{}},
+			"index.pug": &bintree{publicHtmlIndexPug, map[string]*bintree{}},
 			"projects": &bintree{nil, map[string]*bintree{
 				"add.html": &bintree{publicHtmlProjectsAddHtml, map[string]*bintree{}},
-				"add.jade": &bintree{publicHtmlProjectsAddJade, map[string]*bintree{}},
+				"add.pug": &bintree{publicHtmlProjectsAddPug, map[string]*bintree{}},
 				"container.html": &bintree{publicHtmlProjectsContainerHtml, map[string]*bintree{}},
-				"container.jade": &bintree{publicHtmlProjectsContainerJade, map[string]*bintree{}},
+				"container.pug": &bintree{publicHtmlProjectsContainerPug, map[string]*bintree{}},
 				"createTaskModal.html": &bintree{publicHtmlProjectsCreatetaskmodalHtml, map[string]*bintree{}},
-				"createTaskModal.jade": &bintree{publicHtmlProjectsCreatetaskmodalJade, map[string]*bintree{}},
+				"createTaskModal.pug": &bintree{publicHtmlProjectsCreatetaskmodalPug, map[string]*bintree{}},
 				"dashboard.html": &bintree{publicHtmlProjectsDashboardHtml, map[string]*bintree{}},
-				"dashboard.jade": &bintree{publicHtmlProjectsDashboardJade, map[string]*bintree{}},
+				"dashboard.pug": &bintree{publicHtmlProjectsDashboardPug, map[string]*bintree{}},
 				"edit.html": &bintree{publicHtmlProjectsEditHtml, map[string]*bintree{}},
-				"edit.jade": &bintree{publicHtmlProjectsEditJade, map[string]*bintree{}},
+				"edit.pug": &bintree{publicHtmlProjectsEditPug, map[string]*bintree{}},
 				"environment": &bintree{nil, map[string]*bintree{
 					"add.html": &bintree{publicHtmlProjectsEnvironmentAddHtml, map[string]*bintree{}},
-					"add.jade": &bintree{publicHtmlProjectsEnvironmentAddJade, map[string]*bintree{}},
+					"add.pug": &bintree{publicHtmlProjectsEnvironmentAddPug, map[string]*bintree{}},
 					"list.html": &bintree{publicHtmlProjectsEnvironmentListHtml, map[string]*bintree{}},
-					"list.jade": &bintree{publicHtmlProjectsEnvironmentListJade, map[string]*bintree{}},
+					"list.pug": &bintree{publicHtmlProjectsEnvironmentListPug, map[string]*bintree{}},
 				}},
 				"inventory": &bintree{nil, map[string]*bintree{
 					"add.html": &bintree{publicHtmlProjectsInventoryAddHtml, map[string]*bintree{}},
-					"add.jade": &bintree{publicHtmlProjectsInventoryAddJade, map[string]*bintree{}},
+					"add.pug": &bintree{publicHtmlProjectsInventoryAddPug, map[string]*bintree{}},
 					"edit.html": &bintree{publicHtmlProjectsInventoryEditHtml, map[string]*bintree{}},
-					"edit.jade": &bintree{publicHtmlProjectsInventoryEditJade, map[string]*bintree{}},
+					"edit.pug": &bintree{publicHtmlProjectsInventoryEditPug, map[string]*bintree{}},
 					"list.html": &bintree{publicHtmlProjectsInventoryListHtml, map[string]*bintree{}},
-					"list.jade": &bintree{publicHtmlProjectsInventoryListJade, map[string]*bintree{}},
+					"list.pug": &bintree{publicHtmlProjectsInventoryListPug, map[string]*bintree{}},
 				}},
 				"keys": &bintree{nil, map[string]*bintree{
 					"add.html": &bintree{publicHtmlProjectsKeysAddHtml, map[string]*bintree{}},
-					"add.jade": &bintree{publicHtmlProjectsKeysAddJade, map[string]*bintree{}},
+					"add.pug": &bintree{publicHtmlProjectsKeysAddPug, map[string]*bintree{}},
 					"list.html": &bintree{publicHtmlProjectsKeysListHtml, map[string]*bintree{}},
-					"list.jade": &bintree{publicHtmlProjectsKeysListJade, map[string]*bintree{}},
+					"list.pug": &bintree{publicHtmlProjectsKeysListPug, map[string]*bintree{}},
 				}},
 				"repositories": &bintree{nil, map[string]*bintree{
 					"add.html": &bintree{publicHtmlProjectsRepositoriesAddHtml, map[string]*bintree{}},
-					"add.jade": &bintree{publicHtmlProjectsRepositoriesAddJade, map[string]*bintree{}},
+					"add.pug": &bintree{publicHtmlProjectsRepositoriesAddPug, map[string]*bintree{}},
 					"list.html": &bintree{publicHtmlProjectsRepositoriesListHtml, map[string]*bintree{}},
-					"list.jade": &bintree{publicHtmlProjectsRepositoriesListJade, map[string]*bintree{}},
+					"list.pug": &bintree{publicHtmlProjectsRepositoriesListPug, map[string]*bintree{}},
 				}},
 				"schedule.html": &bintree{publicHtmlProjectsScheduleHtml, map[string]*bintree{}},
-				"schedule.jade": &bintree{publicHtmlProjectsScheduleJade, map[string]*bintree{}},
+				"schedule.pug": &bintree{publicHtmlProjectsSchedulePug, map[string]*bintree{}},
 				"taskModal.html": &bintree{publicHtmlProjectsTaskmodalHtml, map[string]*bintree{}},
-				"taskModal.jade": &bintree{publicHtmlProjectsTaskmodalJade, map[string]*bintree{}},
+				"taskModal.pug": &bintree{publicHtmlProjectsTaskmodalPug, map[string]*bintree{}},
 				"templates": &bintree{nil, map[string]*bintree{
 					"add.html": &bintree{publicHtmlProjectsTemplatesAddHtml, map[string]*bintree{}},
-					"add.jade": &bintree{publicHtmlProjectsTemplatesAddJade, map[string]*bintree{}},
+					"add.pug": &bintree{publicHtmlProjectsTemplatesAddPug, map[string]*bintree{}},
 					"list.html": &bintree{publicHtmlProjectsTemplatesListHtml, map[string]*bintree{}},
-					"list.jade": &bintree{publicHtmlProjectsTemplatesListJade, map[string]*bintree{}},
+					"list.pug": &bintree{publicHtmlProjectsTemplatesListPug, map[string]*bintree{}},
 				}},
 				"users": &bintree{nil, map[string]*bintree{
 					"add.html": &bintree{publicHtmlProjectsUsersAddHtml, map[string]*bintree{}},
+<<<<<<< HEAD
 					"add.jade": &bintree{publicHtmlProjectsUsersAddJade, map[string]*bintree{}},
+=======
+					"add.pug": &bintree{publicHtmlProjectsUsersAddPug, map[string]*bintree{}},
+>>>>>>> develop
 					"list.html": &bintree{publicHtmlProjectsUsersListHtml, map[string]*bintree{}},
-					"list.jade": &bintree{publicHtmlProjectsUsersListJade, map[string]*bintree{}},
+					"list.pug": &bintree{publicHtmlProjectsUsersListPug, map[string]*bintree{}},
 				}},
 			}},
 			"tasks.html": &bintree{publicHtmlTasksHtml, map[string]*bintree{}},
-			"tasks.jade": &bintree{publicHtmlTasksJade, map[string]*bintree{}},
+			"tasks.pug": &bintree{publicHtmlTasksPug, map[string]*bintree{}},
 			"users": &bintree{nil, map[string]*bintree{
 				"add.html": &bintree{publicHtmlUsersAddHtml, map[string]*bintree{}},
-				"add.jade": &bintree{publicHtmlUsersAddJade, map[string]*bintree{}},
+				"add.pug": &bintree{publicHtmlUsersAddPug, map[string]*bintree{}},
 				"list.html": &bintree{publicHtmlUsersListHtml, map[string]*bintree{}},
-				"list.jade": &bintree{publicHtmlUsersListJade, map[string]*bintree{}},
+				"list.pug": &bintree{publicHtmlUsersListPug, map[string]*bintree{}},
 				"user.html": &bintree{publicHtmlUsersUserHtml, map[string]*bintree{}},
-				"user.jade": &bintree{publicHtmlUsersUserJade, map[string]*bintree{}},
+				"user.pug": &bintree{publicHtmlUsersUserPug, map[string]*bintree{}},
 			}},
 		}},
 		"img": &bintree{nil, map[string]*bintree{
+			"icon.png": &bintree{publicImgIconPng, map[string]*bintree{}},
 			"logo.png": &bintree{publicImgLogoPng, map[string]*bintree{}},
 			"screenshot.png": &bintree{publicImgScreenshotPng, map[string]*bintree{}},
 		}},
@@ -5511,4 +7393,3 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-

@@ -22,11 +22,11 @@ func TestGetIntParam(t *testing.T) {
 	}
 }
 
-func mockParam(c *gin.Context) {
+func mockParam(w http.ResponseWriter, r *http.Request) {
 	_, err := GetIntParam("test_id", c)
 	if err != nil {
 		return
 	}
 
-	c.AbortWithStatus(200)
+	w.WriteHeader(http.StatusOK)
 }

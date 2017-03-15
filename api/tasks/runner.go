@@ -12,18 +12,17 @@ import (
 	"strings"
 	"time"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type task struct {
-	task        models.Task
-	template    models.Template
-	sshKey      models.AccessKey
-	inventory   models.Inventory
-	repository  models.Repository
-	environment models.Environment
+	task        db.Task
+	template    db.Template
+	sshKey      db.AccessKey
+	inventory   db.Inventory
+	repository  db.Repository
+	environment db.Environment
 	users       []int
 	projectID   int
 	alert       bool
@@ -48,7 +47,7 @@ func (t *task) run() {
 
 		objType := "task"
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " finished"
-		if err := (models.Event{
+		if err := (db.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -76,7 +75,7 @@ func (t *task) run() {
 
 	objType := "task"
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " is running"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -126,7 +125,7 @@ func (t *task) run() {
 }
 
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := database.Mysql.SelectOne(ptr, query, args...)
+	err := db.Mysql.SelectOne(ptr, query, args...)
 	if err == sql.ErrNoRows {
 		t.log(errMsg)
 		return err
@@ -155,7 +154,7 @@ func (t *task) populateDetails() error {
 	var users []struct {
 		ID int `db:"id"`
 	}
-	if _, err := database.Mysql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
+	if _, err := db.Mysql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
 		return err
 	}
 
@@ -220,7 +219,7 @@ func (t *task) populateDetails() error {
 	return nil
 }
 
-func (t *task) installKey(key models.AccessKey) error {
+func (t *task) installKey(key db.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 	var path = key.GetPath()
 	err := ioutil.WriteFile(path, []byte(*key.Secret), 0600)

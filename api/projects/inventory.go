@@ -2,17 +2,18 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func InventoryMiddleware(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	inventoryID, err := util.GetIntParam("inventory_id", c)
+func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	inventoryID, err := util.GetIntParam("inventory_id", w, r)
 	if err != nil {
 		return
 	}
@@ -23,38 +24,37 @@ func InventoryMiddleware(c *gin.Context) {
 		Where("id=?", inventoryID).
 		ToSql()
 
-	var inventory models.Inventory
-	if err := database.Mysql.SelectOne(&inventory, query, args...); err != nil {
+	var inventory db.Inventory
+	if err := db.Mysql.SelectOne(&inventory, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		panic(err)
 	}
 
-	c.Set("inventory", inventory)
-	c.Next()
+	context.Set(r, "inventory", inventory)
 }
 
-func GetInventory(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	var inv []models.Inventory
+func GetInventory(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	var inv []db.Inventory
 
 	query, args, _ := squirrel.Select("*").
 		From("project__inventory").
 		Where("project_id=?", project.ID).
 		ToSql()
 
-	if _, err := database.Mysql.Select(&inv, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&inv, query, args...); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, inv)
+	mulekick.WriteJSON(w, http.StatusOK, inv)
 }
 
-func AddInventory(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+func AddInventory(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`
@@ -63,7 +63,7 @@ func AddInventory(c *gin.Context) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := c.Bind(&inventory); err != nil {
+	if err := mulekick.Bind(w, r, &inventory); err != nil {
 		return
 	}
 
@@ -71,11 +71,11 @@ func AddInventory(c *gin.Context) {
 	case "static", "aws", "do", "gcloud":
 		break
 	default:
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory)
+	res, err := db.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func AddInventory(c *gin.Context) {
 	objType := "inventory"
 
 	desc := "Inventory " + inventory.Name + " created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -94,11 +94,21 @@ func AddInventory(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	inv := db.Inventory{
+		ID: insertIDInt,
+		Name: inventory.Name,
+		ProjectID: project.ID,
+		Inventory: inventory.Inventory,
+		KeyID: inventory.KeyID,
+		SshKeyID: &inventory.SshKeyID,
+		Type: inventory.Type,
+	}
+
+	mulekick.WriteJSON(w, http.StatusCreated, inv)
 }
 
-func UpdateInventory(c *gin.Context) {
-	oldInventory := c.MustGet("inventory").(models.Inventory)
+func UpdateInventory(w http.ResponseWriter, r *http.Request) {
+	oldInventory := context.Get(r, "inventory").(db.Inventory)
 
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
@@ -108,7 +118,7 @@ func UpdateInventory(c *gin.Context) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := c.Bind(&inventory); err != nil {
+	if err := mulekick.Bind(w, r, &inventory); err != nil {
 		return
 	}
 
@@ -116,17 +126,17 @@ func UpdateInventory(c *gin.Context) {
 	case "static", "aws", "do", "gcloud":
 		break
 	default:
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory, oldInventory.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " updated"
 	objType := "inventory"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &oldInventory.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldInventory.ID,
@@ -135,20 +145,20 @@ func UpdateInventory(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveInventory(c *gin.Context) {
-	inventory := c.MustGet("inventory").(models.Inventory)
+func RemoveInventory(w http.ResponseWriter, r *http.Request) {
+	inventory := context.Get(r, "inventory").(db.Inventory)
 
-	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
+	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
 	if err != nil {
 		panic(err)
 	}
 
 	if templatesC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Inventory is in use by one or more templates",
 				"inUse": true,
 			})
@@ -156,25 +166,25 @@ func RemoveInventory(c *gin.Context) {
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
+		if _, err := db.Mysql.Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	if _, err := database.Mysql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " deleted"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &inventory.ProjectID,
 		Description: &desc,
 	}.Insert()); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

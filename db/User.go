@@ -1,9 +1,7 @@
-package models
+package db
 
 import (
 	"time"
-
-	database "github.com/ansible-semaphore/semaphore/db"
 )
 
 type User struct {
@@ -19,6 +17,6 @@ type User struct {
 func FetchUser(userID int) (*User, error) {
 	var user User
 
-	err := database.Mysql.SelectOne(&user, "select * from user where id=?", userID)
+	err := Mysql.SelectOne(&user, "select * from user where id=?", userID)
 	return &user, err
 }
