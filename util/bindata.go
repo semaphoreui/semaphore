@@ -227,7 +227,6 @@
 // public/vendor/bootstrap/less/mixins/text-emphasis.less
 // public/vendor/bootstrap/less/mixins/text-overflow.less
 // public/vendor/bootstrap/less/mixins/vendor-prefixes.less
-<<<<<<< HEAD
 // public/vendor/bootstrap/fonts/glyphicons-halflings-regular.eot
 // public/vendor/bootstrap/fonts/glyphicons-halflings-regular.svg
 // public/vendor/bootstrap/fonts/glyphicons-halflings-regular.ttf
@@ -241,42 +240,12 @@
 // public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf
 // public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff
 // public/vendor/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2
-// public/vendor/bootstrap/dist/css/bootstrap-theme.css
-// public/vendor/bootstrap/dist/css/bootstrap-theme.css.map
-// public/vendor/bootstrap/dist/css/bootstrap-theme.min.css
-// public/vendor/bootstrap/dist/css/bootstrap.css
-// public/vendor/bootstrap/dist/css/bootstrap.css.map
-// public/vendor/bootstrap/dist/css/bootstrap.min.css
-=======
-// public/vendor/fontawesome/fonts/FontAwesome.otf
-// public/vendor/fontawesome/fonts/fontawesome-webfont.eot
-// public/vendor/fontawesome/fonts/fontawesome-webfont.svg
-// public/vendor/fontawesome/fonts/fontawesome-webfont.ttf
-// public/vendor/fontawesome/fonts/fontawesome-webfont.woff
-// public/vendor/fontawesome/fonts/fontawesome-webfont.woff2
-// public/vendor/fontawesome/less/animated.less
-// public/vendor/fontawesome/less/bordered-pulled.less
-// public/vendor/fontawesome/less/core.less
-// public/vendor/fontawesome/less/fixed-width.less
-// public/vendor/fontawesome/less/font-awesome.less
-// public/vendor/fontawesome/less/icons.less
-// public/vendor/fontawesome/less/larger.less
-// public/vendor/fontawesome/less/list.less
-// public/vendor/fontawesome/less/mixins.less
-// public/vendor/fontawesome/less/path.less
-// public/vendor/fontawesome/less/rotated-flipped.less
-// public/vendor/fontawesome/less/stacked.less
-// public/vendor/fontawesome/less/variables.less
->>>>>>> develop
 // public/vendor/moment/moment-tz.js
 // public/vendor/moment/moment-tz.min.js
 // public/vendor/moment/moment.js
 // public/vendor/moment/moment.min.js
-<<<<<<< HEAD
-=======
 // public/vendor/sweetalert/sweetalert.css
 // public/vendor/sweetalert/sweetalert.min.js
->>>>>>> develop
 // DO NOT EDIT!
 
 package util
