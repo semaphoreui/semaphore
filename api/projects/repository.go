@@ -47,11 +47,35 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var repos []db.Repository
 
-	query, args, _ := squirrel.Select("*").
-		From("project__repository").
-		Where("project_id=?", project.ID).
-		OrderBy("name asc").
-		ToSql()
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
+
+	q := squirrel.Select("pr.id",
+			"pr.name",
+			"pr.project_id",
+			"pr.git_url",
+			"pr.ssh_key_id",
+			"pr.removed").
+			From("project__repository pr")
+
+	switch sort {
+	case "name", "git_url":
+		q = q.Where("pr.project_id=?", project.ID).
+			OrderBy("pr." + sort + " " + order)
+	case "ssh_key":
+		q = q.LeftJoin("access_key ak ON (pr.ssh_key_id = ak.id)").
+			Where("pr.project_id=?", project.ID).
+			OrderBy("ak.name " + order)
+	default:
+		q = q.Where("pr.project_id=?", project.ID).
+			OrderBy("pr.name " + order)
+	}
+
+	query, args, _ := q.ToSql()
 
 	if _, err := db.Mysql.Select(&repos, query, args...); err != nil {
 		panic(err)
