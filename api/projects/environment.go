@@ -62,13 +62,6 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	query, args, _ := q.ToSql()
 
-	//q := squirrel.Select("*").
-	//	From("project__environment").
-	//	Where("project_id=?", project.ID).
-	//	OrderBy("name asc")
-
-	//query, args, _ := q.ToSql()
-
 	if _, err := db.Mysql.Select(&env, query, args...); err != nil {
 		panic(err)
 	}
