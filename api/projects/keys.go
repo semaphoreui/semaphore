@@ -35,15 +35,36 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
 
-	q := squirrel.Select("id, name, type, project_id, `key`, removed").
-		From("access_key").
-		Where("project_id=?", project.ID)
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
+
+	q := squirrel.Select("ak.id",
+		"ak.name",
+		"ak.type",
+		"ak.project_id",
+		"ak.key",
+		"ak.removed").
+		From("access_key ak")
 
 	if t := r.URL.Query().Get("type"); len(t) > 0 {
 		q = q.Where("type=?", t)
 	}
 
+	switch sort {
+	case "name", "type":
+		q = q.Where("ak.project_id=?", project.ID).
+			OrderBy("ak." + sort + " " + order)
+	default:
+		q = q.Where("ak.project_id=?", project.ID).
+			OrderBy("ak.name " + order)
+	}
+
 	query, args, _ := q.ToSql()
+
 	if _, err := db.Mysql.Select(&keys, query, args...); err != nil {
 		panic(err)
 	}
