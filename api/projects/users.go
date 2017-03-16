@@ -39,12 +39,28 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		Admin bool `db:"admin" json:"admin"`
 	}
 
-	query, args, _ := squirrel.Select("u.*").Column("pu.admin").
-		From("project__user as pu").
-		Join("user as u on pu.user_id=u.id").
-		Where("pu.project_id=?", project.ID).
-		OrderBy("name asc").
-		ToSql()
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
+
+	q := squirrel.Select("u.*").Column("pu.admin").
+			From("project__user as pu").
+			LeftJoin("user as u on pu.user_id=u.id").
+			Where("pu.project_id=?", project.ID)
+
+	switch sort {
+	case "name", "username", "email":
+		q = q.OrderBy("u." + sort + " " + order)
+	case "admin":
+		q = q.OrderBy("pu." + sort + " " + order)
+	default:
+		q = q.OrderBy("u.name " + order)
+	}
+
+	query, args, _ := q.ToSql()
 
 	if _, err := db.Mysql.Select(&users, query, args...); err != nil {
 		panic(err)
