@@ -1,7 +1,7 @@
 define(function () {
 	app.registerController('ProjectUsersCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function ($scope, $http, Project, $modal, $rootScope) {
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/users').success(function (users) {
+			$http.get(Project.getURL() + '/users?sort=name&order=asc').success(function (users) {
 				$scope.project_user = null;
 				$scope.users = users;
 
