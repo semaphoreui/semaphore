@@ -57,8 +57,8 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 
 	switch sort {
 	case "alias", "playbook":
-		q = q.Where("project_id=?", project.ID).
-			OrderBy(sort + " " + order)
+		q = q.Where("pt.project_id=?", project.ID).
+			OrderBy("pt."+ sort + " " + order)
 	case "ssh_key":
 		q = q.LeftJoin("access_key ak ON (pt.ssh_key_id = ak.id)").
 			Where("pt.project_id=?", project.ID).
