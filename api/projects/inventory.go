@@ -41,11 +41,26 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var inv []db.Inventory
 
-	query, args, _ := squirrel.Select("*").
-		From("project__inventory").
-		Where("project_id=?", project.ID).
-		OrderBy("name asc").
-		ToSql()
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
+
+	q := squirrel.Select("*").
+			From("project__inventory pi")
+
+	switch sort {
+	case "name", "type":
+		q = q.Where("pi.project_id=?", project.ID).
+			OrderBy("pi." + sort + " " + order)
+	default:
+		q = q.Where("pi.project_id=?", project.ID).
+		OrderBy("pi.name " + order)
+	}
+
+	query, args, _ := q.ToSql()
 
 	if _, err := db.Mysql.Select(&inv, query, args...); err != nil {
 		panic(err)
