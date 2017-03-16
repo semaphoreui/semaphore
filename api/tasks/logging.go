@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/api/sockets"
-	database "github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db"
 )
 
 func (t *task) log(msg string) {
@@ -31,7 +31,7 @@ func (t *task) log(msg string) {
 	}
 
 	go func() {
-		_, err := database.Mysql.Exec("insert into task__output set task_id=?, task='', output=?, time=?", t.task.ID, msg, now)
+		_, err := db.Mysql.Exec("insert into task__output set task_id=?, task='', output=?, time=?", t.task.ID, msg, now)
 		if err != nil {
 			panic(err)
 		}
@@ -56,7 +56,7 @@ func (t *task) updateStatus() {
 		sockets.Message(user, b)
 	}
 
-	if _, err := database.Mysql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
+	if _, err := db.Mysql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
 		fmt.Println("Failed to update task status")
 		t.log("Fatal error with database!")
 		panic(err)

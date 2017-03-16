@@ -53,15 +53,15 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 		$rootScope.ws = null;
 
 		$http.get('/user')
-		.then(function (user) {
-			$rootScope.user = user.data;
-			$rootScope.loggedIn = true;
+			.then(function (user) {
+				$rootScope.user = user.data;
+				$rootScope.loggedIn = true;
 
-			$rootScope.refreshInfo();
-			$rootScope.startWS();
-		}, function () {
-			$state.go('auth.login');
-		});
+				$rootScope.refreshInfo();
+				$rootScope.startWS();
+			}, function () {
+				$state.go('auth.login');
+			});
 	}
 
 	$rootScope.startWS = function () {
@@ -82,12 +82,12 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 				setTimeout(function () {
 					$rootScope.$broadcast('task.' + d.type, d);
 				}, 3000);
-			} catch (_) {}
+			} catch (_) { }
 		}
 	}
 
 	$rootScope.refreshInfo = function (cb) {
-		if (typeof cb != 'function') cb = function () {}
+		if (typeof cb != 'function') cb = function () { }
 
 		$http.get('/info').success(function (info) {
 			$rootScope.semaphore = info;

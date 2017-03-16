@@ -1,9 +1,7 @@
-package models
+package db
 
 import (
 	"time"
-
-	database "github.com/ansible-semaphore/semaphore/db"
 )
 
 type Project struct {
@@ -16,7 +14,7 @@ type Project struct {
 func (project *Project) CreateProject() error {
 	project.Created = time.Now()
 
-	res, err := database.Mysql.Exec("insert into project set name=?, created=?", project.Name, project.Created)
+	res, err := Mysql.Exec("insert into project set name=?, created=?", project.Name, project.Created)
 	if err != nil {
 		return err
 	}

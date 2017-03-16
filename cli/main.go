@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -13,11 +14,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/bugsnag/bugsnag-go"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/handlers"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -39,17 +38,17 @@ func main() {
 	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
-	if err := database.Connect(); err != nil {
+	if err := db.Connect(); err != nil {
 		panic(err)
 	}
 
-	models.SetupDBLink()
+	db.SetupDBLink()
 
-	defer database.Mysql.Db.Close()
+	defer db.Mysql.Db.Close()
 
 	if util.Migration {
 		fmt.Println("\n Running DB Migrations")
-		if err := database.MigrateAll(); err != nil {
+		if err := db.MigrateAll(); err != nil {
 			panic(err)
 		}
 
@@ -57,19 +56,13 @@ func main() {
 	}
 
 	go sockets.StartWS()
-	r := gin.New()
-	r.Use(gin.Recovery(), recovery, gin.Logger())
-
-	api.Route(r)
-
 	go checkUpdates()
 	go tasks.StartRunner()
-	r.Run(util.Config.Port)
-}
 
-func recovery(c *gin.Context) {
-	defer bugsnag.AutoNotify()
-	c.Next()
+	var router http.Handler = api.Route()
+	router = handlers.ProxyHeaders(router)
+	http.Handle("/", router)
+	http.ListenAndServe(util.Config.Port, nil)
 }
 
 func doSetup() int {
@@ -117,30 +110,30 @@ func doSetup() int {
 		panic(err)
 	}
 
-	fmt.Println(" Pinging database..")
+	fmt.Println(" Pinging db..")
 	util.Config = setup
 
-	if err := database.Connect(); err != nil {
+	if err := db.Connect(); err != nil {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	fmt.Println("\n Running DB Migrations..")
-	if err := database.MigrateAll(); err != nil {
+	if err := db.MigrateAll(); err != nil {
 		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	stdin := bufio.NewReader(os.Stdin)
 
-	var user models.User
+	var user db.User
 	user.Username = readNewline("\n\n > Username: ", stdin)
 	user.Username = strings.ToLower(user.Username)
 	user.Email = readNewline(" > Email: ", stdin)
 	user.Email = strings.ToLower(user.Email)
 
-	var existingUser models.User
-	database.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
+	var existingUser db.User
+	db.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
 
 	if existingUser.ID > 0 {
 		// user already exists
@@ -150,7 +143,7 @@ func doSetup() int {
 		user.Password = readNewline(" > Password: ", stdin)
 		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 
-		if _, err := database.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
+		if _, err := db.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}

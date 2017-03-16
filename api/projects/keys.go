@@ -2,60 +2,60 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func KeyMiddleware(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	keyID, err := util.GetIntParam("key_id", c)
+func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	keyID, err := util.GetIntParam("key_id", w, r)
 	if err != nil {
 		return
 	}
 
-	var key models.AccessKey
-	if err := database.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
+	var key db.AccessKey
+	if err := db.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		panic(err)
 	}
 
-	c.Set("accessKey", key)
-	c.Next()
+	context.Set(r, "accessKey", key)
 }
 
-func GetKeys(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	var keys []models.AccessKey
+func GetKeys(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	var keys []db.AccessKey
 
 	q := squirrel.Select("id, name, type, project_id, `key`, removed").
 		From("access_key").
 		Where("project_id=?", project.ID)
 
-	if len(c.Query("type")) > 0 {
-		q = q.Where("type=?", c.Query("type"))
+	if t := r.URL.Query().Get("type"); len(t) > 0 {
+		q = q.Where("type=?", t)
 	}
 
 	query, args, _ := q.ToSql()
-	if _, err := database.Mysql.Select(&keys, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&keys, query, args...); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, keys)
+	mulekick.WriteJSON(w, http.StatusOK, keys)
 }
 
-func AddKey(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	var key models.AccessKey
+func AddKey(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	var key db.AccessKey
 
-	if err := c.Bind(&key); err != nil {
+	if err := mulekick.Bind(w, r, &key); err != nil {
 		return
 	}
 
@@ -64,13 +64,13 @@ func AddKey(c *gin.Context) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			c.JSON(400, map[string]string{
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		c.JSON(400, map[string]string{
+		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -78,7 +78,7 @@ func AddKey(c *gin.Context) {
 
 	secret := *key.Secret + "\n"
 
-	res, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, secret)
+	res, err := db.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, secret)
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +88,7 @@ func AddKey(c *gin.Context) {
 	objType := "key"
 
 	desc := "Access Key " + key.Name + " created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -97,14 +97,14 @@ func AddKey(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateKey(c *gin.Context) {
-	var key models.AccessKey
-	oldKey := c.MustGet("accessKey").(models.AccessKey)
+func UpdateKey(w http.ResponseWriter, r *http.Request) {
+	var key db.AccessKey
+	oldKey := context.Get(r, "accessKey").(db.AccessKey)
 
-	if err := c.Bind(&key); err != nil {
+	if err := mulekick.Bind(w, r, &key); err != nil {
 		return
 	}
 
@@ -113,13 +113,13 @@ func UpdateKey(c *gin.Context) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			c.JSON(400, map[string]string{
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		c.JSON(400, map[string]string{
+		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -133,13 +133,13 @@ func UpdateKey(c *gin.Context) {
 		key.Secret = &secret
 	}
 
-	if _, err := database.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	if _, err := db.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Access Key " + key.Name + " updated"
 	objType := "key"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldKey.ID,
@@ -148,25 +148,25 @@ func UpdateKey(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveKey(c *gin.Context) {
-	key := c.MustGet("accessKey").(models.AccessKey)
+func RemoveKey(w http.ResponseWriter, r *http.Request) {
+	key := context.Get(r, "accessKey").(db.AccessKey)
 
-	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	inventoryC, err := database.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	inventoryC, err := db.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
 	if templatesC > 0 || inventoryC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Key is in use by one or more templates / inventory",
 				"inUse": true,
 			})
@@ -174,25 +174,25 @@ func RemoveKey(c *gin.Context) {
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
+		if _, err := db.Mysql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	if _, err := database.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Access Key " + key.Name + " deleted"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   key.ProjectID,
 		Description: &desc,
 	}.Insert()); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }

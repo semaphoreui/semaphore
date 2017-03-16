@@ -1,10 +1,6 @@
-package models
+package db
 
-import (
-	"time"
-
-	database "github.com/ansible-semaphore/semaphore/db"
-)
+import "time"
 
 type Event struct {
 	ProjectID   *int      `db:"project_id" json:"project_id"`
@@ -18,7 +14,7 @@ type Event struct {
 }
 
 func (evt Event) Insert() error {
-	_, err := database.Mysql.Exec("insert into event set project_id=?, object_id=?, object_type=?, description=?, created=UTC_TIMESTAMP(6)", evt.ProjectID, evt.ObjectID, evt.ObjectType, evt.Description)
+	_, err := Mysql.Exec("insert into event set project_id=?, object_id=?, object_type=?, description=?, created=UTC_TIMESTAMP(6)", evt.ProjectID, evt.ObjectID, evt.ObjectType, evt.Description)
 
 	return err
 }

@@ -2,17 +2,18 @@ package projects
 
 import (
 	"database/sql"
+	"net/http"
 	"os"
 	"strconv"
 
-	database "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gin-gonic/gin"
+	"github.com/castawaylabs/mulekick"
+	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func clearRepositoryCache(repository models.Repository) error {
+func clearRepositoryCache(repository db.Repository) error {
 	repoName := "repository_" + strconv.Itoa(repository.ID)
 	repoPath := util.Config.TmpPath + "/" + repoName
 	_, err := os.Stat(repoPath)
@@ -22,30 +23,29 @@ func clearRepositoryCache(repository models.Repository) error {
 	return nil
 }
 
-func RepositoryMiddleware(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	repositoryID, err := util.GetIntParam("repository_id", c)
+func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	repositoryID, err := util.GetIntParam("repository_id", w, r)
 	if err != nil {
 		return
 	}
 
-	var repository models.Repository
-	if err := database.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
+	var repository db.Repository
+	if err := db.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		panic(err)
 	}
 
-	c.Set("repository", repository)
-	c.Next()
+	context.Set(r, "repository", repository)
 }
 
-func GetRepositories(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	var repos []models.Repository
+func GetRepositories(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	var repos []db.Repository
 
 	query, args, _ := squirrel.Select("*").
 		From("project__repository").
@@ -53,26 +53,26 @@ func GetRepositories(c *gin.Context) {
 		OrderBy("name asc").
 		ToSql()
 
-	if _, err := database.Mysql.Select(&repos, query, args...); err != nil {
+	if _, err := db.Mysql.Select(&repos, query, args...); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, repos)
+	mulekick.WriteJSON(w, http.StatusOK, repos)
 }
 
-func AddRepository(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
+func AddRepository(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
 
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
 		GitUrl   string `json:"git_url" binding:"required"`
 		SshKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := c.Bind(&repository); err != nil {
+	if err := mulekick.Bind(w, r, &repository); err != nil {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitUrl, repository.SshKeyID, repository.Name)
+	res, err := db.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitUrl, repository.SshKeyID, repository.Name)
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +82,7 @@ func AddRepository(c *gin.Context) {
 	objType := "repository"
 
 	desc := "Repository (" + repository.GitUrl + ") created"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -91,21 +91,21 @@ func AddRepository(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateRepository(c *gin.Context) {
-	oldRepo := c.MustGet("repository").(models.Repository)
+func UpdateRepository(w http.ResponseWriter, r *http.Request) {
+	oldRepo := context.Get(r, "repository").(db.Repository)
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
 		GitUrl   string `json:"git_url" binding:"required"`
 		SshKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := c.Bind(&repository); err != nil {
+	if err := mulekick.Bind(w, r, &repository); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitUrl, repository.SshKeyID, oldRepo.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitUrl, repository.SshKeyID, oldRepo.ID); err != nil {
 		panic(err)
 	}
 
@@ -115,7 +115,7 @@ func UpdateRepository(c *gin.Context) {
 
 	desc := "Repository (" + repository.GitUrl + ") updated"
 	objType := "inventory"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &oldRepo.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldRepo.ID,
@@ -124,20 +124,20 @@ func UpdateRepository(c *gin.Context) {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func RemoveRepository(c *gin.Context) {
-	repository := c.MustGet("repository").(models.Repository)
+func RemoveRepository(w http.ResponseWriter, r *http.Request) {
+	repository := context.Get(r, "repository").(db.Repository)
 
-	templatesC, err := database.Mysql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
+	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
 	if err != nil {
 		panic(err)
 	}
 
 	if templatesC > 0 {
-		if len(c.Query("setRemoved")) == 0 {
-			c.JSON(400, map[string]interface{}{
+		if len(r.URL.Query().Get("setRemoved")) == 0 {
+			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error":        "Repository is in use by one or more templates",
 				"templatesUse": true,
 			})
@@ -145,27 +145,27 @@ func RemoveRepository(c *gin.Context) {
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
+		if _, err := db.Mysql.Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
 			panic(err)
 		}
 
-		c.AbortWithStatus(204)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	if _, err := database.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
+	if _, err := db.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
 		panic(err)
 	}
 
 	clearRepositoryCache(repository)
 
 	desc := "Repository (" + repository.GitUrl + ") deleted"
-	if err := (models.Event{
+	if err := (db.Event{
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
 	}.Insert()); err != nil {
 		panic(err)
 	}
 
-	c.AbortWithStatus(204)
+	w.WriteHeader(http.StatusNoContent)
 }
