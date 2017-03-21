@@ -47,7 +47,7 @@ func (t *task) run() {
 		t.updateStatus()
 
 		objType := "task"
-		desc := "Task ID " + strconv.Itoa(t.task.ID) + " finished"
+		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 		if err := (models.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
@@ -75,7 +75,7 @@ func (t *task) run() {
 	}
 
 	objType := "task"
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " is running"
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 	if err := (models.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
