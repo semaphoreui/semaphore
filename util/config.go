@@ -47,6 +47,11 @@ type configType struct {
 
 	//web host
 	WebHost string `json:"web_host"`
+
+	//telegram alerting
+	TelegramAlert bool   `json:"telegram_alert"`
+	TelegramChat  string `json:"telegram_chat"`
+	TelegramToken string `json:"telegram_token"`
 }
 
 var Config *configType
