@@ -1,7 +1,7 @@
 define(function () {
 	app.registerController('ProjectEnvironmentCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/environment').success(function (environment) {
+			$http.get(Project.getURL() + '/environment?sort=name&order=asc').success(function (environment) {
 				$scope.environment = environment;
 			});
 		}

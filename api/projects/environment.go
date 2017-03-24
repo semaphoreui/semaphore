@@ -41,9 +41,24 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env []db.Environment
 
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
+
 	q := squirrel.Select("*").
-		From("project__environment").
-		Where("project_id=?", project.ID)
+			From("project__environment pe")
+
+	switch sort {
+	case "name":
+		q = q.Where("pe.project_id=?", project.ID).
+			OrderBy("pe." + sort + " " + order)
+	default:
+		q = q.Where("pe.project_id=?", project.ID).
+			OrderBy("pe.name " + order)
+	}
 
 	query, args, _ := q.ToSql()
 

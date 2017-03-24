@@ -1,10 +1,10 @@
 define(function () {
 	app.registerController('ProjectRepositoriesCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function ($scope, $http, Project, $modal, $rootScope) {
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
+			$http.get(Project.getURL() + '/keys?type=ssh&sort=name&order=asc').success(function (keys) {
 				$scope.sshKeys = keys;
 
-				$http.get(Project.getURL() + '/repositories').success(function (repos) {
+				$http.get(Project.getURL() + '/repositories?sort=name&order=asc').success(function (repos) {
 					repos.forEach(function (repo) {
 						for (var i = 0; i < keys.length; i++) {
 							if (repo.ssh_key_id == keys[i].id) {

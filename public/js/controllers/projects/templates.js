@@ -40,7 +40,7 @@ define(['controllers/projects/taskRunner'], function () {
 		});
 
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/templates').success(function (templates) {
+			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').success(function (templates) {
 				$scope.templates = templates;
 			});
 		}

@@ -36,9 +36,49 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var templates []db.Template
 
-	q := squirrel.Select("*").
-		From("project__template").
-		Where("project_id=?", project.ID)
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
+
+	q := squirrel.Select("pt.id",
+			"pt.ssh_key_id",
+			"pt.project_id",
+			"pt.inventory_id",
+			"pt.repository_id",
+			"pt.environment_id",
+			"pt.alias",
+			"pt.playbook",
+			"pt.arguments",
+			"pt.override_args").
+			From("project__template pt")
+
+	switch sort {
+	case "alias", "playbook":
+		q = q.Where("pt.project_id=?", project.ID).
+			OrderBy("pt."+ sort + " " + order)
+	case "ssh_key":
+		q = q.LeftJoin("access_key ak ON (pt.ssh_key_id = ak.id)").
+			Where("pt.project_id=?", project.ID).
+			OrderBy("ak.name " + order)
+	case "inventory":
+		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
+			Where("pt.project_id=?", project.ID).
+			OrderBy("pi.name " + order)
+	case "environment":
+		q = q.LeftJoin("project__environment pe ON (pt.environment_id = pe.id)").
+			Where("pt.project_id=?", project.ID).
+			OrderBy("pe.name " + order)
+	case "repository":
+		q = q.LeftJoin("project__repository pr ON (pt.repository_id = pr.id)").
+			Where("pt.project_id=?", project.ID).
+			OrderBy("pr.name " + order)
+	default:
+		q = q.Where("pt.project_id=?", project.ID).
+		OrderBy("pt.alias " + order)
+	}
 
 	query, args, _ := q.ToSql()
 
