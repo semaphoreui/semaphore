@@ -92,11 +92,15 @@ func (t *task) sendTelegramAlert() {
 		panic(err)
 	}
 
-	_, err = http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
+	resp, err := http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
 
 	if err != nil {
 		t.log("Can't send telegram alert!")
 		panic(err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.log("Can't send telegram alert! Response code not 200!")
 	}
 
 }
