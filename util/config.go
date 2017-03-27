@@ -47,6 +47,15 @@ type configType struct {
 
 	//web host
 	WebHost string `json:"web_host"`
+
+	//ldap settings
+	LdapEnable       bool   `json:"ldap_enable"`
+	LdapBindDN       string `json:"ldap_binddn"`
+	LdapBindPassword string `json:"ldap_bindpassword"`
+	LdapServer       string `json:"ldap_server"`
+	LdapNeedTLS      bool   `json:"ldap_needtls"`
+	LdapSearchDN     string `json:"ldap_searchdn"`
+	LdapSearchFilter string `json:"ldap_searchfilter"`
 }
 
 var Config *configType

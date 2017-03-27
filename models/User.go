@@ -13,6 +13,7 @@ type User struct {
 	Name     string    `db:"name" json:"name" binding:"required"`
 	Email    string    `db:"email" json:"email" binding:"required"`
 	Password string    `db:"password" json:"-"`
+	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
 }
 
