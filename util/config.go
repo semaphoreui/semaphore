@@ -208,7 +208,7 @@ func (conf *configType) Scan() {
 
 		conf.EmailAlert = true
 
-		fmt.Print(" > Mail server host (default localhost): ")
+		fmt.Print(" > Mail server host (default localhost389): ")
 		fmt.Scanln(&conf.EmailHost)
 
 		if len(conf.EmailHost) == 0 {
@@ -238,6 +238,61 @@ func (conf *configType) Scan() {
 
 	} else {
 		conf.EmailAlert = false
+	}
+
+	var LdapAnswer string
+	fmt.Print(" > Enable LDAP authentificaton (y/n, default n): ")
+	fmt.Scanln(&LdapAnswer)
+	if LdapAnswer == "yes" || LdapAnswer == "y" {
+
+		conf.LdapEnable = true
+
+		fmt.Print(" > LDAP server host (default localhost:389): ")
+		fmt.Scanln(&conf.LdapServer)
+
+		if len(conf.LdapServer) == 0 {
+			conf.LdapServer = "localhost:389"
+		}
+
+		var LdapTLSAnswer string
+		fmt.Print(" > Enable LDAP TLS connection (y/n, default n): ")
+		fmt.Scanln(&LdapTLSAnswer)
+		if LdapTLSAnswer == "yes" || LdapTLSAnswer == "y" {
+			conf.LdapNeedTLS = true
+		} else {
+			conf.LdapNeedTLS = false
+		}
+
+		fmt.Print(" > LDAP DN for bind (default cn=user,ou=users,dc=example): ")
+		fmt.Scanln(&conf.LdapBindDN)
+
+		if len(conf.LdapBindDN) == 0 {
+			conf.LdapBindDN = "cn=user,ou=users,dc=example"
+		}
+
+		fmt.Print(" > Password for LDAP bind user (default pa55w0rd): ")
+		fmt.Scanln(&conf.LdapBindPassword)
+
+		if len(conf.LdapBindPassword) == 0 {
+			conf.LdapBindPassword = "pa55w0rd"
+		}
+
+		fmt.Print(" > LDAP DN for user search (default ou=users,dc=example): ")
+		fmt.Scanln(&conf.LdapSearchDN)
+
+		if len(conf.LdapSearchDN) == 0 {
+			conf.LdapSearchDN = "ou=users,dc=example"
+		}
+
+		fmt.Print(" > LDAP search filter (default (uid=%s)): ")
+		fmt.Scanln(&conf.LdapSearchFilter)
+
+		if len(conf.LdapSearchFilter) == 0 {
+			conf.LdapSearchFilter = "(uid=%s)"
+		}
+
+	} else {
+		conf.LdapEnable = false
 	}
 
 }
