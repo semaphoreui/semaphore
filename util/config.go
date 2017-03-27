@@ -284,7 +284,7 @@ func (conf *configType) Scan() {
 			conf.LdapSearchDN = "ou=users,dc=example"
 		}
 
-		fmt.Print(" > LDAP search filter (default (uid=%s)): ")
+		fmt.Print(" > LDAP search filter (default (uid=" + "%" + "s)): ")
 		fmt.Scanln(&conf.LdapSearchFilter)
 
 		if len(conf.LdapSearchFilter) == 0 {
