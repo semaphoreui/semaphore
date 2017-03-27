@@ -208,7 +208,7 @@ func (conf *configType) Scan() {
 
 		conf.EmailAlert = true
 
-		fmt.Print(" > Mail server host (default localhost389): ")
+		fmt.Print(" > Mail server host (default localhost): ")
 		fmt.Scanln(&conf.EmailHost)
 
 		if len(conf.EmailHost) == 0 {
