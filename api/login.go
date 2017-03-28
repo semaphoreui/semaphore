@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -95,7 +96,7 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 		Alert:    false,
 	}
 
-	println("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
+	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
 	return nil, ldapUser
 
 }
@@ -115,7 +116,7 @@ func login(c *gin.Context) {
 	ldapErr, ldapUser := ldapAuthentication(login.Auth, login.Password)
 
 	if util.Config.LdapEnable == true && ldapErr != nil {
-		println(ldapErr.Error())
+		log.Info(ldapErr.Error())
 	}
 
 	q := sq.Select("*").

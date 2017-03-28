@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	database "github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -63,6 +64,12 @@ func updateUser(c *gin.Context) {
 		return
 	}
 
+	if oldUser.External == true && oldUser.Username != user.Username {
+		log.Warn("Username is not editable for external LDAP users")
+		c.AbortWithStatus(400)
+		return
+	}
+
 	if _, err := database.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
 		panic(err)
 	}
@@ -74,6 +81,12 @@ func updateUserPassword(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 	var pwd struct {
 		Pwd string `json:"password"`
+	}
+
+	if user.External == true {
+		log.Warn("Password is not editable for external LDAP users")
+		c.AbortWithStatus(400)
+		return
 	}
 
 	if err := c.Bind(&pwd); err != nil {
