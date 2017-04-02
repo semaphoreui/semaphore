@@ -47,6 +47,11 @@ type configType struct {
 
 	//web host
 	WebHost string `json:"web_host"`
+
+	//telegram alerting
+	TelegramAlert bool   `json:"telegram_alert"`
+	TelegramChat  string `json:"telegram_chat"`
+	TelegramToken string `json:"telegram_token"`
 }
 
 var Config *configType
@@ -192,10 +197,17 @@ func (conf *configType) Scan() {
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
-	var alertanswer string
+	fmt.Print(" > Web root URL (default http://localhost:8010/): ")
+	fmt.Scanln(&conf.WebHost)
+
+	if len(conf.WebHost) == 0 {
+		conf.WebHost = "http://localhost:8010/"
+	}
+
+	var EmailAlertAnswer string
 	fmt.Print(" > Enable email alerts (y/n, default n): ")
-	fmt.Scanln(&alertanswer)
-	if alertanswer == "yes" || alertanswer == "y" {
+	fmt.Scanln(&EmailAlertAnswer)
+	if EmailAlertAnswer == "yes" || EmailAlertAnswer == "y" {
 
 		conf.EmailAlert = true
 
@@ -220,15 +232,33 @@ func (conf *configType) Scan() {
 			conf.EmailSender = "semaphore@localhost"
 		}
 
-		fmt.Print(" > Web root URL (default http://localhost:8010/): ")
-		fmt.Scanln(&conf.WebHost)
+	} else {
+		conf.EmailAlert = false
+	}
 
-		if len(conf.WebHost) == 0 {
-			conf.WebHost = "http://localhost:8010/"
+	var TelegramAlertAnswer string
+	fmt.Print(" > Enable telegram alerts (y/n, default n): ")
+	fmt.Scanln(&TelegramAlertAnswer)
+	if TelegramAlertAnswer == "yes" || TelegramAlertAnswer == "y" {
+
+		conf.TelegramAlert = true
+
+		fmt.Print(" > Telegram bot token (you can get it from @BotFather) (default ''): ")
+		fmt.Scanln(&conf.TelegramToken)
+
+		if len(conf.TelegramToken) == 0 {
+			conf.TelegramToken = ""
+		}
+
+		fmt.Print(" > Telegram chat ID (default ''): ")
+		fmt.Scanln(&conf.TelegramChat)
+
+		if len(conf.TelegramChat) == 0 {
+			conf.TelegramChat = ""
 		}
 
 	} else {
-		conf.EmailAlert = false
+		conf.TelegramAlert = false
 	}
 
 }

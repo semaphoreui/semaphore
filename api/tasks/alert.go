@@ -3,6 +3,7 @@ package tasks
 import (
 	"bytes"
 	"html/template"
+	"net/http"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/models"
@@ -14,10 +15,13 @@ const emailTemplate = `Subject: Task '{{ .Alias }}' failed
 Task {{ .TaskId }} with template '{{ .Alias }}' has failed!
 Task log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>`
 
+const telegramTemplate = `{"chat_id": "{{ .ChatId }}","text":"<b>Task {{ .TaskId }} with template '{{ .Alias }}' has failed!</b>\nTask log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>","parse_mode":"HTML"}`
+
 type Alert struct {
 	TaskId  string
 	Alias   string
 	TaskUrl string
+	ChatId  string
 }
 
 func (t *task) sendMailAlert() {
@@ -65,4 +69,38 @@ func (t *task) sendMailAlert() {
 		}
 
 	}
+}
+
+func (t *task) sendTelegramAlert() {
+
+	if util.Config.TelegramAlert != true {
+		return
+	}
+
+	if t.alert != true {
+		return
+	}
+
+	var telegramBuffer bytes.Buffer
+	alert := Alert{TaskId: strconv.Itoa(t.task.ID), Alias: t.template.Alias, TaskUrl: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID), ChatId: util.Config.TelegramChat}
+	tpl := template.New("telegram body template")
+	tpl, err := tpl.Parse(telegramTemplate)
+	err = tpl.Execute(&telegramBuffer, alert)
+
+	if err != nil {
+		t.log("Can't generate alert template!")
+		panic(err)
+	}
+
+	resp, err := http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
+
+	if err != nil {
+		t.log("Can't send telegram alert!")
+		panic(err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.log("Can't send telegram alert! Response code not 200!")
+	}
+
 }

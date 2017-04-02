@@ -33,6 +33,7 @@ func (t *task) fail() {
 	t.task.Status = "error"
 	t.updateStatus()
 	t.sendMailAlert()
+	t.sendTelegramAlert()
 }
 
 func (t *task) run() {
