@@ -53,7 +53,7 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(util.Config.LdapSearchFilter, auth),
-		[]string{"dn"},
+		[]string{util.Config.LdapMappings.DN},
 		nil,
 	)
 
@@ -78,7 +78,7 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(util.Config.LdapSearchFilter, auth),
-		[]string{"dn", "mail", "uid", "cn"},
+		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.Uid, util.Config.LdapMappings.CN},
 		nil,
 	)
 
@@ -88,10 +88,10 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 	}
 
 	ldapUser := models.User{
-		Username: sr.Entries[0].GetAttributeValue("uid"),
+		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Uid),
 		Created:  time.Now(),
-		Name:     sr.Entries[0].GetAttributeValue("cn"),
-		Email:    sr.Entries[0].GetAttributeValue("mail"),
+		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
+		Email:    sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Mail),
 		External: true,
 		Alert:    false,
 	}
