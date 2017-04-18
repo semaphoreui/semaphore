@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
@@ -58,12 +59,19 @@ func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 func updateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := context.Get(r, "_user").(db.User)
 
-	var user db.User
+	var user models.User
+	if err := c.Bind(&user); err != nil {
+		return
+	}
+
+	if oldUser.External == true && oldUser.Username != user.Username {
+		log.Warn("Username is not editable for external LDAP users")
+		c.AbortWithStatus(400)
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=? where id=?", user.Name, user.Username, user.Email, oldUser.ID); err != nil {
+	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
 		panic(err)
 	}
 
@@ -74,6 +82,12 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "_user").(db.User)
 	var pwd struct {
 		Pwd string `json:"password"`
+	}
+
+	if user.External == true {
+		log.Warn("Password is not editable for external LDAP users")
+		c.AbortWithStatus(400)
+		return
 	}
 
 	if err := mulekick.Bind(w, r, &pwd); err != nil {

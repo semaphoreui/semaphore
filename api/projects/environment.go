@@ -49,7 +49,8 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := squirrel.Select("*").
-			From("project__environment pe")
+		From("project__environment pe").
+		Where("project_id=?", project.ID)
 
 	switch sort {
 	case "name":
@@ -76,6 +77,14 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var js map[string]interface{}
+	if json.Unmarshal([]byte(env.JSON), &js) != nil {
+		c.JSON(400, map[string]string{
+			"error": "JSON is not valid",
+		})
+		return
+	}
+
 	if _, err := db.Mysql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
 		panic(err)
 	}
@@ -87,7 +96,15 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env db.Environment
 
-	if err := mulekick.Bind(w, r, &env); err != nil {
+	if err := c.Bind(&env); err != nil {
+		return
+	}
+
+	var js map[string]interface{}
+	if json.Unmarshal([]byte(env.JSON), &js) != nil {
+		c.JSON(400, map[string]string{
+			"error": "JSON is not valid",
+		})
 		return
 	}
 

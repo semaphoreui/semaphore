@@ -8,13 +8,18 @@
 			.col-sm-8: input.form-control(type="text" placeholder="Your name" ng-model="user.name")
 		.form-group
 			label.control-label.col-sm-4 Username
-			.col-sm-8: input.form-control(type="text" placeholder="Username" ng-model="user.username")
+			.col-sm-8: input.form-control(type="text" placeholder="Username" ng-model="user.username" ng-if="user.external==false")
+			.col-sm-8: input.form-control(type="text" placeholder="Username" ng-model="user.username" readonly="readonly" ng-if="user.external==true")
 		.form-group
 			label.control-label.col-sm-4 Email
 			.col-sm-8: input.form-control(type="email" placeholder="Email address" ng-model="user.email")
 		.form-group
 			label.control-label.col-sm-4 Password
-			.col-sm-8: input.form-control(type="password" placeholder="Enter new password" ng-model="user.password")
+			.col-sm-8: input.form-control(type="password" placeholder="Not editable for LDAP user" readonly="readonly" ng-model="user.password" ng-if="user.external==true")
+			.col-sm-8: input.form-control(type="password" placeholder="Enter new password" ng-model="user.password" ng-if="user.external==false")
+		.form-group
+			label.control-label.col-sm-4 Send alerts 
+			.col-sm-8: input.checkbox-inline(type="checkbox" title="Send email alerts about failed tasks" ng-model="user.alert") 
 		.form-group: .col-sm-8.col-sm-offset-4
 			button.btn.btn-success(ng-click="updateUser()") Update Profile
 			button.btn.btn-default(ng-if="$state.includes('users.user')" ui-sref="users.list") back

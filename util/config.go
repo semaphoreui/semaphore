@@ -26,6 +26,13 @@ type mySQLConfig struct {
 	DbName   string `json:"name"`
 }
 
+type ldapMappings struct {
+	DN   string `json:"dn"`
+	Mail string `json:"mail"`
+	Uid  string `json:"uid"`
+	CN   string `json:"cn"`
+}
+
 type configType struct {
 	MySQL mySQLConfig `json:"mysql"`
 	// Format `:port_num` eg, :3000
@@ -38,6 +45,30 @@ type configType struct {
 	// cookie hashing & encryption
 	CookieHash       string `json:"cookie_hash"`
 	CookieEncryption string `json:"cookie_encryption"`
+
+	//email alerting
+	EmailAlert  bool   `json:"email_alert"`
+	EmailSender string `json:"email_sender"`
+	EmailHost   string `json:"email_host"`
+	EmailPort   string `json:"email_port"`
+
+	//web host
+	WebHost string `json:"web_host"`
+
+	//ldap settings
+	LdapEnable       bool         `json:"ldap_enable"`
+	LdapBindDN       string       `json:"ldap_binddn"`
+	LdapBindPassword string       `json:"ldap_bindpassword"`
+	LdapServer       string       `json:"ldap_server"`
+	LdapNeedTLS      bool         `json:"ldap_needtls"`
+	LdapSearchDN     string       `json:"ldap_searchdn"`
+	LdapSearchFilter string       `json:"ldap_searchfilter"`
+	LdapMappings     ldapMappings `json:"ldap_mappings"`
+
+	//telegram alerting
+	TelegramAlert bool   `json:"telegram_alert"`
+	TelegramChat  string `json:"telegram_chat"`
+	TelegramToken string `json:"telegram_token"`
 }
 
 var Config *configType
@@ -182,4 +213,152 @@ func (conf *configType) Scan() {
 		conf.TmpPath = "/tmp/semaphore"
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
+
+	fmt.Print(" > Web root URL (default http://localhost:8010/): ")
+	fmt.Scanln(&conf.WebHost)
+
+	if len(conf.WebHost) == 0 {
+		conf.WebHost = "http://localhost:8010/"
+	}
+
+	var EmailAlertAnswer string
+	fmt.Print(" > Enable email alerts (y/n, default n): ")
+	fmt.Scanln(&EmailAlertAnswer)
+	if EmailAlertAnswer == "yes" || EmailAlertAnswer == "y" {
+
+		conf.EmailAlert = true
+
+		fmt.Print(" > Mail server host (default localhost): ")
+		fmt.Scanln(&conf.EmailHost)
+
+		if len(conf.EmailHost) == 0 {
+			conf.EmailHost = "localhost"
+		}
+
+		fmt.Print(" > Mail server port (default 25): ")
+		fmt.Scanln(&conf.EmailPort)
+
+		if len(conf.EmailPort) == 0 {
+			conf.EmailPort = "25"
+		}
+
+		fmt.Print(" > Mail sender address (default semaphore@localhost): ")
+		fmt.Scanln(&conf.EmailSender)
+
+		if len(conf.EmailSender) == 0 {
+			conf.EmailSender = "semaphore@localhost"
+		}
+
+	} else {
+		conf.EmailAlert = false
+	}
+
+	var TelegramAlertAnswer string
+	fmt.Print(" > Enable telegram alerts (y/n, default n): ")
+	fmt.Scanln(&TelegramAlertAnswer)
+	if TelegramAlertAnswer == "yes" || TelegramAlertAnswer == "y" {
+
+		conf.TelegramAlert = true
+
+		fmt.Print(" > Telegram bot token (you can get it from @BotFather) (default ''): ")
+		fmt.Scanln(&conf.TelegramToken)
+
+		if len(conf.TelegramToken) == 0 {
+			conf.TelegramToken = ""
+		}
+
+		fmt.Print(" > Telegram chat ID (default ''): ")
+		fmt.Scanln(&conf.TelegramChat)
+
+		if len(conf.TelegramChat) == 0 {
+			conf.TelegramChat = ""
+		}
+
+	} else {
+		conf.TelegramAlert = false
+	}
+
+	var LdapAnswer string
+	fmt.Print(" > Enable LDAP authentication (y/n, default n): ")
+	fmt.Scanln(&LdapAnswer)
+	if LdapAnswer == "yes" || LdapAnswer == "y" {
+
+		conf.LdapEnable = true
+
+		fmt.Print(" > LDAP server host (default localhost:389): ")
+		fmt.Scanln(&conf.LdapServer)
+
+		if len(conf.LdapServer) == 0 {
+			conf.LdapServer = "localhost:389"
+		}
+
+		var LdapTLSAnswer string
+		fmt.Print(" > Enable LDAP TLS connection (y/n, default n): ")
+		fmt.Scanln(&LdapTLSAnswer)
+		if LdapTLSAnswer == "yes" || LdapTLSAnswer == "y" {
+			conf.LdapNeedTLS = true
+		} else {
+			conf.LdapNeedTLS = false
+		}
+
+		fmt.Print(" > LDAP DN for bind (default cn=user,ou=users,dc=example): ")
+		fmt.Scanln(&conf.LdapBindDN)
+
+		if len(conf.LdapBindDN) == 0 {
+			conf.LdapBindDN = "cn=user,ou=users,dc=example"
+		}
+
+		fmt.Print(" > Password for LDAP bind user (default pa55w0rd): ")
+		fmt.Scanln(&conf.LdapBindPassword)
+
+		if len(conf.LdapBindPassword) == 0 {
+			conf.LdapBindPassword = "pa55w0rd"
+		}
+
+		fmt.Print(" > LDAP DN for user search (default ou=users,dc=example): ")
+		fmt.Scanln(&conf.LdapSearchDN)
+
+		if len(conf.LdapSearchDN) == 0 {
+			conf.LdapSearchDN = "ou=users,dc=example"
+		}
+
+		fmt.Print(" > LDAP search filter (default (uid=" + "%" + "s)): ")
+		fmt.Scanln(&conf.LdapSearchFilter)
+
+		if len(conf.LdapSearchFilter) == 0 {
+			conf.LdapSearchFilter = "(uid=%s)"
+		}
+
+		fmt.Print(" > LDAP mapping for DN field (default dn): ")
+		fmt.Scanln(&conf.LdapMappings.DN)
+
+		if len(conf.LdapMappings.DN) == 0 {
+			conf.LdapMappings.DN = "dn"
+		}
+
+		fmt.Print(" > LDAP mapping for username field (default uid): ")
+		fmt.Scanln(&conf.LdapMappings.Uid)
+
+		if len(conf.LdapMappings.Uid) == 0 {
+			conf.LdapMappings.Uid = "uid"
+		}
+
+		fmt.Print(" > LDAP mapping for full name field (default cn): ")
+		fmt.Scanln(&conf.LdapMappings.CN)
+
+		if len(conf.LdapMappings.CN) == 0 {
+			conf.LdapMappings.CN = "cn"
+		}
+
+		fmt.Print(" > LDAP mapping for email field (default mail): ")
+		fmt.Scanln(&conf.LdapMappings.Mail)
+
+		if len(conf.LdapMappings.Mail) == 0 {
+			conf.LdapMappings.Mail = "mail"
+		}
+
+	} else {
+		conf.LdapEnable = false
+	}
+
 }

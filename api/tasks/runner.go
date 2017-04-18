@@ -25,11 +25,14 @@ type task struct {
 	environment db.Environment
 	users       []int
 	projectID   int
+	alert       bool
 }
 
 func (t *task) fail() {
 	t.task.Status = "error"
 	t.updateStatus()
+	t.sendMailAlert()
+	t.sendTelegramAlert()
 }
 
 func (t *task) run() {
@@ -44,7 +47,7 @@ func (t *task) run() {
 		t.updateStatus()
 
 		objType := "task"
-		desc := "Task ID " + strconv.Itoa(t.task.ID) + " finished"
+		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 		if err := (db.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
@@ -72,7 +75,7 @@ func (t *task) run() {
 	}
 
 	objType := "task"
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " is running"
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 	if err := (db.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
@@ -140,6 +143,11 @@ func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...inter
 func (t *task) populateDetails() error {
 	// get template
 	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
+		return err
+	}
+
+	//get project alert setting
+	if err := t.fetch("Alert setting not found!", &t.alert, "select alert from project where id=?", t.template.ProjectID); err != nil {
 		return err
 	}
 
@@ -302,6 +310,13 @@ func (t *task) runPlaybook() error {
 	}
 
 	if len(t.environment.JSON) > 0 {
+		var js map[string]interface{}
+		err := json.Unmarshal([]byte(*t.template.JSON), &js)
+		if err != nil {
+			t.log("JSON is not valid")
+			return err
+		}
+
 		args = append(args, "--extra-vars", t.environment.JSON)
 	}
 
