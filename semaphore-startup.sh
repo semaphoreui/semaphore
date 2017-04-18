@@ -34,10 +34,7 @@ while ! mysqladmin ping -h"$SEMAPHORE_DB_HOST" -P "$SEMAPHORE_DB_PORT" -u "$SEMA
     sleep 1
 done
 
-if [ -f "${SEMAPHORE_PLAYBOOK_PATH}/semaphore_config.json" ]; then
-    ln -s "${SEMAPHORE_PLAYBOOK_PATH}/semaphore_config.json" /etc/semaphore/semaphore_config.json
-fi
-if [ ! -f /etc/semaphore/semaphore_config.json ]; then
+if [ ! -f "${SEMAPHORE_PLAYBOOK_PATH}/semaphore_config.json" ]; then
     echoerr "Generating ${SEMAPHORE_PLAYBOOK_PATH}/config.stdin ..."
     cat << EOF > "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
 ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}
@@ -52,6 +49,8 @@ ${SEMAPHORE_ADMIN_NAME}
 ${SEMAPHORE_ADMIN_PASSWORD}
 EOF
     /usr/bin/semaphore -setup < "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
+
+    ln -s "${SEMAPHORE_PLAYBOOK_PATH}/semaphore_config.json" /etc/semaphore/semaphore_config.json
 fi
 
 # run our command
