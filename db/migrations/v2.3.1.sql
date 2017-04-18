@@ -1,0 +1,1 @@
+alter table session change ip ip varchar(39) not null default '';
