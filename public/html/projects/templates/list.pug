@@ -17,6 +17,6 @@ table.table.table-hover
 		td {{ inventoryAssoc[tpl.inventory_id].name }}
 		td {{ environmentAssoc[tpl.environment_id].name }}
 		td {{ reposAssoc[tpl.repository_id].name }}
-		td
-			button.btn.btn-success.btn-xs.pull-right(ng-click="run(tpl); $event.stopPropagation();") run
-			button.btn.btn-success.btn-xs.pull-right(ng-click="copy(tpl); $event.stopPropagation();") copy
+		td: .pull-right
+			button.btn.btn-info.btn-xs(ng-click="copy(tpl); $event.stopPropagation();") copy
+			button.btn.btn-success.btn-xs(ng-click="run(tpl); $event.stopPropagation();", style="margin-left: 5px;") run
