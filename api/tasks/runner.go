@@ -311,7 +311,7 @@ func (t *task) runPlaybook() error {
 
 	if len(t.environment.JSON) > 0 {
 		var js map[string]interface{}
-		err := json.Unmarshal([]byte(*t.template.JSON), &js)
+		err := json.Unmarshal([]byte(t.environment.JSON), &js)
 		if err != nil {
 			t.log("JSON is not valid")
 			return err

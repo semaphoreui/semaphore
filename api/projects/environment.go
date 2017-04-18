@@ -2,6 +2,7 @@ package projects
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
@@ -79,7 +80,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		c.JSON(400, map[string]string{
+		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
@@ -96,13 +97,13 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env db.Environment
 
-	if err := c.Bind(&env); err != nil {
+	if err := mulekick.Bind(w, r, &env); err != nil {
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		c.JSON(400, map[string]string{
+		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return

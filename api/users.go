@@ -59,14 +59,15 @@ func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 func updateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := context.Get(r, "_user").(db.User)
 
-	var user models.User
-	if err := c.Bind(&user); err != nil {
+	var user db.User
+	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
 	if oldUser.External == true && oldUser.Username != user.Username {
 		log.Warn("Username is not editable for external LDAP users")
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
+	}
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
@@ -86,7 +87,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 
 	if user.External == true {
 		log.Warn("Password is not editable for external LDAP users")
-		c.AbortWithStatus(400)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 

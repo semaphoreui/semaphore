@@ -18,10 +18,10 @@ import (
 	"gopkg.in/ldap.v2"
 )
 
-func ldapAuthentication(auth, password string) (error, models.User) {
+func ldapAuthentication(auth, password string) (error, db.User) {
 
 	if util.Config.LdapEnable != true {
-		return fmt.Errorf("LDAP not configured"), models.User{}
+		return fmt.Errorf("LDAP not configured"), db.User{}
 	}
 
 	bindusername := util.Config.LdapBindDN
@@ -29,7 +29,7 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 
 	l, err := ldap.Dial("tcp", util.Config.LdapServer)
 	if err != nil {
-		return err, models.User{}
+		return err, db.User{}
 	}
 	defer l.Close()
 
@@ -37,14 +37,14 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 	if util.Config.LdapNeedTLS == true {
 		err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
 		if err != nil {
-			return err, models.User{}
+			return err, db.User{}
 		}
 	}
 
 	// First bind with a read only user
 	err = l.Bind(bindusername, bindpassword)
 	if err != nil {
-		return err, models.User{}
+		return err, db.User{}
 	}
 
 	// Search for the given username
@@ -58,18 +58,18 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return err, models.User{}
+		return err, db.User{}
 	}
 
 	if len(sr.Entries) != 1 {
-		return fmt.Errorf("User does not exist or too many entries returned"), models.User{}
+		return fmt.Errorf("User does not exist or too many entries returned"), db.User{}
 	}
 
 	// Bind as the user to verify their password
 	userdn := sr.Entries[0].DN
 	err = l.Bind(userdn, password)
 	if err != nil {
-		return err, models.User{}
+		return err, db.User{}
 	}
 
 	// Get user info and ensure authentication in case LDAP supports unauthenticated bind
@@ -83,10 +83,10 @@ func ldapAuthentication(auth, password string) (error, models.User) {
 
 	sr, err = l.Search(searchRequest)
 	if err != nil {
-		return err, models.User{}
+		return err, db.User{}
 	}
 
-	ldapUser := models.User{
+	ldapUser := db.User{
 		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Uid),
 		Created:  time.Now(),
 		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
@@ -121,7 +121,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	q := sq.Select("*").
 		From("user")
 
-	var user models.User
+	var user db.User
 	if ldapErr != nil {
 		// Perform normal authorization
 		_, err := mail.ParseAddress(login.Auth)
@@ -135,7 +135,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
 			if err == sql.ErrNoRows {
-				c.AbortWithStatus(400)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
@@ -143,7 +143,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
-			c.AbortWithStatus(400)
+			w.WriteHeader(http.StatusBadRequest)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -153,11 +153,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		query, args, _ := q.ToSql()
 
-		if err := database.Mysql.SelectOne(&user, query, args...); err != nil {
+		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				//Create new user
 				user = ldapUser
-				if err := database.Mysql.Insert(&user); err != nil {
+				if err := db.Mysql.Insert(&user); err != nil {
 					panic(err)
 				}
 			} else if err != nil {

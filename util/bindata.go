@@ -13,6 +13,8 @@
 // db/migrations/v1.7.0.sql
 // db/migrations/v1.8.0.sql
 // db/migrations/v1.9.0.sql
+// db/migrations/v2.2.1.sql
+// db/migrations/v2.3.0.sql
 // public/css/.gitignore
 // public/css/login.less
 // public/css/octocat.less
@@ -497,6 +499,42 @@ func dbMigrationsV180Sql() (*asset, error) {
 func dbMigrationsV190Sql() (*asset, error) {
 	path := "/Users/m/p/semaphore/db/migrations/v1.9.0.sql"
 	name := "db/migrations/v1.9.0.sql"
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
+// dbMigrationsV221Sql reads file data from disk. It returns an error on failure.
+func dbMigrationsV221Sql() (*asset, error) {
+	path := "/Users/m/p/semaphore/db/migrations/v2.2.1.sql"
+	name := "db/migrations/v2.2.1.sql"
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
+// dbMigrationsV230Sql reads file data from disk. It returns an error on failure.
+func dbMigrationsV230Sql() (*asset, error) {
+	path := "/Users/m/p/semaphore/db/migrations/v2.3.0.sql"
+	name := "db/migrations/v2.3.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -4860,6 +4898,8 @@ var _bindata = map[string]func() (*asset, error){
 	"db/migrations/v1.7.0.sql": dbMigrationsV170Sql,
 	"db/migrations/v1.8.0.sql": dbMigrationsV180Sql,
 	"db/migrations/v1.9.0.sql": dbMigrationsV190Sql,
+	"db/migrations/v2.2.1.sql": dbMigrationsV221Sql,
+	"db/migrations/v2.3.0.sql": dbMigrationsV230Sql,
 	"public/css/.gitignore": publicCssGitignore,
 	"public/css/login.less": publicCssLoginLess,
 	"public/css/octocat.less": publicCssOctocatLess,
@@ -5155,6 +5195,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 			"v1.7.0.sql": &bintree{dbMigrationsV170Sql, map[string]*bintree{}},
 			"v1.8.0.sql": &bintree{dbMigrationsV180Sql, map[string]*bintree{}},
 			"v1.9.0.sql": &bintree{dbMigrationsV190Sql, map[string]*bintree{}},
+			"v2.2.1.sql": &bintree{dbMigrationsV221Sql, map[string]*bintree{}},
+			"v2.3.0.sql": &bintree{dbMigrationsV230Sql, map[string]*bintree{}},
 		}},
 	}},
 	"public": &bintree{nil, map[string]*bintree{

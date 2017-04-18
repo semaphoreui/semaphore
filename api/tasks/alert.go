@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -48,8 +48,7 @@ func (t *task) sendMailAlert() {
 	}
 
 	for _, user := range t.users {
-
-		userObj, err := models.FetchUser(user)
+		userObj, err := db.FetchUser(user)
 
 		if userObj.Alert != true {
 			return
