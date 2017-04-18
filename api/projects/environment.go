@@ -61,6 +61,14 @@ func UpdateEnvironment(c *gin.Context) {
 		return
 	}
 
+	var js map[string]interface{}
+	if json.Unmarshal([]byte(env.JSON), &js) != nil {
+		c.JSON(400, map[string]string{
+			"error": "JSON is not valid",
+		})
+		return
+	}
+
 	if _, err := database.Mysql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
 		panic(err)
 	}
@@ -73,6 +81,14 @@ func AddEnvironment(c *gin.Context) {
 	var env models.Environment
 
 	if err := c.Bind(&env); err != nil {
+		return
+	}
+
+	var js map[string]interface{}
+	if json.Unmarshal([]byte(env.JSON), &js) != nil {
+		c.JSON(400, map[string]string{
+			"error": "JSON is not valid",
+		})
 		return
 	}
 
