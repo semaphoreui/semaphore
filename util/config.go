@@ -46,16 +46,16 @@ type configType struct {
 	CookieHash       string `json:"cookie_hash"`
 	CookieEncryption string `json:"cookie_encryption"`
 
-	//email alerting
+	// email alerting
 	EmailAlert  bool   `json:"email_alert"`
 	EmailSender string `json:"email_sender"`
 	EmailHost   string `json:"email_host"`
 	EmailPort   string `json:"email_port"`
 
-	//web host
+	// web host
 	WebHost string `json:"web_host"`
 
-	//ldap settings
+	// ldap settings
 	LdapEnable       bool         `json:"ldap_enable"`
 	LdapBindDN       string       `json:"ldap_binddn"`
 	LdapBindPassword string       `json:"ldap_bindpassword"`
@@ -65,7 +65,7 @@ type configType struct {
 	LdapSearchFilter string       `json:"ldap_searchfilter"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
 
-	//telegram alerting
+	// telegram alerting
 	TelegramAlert bool   `json:"telegram_alert"`
 	TelegramChat  string `json:"telegram_chat"`
 	TelegramToken string `json:"telegram_token"`

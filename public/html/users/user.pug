@@ -18,8 +18,9 @@
 			.col-sm-8: input.form-control(type="password" placeholder="Not editable for LDAP user" readonly="readonly" ng-model="user.password" ng-if="user.external==true")
 			.col-sm-8: input.form-control(type="password" placeholder="Enter new password" ng-model="user.password" ng-if="user.external==false")
 		.form-group
-			label.control-label.col-sm-4 Send alerts 
-			.col-sm-8: input.checkbox-inline(type="checkbox" title="Send email alerts about failed tasks" ng-model="user.alert") 
+			.col-sm-8.col-sm-offset-4: .checkbox: label
+				input(type="checkbox" title="Send email alerts about failed tasks" ng-model="user.alert")
+				|  Send alerts
 		.form-group: .col-sm-8.col-sm-offset-4
 			button.btn.btn-success(ng-click="updateUser()") Update Profile
 			button.btn.btn-default(ng-if="$state.includes('users.user')" ui-sref="users.list") back

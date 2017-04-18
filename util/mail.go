@@ -6,13 +6,13 @@ import (
 )
 
 func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) error {
-
 	c, err := smtp.Dial(emailHost)
 	if err != nil {
 		return err
 	}
 
 	defer c.Close()
+
 	// Set the sender and recipient.
 	c.Mail(mailSender)
 	c.Rcpt(mailRecipient)
@@ -24,9 +24,6 @@ func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) er
 	}
 
 	defer wc.Close()
-	if _, err = mail.WriteTo(wc); err != nil {
-		return err
-	}
-	return nil
-
+	_, err = mail.WriteTo(wc)
+	return err
 }

@@ -146,7 +146,7 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	//get project alert setting
+	// get project alert setting
 	if err := t.fetch("Alert setting not found!", &t.alert, "select alert from project where id=?", t.template.ProjectID); err != nil {
 		return err
 	}

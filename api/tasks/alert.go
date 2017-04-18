@@ -18,26 +18,25 @@ Task log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>`
 const telegramTemplate = `{"chat_id": "{{ .ChatId }}","text":"<b>Task {{ .TaskId }} with template '{{ .Alias }}' has failed!</b>\nTask log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>","parse_mode":"HTML"}`
 
 type Alert struct {
-	TaskId  string
+	TaskID  string
 	Alias   string
-	TaskUrl string
-	ChatId  string
+	TaskURL string
+	ChatID  string
 }
 
 func (t *task) sendMailAlert() {
-
-	if util.Config.EmailAlert != true {
-		return
-	}
-
-	if t.alert != true {
+	if util.Config.EmailAlert != true || t.alert != true {
 		return
 	}
 
 	mailHost := util.Config.EmailHost + ":" + util.Config.EmailPort
 
 	var mailBuffer bytes.Buffer
-	alert := Alert{TaskId: strconv.Itoa(t.task.ID), Alias: t.template.Alias, TaskUrl: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID)}
+	alert := Alert{
+		TaskID:  strconv.Itoa(t.task.ID),
+		Alias:   t.template.Alias,
+		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
+	}
 	tpl := template.New("mail body template")
 	tpl, err := tpl.Parse(emailTemplate)
 	err = tpl.Execute(&mailBuffer, alert)
@@ -66,22 +65,21 @@ func (t *task) sendMailAlert() {
 			t.log("Error: " + err.Error())
 			panic(err)
 		}
-
 	}
 }
 
 func (t *task) sendTelegramAlert() {
-
-	if util.Config.TelegramAlert != true {
-		return
-	}
-
-	if t.alert != true {
+	if util.Config.TelegramAlert != true || t.alert != true {
 		return
 	}
 
 	var telegramBuffer bytes.Buffer
-	alert := Alert{TaskId: strconv.Itoa(t.task.ID), Alias: t.template.Alias, TaskUrl: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID), ChatId: util.Config.TelegramChat}
+	alert := Alert{
+		TaskID:  strconv.Itoa(t.task.ID),
+		Alias:   t.template.Alias,
+		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
+		ChatID:  util.Config.TelegramChat,
+	}
 	tpl := template.New("telegram body template")
 	tpl, err := tpl.Parse(telegramTemplate)
 	err = tpl.Execute(&telegramBuffer, alert)
@@ -101,5 +99,4 @@ func (t *task) sendTelegramAlert() {
 	if resp.StatusCode != 200 {
 		t.log("Can't send telegram alert! Response code not 200!")
 	}
-
 }
