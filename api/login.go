@@ -19,13 +19,9 @@ import (
 )
 
 func ldapAuthentication(auth, password string) (error, db.User) {
-
 	if util.Config.LdapEnable != true {
 		return fmt.Errorf("LDAP not configured"), db.User{}
 	}
-
-	bindusername := util.Config.LdapBindDN
-	bindpassword := util.Config.LdapBindPassword
 
 	l, err := ldap.Dial("tcp", util.Config.LdapServer)
 	if err != nil {
@@ -42,7 +38,7 @@ func ldapAuthentication(auth, password string) (error, db.User) {
 	}
 
 	// First bind with a read only user
-	err = l.Bind(bindusername, bindpassword)
+	err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword)
 	if err != nil {
 		return err, db.User{}
 	}
@@ -97,7 +93,6 @@ func ldapAuthentication(auth, password string) (error, db.User) {
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
 	return nil, ldapUser
-
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -112,17 +107,32 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
-	ldapErr, ldapUser := ldapAuthentication(login.Auth, login.Password)
-
-	if util.Config.LdapEnable == true && ldapErr != nil {
-		log.Info(ldapErr.Error())
-	}
-
+	var user db.User
 	q := sq.Select("*").
 		From("user")
 
-	var user db.User
-	if ldapErr != nil {
+	if util.Config.LdapEnable {
+		ldapErr, ldapUser := ldapAuthentication(login.Auth, login.Password)
+		if ldapErr != nil {
+			log.Info(ldapErr.Error())
+		}
+
+		// Check if that user already exist in database
+		q = q.Where("username=? and external=true", ldapUser.Username)
+
+		query, args, _ := q.ToSql()
+		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
+			if err == sql.ErrNoRows {
+				// Create new user
+				user = ldapUser
+				if err := db.Mysql.Insert(&user); err != nil {
+					panic(err)
+				}
+			} else if err != nil {
+				panic(err)
+			}
+		}
+	} else {
 		// Perform normal authorization
 		_, err := mail.ParseAddress(login.Auth)
 		if err == nil {
@@ -132,7 +142,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		query, args, _ := q.ToSql()
-
 		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusBadRequest)
@@ -146,24 +155,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		}
-	} else {
-		// Check if that user already exist in database
-		q = q.Where("username=? and external=true", ldapUser.Username)
-
-		query, args, _ := q.ToSql()
-
-		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
-			if err == sql.ErrNoRows {
-				//Create new user
-				user = ldapUser
-				if err := db.Mysql.Insert(&user); err != nil {
-					panic(err)
-				}
-			} else if err != nil {
-				panic(err)
-			}
-
 		}
 	}
 

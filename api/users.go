@@ -68,9 +68,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		log.Warn("Username is not editable for external LDAP users")
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	if err := mulekick.Bind(w, r, &user); err != nil {
-		return
-	}
 
 	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
 		panic(err)
