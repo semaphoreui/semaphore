@@ -1,10 +1,11 @@
 package util
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestGetIntParam(t *testing.T) {
@@ -22,11 +23,11 @@ func TestGetIntParam(t *testing.T) {
 	}
 }
 
-func mockParam(w http.ResponseWriter, r *http.Request) {
-	_, err := GetIntParam("test_id", c)
+func mockParam(c *gin.Context) {
+	_, err := GetIntParam("test_id", c.Writer, c.Request)
 	if err != nil {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	c.AbortWithStatus(200)
 }

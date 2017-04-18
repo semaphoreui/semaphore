@@ -31,8 +31,9 @@ func (t *task) log(msg string) {
 	}
 
 	go func() {
-		_, err := db.Mysql.Exec("insert into task__output set task_id=?, task='', output=?, time=?", t.task.ID, msg, now)
+		_, err := db.Mysql.Exec("insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)", t.task.ID, msg, now)
 		if err != nil {
+			fmt.Printf("Failed to insert task output: %s\n", err.Error())
 			panic(err)
 		}
 	}()
@@ -57,7 +58,7 @@ func (t *task) updateStatus() {
 	}
 
 	if _, err := db.Mysql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
-		fmt.Println("Failed to update task status")
+		fmt.Printf("Failed to update task status: %s\n", err.Error())
 		t.log("Fatal error with database!")
 		panic(err)
 	}
