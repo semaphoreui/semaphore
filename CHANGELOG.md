@@ -1,4 +1,109 @@
 
+v2.3.0 / 2017-04-19
+===================
+
+  * fix #323
+  * add roadmap to readme
+  * fix placeholder
+  * fix #303
+  * fix #312
+  * fix tests
+  * add octocat body
+  * fix 2.2.1 migration #299
+  * add default values for 2.3.0.sql
+  * fixes for #310
+  * fixes for #297
+  * Merge branch 'develop' of github.com:ansible-semaphore/semaphore into develop
+  * Merge pull request #299 from galexrt/improve-sql-error
+  * improvements for #287
+  * improve codebase after #275
+  * fixes resulting from master merge
+  * Merge branch 'master' into develop
+  * Merge pull request #321 from serkin/master
+  * Merge pull request #304 from z010107/master
+  * Merge pull request #310 from strangeman/ldap-auth
+  * Fixes #320
+  * make ldap searched parameters configurable
+  * merge with actual master
+  * Merge pull request #307 from strangeman/telegram-alerts
+  * add logrus logging, disable LDAP username and password editing on backend
+  * make go vet happy
+  * mispell
+  * make username and password fields read-only for ldap users
+  * add ldap settings to the setup process
+  * add simple LDAP authentification to the config and login page
+  * Merge pull request #298 from laeshiny/260
+  * add response code check for telegram
+  * add config generation for telegram alerting
+  * add basic telegram alerting
+  * Merge pull request #305 from strangeman/activity-log
+  * add more verbosity about tasks to the Events description
+  * Add extra validation for environment JSON
+  * Add JSON validation in environment model
+  * Fix the primary key creation queries Add id column to task__output table "instead" Print error message in case of database errors
+  * Add sort, order parameter to Get Request of /project/id/(templates, inventory, environment, keys, repositories, users to api document
+  * when requesting Team,  sort in ascending order by Name
+  * Add sort, order parameter to Get Request of "project/id/users"
+  * when requesting Playbook Repositories,  sort in ascending order by Name
+  * Add sort, order parameter to Get Request of "project/id/repositories"
+  * Removed comment
+  * when requesting Key Store,  sort in ascending order by Name
+  * Add sort, order parameter to Get Request of "project/id/key"
+  * when requesting Environment,  sort in ascending order by Name
+  * Add sort, order parameter to Get Request of "project/id/environment"
+  * when requesting Task Templates,  sort in ascending order by Name
+  * Add sort, order parameter to Get Request of "project/id/inventory"
+  * Add missing prefix pt to query
+  * when requesting Task Templates,  sort in ascending order by Alias
+  * Add sort, order parameter to Get Request of "project/id/templates"
+  * Merge branch 'develop' of github.com:ansible-semaphore/semaphore into 260
+  * Merge pull request #297 from laeshiny/develop
+  * correct to reformat from spaces to tabs
+  * Merge pull request #300 from galexrt/improved-docker-entrypoint
+  * Improve the docker entrypoint and dockerfile
+  * Rearrange list of Task Template, Inventory, Environment, Team in UI
+  * Add css (margin-left: 5px) to button between copy and run
+  * Add page title to class at ui-view
+  * Merge pull request #287 from strangeman/email-alerts
+  * Merge remote-tracking branch 'origin/259' into develop
+  * update swagger docs with models changes
+  * made changes from review
+  * Merge pull request #286 from strangeman/empty-cli-args
+  * Merge pull request #292 from laeshiny/develop
+  * Merge pull request #294 from galexrt/sql-primary-keys
+  * Added v2.2.1 sql migration file that adds primary keys to the tables
+  * Add copy feature to task templates.
+  * Add copy button at Task Templates page
+  * Fix duplicated mapping key mapping key "Task"
+  * Merge pull request #289 from laeshiny/develop
+  * english muthafucka do you speak it!?
+  * correct the response code in api document
+  * correct the response content and code
+  * add content to response of post /project/{project_id}/inventory
+  * add .idea/ to .gitignore for Pycharm
+  * fix user alerts updating
+  * add new config parameters to the setup procedure
+  * Merge branch 'master' into email-alerts
+  * add alert setting for project
+  * provide NULL instead of empty string, when Extra CLI Arguments was deleted
+  * add alert setting for user and (WIP) project
+  * Merge branch 'master' into develop
+  * Merge pull request #283 from laeshiny/master
+  * add missing package and command
+  * use html/template for mail subject and body
+  * move mail sending logic to util package
+  * Merge branch 'master' into develop
+  * Merge pull request #277 from strangeman/wrong-time
+  * Use UTC_TIMESTAMP instead of NOW
+  * Merge pull request #275 from commodityvectors/sshcert
+  * Added SSH certificate support
+  * merge models -> db
+  * 🎉 gin -> net/http
+  * moar refactor
+  * begin refactor gin -> net/http
+  * update Dockerfile, changelog & release scripts
+  * [WIP] add alerts for failed deploy
+
 v2.2.0 / 2017-02-22
 ===================
 
