@@ -49,7 +49,9 @@ var Version string = "$VERSION"
 HEREDOC
 
 	echo "Updating changelog:"
+	set +e
 	git changelog -t "v$VERSION"
+	set -e
 
 	echo "\nCommitting version.go and changelog update"
 	git add util/version.go CHANGELOG.md && git commit -m "update changelog, bump version to $VERSION"

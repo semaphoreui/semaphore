@@ -1,6 +1,6 @@
 FROM alpine:3.5
 
-ENV SEMAPHORE_VERSION="2.2.0" SEMAPHORE_ARCH="linux_amd64"
+ENV SEMAPHORE_VERSION="2.3.0" SEMAPHORE_ARCH="linux_amd64"
 
 RUN apk add --no-cache git ansible mysql-client curl openssh-client && \
     curl -sSfL "https://github.com/ansible-semaphore/semaphore/releases/download/v$SEMAPHORE_VERSION/semaphore_$SEMAPHORE_ARCH" > /usr/bin/semaphore && \
@@ -8,7 +8,7 @@ RUN apk add --no-cache git ansible mysql-client curl openssh-client && \
 
 EXPOSE 3000
 
-ADD semaphore-startup.sh /usr/bin/semaphore-startup.sh
+ADD ./scripts/docker-startup.sh /usr/bin/semaphore-startup.sh
 
 ENTRYPOINT ["/usr/bin/semaphore-startup.sh"]
 
