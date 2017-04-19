@@ -40,7 +40,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if _, err := db.Mysql.Exec("insert into project__user set project_id=?, user_id=?, admin=1", body.ID, user.ID); err != nil {
+	if _, err := db.Mysql.Exec("insert into project__user set project_id=?, user_id=?, `admin`=1", body.ID, user.ID); err != nil {
 		panic(err)
 	}
 

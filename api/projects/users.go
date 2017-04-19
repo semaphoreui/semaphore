@@ -47,9 +47,9 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := squirrel.Select("u.*").Column("pu.admin").
-			From("project__user as pu").
-			LeftJoin("user as u on pu.user_id=u.id").
-			Where("pu.project_id=?", project.ID)
+		From("project__user as pu").
+		LeftJoin("user as u on pu.user_id=u.id").
+		Where("pu.project_id=?", project.ID)
 
 	switch sort {
 	case "name", "username", "email":
@@ -80,7 +80,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, admin=?", user.UserID, project.ID, user.Admin); err != nil {
+	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, `admin`=?", user.UserID, project.ID, user.Admin); err != nil {
 		panic(err)
 	}
 
@@ -130,7 +130,7 @@ func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 		admin = 0
 	}
 
-	if _, err := db.Mysql.Exec("update project__user set admin=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
 		panic(err)
 	}
 
