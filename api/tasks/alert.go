@@ -12,10 +12,10 @@ import (
 
 const emailTemplate = `Subject: Task '{{ .Alias }}' failed
 
-Task {{ .TaskId }} with template '{{ .Alias }}' has failed!
-Task log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>`
+Task {{ .TaskID }} with template '{{ .Alias }}' has failed!
+Task log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>`
 
-const telegramTemplate = `{"chat_id": "{{ .ChatId }}","text":"<b>Task {{ .TaskId }} with template '{{ .Alias }}' has failed!</b>\nTask log: <a href='{{ .TaskUrl }}'>{{ .TaskUrl }}</a>","parse_mode":"HTML"}`
+const telegramTemplate = `{"chat_id": "{{ .ChatID }}","text":"<b>Task {{ .TaskID }} with template '{{ .Alias }}' has failed!</b>\nTask log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>","parse_mode":"HTML"}`
 
 type Alert struct {
 	TaskID  string
