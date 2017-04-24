@@ -101,6 +101,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password" binding:"required"`
 	}
 
+	var ldapErr error
+	var ldapUser db.User
+
 	if err := mulekick.Bind(w, r, &login); err != nil {
 		return
 	}
@@ -112,28 +115,38 @@ func login(w http.ResponseWriter, r *http.Request) {
 		From("user")
 
 	if util.Config.LdapEnable {
-		ldapErr, ldapUser := ldapAuthentication(login.Auth, login.Password)
-		if ldapErr != nil {
-			log.Info(ldapErr.Error())
-		}
 
-		// Check if that user already exist in database
-		q = q.Where("username=? and external=true", ldapUser.Username)
+		// Try to perform LDAP authentication
+		ldapErr, ldapUser = ldapAuthentication(login.Auth, login.Password)
 
-		query, args, _ := q.ToSql()
-		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
-			if err == sql.ErrNoRows {
-				// Create new user
-				user = ldapUser
-				if err := db.Mysql.Insert(&user); err != nil {
+		// If LDAP completed successully - proceed user
+		if ldapErr == nil {
+			// Check if that user already exist in database
+			q = q.Where("username=? and external=true", ldapUser.Username)
+
+			query, args, _ := q.ToSql()
+			if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
+				if err == sql.ErrNoRows {
+					// Create new user
+					user = ldapUser
+					if err := db.Mysql.Insert(&user); err != nil {
+						panic(err)
+					}
+				} else if err != nil {
 					panic(err)
 				}
-			} else if err != nil {
-				panic(err)
 			}
+		} else {
+			log.Info(ldapErr.Error())
 		}
-	} else {
+	}
+
+	// If LDAP not enabled, or LDAP auth finished not successfully (wrong login/pass, unreachable server etc)
+	// - perform normal authorization
+	if util.Config.LdapEnable != true || ldapErr != nil {
+
 		// Perform normal authorization
+		println("Perform normal authorization")
 		_, err := mail.ParseAddress(login.Auth)
 		if err == nil {
 			q = q.Where("email=?", login.Auth)
@@ -147,12 +160,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-
 			panic(err)
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
