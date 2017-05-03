@@ -61,15 +61,16 @@ func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var body struct {
-		Name  string `json:"name"`
-		Alert bool   `json:"alert"`
+		Name      string `json:"name"`
+		Alert     bool   `json:"alert"`
+		AlertChat string `json:"alert_chat"`
 	}
 
 	if err := mulekick.Bind(w, r, &body); err != nil {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project set name=?, alert=? where id=?", body.Name, body.Alert, project.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
 		panic(err)
 	}
 
