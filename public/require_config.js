@@ -1,7 +1,7 @@
 require.config({
-	baseUrl: 'public/js',
+	baseUrl: document.baseURI + 'public/js',
 	waitSeconds: 10,
 	paths: {
-		async: 'public/vendor/async'
+		async: document.baseURI + 'public/vendor/async'
 	}
 });

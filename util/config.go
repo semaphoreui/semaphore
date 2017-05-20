@@ -161,6 +161,9 @@ func init() {
 
 	Cookie = securecookie.New(hash, encryption)
 	WebHostURL, _ = url.Parse(Config.WebHost)
+	if len(WebHostURL.String()) == 0 {
+		WebHostURL = nil
+	}
 }
 
 func (conf *configType) GenerateCookieSecrets() {
