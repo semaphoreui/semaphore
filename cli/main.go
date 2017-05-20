@@ -43,15 +43,14 @@ func main() {
 	}
 
 	db.SetupDBLink()
-
 	defer db.Mysql.Db.Close()
 
+	if err := db.MigrateAll(); err != nil {
+		panic(err)
+	}
+	// legacy
 	if util.Migration {
-		fmt.Println("\n Running DB Migrations")
-		if err := db.MigrateAll(); err != nil {
-			panic(err)
-		}
-
+		fmt.Println("\n DB migrations run on startup automatically")
 		return
 	}
 

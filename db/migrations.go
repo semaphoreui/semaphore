@@ -70,7 +70,7 @@ func (version *DBVersion) TryRollback() {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
 
 	if _, err := util.Asset(version.GetErrPath()); err != nil {
-		fmt.Println("Rollback SQL doesn't exist.")
+		fmt.Println("Rollback SQL does not exist.")
 		fmt.Println()
 		return
 	}
@@ -87,22 +87,29 @@ func (version *DBVersion) TryRollback() {
 }
 
 func MigrateAll() error {
+	fmt.Println("Checking DB migrations")
+	didRun := false
+
 	// go from beginning to the end
 	for _, version := range Versions {
 		if exists, err := version.CheckExists(); err != nil || exists == true {
 			if exists == true {
-				fmt.Printf("Skipping %s\n", version.HumanoidVersion())
 				continue
 			}
 
 			return err
 		}
 
+		didRun = true
 		if err := version.Run(); err != nil {
 			version.TryRollback()
 
 			return err
 		}
+	}
+
+	if didRun {
+		fmt.Println("Migrations Finished")
 	}
 
 	return nil
