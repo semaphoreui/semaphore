@@ -2,9 +2,10 @@ define(function () {
 	app.registerController('ProjectEditCtrl', ['$scope', '$http', 'Project', '$state', function ($scope, $http, Project, $state) {
 		$scope.projectName = Project.name;
 		$scope.alert = Project.alert;
+		$scope.alert_chat = Project.alert_chat;
 
-		$scope.save = function (name, alert) {
-			$http.put(Project.getURL(), { name: name, alert: alert }).success(function () {
+		$scope.save = function (name, alert, alert_chat) {
+			$http.put(Project.getURL(), { name: name, alert: alert, alert_chat: alert_chat}).success(function () {
 				swal('Saved', 'Project settings saved.', 'success');
 			}).error(function () {
 				swal('Error', 'Project settings were not saved', 'error');
