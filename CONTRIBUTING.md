@@ -8,6 +8,7 @@ When creating a pull-request you should:
 
 # Installation in a development environment
 
+- Check out the `develop` branch
 - [Install Go](https://golang.org/doc/install)
 - Install MySQL / MariaDB
 - Install node.js
