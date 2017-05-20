@@ -18,68 +18,69 @@ import (
 	"gopkg.in/ldap.v2"
 )
 
-func ldapAuthentication(auth, password string) (error, db.User) {
+func findLDAPUser(username, password string) (*db.User, error) {
 	if util.Config.LdapEnable != true {
-		return fmt.Errorf("LDAP not configured"), db.User{}
+		return nil, fmt.Errorf("LDAP not configured")
 	}
 
 	l, err := ldap.Dial("tcp", util.Config.LdapServer)
 	if err != nil {
-		return err, db.User{}
+		return nil, err
 	}
 	defer l.Close()
 
 	// Reconnect with TLS if needed
 	if util.Config.LdapNeedTLS == true {
-		err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
-		if err != nil {
-			return err, db.User{}
+		// TODO: InsecureSkipVerify should be configurable
+		tlsConf := tls.Config{
+			InsecureSkipVerify: true,
+		}
+		if err := l.StartTLS(&tlsConf); err != nil {
+			return nil, err
 		}
 	}
 
 	// First bind with a read only user
-	err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword)
-	if err != nil {
-		return err, db.User{}
+	if err := l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+		return nil, err
 	}
 
 	// Search for the given username
 	searchRequest := ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, auth),
+		fmt.Sprintf(util.Config.LdapSearchFilter, username),
 		[]string{util.Config.LdapMappings.DN},
 		nil,
 	)
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return err, db.User{}
+		return nil, err
 	}
 
 	if len(sr.Entries) != 1 {
-		return fmt.Errorf("User does not exist or too many entries returned"), db.User{}
+		return nil, fmt.Errorf("User does not exist or too many entries returned")
 	}
 
 	// Bind as the user to verify their password
 	userdn := sr.Entries[0].DN
-	err = l.Bind(userdn, password)
-	if err != nil {
-		return err, db.User{}
+	if err := l.Bind(userdn, password); err != nil {
+		return nil, err
 	}
 
 	// Get user info and ensure authentication in case LDAP supports unauthenticated bind
 	searchRequest = ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, auth),
+		fmt.Sprintf(util.Config.LdapSearchFilter, username),
 		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.Uid, util.Config.LdapMappings.CN},
 		nil,
 	)
 
 	sr, err = l.Search(searchRequest)
 	if err != nil {
-		return err, db.User{}
+		return nil, err
 	}
 
 	ldapUser := db.User{
@@ -92,7 +93,7 @@ func ldapAuthentication(auth, password string) (error, db.User) {
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
-	return nil, ldapUser
+	return &ldapUser, nil
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -100,73 +101,72 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-
-	var ldapErr error
-	var ldapUser db.User
-
 	if err := mulekick.Bind(w, r, &login); err != nil {
 		return
 	}
 
+	/*
+		logic:
+		- fetch user from ldap if enabled
+		- fetch user from database by username/email
+		- create user in database if doesn't exist & ldap record found
+		- check password if non-ldap user
+		- create session & send cookie
+	*/
+
 	login.Auth = strings.ToLower(login.Auth)
+
+	var ldapUser *db.User
+	if util.Config.LdapEnable {
+		// search LDAP for users
+		if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
+			ldapUser = lu
+		} else {
+			log.Info(err.Error())
+		}
+	}
 
 	var user db.User
 	q := sq.Select("*").
 		From("user")
 
-	if util.Config.LdapEnable {
-
-		// Try to perform LDAP authentication
-		ldapErr, ldapUser = ldapAuthentication(login.Auth, login.Password)
-
-		// If LDAP completed successully - proceed user
-		if ldapErr == nil {
-			// Check if that user already exist in database
-			q = q.Where("username=? and external=true", ldapUser.Username)
-
-			query, args, _ := q.ToSql()
-			if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
-				if err == sql.ErrNoRows {
-					// Create new user
-					user = ldapUser
-					if err := db.Mysql.Insert(&user); err != nil {
-						panic(err)
-					}
-				} else if err != nil {
-					panic(err)
-				}
-			}
-		} else {
-			log.Info(ldapErr.Error())
-		}
+	// determine if login.Auth is email or username
+	if _, err := mail.ParseAddress(login.Auth); err == nil {
+		q = q.Where("email=?", login.Auth)
+	} else {
+		q = q.Where("username=?", login.Auth)
 	}
 
-	// If LDAP not enabled, or LDAP auth finished not successfully (wrong login/pass, unreachable server etc)
-	// - perform normal authorization
-	if util.Config.LdapEnable != true || ldapErr != nil {
-
-		// Perform normal authorization
-		println("Perform normal authorization")
-		_, err := mail.ParseAddress(login.Auth)
-		if err == nil {
-			q = q.Where("email=?", login.Auth)
-		} else {
-			q = q.Where("username=?", login.Auth)
-		}
-
-		query, args, _ := q.ToSql()
-		if err := db.Mysql.SelectOne(&user, query, args...); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusBadRequest)
-				return
+	query, args, _ := q.ToSql()
+	if err := db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+		if ldapUser != nil {
+			// create new LDAP user
+			user = *ldapUser
+			if err := db.Mysql.Insert(&user); err != nil {
+				panic(err)
 			}
-			panic(err)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
+	} else if err != nil {
+		panic(err)
+	}
 
+	// check if ldap user & no ldap user found
+	if user.External && ldapUser == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// non-ldap login
+	if !user.External {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
+		// authenticated.
 	}
 
 	session := db.Session{
