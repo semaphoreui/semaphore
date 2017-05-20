@@ -1,12 +1,12 @@
 define(function () {
-	app.registerController('SignInCtrl', ['$scope', '$rootScope', '$http', '$state', function($scope, $rootScope, $http, $state) {
+	app.registerController('SignInCtrl', ['$scope', '$rootScope', '$http', '$state', function ($scope, $rootScope, $http, $state) {
 		$scope.status = "";
 		$scope.user = {
 			auth: "",
 			password: ""
 		};
 
-		$scope.authenticate = function(user) {
+		$scope.authenticate = function (user) {
 			$scope.status = "Authenticating..";
 
 			var pwd = user.password;
@@ -17,7 +17,7 @@ define(function () {
 				password: pwd
 			}).success(function (data, status) {
 				$scope.status = "Login Successful";
-				window.location = "/";
+				window.location = document.baseURI;
 			}).error(function (data, status) {
 				if (status == 400) {
 					// Login Failed

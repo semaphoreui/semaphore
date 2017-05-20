@@ -133,6 +133,14 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// replace base path
+	if util.WebHostURL != nil && path == "public/html/index.html" {
+		res = []byte(strings.Replace(string(res),
+			"<base href=\"/\">",
+			"<base href=\""+util.WebHostURL.String()+"\">",
+			1))
+	}
+
 	contentType := "text/plain"
 	switch suffix {
 	case "png":

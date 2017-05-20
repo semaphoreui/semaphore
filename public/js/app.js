@@ -16,6 +16,10 @@ app.config(['$httpProvider', function ($httpProvider) {
 					request.headers['Cache-Control'] = 'no-cache';
 				}
 
+				if (request.url.startsWith('/api') || request.url.startsWith('/public')) {
+					request.url = request.url.substr(1);
+				}
+
 				return request || $q.when(request);
 			}
 		};
@@ -65,12 +69,9 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 	}
 
 	$rootScope.startWS = function () {
-		var ws_proto = 'ws:';
-		if (document.location.protocol == 'https:') {
-			ws_proto = 'wss:';
-		}
+		var ws_base = 'ws' + document.baseURI.substr(4);
 
-		$rootScope.ws = new WebSocket(ws_proto + '//' + document.location.host + '/api/ws');
+		$rootScope.ws = new WebSocket(ws_base + 'api/ws');
 		$rootScope.ws.onclose = function () {
 			console.log('WS closed, retrying');
 			setTimeout($rootScope.startWS, 2000);
