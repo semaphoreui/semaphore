@@ -269,6 +269,7 @@ func (t *task) updateRepository() error {
 	}
 
 	t.logCmd(cmd)
+	defer cmd.Wait()
 	return cmd.Run()
 }
 
@@ -293,6 +294,7 @@ func (t *task) runGalaxy() error {
 	}
 
 	t.logCmd(cmd)
+	defer cmd.Wait()
 	return cmd.Run()
 }
 
@@ -350,6 +352,7 @@ func (t *task) runPlaybook() error {
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)
+	defer cmd.Wait()
 	return cmd.Run()
 }
 
