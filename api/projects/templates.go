@@ -131,7 +131,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *template.Arguments == "" {
+	if template.Arguments != nil && *template.Arguments == "" {
 		template.Arguments = nil
 	}
 
