@@ -73,6 +73,11 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, tasks)
 }
 
+func GetTask(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	mulekick.WriteJSON(w, http.StatusOK, task)
+}
+
 func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 	taskID, err := util.GetIntParam("task_id", w, r)
 	if err != nil {

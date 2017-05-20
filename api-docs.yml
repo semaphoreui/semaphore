@@ -923,6 +923,19 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+  /project/{project_id}/tasks/{task_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/task_id"
+    get:
+      tags:
+        - project
+      summary: Get a single task
+      responses:
+        200:
+          description: Task
+          schema:
+            $ref: "#/definitions/Task"
   /project/{project_id}/tasks/{task_id}/output:
     parameters:
       - $ref: '#/parameters/project_id'
