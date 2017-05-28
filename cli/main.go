@@ -71,7 +71,7 @@ func doSetup() int {
  1. Set up configuration for a MySQL/MariaDB database
  2. Set up a path for your playbooks (auto-created)
  3. Run database Migrations
- 4. Set up initial seamphore user & password
+ 4. Set up initial semaphore user & password
 
 `)
 
