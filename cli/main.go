@@ -39,6 +39,7 @@ func main() {
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
 	if err := db.Connect(); err != nil {
+		fmt.Println("\n Have you run semaphore -setup?")
 		panic(err)
 	}
 
