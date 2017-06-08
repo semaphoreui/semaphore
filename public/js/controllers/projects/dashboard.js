@@ -4,7 +4,7 @@ define(['controllers/projects/taskRunner'], function() {
             $scope.events = events;
 
             events.forEach(function(evt) {
-                evt.createdFormatted = moment(evt.created).format('DD/M/YY HH:MM')
+                evt.createdFormatted = moment(evt.created).format('DD/M/YY HH:mm')
             })
         });
 
@@ -14,20 +14,20 @@ define(['controllers/projects/taskRunner'], function() {
 
                 $scope.tasks.forEach(function(t) {
                     if (t.created) {
-                        t.createdFormatted = moment(t.created).format('DD/M/YY HH:MM')
+                        t.createdFormatted = moment(t.created).format('DD/M/YY HH:mm')
                     }
                     if (t.start) {
-                        t.startFormatted = moment(t.start).format('DD/M/YY HH:MM:ss')
+                        t.startFormatted = moment(t.start).format('DD/M/YY HH:mm:ss')
                     }
                     if (t.end) {
-                        t.endFormatted = moment(t.end).format('DD/M/YY HH:MM:ss')
+                        t.endFormatted = moment(t.end).format('DD/M/YY HH:mm:ss')
                     }
 
                     if (!t.start || !t.end) {
                         return;
                     }
 
-                    t.duration = moment(t.start).diff(moment(t.end), 'minutes');
+                    t.duration = moment(t.end).diff(moment(t.start), 'minutes');
                 });
             });
         }
