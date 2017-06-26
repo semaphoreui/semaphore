@@ -24,10 +24,10 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user db.User
+
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
-
 	user.Created = time.Now()
 
 	if err := db.Mysql.Insert(&user); err != nil {
@@ -63,13 +63,12 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
-
 	if oldUser.External == true && oldUser.Username != user.Username {
 		log.Warn("Username is not editable for external LDAP users")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
+	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=?, extra_vars=?, vault=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.ExtraVars, user.Vault, oldUser.ID); err != nil {
 		panic(err)
 	}
 

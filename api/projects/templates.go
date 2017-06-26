@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"fmt"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
@@ -44,21 +46,24 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := squirrel.Select("pt.id",
-			"pt.ssh_key_id",
-			"pt.project_id",
-			"pt.inventory_id",
-			"pt.repository_id",
-			"pt.environment_id",
-			"pt.alias",
-			"pt.playbook",
-			"pt.arguments",
-			"pt.override_args").
-			From("project__template pt")
+		"pt.ssh_key_id",
+		"pt.project_id",
+		"pt.inventory_id",
+		"pt.repository_id",
+		"pt.environment_id",
+		"pt.alias",
+		"pt.playbook",
+		"pt.arguments",
+		"pt.override_args",
+		"pt.user_vars",
+		"pt.user_vault",
+		"pt.user_key").
+		From("project__template pt")
 
 	switch sort {
 	case "alias", "playbook":
 		q = q.Where("pt.project_id=?", project.ID).
-			OrderBy("pt."+ sort + " " + order)
+			OrderBy("pt." + sort + " " + order)
 	case "ssh_key":
 		q = q.LeftJoin("access_key ak ON (pt.ssh_key_id = ak.id)").
 			Where("pt.project_id=?", project.ID).
@@ -77,7 +82,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 			OrderBy("pr.name " + order)
 	default:
 		q = q.Where("pt.project_id=?", project.ID).
-		OrderBy("pt.alias " + order)
+			OrderBy("pt.alias " + order)
 	}
 
 	query, args, _ := q.ToSql()
@@ -94,16 +99,19 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	var template db.Template
 	if err := mulekick.Bind(w, r, &template); err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
+	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?, user_vars=?, user_vault=?, user_key=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, template.UserVars, template.UserVault, template.UserKey)
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 
 	insertID, err := res.LastInsertId()
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 
@@ -117,6 +125,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    &template.ID,
 		Description: &desc,
 	}.Insert()); err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 
@@ -128,6 +137,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	var template db.Template
 	if err := mulekick.Bind(w, r, &template); err != nil {
+		fmt.Println(err)
 		return
 	}
 
@@ -135,7 +145,8 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
-	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?, user_vars=?, user_vault=?, user_key=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, template.UserVars, template.UserVault, template.UserKey, oldTemplate.ID); err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 
@@ -147,6 +158,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    &oldTemplate.ID,
 		ObjectType:  &objType,
 	}.Insert()); err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 

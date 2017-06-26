@@ -19,6 +19,12 @@
       label.control-label.col-sm-4(for="password") Password
       .col-sm-6
         input#password.form-control(type="password" placeholder="User Password" ng-model="user.password" required)
+    .form-group
+      label.control-label.col-sm-4 Extra Vars
+      .col-sm-8: textarea#extra_vars.form-control(placeholder="Extra Vars" ng-model="user.extra_vars" rows="5")
+    .form-group
+      label.control-label.col-sm-4 Vault
+      .col-sm-8: textarea#vault.form-control(placeholder="Vault" ng-model="user.vault" rows="5")
 
 .modal-footer
   button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss

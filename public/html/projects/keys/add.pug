@@ -51,6 +51,12 @@
 			.col-sm-6
 				input.form-control(type="text" ng-model="key.secret")
 
+		.form-group
+			label.control-label.col-sm-4 Owner
+			.col-sm-6
+				select.form-control(ng-model="key.owner" ng-options="+(user.id) as user.name for user in users")
+
+
 .modal-footer
 	button.btn.btn-danger(ng-click="$close({ delete: true })") Delete
 	button.btn.btn-success(ng-click="$close({ key: key })")

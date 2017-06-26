@@ -54,6 +54,7 @@ func main() {
 		fmt.Println("\n DB migrations run on startup automatically")
 		return
 	}
+	util.UserVaultCache = util.NewVaultCache()
 
 	go sockets.StartWS()
 	go checkUpdates()

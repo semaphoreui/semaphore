@@ -30,10 +30,16 @@ type task struct {
 }
 
 func (t *task) fail() {
+	var user db.User
 	t.task.Status = "error"
 	t.updateStatus()
 	t.sendMailAlert()
 	t.sendTelegramAlert()
+
+	t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID)
+	util.UserVaultCache.DecrementUsage(user.Username)
+	t.RemoveVaultFiles()
+	t.RemoveUserVarFile()
 }
 
 func (t *task) run() {
@@ -42,14 +48,20 @@ func (t *task) run() {
 	defer func() {
 		fmt.Println("Stopped running tasks")
 		pool.running = nil
-
+		err := t.RemoveVaultFiles()
+		if err != nil {
+			t.log("Could not remove vault files")
+		}
+		err = t.RemoveUserVarFile()
+		if err != nil {
+			t.log("Could not remove user variables file")
+		}
 		now := time.Now()
 		t.task.End = &now
 		t.updateStatus()
-
 		objType := "task"
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
-		if err := (db.Event{
+		if err = (db.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -121,6 +133,9 @@ func (t *task) run() {
 		t.fail()
 		return
 	}
+	var user db.User
+	t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID)
+	util.UserVaultCache.DecrementUsage(user.Username)
 
 	t.task.Status = "success"
 	t.updateStatus()
@@ -337,6 +352,24 @@ func (t *task) runPlaybook() error {
 			return err
 		}
 	}
+	if t.template.UserVars {
+		err := t.InstallUserVarFile()
+		if err != nil {
+			t.log("Could not write user vars file")
+			return err
+		}
+		args = append(args, "--extra-vars", "@"+util.Config.TmpPath+"/user_vars_"+strconv.Itoa(t.task.ID))
+	}
+
+	if t.template.UserVault {
+		err := t.InstallVaultFiles()
+		if err != nil {
+			t.log("Could not write vault files")
+			return err
+		}
+		args = append(args, "--vault-password-file", util.Config.TmpPath+"/vault_pass_"+strconv.Itoa(t.task.ID))
+		args = append(args, "--extra-vars", "@"+util.Config.TmpPath+"/vault_"+strconv.Itoa(t.task.ID))
+	}
 
 	if t.template.OverrideArguments {
 		args = extraArgs
@@ -363,6 +396,5 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	if gitSSHCommand != nil {
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", *gitSSHCommand))
 	}
-
 	return env
 }

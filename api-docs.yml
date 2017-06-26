@@ -55,6 +55,10 @@ definitions:
         format: date-time
       alert:
         type: boolean
+      extra_vars:
+        type: string
+      vault:
+        type: string
   APIToken:
     type: object
     properties:
@@ -94,6 +98,8 @@ definitions:
         type: string
       secret:
         type: string
+      owner:
+        type: integer
   Environment:
     type: object
     properties:
@@ -186,6 +192,12 @@ definitions:
       arguments:
         type: string
       override_args:
+        type: boolean
+      user_vars:
+        type: boolean
+      user_vault:
+        type: boolean
+      user_key:
         type: boolean
   Event:
     type: object
@@ -589,6 +601,11 @@ paths:
           type: string
           format: asc/desc
           description: ordering manner
+        - name: Filter
+          in: query
+          required: false
+          type: string
+          format: public/private
       responses:
         200:
           description: Access Keys

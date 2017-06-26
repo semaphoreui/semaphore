@@ -17,6 +17,7 @@ type AccessKey struct {
 	Secret    *string `db:"secret" json:"secret"`
 
 	Removed bool `db:"removed" json:"removed"`
+	Owner   int  `db:"owner" json:"owner"`
 }
 
 func (key AccessKey) GetPath() string {

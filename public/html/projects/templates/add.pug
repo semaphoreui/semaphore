@@ -20,10 +20,16 @@
 				input.form-control(type="text" placeholder="play.yml" ng-model="tpl.playbook")
 
 		.form-group
-			label.control-label.col-sm-4 SSH Key*
-			.col-sm-6
-				select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as key.name disable when key.removed for key in keys")
-					option(value="") -- Select SSH Key --
+			label.control-label.col-sm-4 SSH key
+			.col-sm-6.col-sm-offset-4
+				.radio: label
+					input(type="radio" ng-model="tpl.user_key" name="user_key" data-ng-value="false")
+					select.form-control(ng-model="tpl.ssh_key_id" ng-options="key.id as key.name disable when key.removed for key in keys" ng-disabled="tpl.user_key==true")
+						option(value="") -- Select SSH Key --
+				.radio: label
+					input(type="radio" ng-model="tpl.user_key" name="user_key" data-ng-value="true")
+					| User specific SSH Key
+
 		.form-group
 			label.control-label.col-sm-4 Inventory*
 			.col-sm-6
@@ -54,6 +60,20 @@
 					input(type="checkbox" ng-model="user.admin")
 					| Override semaphore arguments
 				p.help-block Usually semaphore prepends arguments like `--private-key=/location/id_rsa` to make sure everything goes smoothly. This option is for special needs, where semaphore conflicts with one of your arguments.
+
+		.form-group
+			.col-sm-6.col-sm-offset-4
+				.checkbox: label
+					input(type="checkbox" ng-model="tpl.user_vars")
+					| Allow user specific extra_vars
+				p.help-block This allows the definition of variables like ansible_user or ansible_pass per user running the task.
+
+		.form-group
+			.col-sm-6.col-sm-offset-4
+				.checkbox: label
+					input(type="checkbox" ng-model="tpl.user_vault")
+					| Allow user specific vault
+				p.help-block This allows the user running the task to use variables from his personal vault.
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
 	button.btn.btn-danger(ng-if="tpl.id" ng-click="$close({ remove: true })") remove
