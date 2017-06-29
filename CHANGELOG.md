@@ -1,7 +1,43 @@
 
+v2.4.0 / 2017-06-29
+==============
+
+  * update changelog, bump version to 2.4.0
+  * Merge branch 'master' into develop
+  * Merge pull request #370 from hsluoyz/patch-1
+  * Update CONTRIBUTING.md with a note for Windows.
+  * Merge pull request #371 from aioue/patch-1
+  * Merge pull request #374 from strangeman/372-wrong-dates
+  * fix wrong data format in Project activity log
+  * Update main.go
+  * Merge pull request #364 from KBraham/develop
+  * Typo fix main.go
+  * Merge pull request #359 from ansible-semaphore/feature/fix-login
+  * rewrite login functions
+  * update contributing.md
+  * fix for base paths
+  * base path resources
+  * run migrations on startup
+  * Merge pull request #355 from TeliaSweden/master
+  * Merge pull request #345 from strangeman/alert-setting-343
+  * Merge pull request #357 from ecornely/master
+  * Merge pull request #342 from morph027/324-docker-zombies
+  * Get tasks details
+  * Fix nil pointer dereference when updating Template
+  * add option for per-project telegram alert to different chats
+  * fixes #324
+  * Merge pull request #336 from strangeman/fix-auth-335
+  * fix login logic when ldap is enabled
+  * Merge pull request #330 from strangeman/fix-alerts-329
+  * fix alert templates after 5bcb34e
+  * set hostnaem
+  * fix docker answer file
+  * Update Dockerfile
+
 v2.3.0 / 2017-04-19
 ===================
 
+  * update changelog, bump version to 2.3.0
   * fix #323
   * add roadmap to readme
   * fix placeholder

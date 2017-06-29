@@ -1,4 +1,4 @@
 package util
 
-var Version string = "2.3.0"
+var Version string = "2.4.0"
 
