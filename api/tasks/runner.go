@@ -189,10 +189,15 @@ func (t *task) populateDetails() error {
 	}
 
 	// get access key
-	if err := t.fetch("Template Access Key not found!", &t.sshKey, "select * from access_key where id=?", t.template.SshKeyID); err != nil {
-		return err
+	if t.template.UserKey == true {
+		if err := t.fetch("User SSH Key not found", &t.sshKey, "select * from access_key where project_id=? and owner =?", t.projectID, t.task.UserID); err != nil {
+			return err
+		}
+	} else {
+		if err := t.fetch("Template Access Key not found!", &t.sshKey, "select * from access_key where id=?", t.template.SshKeyID); err != nil {
+			return err
+		}
 	}
-
 	if t.sshKey.Type != "ssh" {
 		t.log("Non ssh-type keys are currently not supported: " + t.sshKey.Type)
 		return errors.New("Unsupported SSH Key")
@@ -320,7 +325,6 @@ func (t *task) runPlaybook() error {
 	args := []string{
 		"-i", util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID),
 	}
-
 	if t.inventory.SshKeyID != nil {
 		args = append(args, "--private-key="+t.inventory.SshKey.GetPath())
 	}

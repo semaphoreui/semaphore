@@ -102,7 +102,9 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-
+	if template.UserKey == true {
+		template.SshKeyID = 0
+	}
 	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?, user_vars=?, user_vault=?, user_key=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, template.UserVars, template.UserVault, template.UserKey)
 	if err != nil {
 		fmt.Println(err)
@@ -143,6 +145,10 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	if template.Arguments != nil && *template.Arguments == "" {
 		template.Arguments = nil
+	}
+
+	if template.UserKey == true {
+		template.SshKeyID = 0
 	}
 
 	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?, user_vars=?, user_vault=?, user_key=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, template.UserVars, template.UserVault, template.UserKey, oldTemplate.ID); err != nil {
