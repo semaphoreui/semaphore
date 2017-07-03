@@ -1,4 +1,10 @@
 
+v2.4.1 / 2017-07-03
+===================
+
+  * Create binary signatures
+  * remove default setup webhost url
+
 v2.4.0 / 2017-06-29
 ==============
 
