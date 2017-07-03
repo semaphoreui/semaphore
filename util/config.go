@@ -204,12 +204,8 @@ func (conf *configType) Scan() {
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
-	fmt.Print(" > Web root URL (default http://localhost:8010/): ")
+	fmt.Print(" > Web root URL (optional, example http://localhost:8010/): ")
 	fmt.Scanln(&conf.WebHost)
-
-	if len(conf.WebHost) == 0 {
-		conf.WebHost = "http://localhost:8010/"
-	}
 
 	var EmailAlertAnswer string
 	fmt.Print(" > Enable email alerts (y/n, default n): ")

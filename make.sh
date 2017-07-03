@@ -58,7 +58,7 @@ HEREDOC
 	echo "\nTagging release"
 	git tag -m "v$VERSION release" "v$VERSION"
 	echo "\nPushing to repository"
-	git push origin master "v$VERSION"
+	git push origin master develop "v$VERSION"
 	echo "\nCreating draft release v$VERSION"
 	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
 fi
