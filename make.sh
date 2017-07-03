@@ -58,7 +58,7 @@ HEREDOC
 	echo "\nTagging release"
 	git tag -m "v$VERSION release" "v$VERSION"
 	echo "\nPushing to repository"
-	git push origin master develop "v$VERSION"
+	git push origin develop "v$VERSION"
 	echo "\nCreating draft release v$VERSION"
 	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
 fi
@@ -92,6 +92,7 @@ fi
 
 if [ "$1" == "release" ]; then
 	echo "Uploading files.."
+	find . -name "semaphore_*" -exec sh -c 'gpg --armor --detach-sig "$1"' _ {} \;
 	VERSION=$2 find . -name "semaphore_*" -exec sh -c 'github-release upload -u ansible-semaphore -r semaphore -t "v$VERSION" -n "${1/.\/}" -f "$1"' _ {} \;
 	echo "Done"
 	rm -f semaphore_*
