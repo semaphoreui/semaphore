@@ -79,20 +79,17 @@ func Readln(r *bufio.Reader) (string, error) {
 
 func (t *task) logPipe(reader *bufio.Reader) {
 
-	s, e := Readln(reader)
-	for e == nil {
-		t.log(s)
-		s, e = Readln(reader)
+	line, err := Readln(reader)
+	for err == nil {
+		t.log(line)
+		line, err = Readln(reader)
 	}
 
-	/*for reader.Scan() {
-		t.log(reader.Text())
-	}
-
-	if err := reader.Err(); err != nil {
-		t.log("Error scanning input!")
+	if err != nil && err.Error() != "EOF" {
+		fmt.Printf("Failed to read output of command: %s\n", err.Error())
 		panic(err)
-	}*/
+	}
+
 }
 
 func (t *task) logCmd(cmd *exec.Cmd) {
