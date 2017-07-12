@@ -1,8 +1,6 @@
 define(['controllers/projects/taskRunner'], function () {
 	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
-		console.log('getKeys');
 		$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
-			console.log('getVault')
 			$http.get(Project.getURL() + '/keys?type=vault').success(function (vaults) {
 				$scope.sshKeys = keys;
 				$scope.sshKeysAssoc = {};
