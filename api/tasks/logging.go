@@ -68,6 +68,10 @@ func (t *task) logPipe(scanner *bufio.Scanner) {
 	for scanner.Scan() {
 		t.log(scanner.Text())
 	}
+	if err := scanner.Err(); err != nil { // Let's hold on to err...
+		t.log("Error scanning input!") // and use it here.
+		panic(err)
+	}
 }
 
 func (t *task) logCmd(cmd *exec.Cmd) {
