@@ -86,8 +86,8 @@ func (t *task) logPipe(reader *bufio.Reader) {
 	}
 
 	if err != nil && err.Error() != "EOF" {
-		fmt.Printf("Failed to read output of command: %s\n", err.Error())
-		panic(err)
+		//don't panic on this errors, sometimes it throw not dangerous "read |0: file already closed" error
+		fmt.Printf("Failed to read task output: %s\n", err.Error())
 	}
 
 }
