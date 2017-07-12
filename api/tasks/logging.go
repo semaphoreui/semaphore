@@ -64,20 +64,41 @@ func (t *task) updateStatus() {
 	}
 }
 
-func (t *task) logPipe(scanner *bufio.Scanner) {
-	for scanner.Scan() {
-		t.log(scanner.Text())
+func Readln(r *bufio.Reader) (string, error) {
+	var (
+		isPrefix bool  = true
+		err      error = nil
+		line, ln []byte
+	)
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.ReadLine()
+		ln = append(ln, line...)
 	}
-	if err := scanner.Err(); err != nil { // Let's hold on to err...
-		t.log("Error scanning input!") // and use it here.
+	return string(ln), err
+}
+
+func (t *task) logPipe(reader *bufio.Reader) {
+
+	s, e := Readln(reader)
+	for e == nil {
+		t.log(s)
+		s, e = Readln(reader)
+	}
+
+	/*for reader.Scan() {
+		t.log(reader.Text())
+	}
+
+	if err := reader.Err(); err != nil {
+		t.log("Error scanning input!")
 		panic(err)
-	}
+	}*/
 }
 
 func (t *task) logCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go t.logPipe(bufio.NewScanner(stderr))
-	go t.logPipe(bufio.NewScanner(stdout))
+	go t.logPipe(bufio.NewReader(stderr))
+	go t.logPipe(bufio.NewReader(stdout))
 }
