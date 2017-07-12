@@ -18,6 +18,7 @@
 					option(value="aws") AWS IAM credentials
 					option(value="gcloud") Google Cloud API Key
 					option(value="do") DigitalOcean API Key
+					option(value="vault") Vault Password
 
 		.form-group(ng-if="key.type == 'ssh'")
 			label.control-label.col-sm-4 Public Key
@@ -48,6 +49,11 @@
 
 		.form-group(ng-if="key.type == 'do'")
 			label.control-label.col-sm-4 API Key
+			.col-sm-6
+				input.form-control(type="text" ng-model="key.secret")
+
+		.form-group(ng-if="key.type == 'vault'")
+			label.control-label.col-sm-4 Password
 			.col-sm-6
 				input.form-control(type="text" ng-model="key.secret")
 

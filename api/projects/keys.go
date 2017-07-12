@@ -81,7 +81,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch key.Type {
-	case "aws", "gcloud", "do":
+	case "aws", "gcloud", "do", "vault":
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
@@ -130,7 +130,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch key.Type {
-	case "aws", "gcloud", "do":
+	case "aws", "gcloud", "do", "vault":
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
@@ -180,12 +180,18 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	// is the key used as vault secret key?
+	templatesVC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and vault_id=?", *key.ProjectID, key.ID)
+	if err != nil {
+		panic(err)
+	}
+
 	inventoryC, err := db.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	if templatesC > 0 || inventoryC > 0 {
+	if templatesC > 0 || inventoryC > 0 || templatesVC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
 			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Key is in use by one or more templates / inventory",

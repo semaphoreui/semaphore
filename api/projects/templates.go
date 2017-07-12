@@ -44,21 +44,22 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := squirrel.Select("pt.id",
-			"pt.ssh_key_id",
-			"pt.project_id",
-			"pt.inventory_id",
-			"pt.repository_id",
-			"pt.environment_id",
-			"pt.alias",
-			"pt.playbook",
-			"pt.arguments",
-			"pt.override_args").
-			From("project__template pt")
+		"pt.ssh_key_id",
+		"pt.project_id",
+		"pt.inventory_id",
+		"pt.repository_id",
+		"pt.environment_id",
+		"pt.vault_id",
+		"pt.alias",
+		"pt.playbook",
+		"pt.arguments",
+		"pt.override_args").
+		From("project__template pt")
 
 	switch sort {
 	case "alias", "playbook":
 		q = q.Where("pt.project_id=?", project.ID).
-			OrderBy("pt."+ sort + " " + order)
+			OrderBy("pt." + sort + " " + order)
 	case "ssh_key":
 		q = q.LeftJoin("access_key ak ON (pt.ssh_key_id = ak.id)").
 			Where("pt.project_id=?", project.ID).
@@ -77,7 +78,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 			OrderBy("pr.name " + order)
 	default:
 		q = q.Where("pt.project_id=?", project.ID).
-		OrderBy("pt.alias " + order)
+			OrderBy("pt.alias " + order)
 	}
 
 	query, args, _ := q.ToSql()
@@ -97,7 +98,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
+	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, vault_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.VaultID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
 	if err != nil {
 		panic(err)
 	}
@@ -135,7 +136,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
-	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, vault_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.VaultID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
 		panic(err)
 	}
 

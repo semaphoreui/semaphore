@@ -8,6 +8,7 @@ type Template struct {
 	InventoryID   int  `db:"inventory_id" json:"inventory_id"`
 	RepositoryID  int  `db:"repository_id" json:"repository_id"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id"`
+	VaultID       *int `db:"vault_id" json:"vault_id"`
 
 	// Alias as described in https://github.com/ansible-semaphore/semaphore/issues/188
 	Alias string `db:"alias" json:"alias"`
