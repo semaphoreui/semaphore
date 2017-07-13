@@ -15,7 +15,7 @@
 		dt Raw output
 		dd: input(type="checkbox" ng-model="raw" title="show logs unbesmirched")
 
-	pre.scroll: code {{ output_formatted }}
+	textarea.scroll(scroll-glue) {{ output_formatted }}
 
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
