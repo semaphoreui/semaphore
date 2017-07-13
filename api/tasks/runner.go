@@ -27,6 +27,7 @@ type task struct {
 	projectID   int
 	alert       bool
 	alert_chat  string
+	tmpdir      string
 }
 
 func (t *task) fail() {
@@ -46,6 +47,7 @@ func (t *task) run() {
 		now := time.Now()
 		t.task.End = &now
 		t.updateStatus()
+		t.removeTMPDir()
 
 		objType := "task"
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
@@ -152,6 +154,14 @@ func (t *task) populateDetails() error {
 		AlertChat string `db:"alert_chat"`
 	}
 
+	// create tmpdir
+	tmpdir, err := ioutil.TempDir("", "semaphore")
+	if err != nil {
+		t.log("Failed to create the temporal directory")
+		return errors.New("Error creating temporal directory")
+	}
+	t.tmpdir = tmpdir
+
 	var project db.Project
 	// get project alert setting
 	if err := t.fetch("Alert setting not found!", &project, "select alert, alert_chat from project where id=?", t.template.ProjectID); err != nil {
@@ -232,7 +242,7 @@ func (t *task) populateDetails() error {
 func (t *task) installKey(key db.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 
-	path := key.GetPath()
+	path := key.GetPath(t.tmpdir)
 	if key.Key != nil {
 		if err := ioutil.WriteFile(path+"-cert.pub", []byte(*key.Key), 0600); err != nil {
 			return err
@@ -249,7 +259,7 @@ func (t *task) updateRepository() error {
 	cmd := exec.Command("git")
 	cmd.Dir = util.Config.TmpPath
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
+	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath(t.tmpdir)
 	cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
 
 	repoURL, repoTag := t.repository.GitUrl, "master"
@@ -285,7 +295,7 @@ func (t *task) runGalaxy() error {
 	cmd := exec.Command("ansible-galaxy", args...)
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
+	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath(t.tmpdir)
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
 
 	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
@@ -303,11 +313,11 @@ func (t *task) runPlaybook() error {
 	}
 
 	args := []string{
-		"-i", util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID),
+		"-i", t.tmpdir + "/inventory_" + strconv.Itoa(t.task.ID),
 	}
 
 	if t.inventory.SshKeyID != nil {
-		args = append(args, "--private-key="+t.inventory.SshKey.GetPath())
+		args = append(args, "--private-key="+t.inventory.SshKey.GetPath(t.tmpdir))
 	}
 
 	if t.task.Debug {
@@ -365,4 +375,10 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	}
 
 	return env
+}
+
+func (t *task) removeTMPDir() {
+	if err := os.RemoveAll(t.tmpdir); err != nil {
+		t.log("Could not remove temporal directory" + t.tmpdir)
+	}
 }

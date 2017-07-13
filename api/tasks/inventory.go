@@ -3,8 +3,6 @@ package tasks
 import (
 	"io/ioutil"
 	"strconv"
-
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 func (t *task) installInventory() error {
@@ -28,5 +26,5 @@ func (t *task) installStaticInventory() error {
 	t.log("installing static inventory")
 
 	// create inventory file
-	return ioutil.WriteFile(util.Config.TmpPath+"/inventory_"+strconv.Itoa(t.task.ID), []byte(t.inventory.Inventory), 0664)
+	return ioutil.WriteFile(t.tmpdir+"/inventory_"+strconv.Itoa(t.task.ID), []byte(t.inventory.Inventory), 0664)
 }

@@ -1,10 +1,6 @@
 package db
 
-import (
-	"strconv"
-
-	"github.com/ansible-semaphore/semaphore/util"
-)
+import "fmt"
 
 type AccessKey struct {
 	ID   int    `db:"id" json:"id"`
@@ -19,6 +15,6 @@ type AccessKey struct {
 	Removed bool `db:"removed" json:"removed"`
 }
 
-func (key AccessKey) GetPath() string {
-	return util.Config.TmpPath + "/access_key_" + strconv.Itoa(key.ID)
+func (key AccessKey) GetPath(tmpdir string) string {
+	return fmt.Sprintf("%s/%s_%d", tmpdir, key.Type, key.ID)
 }
