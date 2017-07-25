@@ -19,9 +19,15 @@ define(['controllers/projects/taskRunner'], function() {
 
         }
 
-        $scope.reload = function() {
+        $scope.reload = function($lastEvents=true) {
 
-            $http.get(Project.getURL() + '/tasks').success(function(tasks) {
+            if ($lastEvents == true) {
+                $tasksURL = '/tasks/last'
+            } else {
+                $tasksURL = '/tasks'
+            }  
+
+            $http.get(Project.getURL() + $tasksURL).success(function(tasks) {
                 $scope.tasks = tasks;
 
                 $scope.tasks.forEach(function(t) {

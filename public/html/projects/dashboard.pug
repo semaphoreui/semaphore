@@ -28,3 +28,4 @@
 				br
 				span &nbsp;
 				span.pull-right(ng-if="task.user_name") by {{ task.user_name }}
+		button.btn.btn-default.btn-s(ng-click="reload($lastTasks=false)") Show all tasks
