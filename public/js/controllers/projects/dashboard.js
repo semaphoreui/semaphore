@@ -1,14 +1,26 @@
 define(['controllers/projects/taskRunner'], function() {
     app.registerController('ProjectDashboardCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function($scope, $http, Project, $modal, $rootScope) {
-        $http.get(Project.getURL() + '/events').success(function(events) {
-            $scope.events = events;
+        
+        $scope.refreshEvents = function($lastEvents=true) {
 
-            events.forEach(function(evt) {
-                evt.createdFormatted = moment(evt.created).format('DD/M/YY HH:mm')
-            })
-        });
+            if ($lastEvents == true) {
+                $eventsURL = '/events/last'
+            } else {
+                $eventsURL = '/events'
+            }  
+            
+            $http.get(Project.getURL() + $eventsURL).success(function(events) {
+                $scope.events = events;
+
+                events.forEach(function(evt) {
+                    evt.createdFormatted = moment(evt.created).format('DD/M/YY HH:mm')
+                })
+            });
+
+        }
 
         $scope.reload = function() {
+
             $http.get(Project.getURL() + '/tasks').success(function(tasks) {
                 $scope.tasks = tasks;
 
@@ -31,6 +43,7 @@ define(['controllers/projects/taskRunner'], function() {
                 });
             });
         }
+        $scope.refreshEvents();
         $scope.reload();
 
         $scope.openTask = function(task) {
