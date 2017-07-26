@@ -28,6 +28,13 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	editor := context.Get(r, "user").(*db.User)
+	if editor.Admin != true {
+		log.Warn(editor.Username + " doesn't permitted for user creating")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	user.Created = time.Now()
 
 	if err := db.Mysql.Insert(&user); err != nil {
@@ -53,23 +60,44 @@ func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	editor := context.Get(r, "user").(*db.User)
+	if editor.Admin != true && editor.ID != user.ID {
+		log.Warn(editor.Username + " doesn't permitted for user editing")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	context.Set(r, "_user", user)
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := context.Get(r, "_user").(db.User)
+	editor := context.Get(r, "user").(*db.User)
 
 	var user db.User
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
+	if editor.Admin != true && editor.ID != oldUser.ID {
+		log.Warn(editor.Username + " doesn't permitted for user editing")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if editor.ID == oldUser.ID && oldUser.Admin != user.Admin {
+		log.Warn("User can't edit his own role")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	if oldUser.External == true && oldUser.Username != user.Username {
 		log.Warn("Username is not editable for external LDAP users")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=? where id=?", user.Name, user.Username, user.Email, user.Alert, oldUser.ID); err != nil {
+	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=?, admin=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.Admin, oldUser.ID); err != nil {
 		panic(err)
 	}
 
@@ -78,8 +106,16 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "_user").(db.User)
+	editor := context.Get(r, "user").(*db.User)
+
 	var pwd struct {
 		Pwd string `json:"password"`
+	}
+
+	if editor.Admin != true && editor.ID != user.ID {
+		log.Warn(editor.Username + " doesn't permitted for user editing")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	if user.External == true {
@@ -102,6 +138,13 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "_user").(db.User)
+	editor := context.Get(r, "user").(*db.User)
+
+	if editor.Admin != true && editor.ID != user.ID {
+		log.Warn(editor.Username + " doesn't permitted for user deletion")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	if _, err := db.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
 		panic(err)

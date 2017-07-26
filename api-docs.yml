@@ -55,6 +55,8 @@ definitions:
         format: date-time
       alert:
         type: boolean
+      admin:
+        type: boolean
   APIToken:
     type: object
     properties:
