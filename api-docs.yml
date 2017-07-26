@@ -421,7 +421,7 @@ paths:
           schema:
             $ref: '#/definitions/Project'
       responses:
-        200:
+        201:
           description: Created project
   /events:
     get:
