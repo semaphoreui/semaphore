@@ -58,6 +58,21 @@ func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func MustBeNotLaunchOnly(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "user").(*db.User)
+
+	userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.launch_only=0", user.ID, project.ID)
+	if err != nil {
+		panic(err)
+	}
+
+	if userC == 0 {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+}
+
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var body struct {

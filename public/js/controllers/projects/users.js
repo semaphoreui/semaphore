@@ -70,6 +70,15 @@ define(function () {
 			});
 		}
 
+		$scope.setLaunchOnly = function (user) {
+			var verb = $http.post;
+			if (user.launch_only) verb = $http.delete;
+
+			verb(Project.getURL() + '/users/' + user.id + '/launchonly').success(function () {
+				$scope.reload();
+			});
+		}
+
 		$scope.reload();
 	}]);
 });
