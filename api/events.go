@@ -9,13 +9,17 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func getEvents(w http.ResponseWriter, r *http.Request) {
+func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	user := context.Get(r, "user").(*db.User)
 
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
 		LeftJoin("project as p on event.project_id=p.id").
 		OrderBy("created desc")
+
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
 
 	projectObj, exists := context.GetOk(r, "project")
 	if exists == true {
@@ -63,4 +67,12 @@ func getEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mulekick.WriteJSON(w, http.StatusOK, events)
+}
+
+func getLastEvents(w http.ResponseWriter, r *http.Request) {
+	getEvents(w, r, 200)
+}
+
+func getAllEvents(w http.ResponseWriter, r *http.Request) {
+	getEvents(w, r, 0)
 }

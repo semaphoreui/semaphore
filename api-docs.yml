@@ -433,6 +433,16 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Event'
+  /events/last:
+    get:
+      summary: Get last 200 Events related to Semaphore and projects you are part of
+      responses:
+        200:
+          description: Array of events in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Event'
 
   /project/{project_id}:
     parameters:
@@ -897,6 +907,17 @@ paths:
   /project/{project_id}/tasks:
     parameters:
       - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get Tasks related to current project
+      responses:
+        200:
+          description: Array of tasks in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Task'
     post:
       tags:
         - project
@@ -923,6 +944,20 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+  /project/{project_id}/tasks/last:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get last 200 Tasks related to current project
+      responses:
+        200:
+          description: Array of tasks in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Task'
   /project/{project_id}/tasks/{task_id}:
     parameters:
       - $ref: "#/parameters/project_id"
