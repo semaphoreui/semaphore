@@ -69,6 +69,10 @@ type configType struct {
 	TelegramAlert bool   `json:"telegram_alert"`
 	TelegramChat  string `json:"telegram_chat"`
 	TelegramToken string `json:"telegram_token"`
+
+	// task concurrency
+	ConcurrencyMode  string `json:"concurrency_mode"`
+	MaxParallelTasks int    `json:"max_parallel_tasks"`
 }
 
 var Config *configType
@@ -149,6 +153,10 @@ func init() {
 
 	if len(Config.TmpPath) == 0 {
 		Config.TmpPath = "/tmp/semaphore"
+	}
+
+	if Config.MaxParallelTasks < 1 {
+		Config.MaxParallelTasks = 10
 	}
 
 	var encryption []byte
@@ -342,7 +350,6 @@ func (conf *configType) Scan() {
 		if len(conf.LdapMappings.Mail) == 0 {
 			conf.LdapMappings.Mail = "mail"
 		}
-
 	} else {
 		conf.LdapEnable = false
 	}
