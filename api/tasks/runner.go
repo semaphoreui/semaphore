@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"regexp"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -110,10 +110,9 @@ func (t *task) prepareRun() {
 }
 
 func (t *task) run() {
-
 	defer func() {
 		fmt.Println("Stopped running tasks")
-		resourceLocker <- &resourceLock{lock: false, holder: t,}
+		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()
 		t.task.End = &now
@@ -133,7 +132,6 @@ func (t *task) run() {
 	}()
 
 	{
-		fmt.Println(t.users)
 		now := time.Now()
 		t.task.Status = "running"
 		t.task.Start = &now

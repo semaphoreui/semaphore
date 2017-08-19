@@ -350,7 +350,6 @@ func (conf *configType) Scan() {
 		if len(conf.LdapMappings.Mail) == 0 {
 			conf.LdapMappings.Mail = "mail"
 		}
-
 	} else {
 		conf.LdapEnable = false
 	}
