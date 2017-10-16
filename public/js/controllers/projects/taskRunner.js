@@ -20,6 +20,7 @@ define(function () {
 
 	app.registerController('TaskCtrl', ['$scope', '$http', function ($scope, $http) {
 		$scope.raw = false;
+		$scope.task = $scope.task;
 		var logData = [];
 		var onDestroy = [];
 
@@ -28,6 +29,10 @@ define(function () {
 			var d = moment(data.time);
 			if (!$scope.raw) {
 				o = d.format('HH:mm:ss') + ': ' + o;
+			}
+
+			if ($scope.task.id !== data.task_id) {
+				return;
 			}
 
 			for (var i = 0; i < logData.length; i++) {

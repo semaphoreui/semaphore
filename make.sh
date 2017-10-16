@@ -58,7 +58,7 @@ HEREDOC
 	echo "\nTagging release"
 	git tag -m "v$VERSION release" "v$VERSION"
 	echo "\nPushing to repository"
-	git push origin master "v$VERSION"
+	git push origin develop "v$VERSION"
 	echo "\nCreating draft release v$VERSION"
 	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
 fi
@@ -74,11 +74,11 @@ if [ "$1" == "watch" ]; then
 
 	nodemon -w js -i bundle.js -e js bundler.js &
 	nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
-	pug -w -P $(find ./html/ -name "*.pug") &
+	pug -w -P --doctype html $(find ./html/ -name "*.pug") &
 
 	cd -
 	reflex -r '\.go$' -R '^public/vendor/' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin'
-	
+
 	exit 0
 fi
 
@@ -92,6 +92,7 @@ fi
 
 if [ "$1" == "release" ]; then
 	echo "Uploading files.."
+	find . -name "semaphore_*" -exec sh -c 'gpg --armor --detach-sig "$1"' _ {} \;
 	VERSION=$2 find . -name "semaphore_*" -exec sh -c 'github-release upload -u ansible-semaphore -r semaphore -t "v$VERSION" -n "${1/.\/}" -f "$1"' _ {} \;
 	echo "Done"
 	rm -f semaphore_*

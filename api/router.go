@@ -47,7 +47,8 @@ func Route() mulekick.Router {
 
 	api.Get("/projects", projects.GetProjects)
 	api.Post("/projects", projects.AddProject)
-	api.Get("/events", getEvents)
+	api.Get("/events", getAllEvents)
+	api.Get("/events/last", getLastEvents)
 
 	api.Get("/users", getUsers)
 	api.Post("/users", addUser)
@@ -63,7 +64,8 @@ func Route() mulekick.Router {
 		api.Put("", projects.MustBeAdmin, projects.UpdateProject)
 		api.Delete("", projects.MustBeAdmin, projects.DeleteProject)
 
-		api.Get("/events", getEvents)
+		api.Get("/events", getAllEvents)
+		api.Get("/events/last", getLastEvents)
 
 		api.Get("/users", projects.GetUsers)
 		api.Post("/users", projects.MustBeAdmin, projects.AddUser)
@@ -96,7 +98,8 @@ func Route() mulekick.Router {
 		api.Put("/templates/{template_id}", projects.TemplatesMiddleware, projects.UpdateTemplate)
 		api.Delete("/templates/{template_id}", projects.TemplatesMiddleware, projects.RemoveTemplate)
 
-		api.Get("/tasks", tasks.GetAll)
+		api.Get("/tasks", tasks.GetAllTasks)
+		api.Get("/tasks/last", tasks.GetLastTasks)
 		api.Post("/tasks", tasks.AddTask)
 		api.Get("/tasks/{task_id}/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
 		api.Get("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.GetTask)

@@ -6,6 +6,7 @@
 	"/vendor/angular-loading-bar/loading-bar",
 	"/vendor/moment/moment.min",
 	"/vendor/sweetalert/sweetalert.min",
+  "/vendor/scrollglue",
 
 	"app",
 	"routes/router",

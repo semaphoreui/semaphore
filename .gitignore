@@ -8,3 +8,4 @@ config.json
 node_modules
 
 .idea/
+caddyfile
