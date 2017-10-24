@@ -51,9 +51,9 @@ define(['controllers/projects/taskRunner'], function () {
 			$window.localStorage.setItem('hidden-templates', JSON.stringify(hiddenTemplates));
 		}
 
-    $scope.hasHiddenTemplates = function() {
-      return getHiddenTemplates().length > 0;
-    }
+		$scope.hasHiddenTemplates = function() {
+			return getHiddenTemplates().length > 0;
+		}
 
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').success(function (templates) {
