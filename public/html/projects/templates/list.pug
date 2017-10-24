@@ -1,7 +1,7 @@
 h3 Task Templates
 	button.btn.btn-success.btn-xs.pull-right(ng-click="add()" style="margin-left: 5px;") New Template
-	button.btn.btn-default.btn-xs.pull-right(ng-if="allShown" ng-click="hideHidden()") Hide Hidden
-	button.btn.btn-default.btn-xs.pull-right(ng-if="!allShown" ng-click="showAll()") Show Hidden
+	button.btn.btn-default.btn-xs.pull-right(ng-if="allShown && hasHiddenTemplates()" ng-click="hideHidden()") Hide Hidden
+	button.btn.btn-default.btn-xs.pull-right(ng-if="!allShown && hasHiddenTemplates()" ng-click="showAll()") Show Hidden
 
 table.table.table-hover
 	thead: tr

@@ -41,7 +41,7 @@ define(['controllers/projects/taskRunner'], function () {
 
 		function getHiddenTemplates() {
 			try {
-				return JSON.parse($window.localStorage.getItem('hidden-templates') || '[]')
+				return JSON.parse($window.localStorage.getItem('hidden-templates') || '[]');
 			} catch(e) {
 				return [];
 			}
@@ -51,10 +51,14 @@ define(['controllers/projects/taskRunner'], function () {
 			$window.localStorage.setItem('hidden-templates', JSON.stringify(hiddenTemplates));
 		}
 
+    function hasHiddenTemplates() {
+      return getHiddenTemplates().length > 0;
+    }
+
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').success(function (templates) {
 				var hiddenTemplates = getHiddenTemplates();
-				for (var i in templates) {
+				for (var i = 0; i < templates.length; i++) {
 					var template = templates[i];
 					if (hiddenTemplates.indexOf(template.id) !== -1) {
 						template.hidden = true;
