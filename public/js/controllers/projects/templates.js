@@ -105,11 +105,11 @@ define(['controllers/projects/taskRunner'], function () {
 			scope.environment = $scope.environment;
 
 			var modal = $modal.open({
-                templateUrl: '/tpl/projects/templates/add.html',
-                scope: scope
-            });
+				templateUrl: '/tpl/projects/templates/add.html',
+				scope: scope
+			});
 
-            modal.result.then(function (opts) {
+			modal.result.then(function (opts) {
 				if (opts.remove) {
 					return $scope.remove(template);
 				}
