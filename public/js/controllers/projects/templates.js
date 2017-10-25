@@ -122,7 +122,7 @@ define(['controllers/projects/taskRunner'], function () {
 				});
 			});
 
-            modal.closed.then(function () {
+			modal.closed.then(function () {
 				$scope.reload();
 			});
 		}
