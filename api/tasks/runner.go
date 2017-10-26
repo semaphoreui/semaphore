@@ -46,7 +46,7 @@ func (t *task) run() {
 	pool.running = t
 
 	defer func() {
-		fmt.Println("Stopped running tasks")
+		fmt.Println("Stopped preparing task")
 		pool.running = nil
 		err := t.RemoveVaultFiles()
 		if err != nil {
