@@ -53,16 +53,21 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
-func GetAll(w http.ResponseWriter, r *http.Request) {
+func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	project := context.Get(r, "project").(db.Project)
 
-	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
+	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("user on task.user_id=user.id").
 		Where("tpl.project_id=?", project.ID).
-		OrderBy("task.created desc").
-		ToSql()
+		OrderBy("task.created desc")
+
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+
+	query, args, _ := q.ToSql()
 
 	var tasks []struct {
 		db.Task
@@ -76,6 +81,14 @@ func GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mulekick.WriteJSON(w, http.StatusOK, tasks)
+}
+
+func GetAllTasks(w http.ResponseWriter, r *http.Request) {
+	GetTasksList(w, r, 0)
+}
+
+func GetLastTasks(w http.ResponseWriter, r *http.Request) {
+	GetTasksList(w, r, 200)
 }
 
 func GetTask(w http.ResponseWriter, r *http.Request) {

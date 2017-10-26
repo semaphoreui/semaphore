@@ -65,3 +65,5 @@ Now it's ready to start.. Run `./make.sh watch`
 - Watches pug files in `public/html/*` and compiles them into html
 - Watches go files and recompiles the binary
 - Open [localhost:3000](http://localhost:3000)
+
+Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands. And because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows, you may encounter issues when running `./make.sh watch`, but running `./make.sh` will still be OK.

@@ -2,12 +2,18 @@ define(['controllers/projects/edit'], function () {
 	app.registerController('DashboardCtrl', ['$scope', '$http', '$uibModal', function ($scope, $http, $modal) {
 		$scope.projects = [];
 
-		$scope.refresh = function () {
+		$scope.refresh = function ($lastEvents=true) {
 			$http.get('/projects').success(function (projects) {
 				$scope.projects = projects;
 			});
 
-			$http.get('/events').success(function (events) {
+			if ($lastEvents == true) {
+				$eventsURL = '/events/last'
+			} else {
+				$eventsURL = '/events'
+			}
+
+			$http.get($eventsURL).success(function (events) {
 				$scope.events = events;
 			});
 		}
