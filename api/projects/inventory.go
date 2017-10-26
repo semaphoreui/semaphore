@@ -84,7 +84,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "aws", "do", "gcloud":
+	case "static", "file", "aws", "do", "gcloud":
 		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)
@@ -139,7 +139,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "aws", "do", "gcloud":
+	case "static", "file", "aws", "do", "gcloud":
 		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)

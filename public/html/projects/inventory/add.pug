@@ -14,10 +14,11 @@
 			.col-sm-6
 				select.form-control(ng-model="inventory.type" ng-init="inventory.type = 'static'")
 					option(value="static") Static
+					option(value="file") File
 					option(disabled value="aws") AWS
 					option(disabled value="do") DigitalOcean
 					option(disabled value="gcloud") Google Cloud
-		.form-group(ng-if="inventory.type != 'static'")
+		.form-group(ng-if="inventory.type != 'static' && inventory.type != 'file'")
 			label.control-label.col-sm-4 Remote inventory key
 			.col-sm-6
 				select.form-control(ng-model="inventory.key_id" ng-options="key.id as key.name for key in remote_keys")
