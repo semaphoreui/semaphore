@@ -7,6 +7,7 @@
 - [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
 - [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
 - [Roadmap](https://github.com/ansible-semaphore/semaphore/issues/325)
+- [UI Walkthrough](https://blog.strangeman.info/ansible/2017/08/05/semaphore-ui-guide.html) (external blog)
 
 ## Contributing
 

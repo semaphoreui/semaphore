@@ -9,6 +9,7 @@ RUN apk add --no-cache git ansible mysql-client curl openssh-client tini && \
 EXPOSE 3000
 
 ADD ./scripts/docker-startup.sh /usr/bin/semaphore-startup.sh
+RUN chmod +x /usr/bin/semaphore-startup.sh
 
 ENTRYPOINT ["/sbin/tini", "--"]
 

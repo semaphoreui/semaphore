@@ -8,6 +8,7 @@
 				span(ng-bind="event.object_name")
 				span(ng-if="event.object_name.length > 0")  -&nbsp;
 				span {{ event.description }}
+		button.btn.btn-default.btn-s(ng-click="refreshEvents($lastEvents=false)") Show all events
 
 	.col-sm-5(style="border-left: 1px solid #EEE;")
 		h4.no-top-margin Task history
@@ -27,3 +28,4 @@
 				br
 				span &nbsp;
 				span.pull-right(ng-if="task.user_name") by {{ task.user_name }}
+		button.btn.btn-default.btn-s(ng-click="reload($lastTasks=false)") Show all tasks

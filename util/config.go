@@ -69,6 +69,10 @@ type configType struct {
 	TelegramAlert bool   `json:"telegram_alert"`
 	TelegramChat  string `json:"telegram_chat"`
 	TelegramToken string `json:"telegram_token"`
+
+	// task concurrency
+	ConcurrencyMode  string `json:"concurrency_mode"`
+	MaxParallelTasks int    `json:"max_parallel_tasks"`
 }
 
 var Config *configType
@@ -151,6 +155,10 @@ func init() {
 		Config.TmpPath = "/tmp/semaphore"
 	}
 
+	if Config.MaxParallelTasks < 1 {
+		Config.MaxParallelTasks = 10
+	}
+
 	var encryption []byte
 	encryption = nil
 
@@ -204,12 +212,8 @@ func (conf *configType) Scan() {
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
-	fmt.Print(" > Web root URL (default http://localhost:8010/): ")
+	fmt.Print(" > Web root URL (optional, example http://localhost:8010/): ")
 	fmt.Scanln(&conf.WebHost)
-
-	if len(conf.WebHost) == 0 {
-		conf.WebHost = "http://localhost:8010/"
-	}
 
 	var EmailAlertAnswer string
 	fmt.Print(" > Enable email alerts (y/n, default n): ")
@@ -346,7 +350,6 @@ func (conf *configType) Scan() {
 		if len(conf.LdapMappings.Mail) == 0 {
 			conf.LdapMappings.Mail = "mail"
 		}
-
 	} else {
 		conf.LdapEnable = false
 	}

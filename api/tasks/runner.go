@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ type task struct {
 	users       []int
 	projectID   int
 	alert       bool
+	hosts       []string
+	prepared    bool
 	alert_chat  string
 }
 
@@ -42,11 +45,11 @@ func (t *task) fail() {
 	t.RemoveUserVarFile()
 }
 
-func (t *task) run() {
-	pool.running = t
+func (t *task) prepareRun() {
+	t.prepared = false
 
 	defer func() {
-		fmt.Println("Stopped running tasks")
+		fmt.Println("Stopped preparing task")
 		pool.running = nil
 		err := t.RemoveVaultFiles()
 		if err != nil {
@@ -72,14 +75,80 @@ func (t *task) run() {
 		}
 	}()
 
+	t.log("Preparing: " + strconv.Itoa(t.task.ID))
+
 	if err := t.populateDetails(); err != nil {
 		t.log("Error: " + err.Error())
 		t.fail()
 		return
 	}
 
+	objType := "task"
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
+	if err := (db.Event{
+		ProjectID:   &t.projectID,
+		ObjectType:  &objType,
+		ObjectID:    &t.task.ID,
+		Description: &desc,
+	}.Insert()); err != nil {
+		t.log("Fatal error inserting an event")
+		panic(err)
+	}
+
+	t.log("Prepare task with template: " + t.template.Alias + "\n")
+
+	if err := t.installKey(t.repository.SshKey); err != nil {
+		t.log("Failed installing ssh key for repository access: " + err.Error())
+		t.fail()
+		return
+	}
+
+	if err := t.updateRepository(); err != nil {
+		t.log("Failed updating repository: " + err.Error())
+		t.fail()
+		return
+	}
+
+	if err := t.installInventory(); err != nil {
+		t.log("Failed to install inventory: " + err.Error())
+		t.fail()
+		return
+	}
+
+	// todo: write environment
+
+	if err := t.listPlaybookHosts(); err != nil {
+		t.log("Listing playbook hosts failed: " + err.Error())
+		t.fail()
+		return
+	}
+
+	t.prepared = true
+}
+
+func (t *task) run() {
+	defer func() {
+		fmt.Println("Stopped running tasks")
+		resourceLocker <- &resourceLock{lock: false, holder: t}
+
+		now := time.Now()
+		t.task.End = &now
+		t.updateStatus()
+
+		objType := "task"
+		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
+		if err := (db.Event{
+			ProjectID:   &t.projectID,
+			ObjectType:  &objType,
+			ObjectID:    &t.task.ID,
+			Description: &desc,
+		}.Insert()); err != nil {
+			t.log("Fatal error inserting an event")
+			panic(err)
+		}
+	}()
+
 	{
-		fmt.Println(t.users)
 		now := time.Now()
 		t.task.Status = "running"
 		t.task.Start = &now
@@ -101,26 +170,6 @@ func (t *task) run() {
 
 	t.log("Started: " + strconv.Itoa(t.task.ID))
 	t.log("Run task with template: " + t.template.Alias + "\n")
-
-	if err := t.installKey(t.repository.SshKey); err != nil {
-		t.log("Failed installing ssh key for repository access: " + err.Error())
-		t.fail()
-		return
-	}
-
-	if err := t.updateRepository(); err != nil {
-		t.log("Failed updating repository: " + err.Error())
-		t.fail()
-		return
-	}
-
-	if err := t.installInventory(); err != nil {
-		t.log("Failed to install inventory: " + err.Error())
-		t.fail()
-		return
-	}
-
-	// todo: write environment
 
 	if err := t.runGalaxy(); err != nil {
 		t.log("Running galaxy failed: " + err.Error())
@@ -316,7 +365,42 @@ func (t *task) runGalaxy() error {
 	return cmd.Run()
 }
 
+func (t *task) listPlaybookHosts() error {
+	args, err := t.getPlaybookArgs()
+	if err != nil {
+		return err
+	}
+	args = append(args, "--list-hosts")
+
+	cmd := exec.Command("ansible-playbook", args...)
+	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
+
+	out, err := cmd.Output()
+	re := regexp.MustCompile("(?m)^\\s{6}(.*)$")
+	matches := re.FindAllSubmatch(out, 20)
+	hosts := make([]string, len(matches))
+	for i, _ := range matches {
+		hosts[i] = string(matches[i][1])
+	}
+	t.hosts = hosts
+	return err
+}
+
 func (t *task) runPlaybook() error {
+	args, err := t.getPlaybookArgs()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("ansible-playbook", args...)
+	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
+
+	t.logCmd(cmd)
+	return cmd.Run()
+}
+
+func (t *task) getPlaybookArgs() ([]string, error) {
 	playbookName := t.task.Playbook
 	if len(playbookName) == 0 {
 		playbookName = t.template.Playbook
@@ -342,7 +426,7 @@ func (t *task) runPlaybook() error {
 		err := json.Unmarshal([]byte(t.environment.JSON), &js)
 		if err != nil {
 			t.log("JSON is not valid")
-			return err
+			return nil, err
 		}
 
 		args = append(args, "--extra-vars", t.environment.JSON)
@@ -353,7 +437,7 @@ func (t *task) runPlaybook() error {
 		err := json.Unmarshal([]byte(*t.template.Arguments), &extraArgs)
 		if err != nil {
 			t.log("Could not unmarshal arguments to []string")
-			return err
+			return nil, err
 		}
 	}
 	if t.template.UserVars {
@@ -381,13 +465,7 @@ func (t *task) runPlaybook() error {
 		args = append(args, extraArgs...)
 		args = append(args, playbookName)
 	}
-
-	cmd := exec.Command("ansible-playbook", args...)
-	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
-
-	t.logCmd(cmd)
-	return cmd.Run()
+	return args, nil
 }
 
 func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string {

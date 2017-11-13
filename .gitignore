@@ -22,3 +22,6 @@ cli/semaphore_openbsd_386
 cli/semaphore_openbsd_amd64
 cli/semaphore_windows_386.exe
 cli/semaphore_windows_amd64.exe
+.idea/
+caddyfile
+*~
