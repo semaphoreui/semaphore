@@ -9,3 +9,7 @@ node_modules
 
 .idea/
 caddyfile
+
+vendor\.orig/
+
+vendor/

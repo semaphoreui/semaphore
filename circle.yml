@@ -1,29 +1,27 @@
 machine:
+  node:
+    version: 8.9.4
   environment:
     CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
 
 dependencies:
   pre:
     - sudo rm -rf /usr/local/go
-    - sudo curl -L https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > /tmp/go.tar.gz
+    - sudo curl -L https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - git submodule update --init --recursive
-    - npm i -g less pug-cli
-    - npm i async
-    - go get github.com/jteeuwen/go-bindata/...
-    - go get github.com/mitchellh/gox
+    - go get -u github.com/golang/dep/cmd/dep
 
   override:
     - mkdir -p $CPATH
     - rsync -azC --delete ./ $CPATH
     - cd $CPATH && ./make.sh ci_test
-    - cd $CPATH && go get ./...
 
 test:
   pre:
     - cd $CPATH && go run cli/main.go --migrate
 
   override:
-    - cd $CPATH && go vet ./...
-    - cd $CPATH && go test ./...
+    - cd $CPATH && go vet $(go list ./... | grep -v /vendor/)
+    - cd $CPATH && go test $(go list ./... | grep -v /vendor/)
     - cd $CPATH && ./make.sh

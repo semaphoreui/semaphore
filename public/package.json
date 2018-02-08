@@ -1,0 +1,31 @@
+{
+  "name": "semaphore-ui",
+  "version": "1.0.0",
+  "description": "ui for semaphore",
+  "main": "bundler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ansible-semaphore/semaphore.git"
+  },
+  "keywords": [
+    "ansible",
+    "automation"
+  ],
+  "author": "ansible-semaphore",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ansible-semaphore/semaphore/issues"
+  },
+  "homepage": "https://github.com/ansible-semaphore/semaphore#readme",
+  "dependencies": {
+    "async": "^2.6.0"
+  },
+  "devDependencies": {
+    "less": "^2.7.3",
+    "nodemon": "^1.14.12",
+    "pug-cli": "^1.0.0-alpha6"
+  }
+}

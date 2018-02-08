@@ -81,7 +81,7 @@ func NewConfig() *configType {
 	return &configType{}
 }
 
-func init() {
+func ConfigInit() {
 	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
 	flag.BoolVar(&Migration, "migrate", false, "execute migrations")
 	flag.BoolVar(&Upgrade, "upgrade", false, "upgrade semaphore")
