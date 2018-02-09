@@ -1,15 +1,31 @@
 # Deploying Semaphore on Openshift
 
-This is intended as a quick starter config to get semaphore up and running using only the docker hub image.
-The config is set to periodically pull new versions of the image from docker hub.
+This is intended as a quick starter config to get semaphore up and running using only the docker hub image.The image is set to be periodically pulled from the repository source.
 
-You may wish to tweak this once imported or choose to build the image within openshift itself
+## Setup
 
-Your openshift cluster needs to have the mysql-persistent template installed, but it comes as default so it should be
+Your openshift cluster needs to have the mysql-persistent template installed, however it comes by default.
 ```
+# oc cluster up
 oc new-project semaphore
 oc create -fopenshift/template.yml
 oc new-app mysql-persistent -p MYSQL_DATABASE=semaphore
 oc new-app semaphore
 ```
-It will take some moments for the application to become available (mainly due to the mysql pod startup time), after this the web ui will be available on http://semaphore-semaphore.127.0.0.1.nip.io/auth/login (if running your oc cluster locally and you did not override the url via parameters). You can login with the default values
+
+It will take some moments for the application to become available (mainly due to the mysql pod startup time), check the logs of the semaphore container to see when it is ready. After this the web ui will be available on http://semaphore-semaphore.127.0.0.1.nip.io/auth/login (if running your oc cluster locally and you did not override the url via parameters). You can log in with the default values.
+If you deploy the template to multiple namespaces you must set the SEMAPHORE_URL to a unique value or it will be rejected by the router.
+
+### IMPORTANT NOTE
+
+The current docker image of semaphore runs as root, your Openshift provider may not allow this. If this is the case you can use `tomwhiston/semaphore:latest` which runs as `USER 1001`
+You can create a new app directly with this image by calling `oc new-app semaphore -p SEMAPHORE_IMAGE_SOURCE=docker.io/tomwhiston/semaphore:latest` in place of the final line of the setup.
+
+## Parameters
+
+`oc process --parameters semaphore`
+
+|NAME| DESCRIPTION| VALUE|
+SEMAPHORE_IMAGE_SOURCE| The id of the repository from which to pull the semaphore image| docker.io/castawaylabs/semaphore:latest|
+SEMAPHORE_DATA_VOLUME_SIZE| The size, in Gi of the semaphore data volume, which is mounted at /etc/semaphore| 5|
+SEMAPHORE_URL| Set this to the value which you wish to be passed to the route. Default value works for local development usage| semaphore-semaphore.127.0.0.1.nip.io|

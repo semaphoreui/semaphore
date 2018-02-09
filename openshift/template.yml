@@ -14,7 +14,7 @@ objects:
     - name: latest
       from:
         kind: DockerImage
-        name: docker.io/castawaylabs/semaphore:latest
+        name: "${SEMAPHORE_IMAGE_SOURCE}"
       importPolicy:
         scheduled: true
 - apiVersion: v1
@@ -26,7 +26,7 @@ objects:
     - ReadWriteOnce
     resources:
       requests:
-        storage: 10Gi
+        storage: "${SEMAPHORE_DATA_VOLUME_SIZE}Gi"
   status: {}
 - apiVersion: v1
   kind: DeploymentConfig
@@ -80,7 +80,6 @@ objects:
                 name: mysql
           - name: SEMAPHORE_PLAYBOOK_PATH
             value: /tmp/semaphore
-          image: castawaylabs/semaphore@sha256:49418844c527719558895308aca362fd544442d41d93b60d4684db97abedd19c
           imagePullPolicy: Always
           name: semaphore
           ports:
@@ -112,7 +111,6 @@ objects:
         from:
           kind: ImageStreamTag
           name: semaphore:latest
-          namespace: semaphore
       type: ImageChange
 - apiVersion: v1
   kind: Route
@@ -122,7 +120,7 @@ objects:
     creationTimestamp: null
     name: semaphore
   spec:
-    host: semaphore-semaphore.127.0.0.1.nip.io
+    host: "${SEMAPHORE_URL}"
     port:
       targetPort: 3000-tcp
     to:
@@ -160,3 +158,21 @@ objects:
     type: ClusterIP
   status:
     loadBalancer: {}
+
+
+parameters:
+  - name: SEMAPHORE_IMAGE_SOURCE
+    displayName: Semaphore image
+    description: The id of the repository from which to pull the semaphore image
+    value: docker.io/castawaylabs/semaphore:latest
+    required: true
+  - name: SEMAPHORE_DATA_VOLUME_SIZE
+    displayName: Semaphore data volume size
+    description: The size, in Gi of the semaphore data volume, which is mounted at /etc/semaphore
+    value: "5"
+    required: true
+  - name: SEMAPHORE_URL
+    displayName: URL
+    description: Set this to the value which you wish to be passed to the route. If blank will use generated url
+    required: false
+
