@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: semaphore
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: semaphore
+    labels:
+      app: semaphore
+  spec:
+    tags:
+    - name: latest
+      from:
+        kind: DockerImage
+        name: docker.io/castawaylabs/semaphore:latest
+      importPolicy:
+        scheduled: true
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: semaphore-data
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+  status: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: semaphore
+    name: semaphore
+  spec:
+    replicas: 1
+    selector:
+      app: semaphore
+      deploymentconfig: semaphore
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: semaphore
+          deploymentconfig: semaphore
+      spec:
+        containers:
+        - env:
+          - name: SEMAPHORE_DB_HOST
+            value: mysql
+          - name: SEMAPHORE_DB
+            value: semaphore
+          - name: SEMAPHORE_DB_PASS
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: mysql
+          - name: SEMAPHORE_DB_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: mysql
+          - name: SEMAPHORE_PLAYBOOK_PATH
+            value: /tmp/semaphore
+          image: castawaylabs/semaphore@sha256:49418844c527719558895308aca362fd544442d41d93b60d4684db97abedd19c
+          imagePullPolicy: Always
+          name: semaphore
+          ports:
+          - containerPort: 3000
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/semaphore
+            name: semaphore-etc
+            subPath: etc
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: semaphore-etc
+          persistentVolumeClaim:
+            claimName: semaphore-data
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - semaphore
+        from:
+          kind: ImageStreamTag
+          name: semaphore:latest
+          namespace: semaphore
+      type: ImageChange
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+      openshift.io/host.generated: "true"
+    creationTimestamp: null
+    name: semaphore
+  spec:
+    host: semaphore-semaphore.127.0.0.1.nip.io
+    port:
+      targetPort: 3000-tcp
+    to:
+      kind: Service
+      name: semaphore
+      weight: 100
+    wildcardPolicy: None
+  status:
+    ingress:
+    - conditions:
+      - lastTransitionTime: 2018-02-09T17:53:41Z
+        status: "True"
+        type: Admitted
+      routerName: router
+      wildcardPolicy: None
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: semaphore
+    name: semaphore
+  spec:
+    ports:
+    - name: 3000-tcp
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+    selector:
+      app: semaphore
+      deploymentconfig: semaphore
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
