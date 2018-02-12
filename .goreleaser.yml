@@ -1,0 +1,40 @@
+builds:
+  - binary: semaphore
+    main: ./cli/main.go
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - 386
+    hooks:
+      pre: ./make.sh deps && ./make.sh compile-assets
+fpm:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  vendor: Castaway Consulting LLC
+  homepage: https://github.com/ansible-semaphore/semaphore
+  maintainer: Matej Kramny <github@matej.me>
+
+  description: Open Source alternative to Ansible Tower
+
+  license: MIT
+
+  # Formats to be generated.
+  formats:
+    - deb
+    - rpm
+
+  # Packages your package depends on.
+  dependencies:
+    - ansible
+    - git
+
+  bindir: /usr/bin
+
+#  # Files or directories to add to your package (beyond the binary).
+#  # Keys are source paths to get the files from.
+#  # Values are the destination locations of the files in the package.
+#  files:
+#    "scripts/etc/init.d/": "/etc/init.d"

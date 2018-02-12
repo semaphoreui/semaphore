@@ -13,3 +13,5 @@ caddyfile
 vendor\.orig/
 
 vendor/
+
+dist/
