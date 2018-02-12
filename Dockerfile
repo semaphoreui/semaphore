@@ -11,6 +11,8 @@ EXPOSE 3000
 ADD ./scripts/docker-startup.sh /usr/bin/semaphore-startup.sh
 RUN chmod +x /usr/bin/semaphore-startup.sh
 
+USER 1001
+
 ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["/usr/bin/semaphore-startup.sh", "/usr/bin/semaphore", "-config", "/etc/semaphore/semaphore_config.json"]
