@@ -1,3 +1,4 @@
+# You must `export GITHUB_TOKEN=`YOUR_TOKEN`` before releasing a build
 builds:
   - binary: semaphore
     main: ./cli/main.go
@@ -5,11 +6,32 @@ builds:
       - windows
       - darwin
       - linux
+      - freebsd
+      - openbsd
+      - netbsd
+      - plan9
     goarch:
       - amd64
       - 386
+      - arm
+      - arm64
     hooks:
       pre: ./make.sh deps && ./make.sh compile-assets
+
+archive:
+  format_overrides:
+    - goos: windows
+      format: zip
+
+# Need to look at how to do this on the ci
+#sign:
+#   artifacts: checksum
+
+snapshot:
+  # Start the snapshot name with a numerical value
+  # so it does not need to be force installed
+  name_template: "{{.Timestamp}}-{{.Commit}}-SNAPSHOT"
+
 fpm:
   name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
@@ -30,6 +52,7 @@ fpm:
   dependencies:
     - ansible
     - git
+    - mysql-client
 
   bindir: /usr/bin
 
