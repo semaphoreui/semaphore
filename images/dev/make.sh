@@ -43,3 +43,17 @@ if [ "$1" == "clean" ]; then
     rm -rf public/node_modules
     docker rmi -f ansible-semaphore/sempahore:test
 fi
+
+if [ "$1" == "generate-config" ]; then
+    cat > "${APP_ROOT}config.json" <<EOF
+{
+	"mysql": {
+		"host": "mysql:3306",
+		"user": "semaphore",
+		"pass": "semaphore",
+		"name": "semaphore"
+	},
+	"port": ":3000"
+}
+EOF
+fi

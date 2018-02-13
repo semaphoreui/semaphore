@@ -9,7 +9,13 @@ When creating a pull-request you should:
 ## Docker
 
 The easiest way to get started developing semaphore is to use docker. To create a development image you should run
-`./make.sh dev up`. 
+```
+# You only need to do this the first time to place a default config file in the src root
+./make.sh dev generate-config
+# This will (re)build the app container and start the app and db containers
+./make.sh dev up
+```
+
 
 This will create the image and start both the application and a mysql database, inside this image the project route will be mounted as a volume so local changes are reflected in container. The default image start command is `./make.sh watch`
 
