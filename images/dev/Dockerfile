@@ -7,7 +7,7 @@ ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     WATCH_STARTUP_CMD="images/common/semaphore-startup.sh /tmp/semaphore -config /etc/semaphore/semaphore_config.json" \
     APP_ROOT="/go/src/github.com/ansible-semaphore/semaphore/"
 
-RUN apk add --no-cache git mysql-client python py-pip openssl ca-certificates curl openssh-client tini nodejs nodejs-npm bash rsync && \
+RUN apk add --no-cache git mysql-client python py-pip py-openssl openssl ca-certificates curl openssh-client tini nodejs nodejs-npm bash rsync && \
     apk --update add --virtual build-dependencies python-dev libffi-dev openssl-dev build-base  && \
     pip install --upgrade pip cffi    && \
     pip install ansible               && \
