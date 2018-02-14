@@ -405,7 +405,12 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 			return nil, err
 		}
 
-		args = append(args, "--extra-vars", t.environment.JSON)
+		extraVar, err := removeCommandEnvironment(t.environment.JSON, js)
+		if err != nil {
+			t.log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		}
+
+		args = append(args, "--extra-vars", extraVar)
 	}
 
 	var extraArgs []string
@@ -433,9 +438,46 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	//env = append(env, fmt.Sprintln("GIT_FLUSH=1"))
 
+	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
+
 	if gitSSHCommand != nil {
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", *gitSSHCommand))
 	}
 
 	return env
+}
+
+// extractCommandEnvironment unmarshalls a json string, extracts the ENV key from it and returns it as
+// []string where strings are in key=value format
+func extractCommandEnvironment(envJson string) []string {
+	env := make([]string, 0)
+	var js map[string]interface{}
+	err := json.Unmarshal([]byte(envJson), &js)
+	if err == nil {
+		if cfg, ok := js["ENV"]; ok {
+			switch v := cfg.(type) {
+			case map[string]interface{}:
+				for key, val := range v {
+					env = append(env, fmt.Sprintf("%s=%s", key, val))
+				}
+			}
+		}
+	}
+	return env
+}
+
+// removeCommandEnvironment removes the ENV key from task environments and returns the resultant json encoded string
+// which can be passed as the --extra-vars flag values
+func removeCommandEnvironment(envJson string, envJs map[string]interface{}) (string, error) {
+	if _, ok := envJs["ENV"]; ok {
+		delete(envJs, "ENV")
+		ev, err := json.Marshal(envJs)
+		if err != nil {
+			return envJson, err
+		}
+		envJson = string(ev)
+	}
+
+	return envJson, nil
+
 }
