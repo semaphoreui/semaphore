@@ -11,7 +11,7 @@ RUN apk add --no-cache git mysql-client python py-pip py-openssl openssl ca-cert
     apk --update add --virtual build-dependencies python-dev libffi-dev openssl-dev build-base  && \
     pip install --upgrade pip cffi    && \
     pip install ansible               && \
-    mkdir -p /etc/semaphore/playbooks && \
+    mkdir -p /etc/semaphore_data/playbooks && \
     mkdir -p /go/src/app /go/src/github.com/ansible-semaphore/semaphore && \
     ln -s /go/src/github.com/ansible-semaphore/semaphore /go/src/app && \
     ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N "" && \

@@ -6,7 +6,7 @@ echoerr() { printf "%s\n" "$*" >&2; }
 
 SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
 
-SEMAPHORE_PLAYBOOK_PATH="${SEMAPHORE_PLAYBOOK_PATH:-/semaphore}"
+SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore_data}"
 # Semaphore database env config
 SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-127.0.0.1}"
 SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-3306}"
@@ -34,9 +34,14 @@ SEMAPHORE_LDAP_MAPPING_USERNAME="${SEMAPHORE_LDAP_MAPPING_USERNAME:-uid}"
 SEMAPHORE_LDAP_MAPPING_FULLNAME="${SEMAPHORE_LDAP_MAPPING_FULLNAME:-cn}"
 SEMAPHORE_LDAP_MAPPING_EMAIL="${SEMAPHORE_LDAP_MAPPING_EMAIL:-mail}"
 
-# create semaphore playbook directory
-mkdir -p "${SEMAPHORE_PLAYBOOK_PATH}" || {
-    echo "Can't create Semaphore playbook path '$SEMAPHORE_PLAYBOOK_PATH'."
+# create semaphore temporary directory if non existent
+[ -d "${SEMAPHORE_TMP_PATH}" ] || mkdir -p "${SEMAPHORE_TMP_PATH}" || {
+    echo "Can't create Semaphore tmp path ${SEMAPHORE_TMP_PATH}."
+    exit 1
+}
+# create semaphore config directory if non existent
+[ -d "${SEMAPHORE_CONFIG_PATH}" ] || mkdir -p "${SEMAPHORE_CONFIG_PATH}" || {
+    echo "Can't create Semaphore Config path ${SEMAPHORE_CONFIG_PATH}."
     exit 1
 }
 
@@ -53,14 +58,15 @@ while ! mysqladmin ping -h"$SEMAPHORE_DB_HOST" -P "$SEMAPHORE_DB_PORT" -u "$SEMA
     sleep 1
 done
 
-if [ ! -f "${SEMAPHORE_PLAYBOOK_PATH}/semaphore_config.json" ]; then
-    echoerr "Generating ${SEMAPHORE_PLAYBOOK_PATH}/config.stdin ..."
-    cat << EOF > "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
+# Create a config if it does not exist in the current config path
+if [ ! -f "${SEMAPHORE_CONFIG_PATH}/semaphore_config.json" ]; then
+    echoerr "Generating ${SEMAPHORE_TMP_PATH}/config.stdin ..."
+    cat << EOF > "${SEMAPHORE_TMP_PATH}/config.stdin"
 ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}
 ${SEMAPHORE_DB_USER}
 ${SEMAPHORE_DB_PASS}
 ${SEMAPHORE_DB}
-${SEMAPHORE_PLAYBOOK_PATH}
+${SEMAPHORE_TMP_PATH}
 ${SEMAPHORE_WEB_ROOT}
 no
 no
@@ -68,7 +74,7 @@ ${SEMAPHORE_LDAP_ACTIVATED}
 EOF
 
     if [ "${SEMAPHORE_LDAP_ACTIVATED}" = "yes" ]; then
-        cat << EOF >> "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
+        cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
 ${SEMAPHORE_LDAP_HOST}:${SEMAPHORE_LDAP_PORT}
 ${SEMAPHORE_LDAP_NEEDTLS}
 ${SEMAPHORE_LDAP_DN_BIND}
@@ -82,7 +88,7 @@ ${SEMAPHORE_LDAP_MAPPING_EMAIL}
 EOF
     fi;
 
-    cat << EOF >> "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
+    cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
 yes
 ${SEMAPHORE_ADMIN}
 ${SEMAPHORE_ADMIN_EMAIL}
@@ -90,10 +96,13 @@ ${SEMAPHORE_ADMIN_NAME}
 ${SEMAPHORE_ADMIN_PASSWORD}
 EOF
 
-    cat "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
-    $1 -setup - < "${SEMAPHORE_PLAYBOOK_PATH}/config.stdin"
+    cat "${SEMAPHORE_TMP_PATH}/config.stdin"
+    $1 -setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
 
-    ln -s "${SEMAPHORE_PLAYBOOK_PATH}/semaphore_config.json" ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json 2>/dev/null || true
+
+    echoerr "Moving config file to non temporary path ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json"
+    mv  "${SEMAPHORE_TMP_PATH}/semaphore_config.json" ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json 2>/dev/null || true
+    echoerr "Run Semaphore with semaphore -config ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json"
 fi
 
 # run our command
