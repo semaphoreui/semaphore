@@ -1,5 +1,5 @@
-required = ["github.com/cespare/reflex", "github.com/shuLhan/go-bindata/go-bindata", "github.com/mitchellh/gox"]
-ignored = ["github.com/ansible-semaphore/semaphore*"]
+required = ["github.com/cespare/reflex", "github.com/shuLhan/go-bindata/go-bindata", "github.com/mitchellh/gox", "github.com/derekparker/delve/cmd/dlv"]
+
 
 [[constraint]]
   name = "github.com/Sirupsen/logrus"
@@ -43,7 +43,7 @@ ignored = ["github.com/ansible-semaphore/semaphore*"]
 
 [[constraint]]
   name = "github.com/russross/blackfriday"
-  version = "1.0.0"
+  version = "1.5.0"
 
 [[constraint]]
   branch = "master"

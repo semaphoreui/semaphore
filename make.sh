@@ -56,6 +56,10 @@ if [ "$1" == "deps" ]; then
     exit 0
 fi
 
+if [ "$1" == "deps-update" ]; then
+    dep ensure
+fi
+
 if [ "$1" == "ci_test" ]; then
 	echo "Creating CI Test config.json"
 
@@ -117,10 +121,10 @@ fi
 
 
 # Runs a local delve server on a debug build of semaphore
-if [ "$1" == "delve" ]; then
-    ./make.sh compile-assets
-	go build -gcflags='-N -l' -a -o /tmp/semaphore_bin_dbg cli/main.go
-	dlv --listen="${DELVE_HOST}:${DELVE_PORT}" --headless=true --api-version=2 --backend=native exec /tmp/semaphore_bin_dbg
+if [ "$1" == "debug" ]; then
+    pushd cli
+        dlv debug --headless --listen="${DELVE_HOST}:${DELVE_PORT}" --api-version=2
+    popd
     exit $?
 fi
 

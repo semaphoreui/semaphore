@@ -20,6 +20,31 @@
   version = "v0.2.0"
 
 [[projects]]
+  name = "github.com/derekparker/delve"
+  packages = [
+    "cmd/dlv",
+    "cmd/dlv/cmds",
+    "pkg/config",
+    "pkg/dwarf/frame",
+    "pkg/dwarf/line",
+    "pkg/dwarf/op",
+    "pkg/dwarf/reader",
+    "pkg/dwarf/util",
+    "pkg/proc",
+    "pkg/target",
+    "pkg/terminal",
+    "pkg/version",
+    "service",
+    "service/api",
+    "service/debugger",
+    "service/rpc1",
+    "service/rpc2",
+    "service/rpccommon"
+  ]
+  revision = "f6057161606f66f1197c96ad8b6a9580ee1bb68b"
+  version = "v0.12.2"
+
+[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
@@ -74,6 +99,12 @@
   version = "v1.2.0"
 
 [[projects]]
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/kballard/go-shellquote"
   packages = ["."]
@@ -104,6 +135,18 @@
   version = "v1.0"
 
 [[projects]]
+  name = "github.com/mattn/go-colorable"
+  packages = ["."]
+  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
+  version = "v0.0.9"
+
+[[projects]]
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
+  version = "v0.0.3"
+
+[[projects]]
   name = "github.com/mitchellh/gox"
   packages = ["."]
   revision = "c9740af9c6574448fd48eb30a71f964014c7a837"
@@ -122,6 +165,12 @@
   version = "v0.0.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/peterh/liner"
+  packages = ["."]
+  revision = "3681c2a912330352991ecdd642f257efe5b85518"
+
+[[projects]]
   name = "github.com/russross/blackfriday"
   packages = ["."]
   revision = "4048872b16cc0fc2c5fd9eacf0ed2c2fedaa0c8c"
@@ -137,6 +186,18 @@
   version = "v3.2.0"
 
 [[projects]]
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
+  version = "v0.0.1"
+
+[[projects]]
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
@@ -144,7 +205,17 @@
     "blowfish",
     "ssh/terminal"
   ]
-  revision = "d9133f5469342136e669e85192a26056b587f503"
+  revision = "650f4a345ab4e5b245a3034b110ebc7299e68186"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/debug"
+  packages = [
+    "dwarf",
+    "elf",
+    "macho"
+  ]
+  revision = "95515998a8a4bd7448134b2cb5971dbeb12e0b77"
 
 [[projects]]
   branch = "master"
@@ -173,9 +244,21 @@
   revision = "bb7a9ca6e4fbc2129e3db588a34bc970ffe811a9"
   version = "v2.5.1"
 
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+
+[[projects]]
+  branch = "master"
+  name = "rsc.io/x86"
+  packages = ["x86asm"]
+  revision = "01d8f0379593fd888e08a4c4057d69f5765ab2e4"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "76f711eace284316a8f53a611ac44e7a28f0731ad4b6332d53c7c7499071939f"
+  inputs-digest = "fd19232496a98559d1b6094e2a8c947f89e5736592c5aba210d55d4086eea72e"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -22,11 +22,16 @@ fi
 
 if [ "$1" == "up" ]; then
     docker-compose -f "${DIR}"/docker-compose.yml build semaphore_dev
-    docker-compose -f "${DIR}"/docker-compose.yml up --force-recreate
+    docker-compose -f "${DIR}"/docker-compose.yml up --force-recreate --abort-on-container-exit
+fi
+
+if [ "$1" == "debug" ]; then
+    docker-compose -f "${DIR}"/docker-compose.debug.yml build semaphore_dlv
+    docker-compose -f "${DIR}"/docker-compose.debug.yml up --force-recreate --abort-on-container-exit
 fi
 
 if [ "$1" == "start" ]; then
-    docker-compose -f "${DIR}"/docker-compose.yml up
+    docker-compose -f "${DIR}"/docker-compose.yml up --abort-on-container-exit
 fi
 
 if [ "$1" == "stop" ]; then

@@ -15,3 +15,5 @@ vendor\.orig/
 vendor/
 
 dist/
+
+\.tmp/
