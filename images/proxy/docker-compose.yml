@@ -1,0 +1,40 @@
+version: '2'
+
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: semaphore
+      MYSQL_USER: semaphore
+      MYSQL_PASSWORD: semaphore
+    hostname: mysql
+    expose:
+      - 3306
+
+  semaphore_api:
+    image: castawaylabs/semaphore
+    environment:
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB_HOST: mysql
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB: semaphore
+      SEMAPHORE_PLAYBOOK_PATH: /etc/semaphore/
+      SEMAPHORE_ADMIN_PASSWORD: cangetin
+      SEMAPHORE_ADMIN_NAME: Default\ Administrator
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
+    expose:
+      - 3000
+    ports:
+      - 8081:3000
+
+  semaphore_proxy:
+    build: .
+    expose:
+      - 443
+      - 80
+    ports:
+      - 8080:80
+      - 8443:443

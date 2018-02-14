@@ -21,6 +21,7 @@ import (
 )
 
 func main() {
+	util.ConfigInit()
 	if util.InteractiveSetup {
 		os.Exit(doSetup())
 	}

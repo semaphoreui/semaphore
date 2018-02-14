@@ -1,0 +1,63 @@
+# You must `export GITHUB_TOKEN=`YOUR_TOKEN`` before releasing a build
+builds:
+  - binary: semaphore
+    main: ./cli/main.go
+    goos:
+      - windows
+      - darwin
+      - linux
+      - freebsd
+      - openbsd
+      - netbsd
+      - plan9
+    goarch:
+      - amd64
+      - 386
+      - arm
+      - arm64
+    hooks:
+      pre: ./make.sh deps && ./make.sh compile-assets
+
+archive:
+  format_overrides:
+    - goos: windows
+      format: zip
+
+# Need to look at how to do this on the ci
+#sign:
+#   artifacts: checksum
+
+snapshot:
+  # Start the snapshot name with a numerical value
+  # so it does not need to be force installed
+  name_template: "{{.Timestamp}}-{{.Commit}}-SNAPSHOT"
+
+fpm:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  vendor: Castaway Consulting LLC
+  homepage: https://github.com/ansible-semaphore/semaphore
+  maintainer: Matej Kramny <github@matej.me>
+
+  description: Open Source alternative to Ansible Tower
+
+  license: MIT
+
+  # Formats to be generated.
+  formats:
+    - deb
+    - rpm
+
+  # Packages your package depends on.
+  dependencies:
+    - ansible
+    - git
+    - mysql-client
+
+  bindir: /usr/bin
+
+#  # Files or directories to add to your package (beyond the binary).
+#  # Keys are source paths to get the files from.
+#  # Values are the destination locations of the files in the package.
+#  files:
+#    "scripts/etc/init.d/": "/etc/init.d"

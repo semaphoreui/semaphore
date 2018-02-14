@@ -6,7 +6,25 @@ When creating a pull-request you should:
 - __gofmt and vet the code:__ Use  `gofmt`, `golint`, `govet` and `goimports` to clean up your code.
 - __Update api documentation:__ If your pull-request adding/modifying an API request, make sure you update the swagger documentation (`api-docs.yml`)
 
-# Installation in a development environment
+## Docker
+
+The easiest way to get started developing semaphore is to use docker. To create a development image you should run
+```
+# You only need to do this the first time to place a default config file in the src root
+./make.sh dev generate-config
+# This will (re)build the app container and start the app and db containers
+./make.sh dev up
+```
+
+
+This will create the image and start both the application and a mysql database, inside this image the project route will be mounted as a volume so local changes are reflected in container. The default image start command is `./make.sh watch`
+
+- On start the container will install all dependencies and rebuild tools and assets. 
+- To avoid a rebuild on every start use `./make.sh dev start` instead of `up`
+- To work directly in the container you can run `make.sh dev cmd`
+- For other possible dev commands see images/dev/make.sh
+
+## Installation in a local development environment
 
 - Check out the `develop` branch
 - [Install Go](https://golang.org/doc/install)
@@ -33,9 +51,7 @@ git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semap
 3) Install dev dependencies
 
 ```
-go get ./... github.com/cespare/reflex github.com/jteeuwen/go-bindata/... github.com/mitchellh/gox
-npm install async
-npm install -g nodemon pug-cli less
+./make.sh deps
 ```
 
 4) Set up config, database & run migrations

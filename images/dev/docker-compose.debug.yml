@@ -1,0 +1,39 @@
+version: '2'
+
+services:
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: semaphore
+      MYSQL_USER: semaphore
+      MYSQL_PASSWORD: semaphore
+
+  semaphore_dlv:
+    image: ansible-semaphore/semaphore:debug
+    command: ["bash", "-c", "./make.sh deps && ./make.sh debug"]
+    build:
+      context: ./../../
+      dockerfile: ./images/dev/Dockerfile
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB_HOST: mysql
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB: semaphore
+      SEMAPHORE_PLAYBOOK_PATH: /etc/semaphore
+      SEMAPHORE_ADMIN_PASSWORD: password
+      SEMAPHORE_ADMIN_NAME: "Developer"
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
+      DELVE_PORT: "57780"
+      DELVE_HOST: "0.0.0.0"
+    ports:
+      - "3000:3000"
+      - "57780:57780"
+    depends_on:
+      - mysql
+
