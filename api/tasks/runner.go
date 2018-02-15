@@ -59,6 +59,13 @@ func (t *task) prepareRun() {
 	}()
 
 	t.log("Preparing: " + strconv.Itoa(t.task.ID))
+	
+	err := checkTmpDir(util.Config.TmpPath)
+	if err != nil {
+		t.log("Creating tmp dir failed: " + err.Error())
+		t.fail()
+		return
+	}
 
 	if err := t.populateDetails(); err != nil {
 		t.log("Error: " + err.Error())
@@ -438,4 +445,16 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	}
 
 	return env
+}
+
+// checkTmpDir checks to see if the temporary directory exists
+// and if it does not attempts to create it
+func checkTmpDir(path string) error {
+	var err error = nil
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return os.MkdirAll(path, os.FileMode(int(0640)))
+		}
+	}
+	return err
 }
