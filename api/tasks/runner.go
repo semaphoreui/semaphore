@@ -59,7 +59,7 @@ func (t *task) prepareRun() {
 	}()
 
 	t.log("Preparing: " + strconv.Itoa(t.task.ID))
-	
+
 	err := checkTmpDir(util.Config.TmpPath)
 	if err != nil {
 		t.log("Creating tmp dir failed: " + err.Error())
@@ -453,7 +453,7 @@ func checkTmpDir(path string) error {
 	var err error = nil
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(path, os.FileMode(int(0640)))
+			return os.MkdirAll(path, 1777)
 		}
 	}
 	return err

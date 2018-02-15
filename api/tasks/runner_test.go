@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"time"
 	"os"
-	"log"
 )
 
 
