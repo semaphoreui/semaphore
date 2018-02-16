@@ -30,7 +30,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 
 	editor := context.Get(r, "user").(*db.User)
 	if editor.Admin != true {
-		log.Warn(editor.Username + " doesn't permitted for user creating")
+		log.Warn(editor.Username + " doesn't permit user creation")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
