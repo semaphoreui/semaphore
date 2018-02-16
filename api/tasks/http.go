@@ -105,6 +105,13 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
+	editor := context.Get(r, "user").(*db.User)
+
+	if editor.Admin != true {
+		log.Warn(editor.Username + " doesn't permit task log deletion")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	statements := []string{
 		"delete from task__output where task_id=?",
