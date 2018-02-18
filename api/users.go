@@ -62,7 +62,7 @@ func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 
 	editor := context.Get(r, "user").(*db.User)
 	if editor.Admin != true && editor.ID != user.ID {
-		log.Warn(editor.Username + " doesn't permitted for user editing")
+		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
