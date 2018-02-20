@@ -30,7 +30,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 
 	editor := context.Get(r, "user").(*db.User)
 	if editor.Admin != true {
-		log.Warn(editor.Username + " doesn't permit user creation")
+		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -80,7 +80,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if editor.Admin != true && editor.ID != oldUser.ID {
-		log.Warn(editor.Username + " doesn't permitted for user editing")
+		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -113,7 +113,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if editor.Admin != true && editor.ID != user.ID {
-		log.Warn(editor.Username + " doesn't permitted for user editing")
+		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -141,7 +141,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*db.User)
 
 	if editor.Admin != true && editor.ID != user.ID {
-		log.Warn(editor.Username + " doesn't permitted for user deletion")
+		log.Warn(editor.Username + " is not permitted to delete users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}

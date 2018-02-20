@@ -109,7 +109,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*db.User)
 
 	if editor.Admin != true {
-		log.Warn(editor.Username + " doesn't permit task log deletion")
+		log.Warn(editor.Username + " is not permitted to delete task logs")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
