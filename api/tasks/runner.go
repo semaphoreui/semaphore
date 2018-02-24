@@ -50,7 +50,7 @@ func (t *task) prepareRun() {
 
 	defer func() {
 		fmt.Println("Stopped preparing task")
-		pool.running = nil
+		pool.running = 0
 		err := t.RemoveVaultFiles()
 		if err != nil {
 			t.log("Could not remove vault files")
@@ -444,7 +444,7 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		err := t.InstallUserVarFile()
 		if err != nil {
 			t.log("Could not write user vars file")
-			return err
+			return nil, err
 		}
 		args = append(args, "--extra-vars", "@"+util.Config.TmpPath+"/user_vars_"+strconv.Itoa(t.task.ID))
 	}
@@ -453,7 +453,7 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		err := t.InstallVaultFiles()
 		if err != nil {
 			t.log("Could not write vault files")
-			return err
+			return nil, err
 		}
 		args = append(args, "--vault-password-file", util.Config.TmpPath+"/vault_pass_"+strconv.Itoa(t.task.ID))
 		args = append(args, "--extra-vars", "@"+util.Config.TmpPath+"/vault_"+strconv.Itoa(t.task.ID))
