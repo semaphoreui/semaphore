@@ -372,6 +372,7 @@ func (t *task) runPlaybook() error {
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)
+	cmd.Stdin = strings.NewReader("")
 	return cmd.Run()
 }
 
