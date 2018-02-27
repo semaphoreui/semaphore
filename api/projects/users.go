@@ -36,7 +36,8 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var users []struct {
 		db.User
-		Admin bool `db:"admin" json:"admin"`
+		Admin      bool `db:"admin" json:"admin"`
+		LaunchOnly bool `db:"launch_only" json:"launch_only"`
 	}
 
 	sort := r.URL.Query().Get("sort")
@@ -46,7 +47,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		order = "asc"
 	}
 
-	q := squirrel.Select("u.*").Column("pu.admin").
+	q := squirrel.Select("u.*").Column("pu.admin").Column("pu.launch_only").
 		From("project__user as pu").
 		LeftJoin("user as u on pu.user_id=u.id").
 		Where("pu.project_id=?", project.ID)
@@ -72,15 +73,16 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var user struct {
-		UserID int  `json:"user_id" binding:"required"`
-		Admin  bool `json:"admin"`
+		UserID     int  `json:"user_id" binding:"required"`
+		Admin      bool `json:"admin"`
+		LaunchOnly bool `json:"launch_only"`
 	}
 
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, `admin`=?", user.UserID, project.ID, user.Admin); err != nil {
+	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, `admin`=?, `launch_only`=?", user.UserID, project.ID, user.Admin, user.LaunchOnly); err != nil {
 		panic(err)
 	}
 
@@ -131,6 +133,23 @@ func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := db.Mysql.Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func MakeUserLaunchOnly(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "projectUser").(db.User)
+	launchOnly := 1
+
+	if r.Method == "DELETE" {
+		// strip launchOnly
+		launchOnly = 0
+	}
+
+	if _, err := db.Mysql.Exec("update project__user set `launch_only`=? where user_id=? and project_id=?", launchOnly, user.ID, project.ID); err != nil {
 		panic(err)
 	}
 

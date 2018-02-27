@@ -6,11 +6,17 @@ table.table
 		th Name
 		th Username
 		th Email
+		th Launch-Only
 		th Admin
 	tbody: tr(ng-repeat="u in users" ng-class="{ info: u.id == user.id }")
 		td {{ u.name }}
 		td {{ u.username }}
 		td {{ u.email }}
+		td 
+			i.fa.fa-fw(ng-if="!project_user.admin" ng-class="{ 'fa-times': !u.launch_only, 'fa-check': u.launch_only }")
+			.btn-group(ng-if="project_user.admin")
+				button.btn.btn-xs.btn-default(ng-click="setLaunchOnly(u)")
+					i.fa.fa-fw(ng-class="{ 'fa-times': !u.launch_only, 'fa-check': u.launch_only }")
 		td
 			i.fa.fa-fw(ng-if="!project_user.admin" ng-class="{ 'fa-times': !u.admin, 'fa-check': u.admin }")
 			.btn-group(ng-if="project_user.admin")

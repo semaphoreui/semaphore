@@ -38,6 +38,13 @@ define(['controllers/projects/taskRunner'], function () {
 				$scope.environmentAssoc[i.id] = i;
 			});
 		});
+		$http.get(Project.getURL() + '/users').success(function (users) {
+			$scope.project_user = users.find(function (us) {
+				return us.username === $scope.user.username;
+			});
+		});
+
+
 
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').success(function (templates) {

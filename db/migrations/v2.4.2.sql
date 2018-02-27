@@ -1,0 +1,1 @@
+ALTER TABLE project__user ADD launch_only BOOLEAN NOT NULL DEFAULT 0 AFTER admin;
