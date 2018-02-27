@@ -12,6 +12,9 @@
 		dd {{ task.endFormatted }}
 		dt Created
 		dd {{ task.createdFormatted }}
+		dt Permalink
+		dd 
+			a(href="{{ task.URL }}") Output
 		dt Raw output
 		dd: input(type="checkbox" ng-model="raw" title="show logs unbesmirched")
 
