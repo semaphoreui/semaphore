@@ -9,6 +9,8 @@ ALTER TABLE user ADD COLUMN `extra_vars` TEXT DEFAULT "";
 ALTER TABLE user ADD COLUMN `vault` TEXT DEFAULT "";
 UPDATE user SET extra_vars = "", vault="";
 
+ALTER TABLE project__template ADD vault_id INT(11) NOT NULL DEFAULT 0 AFTER environment_id;
+
 ALTER TABLE project__template ADD COLUMN `user_vault` TINYINT(1) NOT NULL DEFAULT '0';
 
 ALTER TABLE project__template ADD COLUMN `user_vars` TINYINT(1) NOT NULL DEFAULT '0';
