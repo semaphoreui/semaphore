@@ -5,8 +5,8 @@ UPDATE access_key SET owner=0;
 UPDATE access_key SET `owner`=0;
 #SET SESSION sql_mode = @SAVE_sql_modes;
 
-ALTER TABLE user ADD COLUMN `extra_vars` TEXT DEFAULT "";
-ALTER TABLE user ADD COLUMN `vault` TEXT DEFAULT "";
+ALTER TABLE user ADD COLUMN `extra_vars` TEXT;
+ALTER TABLE user ADD COLUMN `vault` TEXT;
 UPDATE user SET extra_vars = "", vault="";
 
 ALTER TABLE project__template ADD vault_id INT(11) NOT NULL DEFAULT 0 AFTER environment_id;
