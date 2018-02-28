@@ -12,7 +12,7 @@
 		.form-group
 			label.control-label.col-sm-4 Environment Override (*MUST* be valid JSON)
 			.col-sm-6
-				div(ui-ace="{mode: 'json', showGutter: false}" class="form-control" style="height: 100px" ng-model="task.environment")
+				div(ui-ace="{mode: 'json', showGutter: false, workerPath: '/public/js/ace/'}" class="form-control" style="height: 100px" ng-model="task.environment")
 		.form-group
 			.col-sm-6.col-sm-offset-4: .checkbox: label
 				input(type="checkbox" ng-model="task.debug")

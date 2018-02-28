@@ -2,7 +2,7 @@
 	h3.modal-title Edit Inventory
 
 .modal-body(style="padding: 0")
-	div(ui-ace="{mode: 'json'}" style="height: 200px" ng-model="inventory")
+	div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" style="height: 200px" ng-model="inventory")
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Cancel
 	button.btn.btn-success(ng-click="$close(inventory)") Save Changes
