@@ -44,7 +44,7 @@ define(['controllers/projects/taskRunner'], function() {
                     if (!t.start || !t.end) {
                         return;
                     }
-
+                    t.URL = '/api' + $scope.project.getURL() + '/tasks/' + t.id + '/output'
                     t.duration = moment(t.end).diff(moment(t.start), 'minutes');
                 });
             });

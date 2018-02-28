@@ -64,16 +64,38 @@ func (t *task) updateStatus() {
 	}
 }
 
-func (t *task) logPipe(scanner *bufio.Scanner) {
-	for scanner.Scan() {
-		t.log(scanner.Text())
+func Readln(r *bufio.Reader) (string, error) {
+	var (
+		isPrefix bool  = true
+		err      error = nil
+		line, ln []byte
+	)
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.ReadLine()
+		ln = append(ln, line...)
 	}
+	return string(ln), err
+}
+
+func (t *task) logPipe(reader *bufio.Reader) {
+
+	line, err := Readln(reader)
+	for err == nil {
+		t.log(line)
+		line, err = Readln(reader)
+	}
+
+	if err != nil && err.Error() != "EOF" {
+		//don't panic on this errors, sometimes it throw not dangerous "read |0: file already closed" error
+		fmt.Printf("Failed to read task output: %s\n", err.Error())
+	}
+
 }
 
 func (t *task) logCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go t.logPipe(bufio.NewScanner(stderr))
-	go t.logPipe(bufio.NewScanner(stdout))
+	go t.logPipe(bufio.NewReader(stderr))
+	go t.logPipe(bufio.NewReader(stdout))
 }
