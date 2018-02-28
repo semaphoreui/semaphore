@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
@@ -123,6 +124,13 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
+	editor := context.Get(r, "user").(*db.User)
+
+	if editor.Admin != true {
+		log.Warn(editor.Username + " is not permitted to delete task logs")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	statements := []string{
 		"delete from task__output where task_id=?",

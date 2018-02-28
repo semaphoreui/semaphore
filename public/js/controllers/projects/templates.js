@@ -1,5 +1,5 @@
 define(['controllers/projects/taskRunner'], function () {
-	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
+	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', '$window',function ($scope, $http, $modal, Project, $rootScope, $window) {
 		$http.get(Project.getURL() + '/keys?type=ssh&filter=public').success(function (keys) {
 			$http.get(Project.getURL() + '/keys?type=vault').success(function (vaults) {
 				$scope.sshKeys = keys;
@@ -48,8 +48,31 @@ define(['controllers/projects/taskRunner'], function () {
 			});
 		});
 
+		function getHiddenTemplates() {
+			try {
+				return JSON.parse($window.localStorage.getItem('hidden-templates') || '[]');
+			} catch(e) {
+				return [];
+			}
+		}
+
+		function setHiddenTemplates(hiddenTemplates) {
+			$window.localStorage.setItem('hidden-templates', JSON.stringify(hiddenTemplates));
+		}
+
+		$scope.hasHiddenTemplates = function() {
+			return getHiddenTemplates().length > 0;
+		}
+
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').success(function (templates) {
+				var hiddenTemplates = getHiddenTemplates();
+				for (var i = 0; i < templates.length; i++) {
+					var template = templates[i];
+					if (hiddenTemplates.indexOf(template.id) !== -1) {
+						template.hidden = true;
+					}
+				}
 				$scope.templates = templates;
 			});
 		}
@@ -135,6 +158,33 @@ define(['controllers/projects/taskRunner'], function () {
 					size: 'lg'
 				});
 			})
+		}
+
+		$scope.showAll = function() {
+			$scope.allShown = true;
+		}
+
+		$scope.hideHidden = function() {
+			$scope.allShown = false;
+		}
+
+		$scope.hideTemplate = function(template) {
+			var hiddenTemplates = getHiddenTemplates();
+			if (hiddenTemplates.indexOf(template.id) === -1) {
+				hiddenTemplates.push(template.id);
+			}
+			setHiddenTemplates(hiddenTemplates);
+			template.hidden = true;
+		}
+
+		$scope.showTemplate = function(template) {
+			var hiddenTemplates = getHiddenTemplates();
+			var i = hiddenTemplates.indexOf(template.id);
+			if (i !== -1) {
+				hiddenTemplates.splice(i, 1);
+			}
+			setHiddenTemplates(hiddenTemplates);
+			delete template.hidden;
 		}
 
 		$scope.copy = function (template) {

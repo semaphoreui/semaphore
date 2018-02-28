@@ -144,7 +144,7 @@ func doSetup() int {
 		user.Password = readNewline(" > Password: ", stdin)
 		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 
-		if _, err := db.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
+		if _, err := db.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, admin=1, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}
