@@ -121,9 +121,7 @@ define(['controllers/projects/taskRunner'], function () {
 				}).catch(function (response) {
 					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			});
-
-			modal.closed.then(function () {
+			}, function() {
 				$scope.reload();
 			});
 		}
