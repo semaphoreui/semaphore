@@ -105,10 +105,12 @@ define(['controllers/projects/taskRunner'], function () {
 			scope.repositories = $scope.repos;
 			scope.environment = $scope.environment;
 
-			$modal.open({
+			var modal = $modal.open({
 				templateUrl: '/tpl/projects/templates/add.html',
 				scope: scope
-			}).result.then(function (opts) {
+			});
+
+			modal.result.then(function (opts) {
 				if (opts.remove) {
 					return $scope.remove(template);
 				}
@@ -119,7 +121,9 @@ define(['controllers/projects/taskRunner'], function () {
 				}).catch(function (response) {
 					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			}).closed.then(function () {
+			});
+
+			modal.closed.then(function () {
 				$scope.reload();
 			});
 		}
