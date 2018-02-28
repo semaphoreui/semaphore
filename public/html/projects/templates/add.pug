@@ -46,6 +46,11 @@
 				select.form-control(ng-model="tpl.environment_id" ng-options="env.id as env.name disable when env.removed for env in environment")
 					option(value="") -- Select Task Environment --
 		.form-group
+			label.control-label.col-sm-4 Vault Password
+			.col-sm-6
+				select.form-control(ng-model="tpl.vault_id" ng-options="key.id as key.name disable when key.removed for key in vault")
+					option(value="") None
+		.form-group
 			label.control-label.col-sm-4(style="font-weight: normal;") (*) required fields
 
 		hr

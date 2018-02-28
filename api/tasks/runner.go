@@ -21,6 +21,7 @@ type task struct {
 	task        db.Task
 	template    db.Template
 	sshKey      db.AccessKey
+	vaultKey    db.AccessKey
 	inventory   db.Inventory
 	repository  db.Repository
 	environment db.Environment
@@ -101,6 +102,15 @@ func (t *task) prepareRun() {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
+	}
+
+	// install vault key if vault_id != 0
+	if *t.template.VaultID != 0 {
+		if err := t.installVaultKey(t.vaultKey); err != nil {
+			t.log("Failed installing vault key for repository secrets: " + err.Error())
+			t.fail()
+			return
+		}
 	}
 
 	if err := t.updateRepository(); err != nil {
@@ -252,6 +262,18 @@ func (t *task) populateDetails() error {
 		return errors.New("Unsupported SSH Key")
 	}
 
+	// get vault key if defined, else id == 0
+	if *t.template.VaultID != 0 {
+		if err := t.fetch("Template Vault Key not found!", &t.vaultKey, "select * from access_key where id=?", t.template.VaultID); err != nil {
+			return err
+		}
+
+		if t.vaultKey.Type != "vault" {
+			t.log("Non vault key, instead found: " + t.vaultKey.Type)
+			return errors.New("Unsupported Vault Key")
+		}
+	}
+
 	// get inventory
 	if err := t.fetch("Template Inventory not found!", &t.inventory, "select * from project__inventory where id=?", t.template.InventoryID); err != nil {
 		return err
@@ -309,6 +331,12 @@ func (t *task) installKey(key db.AccessKey) error {
 	}
 
 	return ioutil.WriteFile(path, []byte(*key.Secret), 0600)
+}
+
+func (t *task) installVaultKey(key db.AccessKey) error {
+	t.log("vault key '" + key.Name + "' installed")
+
+	return ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
 }
 
 func (t *task) updateRepository() error {
@@ -419,6 +447,10 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 
 	if t.task.DryRun {
 		args = append(args, "--check")
+	}
+
+	if *t.template.VaultID != 0 {
+		args = append(args, "--vault-password-file", t.vaultKey.GetPath())
 	}
 
 	if len(t.environment.JSON) > 0 {

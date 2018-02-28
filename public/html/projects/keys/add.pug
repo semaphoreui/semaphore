@@ -18,6 +18,7 @@
 					option(value="aws") AWS IAM credentials
 					option(value="gcloud") Google Cloud API Key
 					option(value="do") DigitalOcean API Key
+					option(value="vault") Vault Password
 
 		.form-group(ng-if="key.type == 'ssh'")
 			label.control-label.col-sm-4 Public Key
@@ -56,6 +57,10 @@
 			.col-sm-6
 				select.form-control(ng-model="key.owner" ng-options="+(user.id) as user.name for user in users")
 
+		.form-group(ng-if="key.type == 'vault'")
+			label.control-label.col-sm-4 Password
+			.col-sm-6
+				input.form-control(type="text" ng-model="key.secret")
 
 .modal-footer
 	button.btn.btn-danger(ng-click="$close({ delete: true })") Delete
