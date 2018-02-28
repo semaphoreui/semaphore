@@ -9,7 +9,7 @@
 		input.form-control(type="text" ng-model="env.name" placeholder="Friendly name to identify your environment")
 
 		label.control-label Environment
-		textarea.form-control(ng-model="env.json" rows="20" placeholder="This has to be a JSON object")
+		textarea.form-control.monospaced(ng-allow-tab="" ng-model="env.json" rows="20" placeholder="This has to be a JSON object")
 		p.help-block Must be valid JSON
 
 .modal-footer

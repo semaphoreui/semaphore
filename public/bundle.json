@@ -14,6 +14,7 @@
 	"routes/project",
 
 	"factories/project",
+	"directives/ng-allow-tab",
 
 	"/vendor/require.min",
 	"../require_config"
