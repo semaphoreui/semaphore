@@ -28,8 +28,6 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	if err := mulekick.Bind(w, r, &user); err != nil {
 		return
 	}
-<<<<<<< HEAD
-=======
 
 	editor := context.Get(r, "user").(*db.User)
 	if editor.Admin != true {
@@ -38,7 +36,6 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
->>>>>>> develop
 	user.Created = time.Now()
 
 	if err := db.Mysql.Insert(&user); err != nil {
