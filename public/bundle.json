@@ -6,8 +6,10 @@
 	"/vendor/angular-loading-bar/loading-bar",
 	"/vendor/moment/moment.min",
 	"/vendor/sweetalert/sweetalert.min",
-    "/vendor/ui-ace.min",
-    "/vendor/ace.min",
+    "/vendor/ace/ui-ace.min",
+    "/vendor/ace/ace.min",
+	"/vendor/ace/mode-json",
+	"/vendor/ace/mode-yaml",
   "/vendor/scrollglue",
 
 	"app",
