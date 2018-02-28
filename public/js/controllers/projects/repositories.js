@@ -1,11 +1,11 @@
 define(function () {
 	app.registerController('ProjectRepositoriesCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function ($scope, $http, Project, $modal, $rootScope) {
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/keys?type=ssh&sort=name&order=asc').success(function (keys) {
-				$scope.sshKeys = keys;
+			$http.get(Project.getURL() + '/keys?type=ssh&sort=name&order=asc').then(function (keys) {
+				$scope.sshKeys = keys.data;
 
-				$http.get(Project.getURL() + '/repositories?sort=name&order=asc').success(function (repos) {
-					repos.forEach(function (repo) {
+				$http.get(Project.getURL() + '/repositories?sort=name&order=asc').then(function (repos) {
+					repos.data.forEach(function (repo) {
 						for (var i = 0; i < keys.length; i++) {
 							if (repo.ssh_key_id == keys[i].id) {
 								repo.ssh_key = keys[i];
@@ -14,15 +14,16 @@ define(function () {
 						}
 					});
 
-					$scope.repositories = repos;
+					$scope.repositories = repos.data;
 				});
 			});
 		}
 
 		$scope.remove = function (repo) {
-			$http.delete(Project.getURL() + '/repositories/' + repo.id).success(function () {
+			$http.delete(Project.getURL() + '/repositories/' + repo.id).then(function () {
 				$scope.reload();
-			}).error(function (d) {
+			}).then(function (response) {
+			  var d = response.data;
 				if (!(d && d.templatesUse)) {
 					swal('error', 'could not delete repository..', 'error');
 					return;
@@ -36,9 +37,9 @@ define(function () {
 					confirmButtonColor: "#DD6B55",
 					confirmButtonText: 'Mark as removed'
 				}, function () {
-					$http.delete(Project.getURL() + '/repositories/' + repo.id + '?setRemoved=1').success(function () {
+					$http.delete(Project.getURL() + '/repositories/' + repo.id + '?setRemoved=1').then(function () {
 						$scope.reload();
-					}).error(function () {
+					}).catch(function () {
 						swal('error', 'could not delete repository..', 'error');
 					});
 				});
@@ -58,10 +59,10 @@ define(function () {
 					return $scope.remove(repo);
 				}
 
-				$http.put(Project.getURL() + '/repositories/' + repo.id, opts.repo).success(function () {
+				$http.put(Project.getURL() + '/repositories/' + repo.id, opts.repo).then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('Error', 'Repository not updated: ' + status, 'error');
+				}).catch(function (response) {
+					swal('Error', 'Repository not updated: ' + response.status, 'error');
 				});
 			});
 		}
@@ -75,10 +76,10 @@ define(function () {
 				scope: scope
 			}).result.then(function (repo) {
 				$http.post(Project.getURL() + '/repositories', repo.repo)
-				.success(function () {
+				.then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('Error', 'Repository not added: ' + status, 'error');
+				}).catch(function (response) {
+					swal('Error', 'Repository not added: ' + response.status, 'error');
 				});
 			});
 		}

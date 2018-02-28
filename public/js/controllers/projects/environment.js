@@ -1,15 +1,16 @@
 define(function () {
 	app.registerController('ProjectEnvironmentCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/environment?sort=name&order=asc').success(function (environment) {
-				$scope.environment = environment;
+			$http.get(Project.getURL() + '/environment?sort=name&order=asc').then(function (environment) {
+				$scope.environment = environment.data;
 			});
 		}
 
 		$scope.remove = function (environment) {
-			$http.delete(Project.getURL() + '/environment/' + environment.id).success(function () {
+			$http.delete(Project.getURL() + '/environment/' + environment.id).then(function () {
 				$scope.reload();
-			}).error(function (d) {
+			}).catch(function (response) {
+			  var d = response.data;
 				if (!(d && d.inUse)) {
 					swal('error', 'could not delete environment..', 'error');
 					return;
@@ -23,9 +24,9 @@ define(function () {
 					confirmButtonColor: "#DD6B55",
 					confirmButtonText: 'Mark as removed'
 				}, function () {
-					$http.delete(Project.getURL() + '/environment/' + environment.id + '?setRemoved=1').success(function () {
+					$http.delete(Project.getURL() + '/environment/' + environment.id + '?setRemoved=1').then(function () {
 						$scope.reload();
-					}).error(function () {
+					}).catch(function () {
 						swal('error', 'could not delete environment..', 'error');
 					});
 				});
@@ -43,10 +44,10 @@ define(function () {
 				scope: scope
 			}).result.then(function (env) {
 				$http.post(Project.getURL() + '/environment', env.environment)
-				.success(function () {
+				.then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('Error', 'Environment not added: ' + status, 'error');
+				}).catch(function (response) {
+					swal('Error', 'Environment not added: ' + response.status, 'error');
 				});
 			});
 		}
@@ -64,10 +65,10 @@ define(function () {
 				}
 
 				$http.put(Project.getURL() + '/environment/' + env.id, opts.environment)
-				.success(function () {
+				.then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('Error', 'Environment not updated: ' + status, 'error');
+				}).catch(function (response) {
+					swal('Error', 'Environment not updated: ' + response.status, 'error');
 				});
 			});
 		}

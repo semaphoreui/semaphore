@@ -5,8 +5,8 @@ define([
 		var self = this;
 
 		self.getUsers = function(cb) {
-			$http.get('/users').success(function(data) {
-				self.users = data;
+			$http.get('/users').then(function(response) {
+				self.users = response.data;
 
 				cb();
 			});

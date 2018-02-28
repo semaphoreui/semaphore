@@ -5,8 +5,8 @@ define([
 		var self = this;
 
 		self.getUser = function(cb) {
-			$http.get('/profile').success(function(data) {
-				$rootScope.user = self.user = data.user;
+			$http.get('/profile').then(function(response) {
+				$rootScope.user = self.user = response.data.user;
 				
 				cb();
 			});

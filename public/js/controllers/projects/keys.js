@@ -1,15 +1,17 @@
 define(function () {
 	app.registerController('ProjectKeysCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/keys?sort=name&order=asc').success(function (keys) {
-				$scope.keys = keys;
+			$http.get(Project.getURL() + '/keys?sort=name&order=asc').then(function (keys) {
+				$scope.keys = keys.data;
 			});
 		}
 
 		$scope.remove = function (key) {
-			$http.delete(Project.getURL() + '/keys/' + key.id).success(function () {
+			$http.delete(Project.getURL() + '/keys/' + key.id).then(function () {
 				$scope.reload();
-			}).error(function (d) {
+			}).catch(function (response) {
+			  var d = response.data;
+
 				if (!(d && d.inUse)) {
 					swal('error', 'could not delete key..', 'error');
 					return;
@@ -23,9 +25,9 @@ define(function () {
 					confirmButtonColor: "#DD6B55",
 					confirmButtonText: 'Mark as removed'
 				}, function () {
-					$http.delete(Project.getURL() + '/keys/' + key.id + '?setRemoved=1').success(function () {
+					$http.delete(Project.getURL() + '/keys/' + key.id + '?setRemoved=1').then(function () {
 						$scope.reload();
-					}).error(function () {
+					}).catch(function () {
 						swal('error', 'could not remove key..', 'error');
 					});
 				});
@@ -36,10 +38,10 @@ define(function () {
 			$modal.open({
 				templateUrl: '/tpl/projects/keys/add.html'
 			}).result.then(function (opts) {
-				$http.post(Project.getURL() + '/keys', opts.key).success(function () {
+				$http.post(Project.getURL() + '/keys', opts.key).then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('error', 'could not add key:' + status, 'error');
+				}).catch(function (response) {
+					swal('error', 'could not add key:' + response.status, 'error');
 				});
 			});
 		}
@@ -59,10 +61,10 @@ define(function () {
 				}
 
 				$http.put(Project.getURL() + '/keys/' + key.id, opts.key)
-				.success(function () {
+				.then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('Error', 'could not update key:' + status, 'error');
+				}).catch(function (response) {
+					swal('Error', 'could not update key:' + response.status, 'error');
 				});
 			});
 		}

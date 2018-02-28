@@ -62,7 +62,7 @@ define([
 
 		$scope.removeTask = function (task) {
 			task.delete($scope.playbook, task.data.job)
-			.success(function () {
+			.then(function () {
 				$scope.status = 'Task Deleted';
 
 				for (var i = 0; i < $scope.tasks.tasks.length; i++) {
@@ -72,8 +72,8 @@ define([
 					}
 				}
 			})
-			.error(function (data, status) {
-				$scope.status = 'Task Failed to Delete ('+status+'): '+data;
+			.catch(function (response) {
+				$scope.status = 'Task Failed to Delete ('+response.status+'): '+response.data;
 			});
 		}
 

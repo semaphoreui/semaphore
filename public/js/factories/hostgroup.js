@@ -28,12 +28,12 @@ define(['app', 'factories/host'], function (app) {
 			var self = this;
 
 			$http.get('/playbook/'+playbook.data._id+'/hostgroup/'+this.data._id+'/hosts')
-			.success(function (data) {
+			.then(function (response) {
 				self.hosts = [];
 
-				for (var i = 0; i < data.length; i++) {
+				for (var i = 0; i < response.data.length; i++) {
 					var g = new Host();
-					g.data = data[i];
+					g.data = response.data[i];
 					
 					self.hosts.push(g);
 				}
