@@ -44,9 +44,10 @@
 
 		hr
 		.form-group
-			label.control-label.col-sm-4 Extra CLI Arguments
+			label.control-label.col-sm-4 Extra CLI Arguments (*MUST* be a JSON array!)
 			.col-sm-6
-				textarea.form-control(placeholder='*MUST* be a JSON array! Each argument must be an element of the array, for example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]' ng-model="tpl.arguments" rows="5")
+				div(ui-ace="{mode: 'json', showGutter: false}" style="height: 100px" class="form-control" ng-model="task.environment")
+				//textarea.form-control(placeholder='*MUST* be a JSON array! Each argument must be an element of the array, for example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]' ng-model="tpl.arguments" rows="5")
 
 		.form-group
 			.col-sm-6.col-sm-offset-4
