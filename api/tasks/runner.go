@@ -105,6 +105,12 @@ func (t *task) prepareRun() {
 		return
 	}
 
+	if err := t.runGalaxy(); err != nil {
+		t.log("Running galaxy failed: " + err.Error())
+		t.fail()
+		return
+	}
+
 	// todo: write environment
 
 	if err := t.listPlaybookHosts(); err != nil {
@@ -160,12 +166,6 @@ func (t *task) run() {
 
 	t.log("Started: " + strconv.Itoa(t.task.ID))
 	t.log("Run task with template: " + t.template.Alias + "\n")
-
-	if err := t.runGalaxy(); err != nil {
-		t.log("Running galaxy failed: " + err.Error())
-		t.fail()
-		return
-	}
 
 	if err := t.runPlaybook(); err != nil {
 		t.log("Running playbook failed: " + err.Error())
@@ -379,6 +379,7 @@ func (t *task) runPlaybook() error {
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)
+	cmd.Stdin = strings.NewReader("")
 	return cmd.Run()
 }
 

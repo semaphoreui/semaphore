@@ -20,6 +20,15 @@
       .col-sm-6
         input#password.form-control(type="password" placeholder="User Password" ng-model="user.password" required)
 
+    .form-group
+      .col-sm-8.col-sm-offset-4: .checkbox: label
+        input#admin(type="checkbox" title="User have admin privileges" ng-model="user.admin")
+        |  Admin user
+    .form-group
+      .col-sm-8.col-sm-offset-4: .checkbox: label
+        input#alert(type="checkbox" title="Send email alerts about failed tasks" ng-model="user.alert")
+        |  Send alerts
+
 .modal-footer
   button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
   button.btn.btn-success(ng-click="$close(user)") Create User
