@@ -10,7 +10,7 @@ dependencies:
     - git submodule update --init --recursive
     - npm i -g less pug-cli
     - npm i async
-    - go get github.com/jteeuwen/go-bindata/...
+    - go get github.com/gobuffalo/packr/...
     - go get github.com/mitchellh/gox
 
   override:
