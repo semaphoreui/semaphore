@@ -1,15 +1,6 @@
 #!/bin/bash
 set -e
 
-BINDATA_ARGS="-o util/bindata.go -pkg util"
-
-if [ "$1" == "watch" ]; then
-	BINDATA_ARGS="-debug ${BINDATA_ARGS}"
-	echo "Creating util/bindata.go with file proxy"
-else
-	echo "Creating util/bindata.go"
-fi
-
 if [ "$1" == "ci_test" ]; then
 	echo "Creating CI Test config.json"
 
@@ -63,7 +54,7 @@ HEREDOC
 	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
 fi
 
-go-bindata $BINDATA_ARGS db/migrations/ $(find public/* -type d -print)
+packr
 
 if [ "$1" == "ci_test" ]; then
 	exit 0
