@@ -63,7 +63,7 @@ HEREDOC
 	github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
 fi
 
-go-bindata $BINDATA_ARGS config.json db/migrations/ $(find public/* -type d -print)
+go-bindata $BINDATA_ARGS db/migrations/ $(find public/* -type d -print)
 
 if [ "$1" == "ci_test" ]; then
 	exit 0
