@@ -21,7 +21,7 @@ dependencies:
 
 test:
   pre:
-    - cd $CPATH && go run cli/main.go --migrate -c config.json
+    - cd $CPATH && go run cli/main.go --migrate -config config.json
 
   override:
     - cd $CPATH && go vet ./...
