@@ -12,7 +12,7 @@ import (
 func (t *task) InstallVaultFiles() error {
 	var user db.User
 
-	if t.template.UserVault == true {
+	if t.template.UserVault {
 		if err := t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID); err != nil {
 			return err
 		}
@@ -35,7 +35,7 @@ func (t *task) InstallVaultFiles() error {
 }
 
 func (t *task) RemoveVaultFiles() error {
-	if t.template.UserVault == true {
+	if t.template.UserVault {
 		err := os.Remove(util.Config.TmpPath + "/vault_pass_" + strconv.Itoa(t.task.ID))
 		if err != nil {
 			t.log("Error removing vault password file: " + util.Config.TmpPath + "/vault_pass_" + strconv.Itoa(t.task.ID) + ": " + err.Error())

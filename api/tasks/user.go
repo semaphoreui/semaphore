@@ -27,7 +27,7 @@ func (t *task) InstallUserVarFile() error {
 }
 
 func (t *task) RemoveUserVarFile() error {
-	if t.template.UserVault == true {
+	if t.template.UserVault {
 		err := os.Remove(util.Config.TmpPath + "/user_vars_" + strconv.Itoa(t.task.ID))
 		if err != nil {
 			t.log("Error deleting user vars file " + util.Config.TmpPath + "/user_vars_" + strconv.Itoa(t.task.ID) + ": " + err.Error())

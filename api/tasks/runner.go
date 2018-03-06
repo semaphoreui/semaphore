@@ -40,10 +40,18 @@ func (t *task) fail() {
 	t.sendMailAlert()
 	t.sendTelegramAlert()
 
-	t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID)
-	util.UserVaultCache.DecrementUsage(user.Username)
-	t.RemoveVaultFiles()
+	err := t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID)
+	if err != nil {
+	    util.UserVaultCache.DecrementUsage(user.Username)
+	}
+	err := t.RemoveVaultFiles()
+	if err != nil {
+		t.log("Could not remove vault files")
+	}
 	t.RemoveUserVarFile()
+	if err != nil {
+		t.log("Could not remove user variables file")
+	}
 }
 
 func (t *task) prepareRun() {
@@ -200,8 +208,12 @@ func (t *task) run() {
 		return
 	}
 	var user db.User
-	t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID)
-	util.UserVaultCache.DecrementUsage(user.Username)
+	err := t.fetch("User not found", &user, "select * from user where id=?", t.task.UserID)
+	if err != nil {
+		t.log("Could not decrease usage count on credentials for " + t.task.UserID)
+	} else {
+		util.UserVaultCache.DecrementUsage(user.Username)
+	}
 
 	t.task.Status = "success"
 	t.updateStatus()
@@ -255,7 +267,7 @@ func (t *task) populateDetails() error {
 	}
 
 	// get access key
-	if t.template.UserKey == true {
+	if t.template.UserKey {
 		if err := t.fetch("User SSH Key not found", &t.sshKey, "select * from access_key where project_id=? and owner =?", t.projectID, t.task.UserID); err != nil {
 			return err
 		}

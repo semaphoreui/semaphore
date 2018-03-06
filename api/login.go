@@ -195,7 +195,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Value: encoded,
 		Path:  "/",
 	})
-	util.UserVaultCache.AddEntry(login.Auth, login.Password)
+	err := util.UserVaultCache.AddEntry(login.Auth, login.Password)
+	if err != nil {
+		log.Error("Could not add cached password for " + login.Auth);
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

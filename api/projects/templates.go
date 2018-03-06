@@ -148,7 +148,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
-	if template.UserKey == true {
+	if template.UserKey {
 		template.SshKeyID = 0
 	}
 

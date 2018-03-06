@@ -31,7 +31,10 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.Mysql.Insert(&taskObj); err != nil {
-		util.UserVaultCache.DecrementUsage(user.Username)
+		err2 := util.UserVaultCache.DecrementUsage(user.Username)
+		if err2 != nil {
+			log.Error("Could not decrease usage count on credentials for " + user.Username)
+		}
 		panic(err)
 	}
 	pool.register <- &task{
@@ -47,7 +50,10 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    &taskObj.ID,
 		Description: &desc,
 	}.Insert()); err != nil {
-		util.UserVaultCache.DecrementUsage(user.Username)
+		err2 := util.UserVaultCache.DecrementUsage(user.Username)
+		if err2 != nil {
+			log.Error("Could not decrease usage count on credentials for " + user.Username)
+		}
 		panic(err)
 	}
 
