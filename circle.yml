@@ -16,7 +16,8 @@ dependencies:
 
 test:
   pre:
-    - | cat > config.json <<EOF
+    - |
+      cat > config.json <<EOF
       {
       	"mysql": {
       		"host": "127.0.0.1:3306",
