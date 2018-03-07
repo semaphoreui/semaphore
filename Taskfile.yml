@@ -1,0 +1,123 @@
+deps:
+  desc: Install all dependencies
+  cmds:
+   - task: deps:be
+   - task: deps:fe
+   - task: deps:watch
+
+deps:be:
+  desc: Install golang tools for project building
+  cmds:
+    - go get github.com/gobuffalo/packr/...
+    - go get github.com/mitchellh/gox
+
+deps:fe:
+  dir: public
+  desc: Installs npm requirements for front end from package.json
+  cmds:
+    - git submodule update --init --recursive
+    - npm i -g less pug-cli
+    - npm i async
+
+deps:watch:
+  dir: public
+  desc: installs tools needed for watch commands
+  cmds:
+    - npm install -g nodemon
+    - go get github.com/cespare/reflex
+
+compile:
+  desc: Generates compiled frontend and backend resources (must be in this order)
+  cmds:
+    - task: compile:fe
+    - task: compile:be
+
+compile:fe:
+  desc: Runs less, pug and node
+  dir: public
+  cmds:
+    - lessc css/semaphore.less > css/semaphore.css
+    - pug $(find ./html/ -name "*.pug")
+    - node ./bundler.js
+
+compile:be:
+  desc: Runs Packr for static assets
+  sources:
+    - public/*
+    - db/migrations/*
+  generates:
+    - db/db-packr.go
+    - api/api-packr.go
+  cmds:
+    - packr
+
+watch:
+  dir: public
+  desc: Watch fe and be file changes and rebuild
+  deps: ['deps:watch']
+  cmds:
+    - task: watch:fe
+    - task: watch:be
+
+watch:be:
+  cmds:
+    - |
+      reflex -r '\.go$' -R '^public/vendor/' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
+
+watch:fe:
+  dir: public
+  cmds:
+    - nodemon -w js -i bundle.js -e js bundler.js &
+    - nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
+    - pug -w -P --doctype html $(find ./html/ -name "*.pug") &
+
+build:
+  dir: cli
+  cmds:
+    - gox -output="../bin/semaphore_{{"{{"}}.OS{{"}}"}}_{{"{{"}}.Arch{{"}}"}}" ./...
+
+build:local:
+  dir: cli
+  cmds:
+   - go build -o ../bin/semaphore
+
+test:
+  cmds:
+    - go vet ./...
+    - go test ./...
+
+ci:artifacts:
+  cmds:
+    - |
+      if [ "$CIRCLE_ARTIFACTS" != "" ]; then
+        rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
+        exit 0
+      fi
+
+release:
+  cmds:
+      - |
+        cat <<HEREDOC > util/version.go
+        package util
+
+        var Version string = "{{ .VERSION }}"
+
+        HEREDOC
+      - echo "Updating changelog:"
+      - set +e
+      - git changelog -t "v$VERSION"
+      - set -e
+      - echo "\nCommitting version.go and changelog update"
+      - git add util/version.go CHANGELOG.md && git commit -m "update changelog, bump version to $VERSION"
+      - echo "\nTagging release"
+      - git tag -m "v$VERSION release" "v$VERSION"
+      - echo "\nPushing to repository"
+      - git push origin develop "v$VERSION"
+      - echo "\nCreating draft release v$VERSION"
+      - github-release release --draft -u ansible-semaphore -r semaphore -t "v$VERSION" -d "## Special thanks to\n\n## Installation\n\nFollow [wiki/Installation](https://github.com/ansible-semaphore/semaphore/wiki/Installation)\n\n## Changelog"
+      - task: build
+      - echo "Uploading files.."
+      - find . -name "bin/semaphore_*" -exec sh -c 'gpg --armor --detach-sig "$1"' _ {} \;
+      - VERSION=$2 find . -name "bin/semaphore_*" -exec sh -c 'github-release upload -u ansible-semaphore -r semaphore -t "v$VERSION" -n "${1/.\/}" -f "$1"' _ {} \;
+      - echo "Done"
+      - rm -rf bin
