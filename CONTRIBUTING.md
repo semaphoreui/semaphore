@@ -33,7 +33,7 @@ git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semap
 3) Install dev dependencies
 
 ```
-go get ./... github.com/cespare/reflex github.com/jteeuwen/go-bindata/... github.com/mitchellh/gox
+go get ./... github.com/cespare/reflex github.com/gobuffalo/packr/... github.com/mitchellh/gox
 npm install async
 npm install -g nodemon pug-cli less
 ```

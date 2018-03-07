@@ -5,12 +5,12 @@ machine:
 dependencies:
   pre:
     - sudo rm -rf /usr/local/go
-    - sudo curl -L https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > /tmp/go.tar.gz
+    - sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - git submodule update --init --recursive
     - npm i -g less pug-cli
     - npm i async
-    - go get github.com/jteeuwen/go-bindata/...
+    - go get github.com/gobuffalo/packr/...
     - go get github.com/mitchellh/gox
 
   override:
@@ -21,7 +21,7 @@ dependencies:
 
 test:
   pre:
-    - cd $CPATH && go run cli/main.go --migrate
+    - cd $CPATH && go run cli/main.go --migrate -config config.json
 
   override:
     - cd $CPATH && go vet ./...

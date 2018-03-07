@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type DBVersion struct {
@@ -41,15 +39,18 @@ func (version *DBVersion) HumanoidVersion() string {
 }
 
 func (version *DBVersion) GetPath() string {
-	return "db/migrations/v" + version.VersionString() + ".sql"
+	return "v" + version.VersionString() + ".sql"
 }
 func (version *DBVersion) GetErrPath() string {
-	return "db/migrations/v" + version.VersionString() + ".err.sql"
+	return "v" + version.VersionString() + ".err.sql"
 }
 
 func (version *DBVersion) GetSQL(path string) []string {
-	sql := util.MustAsset(path)
-	return strings.Split(string(sql), ";\n")
+	sql, err := dbAssets.MustString(path)
+	if err != nil {
+		panic(err)
+	}
+	return strings.Split(sql, ";\n")
 }
 
 func init() {
