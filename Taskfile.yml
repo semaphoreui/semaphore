@@ -12,16 +12,16 @@ deps:be:
     - go get github.com/mitchellh/gox
 
 deps:fe:
-  dir: public
   desc: Installs npm requirements for front end from package.json
+  dir: public
   cmds:
     - git submodule update --init --recursive
     - npm i -g less pug-cli
     - npm i async
 
 deps:watch:
+  desc: Installs tools needed for watch commands
   dir: public
-  desc: installs tools needed for watch commands
   cmds:
     - npm install -g nodemon
     - go get github.com/cespare/reflex
@@ -52,8 +52,8 @@ compile:be:
     - packr
 
 watch:
-  dir: public
   desc: Watch fe and be file changes and rebuild
+  dir: public
   deps: ['deps:watch']
   cmds:
     - task: watch:fe
@@ -72,16 +72,19 @@ watch:fe:
     - pug -w -P --doctype html $(find ./html/ -name "*.pug") &
 
 build:
+  desc: Build a full set of release binaries
   dir: cli
   cmds:
     - gox -output="../bin/semaphore_{{"{{"}}.OS{{"}}"}}_{{"{{"}}.Arch{{"}}"}}" ./...
 
 build:local:
+  desc: Build a binary for the current architecture
   dir: cli
   cmds:
    - go build -o ../bin/semaphore
 
 test:
+  desc: Run go code tests
   cmds:
     - go vet ./...
     - go test ./...
