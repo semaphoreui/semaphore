@@ -1,3 +1,17 @@
+# Semaphore Tasks
+# These tasks should be used to build and develop Semaphore
+#
+# Tasks without a `desc:` field are intended mainly to be called
+# internally by other tasks and therefore are not listed when running `task` or `task -l`
+
+all:
+  desc: Install, Compile, Test and Build Semaphore for local architecture
+  cmds:
+    - deps
+    - compile
+    - test
+    - build:local
+
 deps:
   desc: Install all dependencies
   cmds:
@@ -12,16 +26,16 @@ deps:be:
     - go get github.com/mitchellh/gox
 
 deps:fe:
-  dir: public
   desc: Installs npm requirements for front end from package.json
+  dir: public
   cmds:
     - git submodule update --init --recursive
     - npm i -g less pug-cli
     - npm i async
 
 deps:watch:
+  desc: Installs tools needed for watch commands
   dir: public
-  desc: installs tools needed for watch commands
   cmds:
     - npm install -g nodemon
     - go get github.com/cespare/reflex
@@ -35,6 +49,15 @@ compile:
 compile:fe:
   desc: Runs less, pug and node
   dir: public
+  sources:
+    - css/semaphore.less
+    - html/*.pug
+    - html/**/*.pug
+  generates:
+    - css/semaphore.css
+    - html/*.html
+    - html/**/*.html
+    - js/bundle.json
   cmds:
     - lessc css/semaphore.less > css/semaphore.css
     - pug $(find ./html/ -name "*.pug")
@@ -52,8 +75,8 @@ compile:be:
     - packr
 
 watch:
-  dir: public
   desc: Watch fe and be file changes and rebuild
+  dir: public
   deps: ['deps:watch']
   cmds:
     - task: watch:fe
@@ -61,8 +84,7 @@ watch:
 
 watch:be:
   cmds:
-    - |
-      reflex -r '\.go$' -R '^public/vendor/' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
+    - reflex -r '\.go$' -R '^public/vendor/' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
 
 watch:fe:
   dir: public
@@ -72,27 +94,26 @@ watch:fe:
     - pug -w -P --doctype html $(find ./html/ -name "*.pug") &
 
 build:
+  desc: Build a full set of release binaries
   dir: cli
   cmds:
     - gox -output="../bin/semaphore_{{"{{"}}.OS{{"}}"}}_{{"{{"}}.Arch{{"}}"}}" ./...
 
 build:local:
+  desc: Build a binary for the current architecture
   dir: cli
   cmds:
    - go build -o ../bin/semaphore
 
 test:
+  desc: Run go code tests
   cmds:
     - go vet ./...
     - go test ./...
 
 ci:artifacts:
   cmds:
-    - |
-      if [ "$CIRCLE_ARTIFACTS" != "" ]; then
-        rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
-        exit 0
-      fi
+    - rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
 
 release:
   cmds:
