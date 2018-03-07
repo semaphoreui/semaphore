@@ -1,5 +1,4 @@
 gin-bin
-util/bindata.go
 build/
 public/js/bundle.js
 public/css/semaphore.css
@@ -26,3 +25,4 @@ cli/semaphore_windows_amd64.exe
 caddyfile
 *~
 cli/semaphore_*
+*-packr.go
