@@ -1,3 +1,17 @@
+# Semaphore Tasks
+# These tasks should be used to build and develop Semaphore
+#
+# Tasks without a `desc:` field are intended mainly to be called
+# internally by other tasks and therefore are not listed when running `task` or `task -l`
+
+all:
+  desc: Install, Compile, Test and Build Semaphore for local architecture
+  cmds:
+    - deps
+    - compile
+    - test
+    - build:local
+
 deps:
   desc: Install all dependencies
   cmds:
@@ -12,16 +26,16 @@ deps:be:
     - go get github.com/mitchellh/gox
 
 deps:fe:
-  dir: public
   desc: Installs npm requirements for front end from package.json
+  dir: public
   cmds:
     - git submodule update --init --recursive
     - npm i -g less pug-cli
     - npm i async
 
 deps:watch:
+  desc: Installs tools needed for watch commands
   dir: public
-  desc: installs tools needed for watch commands
   cmds:
     - npm install -g nodemon
     - go get github.com/cespare/reflex
@@ -35,6 +49,15 @@ compile:
 compile:fe:
   desc: Runs less, pug and node
   dir: public
+  sources:
+    - css/semaphore.less
+    - html/*.pug
+    - html/**/*.pug
+  generates:
+    - css/semaphore.css
+    - html/*.html
+    - html/**/*.html
+    - js/bundle.json
   cmds:
     - lessc css/semaphore.less > css/semaphore.css
     - pug $(find ./html/ -name "*.pug")
@@ -50,10 +73,23 @@ compile:be:
     - api/api-packr.go
   cmds:
     - packr
+    - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
+  vars:
+    TAGGED:
+      sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null | sed -n 's/^\([^^~]\{1,\}\)\(\^0\)\{0,1\}$/\1/p'
+    BRANCH:
+      sh: git rev-parse --abbrev-ref HEAD
+    DIRTY:
+      sh: git status --porcelain
+    SHA:
+      sh: git log --pretty=format:'%h' -n 1
+    TIMESTAMP:
+      sh: date +%s
+
 
 watch:
-  dir: public
   desc: Watch fe and be file changes and rebuild
+  dir: public
   deps: ['deps:watch']
   cmds:
     - task: watch:fe
@@ -72,27 +108,26 @@ watch:fe:
     - pug -w -P --doctype html $(find ./html/ -name "*.pug") &
 
 build:
+  desc: Build a full set of release binaries
   dir: cli
   cmds:
     - gox -output="../bin/semaphore_{{"{{"}}.OS{{"}}"}}_{{"{{"}}.Arch{{"}}"}}" ./...
 
 build:local:
+  desc: Build a binary for the current architecture
   dir: cli
   cmds:
    - go build -o ../bin/semaphore
 
 test:
+  desc: Run go code tests
   cmds:
     - go vet ./...
     - go test ./...
 
 ci:artifacts:
   cmds:
-    - |
-      if [ "$CIRCLE_ARTIFACTS" != "" ]; then
-        rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
-        exit 0
-      fi
+    - rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
 
 release:
   cmds:
