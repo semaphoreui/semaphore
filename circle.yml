@@ -20,7 +20,7 @@ dependencies:
 test:
   pre:
     - |
-      cat > config.json <<EOF
+      cat > $CPATH/config.json <<EOF
       {
       	"mysql": {
       		"host": "127.0.0.1:3306",

@@ -91,11 +91,7 @@ test:
 
 ci:artifacts:
   cmds:
-    - |
-      if [ "$CIRCLE_ARTIFACTS" != "" ]; then
-        rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
-        exit 0
-      fi
+    - rsync -a bin/semaphore_* $CIRCLE_ARTIFACTS/
 
 release:
   cmds:
