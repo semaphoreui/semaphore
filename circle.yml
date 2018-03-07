@@ -1,6 +1,6 @@
 machine:
   environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
+    CPATH: "${HOME}/.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}"
   node:
     version: 8.2.0
 
@@ -13,14 +13,14 @@ dependencies:
     - go get -u -v github.com/go-task/task/cmd/task
     - task deps
   override:
-     - mkdir -p $CPATH
-     - rsync -azC --delete ./ $CPATH
-     - task compile
+    - mkdir -p ${CPATH}
+	- ln -s ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}/${CIRCLE_PROJECT_REPONAME}
+    - task compile
 
 test:
   pre:
     - |
-      cat > $CPATH/config.json <<EOF
+      cat > config.json <<EOF
       {
       	"mysql": {
       		"host": "127.0.0.1:3306",
@@ -33,7 +33,7 @@ test:
       	"email_alert": false
       }
       EOF
-    - cd $CPATH && go run cli/main.go --migrate -config config.json
+    - go run cli/main.go --migrate -config config.json
   override:
     - task test
     - task build
