@@ -14,7 +14,7 @@ dependencies:
     - task deps
   override:
     - mkdir -p ${CPATH}
-	- ln -s ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}/${CIRCLE_PROJECT_REPONAME}
+    - ln -s ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}/${CIRCLE_PROJECT_REPONAME}
     - task compile
 
 test:
