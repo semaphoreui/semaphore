@@ -9,6 +9,9 @@ import (
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
+	"path/filepath"
+	"strings"
+	"os"
 )
 
 func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +87,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "aws", "do", "gcloud":
+	case "static", "file":
 		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)
@@ -123,6 +126,18 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusCreated, inv)
 }
 
+func IsValidInventoryPath(path string) bool {
+	if currentPath, err := os.Getwd(); err != nil {
+		return false
+	} else if absPath, err := filepath.Abs(path); err != nil {
+		return false
+	} else if relPath, err := filepath.Rel(currentPath, absPath); err != nil {
+		return false
+	} else {
+		return !strings.HasPrefix(relPath, "..")
+	}
+}
+
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	oldInventory := context.Get(r, "inventory").(db.Inventory)
 
@@ -139,7 +154,12 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "aws", "do", "gcloud":
+	case "static":
+		break
+	case "file":
+		if !IsValidInventoryPath(inventory.Inventory) {
+			panic("Invalid inventory path")
+		}
 		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)

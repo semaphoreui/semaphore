@@ -1,22 +1,26 @@
 machine:
   environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
+    CPATH: "${HOME}/.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}"
+  node:
+    version: 8.2.0
+
 
 dependencies:
   pre:
+    - rm -rf ${CPATH} && mkdir -p ${CPATH}
+    - ln -sfn ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
     - sudo rm -rf /usr/local/go
     - sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - go get -u -v github.com/go-task/task/cmd/task
     - task deps
   override:
-     - mkdir -p $CPATH
-     - rsync -azC --delete ./ $CPATH
-     - task compile
+    - task compile
 
 test:
   pre:
-    - | cat > config.json <<EOF
+    - |
+      cat > config.json <<EOF
       {
       	"mysql": {
       		"host": "127.0.0.1:3306",
@@ -29,7 +33,7 @@ test:
       	"email_alert": false
       }
       EOF
-    - cd $CPATH && go run cli/main.go --migrate -config config.json
+    - go run cli/main.go --migrate -config config.json
   override:
     - task test
     - task build

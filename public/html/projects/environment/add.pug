@@ -8,8 +8,8 @@
 		label.control-label Environment Name
 		input.form-control(type="text" ng-model="env.name" placeholder="Friendly name to identify your environment")
 
-		label.control-label Environment
-		textarea.form-control(ng-model="env.json" rows="20" placeholder="This has to be a JSON object")
+		label.control-label Environment (This has to be a JSON object)
+		div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" class="form-control" style="height: 200px" ng-model="env.json")
 		p.help-block Must be valid JSON
 
 .modal-footer
