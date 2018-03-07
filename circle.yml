@@ -1,6 +1,9 @@
 machine:
   environment:
     CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
+  node:
+    version: 8.2.0
+
 
 dependencies:
   pre:
