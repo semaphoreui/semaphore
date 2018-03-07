@@ -10,3 +10,4 @@ node_modules
 caddyfile
 cli/semaphore_*
 *-packr.go
+util/version.go
