@@ -6,4 +6,4 @@ table.table.table-hover
 		td
 			code {{ inv.type }}
 			| &nbsp; {{ inv.name }}
-			button.btn.btn-info.btn-xs.pull-right(ng-click="editContent(inv); $event.stopPropagation();") edit inventory content
+			button.btn.btn-info.btn-xs.pull-right(ng-if="inv.type != 'file'" ng-click="editContent(inv); $event.stopPropagation();") edit inventory content
