@@ -7,8 +7,9 @@ machine:
 
 dependencies:
   pre:
+    - rm -rf ${CPATH}
     - mkdir -p ${CPATH}
-    - ln -sfT ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
+    - ln -sfn ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
     - sudo rm -rf /usr/local/go
     - sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
