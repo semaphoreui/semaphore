@@ -125,7 +125,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusCreated, inv)
 }
 
-func isValidInventoryPath(path string) bool {
+func IsValidInventoryPath(path string) bool {
 	if currentPath, err := filepath.Abs("./"); err != nil {
 		return false
 	} else if absPath, err := filepath.Abs(path); err != nil {
@@ -157,7 +157,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	case "static":
 		break
 	case "file":
-		if !isValidInventoryPath(inventory.Inventory) {
+		if !IsValidInventoryPath(inventory.Inventory) {
 			panic("Invalid inventory path")
 		}
 		break
