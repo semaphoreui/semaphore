@@ -2,6 +2,7 @@ package projects
 
 import (
 	"testing"
+	"runtime"
 )
 
 func TestIsValidInventoryPath(t *testing.T) {
@@ -21,7 +22,7 @@ func TestIsValidInventoryPath(t *testing.T) {
 		t.Fatal(" a path out of the cwd should be invalid")
 	}
 
-	if IsValidInventoryPath("c:\\test\\inventory") {
+	if runtime.GOOS == "windows" && IsValidInventoryPath("c:\\test\\inventory") {
 		t.Fatal(" a path out of the cwd should be invalid")
 	}
 }
