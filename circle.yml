@@ -7,13 +7,13 @@ machine:
 
 dependencies:
   pre:
+    - mkdir -p ${CPATH}
+    - ln -sfT ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
     - sudo rm -rf /usr/local/go
     - sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - go get -u -v github.com/go-task/task/cmd/task
     - task deps
-    - mkdir -p ${CPATH}
-    - ln -sfT ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
   override:
     - task compile
 
