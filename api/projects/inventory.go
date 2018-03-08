@@ -9,6 +9,8 @@ import (
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
+	"path/filepath"
+	"strings"
 )
 
 func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +125,19 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusCreated, inv)
 }
 
+func isValidInventoryPath(path string) bool {
+	if currentPath, err := filepath.Abs("./"); err != nil {
+		return false
+	} else if absPath, err := filepath.Abs(path); err != nil {
+		return false
+	} else if relPath, err := filepath.Rel(currentPath, absPath); err != nil {
+		return false
+	} else {
+		ret := !strings.HasPrefix(relPath, "..")
+		return ret
+	}
+}
+
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	oldInventory := context.Get(r, "inventory").(db.Inventory)
 
@@ -139,7 +154,12 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "file":
+	case "static":
+		break
+	case "file":
+		if !isValidInventoryPath(inventory.Inventory) {
+			panic("Invalid inventory path")
+		}
 		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)
