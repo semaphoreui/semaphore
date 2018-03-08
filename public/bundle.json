@@ -10,6 +10,7 @@
     "/vendor/ace/ace.min",
 	"/vendor/ace/mode-json",
 	"/vendor/ace/mode-yaml",
+	"/vendor/ace/mode-ini",
   "/vendor/scrollglue",
 
 	"app",

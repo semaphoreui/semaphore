@@ -46,7 +46,7 @@
 		.form-group
 			label.control-label.col-sm-4 Extra CLI Arguments (*MUST* be a JSON array!)
 			.col-sm-6
-				div(ui-ace="{mode: 'json', showGutter: false, workerPath: '/public/js/ace/'}" style="height: 100px" class="form-control" ng-model="task.environment")
+				div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" style="height: 100px" class="form-control" ng-model="task.environment")
 				//textarea.form-control(placeholder='*MUST* be a JSON array! Each argument must be an element of the array, for example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]' ng-model="tpl.arguments" rows="5")
 
 		.form-group
