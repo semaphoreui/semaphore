@@ -2,7 +2,6 @@ package tests
 
 import (
 	"testing"
-	"path/filepath"
 	. "gopkg.in/check.v1"
 	"github.com/ansible-semaphore/semaphore/api/projects"
 )
@@ -14,11 +13,13 @@ var _ = Suite(&MySuite{})
 
 
 func (s *MySuite) TestIsValidInventoryPath(c *C) {
-	isValid := projects.IsValidInventoryPath("")
-	c.Assert(isValid, Equals, true)
-}
+	c.Assert(projects.IsValidInventoryPath("inventories/test"), Equals, true)
 
-func (s *MySuite) TestFilePathMatch(c *C) {
-	matched, _ := filepath.Match("test.*", "test.txt")
-	c.Assert(matched, Equals, true)
+	c.Assert(projects.IsValidInventoryPath("inventories/test/../prod"), Equals, true)
+
+	c.Assert(projects.IsValidInventoryPath("/test/../../../inventory"), Equals, false)
+
+	c.Assert(projects.IsValidInventoryPath("/test/inventory"), Equals, false)
+
+	c.Assert(projects.IsValidInventoryPath("c:\\test\\inventory"), Equals, false)
 }
