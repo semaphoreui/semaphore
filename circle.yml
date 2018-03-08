@@ -13,7 +13,7 @@ dependencies:
     - go get -u -v github.com/go-task/task/cmd/task
     - task deps
     - mkdir -p ${CPATH}
-    - ln -sfn ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
+    - ln -sfT ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
   override:
     - task compile
 
