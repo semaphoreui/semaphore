@@ -15,9 +15,6 @@
 				select.form-control(ng-model="inventory.type" ng-init="inventory.type = inventory.type || 'static'")
 					option(value="static") Static
 					option(value="file") File
-					option(disabled value="aws") AWS
-					option(disabled value="do") DigitalOcean
-					option(disabled value="gcloud") Google Cloud
 
 		.form-group(ng-if="inventory.type == 'file'")
 			label.control-label.col-sm-4 Path to inventory file
