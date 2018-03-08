@@ -12,9 +12,9 @@ dependencies:
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - go get -u -v github.com/go-task/task/cmd/task
     - task deps
-  override:
     - mkdir -p ${CPATH}
     - ln -s ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}/${CIRCLE_PROJECT_REPONAME}
+  override:
     - task compile
 
 test:
