@@ -11,6 +11,7 @@ import (
 	"github.com/masterminds/squirrel"
 	"path/filepath"
 	"strings"
+	"os"
 )
 
 func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +127,8 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func IsValidInventoryPath(path string) bool {
-	if currentPath, err := filepath.Abs("./"); err != nil {
+
+	if currentPath, err := os.Getwd(); err != nil {
 		return false
 	} else if absPath, err := filepath.Abs(path); err != nil {
 		return false
