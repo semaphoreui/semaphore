@@ -127,7 +127,6 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 }
 
 func IsValidInventoryPath(path string) bool {
-
 	if currentPath, err := os.Getwd(); err != nil {
 		return false
 	} else if absPath, err := filepath.Abs(path); err != nil {
@@ -135,8 +134,7 @@ func IsValidInventoryPath(path string) bool {
 	} else if relPath, err := filepath.Rel(currentPath, absPath); err != nil {
 		return false
 	} else {
-		ret := !strings.HasPrefix(relPath, "..")
-		return ret
+		return !strings.HasPrefix(relPath, "..")
 	}
 }
 
