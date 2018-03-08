@@ -1,3 +1,17 @@
+# Semaphore Tasks
+# These tasks should be used to build and develop Semaphore
+#
+# Tasks without a `desc:` field are intended mainly to be called
+# internally by other tasks and therefore are not listed when running `task` or `task -l`
+
+all:
+  desc: Install, Compile, Test and Build Semaphore for local architecture
+  cmds:
+    - deps
+    - compile
+    - test
+    - build:local
+
 deps:
   desc: Install all dependencies
   cmds:
@@ -35,6 +49,15 @@ compile:
 compile:fe:
   desc: Runs less, pug and node
   dir: public
+  sources:
+    - css/semaphore.less
+    - html/*.pug
+    - html/**/*.pug
+  generates:
+    - css/semaphore.css
+    - html/*.html
+    - html/**/*.html
+    - js/bundle.json
   cmds:
     - lessc css/semaphore.less > css/semaphore.css
     - pug $(find ./html/ -name "*.pug")
