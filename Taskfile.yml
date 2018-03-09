@@ -135,8 +135,8 @@ release:
       - set +e
       - git changelog -t "v$VERSION"
       - set -e
-      - echo "\nCommitting version.go and changelog update"
-      - git add util/version.go CHANGELOG.md && git commit -m "update changelog, bump version to $VERSION"
+      - echo "\nCommitting changelog update"
+      - git add CHANGELOG.md && git commit -m "update changelog, bump version to $VERSION"
       - echo "\nTagging release"
       - git tag -m "v$VERSION release" "v$VERSION"
       - echo "\nPushing to repository"
