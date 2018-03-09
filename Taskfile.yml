@@ -131,13 +131,6 @@ ci:artifacts:
 
 release:
   cmds:
-      - |
-        cat <<HEREDOC > util/version.go
-        package util
-
-        var Version string = "{{ .VERSION }}"
-
-        HEREDOC
       - echo "Updating changelog:"
       - set +e
       - git changelog -t "v$VERSION"
