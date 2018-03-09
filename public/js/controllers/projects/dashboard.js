@@ -64,7 +64,7 @@ define(['controllers/projects/taskRunner'], function() {
                 size: 'lg'
             }).result.then(function() {
                 $scope.reload();
-            });
+            }, function () {});
         }
     }]);
 });

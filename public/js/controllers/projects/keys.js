@@ -43,7 +43,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('error', 'could not add key:' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.update = function (key) {
@@ -66,7 +66,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'could not update key:' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.reload();

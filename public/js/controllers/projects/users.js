@@ -48,7 +48,7 @@ define(function () {
 						}).catch(function (response) {
 							swal('Error', 'User not added: ' + response.status, 'error');
 						});
-				});
+				}, function () {});
 			});
 		}
 

@@ -48,7 +48,7 @@ define(function () {
 					}).catch(function (response) {
 						swal('Error', 'Inventory not added: ' + response.status, 'error');
 					});
-				});
+				}, function () {});
 			});
 		}
 
@@ -73,7 +73,7 @@ define(function () {
 					}).catch(function (response) {
 						swal('Error', 'Inventory not updated: ' + response.status, 'error');
 					});
-				});
+				}, function () {});
 			});
 		}
 
@@ -92,7 +92,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'Inventory not updated: ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.getKeys = function (cb) {

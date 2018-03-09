@@ -64,7 +64,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'Repository not updated: ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.add = function () {
@@ -81,7 +81,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'Repository not added: ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.reload();

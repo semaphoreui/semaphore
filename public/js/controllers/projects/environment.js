@@ -49,7 +49,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'Environment not added: ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.editEnvironment = function (env) {
@@ -70,7 +70,7 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'Environment not updated: ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.reload();

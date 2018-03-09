@@ -94,7 +94,7 @@ define(['controllers/projects/taskRunner'], function () {
 				}).catch(function (response) {
 					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.update = function (template) {
@@ -149,7 +149,7 @@ define(['controllers/projects/taskRunner'], function () {
 					scope: scope,
 					size: 'lg'
 				});
-			})
+			}, function () {});
 		}
 
 		$scope.showAll = function() {
@@ -200,7 +200,7 @@ define(['controllers/projects/taskRunner'], function () {
 				}).catch(function (response) {
 					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.reload();

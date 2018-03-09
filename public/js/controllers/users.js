@@ -24,7 +24,7 @@ define(function () {
 				}).error(function (response) {
 					swal('Error', 'API responded with HTTP ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 	}]);
 });
