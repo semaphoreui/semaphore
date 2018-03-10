@@ -10,9 +10,9 @@
 			.col-sm-6
 				input.form-control(type="text" placeholder="Enter playbook name to override template" ng-model="task.playbook")
 		.form-group
-			label.control-label.col-sm-4 Environment Override
+			label.control-label.col-sm-4 Environment Override (*MUST* be valid JSON)
 			.col-sm-6
-				textarea.form-control(rows="10" placeholder="Override playbook environment, *MUST* be valid JSON" ng-model="task.environment")
+				div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" class="form-control" style="height: 100px" ng-model="task.environment")
 		.form-group
 			.col-sm-6.col-sm-offset-4: .checkbox: label
 				input(type="checkbox" ng-model="task.debug")

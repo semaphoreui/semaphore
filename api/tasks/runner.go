@@ -389,8 +389,16 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		playbookName = t.template.Playbook
 	}
 
+	var inventory string;
+	switch t.inventory.Type {
+	case "file":
+		inventory = t.inventory.Inventory
+	default:
+		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+	}
+
 	args := []string{
-		"-i", util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID),
+		"-i", inventory,
 	}
 
 	if t.inventory.SshKeyID != nil {

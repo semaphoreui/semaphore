@@ -1,4 +1,4 @@
-var app = angular.module('semaphore', ['scs.couch-potato', 'ui.router', 'ui.bootstrap', 'angular-loading-bar', 'luegg.directives']);
+var app = angular.module('semaphore', ['scs.couch-potato', 'ui.router', 'ui.bootstrap', 'angular-loading-bar', 'luegg.directives', 'ui.ace']);
 
 couchPotato.configureApp(app);
 
