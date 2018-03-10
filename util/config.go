@@ -93,10 +93,18 @@ func ConfigInit() {
 	var printConfig bool
 	flag.BoolVar(&printConfig, "printConfig", false, "print example configuration")
 
+	var printVersion bool
+	flag.BoolVar(&printVersion, "version", false, "print the semaphore version")
+
 	flag.Parse()
 
 	if InteractiveSetup {
 		return
+	}
+
+	if printVersion {
+		fmt.Println(Version)
+		os.Exit(0)
 	}
 
 	if printConfig {
