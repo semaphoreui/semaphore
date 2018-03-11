@@ -35,7 +35,7 @@ html(lang="en" ng-app="semaphore")
 							| &nbsp;
 						i.fa.fa-fw.fa-cog
 					ul(uib-dropdown-menu)
-						li.dropdown-header semaphore v{{ semaphore.version }}
+						li.dropdown-header semaphore {{ semaphore.version }}
 						li: a(ui-sref="admin")
 							span(ng-if="semaphore.update")
 								i.fa.fa-fw.fa-exclamation-circle

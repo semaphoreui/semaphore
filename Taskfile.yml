@@ -5,9 +5,6 @@
 # internally by other tasks and therefore are not listed when running `task` or `task -l`
 version: '2'
 
-vars:
-  VERSION: '2.5.0-dev'
-
 tasks:
   all:
     desc: Install, Compile, Test and Build Semaphore for local architecture
@@ -78,11 +75,22 @@ tasks:
       - api/api-packr.go
     cmds:
       - packr
+      - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
+    vars:
+      TAG:
+        sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null | sed -n 's/^\([^^~]\{1,\}\)\(\^0\)\{0,1\}$/\1/p'
+      BRANCH:
+        sh: git rev-parse --abbrev-ref HEAD
+      DIRTY:
+        sh: git status --porcelain
+      SHA:
+        sh: git log --pretty=format:'%h' -n 1
+      TIMESTAMP:
+        sh: date +%s
 
   watch:
     desc: Watch fe and be file changes and rebuild
     dir: public
-    deps: ['deps:watch']
     cmds:
       - task: watch:fe
       - task: watch:be
@@ -122,13 +130,6 @@ tasks:
 
   release:
     cmds:
-        - |
-          cat <<HEREDOC > util/version.go
-          package util
-
-          var Version string = "{{ .VERSION }}"
-
-          HEREDOC
         - echo "Updating changelog:"
         - set +e
         - git changelog -t "v$VERSION"
