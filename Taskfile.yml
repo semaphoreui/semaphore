@@ -29,6 +29,7 @@ tasks:
     cmds:
       - go get github.com/gobuffalo/packr/...
       - go get github.com/mitchellh/gox
+      - go get -u github.com/haya14busa/goverage
 
   deps:fe:
     desc: Installs npm requirements for front end from package.json
@@ -114,7 +115,9 @@ tasks:
     desc: Run go code tests
     cmds:
       - go vet ./...
-      - go test ./...
+      # 2> /dev/null makes goverage less noisy about pattern matching
+      # if no tests exist but will still print failing test results
+      - goverage -v -coverprofile=coverage.out ./... 2> /dev/null
 
   ci:artifacts:
     cmds:
