@@ -5,8 +5,8 @@ define([
 		var self = this;
 
 		self.getIdentities = function(cb) {
-			$http.get('/identities').success(function(data) {
-				self.identities = data;
+			$http.get('/identities').then(function(response) {
+				self.identities = response.data;
 				
 				cb();
 			});

@@ -2,33 +2,33 @@ define(['controllers/projects/taskRunner'], function() {
     app.registerController('ProjectDashboardCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function($scope, $http, Project, $modal, $rootScope) {
         
         $scope.refreshEvents = function($lastEvents=true) {
-
+            var $eventsURL;
             if ($lastEvents == true) {
-                $eventsURL = '/events/last'
+                $eventsURL = '/events/last';
             } else {
-                $eventsURL = '/events'
+                $eventsURL = '/events';
             }  
             
-            $http.get(Project.getURL() + $eventsURL).success(function(events) {
-                $scope.events = events;
+            $http.get(Project.getURL() + $eventsURL).then(function(events) {
+                $scope.events = events.data;
 
-                events.forEach(function(evt) {
+                events.data.forEach(function(evt) {
                     evt.createdFormatted = moment(evt.created).format('DD/M/YY HH:mm')
-                })
+                });
             });
 
         }
 
         $scope.reload = function($lastEvents=true) {
-
+            var $tasksURL;
             if ($lastEvents == true) {
-                $tasksURL = '/tasks/last'
+                $tasksURL = '/tasks/last';
             } else {
-                $tasksURL = '/tasks'
+                $tasksURL = '/tasks';
             }  
 
-            $http.get(Project.getURL() + $tasksURL).success(function(tasks) {
-                $scope.tasks = tasks;
+            $http.get(Project.getURL() + $tasksURL).then(function(tasks) {
+                $scope.tasks = tasks.data;
 
                 $scope.tasks.forEach(function(t) {
                     if (t.created) {
@@ -64,7 +64,7 @@ define(['controllers/projects/taskRunner'], function() {
                 size: 'lg'
             }).result.then(function() {
                 $scope.reload();
-            });
+            }, function () {});
         }
     }]);
 });

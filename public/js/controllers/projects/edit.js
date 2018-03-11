@@ -5,9 +5,9 @@ define(function () {
 		$scope.alert_chat = Project.alert_chat;
 
 		$scope.save = function (name, alert, alert_chat) {
-			$http.put(Project.getURL(), { name: name, alert: alert, alert_chat: alert_chat}).success(function () {
+			$http.put(Project.getURL(), { name: name, alert: alert, alert_chat: alert_chat}).then(function () {
 				swal('Saved', 'Project settings saved.', 'success');
-			}).error(function () {
+			}).catch(function () {
 				swal('Error', 'Project settings were not saved', 'error');
 			});
 		}
@@ -21,9 +21,9 @@ define(function () {
 				confirmButtonColor: "#DD6B55",
 				confirmButtonText: 'Yes, DELETE'
 			}, function () {
-				$http.delete(Project.getURL()).success(function () {
+				$http.delete(Project.getURL()).then(function () {
 					$state.go('dashboard');
-				}).error(function () {
+				}).catch(function () {
 					swal('error', 'could not delete project!', 'error');
 				});
 			});

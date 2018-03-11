@@ -90,10 +90,10 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 	$rootScope.refreshInfo = function (cb) {
 		if (typeof cb != 'function') cb = function () { }
 
-		$http.get('/info').success(function (info) {
-			$rootScope.semaphore = info;
+		$http.get('/info').then(function (info) {
+			$rootScope.semaphore = info.data;
 			cb();
-		}).error(function () {
+		}).catch(function () {
 			cb(true);
 		});
 	}

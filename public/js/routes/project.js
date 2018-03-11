@@ -12,9 +12,9 @@ app.config(function ($stateProvider, $couchPotatoProvider) {
 				var d = $q.defer();
 
 				$http.get('/project/' + params.project_id)
-				.success(function (project) {
-					d.resolve(new ProjectFactory(project));
-				}).error(function () {
+				.then(function (project) {
+					d.resolve(new ProjectFactory(project.data));
+				}).catch(function () {
 					d.resolve(false);
 				});
 

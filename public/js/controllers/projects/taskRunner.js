@@ -10,10 +10,10 @@ define(function () {
 			if (dryRun) {
 				params.dry_run = true;
 			}
-			$http.post(Project.getURL() + '/tasks', params).success(function (t) {
-				$scope.$close(t);
-			}).error(function (_, status) {
-				swal('Error', 'error launching task: HTTP ' + status, 'error');
+			$http.post(Project.getURL() + '/tasks', params).then(function (t) {
+				$scope.$close(t.data);
+			}).catch(function (response) {
+				swal('Error', 'error launching task: HTTP ' + response.status, 'error');
 			});
 		}
 	}]);
@@ -60,10 +60,10 @@ define(function () {
 
 		$scope.reload = function () {
 			$http.get($scope.project.getURL() + '/tasks/' + $scope.task.id + '/output')
-			.success(function (output) {
-				logData = output;
+			.then(function (output) {
+				logData = output.data;
 				var out = [];
-				output.forEach(function (o) {
+				output.data.forEach(function (o) {
 					var pre = '';
 					if (!$scope.raw) pre = moment(o.time).format('HH:mm:ss') + ': ';
 
@@ -74,19 +74,19 @@ define(function () {
 			});
 			if ($scope.task.user_id) {
 				$http.get('/users/' + $scope.task.user_id)
-				.success(function (output) {
-					$scope.task.user_name = output.name;
+				.then(function (output) {
+					$scope.task.user_name = output.data.name;
 				});
 			}
 		}
 
 		$scope.remove = function () {
 			$http.delete($scope.project.getURL() + '/tasks/' + $scope.task.id)
-			.success(function () {
+			.then(function () {
 				$scope.$close();
-			}).error(function () {
+			}).catch(function () {
 				swal("Error", 'Could not delete task', 'error');
-			})
+			});
 		}
 
 		$scope.$watch('raw', function () {

@@ -6,7 +6,8 @@ define(function () {
 		}
 
 		$scope.checkUpdate = function () {
-			$http.get('/upgrade').success(function (upgrade) {
+			$http.get('/upgrade').then(function (response) {
+			  var upgrade = response.data;
 				if (!upgrade) return;
 
 				if (upgrade.updateBody) {
@@ -25,10 +26,10 @@ define(function () {
 				scope: $scope
 			});
 
-			$http.post('/upgrade').success(function () {
+			$http.post('/upgrade').then(function () {
 				$scope.upgraded = true;
 				$scope.pollUpgrade(upgradeModal, 0);
-			}).error(function () {
+			}).catch(function () {
 				swal('Error upgrading', arguments, 'error');
 			});
 		}
