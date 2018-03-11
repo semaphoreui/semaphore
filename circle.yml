@@ -13,6 +13,7 @@ dependencies:
     - sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - go get -u -v github.com/go-task/task/cmd/task
+    - go get github.com/schrej/godacov
     - task deps
   override:
     - task compile
@@ -35,6 +36,9 @@ test:
       EOF
     - go run cli/main.go --migrate -config config.json
   override:
-    - task test
+    - cd ${CPATH}/${CIRCLE_PROJECT_REPONAME} && task test
     - task build
     - task ci:artifacts
+  post:
+    # We don't export the coverage secret to forks so we need this to always return successfully
+    - godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
