@@ -11,3 +11,5 @@ caddyfile
 cli/semaphore_*
 *-packr.go
 util/version.go
+/vendor/
+/coverage.out
