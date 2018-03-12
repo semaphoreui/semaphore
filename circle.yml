@@ -14,7 +14,7 @@ dependencies:
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     - go get -u -v github.com/go-task/task/cmd/task
     - go get github.com/schrej/godacov
-    - task deps
+    - cd ${CPATH}/${CIRCLE_PROJECT_REPONAME} && task deps
   override:
     - task compile
 

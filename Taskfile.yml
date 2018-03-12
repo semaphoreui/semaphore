@@ -17,16 +17,14 @@ tasks:
   deps:
     desc: Install all dependencies
     cmds:
+     - task: deps:tools
      - task: deps:be
      - task: deps:fe
-     - task: deps:watch
 
   deps:be:
-    desc: Install golang tools for project building
+    desc: Vendor application dependencies
     cmds:
-      - go get github.com/gobuffalo/packr/...
-      - go get github.com/mitchellh/gox
-      - go get -u github.com/haya14busa/goverage
+      - dep ensure -vendor-only
 
   deps:fe:
     desc: Installs npm requirements for front end from package.json
@@ -36,12 +34,17 @@ tasks:
       - npm i -g less pug-cli
       - npm i async
 
-  deps:watch:
-    desc: Installs tools needed for watch commands
+  deps:tools:
+    desc: Installs tools needed
     dir: public
     cmds:
       - npm install -g nodemon
+      - go get -u github.com/golang/dep/cmd/dep
       - go get github.com/cespare/reflex
+      - go get -u github.com/gobuffalo/packr/...
+      - go get github.com/mitchellh/gox
+      - go get -u github.com/haya14busa/goverage
+
 
   compile:
     desc: Generates compiled frontend and backend resources (must be in this order)
