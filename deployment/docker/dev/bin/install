@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+echo "--> Turn off StrictKeyChecking"
+cat > /etc/ssh/ssh_config <<EOF
+Host *
+    StrictHostKeyChecking no
+    UserKnownHostsFile=/dev/null
+EOF
+
+echo "--> Install Semaphore entrypoint wrapper script"
+mv ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
+task deps

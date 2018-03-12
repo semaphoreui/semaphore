@@ -143,3 +143,123 @@ tasks:
   ci:artifacts:
     cmds:
       - rsync -a bin/ $CIRCLE_ARTIFACTS/
+
+  # docker(-compose) commands
+  dc:dev:
+    desc: build and start a development stack using docker-compose
+    cmds:
+      - task: docker
+        vars:
+          context: dev
+          args: build semaphore_dev
+          compose: true
+      - task: dc:up
+        vars:
+          context: dev
+
+  # convenience function to build and start a production like stack
+  dc:prod:
+    desc: build and start a production like stack using docker-compose
+    cmds:
+      - task: docker
+        vars:
+          context: prod
+          args: build semaphore
+          compose: true
+      - task: dc:up
+        vars:
+          context: prod
+
+  dc:up:
+    desc: start a docker-compose instance, requires context
+    cmds:
+      - task: docker
+        vars:
+          compose: true
+          args: up --abort-on-container-exit
+          context: "{{ .context }}"
+
+  dc:build:
+    desc: build a set of docker-compose containers, requires context
+    cmds:
+      - task: docker
+        vars:
+          compose: true
+          args: build
+          context: "{{ .context }}"
+
+  dc:down:
+    desc: down a docker-compose instance, requires context
+    cmds:
+      - task: docker
+        vars:
+          compose: true
+          args: down
+          context: "{{ .context }}"
+
+  dc:stop:
+    desc: stop a docker-compose instance, requires context
+    cmds:
+      - task: docker
+        vars:
+          compose: true
+          args: stop
+          context: "{{ .context }}"
+
+  docker:build:
+    desc: Build an image for Semaphore, requires context
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - task: docker
+        vars:
+          context: "{{ .context }}"
+          action: build
+          tag: "{{ .tag }}"
+          args: -t castawaylabs/semaphore:{{ .tag }} .
+
+  deps:docker:
+    desc: Install docker testing dependencies. These must be installed explicitly and are not included in the general deps task.
+    status:
+      - test -f /usr/local/bin/goss
+      - test -f /usr/local/bin/dgoss
+      - test -f /usr/local/bin/hadolint
+    cmds:
+      - sudo curl -L https://github.com/aelsabbahy/goss/releases/download/v0.3.5/goss-linux-amd64 -o /usr/local/bin/goss
+      - sudo chmod +rx /usr/local/bin/goss
+      - sudo curl -L https://raw.githubusercontent.com/aelsabbahy/goss/v0.3.5/extras/dgoss/dgoss -o /usr/local/bin/dgoss
+      - sudo chmod +rx /usr/local/bin/dgoss
+      - sudo curl -L https://github.com/hadolint/hadolint/releases/download/v1.5.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+      - sudo chmod +rx /usr/local/bin/hadolint
+
+  docker:test:
+    desc: Test docker containers by building them, running tests and deleting
+    deps: ['deps:docker']
+    cmds:
+      - task: docker:lint
+        vars:
+          context: "{{ .context }}"
+      - task: docker:build
+        vars:
+          tag: "{{ .context }}-test"
+      - task: docker:goss
+      - docker rmi "castawaylabs/semaphore:{{ .context }}-test"
+
+  docker:goss:
+    dir: "deployment/docker/{{ .context}}"
+    deps: ['deps:docker']
+    cmds:
+      - GOSS_FILES_STRATEGY='cp' dgoss run -it "castawaylabs/semaphore:{{ .context }}-test"
+
+  docker:lint:
+    desc: hadolint a dockerfile. Ignores version pinning warning
+    dir: "deployment/docker/{{ .context}}"
+    cmds:
+      - hadolint Dockerfile --ignore DL3018
+
+  # templated command to reduce code duplication
+  docker:
+    vars:
+      docker_root: deployment/docker/
+    cmds:
+      - docker{{ if .compose }}-compose{{ end }} {{ if .action }}{{ .action }}{{ end }} -f {{ .docker_root }}{{ .context }}/{{ if .compose }}docker-compose.yml{{ else }}Dockerfile{{ end }} {{if .args }}{{ .args }}{{ end }}

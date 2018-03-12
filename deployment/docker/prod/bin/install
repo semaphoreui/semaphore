@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+
+# Go build environment
+export GOROOT=/usr/lib/go
+export GOPATH=/go
+export GOBIN=/go/bin
+export PATH="${PATH}:${GOBIN}"
+
+# Get prerequisites for building the app
+go get -u -v github.com/go-task/task/cmd/task
+go get ./...
+
+# Compile and build
+task deps
+task compile
+task build:local
+
+mv ./bin/semaphore /usr/local/bin/
+chown 1001:0 /usr/local/bin/semaphore
+chmod +x /usr/local/bin/semaphore
+
+mv ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
+chown 1001:0 /usr/local/bin/semaphore-wrapper
