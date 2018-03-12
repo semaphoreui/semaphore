@@ -13,9 +13,9 @@
 
 ## Contributing
 
-PR's & UX reviews are welcome! [**WE ARE LOOKING FOR A NEW MAINTAINER**](https://github.com/ansible-semaphore/semaphore/issues/451)
+PR's & UX reviews are welcome!
 
-Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/master/CONTRIBUTING.md) guide. Any questions, please open an issue.
+Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
 
 ## License
 
