@@ -14,7 +14,7 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-var publicAssets = packr.NewBox("../public")
+var publicAssets = packr.NewBox("../web/public")
 
 // Declare all routes
 func Route() mulekick.Router {

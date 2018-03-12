@@ -9,10 +9,10 @@ tasks:
   all:
     desc: Install, Compile, Test and Build Semaphore for local architecture
     cmds:
-      - deps
-      - compile
-      - test
-      - build:local
+      - task: deps
+      - task: compile
+      - task: test
+      - task: build:local
 
   deps:
     desc: Install all dependencies
@@ -28,23 +28,21 @@ tasks:
 
   deps:fe:
     desc: Installs npm requirements for front end from package.json
-    dir: public
+    dir: web
     cmds:
-      - git submodule update --init --recursive
       - npm i -g less pug-cli
-      - npm i async
+      - npm install
 
   deps:tools:
     desc: Installs tools needed
-    dir: public
+    dir: web
     cmds:
       - npm install -g nodemon
       - go get -u github.com/golang/dep/cmd/dep
-      - go get github.com/cespare/reflex
+      - go get github.com/cespare/reflex || true
       - go get -u github.com/gobuffalo/packr/...
       - go get github.com/mitchellh/gox
       - go get -u github.com/haya14busa/goverage
-
 
   compile:
     desc: Generates compiled frontend and backend resources (must be in this order)
@@ -54,25 +52,26 @@ tasks:
 
   compile:fe:
     desc: Runs less, pug and node
-    dir: public
+    dir: web
     sources:
-      - css/semaphore.less
-      - html/*.pug
-      - html/**/*.pug
+      - resources/css/semaphore.less
+      - resources/html/*.pug
+      - resources/html/**/*.pug
     generates:
-      - css/semaphore.css
-      - html/*.html
-      - html/**/*.html
-      - js/bundle.json
+      - public/css/semaphore.css
+      - public/html/*.html
+      - public/html/**/*.html
+      - bundle.json
     cmds:
-      - lessc css/semaphore.less > css/semaphore.css
-      - pug $(find ./html/ -name "*.pug")
-      - node ./bundler.js
+      - lessc resources/less/semaphore.less > public/css/semaphore.css
+      - pug resources/pug --out public/html
+      - cp node_modules/font-awesome/fonts/* public/fonts
+      - node bundler.js
 
   compile:be:
     desc: Runs Packr for static assets
     sources:
-      - public/*
+      - web/public/*
       - db/migrations/*
     generates:
       - db/db-packr.go
@@ -94,17 +93,17 @@ tasks:
 
   watch:
     desc: Watch fe and be file changes and rebuild
-    dir: public
+    dir: web/resources
     cmds:
       - task: watch:fe
       - task: watch:be
 
   watch:be:
     cmds:
-      - reflex -r '\.go$' -R '^public/vendor/' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
+      - reflex -r '\.go$' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
 
   watch:fe:
-    dir: public
+    dir: web/resources
     cmds:
       - nodemon -w js -i bundle.js -e js bundler.js &
       - nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
