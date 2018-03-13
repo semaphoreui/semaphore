@@ -1,12 +1,13 @@
 machine:
   environment:
-    CPATH: "${HOME}/.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}"
+    CPATH: "${HOME}/.go_workspace/src/github.com/ansible-semaphore"
   node:
     version: 8.2.0
 
 
 dependencies:
   pre:
+    - sudo apt-get install rpm
     - rm -rf ${CPATH} && mkdir -p ${CPATH}
     - ln -sfn ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
     - sudo rm -rf /usr/local/go
@@ -42,3 +43,10 @@ test:
   post:
     # We don't export the coverage secret to forks so we need this to always return successfully
     - godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
+
+deployment:
+  tag:
+    tag: /v[0-9]+(\.[0-9]+)*(-.*)*/
+    owner: ansible-semaphore
+    commands:
+      - curl -sL https://git.io/goreleaser | bash
