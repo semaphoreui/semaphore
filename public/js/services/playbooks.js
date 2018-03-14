@@ -5,8 +5,8 @@ define([
 		var self = this;
 
 		self.getPlaybooks = function(cb) {
-			$http.get('/playbooks').success(function(data) {
-				$rootScope.playbooks = self.playbooks = data;
+			$http.get('/playbooks').then(function(response) {
+				$rootScope.playbooks = self.playbooks = response.data;
 				
 				cb();
 			});

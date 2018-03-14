@@ -1,54 +1,78 @@
 define(['controllers/projects/taskRunner'], function () {
-	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
-		$http.get(Project.getURL() + '/keys?type=ssh').success(function (keys) {
-			$scope.sshKeys = keys;
+	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', '$window', function ($scope, $http, $modal, Project, $rootScope, $window) {
+		$http.get(Project.getURL() + '/keys?type=ssh').then(function (keys) {
+			$scope.sshKeys = keys.data;
 
 			$scope.sshKeysAssoc = {};
-			keys.forEach(function (k) {
+			keys.data.forEach(function (k) {
 				if (k.removed) k.name = '[removed] - ' + k.name;
 				$scope.sshKeysAssoc[k.id] = k;
 			});
 		});
-		$http.get(Project.getURL() + '/inventory').success(function (inv) {
-			$scope.inventory = inv;
+		$http.get(Project.getURL() + '/inventory').then(function (inv) {
+			$scope.inventory = inv.data;
 
 			$scope.inventoryAssoc = {};
-			inv.forEach(function (i) {
+			inv.data.forEach(function (i) {
 				if (i.removed) i.name = '[removed] - ' + i.name;
 				$scope.inventoryAssoc[i.id] = i;
 			});
 		});
-		$http.get(Project.getURL() + '/repositories').success(function (repos) {
-			$scope.repos = repos;
+		$http.get(Project.getURL() + '/repositories').then(function (repos) {
+			$scope.repos = repos.data;
 
 			$scope.reposAssoc = {};
-			repos.forEach(function (i) {
+			repos.data.forEach(function (i) {
 				if (i.removed) i.name = '[removed] - ' + i.name;
 
 				$scope.reposAssoc[i.id] = i;
 			});
 		});
-		$http.get(Project.getURL() + '/environment').success(function (env) {
-			$scope.environment = env;
+		$http.get(Project.getURL() + '/environment').then(function (env) {
+			$scope.environment = env.data;
 
 			$scope.environmentAssoc = {};
-			env.forEach(function (i) {
+			env.data.forEach(function (i) {
 				if (i.removed) i.name = '[removed] - ' + i.name;
 
 				$scope.environmentAssoc[i.id] = i;
 			});
 		});
 
+		function getHiddenTemplates() {
+			try {
+				return JSON.parse($window.localStorage.getItem('hidden-templates') || '[]');
+			} catch(e) {
+				return [];
+			}
+		}
+
+		function setHiddenTemplates(hiddenTemplates) {
+			$window.localStorage.setItem('hidden-templates', JSON.stringify(hiddenTemplates));
+		}
+
+		$scope.hasHiddenTemplates = function() {
+			return getHiddenTemplates().length > 0;
+		}
+
 		$scope.reload = function () {
-			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').success(function (templates) {
+			$http.get(Project.getURL() + '/templates?sort=alias&order=asc').then(function (response) {
+			  var templates = response.data;
+				var hiddenTemplates = getHiddenTemplates();
+				for (var i = 0; i < templates.length; i++) {
+					var template = templates[i];
+					if (hiddenTemplates.indexOf(template.id) !== -1) {
+						template.hidden = true;
+					}
+				}
 				$scope.templates = templates;
 			});
 		}
 
 		$scope.remove = function (template) {
-			$http.delete(Project.getURL() + '/templates/' + template.id).success(function () {
+			$http.delete(Project.getURL() + '/templates/' + template.id).then(function () {
 				$scope.reload();
-			}).error(function () {
+			}).catch(function () {
 				swal('error', 'could not delete template..', 'error');
 			});
 		}
@@ -65,12 +89,12 @@ define(['controllers/projects/taskRunner'], function () {
 				scope: scope
 			}).result.then(function (opts) {
 				var tpl = opts.template;
-				$http.post(Project.getURL() + '/templates', tpl).success(function () {
+				$http.post(Project.getURL() + '/templates', tpl).then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('error', 'could not add template:' + status, 'error');
+				}).catch(function (response) {
+					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.update = function (template) {
@@ -81,22 +105,24 @@ define(['controllers/projects/taskRunner'], function () {
 			scope.repositories = $scope.repos;
 			scope.environment = $scope.environment;
 
-			$modal.open({
+			var modal = $modal.open({
 				templateUrl: '/tpl/projects/templates/add.html',
 				scope: scope
-			}).result.then(function (opts) {
+			});
+
+			modal.result.then(function (opts) {
 				if (opts.remove) {
 					return $scope.remove(template);
 				}
 
 				var tpl = opts.template;
-				$http.put(Project.getURL() + '/templates/' + template.id, tpl).success(function () {
+				$http.put(Project.getURL() + '/templates/' + template.id, tpl).then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('error', 'could not add template:' + status, 'error');
+				}).catch(function (response) {
+					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			}).closed.then(function () {
-				$scope.reload();	
+			}, function() {
+				$scope.reload();
 			});
 		}
 
@@ -123,7 +149,34 @@ define(['controllers/projects/taskRunner'], function () {
 					scope: scope,
 					size: 'lg'
 				});
-			})
+			}, function () {});
+		}
+
+		$scope.showAll = function() {
+			$scope.allShown = true;
+		}
+
+		$scope.hideHidden = function() {
+			$scope.allShown = false;
+		}
+
+		$scope.hideTemplate = function(template) {
+			var hiddenTemplates = getHiddenTemplates();
+			if (hiddenTemplates.indexOf(template.id) === -1) {
+				hiddenTemplates.push(template.id);
+			}
+			setHiddenTemplates(hiddenTemplates);
+			template.hidden = true;
+		}
+
+		$scope.showTemplate = function(template) {
+			var hiddenTemplates = getHiddenTemplates();
+			var i = hiddenTemplates.indexOf(template.id);
+			if (i !== -1) {
+				hiddenTemplates.splice(i, 1);
+			}
+			setHiddenTemplates(hiddenTemplates);
+			delete template.hidden;
 		}
 
 		$scope.copy = function (template) {
@@ -142,12 +195,12 @@ define(['controllers/projects/taskRunner'], function () {
 				scope: scope
 			}).result.then(function (opts) {
 				var tpl = opts.template;
-				$http.post(Project.getURL() + '/templates', tpl).success(function () {
+				$http.post(Project.getURL() + '/templates', tpl).then(function () {
 					$scope.reload();
-				}).error(function (_, status) {
-					swal('error', 'could not add template:' + status, 'error');
+				}).catch(function (response) {
+					swal('error', 'could not add template:' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.reload();

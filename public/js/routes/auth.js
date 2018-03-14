@@ -18,7 +18,7 @@ app.config(function ($stateProvider, $urlRouterProvider, $locationProvider, $cou
 		public: true,
 		templateUrl: '/tpl/auth/logout.html',
 		controller: ['$http', '$rootScope', '$state', function ($http, $rootScope, $state) {
-			$http.post('/auth/logout').success(function () {
+			$http.post('/auth/logout').then(function () {
 				$rootScope.refreshUser();
 				$state.go('auth.login');
 			});

@@ -1,6 +1,8 @@
 ![semaphore](public/img/logo.png)
 
 [![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://api.codacy.com/project/badge/Coverage/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&utm_medium=referral&utm_content=ansible-semaphore/semaphore&utm_campaign=Badge_Coverage)
 [![semaphore on discord](https://img.shields.io/badge/discord-semaphore%20community-738bd7.svg)](https://discord.gg/ZW7Qu6a)
 
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
@@ -11,9 +13,9 @@
 
 ## Contributing
 
-PR's & UX reviews are welcome! [**WE ARE LOOKING FOR A NEW MAINTAINER**](https://github.com/ansible-semaphore/semaphore/issues/451)
+PR's & UX reviews are welcome!
 
-Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/master/CONTRIBUTING.md) guide. Any questions, please open an issue.
+Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
 
 ## License
 

@@ -1,29 +1,44 @@
 machine:
   environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/github.com/ansible-semaphore/semaphore/"
+    CPATH: "${HOME}/.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}"
+  node:
+    version: 8.2.0
+
 
 dependencies:
   pre:
+    - rm -rf ${CPATH} && mkdir -p ${CPATH}
+    - ln -sfn ${HOME}/${CIRCLE_PROJECT_REPONAME} ${CPATH}
     - sudo rm -rf /usr/local/go
-    - sudo curl -L https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > /tmp/go.tar.gz
+    - sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
     - sudo tar -C /usr/local -xzf /tmp/go.tar.gz
-    - git submodule update --init --recursive
-    - npm i -g less pug-cli
-    - npm i async
-    - go get github.com/jteeuwen/go-bindata/...
-    - go get github.com/mitchellh/gox
-
+    - go get -u -v github.com/go-task/task/cmd/task
+    - go get github.com/schrej/godacov
+    - cd ${CPATH}/${CIRCLE_PROJECT_REPONAME} && task deps
   override:
-    - mkdir -p $CPATH
-    - rsync -azC --delete ./ $CPATH
-    - cd $CPATH && ./make.sh ci_test
-    - cd $CPATH && go get ./...
+    - task compile
 
 test:
   pre:
-    - cd $CPATH && go run cli/main.go --migrate
-
+    - |
+      cat > config.json <<EOF
+      {
+      	"mysql": {
+      		"host": "127.0.0.1:3306",
+      		"user": "ubuntu",
+      		"pass": "",
+      		"name": "circle_test"
+      	},
+      	"session_db": "127.0.0.1:6379",
+      	"port": ":8010",
+      	"email_alert": false
+      }
+      EOF
+    - go run cli/main.go --migrate -config config.json
   override:
-    - cd $CPATH && go vet ./...
-    - cd $CPATH && go test ./...
-    - cd $CPATH && ./make.sh
+    - cd ${CPATH}/${CIRCLE_PROJECT_REPONAME} && task test
+    - task build
+    - task ci:artifacts
+  post:
+    # We don't export the coverage secret to forks so we need this to always return successfully
+    - godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true

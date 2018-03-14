@@ -26,27 +26,27 @@ define(['app'], function (app) {
 			var self = this;
 
 			$http.get('/playbook/'+this.id)
-			.success(function (data, status) {
-				self.data = data;
+			.then(function (response) {
+				self.data = response.data;
 				cb();
 			})
-			.error(function (data, status) {
-				cb(data, status);
-			})
+			.then(function (response) {
+				cb(response.data, response.status);
+			});
 		}
 
 		Playbook.prototype.getHostGroups = function (cb) {
 			$http.get('/playbook/'+this.data._id+'/hosts')
-			.success(function (data, status) {
+			.then(function (response) {
 				
-				self.hosts = data;
+				self.hosts = response.data;
 				cb();
 			})
-			.error(function (data, status) {
-				cb(data, status);
-			})
+			.error(function (response) {
+				cb(response.data, response.status);
+			});
 		}
 
 		return Playbook;
-	}])
-})
+	}]);
+});

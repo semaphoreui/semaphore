@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-sql-driver/mysql"
+	"github.com/gobuffalo/packr"
 )
+
+var dbAssets = packr.NewBox("./migrations")
 
 func (version *DBVersion) CheckExists() (bool, error) {
 	exists, err := Mysql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
@@ -69,7 +71,8 @@ func (version *DBVersion) Run() error {
 func (version *DBVersion) TryRollback() {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
 
-	if _, err := util.Asset(version.GetErrPath()); err != nil {
+	data := dbAssets.Bytes(version.GetErrPath())
+	if len(data) == 0 {
 		fmt.Println("Rollback SQL does not exist.")
 		fmt.Println()
 		return

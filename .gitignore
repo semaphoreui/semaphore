@@ -1,5 +1,4 @@
 gin-bin
-util/bindata.go
 build/
 public/js/bundle.js
 public/css/semaphore.css
@@ -9,3 +8,9 @@ node_modules
 
 .idea/
 caddyfile
+cli/semaphore_*
+bin/
+*-packr.go
+util/version.go
+/vendor/
+/coverage.out

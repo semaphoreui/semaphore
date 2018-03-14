@@ -15,21 +15,21 @@ define(function () {
 			$http.post('/auth/login', {
 				auth: user.auth,
 				password: pwd
-			}).success(function (data, status) {
+			}).then(function (response) {
 				$scope.status = "Login Successful";
 				window.location = document.baseURI;
-			}).error(function (data, status) {
-				if (status == 400) {
+			}).catch(function (response) {
+				if (response.status === 400) {
 					// Login Failed
-					$scope.status = data.message;
-					if (!data.message) {
-						$scope.status = "Invalid login"
+					$scope.status = response.data.message;
+					if (!response.data.message) {
+						$scope.status = "Invalid login";
 					}
 
 					return;
 				}
 
-				$scope.status = status + ' Request Failed. Try again later.';
+				$scope.status = response.status + ' Request Failed. Try again later.';
 			});
 		}
 	}]);

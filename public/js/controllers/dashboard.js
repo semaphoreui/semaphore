@@ -3,18 +3,18 @@ define(['controllers/projects/edit'], function () {
 		$scope.projects = [];
 
 		$scope.refresh = function ($lastEvents=true) {
-			$http.get('/projects').success(function (projects) {
-				$scope.projects = projects;
+			$http.get('/projects').then(function (response) {
+				$scope.projects = response.data;
 			});
 
 			if ($lastEvents == true) {
-				$eventsURL = '/events/last'
+				$eventsURL = '/events/last';
 			} else {
-				$eventsURL = '/events'
+				$eventsURL = '/events';
 			}
 
-			$http.get($eventsURL).success(function (events) {
-				$scope.events = events;
+			$http.get($eventsURL).then(function (response) {
+				$scope.events = response.data;
 			});
 		}
 
@@ -23,12 +23,12 @@ define(['controllers/projects/edit'], function () {
 				templateUrl: '/tpl/projects/add.html'
 			}).result.then(function (project) {
 				$http.post('/projects', project)
-				.success(function () {
+				.then(function () {
 					$scope.refresh();
-				}).error(function (data, status) {
-					swal('Error', 'Could not create project: ' + status, 'error');
+				}).catch(function (response) {
+					swal('Error', 'Could not create project: ' + response.status, 'error');
 				});
-			});
+			}, function () {});
 		}
 
 		$scope.refresh();

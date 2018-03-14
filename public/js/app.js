@@ -1,4 +1,4 @@
-var app = angular.module('semaphore', ['scs.couch-potato', 'ui.router', 'ui.bootstrap', 'angular-loading-bar', 'luegg.directives']);
+var app = angular.module('semaphore', ['scs.couch-potato', 'ui.router', 'ui.bootstrap', 'angular-loading-bar', 'luegg.directives', 'ui.ace']);
 
 couchPotato.configureApp(app);
 
@@ -90,10 +90,10 @@ app.run(['$rootScope', '$window', '$couchPotato', '$injector', '$state', '$http'
 	$rootScope.refreshInfo = function (cb) {
 		if (typeof cb != 'function') cb = function () { }
 
-		$http.get('/info').success(function (info) {
-			$rootScope.semaphore = info;
+		$http.get('/info').then(function (info) {
+			$rootScope.semaphore = info.data;
 			cb();
-		}).error(function () {
+		}).catch(function () {
 			cb(true);
 		});
 	}
