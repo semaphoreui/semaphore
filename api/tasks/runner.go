@@ -465,10 +465,10 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 
 // extractCommandEnvironment unmarshalls a json string, extracts the ENV key from it and returns it as
 // []string where strings are in key=value format
-func extractCommandEnvironment(envJson string) []string {
+func extractCommandEnvironment(envJSON string) []string {
 	env := make([]string, 0)
 	var js map[string]interface{}
-	err := json.Unmarshal([]byte(envJson), &js)
+	err := json.Unmarshal([]byte(envJSON), &js)
 	if err == nil {
 		if cfg, ok := js["ENV"]; ok {
 			switch v := cfg.(type) {
@@ -484,17 +484,17 @@ func extractCommandEnvironment(envJson string) []string {
 
 // removeCommandEnvironment removes the ENV key from task environments and returns the resultant json encoded string
 // which can be passed as the --extra-vars flag values
-func removeCommandEnvironment(envJson string, envJs map[string]interface{}) (string, error) {
+func removeCommandEnvironment(envJSON string, envJs map[string]interface{}) (string, error) {
 	if _, ok := envJs["ENV"]; ok {
 		delete(envJs, "ENV")
 		ev, err := json.Marshal(envJs)
 		if err != nil {
-			return envJson, err
+			return envJSON, err
 		}
-		envJson = string(ev)
+		envJSON = string(ev)
 	}
 
-	return envJson, nil
+	return envJSON, nil
 
 }
 
