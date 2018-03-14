@@ -16,4 +16,5 @@ bin/
 util/version.go
 /vendor/
 /coverage.out
+/public/package-lock.json
 !.gitkeep

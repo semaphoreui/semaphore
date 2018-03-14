@@ -1,0 +1,70 @@
+# Goreleaser configuration
+# for building binaries and packages for distributions and releasing on github
+dist: bin
+
+git:
+  short_hash: true
+
+builds:
+  - binary: semaphore
+    main: ./cli/main.go
+    goos:
+      - windows
+      - darwin
+      - linux
+      - freebsd
+      - openbsd
+      - netbsd
+    goarch:
+      - amd64
+      - 386
+      - arm
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: 386
+    hooks:
+      pre: task compile
+
+archive:
+  format_overrides:
+    - goos: windows
+      format: zip
+  files:
+    - LICENSE
+    - CHANGELOG.md
+
+#sign:
+#   artifacts: checksum
+
+# Start the snapshot name with a numerical value
+# so it does not need to be force installed
+snapshot:
+  name_template: "{{.Timestamp}}-{{.Commit}}-SNAPSHOT"
+
+nfpm:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  vendor: Castaway Consulting LLC
+  homepage: https://github.com/ansible-semaphore/semaphore
+  description: Open Source alternative to Ansible Tower
+  license: MIT
+
+  formats:
+    - deb
+    - rpm
+
+  # Packages your package depends on.
+  dependencies:
+    - git
+
+  suggests:
+    - ansible
+
+  # install binary in /usr/bin
+  bindir: /usr/bin
+
+release:
+  # Do not auto publish release
+  draft: true
+  name_template: "{{.Tag}}"
