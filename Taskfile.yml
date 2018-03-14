@@ -103,11 +103,11 @@ tasks:
       - reflex -r '\.go$' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
 
   watch:fe:
-    dir: web/resources
+    dir: web
     cmds:
       - nodemon -w js -i bundle.js -e js bundler.js &
-      - nodemon -w css -e less --exec "lessc css/semaphore.less > css/semaphore.css" &
-      - pug -w -P --doctype html $(find ./html/ -name "*.pug") &
+      - nodemon -w css -e less --exec "lessc resources/less/semaphore.less > public/css/semaphore.css" &
+      - pug -w -P --doctype html resources/pug --out public/html &
 
   build:
     desc: Build a full set of release binaries
