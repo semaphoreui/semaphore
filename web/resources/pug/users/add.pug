@@ -1,0 +1,34 @@
+.modal-header
+  h4.modal-title New User
+.modal-body
+  form.form-horizontal
+    .form-group
+      label.control-label.col-sm-4(for="name") Name
+      .col-sm-6
+        input#name.form-control(type="text" placeholder="User Name" ng-model="user.name" autofocus required)
+    .form-group
+      label.control-label.col-sm-4(for="username") Username
+      .col-sm-6
+        input#username.form-control(type="text" placeholder="Username" ng-model="user.username" required)
+    .form-group
+      label.control-label.col-sm-4(for="email") Email
+      .col-sm-6
+        input#email.form-control(type="email" placeholder="Email Address" ng-model="user.email" required)
+
+    .form-group
+      label.control-label.col-sm-4(for="password") Password
+      .col-sm-6
+        input#password.form-control(type="password" placeholder="User Password" ng-model="user.password" required)
+
+    .form-group
+      .col-sm-8.col-sm-offset-4: .checkbox: label
+        input#admin(type="checkbox" title="User have admin privileges" ng-model="user.admin")
+        |  Admin user
+    .form-group
+      .col-sm-8.col-sm-offset-4: .checkbox: label
+        input#alert(type="checkbox" title="Send email alerts about failed tasks" ng-model="user.alert")
+        |  Send alerts
+
+.modal-footer
+  button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
+  button.btn.btn-success(ng-click="$close(user)") Create User

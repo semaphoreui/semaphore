@@ -60,6 +60,13 @@ func (t *task) prepareRun() {
 
 	t.log("Preparing: " + strconv.Itoa(t.task.ID))
 
+	err := checkTmpDir(util.Config.TmpPath)
+	if err != nil {
+		t.log("Creating tmp dir failed: " + err.Error())
+		t.fail()
+		return
+	}
+
 	if err := t.populateDetails(); err != nil {
 		t.log("Error: " + err.Error())
 		t.fail()
@@ -94,6 +101,12 @@ func (t *task) prepareRun() {
 
 	if err := t.installInventory(); err != nil {
 		t.log("Failed to install inventory: " + err.Error())
+		t.fail()
+		return
+	}
+
+	if err := t.runGalaxy(); err != nil {
+		t.log("Running galaxy failed: " + err.Error())
 		t.fail()
 		return
 	}
@@ -153,12 +166,6 @@ func (t *task) run() {
 
 	t.log("Started: " + strconv.Itoa(t.task.ID))
 	t.log("Run task with template: " + t.template.Alias + "\n")
-
-	if err := t.runGalaxy(); err != nil {
-		t.log("Running galaxy failed: " + err.Error())
-		t.fail()
-		return
-	}
 
 	if err := t.runPlaybook(); err != nil {
 		t.log("Running playbook failed: " + err.Error())
@@ -372,6 +379,7 @@ func (t *task) runPlaybook() error {
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)
+	cmd.Stdin = strings.NewReader("")
 	return cmd.Run()
 }
 
@@ -381,8 +389,16 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		playbookName = t.template.Playbook
 	}
 
+	var inventory string;
+	switch t.inventory.Type {
+	case "file":
+		inventory = t.inventory.Inventory
+	default:
+		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+	}
+
 	args := []string{
-		"-i", util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID),
+		"-i", inventory,
 	}
 
 	if t.inventory.SshKeyID != nil {
@@ -480,4 +496,16 @@ func removeCommandEnvironment(envJson string, envJs map[string]interface{}) (str
 
 	return envJson, nil
 
+}
+
+// checkTmpDir checks to see if the temporary directory exists
+// and if it does not attempts to create it
+func checkTmpDir(path string) error {
+	var err error = nil
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return os.MkdirAll(path, 0700)
+		}
+	}
+	return err
 }

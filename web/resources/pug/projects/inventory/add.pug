@@ -1,0 +1,42 @@
+.modal-header
+	h4.modal-title
+		span(ng-if="!inventory.id") New Inventory
+		span(ng-if="inventory.id") Update Inventory
+.modal-body
+	form.form-horizontal
+		.form-group
+			label.control-label.col-sm-4 Name
+			.col-sm-6
+				input.form-control(type="text" ng-model="inventory.name" placeholder="Inventory Name")
+
+		.form-group
+			label.control-label.col-sm-4 Type
+			.col-sm-6
+				select.form-control(ng-model="inventory.type" ng-init="inventory.type = inventory.type || 'static'")
+					option(value="static") Static
+					option(value="file") File
+
+		.form-group(ng-if="inventory.type == 'file'")
+			label.control-label.col-sm-4 Path to inventory file
+			.col-sm-6
+				input.form-control(type="text" ng-model="inventory.inventory")
+
+		.form-group(ng-if="inventory.type != 'static' && inventory.type != 'file'")
+			label.control-label.col-sm-4 Remote inventory key
+			.col-sm-6
+				select.form-control(ng-model="inventory.key_id" ng-options="key.id as key.name for key in remote_keys")
+					option(value="") -- Select Key --
+
+		.form-group
+			label.control-label.col-sm-4 SSH Key
+			.col-sm-6
+				select.form-control(ng-model="inventory.ssh_key_id" ng-options="key.id as key.name for key in sshKeys")
+					option(value="") -- Select SSH Key --
+				p.help-block Used to log into the servers in this inventory
+
+.modal-footer
+	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
+	button.btn.btn-danger(ng-if="inventory.id" ng-click="$close({ remove: true })") Delete
+	button.btn.btn-success(ng-click="$close({ inventory: inventory })")
+		span(ng-if="!inventory.id") Create
+		span(ng-if="inventory.id") Update

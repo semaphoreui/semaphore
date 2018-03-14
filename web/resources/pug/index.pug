@@ -1,0 +1,61 @@
+doctype
+html(lang="en" ng-app="semaphore")
+	head
+		meta(http-equiv="Content-Type" content="text/html; charset=utf-8;")
+		meta(name="viewport" content="width=device-width, initial-scale=1.0")
+		base(href="/")
+		title(ng-bind-template="{{ pageTitle }} - Semaphore") Semaphore
+		link(href="/public/img/icon.png" type="image/png" rel="icon")
+		link(href="/public/img/icon.png" type="image/png" rel="shortcut icon")
+
+		link(rel="stylesheet" href="public/css/semaphore.css")
+
+	body
+		.navbar.navbar-default(ng-if="loggedIn"): .container-fluid
+			.navbar-header
+				a.navbar-brand(ui-sref="dashboard") semaphore
+
+			ul.nav.navbar-nav
+				li(ng-class="{ active: $state.includes('dashboard') }")
+					a(ui-sref="dashboard") Dashboard
+				//- li(ng-class="{ active: $state.includes('keys') }")
+				//- 	a(ui-sref="keys") Key Store
+				li(ng-class="{ active: $state.includes('users') }")
+					a(ui-sref="users.list") Users
+
+			ul.nav.navbar-nav.navbar-right(style="margin-right: 0;")
+				li(ng-class="{ active: $state.includes('user') }")
+					a(ui-sref="user")
+						i.fa.fa-fw.fa-user
+						| &nbsp;{{ user.name }}
+				li(uib-dropdown)
+					a(uib-dropdown-toggle)
+						span(ng-if="semaphore.update")
+							i.fa.fa-fw.fa-exclamation-circle
+							| &nbsp;
+						i.fa.fa-fw.fa-cog
+					ul(uib-dropdown-menu)
+						li.dropdown-header semaphore {{ semaphore.version }}
+						li: a(ui-sref="admin")
+							span(ng-if="semaphore.update")
+								i.fa.fa-fw.fa-exclamation-circle
+								| &nbsp;
+							| System info
+						li.divider
+						li: a(ui-sref="auth.logout")
+							i.fa.fa-fw.fa-sign-out
+							| &nbsp;Log out
+
+		ui-view(autoscroll="false")
+			p.lead.text-center
+				i.fa.fa-spin.fa-cog
+				|  Loading...
+
+		footer: a.github-corner(href="https://github.com/ansible-semaphore/semaphore" target="_blank" title="Ansible-Semaphore on GitHub")
+			svg(width="80" height="80" viewbox="0 0 250 250")
+				title Ansible-Semaphore on GitHub
+				path(d="M0 0h250v250")
+				path.octo-arm(d="M127.4 110c-14.6-9.2-9.4-19.5-9.4-19.5 3-7 1.5-11 1.5-11-1-6.2 3-2 3-2 4 4.7 2 11 2 11-2.2 10.4 5 14.8 9 16.2" fill="currentColor")
+				path.octo-body(d="M113.2 114.3s3.6 1.6 4.7.6l15-13.7c3-2.4 6-3 8.2-2.7-8-11.2-14-25 3-41 4.7-4.4 10.6-6.4 16.2-6.4.6-1.6 3.6-7.3 11.8-10.7 0 0 4.5 2.7 6.8 16.5 4.3 2.7 8.3 6 12 9.8 3.3 3.5 6.7 8 8.6 12.3 14 3 16.8 8 16.8 8-3.4 8-9.4 11-11.4 11 0 5.8-2.3 11-7.5 15.5-16.4 16-30 9-40 .2 0 3-1 7-5.2 11l-13.3 11c-1 1 .5 5.3.8 5z" fill="currentColor")
+
+		script(src="public/js/bundle.js")

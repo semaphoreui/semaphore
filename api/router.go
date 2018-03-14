@@ -9,9 +9,12 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/castawaylabs/mulekick"
+	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 	"github.com/russross/blackfriday"
 )
+
+var publicAssets = packr.NewBox("../web/public")
 
 // Declare all routes
 func Route() mulekick.Router {
@@ -123,21 +126,21 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		path = "/public/html/index.html"
+		path = "/html/index.html"
 	}
 
-	path = strings.Replace(path, "/", "", 1)
+	path = strings.Replace(path, "/public/", "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
-	res, err := util.Asset(path)
+	res, err := publicAssets.MustBytes(path)
 	if err != nil {
 		mulekick.NotFoundHandler(w, r)
 		return
 	}
 
 	// replace base path
-	if util.WebHostURL != nil && path == "public/html/index.html" {
+	if util.WebHostURL != nil && path == "html/index.html" {
 		res = []byte(strings.Replace(string(res),
 			"<base href=\"/\">",
 			"<base href=\""+util.WebHostURL.String()+"\">",

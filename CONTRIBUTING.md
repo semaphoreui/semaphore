@@ -4,19 +4,20 @@ When creating a pull-request you should:
 
 - __Open an issue first:__ Confirm that the change or feature will be accepted
 - __gofmt and vet the code:__ Use  `gofmt`, `golint`, `govet` and `goimports` to clean up your code.
+- __vendor dependencies with dep:__ Use `dep ensure --update` if you have added to or updated dependencies, so that they get added to the dependency manifest.
 - __Update api documentation:__ If your pull-request adding/modifying an API request, make sure you update the swagger documentation (`api-docs.yml`)
 
 # Installation in a development environment
 
 - Check out the `develop` branch
-- [Install Go](https://golang.org/doc/install)
+- [Install Go](https://golang.org/doc/install). Go must be >= v1.10 for all the tools we use to work
 - Install MySQL / MariaDB
 - Install node.js
 
-1) Set up GOPATH, GOBIN and Workspace
-
+1) Set up GOPATH, GOBIN and Workspace.
 ```
 cd {WORKING_DIRECTORY}
+# Exports only needed pre Go 1.8 or for custom GOPATH location
 export GOPATH=`pwd`
 export GOBIN=$GOPATH/bin
 export PATH=$PATH:$GOBIN
@@ -33,9 +34,9 @@ git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semap
 3) Install dev dependencies
 
 ```
-go get ./... github.com/cespare/reflex github.com/jteeuwen/go-bindata/... github.com/mitchellh/gox
-npm install async
-npm install -g nodemon pug-cli less
+go get ./... 
+go get -u github.com/go-task/task/cmd/task
+task deps
 ```
 
 4) Set up config, database & run migrations
@@ -54,11 +55,11 @@ cat <<EOT >> config.json
 EOT
 
 echo "create database semaphore;" | mysql -uroot -p
-go-bindata -debug -o util/bindata.go -pkg util config.json db/migrations/ $(find public/* -type d -print)
+task compile
 go run cli/main.go -config ./config.json -migrate
 ```
 
-Now it's ready to start.. Run `./make.sh watch`
+Now it's ready to start.. Run `task watch`
 
 - Watches js files in `public/js/*` and compiles into a bundle
 - Watches css files in `public/css/*` and compiles into css code
@@ -66,4 +67,5 @@ Now it's ready to start.. Run `./make.sh watch`
 - Watches go files and recompiles the binary
 - Open [localhost:3000](http://localhost:3000)
 
-Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands. And because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows, you may encounter issues when running `./make.sh watch`, but running `./make.sh` will still be OK.
+Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows. 
+You may encounter issues when running `task watch`, but running `task build` etc... will still be OK.

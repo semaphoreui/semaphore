@@ -1,0 +1,21 @@
+.container-fluid: .row: .col-sm-12
+	h3.no-top-margin Users
+		button.btn.btn-primary.pull-right(ng-click="addUser()" ng-if="user.admin == true") New User
+
+	table.table.table-hover
+		thead: tr
+			th Name
+			th Username
+			th Email
+			th Alert
+			th Admin
+			th External
+		tr(ng-repeat="u in users" ng-class="{ info: u.id == user.id }" ui-sref="users.user({ user_id: u.id })" style="cursor: pointer;")
+			td {{ u.name }}
+			td {{ u.username }}
+			td {{ u.email }}
+			td {{ u.alert }}
+			td {{ u.admin }}
+			td {{ u.external }}
+
+	p(ng-show="users.length == 0") No Users
