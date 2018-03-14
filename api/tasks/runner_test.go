@@ -9,7 +9,6 @@ import (
 
 
 func TestCheckTmpDir(t *testing.T) {
-
 	//It should be able to create a random dir in /tmp
 	dirName := os.TempDir()+ "/" + randString(rand.Intn(10 - 4) + 4)
 	err := checkTmpDir(dirName)
@@ -27,6 +26,14 @@ func TestCheckTmpDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if stat, err:= os.Stat(dirName); err != nil {
+		t.Fatal(err)
+	} else if stat.Mode() != os.FileMode(int(0550)) {
+		// File System is not support 0550 mode, skip this test
+		return
+	}
+
 	err = checkTmpDir(dirName+"/noway")
 	if err == nil {
 		t.Fatal("You should not be able to write in this folder, causing an error")
@@ -35,7 +42,6 @@ func TestCheckTmpDir(t *testing.T) {
 	if err != nil {
 		t.Log(err)
 	}
-
 }
 
 

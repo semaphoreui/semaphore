@@ -1,0 +1,24 @@
+[
+	"node_modules/angular/angular.min",
+	"node_modules/angular-couch-potato/dist/angular-couch-potato",
+	"node_modules/@uirouter/angularjs/release/angular-ui-router",
+	"node_modules/angular-ui-bootstrap/dist/ui-bootstrap-tpls",
+	"node_modules/angular-loading-bar/build/loading-bar",
+	"node_modules/moment/min/moment.min",
+	"node_modules/sweetalert/dist/sweetalert.min",
+	"node_modules/angular-ui-ace/src/ui-ace",
+	"node_modules/ace-builds/src-min-noconflict/ace",
+	"node_modules/ace-builds/src-min-noconflict/mode-json",
+	"node_modules/ace-builds/src-min-noconflict/mode-yaml",
+	"node_modules/ace-builds/src-min-noconflict/mode-ini",
+	"node_modules/angularjs-scroll-glue/src/scrollglue",
+	"public/js/app",
+	"public/js/routes/router",
+	"public/js/routes/auth",
+	"public/js/routes/project",
+
+	"public/js/factories/project",
+
+	"node_modules/requirejs/require",
+	"require_config"
+]
