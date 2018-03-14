@@ -1,3 +1,0 @@
-[submodule "public/vendor"]
-	path = public/vendor
-	url = git://github.com/ansible-semaphore/semaphore-vendor.git

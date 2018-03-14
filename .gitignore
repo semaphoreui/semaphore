@@ -1,10 +1,12 @@
 gin-bin
 build/
-public/js/bundle.js
-public/css/semaphore.css
+web/public/js/bundle.js
+web/public/css/*.*
+web/public/html/**/*.*
+web/public/fonts/*.*
 config.json
 .DS_Store
-node_modules
+node_modules/
 
 .idea/
 caddyfile
@@ -15,3 +17,4 @@ util/version.go
 /vendor/
 /coverage.out
 /public/package-lock.json
+!.gitkeep
