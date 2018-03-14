@@ -44,7 +44,7 @@ tasks:
       - go get -u github.com/gobuffalo/packr/...
       - go get -u github.com/haya14busa/goverage
       # needs go 1.10+
-      - go get github.com/goreleaser/goreleaser
+      - go get github.com/goreleaser/goreleaser/...
 
 
   compile:
@@ -114,7 +114,7 @@ tasks:
   build:
     desc: Build a full set of release binaries and packages
     cmds:
-      - task: release:test
+      - task: release
 
   build:local:
     desc: Build a binary for the current architecture
@@ -122,13 +122,12 @@ tasks:
     cmds:
      - go build -o ../bin/semaphore
 
-  release:test:
+  release:
     desc: creates a release without performing validations or publishing artifacts
     cmds:
       - goreleaser --snapshot --rm-dist
 
-  release:
-    desc: Build a full set of release binaries
+  release:prod:
     cmds:
       - goreleaser
 

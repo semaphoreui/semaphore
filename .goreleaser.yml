@@ -56,8 +56,10 @@ nfpm:
 
   # Packages your package depends on.
   dependencies:
-    - ansible
     - git
+
+  suggests:
+    - ansible
 
   # install binary in /usr/bin
   bindir: /usr/bin
