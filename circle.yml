@@ -1,6 +1,6 @@
 machine:
   environment:
-    CPATH: "${HOME}/.go_workspace/src/github.com/${CIRCLE_PROJECT_USERNAME}"
+    CPATH: "${HOME}/.go_workspace/src/github.com/ansible-semaphore"
   node:
     version: 8.2.0
 

@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 echoerr() { printf "%s\n" "$*" >&2; }
 
 SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
@@ -59,7 +57,7 @@ while ! mysqladmin ping -h"$SEMAPHORE_DB_HOST" -P "$SEMAPHORE_DB_PORT" -u "$SEMA
 done
 
 # Create a config if it does not exist in the current config path
-if [ ! -f "${SEMAPHORE_CONFIG_PATH}/semaphore_config.json" ]; then
+if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
     echoerr "Generating ${SEMAPHORE_TMP_PATH}/config.stdin ..."
     cat << EOF > "${SEMAPHORE_TMP_PATH}/config.stdin"
 ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}
@@ -90,6 +88,7 @@ EOF
 
     cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
 yes
+${SEMAPHORE_CONFIG_PATH}
 ${SEMAPHORE_ADMIN}
 ${SEMAPHORE_ADMIN_EMAIL}
 ${SEMAPHORE_ADMIN_NAME}
@@ -98,10 +97,7 @@ EOF
 
     cat "${SEMAPHORE_TMP_PATH}/config.stdin"
     $1 -setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
-
-    echoerr "Moving config file to non temporary path ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json"
-    mv  "${SEMAPHORE_TMP_PATH}/semaphore_config.json" ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json 2>/dev/null || true
-    echoerr "Run Semaphore with semaphore -config ${SEMAPHORE_CONFIG_PATH}/semaphore_config.json"
+    echoerr "Run Semaphore with semaphore -config ${SEMAPHORE_CONFIG_PATH}/config.json"
 fi
 
 # run our command

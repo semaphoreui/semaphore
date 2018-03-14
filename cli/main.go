@@ -102,14 +102,26 @@ func doSetup() int {
 		setup = util.NewConfig()
 	}
 
-	fmt.Printf(" Running: mkdir -p %v..\n", setup.TmpPath)
-	os.MkdirAll(setup.TmpPath, 0755)
+	confDir, err := os.Getwd()
+	if err != nil {
+		confDir = "/etc/semaphore"
+	}
+	fmt.Print(" > Config output directory (default "+confDir+"): ")
 
-	configPath := path.Join(setup.TmpPath, "/semaphore_config.json")
-	fmt.Printf(" Configuration written to %v..\n", configPath)
+	var answer string
+	fmt.Scanln(&answer)
+	if len(answer) > 0 {
+		confDir = answer
+	}
+
+	fmt.Printf(" Running: mkdir -p %v..\n", confDir)
+	os.MkdirAll(confDir, 0755)
+
+	configPath := path.Join(confDir, "/config.json")
 	if err := ioutil.WriteFile(configPath, b, 0644); err != nil {
 		panic(err)
 	}
+	fmt.Printf(" Configuration written to %v..\n", configPath)
 
 	fmt.Println(" Pinging db..")
 	util.Config = setup
