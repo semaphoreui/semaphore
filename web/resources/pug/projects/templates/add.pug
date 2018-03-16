@@ -46,11 +46,11 @@
 		.form-group
 			label.control-label.col-sm-4(uib-tooltip='*MUST* be a JSON array! Each argument must be an element of the array, for example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]') Extra CLI Arguments
 			.col-sm-6
-				div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" style="height: 100px" class="form-control" ng-model="task.environment")
+				div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" style="height: 100px" class="form-control" ng-model="tpl.arguments")
 		.form-group
 			.col-sm-6.col-sm-offset-4
 				.checkbox(uib-tooltip="Usually semaphore prepends arguments like `--private-key=/location/id_rsa` to make sure everything goes smoothly. This option is for special needs, where semaphore conflicts with one of your arguments."): label
-					input(type="checkbox" ng-model="user.admin")
+					input(type="checkbox" ng-model="tpl.override_args")
 					| Override semaphore arguments
 .modal-footer
 	button.btn.btn-default.pull-left(ng-click="$dismiss()") Dismiss
