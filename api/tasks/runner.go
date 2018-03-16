@@ -114,7 +114,7 @@ func (t *task) prepareRun() {
 
 	// todo: write environment
 
-	if err, stderr := t.listPlaybookHosts(); err != nil {
+	if stderr, err := t.listPlaybookHosts(); err != nil {
 		t.log("Listing playbook hosts failed: " + err.Error() + "\n" + stderr)
 		t.fail()
 		return
@@ -348,10 +348,10 @@ func (t *task) runGalaxy() error {
 	return cmd.Run()
 }
 
-func (t *task) listPlaybookHosts() (error, string) {
+func (t *task) listPlaybookHosts() (string, error) {
 	args, err := t.getPlaybookArgs()
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 	args = append(args, "--list-hosts")
 
@@ -372,7 +372,7 @@ func (t *task) listPlaybookHosts() (error, string) {
 		hosts[i] = string(matches[i][1])
 	}
 	t.hosts = hosts
-	return err, stderr
+	return stderr, err
 }
 
 func (t *task) runPlaybook() error {
