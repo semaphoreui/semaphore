@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -113,8 +114,8 @@ func (t *task) prepareRun() {
 
 	// todo: write environment
 
-	if err := t.listPlaybookHosts(); err != nil {
-		t.log("Listing playbook hosts failed: " + err.Error())
+	if stderr, err := t.listPlaybookHosts(); err != nil {
+		t.log("Listing playbook hosts failed: " + err.Error() + "\n" + stderr)
 		t.fail()
 		return
 	}
@@ -347,10 +348,10 @@ func (t *task) runGalaxy() error {
 	return cmd.Run()
 }
 
-func (t *task) listPlaybookHosts() error {
+func (t *task) listPlaybookHosts() (string, error) {
 	args, err := t.getPlaybookArgs()
 	if err != nil {
-		return err
+		return "", err
 	}
 	args = append(args, "--list-hosts")
 
@@ -358,7 +359,11 @@ func (t *task) listPlaybookHosts() error {
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
+	var errb bytes.Buffer
+	cmd.Stderr = &errb
+
 	out, err := cmd.Output()
+
 	re := regexp.MustCompile("(?m)^\\s{6}(.*)$")
 	matches := re.FindAllSubmatch(out, 20)
 	hosts := make([]string, len(matches))
@@ -366,7 +371,7 @@ func (t *task) listPlaybookHosts() error {
 		hosts[i] = string(matches[i][1])
 	}
 	t.hosts = hosts
-	return err
+	return errb.String(), err
 }
 
 func (t *task) runPlaybook() error {
@@ -389,7 +394,7 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		playbookName = t.template.Playbook
 	}
 
-	var inventory string;
+	var inventory string
 	switch t.inventory.Type {
 	case "file":
 		inventory = t.inventory.Inventory
