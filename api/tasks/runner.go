@@ -363,7 +363,6 @@ func (t *task) listPlaybookHosts() (string, error) {
 	cmd.Stderr = &errb
 
 	out, err := cmd.Output()
-	stderr := errb.String()
 
 	re := regexp.MustCompile("(?m)^\\s{6}(.*)$")
 	matches := re.FindAllSubmatch(out, 20)
@@ -372,7 +371,7 @@ func (t *task) listPlaybookHosts() (string, error) {
 		hosts[i] = string(matches[i][1])
 	}
 	t.hosts = hosts
-	return stderr, err
+	return errb.String(), err
 }
 
 func (t *task) runPlaybook() error {
