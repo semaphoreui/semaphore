@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
+	"strings"
 )
 
 var Cookie *securecookie.SecureCookie
@@ -134,21 +135,7 @@ func ConfigInit() {
 	}
 
 	loadConfig()
-
-	if len(os.Getenv("PORT")) > 0 {
-		Config.Port = ":" + os.Getenv("PORT")
-	}
-	if len(Config.Port) == 0 {
-		Config.Port = ":3000"
-	}
-
-	if len(Config.TmpPath) == 0 {
-		Config.TmpPath = "/tmp/semaphore"
-	}
-
-	if Config.MaxParallelTasks < 1 {
-		Config.MaxParallelTasks = 10
-	}
+	validateConfig()
 
 	var encryption []byte
 	encryption = nil
@@ -195,6 +182,34 @@ func loadConfig(){
 	fmt.Println("Using config file: "+ *confPath)
 
 }
+
+func validateConfig(){
+
+	validatePort()
+
+	if len(Config.TmpPath) == 0 {
+		Config.TmpPath = "/tmp/semaphore"
+	}
+
+	if Config.MaxParallelTasks < 1 {
+		Config.MaxParallelTasks = 10
+	}
+}
+
+func validatePort() {
+
+	//TODO - why do we do this only with this variable?
+	if len(os.Getenv("PORT")) > 0 {
+		Config.Port = ":" + os.Getenv("PORT")
+	}
+	if len(Config.Port) == 0 {
+		Config.Port = ":3000"
+	}
+	if !strings.HasPrefix(Config.Port, ":"){
+		Config.Port = ":"+Config.Port
+	}
+}
+
 
 
 func decodeConfig(file *os.File){
