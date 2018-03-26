@@ -38,6 +38,8 @@ go get ./...
 go get -u github.com/go-task/task/cmd/task
 task deps
 ```
+Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
+
 
 4) Set up config, database & run migrations
 

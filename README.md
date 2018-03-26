@@ -8,7 +8,8 @@
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
 - [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
 - [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
-- [Roadmap](https://github.com/ansible-semaphore/semaphore/issues/325)
+- [Contribution Guide](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md)
+- [Roadmap](https://github.com/ansible-semaphore/semaphore/projects)
 - [UI Walkthrough](https://blog.strangeman.info/ansible/2017/08/05/semaphore-ui-guide.html) (external blog)
 
 ## Contributing
