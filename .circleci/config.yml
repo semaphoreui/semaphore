@@ -39,11 +39,13 @@ jobs:
     - run: go get github.com/schrej/godacov
     # Get app and install all its deps
     - checkout
-    - run: task deps
+    # Circle can provide a concatenated gopath and the second item is not actually in the path
+    # which will cause builds to fail if deps are placed there
+    - run: GOPATH=/home/circleci/.go_workspace task deps
     - run: task deps:docker
     # Save dependency cache
     - save_cache:
-        key: v3-dep-{{ .Branch }}-{{ epoch }}
+        key: v4-dep-{{ .Branch }}-{{ epoch }}
         paths:
         - ~/.go_workspace/src/github.com/ansible-semaphore/semaphore
         - ~/.go_workspace/bin
