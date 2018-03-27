@@ -32,7 +32,7 @@ define(function () {
                         }
                     }).then(function (value) {
                         if (!value) {
-                            return
+                            return;
                         }
 
                         $http
@@ -46,7 +46,7 @@ define(function () {
                             .catch(function () {
                                 swal('Error', 'Could not delete inventory..', 'error');
                             });
-                    })
+                    });
                 });
         }
 
@@ -116,7 +116,8 @@ define(function () {
         }
 
         $scope.getKeys = function (cb) {
-            if (typeof cb != 'function') cb = function () {
+            if (typeof cb != 'function') {
+                cb = function () {}
             }
 
             $http.get(Project.getURL() + '/keys?type=ssh').then(function (keys) {

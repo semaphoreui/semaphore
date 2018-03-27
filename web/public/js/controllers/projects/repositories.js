@@ -45,7 +45,7 @@ define(function () {
                         }
                     }).then(function (value) {
                         if (!value) {
-                            return
+                            return;
                         }
 
                         $http.delete(Project.getURL() + '/repositories/' + repo.id + '?setRemoved=1')
@@ -58,7 +58,7 @@ define(function () {
                             .catch(function () {
                                 swal('Error', 'Could not delete repository..', 'error');
                             });
-                    })
+                    });
                 });
         }
 

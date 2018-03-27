@@ -20,14 +20,14 @@ define(function () {
                 buttons: {
                     cancel: true,
                     confirm: {
-                        text: "Yes, DELETE",
+                        text: 'Yes, DELETE',
                         closeModal: false,
                         className: 'bg-danger',
                     },
                 },
             }).then(function (value) {
                 if (!value) {
-                    return
+                    return;
                 }
 
                 $http.delete(Project.getURL())
@@ -39,7 +39,7 @@ define(function () {
                     }).catch(function () {
                     swal('Error', 'Could not delete project!', 'error');
                 });
-            })
+            });
         }
     }]);
 });

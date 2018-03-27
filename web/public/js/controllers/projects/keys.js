@@ -33,7 +33,7 @@ define(function () {
                         }
                     }).then(function (value) {
                         if (!value) {
-                            return
+                            return;
                         }
 
                         $http.delete(Project.getURL() + '/keys/' + key.id + '?setRemoved=1')
@@ -46,7 +46,7 @@ define(function () {
                             .catch(function () {
                                 swal('Error', 'Could not remove key..', 'error');
                             });
-                    })
+                    });
                 });
         }
 
