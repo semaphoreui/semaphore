@@ -8,33 +8,28 @@ services:
       MYSQL_DATABASE: semaphore
       MYSQL_USER: semaphore
       MYSQL_PASSWORD: semaphore
-    hostname: mysql
-    expose:
-      - 3306
 
-  semaphore_api:
-    image: castawaylabs/semaphore
+  semaphore_dev:
+    image: castawaylabs/semaphore-dev:latest
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/dev/Dockerfile
+    volumes:
+      - "./../../../:/go/src/github.com/ansible-semaphore/semaphore:rw"
     environment:
       SEMAPHORE_DB_USER: semaphore
       SEMAPHORE_DB_PASS: semaphore
       SEMAPHORE_DB_HOST: mysql
       SEMAPHORE_DB_PORT: 3306
       SEMAPHORE_DB: semaphore
-      SEMAPHORE_PLAYBOOK_PATH: /etc/semaphore/
-      SEMAPHORE_ADMIN_PASSWORD: cangetin
-      SEMAPHORE_ADMIN_NAME: Default\ Administrator
+      SEMAPHORE_PLAYBOOK_PATH: /etc/semaphore
+      SEMAPHORE_ADMIN_PASSWORD: password
+      SEMAPHORE_ADMIN_NAME: "Developer"
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ADMIN: admin
-    expose:
-      - 3000
+      SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
     ports:
-      - 8081:3000
+      - "3000:3000"
+    depends_on:
+      - mysql
 
-  semaphore_proxy:
-    build: proxy
-    expose:
-      - 443
-      - 80
-    ports:
-      - 8080:80
-      - 8443:443

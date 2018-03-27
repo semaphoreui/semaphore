@@ -1,0 +1,41 @@
+# This dockerfile provides an example of using the production image in a working stack
+version: '2'
+
+services:
+
+  mysql:
+    image: mysql
+    hostname: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: semaphore
+      MYSQL_USER: semaphore
+      MYSQL_PASSWORD: hx4hjxqthfwbfsy5535u4agfdscm
+
+  semaphore:
+    image: castawaylabs/semaphore:prod
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/prod/Dockerfile
+    environment:
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: hx4hjxqthfwbfsy5535u4agfdscm
+      SEMAPHORE_DB_HOST: mysql
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB: semaphore
+      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore/
+      SEMAPHORE_ADMIN_PASSWORD: cangetin
+      SEMAPHORE_ADMIN_NAME: admin
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
+    depends_on:
+      - mysql
+  semaphore_proxy:
+    image: castawaylabs/semaphore:proxy
+    build:
+      context: ./proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - semaphore

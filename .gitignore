@@ -9,8 +9,6 @@ config.json
 node_modules/
 
 .idea/
-caddyfile
-cli/semaphore_*
 bin/
 *-packr.go
 util/version.go
