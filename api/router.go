@@ -16,7 +16,7 @@ import (
 
 var publicAssets = packr.NewBox("../web/public")
 
-// Declare all routes
+// Route declares all routes
 func Route() mulekick.Router {
 	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -112,6 +112,7 @@ func Route() mulekick.Router {
 	return r
 }
 
+//nolint: gocyclo
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
@@ -170,7 +171,8 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("content-type", contentType)
-	w.Write(res)
+	_, err = w.Write(res)
+	util.LogWarning(err)
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
@@ -208,5 +210,5 @@ func checkUpgrade(w http.ResponseWriter, r *http.Request) {
 }
 
 func doUpgrade(w http.ResponseWriter, r *http.Request) {
-	util.DoUpgrade(util.Version)
+	util.LogError(util.DoUpgrade(util.Version))
 }

@@ -52,6 +52,7 @@ jobs:
         - /opt/circleci/.nvm
     # Post cache compile
     - run: task compile
+    - run: task lint:be
     # Test
     # This looks like utter filth in circleci v2 but we have no choice apart from this escaping madness
     - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"0.0.0.0:3306\"\

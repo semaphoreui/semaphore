@@ -27,7 +27,8 @@ func TestCheckTmpDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if stat, err:= os.Stat(dirName); err != nil {
+	//nolint: vetshadow
+	if stat, err := os.Stat(dirName); err != nil {
 		t.Fatal(err)
 	} else if stat.Mode() != os.FileMode(int(0550)) {
 		// File System is not support 0550 mode, skip this test

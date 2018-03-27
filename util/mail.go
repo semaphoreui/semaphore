@@ -3,19 +3,33 @@ package util
 import (
 	"bytes"
 	"net/smtp"
+	log "github.com/Sirupsen/logrus"
+	"io"
 )
 
+// SendMail dispatches a mail using smtp
 func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) error {
 	c, err := smtp.Dial(emailHost)
 	if err != nil {
 		return err
 	}
 
-	defer c.Close()
+	defer func (c *smtp.Client) {
+		err = c.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}(c)
 
 	// Set the sender and recipient.
-	c.Mail(mailSender)
-	c.Rcpt(mailRecipient)
+	err = c.Mail(mailSender)
+	if err != nil {
+		return err
+	}
+	err = c.Rcpt(mailRecipient)
+	if err != nil {
+		return err
+	}
 
 	// Send the email body.
 	wc, err := c.Data()
@@ -23,7 +37,12 @@ func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) er
 		return err
 	}
 
-	defer wc.Close()
+	defer func (wc io.WriteCloser) {
+		err = wc.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}(wc)
 	_, err = mail.WriteTo(wc)
 	return err
 }

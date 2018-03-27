@@ -2,6 +2,8 @@ package db
 
 import "time"
 
+
+//Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`
 	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
@@ -22,6 +24,7 @@ type Task struct {
 	End     *time.Time `db:"end" json:"end"`
 }
 
+// TaskOutput is the ansible log output from the task
 type TaskOutput struct {
 	TaskID int       `db:"task_id" json:"task_id"`
 	Task   string    `db:"task" json:"task"`

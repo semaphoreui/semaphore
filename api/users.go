@@ -29,7 +29,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	editor := context.Get(r, "user").(*db.User)
-	if editor.Admin != true {
+	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -61,7 +61,7 @@ func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
 	}
 
 	editor := context.Get(r, "user").(*db.User)
-	if editor.Admin != true && editor.ID != user.ID {
+	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -79,7 +79,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if editor.Admin != true && editor.ID != oldUser.ID {
+	if !editor.Admin && editor.ID != oldUser.ID {
 		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -91,7 +91,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if oldUser.External == true && oldUser.Username != user.Username {
+	if oldUser.External && oldUser.Username != user.Username {
 		log.Warn("Username is not editable for external LDAP users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -112,13 +112,13 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		Pwd string `json:"password"`
 	}
 
-	if editor.Admin != true && editor.ID != user.ID {
+	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if user.External == true {
+	if user.External {
 		log.Warn("Password is not editable for external LDAP users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -128,7 +128,8 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
+	password, err := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
+	util.LogWarning(err)
 	if _, err := db.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
 		panic(err)
 	}
@@ -140,7 +141,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "_user").(db.User)
 	editor := context.Get(r, "user").(*db.User)
 
-	if editor.Admin != true && editor.ID != user.ID {
+	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to delete users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return

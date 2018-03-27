@@ -7,8 +7,10 @@ import (
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
+//nolint: gocyclo
 func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	user := context.Get(r, "user").(*db.User)
 
@@ -22,7 +24,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	}
 
 	projectObj, exists := context.GetOk(r, "project")
-	if exists == true {
+	if exists {
 		// limit query to project
 		project := projectObj.(db.Project)
 		q = q.Where("event.project_id=?", project.ID)
@@ -33,7 +35,8 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 	var events []db.Event
 
-	query, args, _ := q.ToSql()
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
 	if _, err := db.Mysql.Select(&events, query, args...); err != nil {
 		panic(err)
 	}
@@ -55,13 +58,14 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 			continue
 		}
 
-		query, args, _ := q.ToSql()
+		query, args, err := q.ToSql()
+		util.LogWarning(err)
 		name, err := db.Mysql.SelectNullStr(query, args...)
 		if err != nil {
 			panic(err)
 		}
 
-		if name.Valid == true {
+		if name.Valid {
 			events[i].ObjectName = name.String
 		}
 	}

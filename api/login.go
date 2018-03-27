@@ -19,7 +19,7 @@ import (
 )
 
 func findLDAPUser(username, password string) (*db.User, error) {
-	if util.Config.LdapEnable != true {
+	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
 
@@ -30,18 +30,18 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	defer l.Close()
 
 	// Reconnect with TLS if needed
-	if util.Config.LdapNeedTLS == true {
+	if util.Config.LdapNeedTLS {
 		// TODO: InsecureSkipVerify should be configurable
 		tlsConf := tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, //nolint: gas
 		}
-		if err := l.StartTLS(&tlsConf); err != nil {
+		if err = l.StartTLS(&tlsConf); err != nil {
 			return nil, err
 		}
 	}
 
 	// First bind with a read only user
-	if err := l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
 		return nil, err
 	}
 
@@ -65,7 +65,7 @@ func findLDAPUser(username, password string) (*db.User, error) {
 
 	// Bind as the user to verify their password
 	userdn := sr.Entries[0].DN
-	if err := l.Bind(userdn, password); err != nil {
+	if err = l.Bind(userdn, password); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(util.Config.LdapSearchFilter, username),
-		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.Uid, util.Config.LdapMappings.CN},
+		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.UID, util.Config.LdapMappings.CN},
 		nil,
 	)
 
@@ -84,7 +84,7 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	}
 
 	ldapUser := db.User{
-		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Uid),
+		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID),
 		Created:  time.Now(),
 		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
 		Email:    sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Mail),
@@ -96,6 +96,7 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	return &ldapUser, nil
 }
 
+//nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
@@ -137,12 +138,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 		q = q.Where("username=?", login.Auth)
 	}
 
-	query, args, _ := q.ToSql()
-	if err := db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
+	if err = db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
 		if ldapUser != nil {
 			// create new LDAP user
 			user = *ldapUser
-			if err := db.Mysql.Insert(&user); err != nil {
+			if err = db.Mysql.Insert(&user); err != nil {
 				panic(err)
 			}
 		} else {
@@ -161,7 +163,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	// non-ldap login
 	if !user.External {
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
+		if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -177,7 +179,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err := db.Mysql.Insert(&session); err != nil {
+	if err = db.Mysql.Insert(&session); err != nil {
 		panic(err)
 	}
 

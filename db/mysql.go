@@ -6,11 +6,14 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	"gopkg.in/gorp.v1"
+	log "github.com/Sirupsen/logrus"
 )
 
+// Mysql is the gorp database map
+// db.Connect must be called to set this up correctly
 var Mysql *gorp.DbMap
 
-// Mysql database
+// Connect to MySQL and initialize the Mysql object
 func Connect() error {
 	db, err := connect()
 	if err != nil {
@@ -18,7 +21,7 @@ func Connect() error {
 	}
 
 	if err := db.Ping(); err != nil {
-		if err := createDb(); err != nil {
+		if err = createDb(); err != nil {
 			return err
 		}
 
@@ -27,13 +30,22 @@ func Connect() error {
 			return err
 		}
 
-		if err := db.Ping(); err != nil {
+		if err = db.Ping(); err != nil {
 			return err
 		}
 	}
 
 	Mysql = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}}
 	return nil
+}
+
+// Close closes the mysql connection and reports any errors
+// called from main with a defer
+func Close() {
+	err := Mysql.Db.Close()
+	if err != nil {
+		log.Warn("Error closing database:" + err.Error())
+	}
 }
 
 func createDb() error {

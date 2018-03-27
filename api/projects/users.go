@@ -12,6 +12,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
+// UserMiddleware ensures a user exists and loads it to the context
 func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	userID, err := util.GetIntParam("user_id", w, r)
@@ -32,6 +33,7 @@ func UserMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "projectUser", user)
 }
 
+// GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var users []struct {
@@ -42,8 +44,8 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
 
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	if order != asc && order != desc {
+		order = asc
 	}
 
 	q := squirrel.Select("u.*").Column("pu.admin").
@@ -69,6 +71,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, users)
 }
 
+// AddUser adds a user to a projects team in the database
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var user struct {
@@ -98,6 +101,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
@@ -120,6 +124,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// MakeUserAdmin writes the admin flag to the users account
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)

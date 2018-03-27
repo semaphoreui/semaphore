@@ -17,8 +17,10 @@ import (
 
 // Adapted from github.com/apex/apex
 
+// UpdateAvailable contains the full repository information for the latest release of Semaphore
 var UpdateAvailable *github.RepositoryRelease
 
+// DoUpgrade checks for an update, and if available downloads the binary and installs it
 func DoUpgrade(version string) error {
 	fmt.Printf("current release is v%s\n", version)
 
@@ -33,7 +35,7 @@ func DoUpgrade(version string) error {
 
 	// create tmp file
 	tmpPath := filepath.Join(os.TempDir(), "semaphore-upgrade")
-	f, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+	f, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755) //nolint: gas
 	if err != nil {
 		return err
 	}
@@ -44,7 +46,8 @@ func DoUpgrade(version string) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+
+	defer res.Body.Close() //nolint: errcheck
 
 	// copy it down
 	_, err = io.Copy(f, res.Body)
@@ -73,11 +76,14 @@ func DoUpgrade(version string) error {
 	return nil
 }
 
+// FindSemaphore looks in the PATH for the semaphore variable
+// if not found it will attempt to find the absolute path of the first
+// os argument, the semaphore command, and return it
 func FindSemaphore() string {
-	cmdPath, _ := exec.LookPath("semaphore")
+	cmdPath, _ := exec.LookPath("semaphore") //nolint: gas
 
 	if len(cmdPath) == 0 {
-		cmdPath, _ = filepath.Abs(os.Args[0])
+		cmdPath, _ = filepath.Abs(os.Args[0]) // nolint: gas
 	}
 
 	return cmdPath
@@ -94,6 +100,7 @@ func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 	return nil
 }
 
+// CheckUpdate uses the github client to check for new tags in the semaphore repo
 func CheckUpdate(version string) error {
 	// fetch releases
 	gh := github.NewClient(nil)

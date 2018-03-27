@@ -18,6 +18,12 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+const (
+	taskFailStatus = "error"
+	taskTypeID = "task"
+)
+
+
 type task struct {
 	task        db.Task
 	template    db.Template
@@ -27,14 +33,14 @@ type task struct {
 	environment db.Environment
 	users       []int
 	projectID   int
-	alert       bool
 	hosts       []string
+	alertChat   string
+	alert       bool
 	prepared    bool
-	alert_chat  string
 }
 
 func (t *task) fail() {
-	t.task.Status = "error"
+	t.task.Status = taskFailStatus
 	t.updateStatus()
 	t.sendMailAlert()
 	t.sendTelegramAlert()
@@ -46,7 +52,7 @@ func (t *task) prepareRun() {
 	defer func() {
 		fmt.Println("Stopped preparing task")
 
-		objType := "task"
+		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 		if err := (db.Event{
 			ProjectID:   &t.projectID,
@@ -54,8 +60,7 @@ func (t *task) prepareRun() {
 			ObjectID:    &t.task.ID,
 			Description: &desc,
 		}.Insert()); err != nil {
-			t.log("Fatal error inserting an event")
-			panic(err)
+			t.panicOnError(err, "Fatal error inserting an event")
 		}
 	}()
 
@@ -74,7 +79,7 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	objType := "task"
+	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	if err := (db.Event{
 		ProjectID:   &t.projectID,
@@ -88,7 +93,7 @@ func (t *task) prepareRun() {
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
 
-	if err := t.installKey(t.repository.SshKey); err != nil {
+	if err := t.installKey(t.repository.SSHKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
@@ -132,7 +137,7 @@ func (t *task) run() {
 		t.task.End = &now
 		t.updateStatus()
 
-		objType := "task"
+		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 		if err := (db.Event{
 			ProjectID:   &t.projectID,
@@ -153,7 +158,7 @@ func (t *task) run() {
 		t.updateStatus()
 	}
 
-	objType := "task"
+	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 	if err := (db.Event{
 		ProjectID:   &t.projectID,
@@ -193,15 +198,11 @@ func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...inter
 	return nil
 }
 
+//nolint: gocyclo
 func (t *task) populateDetails() error {
 	// get template
 	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
 		return err
-	}
-
-	type AlertSettings struct {
-		Alert     bool   `db:"alert"`
-		AlertChat string `db:"alert_chat"`
 	}
 
 	var project db.Project
@@ -210,7 +211,7 @@ func (t *task) populateDetails() error {
 		return err
 	}
 	t.alert = project.Alert
-	t.alert_chat = project.AlertChat
+	t.alertChat = project.AlertChat
 
 	// get project users
 	var users []struct {
@@ -226,7 +227,7 @@ func (t *task) populateDetails() error {
 	}
 
 	// get access key
-	if err := t.fetch("Template Access Key not found!", &t.sshKey, "select * from access_key where id=?", t.template.SshKeyID); err != nil {
+	if err := t.fetch("Template Access Key not found!", &t.sshKey, "select * from access_key where id=?", t.template.SSHKeyID); err != nil {
 		return err
 	}
 
@@ -248,8 +249,8 @@ func (t *task) populateDetails() error {
 	}
 
 	// get inventory ssh key
-	if t.inventory.SshKeyID != nil {
-		if err := t.fetch("Inventory Ssh Key not found!", &t.inventory.SshKey, "select * from access_key where id=?", *t.inventory.SshKeyID); err != nil {
+	if t.inventory.SSHKeyID != nil {
+		if err := t.fetch("Inventory Ssh Key not found!", &t.inventory.SSHKey, "select * from access_key where id=?", *t.inventory.SSHKeyID); err != nil {
 			return err
 		}
 	}
@@ -260,11 +261,11 @@ func (t *task) populateDetails() error {
 	}
 
 	// get repository access key
-	if err := t.fetch("Repository Access Key not found!", &t.repository.SshKey, "select * from access_key where id=?", t.repository.SshKeyID); err != nil {
+	if err := t.fetch("Repository Access Key not found!", &t.repository.SSHKey, "select * from access_key where id=?", t.repository.SSHKeyID); err != nil {
 		return err
 	}
-	if t.repository.SshKey.Type != "ssh" {
-		t.log("Repository Access Key is not 'SSH': " + t.repository.SshKey.Type)
+	if t.repository.SSHKey.Type != "ssh" {
+		t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
 		return errors.New("Unsupported SSH Key")
 	}
 
@@ -298,13 +299,13 @@ func (t *task) updateRepository() error {
 	repoName := "repository_" + strconv.Itoa(t.repository.ID)
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
 
-	cmd := exec.Command("git")
+	cmd := exec.Command("git")//nolint: gas
 	cmd.Dir = util.Config.TmpPath
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
+	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
 
-	repoURL, repoTag := t.repository.GitUrl, "master"
+	repoURL, repoTag := t.repository.GitURL, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
 		repoURL, repoTag = split[0], split[1]
 	}
@@ -334,10 +335,10 @@ func (t *task) runGalaxy() error {
 		"--force",
 	}
 
-	cmd := exec.Command("ansible-galaxy", args...)
+	cmd := exec.Command("ansible-galaxy", args...)//nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SshKey.GetPath()
+	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
 
 	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
@@ -355,7 +356,7 @@ func (t *task) listPlaybookHosts() (string, error) {
 	}
 	args = append(args, "--list-hosts")
 
-	cmd := exec.Command("ansible-playbook", args...)
+	cmd := exec.Command("ansible-playbook", args...)//nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
@@ -364,10 +365,10 @@ func (t *task) listPlaybookHosts() (string, error) {
 
 	out, err := cmd.Output()
 
-	re := regexp.MustCompile("(?m)^\\s{6}(.*)$")
+	re := regexp.MustCompile(`(?m)^\\s{6}(.*)$`)
 	matches := re.FindAllSubmatch(out, 20)
 	hosts := make([]string, len(matches))
-	for i, _ := range matches {
+	for i := range matches {
 		hosts[i] = string(matches[i][1])
 	}
 	t.hosts = hosts
@@ -379,7 +380,7 @@ func (t *task) runPlaybook() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("ansible-playbook", args...)
+	cmd := exec.Command("ansible-playbook", args...)//nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
@@ -388,6 +389,7 @@ func (t *task) runPlaybook() error {
 	return cmd.Run()
 }
 
+//nolint: gocyclo
 func (t *task) getPlaybookArgs() ([]string, error) {
 	playbookName := t.task.Playbook
 	if len(playbookName) == 0 {
@@ -406,8 +408,8 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		"-i", inventory,
 	}
 
-	if t.inventory.SshKeyID != nil {
-		args = append(args, "--private-key="+t.inventory.SshKey.GetPath())
+	if t.inventory.SSHKeyID != nil {
+		args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
 	}
 
 	if t.task.Debug {
@@ -506,8 +508,8 @@ func removeCommandEnvironment(envJSON string, envJs map[string]interface{}) (str
 // checkTmpDir checks to see if the temporary directory exists
 // and if it does not attempts to create it
 func checkTmpDir(path string) error {
-	var err error = nil
-	if _, err := os.Stat(path); err != nil {
+	var err error
+	if _, err = os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return os.MkdirAll(path, 0700)
 		}

@@ -18,6 +18,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/handlers"
 	"golang.org/x/crypto/bcrypt"
+	log "github.com/Sirupsen/logrus"
 )
 
 func main() {
@@ -45,7 +46,7 @@ func main() {
 	}
 
 	db.SetupDBLink()
-	defer db.Mysql.Db.Close()
+	defer db.Close()
 
 	if err := db.MigrateAll(); err != nil {
 		panic(err)
@@ -63,9 +64,13 @@ func main() {
 	var router http.Handler = api.Route()
 	router = handlers.ProxyHeaders(router)
 	http.Handle("/", router)
-	http.ListenAndServe(util.Config.Port, nil)
+	err := http.ListenAndServe(util.Config.Port, nil)
+	if err != nil {
+		log.Panic(err)
+	}
 }
 
+//nolint: gocyclo
 func doSetup() int {
 	fmt.Print(`
  Hello! You will now be guided through a setup to:
@@ -93,7 +98,7 @@ func doSetup() int {
 		fmt.Print(" > Is this correct? (yes/no): ")
 
 		var answer string
-		fmt.Scanln(&answer)
+		util.ScanErrorChecker(fmt.Scanln(&answer))
 		if answer == "yes" || answer == "y" {
 			break
 		}
@@ -106,19 +111,22 @@ func doSetup() int {
 	if err != nil {
 		confDir = "/etc/semaphore"
 	}
-	fmt.Print(" > Config output directory (default "+confDir+"): ")
+	fmt.Print(" > Config output directory (default " + confDir + "): ")
 
 	var answer string
-	fmt.Scanln(&answer)
+	util.ScanErrorChecker(fmt.Scanln(&answer))
 	if len(answer) > 0 {
 		confDir = answer
 	}
 
 	fmt.Printf(" Running: mkdir -p %v..\n", confDir)
-	os.MkdirAll(confDir, 0755)
+	err = os.MkdirAll(confDir, 0755) //nolint: gas
+	if err != nil {
+		log.Panic("Could not create config directory: " + err.Error())
+	}
 
 	configPath := path.Join(confDir, "/config.json")
-	if err := ioutil.WriteFile(configPath, b, 0644); err != nil {
+	if err = ioutil.WriteFile(configPath, b, 0644); err != nil {
 		panic(err)
 	}
 	fmt.Printf(" Configuration written to %v..\n", configPath)
@@ -126,13 +134,13 @@ func doSetup() int {
 	fmt.Println(" Pinging db..")
 	util.Config = setup
 
-	if err := db.Connect(); err != nil {
+	if err = db.Connect(); err != nil {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	fmt.Println("\n Running DB Migrations..")
-	if err := db.MigrateAll(); err != nil {
+	if err = db.MigrateAll(); err != nil {
 		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -146,7 +154,8 @@ func doSetup() int {
 	user.Email = strings.ToLower(user.Email)
 
 	var existingUser db.User
-	db.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
+	err = db.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
+	util.LogWarning(err)
 
 	if existingUser.ID > 0 {
 		// user already exists
@@ -154,7 +163,8 @@ func doSetup() int {
 	} else {
 		user.Name = readNewline(" > Your name: ", stdin)
 		user.Password = readNewline(" > Password: ", stdin)
-		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+		util.LogWarning(err)
 
 		if _, err := db.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, admin=1, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
@@ -174,18 +184,27 @@ func doSetup() int {
 func readNewline(pre string, stdin *bufio.Reader) string {
 	fmt.Print(pre)
 
-	str, _ := stdin.ReadString('\n')
+	str, err := stdin.ReadString('\n')
+	util.LogWarning(err)
 	str = strings.Replace(strings.Replace(str, "\n", "", -1), "\r", "", -1)
 
 	return str
 }
 
+// checkUpdates is a goroutine that periodically checks for application updates
+// does not exit on errors.
 func checkUpdates() {
-	util.CheckUpdate(util.Version)
+	handleUpdateError(util.CheckUpdate(util.Version))
 
 	t := time.NewTicker(time.Hour * 24)
 
 	for range t.C {
-		util.CheckUpdate(util.Version)
+		handleUpdateError(util.CheckUpdate(util.Version))
+	}
+}
+
+func handleUpdateError(err error) {
+	if err != nil {
+		log.Warn("Could not check for update: " + err.Error())
 	}
 }

@@ -2,6 +2,7 @@ package db
 
 import "time"
 
+// APIToken is given to a user to allow API access
 type APIToken struct {
 	ID      string    `db:"id" json:"id"`
 	Created time.Time `db:"created" json:"created"`

@@ -23,6 +23,7 @@ func clearRepositoryCache(repository db.Repository) error {
 	return nil
 }
 
+// RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	repositoryID, err := util.GetIntParam("repository_id", w, r)
@@ -43,6 +44,7 @@ func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "repository", repository)
 }
 
+// GetRepositories returns all repositories in a project sorted by type
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var repos []db.Repository
@@ -50,8 +52,8 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
 
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	if order != asc && order != desc {
+		order = asc
 	}
 
 	q := squirrel.Select("pr.id",
@@ -75,7 +77,8 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 			OrderBy("pr.name " + order)
 	}
 
-	query, args, _ := q.ToSql()
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
 
 	if _, err := db.Mysql.Select(&repos, query, args...); err != nil {
 		panic(err)
@@ -84,28 +87,30 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, repos)
 }
 
+// AddRepository creates a new repository in the database
 func AddRepository(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
-		GitUrl   string `json:"git_url" binding:"required"`
-		SshKeyID int    `json:"ssh_key_id" binding:"required"`
+		GitURL   string `json:"git_url" binding:"required"`
+		SSHKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
 	if err := mulekick.Bind(w, r, &repository); err != nil {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitUrl, repository.SshKeyID, repository.Name)
+	res, err := db.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitURL, repository.SSHKeyID, repository.Name)
 	if err != nil {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
+	insertID, err := res.LastInsertId()
+	util.LogWarning(err)
 	insertIDInt := int(insertID)
 	objType := "repository"
 
-	desc := "Repository (" + repository.GitUrl + ") created"
+	desc := "Repository (" + repository.GitURL + ") created"
 	if err := (db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
@@ -118,26 +123,27 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// UpdateRepository updates the values of a repository in the database
 func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	oldRepo := context.Get(r, "repository").(db.Repository)
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
-		GitUrl   string `json:"git_url" binding:"required"`
-		SshKeyID int    `json:"ssh_key_id" binding:"required"`
+		GitURL   string `json:"git_url" binding:"required"`
+		SSHKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
 	if err := mulekick.Bind(w, r, &repository); err != nil {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitUrl, repository.SshKeyID, oldRepo.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitURL, repository.SSHKeyID, oldRepo.ID); err != nil {
 		panic(err)
 	}
 
-	if oldRepo.GitUrl != repository.GitUrl {
-		clearRepositoryCache(oldRepo)
+	if oldRepo.GitURL != repository.GitURL {
+		util.LogWarning(clearRepositoryCache(oldRepo))
 	}
 
-	desc := "Repository (" + repository.GitUrl + ") updated"
+	desc := "Repository (" + repository.GitURL + ") updated"
 	objType := "inventory"
 	if err := (db.Event{
 		ProjectID:   &oldRepo.ProjectID,
@@ -151,6 +157,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveRepository deletes a repository from a project in the database
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	repository := context.Get(r, "repository").(db.Repository)
 
@@ -181,9 +188,9 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	clearRepositoryCache(repository)
+	util.LogWarning(clearRepositoryCache(repository))
 
-	desc := "Repository (" + repository.GitUrl + ") deleted"
+	desc := "Repository (" + repository.GitURL + ") deleted"
 	if err := (db.Event{
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,

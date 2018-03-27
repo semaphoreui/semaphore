@@ -14,6 +14,12 @@ import (
 	"os"
 )
 
+const (
+	asc = "asc"
+	desc = "desc"
+)
+
+// InventoryMiddleware ensures an inventory exists and loads it to the context
 func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	inventoryID, err := util.GetIntParam("inventory_id", w, r)
@@ -21,11 +27,12 @@ func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query, args, _ := squirrel.Select("*").
+	query, args, err := squirrel.Select("*").
 		From("project__inventory").
 		Where("project_id=?", project.ID).
 		Where("id=?", inventoryID).
 		ToSql()
+	util.LogWarning(err)
 
 	var inventory db.Inventory
 	if err := db.Mysql.SelectOne(&inventory, query, args...); err != nil {
@@ -40,6 +47,7 @@ func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "inventory", inventory)
 }
 
+// GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var inv []db.Inventory
@@ -47,8 +55,8 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
 
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	if order != asc && order != desc {
+		order = asc
 	}
 
 	q := squirrel.Select("*").
@@ -63,7 +71,8 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 		OrderBy("pi.name " + order)
 	}
 
-	query, args, _ := q.ToSql()
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
 
 	if _, err := db.Mysql.Select(&inv, query, args...); err != nil {
 		panic(err)
@@ -72,12 +81,13 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, inv)
 }
 
+// AddInventory creates an inventory in the database
 func AddInventory(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`
-		SshKeyID  int    `json:"ssh_key_id"`
+		SSHKeyID  int    `json:"ssh_key_id"`
 		Type      string `json:"type"`
 		Inventory string `json:"inventory"`
 	}
@@ -94,12 +104,13 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory)
+	res, err := db.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
 	if err != nil {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
+	insertID, err := res.LastInsertId()
+	util.LogWarning(err)
 	insertIDInt := int(insertID)
 	objType := "inventory"
 
@@ -114,37 +125,47 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	inv := db.Inventory{
-		ID: insertIDInt,
-		Name: inventory.Name,
+		ID:        insertIDInt,
+		Name:      inventory.Name,
 		ProjectID: project.ID,
 		Inventory: inventory.Inventory,
-		KeyID: inventory.KeyID,
-		SshKeyID: &inventory.SshKeyID,
-		Type: inventory.Type,
+		KeyID:     inventory.KeyID,
+		SSHKeyID:  &inventory.SSHKeyID,
+		Type:      inventory.Type,
 	}
 
 	mulekick.WriteJSON(w, http.StatusCreated, inv)
 }
 
+// IsValidInventoryPath tests a path to ensure it is below the cwd
 func IsValidInventoryPath(path string) bool {
-	if currentPath, err := os.Getwd(); err != nil {
+
+	currentPath, err := os.Getwd()
+	if err != nil {
 		return false
-	} else if absPath, err := filepath.Abs(path); err != nil {
-		return false
-	} else if relPath, err := filepath.Rel(currentPath, absPath); err != nil {
-		return false
-	} else {
-		return !strings.HasPrefix(relPath, "..")
 	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+
+	relPath, err := filepath.Rel(currentPath, absPath)
+	if err != nil {
+		return false
+	}
+
+	return !strings.HasPrefix(relPath, "..")
 }
 
+// UpdateInventory writes updated values to an existing inventory item in the database
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	oldInventory := context.Get(r, "inventory").(db.Inventory)
 
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`
-		SshKeyID  int    `json:"ssh_key_id"`
+		SSHKeyID  int    `json:"ssh_key_id"`
 		Type      string `json:"type"`
 		Inventory string `json:"inventory"`
 	}
@@ -160,13 +181,12 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		if !IsValidInventoryPath(inventory.Inventory) {
 			panic("Invalid inventory path")
 		}
-		break
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
 		panic(err)
 	}
 
@@ -184,6 +204,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveInventory deletes an inventory from the database
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(db.Inventory)
 

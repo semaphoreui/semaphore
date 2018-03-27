@@ -30,6 +30,7 @@ type resourceLock struct {
 
 var resourceLocker = make(chan *resourceLock)
 
+//nolint: gocyclo
 func (p *taskPool) run() {
 	ticker := time.NewTicker(5 * time.Second)
 
@@ -79,12 +80,12 @@ func (p *taskPool) run() {
 		case <-ticker.C:
 			if len(p.queue) == 0 {
 				continue
-			} else if t := p.queue[0]; t.task.Status != "error" && (!t.prepared || p.blocks(t)) {
+			} else if t := p.queue[0]; t.task.Status != taskFailStatus && (!t.prepared || p.blocks(t)) {
 				p.queue = append(p.queue[1:], t)
 				continue
 			}
 
-			if t := pool.queue[0]; t.task.Status != "error" {
+			if t := pool.queue[0]; t.task.Status != taskFailStatus {
 				fmt.Println("Running a task.")
 				resourceLocker <- &resourceLock{lock: true, holder: t}
 				go t.run()
@@ -115,6 +116,7 @@ func (p *taskPool) blocks(t *task) bool {
 	}
 }
 
+// StartRunner begins the task pool, used as a goroutine
 func StartRunner() {
 	pool.run()
 }
