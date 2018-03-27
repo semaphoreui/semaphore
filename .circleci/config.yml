@@ -12,11 +12,11 @@ jobs:
     - restore_cache:
         keys:
         # This branch if available
-        - v3-dep-{{ .Branch }}-
+        - v4-dep-{{ .Branch }}-
         # Default branch if not
-        - v3-dep-develop-
+        - v4-dep-develop-
         # Any branch if there are none on the default branch - this should be unnecessary if you have your default branch configured correctly
-        - v3-dep-
+        - v4-dep-
     - run: sudo apt-get update
     - run: sudo apt-get install rpm
     # Install node and go
