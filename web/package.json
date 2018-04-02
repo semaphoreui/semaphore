@@ -19,7 +19,11 @@
     "requirejs": "^2.3.5",
     "sweetalert": "^2.1.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "less": "^3.0.1",
+    "pug-cli": "^1.0.0-alpha6",
+    "nodemon": "^1.17.2"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
