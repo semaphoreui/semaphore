@@ -7,30 +7,47 @@ define(function () {
 		}
 
 		$scope.remove = function (inventory) {
-			$http.delete(Project.getURL() + '/inventory/' + inventory.id).then(function () {
-				$scope.reload();
-			}).catch(function (response) {
-			  var d = response.data;
-				if (!(d && d.inUse)) {
-					swal('error', 'could not delete inventory..', 'error');
-					return;
-				}
-
-				swal({
-					title: 'Inventory in use',
-					text: d.error,
-					type: 'error',
-					showCancelButton: true,
-					confirmButtonColor: "#DD6B55",
-					confirmButtonText: 'Mark as removed'
-				}, function () {
-					$http.delete(Project.getURL() + '/inventory/' + inventory.id + '?setRemoved=1').then(function () {
-						$scope.reload();
-					}).catch(function () {
+			$http.delete(Project.getURL() + '/inventory/' + inventory.id)
+				.then(function () {
+					$scope.reload();
+				})
+				.catch(function (response) {
+					var d = response.data;
+					if (!(d && d.inUse)) {
 						swal('error', 'could not delete inventory..', 'error');
+						return;
+					}
+
+					swal({
+						title: 'Inventory in use',
+						text: d.error,
+						icon: 'error',
+						buttons: {
+							cancel: true,
+							confirm: {
+								text: 'Mark as removed',
+								closeModel: false,
+								className: 'bg-danger',
+							}
+						}
+					}).then(function (value) {
+						if (!value) {
+							return;
+						}
+
+						$http
+							.delete(Project.getURL() + '/inventory/' + inventory.id + '?setRemoved=1')
+							.then(function () {
+								swal.stopLoading();
+								swal.close();
+
+								$scope.reload();
+							})
+							.catch(function () {
+								swal('Error', 'Could not delete inventory..', 'error');
+							});
 					});
 				});
-			});
 		}
 
 		$scope.add = function () {
@@ -43,12 +60,13 @@ define(function () {
 					scope: scope
 				}).result.then(function (inventory) {
 					$http.post(Project.getURL() + '/inventory', inventory.inventory)
-					.then(function () {
-						$scope.reload();
-					}).catch(function (response) {
+						.then(function () {
+							$scope.reload();
+						}).catch(function (response) {
 						swal('Error', 'Inventory not added: ' + response.status, 'error');
 					});
-				}, function () {});
+				}, function () {
+				});
 			});
 		}
 
@@ -68,12 +86,13 @@ define(function () {
 					}
 
 					$http.put(Project.getURL() + '/inventory/' + inventory.id, opts.inventory)
-					.then(function () {
-						$scope.reload();
-					}).catch(function (response) {
+						.then(function () {
+							$scope.reload();
+						}).catch(function (response) {
 						swal('Error', 'Inventory not updated: ' + response.status, 'error');
 					});
-				}, function () {});
+				}, function () {
+				});
 			});
 		}
 
@@ -87,16 +106,19 @@ define(function () {
 			}).result.then(function (v) {
 				inventory.inventory = v;
 				$http.put(Project.getURL() + '/inventory/' + inventory.id, inventory)
-				.then(function () {
-					$scope.reload();
-				}).catch(function (response) {
+					.then(function () {
+						$scope.reload();
+					}).catch(function (response) {
 					swal('Error', 'Inventory not updated: ' + response.status, 'error');
 				});
-			}, function () {});
+			}, function () {
+			});
 		}
 
 		$scope.getKeys = function (cb) {
-			if (typeof cb != 'function') cb = function () {}
+			if (typeof cb != 'function') {
+				cb = function () {};
+			}
 
 			$http.get(Project.getURL() + '/keys?type=ssh').then(function (keys) {
 				cb(keys.data);
