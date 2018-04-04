@@ -9,7 +9,8 @@ config.json
 node_modules/
 
 .idea/
-bin/
+/bin/
+
 *-packr.go
 util/version.go
 /vendor/
