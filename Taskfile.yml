@@ -40,7 +40,7 @@ tasks:
     desc: Installs tools needed
     dir: web
     vars:
-      GORELEASER_VERSION: "0.62.5"
+      GORELEASER_VERSION: "0.66.1"
     cmds:
       - go get -u github.com/golang/dep/cmd/dep
       - go get github.com/cespare/reflex || true

@@ -7,7 +7,7 @@ aliases:
     image: circleci/golang:1.10
 
   - &working-dir
-    /go/src/github.com/ansible-semaphore/semaphore
+      /go/src/github.com/ansible-semaphore/semaphore
 
   - &store-bin-artifacts
     store_artifacts:
@@ -39,6 +39,14 @@ aliases:
         # Each step uses the same `$BASH_ENV`, so need to modify it
         echo 'export NVM_DIR="$HOME/.nvm"' >> $BASH_ENV
         echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV
+
+  - &unlock-gpg
+    run:
+      name: unlock gpg key, trying to do this in the goreleaser step with env vars does not seem to work
+      command: |
+        echo $GPG_KEY | tr " " "\n" | base64 -d | gpg --import --batch
+        gpg --sign -u "9B25 8A9C 32B9 7E50 E753  3575 DE95 8D8F 20C7 845F" --pinentry-mode loopback --yes --batch --passphrase "${GPG_PASS}" --output unlock.sig --detach-sign README.md
+        rm -f unlock.sig
 
   - &test-compile-changes
     run:
@@ -105,6 +113,7 @@ jobs:
       - run: task deps
       - run: task compile
       - *test-compile-changes
+      - *unlock-gpg
       - run: task build
       - *store-bin-artifacts
 
@@ -177,9 +186,13 @@ jobs:
       - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
       - run: context=prod tag=latest task docker:build
       - run: tag=latest task docker:push
-      - docker tag ansiblesemaphore/semaphore:latest ansiblesemaphore/semaphore:$CIRCLE_TAG
+      - run: docker tag ansiblesemaphore/semaphore:latest ansiblesemaphore/semaphore:$CIRCLE_TAG
       - run: tag=$CIRCLE_TAG task docker:push
 
+  # For releases to work in the ci you will need to have the following env vars set
+  # GITHUB_TOKEN - token needs writes to make a release
+  # GPG_PASS - password for the GP key to sign releases with, circleci sets env vars with "" so be wary of special chars
+  # GPG_KEY - base64 encoded version of the GPG private key
   release:
     docker:
       - *golang-image
@@ -192,15 +205,18 @@ jobs:
       - *load-go-cache
       - *load-npm-cache
       - run: task deps
-      - run: task compile
-      - *test-compile-changes
-      - run: task release
+      - *unlock-gpg
+      - run:
+          name: reset repo as npm install may have changed lock file
+          command: git reset --hard
+      - run: task release:prod
       - *store-bin-artifacts
 
 
 workflows:
   version: 2
-  build-deploy:
+
+  build-test:
     jobs:
       - test:docker
       - test:golang
@@ -227,23 +243,19 @@ workflows:
             branches:
               only: develop
 
-# Production deploys only happen if everything passes
-# and we have a tag starting with v
+# Production releases only run on tags
+# use _ in tags and not - due to rpmbuild not allowing hyphens in version numbers
+# https://github.com/semver/semver/issues/145
+  release:
+    jobs:
       - release:
-          requires:
-            - test:golang
-            - test:integration
           filters:
             branches:
-              only: master
+              ignore: /.*/
             tags:
               only: /^v.*/
 
-# This deploy also happens on develop so we can publish beta/rc images
       - deploy:prod:
-          requires:
-            - test:docker
-            - release
           filters:
             branches:
               ignore: /.*/
