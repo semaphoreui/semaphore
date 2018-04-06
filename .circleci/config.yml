@@ -246,8 +246,6 @@ workflows:
             - release
           filters:
             branches:
-              only:
-                - master
-                - develop
+              ignore: /.*/
             tags:
               only: /^v.*/
