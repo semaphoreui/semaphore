@@ -5,6 +5,10 @@
 # internally by other tasks and therefore are not listed when running `task` or `task -l`
 version: '2'
 
+vars:
+  docker_namespace: ansiblesemaphore
+  docker_image: semaphore
+
 tasks:
   all:
     desc: Install, Compile, Test and Build Semaphore for local architecture
@@ -86,7 +90,8 @@ tasks:
       BRANCH:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
-        sh: git status --porcelain
+        # We must exclude the package-lock file as npm install can change it!
+        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json'
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
@@ -214,7 +219,7 @@ tasks:
           context: "{{ .context }}"
           action: build
           tag: "{{ .tag }}"
-          args: -t castawaylabs/semaphore:{{ .tag }} .
+          args: -t "{{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}" .
 
   deps:docker:
     desc: Install docker testing dependencies. These must be installed explicitly and are not included in the general deps task.
@@ -241,19 +246,24 @@ tasks:
         vars:
           tag: "{{ .context }}-test"
       - task: docker:goss
-      - docker rmi "castawaylabs/semaphore:{{ .context }}-test"
+      - docker rmi "{{ .docker_namespace }}/{{ .docker_image }}:{{ .context }}-test"
 
   docker:goss:
     dir: "deployment/docker/{{ .context}}"
     deps: ['deps:docker']
     cmds:
-      - GOSS_FILES_STRATEGY='cp' dgoss run -it "castawaylabs/semaphore:{{ .context }}-test"
+      - GOSS_FILES_STRATEGY='cp' dgoss run -it "{{ .docker_namespace }}/{{ .docker_image }}:{{ .context }}-test"
 
   docker:lint:
     desc: hadolint a dockerfile. Ignores version pinning warning
     dir: "deployment/docker/{{ .context}}"
     cmds:
       - hadolint Dockerfile --ignore DL3018
+
+  docker:push:
+    desc: push a docker image to a repo. Defaults to the official docker hub
+    cmds:
+      - docker push {{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}
 
   # templated command to reduce code duplication
   docker:
