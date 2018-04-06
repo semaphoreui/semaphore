@@ -10,7 +10,7 @@ services:
       MYSQL_PASSWORD: semaphore
 
   semaphore_dev:
-    image: castawaylabs/semaphore-dev:latest
+    image: ansiblesemaphore/semaphore:dev-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/dev/Dockerfile

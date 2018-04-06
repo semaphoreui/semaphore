@@ -6,6 +6,7 @@
 [![semaphore on discord](https://img.shields.io/badge/discord-semaphore%20community-738bd7.svg)](https://discord.gg/ZW7Qu6a)
 
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
+- [Docker Hub](https://hub.docker.com/r/ansiblesemaphore/semaphore/)
 - [Install Instructions](https://github.com/ansible-semaphore/semaphore/wiki/Installation)
 - [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
 - [Contribution Guide](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md)

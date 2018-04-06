@@ -34,7 +34,6 @@ git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semap
 3) Install dev dependencies
 
 ```
-go get ./... 
 go get -u github.com/go-task/task/cmd/task
 task deps
 ```

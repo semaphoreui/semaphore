@@ -7,31 +7,47 @@ define(function () {
 		}
 
 		$scope.remove = function (key) {
-			$http.delete(Project.getURL() + '/keys/' + key.id).then(function () {
-				$scope.reload();
-			}).catch(function (response) {
-			  var d = response.data;
+			$http.delete(Project.getURL() + '/keys/' + key.id)
+				.then(function () {
+					$scope.reload();
+				})
+				.catch(function (response) {
+					var d = response.data;
 
-				if (!(d && d.inUse)) {
-					swal('error', 'could not delete key..', 'error');
-					return;
-				}
+					if (!(d && d.inUse)) {
+						swal('error', 'could not delete key..', 'error');
+						return;
+					}
 
-				swal({
-					title: 'Key in use',
-					text: d.error,
-					type: 'error',
-					showCancelButton: true,
-					confirmButtonColor: "#DD6B55",
-					confirmButtonText: 'Mark as removed'
-				}, function () {
-					$http.delete(Project.getURL() + '/keys/' + key.id + '?setRemoved=1').then(function () {
-						$scope.reload();
-					}).catch(function () {
-						swal('error', 'could not remove key..', 'error');
+					swal({
+						title: 'Key in use',
+						text: d.error,
+						icon: 'error',
+						buttons: {
+							cancel: true,
+							confirm: {
+								text: 'Mark as removed',
+								closeModel: false,
+								className: 'bg-danger',
+							}
+						}
+					}).then(function (value) {
+						if (!value) {
+							return;
+						}
+
+						$http.delete(Project.getURL() + '/keys/' + key.id + '?setRemoved=1')
+							.then(function () {
+								swal.stopLoading();
+								swal.close();
+
+								$scope.reload();
+							})
+							.catch(function () {
+								swal('Error', 'Could not remove key..', 'error');
+							});
 					});
 				});
-			});
 		}
 
 		$scope.add = function () {
@@ -43,7 +59,8 @@ define(function () {
 				}).catch(function (response) {
 					swal('error', 'could not add key:' + response.status, 'error');
 				});
-			}, function () {});
+			}, function () {
+			});
 		}
 
 		$scope.update = function (key) {
@@ -61,12 +78,13 @@ define(function () {
 				}
 
 				$http.put(Project.getURL() + '/keys/' + key.id, opts.key)
-				.then(function () {
-					$scope.reload();
-				}).catch(function (response) {
+					.then(function () {
+						$scope.reload();
+					}).catch(function (response) {
 					swal('Error', 'could not update key:' + response.status, 'error');
 				});
-			}, function () {});
+			}, function () {
+			});
 		}
 
 		$scope.reload();

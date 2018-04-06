@@ -20,30 +20,46 @@ define(function () {
 		}
 
 		$scope.remove = function (repo) {
-			$http.delete(Project.getURL() + '/repositories/' + repo.id).then(function () {
-				$scope.reload();
-			}).then(function (response) {
-			  var d = response.data;
-				if (!(d && d.templatesUse)) {
-					swal('error', 'could not delete repository..', 'error');
-					return;
-				}
-
-				swal({
-					title: 'Repository in use',
-					text: d.error,
-					type: 'error',
-					showCancelButton: true,
-					confirmButtonColor: "#DD6B55",
-					confirmButtonText: 'Mark as removed'
-				}, function () {
-					$http.delete(Project.getURL() + '/repositories/' + repo.id + '?setRemoved=1').then(function () {
-						$scope.reload();
-					}).catch(function () {
+			$http.delete(Project.getURL() + '/repositories/' + repo.id)
+				.then(function () {
+					$scope.reload();
+				})
+				.catch(function (response) {
+					var d = response.data;
+					if (!(d && d.templatesUse)) {
 						swal('error', 'could not delete repository..', 'error');
+						return;
+					}
+
+					swal({
+						title: 'Repository in use',
+						text: d.error,
+						icon: 'error',
+						buttons: {
+							cancel: true,
+							confirm: {
+								text: 'Mark as removed',
+								closeModel: false,
+								className: 'bg-danger',
+							}
+						}
+					}).then(function (value) {
+						if (!value) {
+							return;
+						}
+
+						$http.delete(Project.getURL() + '/repositories/' + repo.id + '?setRemoved=1')
+							.then(function () {
+								swal.stopLoading();
+								swal.close();
+
+								$scope.reload();
+							})
+							.catch(function () {
+								swal('Error', 'Could not delete repository..', 'error');
+							});
 					});
 				});
-			});
 		}
 
 		$scope.update = function (repo) {
@@ -64,7 +80,8 @@ define(function () {
 				}).catch(function (response) {
 					swal('Error', 'Repository not updated: ' + response.status, 'error');
 				});
-			}, function () {});
+			}, function () {
+			});
 		}
 
 		$scope.add = function () {
@@ -76,12 +93,13 @@ define(function () {
 				scope: scope
 			}).result.then(function (repo) {
 				$http.post(Project.getURL() + '/repositories', repo.repo)
-				.then(function () {
-					$scope.reload();
-				}).catch(function (response) {
+					.then(function () {
+						$scope.reload();
+					}).catch(function (response) {
 					swal('Error', 'Repository not added: ' + response.status, 'error');
 				});
-			}, function () {});
+			}, function () {
+			});
 		}
 
 		$scope.reload();

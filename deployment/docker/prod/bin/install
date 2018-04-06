@@ -8,7 +8,6 @@ export PATH="${PATH}:${GOBIN}"
 
 # Get prerequisites for building the app
 go get -u -v github.com/go-task/task/cmd/task
-go get ./...
 
 # Compile and build
 task deps

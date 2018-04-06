@@ -1,94 +1,253 @@
-# This configuration was automatically generated from a CircleCI 1.0 config.
+# Workflow based configuration
 version: 2
+
+aliases:
+
+  - &golang-image
+    image: circleci/golang:1.10
+
+  - &working-dir
+    /go/src/github.com/ansible-semaphore/semaphore
+
+  - &store-bin-artifacts
+    store_artifacts:
+      path: /go/src/github.com/ansible-semaphore/semaphore/bin
+
+  - &install-task-binary
+    run:
+      name: install task binary
+      command: |
+        cd /go/bin
+        curl -L https://github.com/go-task/task/releases/download/v2.0.1/task_linux_amd64.tar.gz | tar xvz
+        cd -
+
+  - &persist-bin
+    persist_to_workspace:
+      root: .
+      paths:
+        - bin/*
+
+  - &install-node
+    run:
+      name: Install node
+      command: |
+        set +e
+        curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.5/install.sh | bash
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install 8.2.0 && nvm alias default 8.2.0
+        # Each step uses the same `$BASH_ENV`, so need to modify it
+        echo 'export NVM_DIR="$HOME/.nvm"' >> $BASH_ENV
+        echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV
+
+  - &test-compile-changes
+    run:
+      name: test that compile did not create/modify untracked files
+      command: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json'
+
+  - &save-npm-cache
+    save_cache:
+      key: v1-npm-deps-{{ checksum "web/package.json" }}
+      paths:
+        - web/node_modules
+
+  - &save-go-cache
+    save_cache:
+      key: v1-go-deps-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+      paths:
+        - vendor
+
+  - &load-npm-cache
+    restore_cache:
+      keys:
+        - v1-npm-deps-{{ checksum "web/package.json" }}
+        - v1-npm-deps-
+
+  - &load-go-cache
+    restore_cache:
+      keys:
+        - v1-go-deps-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+        - v1-go-deps-{{ checksum "Gopkg.lock" }}
+        - v1-go-deps-
+
 jobs:
-  build:
-    machine: true
-    # we hard code this because even in a fork our code references the canonical import urls
-    working_directory: ~/.go_workspace/src/github.com/ansible-semaphore/semaphore
+  build:local:
+    docker:
+      - *golang-image
+    working_directory: *working-dir
     steps:
-    # Remove go and restore the dependency cache
-    - run: sudo rm -rf /usr/local/go
-    - run: mkdir -p ${GOPATH}/bin
-    - restore_cache:
-        keys:
-        # This branch if available
-        - v4-dep-{{ .Branch }}-
-        # Default branch if not
-        - v4-dep-develop-
-        # Any branch if there are none on the default branch - this should be unnecessary if you have your default branch configured correctly
-        - v4-dep-
-    - run: sudo apt-get update
-    - run: sudo apt-get install rpm
-    # Install node and go
-    - run:
-        name: Install node
-        command: |
-          set +e
-          curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.5/install.sh | bash
-          export NVM_DIR="/opt/circleci/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          nvm install 8.2.0 && nvm alias default 8.2.0
-          # Each step uses the same `$BASH_ENV`, so need to modify it
-          echo 'export NVM_DIR="/opt/circleci/.nvm"' >> $BASH_ENV
-          echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV
-    - run: sudo curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz
-    - run: sudo tar -C /usr/local -xzf /tmp/go.tar.gz
-    # Needed for task orchestration
-    - run: go get -u -v github.com/go-task/task/cmd/task
-    # Needed only in ci to post coverage reports
-    - run: go get github.com/schrej/godacov
-    # Get app and install all its deps
-    - checkout
-    # Circle can provide a concatenated gopath and the second item is not actually in the path
-    # which will cause builds to fail if deps are placed there
-    - run: GOPATH=/home/circleci/.go_workspace task deps
-    - run: task deps:docker
-    # Save dependency cache
-    - save_cache:
-        key: v4-dep-{{ .Branch }}-{{ epoch }}
-        paths:
-        - ~/.go_workspace/src/github.com/ansible-semaphore/semaphore
-        - ~/.go_workspace/bin
-        - /opt/circleci/.nvm
-    # Post cache compile
-    - run: task compile
-    - run: task lint:be
-    # Test
-    # This looks like utter filth in circleci v2 but we have no choice apart from this escaping madness
-    - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"0.0.0.0:3306\"\
-        ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
-        \n\t},\n\t\"email_alert\": false\n}\nEOF\n"
-    - run: |
-           docker run -d -p "3306:3306" --health-cmd='mysqladmin ping --silent' -e MYSQL_ALLOW_EMPTY_PASSWORD=true -e MYSQL_DATABASE=circle_test --name=mysql mysql:5.6
-           function getContainerHealth {
-             docker inspect --format "{{json .State.Health.Status }}" $1
-           }
+      - run: export
+      - *install-node
+      - *install-task-binary
+      - checkout
+      - *load-go-cache
+      - *load-npm-cache
+      - run: task deps
+      - *save-go-cache
+      - *save-npm-cache
+      - run: task compile
+      - *test-compile-changes
+      - run: task build:local
+      - *store-bin-artifacts
+      - *persist-bin
 
-           function waitContainer {
-             while STATUS=$(getContainerHealth $1); [ $STATUS != "\"healthy\"" ]; do
-               if [ $STATUS == "\"unhealthy\"" ]; then
-                 exit -1
-               fi
-               printf .
-               sleep 1
-             done
-           }
+  build:
+    docker:
+      - *golang-image
+    working_directory: *working-dir
+    steps:
+      - *install-node
+      - *install-task-binary
+      - run: sudo apt-get install rpm
+      - checkout
+      - *load-go-cache
+      - *load-npm-cache
+      - run: task deps
+      - run: task compile
+      - *test-compile-changes
+      - run: task build
+      - *store-bin-artifacts
 
-           waitContainer mysql
-    - run: go run cli/main.go --migrate -config config.json
-    - run: docker stop mysql && docker rm mysql
-    - run: task test
-    - run: context=prod task docker:test
-    # Build artifacts for all architectures
-    - run: task build
-    # Post coverage
-    - run: godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
-    # Teardown
-    # Save test results
-    - store_test_results:
-        path: ~/.go_workspace/src/github.com/ansible-semaphore/semaphore/coverage.out
-    # Save artifacts
-    - store_artifacts:
-        path: ~/.go_workspace/src/github.com/ansible-semaphore/semaphore/bin
-    - store_artifacts:
-        path: ~/.go_workspace/src/github.com/ansible-semaphore/semaphore/coverage.out
+  # Run goverage and post results
+  test:golang:
+    docker:
+      - *golang-image
+    working_directory: *working-dir
+    steps:
+      - *install-task-binary
+      # Needed only in ci to post coverage reports
+      - run: go get github.com/schrej/godacov
+      - checkout
+      - *load-go-cache
+      - run: task deps:tools
+      - run: task deps:be
+      - run: task compile:be
+      - run: task lint:be
+      - run: task test
+      - run: godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
+      - store_test_results:
+          path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
+      - store_artifacts:
+          path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
+
+  test:integration:
+    docker:
+      - *golang-image
+      - image: circleci/mysql
+    working_directory: *working-dir
+    steps:
+      - attach_workspace:
+          at: *working-dir
+      # This looks like utter filth in circleci v2 but we have no choice apart from this escaping madness
+      - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"email_alert\": false\n}\nEOF\n"
+      - run:
+          name: Wait for db
+          command: dockerize -wait tcp://127.0.0.1:3306 -timeout 1m
+      - run: bin/semaphore --migrate -config config.json
+      # TODO - Here we could do some api/functional testing
+
+  test:docker:
+    docker:
+      - *golang-image
+    steps:
+      - *install-task-binary
+      - checkout
+      - setup_remote_docker
+      - run: context=prod task docker:test
+
+  deploy:dev:
+    docker:
+      - *golang-image
+    steps:
+      - *install-task-binary
+      - checkout
+      - setup_remote_docker
+      - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - run: context=prod tag=develop task docker:build
+      - run: tag=develop task docker:push
+
+  deploy:prod:
+    docker:
+      - *golang-image
+    steps:
+      - *install-task-binary
+      - checkout
+      - setup_remote_docker
+      - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - run: context=prod tag=latest task docker:build
+      - run: tag=latest task docker:push
+      - docker tag ansiblesemaphore/semaphore:latest ansiblesemaphore/semaphore:$CIRCLE_TAG
+      - run: tag=$CIRCLE_TAG task docker:push
+
+  release:
+    docker:
+      - *golang-image
+    working_directory: *working-dir
+    steps:
+      - *install-node
+      - *install-task-binary
+      - run: sudo apt-get install rpm
+      - checkout
+      - *load-go-cache
+      - *load-npm-cache
+      - run: task deps
+      - run: task compile
+      - *test-compile-changes
+      - run: task release
+      - *store-bin-artifacts
+
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - test:docker
+      - test:golang
+      - build:local
+      - test:integration:
+          requires:
+            - build:local
+
+# Don't build on master because build is just a gorelease without the release
+      - build:
+          requires:
+            - test:golang
+            - test:integration
+          filters:
+            branches:
+              ignore: master
+
+# Dev deploys require all tests to pass and app builds
+      - deploy:dev:
+          requires:
+            - build
+            - test:docker
+          filters:
+            branches:
+              only: develop
+
+# Production deploys only happen if everything passes
+# and we have a tag starting with v
+      - release:
+          requires:
+            - test:golang
+            - test:integration
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^v.*/
+
+# This deploy also happens on develop so we can publish beta/rc images
+      - deploy:prod:
+          requires:
+            - test:docker
+            - release
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+              

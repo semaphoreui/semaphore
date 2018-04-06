@@ -13,7 +13,7 @@ services:
       MYSQL_PASSWORD: hx4hjxqthfwbfsy5535u4agfdscm
 
   semaphore:
-    image: castawaylabs/semaphore:prod
+    image: ansiblesemaphore/semaphore:prod-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/prod/Dockerfile
@@ -31,7 +31,7 @@ services:
     depends_on:
       - mysql
   semaphore_proxy:
-    image: castawaylabs/semaphore:proxy
+    image: ansiblesemaphore/proxy:latest
     build:
       context: ./proxy
     ports:
