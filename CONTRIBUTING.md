@@ -6,6 +6,7 @@ When creating a pull-request you should:
 - __gofmt and vet the code:__ Use  `gofmt`, `golint`, `govet` and `goimports` to clean up your code.
 - __vendor dependencies with dep:__ Use `dep ensure --update` if you have added to or updated dependencies, so that they get added to the dependency manifest.
 - __Update api documentation:__ If your pull-request adding/modifying an API request, make sure you update the swagger documentation (`api-docs.yml`)
+- __Run Api Tests:__ If your pull request modifies the API make sure you run the integration tests using dredd.
 
 # Installation in a development environment
 
@@ -70,3 +71,35 @@ Now it's ready to start.. Run `task watch`
 
 Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows. 
 You may encounter issues when running `task watch`, but running `task build` etc... will still be OK.
+
+## Integration Tests
+
+Dredd is used for API integration tests, if you alter the API in any way you must make sure that the information in the api docs
+matches the responses.
+
+As Dredd and the application database config may differ it expects it's own config.json in the .dredd folder.
+The most basic configuration for this using a local docker container to run the database would be
+```json
+{
+	"mysql": {
+		"host": "0.0.0.0:3306",
+		"user": "semaphore",
+		"pass": "semaphore",
+		"name": "semaphore"
+	}
+}
+
+```
+
+It is strongly advised to run these tests inside docker containers, as dredd will write a lot of test information and will __NOT__ clear it up.
+This means that you should never run these tests against your productive database!
+The best practice to run these tests is to use docker and the task commands.
+
+```bash
+task dc:build #First run only to build the images
+context=dev task dc:up
+task test:api
+# alternatively if you want to run dredd in a container use the following command.
+# You will need to use the host network so that it can reach the docker container on a 0.0.0.0 address
+# docker run -it --rm -v $(pwd):/home/developer/src --network host tomwhiston/dredd --config .dredd/dredd.yml
+```

@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+set -e
+
 # Go build environment
 export GOROOT=/usr/lib/go
 export GOPATH=/go
@@ -11,7 +13,9 @@ go get -u -v github.com/go-task/task/cmd/task
 
 # Compile and build
 task deps
+set +e
 task compile
+set -e
 task build:local
 
 mv ./bin/semaphore /usr/local/bin/

@@ -62,6 +62,13 @@ which contains the go toolchain and glibc in alpine.
 Because the test image links your local volume it expects that you have run `task deps` and `task compile` locally 
 as necessary to make the application usable.
 
+## CI
+
+This context is a proxyless stack used to test the API in the ci. Essentially it just installs the app, adds a few bootstrapping files
+and starts up so that dredd can be run against it. This should not be used in production as it does not remove the build toolchain,
+or source code.
+It is more advisable to use the dev context locally as it volume links the application directory and defaults to the watch task.
+
 ## Convenience Functions
 
 ### dc:dev

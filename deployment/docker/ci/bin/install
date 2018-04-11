@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
 
 echo "--> Turn off StrictKeyChecking"
 cat > /etc/ssh/ssh_config <<EOF
@@ -10,5 +9,7 @@ Host *
 EOF
 
 echo "--> Install Semaphore entrypoint wrapper script"
-mv ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
+cp ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
 task deps
+task compile
+task build:local

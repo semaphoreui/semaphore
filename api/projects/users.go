@@ -83,6 +83,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//TODO - check if user already exists
 	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, `admin`=?", user.UserID, project.ID, user.Admin); err != nil {
 		panic(err)
 	}

@@ -25,6 +25,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user db.User
 	if err := mulekick.Bind(w, r, &user); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -35,7 +36,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.Created = time.Now()
+	user.Created = db.GetParsedTime(time.Now())
 
 	if err := db.Mysql.Insert(&user); err != nil {
 		panic(err)

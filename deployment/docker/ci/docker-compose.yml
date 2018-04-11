@@ -11,13 +11,11 @@ services:
     ports:
       - "3306:3306"
 
-  semaphore_dev:
-    image: ansiblesemaphore/semaphore:dev-compose
+  semaphore_ci:
+    image: ansiblesemaphore/semaphore:ci-compose
     build:
       context: ./../../../
-      dockerfile: ./deployment/docker/dev/Dockerfile
-    volumes:
-      - "./../../../:/go/src/github.com/ansible-semaphore/semaphore:rw"
+      dockerfile: ./deployment/docker/ci/Dockerfile
     environment:
       SEMAPHORE_DB_USER: semaphore
       SEMAPHORE_DB_PASS: semaphore
@@ -33,5 +31,15 @@ services:
     ports:
       - "3000:3000"
     depends_on:
+      - mysql
+
+  dredd:
+    image: ansiblesemaphore/dredd:ci
+    command: ["--config", ".dredd/dredd.yml"]
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/ci/dredd.Dockerfile
+    depends_on:
+      - semaphore_ci
       - mysql
 

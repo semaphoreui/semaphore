@@ -19,7 +19,7 @@ tasks:
       - task: build:local
 
   deps:
-    desc: Install all dependencies
+    desc: Install all dependencies (except dredd requirements)
     cmds:
      - task: deps:tools
      - task: deps:be
@@ -36,16 +36,23 @@ tasks:
     cmds:
       - npm install
 
+  deps:integration:
+    desc: Installs requirements for integration testing with dredd
+    dir: web
+    cmds:
+     - npm install dredd@5.1.5
+
   deps:tools:
     desc: Installs tools needed
     dir: web
     vars:
-      GORELEASER_VERSION: "0.66.1"
+      GORELEASER_VERSION: "0.67.0"
     cmds:
       - go get -u github.com/golang/dep/cmd/dep
       - go get github.com/cespare/reflex || true
       - go get -u github.com/gobuffalo/packr/...
       - go get -u github.com/haya14busa/goverage
+      - go get github.com/snikch/goodman/cmd/goodman
       - '{{ if ne OS "windows" }} curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C ${GOPATH}/bin{{ else }} {{ end }}'
       - '{{ if ne OS "windows" }} chmod +x ${GOPATH}/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
@@ -94,11 +101,16 @@ tasks:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
         # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json'
+        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json'
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
         sh: date +%s
+
+  compile:api:hooks:
+    dir: ./.dredd/hooks
+    cmds:
+      - go build -o ../compiled_hooks
 
   watch:
     desc: Watch fe and be file changes and rebuild
@@ -148,12 +160,21 @@ tasks:
       - gometalinter --exclude "\w*(-packr.go)" --vendor --disable goconst --deadline 240s ./...
 
   test:
+    cmds:
+      - task: test:be
+
+  test:be:
     desc: Run go code tests
     cmds:
       - go vet ./...
       # 2> /dev/null makes goverage less noisy about pattern matching
       # if no tests exist but will still print failing test results
       - goverage -v -coverprofile=coverage.out ./... 2> /dev/null
+
+  test:api:
+    desc: test the api with dredd
+    cmds:
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.yml
 
   ci:artifacts:
     cmds:
