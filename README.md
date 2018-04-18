@@ -13,6 +13,11 @@
 - [Roadmap](https://github.com/ansible-semaphore/semaphore/projects)
 - [UI Walkthrough](https://blog.strangeman.info/ansible/2017/08/05/semaphore-ui-guide.html) (external blog)
 
+## Release Signing
+
+All releases after 2.4.1 are signed with the gpg public key
+`9B25 8A9C 32B9 7E50 E753  3575 DE95 8D8F 20C7 845F`
+
 ## Contributing
 
 PR's & UX reviews are welcome!
