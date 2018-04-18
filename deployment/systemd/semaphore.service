@@ -1,0 +1,14 @@
+[Unit]
+Description=Ansible Semaphore
+Requires=network.target
+
+[Service]
+EnvironmentFile=/etc/semaphore/env
+ExecStart=/usr/bin/semaphore -config ${SEMAPHORE_CONFIG}
+User=semaphore
+Group=semaphore
+Restart=always
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
