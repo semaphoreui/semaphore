@@ -145,7 +145,7 @@ tasks:
   lint:be:
     # --errors
     cmds:
-      - gometalinter --exclude "\w*(-packr.go)" --vendor --disable goconst --deadline 60s ./...
+      - gometalinter --exclude "\w*(-packr.go)" --vendor --disable goconst --deadline 240s ./...
 
   test:
     desc: Run go code tests
