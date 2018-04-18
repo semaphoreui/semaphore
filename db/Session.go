@@ -2,6 +2,7 @@ package db
 
 import "time"
 
+// Session is a connection to the API
 type Session struct {
 	ID         int       `db:"id" json:"id"`
 	UserID     int       `db:"user_id" json:"user_id"`

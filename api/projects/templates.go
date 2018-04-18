@@ -12,6 +12,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
+// TemplatesMiddleware ensures a template exists and loads it to the context
 func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	templateID, err := util.GetIntParam("template_id", w, r)
@@ -32,6 +33,7 @@ func TemplatesMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "template", template)
 }
 
+// GetTemplates returns all templates for a project in a sort order
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var templates []db.Template
@@ -39,8 +41,8 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
 
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	if order != asc && order != desc {
+		order = asc
 	}
 
 	q := squirrel.Select("pt.id",
@@ -80,7 +82,8 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 		OrderBy("pt.alias " + order)
 	}
 
-	query, args, _ := q.ToSql()
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
 
 	if _, err := db.Mysql.Select(&templates, query, args...); err != nil {
 		panic(err)
@@ -89,6 +92,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, templates)
 }
 
+// AddTemplate adds a template to the database
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
@@ -97,7 +101,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
+	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SSHKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
 	if err != nil {
 		panic(err)
 	}
@@ -123,6 +127,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusCreated, template)
 }
 
+// UpdateTemplate writes a template to an existing key in the database
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	oldTemplate := context.Get(r, "template").(db.Template)
 
@@ -135,7 +140,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
-	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SSHKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
 		panic(err)
 	}
 
@@ -153,6 +158,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveTemplate deletes a template from the database
 func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 	tpl := context.Get(r, "template").(db.Template)
 

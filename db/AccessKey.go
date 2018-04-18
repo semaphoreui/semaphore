@@ -6,6 +6,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+// AccessKey represents a key used to access a machine with ansible from semaphore
 type AccessKey struct {
 	ID   int    `db:"id" json:"id"`
 	Name string `db:"name" json:"name" binding:"required"`
@@ -19,6 +20,7 @@ type AccessKey struct {
 	Removed bool `db:"removed" json:"removed"`
 }
 
+// GetPath returns the location of the access key once written to disk
 func (key AccessKey) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.Itoa(key.ID)
 }

@@ -2,13 +2,14 @@ package sockets
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
+	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/Sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{
@@ -43,13 +44,13 @@ type connection struct {
 func (c *connection) readPump() {
 	defer func() {
 		h.unregister <- c
-		c.ws.Close()
+		util.LogErrorWithFields(c.ws.Close(), log.Fields{"error": "Error closing websocket"})
 	}()
 
 	c.ws.SetReadLimit(maxMessageSize)
-	c.ws.SetReadDeadline(time.Now().Add(pongWait))
+	util.LogErrorWithFields(c.ws.SetReadDeadline(time.Now().Add(pongWait)), log.Fields{"error": "Socket state corrupt"})
 	c.ws.SetPongHandler(func(string) error {
-		c.ws.SetReadDeadline(time.Now().Add(pongWait))
+		util.LogErrorWithFields(c.ws.SetReadDeadline(time.Now().Add(pongWait)), log.Fields{"error": "Socket state corrupt"})
 		return nil
 	})
 
@@ -59,7 +60,7 @@ func (c *connection) readPump() {
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("error: %v", err)
+				util.LogError(err)
 			}
 			break
 		}
@@ -68,7 +69,7 @@ func (c *connection) readPump() {
 
 // write writes a message with the given message type and payload.
 func (c *connection) write(mt int, payload []byte) error {
-	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	util.LogErrorWithFields(c.ws.SetWriteDeadline(time.Now().Add(writeWait)), log.Fields{"error": "Socket state corrupt"})
 	return c.ws.WriteMessage(mt, payload)
 }
 
@@ -78,27 +79,30 @@ func (c *connection) writePump() {
 
 	defer func() {
 		ticker.Stop()
-		c.ws.Close()
+		util.LogError(c.ws.Close())
 	}()
 
 	for {
 		select {
 		case message, ok := <-c.send:
 			if !ok {
-				c.write(websocket.CloseMessage, []byte{})
+				util.LogError(c.write(websocket.CloseMessage, []byte{}))
 				return
 			}
 			if err := c.write(websocket.TextMessage, message); err != nil {
+				util.LogError(err)
 				return
 			}
 		case <-ticker.C:
 			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
+				util.LogError(err)
 				return
 			}
 		}
 	}
 }
 
+// Handler is used by the router to handle the /ws endpoint
 func Handler(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -118,6 +122,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	c.readPump()
 }
 
+// Message allows a message to be sent to the websockets, called in API task logging
 func Message(userID int, message []byte) {
 	h.broadcast <- &sendRequest{
 		userID: userID,

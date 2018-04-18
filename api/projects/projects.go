@@ -7,18 +7,21 @@ import (
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
+// GetProjects returns all projects in this users context
 func GetProjects(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
-	query, args, _ := squirrel.Select("p.*").
+	query, args, err := squirrel.Select("p.*").
 		From("project as p").
 		Join("project__user as pu on pu.project_id=p.id").
 		Where("pu.user_id=?", user.ID).
 		OrderBy("p.name").
 		ToSql()
 
+	util.LogWarning(err)
 	var projects []db.Project
 	if _, err := db.Mysql.Select(&projects, query, args...); err != nil {
 		panic(err)
@@ -27,6 +30,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, projects)
 }
 
+// AddProject adds a new project to the database
 func AddProject(w http.ResponseWriter, r *http.Request) {
 	var body db.Project
 	user := context.Get(r, "user").(*db.User)

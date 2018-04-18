@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-type DBVersion struct {
+// Version represents an sql schema version
+type Version struct {
 	Major int
 	Minor int
 	Patch int
@@ -16,7 +17,8 @@ type DBVersion struct {
 	Notes        *string
 }
 
-var Versions []*DBVersion
+// Versions holds all sql schema version references
+var Versions []*Version
 var initialSQL = `
 create table ` + "`migrations`" + ` (
 	` + "`version`" + ` varchar(255) not null primary key,
@@ -25,7 +27,8 @@ create table ` + "`migrations`" + ` (
 ) engine=innodb charset=utf8;
 `
 
-func (version *DBVersion) VersionString() string {
+// VersionString returns a well formatted string of the current Version
+func (version *Version) VersionString() string {
 	s := fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
 
 	if len(version.Build) == 0 {
@@ -34,18 +37,24 @@ func (version *DBVersion) VersionString() string {
 
 	return fmt.Sprintf("%s-%s", s, version.Build)
 }
-func (version *DBVersion) HumanoidVersion() string {
+
+// HumanoidVersion adds a v to the VersionString
+func (version *Version) HumanoidVersion() string {
 	return "v" + version.VersionString()
 }
 
-func (version *DBVersion) GetPath() string {
-	return "v" + version.VersionString() + ".sql"
-}
-func (version *DBVersion) GetErrPath() string {
-	return "v" + version.VersionString() + ".err.sql"
+// GetPath is the humanoid version with the file format appended
+func (version *Version) GetPath() string {
+	return version.HumanoidVersion() + ".sql"
 }
 
-func (version *DBVersion) GetSQL(path string) []string {
+//GetErrPath is the humanoid version with '.err' and file format appended
+func (version *Version) GetErrPath() string {
+	return version.HumanoidVersion() + ".err.sql"
+}
+
+// GetSQL takes a path to an SQL file and returns it from packr as a slice of strings separated by newlines
+func (version *Version) GetSQL(path string) []string {
 	sql, err := dbAssets.MustString(path)
 	if err != nil {
 		panic(err)
@@ -54,7 +63,7 @@ func (version *DBVersion) GetSQL(path string) []string {
 }
 
 func init() {
-	Versions = []*DBVersion{
+	Versions = []*Version{
 		{},
 		{Major: 1},
 		{Major: 1, Minor: 1},

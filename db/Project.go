@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// Project is the top level structure in Semaphore
 type Project struct {
 	ID        int       `db:"id" json:"id"`
 	Name      string    `db:"name" json:"name" binding:"required"`
@@ -12,6 +13,7 @@ type Project struct {
 	AlertChat string    `db:"alert_chat" json:"alert_chat"`
 }
 
+// CreateProject writes a project to the database
 func (project *Project) CreateProject() error {
 	project.Created = time.Now()
 

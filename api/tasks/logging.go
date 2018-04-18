@@ -3,12 +3,13 @@ package tasks
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/Sirupsen/logrus"
 )
 
 func (t *task) log(msg string) {
@@ -23,19 +24,14 @@ func (t *task) log(msg string) {
 			"project_id": t.projectID,
 		})
 
-		if err != nil {
-			panic(err)
-		}
+		util.LogPanic(err)
 
 		sockets.Message(user, b)
 	}
 
 	go func() {
 		_, err := db.Mysql.Exec("insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)", t.task.ID, msg, now)
-		if err != nil {
-			fmt.Printf("Failed to insert task output: %s\n", err.Error())
-			panic(err)
-		}
+		util.LogPanicWithFields(err, log.Fields{"error": "Failed to insert task output"})
 	}()
 }
 
@@ -50,24 +46,21 @@ func (t *task) updateStatus() {
 			"project_id": t.projectID,
 		})
 
-		if err != nil {
-			panic(err)
-		}
+		util.LogPanic(err)
 
 		sockets.Message(user, b)
 	}
 
 	if _, err := db.Mysql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
-		fmt.Printf("Failed to update task status: %s\n", err.Error())
-		t.log("Fatal error with database!")
-		panic(err)
+		t.panicOnError(err, "Failed to update task status")
 	}
 }
 
+// Readln reads from the pipe
 func Readln(r *bufio.Reader) (string, error) {
 	var (
-		isPrefix bool  = true
-		err      error = nil
+		isPrefix = true
+		err      error
 		line, ln []byte
 	)
 	for isPrefix && err == nil {
@@ -87,7 +80,7 @@ func (t *task) logPipe(reader *bufio.Reader) {
 
 	if err != nil && err.Error() != "EOF" {
 		//don't panic on this errors, sometimes it throw not dangerous "read |0: file already closed" error
-		fmt.Printf("Failed to read task output: %s\n", err.Error())
+		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read task output"})
 	}
 
 }
@@ -98,4 +91,11 @@ func (t *task) logCmd(cmd *exec.Cmd) {
 
 	go t.logPipe(bufio.NewReader(stderr))
 	go t.logPipe(bufio.NewReader(stdout))
+}
+
+func (t *task) panicOnError(err error, msg string) {
+	if err != nil {
+		t.log(msg)
+		util.LogPanicWithFields(err, log.Fields{"error": msg})
+	}
 }

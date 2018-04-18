@@ -28,6 +28,7 @@ var h = hub{
 	connections: make(map[*connection]bool),
 }
 
+//nolint: gocyclo
 func (h *hub) run() {
 	for {
 		select {
@@ -55,6 +56,7 @@ func (h *hub) run() {
 	}
 }
 
+// StartWS starts the web sockets in a goroutine
 func StartWS() {
 	h.run()
 }

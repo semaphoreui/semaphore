@@ -6,11 +6,13 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/gobuffalo/packr"
+	log "github.com/Sirupsen/logrus"
 )
 
 var dbAssets = packr.NewBox("./migrations")
 
-func (version *DBVersion) CheckExists() (bool, error) {
+// CheckExists queries the database to see if a migration table with this version id exists already
+func (version *Version) CheckExists() (bool, error) {
 	exists, err := Mysql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
 
 	if err != nil {
@@ -22,7 +24,7 @@ func (version *DBVersion) CheckExists() (bool, error) {
 			}
 
 			fmt.Println("Creating migrations table")
-			if _, err := Mysql.Exec(initialSQL); err != nil {
+			if _, err = Mysql.Exec(initialSQL); err != nil {
 				panic(err)
 			}
 
@@ -35,7 +37,8 @@ func (version *DBVersion) CheckExists() (bool, error) {
 	return exists > 0, nil
 }
 
-func (version *DBVersion) Run() error {
+// Run executes a database migration
+func (version *Version) Run() error {
 	fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
 
 	tx, err := Mysql.Begin()
@@ -52,14 +55,14 @@ func (version *DBVersion) Run() error {
 		}
 
 		if _, err := tx.Exec(query); err != nil {
-			tx.Rollback()
-			fmt.Printf("\n ERR! Query: %v\n\n", query)
+			handleRollbackError(tx.Rollback())
+			log.Warnf("\n ERR! Query: %v\n\n", query)
 			return err
 		}
 	}
 
 	if _, err := tx.Exec("insert into migrations set version=?, upgraded_date=?", version.VersionString(), time.Now()); err != nil {
-		tx.Rollback()
+		handleRollbackError(tx.Rollback())
 		return err
 	}
 
@@ -68,7 +71,14 @@ func (version *DBVersion) Run() error {
 	return tx.Commit()
 }
 
-func (version *DBVersion) TryRollback() {
+func handleRollbackError(err error){
+	if err != nil {
+		log.Warn(err.Error())
+	}
+}
+
+// TryRollback attempts to rollback the database to an earlier version if a rollback exists
+func (version *Version) TryRollback() {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
 
 	data := dbAssets.Bytes(version.GetErrPath())
@@ -89,14 +99,15 @@ func (version *DBVersion) TryRollback() {
 	}
 }
 
+// MigrateAll checks for db migrations and executes them
 func MigrateAll() error {
 	fmt.Println("Checking DB migrations")
 	didRun := false
 
 	// go from beginning to the end
 	for _, version := range Versions {
-		if exists, err := version.CheckExists(); err != nil || exists == true {
-			if exists == true {
+		if exists, err := version.CheckExists(); err != nil || exists {
+			if exists {
 				continue
 			}
 

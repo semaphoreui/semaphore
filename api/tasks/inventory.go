@@ -8,9 +8,9 @@ import (
 )
 
 func (t *task) installInventory() error {
-	if t.inventory.SshKeyID != nil {
+	if t.inventory.SSHKeyID != nil {
 		// write inventory key
-		err := t.installKey(t.inventory.SshKey)
+		err := t.installKey(t.inventory.SSHKey)
 		if err != nil {
 			return err
 		}

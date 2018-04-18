@@ -10,7 +10,7 @@ import (
 
 var versionTmpl = `package util
 
-//The Semaphore build version
+//Version is the Semaphore build version as a string
 var Version = "{{ .VERSION }}"
 `
 
@@ -40,5 +40,8 @@ func main(){
 		}
 	}(f)
 
-	tmpl.Execute(f, data)
+	err = tmpl.Execute(f, data)
+	if err != nil {
+		log.Println(err)
+	}
 }

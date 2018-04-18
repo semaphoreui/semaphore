@@ -13,6 +13,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
+// AddTask inserts a task into the database and returns a header or panics
 func AddTask(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "user").(*db.User)
@@ -35,7 +36,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		projectID: project.ID,
 	}
 
-	objType := "task"
+	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
 	if err := (db.Event{
 		ProjectID:   &project.ID,
@@ -49,11 +50,12 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
+// GetTasksList returns a list of tasks for the current project in desc order to limit or panics
 func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	project := context.Get(r, "project").(db.Project)
 
 	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
-		From("task").
+		From(taskTypeID).
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("user on task.user_id=user.id").
 		Where("tpl.project_id=?", project.ID).
@@ -79,19 +81,23 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	mulekick.WriteJSON(w, http.StatusOK, tasks)
 }
 
+// GetAllTasks returns all tasks for the current project
 func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	GetTasksList(w, r, 0)
 }
 
+// GetLastTasks returns the hundred most recent tasks
 func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 	GetTasksList(w, r, 200)
 }
 
+// GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, "task").(db.Task)
+	task := context.Get(r, taskTypeID).(db.Task)
 	mulekick.WriteJSON(w, http.StatusOK, task)
 }
 
+// GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 	taskID, err := util.GetIntParam("task_id", w, r)
 	if err != nil {
@@ -103,11 +109,12 @@ func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	context.Set(r, "task", task)
+	context.Set(r, taskTypeID, task)
 }
 
+// GetTaskOutput returns the logged task output by id and writes it as json
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, "task").(db.Task)
+	task := context.Get(r, taskTypeID).(db.Task)
 
 	var output []db.TaskOutput
 	if _, err := db.Mysql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
@@ -117,11 +124,12 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, output)
 }
 
+// RemoveTask removes a task from the database
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, "task").(db.Task)
+	task := context.Get(r, taskTypeID).(db.Task)
 	editor := context.Get(r, "user").(*db.User)
 
-	if editor.Admin != true {
+	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to delete task logs")
 		w.WriteHeader(http.StatusUnauthorized)
 		return

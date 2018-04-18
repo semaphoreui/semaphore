@@ -11,6 +11,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
+// ProjectMiddleware ensures a project exists and loads it to the context
 func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
@@ -19,12 +20,13 @@ func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query, args, _ := squirrel.Select("p.*").
+	query, args, err := squirrel.Select("p.*").
 		From("project as p").
 		Join("project__user as pu on pu.project_id=p.id").
 		Where("p.id=?", projectID).
 		Where("pu.user_id=?", user.ID).
 		ToSql()
+	util.LogWarning(err)
 
 	var project db.Project
 	if err := db.Mysql.SelectOne(&project, query, args...); err != nil {
@@ -39,10 +41,12 @@ func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "project", project)
 }
 
+//GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
+// MustBeAdmin ensures that the user has administrator rights
 func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "user").(*db.User)
@@ -58,6 +62,7 @@ func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateProject saves updated project details to the database
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var body struct {
@@ -77,6 +82,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DeleteProject removes a project from the database
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
@@ -100,7 +106,8 @@ func DeleteProject(w http.ResponseWriter, r *http.Request) {
 		_, err := tx.Exec(statement, project.ID)
 
 		if err != nil {
-			tx.Rollback()
+			err = tx.Rollback()
+			util.LogWarning(err)
 			panic(err)
 		}
 	}

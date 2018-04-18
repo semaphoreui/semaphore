@@ -12,6 +12,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
+// EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	envID, err := util.GetIntParam("environment_id", w, r)
@@ -19,11 +20,12 @@ func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query, args, _ := squirrel.Select("*").
+	query, args, err := squirrel.Select("*").
 		From("project__environment").
 		Where("project_id=?", project.ID).
 		Where("id=?", envID).
 		ToSql()
+	util.LogWarning(err)
 
 	var env db.Environment
 	if err := db.Mysql.SelectOne(&env, query, args...); err != nil {
@@ -38,6 +40,7 @@ func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "environment", env)
 }
 
+// GetEnvironment retrieves sorted environments from the database
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env []db.Environment
@@ -62,7 +65,8 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 			OrderBy("pe.name " + order)
 	}
 
-	query, args, _ := q.ToSql()
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
 
 	if _, err := db.Mysql.Select(&env, query, args...); err != nil {
 		panic(err)
@@ -71,6 +75,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, env)
 }
 
+// UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := context.Get(r, "environment").(db.Environment)
 	var env db.Environment
@@ -93,6 +98,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// AddEnvironment creates an environment in the database
 func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env db.Environment
@@ -114,7 +120,8 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
+	insertID, err := res.LastInsertId()
+	util.LogWarning(err)
 	insertIDInt := int(insertID)
 	objType := "environment"
 
@@ -131,6 +138,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveEnvironment deletes an environment from the database
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(db.Environment)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
+// KeyMiddleware ensures a key exists and loads it to the context
 func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	keyID, err := util.GetIntParam("key_id", w, r)
@@ -31,6 +32,7 @@ func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, "accessKey", key)
 }
 
+// GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
@@ -63,7 +65,8 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 			OrderBy("ak.name " + order)
 	}
 
-	query, args, _ := q.ToSql()
+	query, args, err := q.ToSql()
+	util.LogWarning(err)
 
 	if _, err := db.Mysql.Select(&keys, query, args...); err != nil {
 		panic(err)
@@ -72,6 +75,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	mulekick.WriteJSON(w, http.StatusOK, keys)
 }
 
+// AddKey adds a new key to the database
 func AddKey(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var key db.AccessKey
@@ -104,7 +108,8 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
+	insertID, err := res.LastInsertId()
+	util.LogWarning(err)
 	insertIDInt := int(insertID)
 	objType := "key"
 
@@ -121,6 +126,8 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// UpdateKey updates key in database
+// nolint: gocyclo
 func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key db.AccessKey
 	oldKey := context.Get(r, "accessKey").(db.AccessKey)
@@ -172,6 +179,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveKey deletes a key from the database
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := context.Get(r, "accessKey").(db.AccessKey)
 

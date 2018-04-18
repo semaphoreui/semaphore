@@ -1,5 +1,6 @@
 package db
 
+// SetupDBLink is called by main after initialization of the Mysql object to create or return an existing table map
 func SetupDBLink() {
 	Mysql.AddTableWithName(APIToken{}, "user__token").SetKeys(false, "id")
 	Mysql.AddTableWithName(AccessKey{}, "access_key").SetKeys(true, "id")

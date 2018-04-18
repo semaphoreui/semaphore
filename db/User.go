@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+//User is the model for an entity which has access to the API
 type User struct {
 	ID       int       `db:"id" json:"id"`
 	Created  time.Time `db:"created" json:"created"`
@@ -16,6 +17,7 @@ type User struct {
 	Alert    bool      `db:"alert" json:"alert"`
 }
 
+//FetchUser retrieves a user from the database by ID
 func FetchUser(userID int) (*User, error) {
 	var user User
 

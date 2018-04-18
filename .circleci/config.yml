@@ -131,6 +131,7 @@ jobs:
       - run: task deps:tools
       - run: task deps:be
       - run: task compile:be
+      - run: task lint:be
       - run: task test
       - run: godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
       - store_test_results:
@@ -261,3 +262,4 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v.*/
+              
