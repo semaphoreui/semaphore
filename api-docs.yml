@@ -6,6 +6,12 @@ info:
 
 host: localhost:3000
 
+consumes:
+  - application/json
+produces:
+  - application/json
+  - text/plain; charset=utf-8
+
 tags:
   - name: authentication
     description: Authentication, Logout & API Tokens
@@ -19,31 +25,47 @@ schemes:
   - https
 
 basePath: /api
-produces:
-  - application/json
 
 definitions:
+
+  Pong:
+    type: string
+    x-example: pong
+
   Login:
     type: object
-    required:
-      - auth
-      - password
     properties:
       auth:
         type: string
         description: Username/Email address
+        x-example: user@semaphore.com
       password:
         type: string
         format: password
         description: Password
-  PONG:
-    type: string
-    format: PONG
+
+  UserRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        x-example: Integration Test User
+      username:
+        type: string
+        x-example: test-user
+      email:
+        type: string
+        x-example: test@ansiblesemaphore.test
+      alert:
+        type: boolean
+      admin:
+        type: boolean
   User:
     type: object
     properties:
       id:
         type: integer
+        minimum: 1
       name:
         type: string
       username:
@@ -52,11 +74,12 @@ definitions:
         type: string
       created:
         type: string
-        format: date-time
+        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
       admin:
         type: boolean
+
   APIToken:
     type: object
     properties:
@@ -64,23 +87,50 @@ definitions:
         type: string
       created:
         type: string
-        format: date-time
+        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       expired:
         type: boolean
       user_id:
         type: integer
+        minimum: 1
+
+  ProjectRequest:
+    type: object
+    properties:
+      name:
+        type: string
+      alert:
+        type: boolean
   Project:
     type: object
     properties:
       id:
         type: integer
+        minimum: 1
       name:
         type: string
       created:
         type: string
-        format: date-time
+        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
+
+  AccessKeyRequest:
+    type: object
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+        enum: [ssh, aws, gcloud, do]
+      project_id:
+        type: integer
+        minimum: 1
+        x-example: 2
+      key:
+        type: string
+      secret:
+        type: string
   AccessKey:
     type: object
     properties:
@@ -90,25 +140,61 @@ definitions:
         type: string
       type:
         type: string
+        enum: [ssh, aws, gcloud, do]
       project_id:
         type: integer
       key:
         type: string
       secret:
         type: string
+
+  EnvironmentRequest:
+    type: object
+    properties:
+      name:
+        type: string
+      project_id:
+        type: integer
+        minimum: 1
+      password:
+        type: string
+      json:
+        type: string
   Environment:
     type: object
     properties:
       id:
         type: integer
+        minimum: 1
       name:
         type: string
       project_id:
         type: integer
+        minimum: 1
       password:
         type: string
       json:
         type: string
+
+  InventoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        project_id:
+          type: integer
+          minimum: 1
+        inventory:
+          type: string
+        key_id:
+          type: integer
+          minimum: 1
+        ssh_key_id:
+          type: integer
+          minimum: 1
+        type:
+          type: string
+          enum: [static, file]
   Inventory:
     type: object
     properties:
@@ -126,6 +212,19 @@ definitions:
         type: integer
       type:
         type: string
+        enum: [static, file]
+
+  RepositoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        project_id:
+          type: integer
+        git_url:
+          type: string
+        ssh_key_id:
+          type: integer
   Repository:
     type: object
     properties:
@@ -139,11 +238,13 @@ definitions:
         type: string
       ssh_key_id:
         type: integer
+
   Task:
     type: object
     properties:
       id:
         type: integer
+        example: 23
       template_id:
         type: integer
       status:
@@ -159,6 +260,7 @@ definitions:
     properties:
       task_id:
         type: integer
+        example: 23
       task:
         type: string
       time:
@@ -166,21 +268,25 @@ definitions:
         format: date-time
       output:
         type: string
-  Template:
+
+  TemplateRequest:
     type: object
     properties:
-      id:
-        type: integer
       ssh_key_id:
         type: integer
+        minimum: 1
       project_id:
         type: integer
+        minimum: 1
       inventory_id:
         type: integer
+        minimum: 1
       repository_id:
         type: integer
+        minimum: 1
       environment_id:
         type: integer
+        minimum: 1
       alias:
         type: string
       playbook:
@@ -189,17 +295,51 @@ definitions:
         type: string
       override_args:
         type: boolean
+  Template:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      ssh_key_id:
+        type: integer
+        minimum: 1
+      project_id:
+        type: integer
+        minimum: 1
+      inventory_id:
+        type: integer
+        minimum: 1
+      repository_id:
+        type: integer
+      environment_id:
+        type: integer
+        minimum: 1
+      alias:
+        type: string
+      playbook:
+        type: string
+      arguments:
+        type: string
+      override_args:
+        type: boolean
+
   Event:
     type: object
     properties:
       project_id:
         type: integer
       object_id:
-        type: integer
+        type:
+          - integer
+          - 'null'
       object_type:
-        type: string
+        type:
+          - string
+          - 'null'
       description:
         type: string
+
   InfoType:
     type: object
     properties:
@@ -213,15 +353,19 @@ definitions:
           tag_name:
             type: string
 
-# securityDefinitions:
-#   cookie:
-#     type: apiKey
-#     name: Cookie
-#     in: header
-#   bearer:
-#     type: apiKey
-#     name: Authorization
-#     in: header
+securityDefinitions:
+  cookie:
+    type: apiKey
+    name: Cookie
+    in: header
+  bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+
+security:
+  - bearer: []
+  - cookie: []
 
 parameters:
   project_id:
@@ -230,58 +374,73 @@ parameters:
     in: path
     type: integer
     required: true
+    x-example: 1
   user_id:
     name: user_id
     description: User ID
     in: path
     type: integer
     required: true
+    x-example: 2
   key_id:
     name: key_id
     description: key ID
     in: path
     type: integer
     required: true
+    x-example: 3
   repository_id:
     name: repository_id
     description: repository ID
     in: path
     type: integer
     required: true
+    x-example: 4
   inventory_id:
     name: inventory_id
     description: inventory ID
     in: path
     type: integer
     required: true
+    x-example: 5
   environment_id:
     name: environment_id
     description: environment ID
     in: path
     type: integer
     required: true
+    x-example: 6
   template_id:
     name: template_id
     description: template ID
     in: path
     type: integer
     required: true
+    x-example: 7
   task_id:
     name: task_id
     description: task ID
     in: path
     type: integer
     required: true
+    x-example: 8
 
 paths:
   /ping:
     get:
       summary: PING test
+      produces:
+        - text/plain
+      security: []   # No security
       responses:
         200:
           description: Successful "PONG" reply
           schema:
-            $ref: "#/definitions/PONG"
+            $ref: "#/definitions/Pong"
+          headers:
+            content-type:
+              type: string
+              x-example: text/plain; charset=utf-8
 
   /ws:
     get:
@@ -292,9 +451,9 @@ paths:
       responses:
         200:
           description: OK
-      # security:
-      #   - cookie: []
-      #   - bearer: []
+        403:
+          description: not authenticated
+
   /info:
     get:
       summary: Fetches information about semaphore
@@ -329,6 +488,7 @@ paths:
       summary: Performs Login
       description: |
         Upon success you will be logged in
+      security: []   # No security
       parameters:
         - name: Login Body
           in: body
@@ -340,6 +500,7 @@ paths:
           description: You are logged in
         400:
           description: something in body is missing / is invalid
+
   /auth/logout:
     post:
       tags:
@@ -349,7 +510,7 @@ paths:
         204:
           description: Your session was successfully nuked
 
-  # User stuff
+  # User Tokens
   /user:
     get:
       tags:
@@ -384,12 +545,14 @@ paths:
           description: API Token
           schema:
             $ref: "#/definitions/APIToken"
+
   /user/tokens/{api_token_id}:
     parameters:
       - name: api_token_id
         in: path
         type: string
         required: true
+        x-example: "kwofd61g93-yuqvex8efmhjkgnbxlo8mp1tin6spyhu="
     delete:
       tags:
         - authentication
@@ -398,6 +561,98 @@ paths:
       responses:
         204:
           description: Expired API Token
+
+  # User Profiles
+  /users:
+    get:
+      tags:
+        - user
+      summary: Fetches all users
+      responses:
+        200:
+          description: Users
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+    post:
+      tags:
+        - user
+      summary: Creates a user
+      consumes:
+        - application/json
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/UserRequest"
+      responses:
+        400:
+          description: User creation failed
+        201:
+          description: User created
+          schema:
+            $ref: "#/definitions/User"
+
+  /users/{user_id}:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Fetches a user profile
+      responses:
+        200:
+          description: User profile
+          schema:
+            $ref: "#/definitions/User"
+    put:
+      tags:
+        - user
+      summary: Updates user details
+      consumes:
+        - application/json
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/UserRequest"
+      responses:
+        204:
+          description: User Updated
+
+    delete:
+      tags:
+        - user
+      summary: Deletes user
+      responses:
+        204:
+          description: User deleted
+
+  /users/{user_id}/password:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    post:
+      tags:
+        - user
+      summary: Updates user password
+      consumes:
+        - application/json
+      parameters:
+        - name: Password
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              password:
+                type: string
+                format: password
+      responses:
+        204:
+          description: Password updated
 
   # Projects
   /projects:
@@ -416,15 +671,18 @@ paths:
       tags:
         - projects
       summary: Create a new project
+      consumes:
+        - application/json
       parameters:
         - name: Project
           in: body
           required: true
           schema:
-            $ref: '#/definitions/Project'
+            $ref: '#/definitions/ProjectRequest'
       responses:
         201:
           description: Created project
+
   /events:
     get:
       summary: Get Events related to Semaphore and projects you are part of
@@ -510,14 +768,16 @@ paths:
           in: query
           required: true
           type: string
-          format: name/username/email/admin
+          enum: [name, username, email, admin]
           description: sorting name
+          x-example: email
         - name: order
           in: query
           required: true
           type: string
-          format: asc/desc
+          enum: [asc, desc]
           description: ordering manner
+          x-example: desc
       responses:
         200:
           description: Users
@@ -538,7 +798,7 @@ paths:
             properties:
               user_id:
                 type: integer
-                format: userID
+                minimum: 2
               admin:
                 type: boolean
       responses:
@@ -583,24 +843,28 @@ paths:
         - project
       summary: Get access keys linked to project
       parameters:
+          # TODO - the space in this parameter name results in a dredd warning
         - name: Key type
           in: query
           required: false
           type: string
-          format: ssh/aws/gcloud/do
+          enum: [ssh, aws, gcloud, do]
           description: Filter by key type
+          x-example: ssh
         - name: sort
           in: query
           required: true
           type: string
-          format: name/type
+          enum: [name, type]
           description: sorting name
+          x-example: type
         - name: order
           in: query
           required: true
           type: string
-          format: asc/desc
+          enum: [asc, desc]
           description: ordering manner
+          x-example: asc
       responses:
         200:
           description: Access Keys
@@ -617,7 +881,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/AccessKey"
+            $ref: "#/definitions/AccessKeyRequest"
       responses:
         204:
           description: Access Key created
@@ -636,7 +900,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/AccessKey"
+            $ref: "#/definitions/AccessKeyRequest"
       responses:
         204:
           description: Key updated
@@ -663,13 +927,14 @@ paths:
           in: query
           required: true
           type: string
-          format: name/git_url/ssh_key
+          enum: [name, git_url, ssh_key]
           description: sorting name
         - name: order
           in: query
           required: true
           type: string
           format: asc/desc
+          enum: [asc, desc]
           description: ordering manner
       responses:
         200:
@@ -687,7 +952,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Repository"
+            $ref: "#/definitions/RepositoryRequest"
       responses:
         204:
           description: Repository created
@@ -716,14 +981,14 @@ paths:
           in: query
           required: true
           type: string
-          format: name/type
           description: sorting name
+          enum: [name, type]
         - name: order
           in: query
           required: true
           type: string
-          format: asc/desc
           description: ordering manner
+          enum: [asc, desc]
       responses:
         200:
           description: inventory
@@ -740,7 +1005,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Inventory"
+            $ref: "#/definitions/InventoryRequest"
       responses:
         201:
           description: inventory created
@@ -759,7 +1024,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Inventory"
+            $ref: "#/definitions/InventoryRequest"
       responses:
         204:
           description: Inventory updated
@@ -786,12 +1051,14 @@ paths:
           type: string
           format: name
           description: sorting name
+          x-example: 'db-deploy'
         - name: order
           in: query
           required: true
           type: string
           format: asc/desc
           description: ordering manner
+          x-example: desc
       responses:
         200:
           description: environment
@@ -808,7 +1075,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Environment"
+            $ref: "#/definitions/EnvironmentRequest"
       responses:
         204:
           description: Environment created
@@ -825,7 +1092,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Environment"
+            $ref: "#/definitions/EnvironmentRequest"
       responses:
         204:
           description: Environment Updated
@@ -850,14 +1117,14 @@ paths:
           in: query
           required: true
           type: string
-          format: alias/playbook/ssh_key/inventory/environment/repository
           description: sorting name
+          enum: [alias, playbook, ssh_key, inventory, environment, repository]
         - name: order
           in: query
           required: true
           type: string
-          format: asc/desc
           description: ordering manner
+          enum: [asc, desc]
       responses:
         200:
           description: template
@@ -874,7 +1141,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Template"
+            $ref: "#/definitions/TemplateRequest"
       responses:
         201:
           description: template created
@@ -893,7 +1160,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Template"
+            $ref: "#/definitions/TemplateRequest"
       responses:
         204:
           description: template updated
@@ -973,6 +1240,13 @@ paths:
           description: Task
           schema:
             $ref: "#/definitions/Task"
+    delete:
+      tags:
+        - project
+      summary: Deletes task (including output)
+      responses:
+        204:
+          description: task deleted
   /project/{project_id}/tasks/{task_id}/output:
     parameters:
       - $ref: '#/parameters/project_id'
@@ -988,95 +1262,3 @@ paths:
             type: array
             items:
               $ref: "#/definitions/TaskOutput"
-  /project/{project_id}/tasks/{task_id}:
-    parameters:
-      - $ref: '#/parameters/project_id'
-      - $ref: '#/parameters/task_id'
-    delete:
-      tags:
-        - project
-      summary: Deletes task (including output)
-      responses:
-        204:
-          description: task deleted
-
-  # users
-  /users:
-    get:
-      tags:
-        - user
-      summary: Fetches all users
-      responses:
-        200:
-          description: Users
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/User"
-    post:
-      tags:
-        - user
-      summary: Creates a user
-      parameters:
-        - name: User
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/User"
-      responses:
-        201:
-          description: User created
-          schema:
-            $ref: "#/definitions/User"
-  /users/{user_id}:
-    parameters:
-      - $ref: "#/parameters/user_id"
-    get:
-      tags:
-        - user
-      summary: Fetches a user profile
-      responses:
-        200:
-          description: User profile
-          schema:
-            $ref: "#/definitions/User"
-    put:
-      tags:
-        - user
-      summary: Updates user details
-      parameters:
-        - name: User
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/User"
-      responses:
-        204:
-          description: User Updated
-    delete:
-      tags:
-        - user
-      summary: Deletes user
-      responses:
-        204:
-          description: User deleted
-  /users/{user_id}/password:
-    parameters:
-      - $ref: "#/parameters/user_id"
-    post:
-      tags:
-        - user
-      summary: Updates user password
-      parameters:
-        - name: Password
-          in: body
-          required: true
-          schema:
-            type: object
-            properties:
-              password:
-                type: string
-                format: password
-      responses:
-        204:
-          description: Password updated

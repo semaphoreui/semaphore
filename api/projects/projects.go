@@ -7,6 +7,7 @@ import (
 	"github.com/castawaylabs/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
+	"time"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -49,9 +50,13 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	desc := "Project Created"
+	oType := "Project"
 	if err := (db.Event{
 		ProjectID:   &body.ID,
 		Description: &desc,
+		ObjectType:  &oType,
+		ObjectID:    &body.ID,
+		Created:  	 db.GetParsedTime(time.Now()),
 	}.Insert()); err != nil {
 		panic(err)
 	}

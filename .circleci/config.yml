@@ -7,7 +7,7 @@ aliases:
     image: circleci/golang:1.10
 
   - &working-dir
-      /go/src/github.com/ansible-semaphore/semaphore
+    /go/src/github.com/ansible-semaphore/semaphore
 
   - &store-bin-artifacts
     store_artifacts:
@@ -21,7 +21,7 @@ aliases:
         curl -L https://github.com/go-task/task/releases/download/v2.0.1/task_linux_amd64.tar.gz | tar xvz
         cd -
 
-  - &persist-bin
+  - &persist-from-build
     persist_to_workspace:
       root: .
       paths:
@@ -79,12 +79,12 @@ aliases:
         - v1-go-deps-
 
 jobs:
+
   build:local:
     docker:
       - *golang-image
     working_directory: *working-dir
     steps:
-      - run: export
       - *install-node
       - *install-task-binary
       - checkout
@@ -97,7 +97,7 @@ jobs:
       - *test-compile-changes
       - run: task build:local
       - *store-bin-artifacts
-      - *persist-bin
+      - *persist-from-build
 
   build:
     docker:
@@ -116,6 +116,22 @@ jobs:
       - *unlock-gpg
       - run: task build
       - *store-bin-artifacts
+
+  test:integration:hooks:
+    docker:
+      - *golang-image
+    working_directory: *working-dir
+    steps:
+      - checkout
+      - *install-node
+      - *install-task-binary
+      - run: task deps:integration
+      - run: task deps:tools
+      - run: task deps:be
+      - run: task compile:be
+      - run: task compile:api:hooks
+      - store_artifacts:
+          path: /go/src/github.com/ansible-semaphore/semaphore/.dredd/compiled_hooks
 
   # Run goverage and post results
   test:golang:
@@ -140,11 +156,23 @@ jobs:
           path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
 
   test:integration:
+    machine: true
+    steps:
+      - checkout
+      - run: |
+          cd /home/circleci/bin
+          sudo curl -L https://github.com/go-task/task/releases/download/v2.0.1/task_linux_amd64.tar.gz | tar xvz
+          cd -
+      - run: context=ci task dc:up
+
+  test:db:migration:
     docker:
       - *golang-image
       - image: circleci/mysql
     working_directory: *working-dir
     steps:
+      - *install-task-binary
+      - *install-node
       - attach_workspace:
           at: *working-dir
       # This looks like utter filth in circleci v2 but we have no choice apart from this escaping madness
@@ -155,7 +183,6 @@ jobs:
           name: Wait for db
           command: dockerize -wait tcp://127.0.0.1:3306 -timeout 1m
       - run: bin/semaphore --migrate -config config.json
-      # TODO - Here we could do some api/functional testing
 
   test:docker:
     docker:
@@ -221,8 +248,10 @@ workflows:
     jobs:
       - test:docker
       - test:golang
+      - test:integration:hooks
+      - test:integration
       - build:local
-      - test:integration:
+      - test:db:migration:
           requires:
             - build:local
 
@@ -230,6 +259,7 @@ workflows:
       - build:
           requires:
             - test:golang
+            - test:db:migration
             - test:integration
           filters:
             branches:
@@ -244,12 +274,11 @@ workflows:
             branches:
               only: develop
 
-# Production releases only run on tags
-# use _ in tags and not - due to rpmbuild not allowing hyphens in version numbers
-# https://github.com/semver/semver/issues/145
-  release:
-    jobs:
+# Production deploys only happen if everything passes
+# and we have a tag starting with v
       - release:
+          requires:
+            - build
           filters:
             branches:
               ignore: /.*/
@@ -257,9 +286,11 @@ workflows:
               only: /^v.*/
 
       - deploy:prod:
+          requires:
+            - build
+            - test:docker
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^v.*/
-              

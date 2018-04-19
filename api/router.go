@@ -16,12 +16,21 @@ import (
 
 var publicAssets = packr.NewBox("../web/public")
 
+//JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
+func JSONMiddleware(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+}
+
+//PlainTextMiddleware resets headers to Plain Text if needed
+func PlainTextMiddleware(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "text/plain; charset=utf-8")
+}
 // Route declares all routes
 func Route() mulekick.Router {
-	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware)
+	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware, JSONMiddleware)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
-	r.Get("/api/ping", mulekick.PongHandler)
+	r.Get("/api/ping", PlainTextMiddleware, mulekick.PongHandler)
 
 	// set up the namespace
 	api := r.Group("/api")
@@ -45,7 +54,7 @@ func Route() mulekick.Router {
 
 		api.Get("/tokens", getAPITokens)
 		api.Post("/tokens", createAPIToken)
-		api.Delete("/tokens/:token_id", expireAPIToken)
+		api.Delete("/tokens/{token_id}", expireAPIToken)
 	}(api.Group("/user"))
 
 	api.Get("/projects", projects.GetProjects)

@@ -43,7 +43,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	token := db.APIToken{
 		ID:      strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
-		Created: time.Now(),
+		Created: db.GetParsedTime(time.Now()),
 		UserID:  user.ID,
 		Expired: false,
 	}
