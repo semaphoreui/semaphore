@@ -277,8 +277,6 @@ workflows:
 # Production deploys only happen if everything passes
 # and we have a tag starting with v
       - release:
-          requires:
-            - build
           filters:
             branches:
               ignore: /.*/
@@ -286,9 +284,6 @@ workflows:
               only: /^v.*/
 
       - deploy:prod:
-          requires:
-            - build
-            - test:docker
           filters:
             branches:
               ignore: /.*/
