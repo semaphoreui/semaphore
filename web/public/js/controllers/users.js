@@ -1,7 +1,7 @@
 define(function () {
 	app.registerController('UsersCtrl', ['$scope', '$http', '$uibModal', '$rootScope', function ($scope, $http, $modal, $rootScope) {
 		$http.get('/users').then(function (response) {
-			$scope.users = response.users;
+			$scope.users = response.data;
 		});
 
 		$scope.addUser = function () {
