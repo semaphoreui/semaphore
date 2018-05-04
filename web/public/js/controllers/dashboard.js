@@ -1,5 +1,5 @@
 define(['controllers/projects/edit'], function () {
-	app.registerController('DashboardCtrl', ['$scope', '$http', '$uibModal', function ($scope, $http, $modal) {
+	app.registerController('DashboardCtrl', ['$scope', '$http', '$uibModal', 'SweetAlert', function ($scope, $http, $modal, SweetAlert) {
 		$scope.projects = [];
 
 		$scope.refresh = function ($lastEvents=true) {

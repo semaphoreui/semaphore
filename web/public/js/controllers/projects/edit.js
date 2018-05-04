@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('ProjectEditCtrl', ['$scope', '$http', 'Project', '$state', function ($scope, $http, Project, $state) {
+	app.registerController('ProjectEditCtrl', ['$scope', '$http', 'Project', '$state', 'SweetAlert', function ($scope, $http, Project, $state, SweetAlert) {
 		$scope.projectName = Project.name;
 		$scope.alert = Project.alert;
 		$scope.alert_chat = Project.alert_chat;

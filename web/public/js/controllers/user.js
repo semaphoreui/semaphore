@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('UserCtrl', ['$scope', '$http', '$uibModal', '$rootScope', 'user', '$state', function ($scope, $http, $modal, $rootScope, user, $state) {
+	app.registerController('UserCtrl', ['$scope', '$http', '$uibModal', '$rootScope', 'user', '$state', 'SweetAlert', function ($scope, $http, $modal, $rootScope, user, $state, SweetAlert) {
 		$scope.user = user.data;
 		$scope.is_self = $scope.user.id == $rootScope.user.id;
 

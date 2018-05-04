@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('AdminCtrl', ['$scope', '$http', '$sce', '$uibModal', '$rootScope', function ($scope, $http, $sce, $modal, $rootScope) {
+	app.registerController('AdminCtrl', ['$scope', '$http', '$sce', '$uibModal', '$rootScope', 'SweetAlert', function ($scope, $http, $sce, $modal, $rootScope, SweetAlert) {
 		$scope.upgrade = JSON.parse(JSON.stringify($scope.semaphore));
 		if ($scope.upgrade && $scope.upgrade.updateBody) {
 			$scope.upgrade.updateBody = $sce.trustAsHtml($scope.upgrade.updateBody);

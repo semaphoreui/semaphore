@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('ProjectUsersCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function ($scope, $http, Project, $modal, $rootScope) {
+	app.registerController('ProjectUsersCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', 'SweetAlert', function ($scope, $http, Project, $modal, $rootScope, SweetAlert) {
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/users?sort=name&order=asc').then(function (response) {
 			  var users = response.data;

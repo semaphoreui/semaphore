@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('ProjectRepositoriesCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', function ($scope, $http, Project, $modal, $rootScope) {
+	app.registerController('ProjectRepositoriesCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', 'SweetAlert', 'SweetAlert', function ($scope, $http, Project, $modal, $rootScope, SweetAlert) {
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/keys?type=ssh&sort=name&order=asc').then(function (keys) {
 				$scope.sshKeys = keys.data;
@@ -50,8 +50,8 @@ define(function () {
 
 						$http.delete(Project.getURL() + '/repositories/' + repo.id + '?setRemoved=1')
 							.then(function () {
-								swal.stopLoading();
-								swal.close();
+								SweetAlert.stopLoading();
+								SweetAlert.close();
 
 								$scope.reload();
 							})

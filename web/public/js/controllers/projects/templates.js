@@ -1,5 +1,6 @@
 define(['controllers/projects/taskRunner'], function () {
-	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', '$window', function ($scope, $http, $modal, Project, $rootScope, $window) {
+	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', '$window', 'SweetAlert',
+		function ($scope, $http, $modal, Project, $rootScope, $window, SweetAlert) {
 		$http.get(Project.getURL() + '/keys?type=ssh').then(function (keys) {
 			$scope.sshKeys = keys.data;
 

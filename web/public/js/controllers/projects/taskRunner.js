@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('CreateTaskCtrl', ['$scope', '$http', 'Template', 'Project', function ($scope, $http, Template, Project) {
+	app.registerController('CreateTaskCtrl', ['$scope', '$http', 'Template', 'Project', 'SweetAlert', function ($scope, $http, Template, Project, SweetAlert) {
 		console.log(Template);
 		$scope.task = {};
 

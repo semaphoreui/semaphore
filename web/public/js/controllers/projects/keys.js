@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('ProjectKeysCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
+	app.registerController('ProjectKeysCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', 'SweetAlert', function ($scope, $http, $modal, Project, $rootScope, SweetAlert) {
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/keys?sort=name&order=asc').then(function (keys) {
 				$scope.keys = keys.data;
