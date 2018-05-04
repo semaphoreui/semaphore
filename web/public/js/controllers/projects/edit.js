@@ -6,14 +6,14 @@ define(function () {
 
 		$scope.save = function (name, alert, alert_chat) {
 			$http.put(Project.getURL(), {name: name, alert: alert, alert_chat: alert_chat}).then(function () {
-				swal('Saved', 'Project settings saved.', 'success');
+				SweetAlert.swal('Saved', 'Project settings saved.', 'success');
 			}).catch(function () {
-				swal('Error', 'Project settings were not saved', 'error');
+				SweetAlert.swal('Error', 'Project settings were not saved', 'error');
 			});
 		}
 
 		$scope.deleteProject = function () {
-			swal({
+			SweetAlert.swal({
 				title: 'Delete Project?',
 				text: 'All data related to this project will be deleted.',
 				icon: 'warning',
@@ -37,7 +37,7 @@ define(function () {
 
 						$state.go('dashboard');
 					}).catch(function () {
-					swal('Error', 'Could not delete project!', 'error');
+					SweetAlert.swal('Error', 'Could not delete project!', 'error');
 				});
 			});
 		}

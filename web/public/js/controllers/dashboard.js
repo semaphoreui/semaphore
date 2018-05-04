@@ -26,7 +26,7 @@ define(['controllers/projects/edit'], function () {
 				.then(function () {
 					$scope.refresh();
 				}).catch(function (response) {
-					swal('Error', 'Could not create project: ' + response.status, 'error');
+					SweetAlert.swal('Error', 'Could not create project: ' + response.status, 'error');
 				});
 			}, function () {});
 		}

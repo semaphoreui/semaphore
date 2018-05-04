@@ -14,11 +14,11 @@ define(function () {
 				.catch(function (response) {
 					var d = response.data;
 					if (!(d && d.inUse)) {
-						swal('error', 'could not delete environment..', 'error');
+						SweetAlert.swal('error', 'could not delete environment..', 'error');
 						return;
 					}
 
-					swal({
+					SweetAlert.swal({
 						title: 'Environment in use',
 						text: d.error,
 						icon: 'error',
@@ -43,7 +43,7 @@ define(function () {
 								$scope.reload();
 							})
 							.catch(function () {
-								swal('Error', 'Could not delete environment..', 'error');
+								SweetAlert.swal('Error', 'Could not delete environment..', 'error');
 							});
 					});
 				});
@@ -63,7 +63,7 @@ define(function () {
 					.then(function () {
 						$scope.reload();
 					}).catch(function (response) {
-					swal('Error', 'Environment not added: ' + response.status, 'error');
+					SweetAlert.swal('Error', 'Environment not added: ' + response.status, 'error');
 				});
 			}, function () {
 			});
@@ -85,7 +85,7 @@ define(function () {
 					.then(function () {
 						$scope.reload();
 					}).catch(function (response) {
-					swal('Error', 'Environment not updated: ' + response.status, 'error');
+					SweetAlert.swal('Error', 'Environment not updated: ' + response.status, 'error');
 				});
 			}, function () {
 			});

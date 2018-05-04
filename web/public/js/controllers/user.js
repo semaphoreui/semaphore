@@ -7,9 +7,9 @@ define(function () {
 			$http.post('/users/' + $scope.user.id + '/password', {
 				password: pwd
 			}).then(function () {
-				swal('OK', 'User profile & password were updated.');
+				SweetAlert.swal('OK', 'User profile & password were updated.');
 			}).catch(function (response) {
-				swal('Error', 'Setting password failed, API responded with HTTP ' + response.status, 'error');
+				SweetAlert.swal('Error', 'Setting password failed, API responded with HTTP ' + response.status, 'error');
 			});
 		}
 
@@ -26,9 +26,9 @@ define(function () {
 					return;
 				}
 
-				swal('OK', 'User has been updated!');
+				SweetAlert.swal('OK', 'User has been updated!');
 			}).catch(function (response) {
-				swal('Error', 'User profile could not be updated: ' + response.status, 'error');
+				SweetAlert.swal('Error', 'User profile could not be updated: ' + response.status, 'error');
 			});
 		}
 
@@ -36,7 +36,7 @@ define(function () {
 			$http.delete('/users/' + $scope.user.id).then(function () {
 				$state.go('users.list');
 			}).catch(function (response) {
-				swal('Error', 'User could not be deleted! ' + response.status, 'error');
+				SweetAlert.swal('Error', 'User could not be deleted! ' + response.status, 'error');
 			});
 		}
 	}]);

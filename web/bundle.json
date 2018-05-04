@@ -18,6 +18,7 @@
 	"public/js/routes/project",
 
 	"public/js/factories/project",
+	"public/js/factories/sweetalert",
 
 	"node_modules/requirejs/require",
 	"require_config"

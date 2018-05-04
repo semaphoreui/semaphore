@@ -30,7 +30,7 @@ define(function () {
 				$scope.upgraded = true;
 				$scope.pollUpgrade(upgradeModal, 0);
 			}).catch(function () {
-				swal('Error upgrading', arguments, 'error');
+				SweetAlert.swal('Error upgrading', arguments, 'error');
 			});
 		}
 
@@ -43,7 +43,7 @@ define(function () {
 
 				setTimeout(function () {
 					if (attempts >= 60) {
-						swal('Error', 'Upgrade seems to be taking a long time. Check server logs!', 'error');
+						SweetAlert.swal('Error', 'Upgrade seems to be taking a long time. Check server logs!', 'error');
 						modalInstance.dismiss();
 						return;
 					}

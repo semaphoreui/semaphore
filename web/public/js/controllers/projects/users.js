@@ -19,7 +19,7 @@ define(function () {
 			$http.delete(Project.getURL() + '/users/' + user.id).then(function () {
 				$scope.reload();
 			}).catch(function () {
-				swal('error', 'could not delete user..', 'error');
+				SweetAlert.swal('error', 'could not delete user..', 'error');
 			});
 		}
 
@@ -46,7 +46,7 @@ define(function () {
 						.then(function () {
 							$scope.reload();
 						}).catch(function (response) {
-							swal('Error', 'User not added: ' + response.status, 'error');
+							SweetAlert.swal('Error', 'User not added: ' + response.status, 'error');
 						});
 				}, function () {});
 			});
@@ -62,7 +62,7 @@ define(function () {
 			});
 
 			if (user.admin && numAdmins == 1) {
-				swal('Administrator Required', 'There must be at least one administrator on the project', 'error');
+				SweetAlert.swal('Administrator Required', 'There must be at least one administrator on the project', 'error');
 
 				return;
 			}

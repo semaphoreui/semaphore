@@ -19,10 +19,10 @@ define(function () {
 					$http.post('/users/' + response.user.id + '/password', {
 						password: _user.password
 					}).catch(function (errorResponse) {
-						swal('Error', 'Setting password failed, API responded with HTTP ' + errorResponse.status, 'error');
+						SweetAlert.swal('Error', 'Setting password failed, API responded with HTTP ' + errorResponse.status, 'error');
 					});
 				}).catch(function (response) {
-					swal('Error', 'API responded with HTTP ' + response.status, 'error');
+					SweetAlert.swal('Error', 'API responded with HTTP ' + response.status, 'error');
 				});
 			}, function () {});
 		}
