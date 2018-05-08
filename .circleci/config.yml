@@ -168,7 +168,7 @@ jobs:
   test:db:migration:
     docker:
       - *golang-image
-      - image: circleci/mysql
+      - image: circleci/mysql:5.6
     working_directory: *working-dir
     steps:
       - *install-task-binary
