@@ -21,7 +21,7 @@ define(function () {
 					}).catch(function (errorResponse) {
 						swal('Error', 'Setting password failed, API responded with HTTP ' + errorResponse.status, 'error');
 					});
-				}).error(function (response) {
+				}).catch(function (response) {
 					swal('Error', 'API responded with HTTP ' + response.status, 'error');
 				});
 			}, function () {});

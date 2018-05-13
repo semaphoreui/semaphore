@@ -42,7 +42,7 @@ define(['app'], function (app) {
 				self.hosts = response.data;
 				cb();
 			})
-			.error(function (response) {
+			.catch(function (response) {
 				cb(response.data, response.status);
 			});
 		}
