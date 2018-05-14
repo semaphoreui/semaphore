@@ -49,7 +49,12 @@ type ldapMappings struct {
 type configType struct {
 	MySQL mySQLConfig `json:"mysql"`
 	// Format `:port_num` eg, :3000
+	// if : is missing it will be corrected
 	Port string `json:"port"`
+
+	// Interface ip, put in front of the port.
+	// defaults to empty
+	Interface string `json:"interface"`
 
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path"`
