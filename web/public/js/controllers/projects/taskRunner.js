@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('CreateTaskCtrl', ['$scope', '$http', 'Template', 'Project', function ($scope, $http, Template, Project) {
+	app.registerController('CreateTaskCtrl', ['$scope', '$http', 'Template', 'Project', 'SweetAlert', function ($scope, $http, Template, Project, SweetAlert) {
 		console.log(Template);
 		$scope.task = {};
 
@@ -13,7 +13,7 @@ define(function () {
 			$http.post(Project.getURL() + '/tasks', params).then(function (t) {
 				$scope.$close(t.data);
 			}).catch(function (response) {
-				swal('Error', 'error launching task: HTTP ' + response.status, 'error');
+				SweetAlert.swal('Error', 'error launching task: HTTP ' + response.status, 'error');
 			});
 		}
 	}]);
@@ -85,7 +85,7 @@ define(function () {
 			.then(function () {
 				$scope.$close();
 			}).catch(function () {
-				swal("Error", 'Could not delete task', 'error');
+				SweetAlert.swal("Error", 'Could not delete task', 'error');
 			});
 		}
 

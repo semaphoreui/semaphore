@@ -1,5 +1,6 @@
 define(['controllers/projects/taskRunner'], function () {
-	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', '$window', function ($scope, $http, $modal, Project, $rootScope, $window) {
+	app.registerController('ProjectTemplatesCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', '$window', 'SweetAlert',
+		function ($scope, $http, $modal, Project, $rootScope, $window, SweetAlert) {
 		$http.get(Project.getURL() + '/keys?type=ssh').then(function (keys) {
 			$scope.sshKeys = keys.data;
 
@@ -73,7 +74,7 @@ define(['controllers/projects/taskRunner'], function () {
 			$http.delete(Project.getURL() + '/templates/' + template.id).then(function () {
 				$scope.reload();
 			}).catch(function () {
-				swal('error', 'could not delete template..', 'error');
+				SweetAlert.swal('error', 'could not delete template..', 'error');
 			});
 		}
 
@@ -92,7 +93,7 @@ define(['controllers/projects/taskRunner'], function () {
 				$http.post(Project.getURL() + '/templates', tpl).then(function () {
 					$scope.reload();
 				}).catch(function (response) {
-					swal('error', 'could not add template:' + response.status, 'error');
+					SweetAlert.swal('error', 'could not add template:' + response.status, 'error');
 				});
 			}, function () {});
 		}
@@ -119,7 +120,7 @@ define(['controllers/projects/taskRunner'], function () {
 				$http.put(Project.getURL() + '/templates/' + template.id, tpl).then(function () {
 					$scope.reload();
 				}).catch(function (response) {
-					swal('error', 'could not add template:' + response.status, 'error');
+					SweetAlert.swal('error', 'could not add template:' + response.status, 'error');
 				});
 			}, function() {
 				$scope.reload();
@@ -198,7 +199,7 @@ define(['controllers/projects/taskRunner'], function () {
 				$http.post(Project.getURL() + '/templates', tpl).then(function () {
 					$scope.reload();
 				}).catch(function (response) {
-					swal('error', 'could not add template:' + response.status, 'error');
+					SweetAlert.swal('error', 'could not add template:' + response.status, 'error');
 				});
 			}, function () {});
 		}

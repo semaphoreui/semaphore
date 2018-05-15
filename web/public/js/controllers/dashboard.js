@@ -1,5 +1,5 @@
 define(['controllers/projects/edit'], function () {
-	app.registerController('DashboardCtrl', ['$scope', '$http', '$uibModal', function ($scope, $http, $modal) {
+	app.registerController('DashboardCtrl', ['$scope', '$http', '$uibModal', 'SweetAlert', function ($scope, $http, $modal, SweetAlert) {
 		$scope.projects = [];
 
 		$scope.refresh = function ($lastEvents=true) {
@@ -26,7 +26,7 @@ define(['controllers/projects/edit'], function () {
 				.then(function () {
 					$scope.refresh();
 				}).catch(function (response) {
-					swal('Error', 'Could not create project: ' + response.status, 'error');
+					SweetAlert.swal('Error', 'Could not create project: ' + response.status, 'error');
 				});
 			}, function () {});
 		}

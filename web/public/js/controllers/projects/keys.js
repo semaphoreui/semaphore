@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('ProjectKeysCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', function ($scope, $http, $modal, Project, $rootScope) {
+	app.registerController('ProjectKeysCtrl', ['$scope', '$http', '$uibModal', 'Project', '$rootScope', 'SweetAlert', function ($scope, $http, $modal, Project, $rootScope, SweetAlert) {
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/keys?sort=name&order=asc').then(function (keys) {
 				$scope.keys = keys.data;
@@ -15,11 +15,11 @@ define(function () {
 					var d = response.data;
 
 					if (!(d && d.inUse)) {
-						swal('error', 'could not delete key..', 'error');
+						SweetAlert.swal('error', 'could not delete key..', 'error');
 						return;
 					}
 
-					swal({
+					SweetAlert.swal({
 						title: 'Key in use',
 						text: d.error,
 						icon: 'error',
@@ -44,7 +44,7 @@ define(function () {
 								$scope.reload();
 							})
 							.catch(function () {
-								swal('Error', 'Could not remove key..', 'error');
+								SweetAlert.swal('Error', 'Could not remove key..', 'error');
 							});
 					});
 				});
@@ -57,7 +57,7 @@ define(function () {
 				$http.post(Project.getURL() + '/keys', opts.key).then(function () {
 					$scope.reload();
 				}).catch(function (response) {
-					swal('error', 'could not add key:' + response.status, 'error');
+					SweetAlert.swal('error', 'could not add key:' + response.status, 'error');
 				});
 			}, function () {
 			});
@@ -81,7 +81,7 @@ define(function () {
 					.then(function () {
 						$scope.reload();
 					}).catch(function (response) {
-					swal('Error', 'could not update key:' + response.status, 'error');
+					SweetAlert.swal('Error', 'could not update key:' + response.status, 'error');
 				});
 			}, function () {
 			});

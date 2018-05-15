@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('AdminCtrl', ['$scope', '$http', '$sce', '$uibModal', '$rootScope', function ($scope, $http, $sce, $modal, $rootScope) {
+	app.registerController('AdminCtrl', ['$scope', '$http', '$sce', '$uibModal', '$rootScope', 'SweetAlert', function ($scope, $http, $sce, $modal, $rootScope, SweetAlert) {
 		$scope.upgrade = JSON.parse(JSON.stringify($scope.semaphore));
 		if ($scope.upgrade && $scope.upgrade.updateBody) {
 			$scope.upgrade.updateBody = $sce.trustAsHtml($scope.upgrade.updateBody);
@@ -30,7 +30,7 @@ define(function () {
 				$scope.upgraded = true;
 				$scope.pollUpgrade(upgradeModal, 0);
 			}).catch(function () {
-				swal('Error upgrading', arguments, 'error');
+				SweetAlert.swal('Error upgrading', arguments, 'error');
 			});
 		}
 
@@ -43,7 +43,7 @@ define(function () {
 
 				setTimeout(function () {
 					if (attempts >= 60) {
-						swal('Error', 'Upgrade seems to be taking a long time. Check server logs!', 'error');
+						SweetAlert.swal('Error', 'Upgrade seems to be taking a long time. Check server logs!', 'error');
 						modalInstance.dismiss();
 						return;
 					}

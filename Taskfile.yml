@@ -78,11 +78,10 @@ tasks:
       - public/html/**/*.html
       - bundle.json
     cmds:
-      - ./node_modules/.bin/lessc resources/less/semaphore.less > public/css/semaphore.css
-      - ./node_modules/.bin/pug resources/pug --out public/html
-      - cp node_modules/font-awesome/fonts/* public/fonts
+      - '{{ if eq OS "windows" }} .\\node_modules\\.bin\\lessc.cmd {{ else }} ./node_modules/.bin/lessc {{ end }} resources/less/semaphore.less > public/css/semaphore.css'
+      - '{{ if eq OS "windows" }} .\\node_modules\\.bin\\pug.cmd --pretty {{ else }} ./node_modules/.bin/pug {{ end }} resources/pug --out public/html'
+      - '{{ if eq OS "windows" }} xcopy node_modules\\font-awesome\\fonts public\\fonts /y {{ else }} cp node_modules/font-awesome/fonts/* public/fonts {{ end }}'
       - node bundler.js
-
   compile:be:
     desc: Runs Packr for static assets
     sources:
