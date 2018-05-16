@@ -1,5 +1,5 @@
 define(function () {
-	app.registerController('ProjectRepositoriesCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', 'SweetAlert', 'SweetAlert', function ($scope, $http, Project, $modal, $rootScope, SweetAlert) {
+	app.registerController('ProjectRepositoriesCtrl', ['$scope', '$http', 'Project', '$uibModal', '$rootScope', 'SweetAlert', function ($scope, $http, Project, $modal, $rootScope, SweetAlert) {
 		$scope.reload = function () {
 			$http.get(Project.getURL() + '/keys?type=ssh&sort=name&order=asc').then(function (keys) {
 				$scope.sshKeys = keys.data;

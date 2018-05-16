@@ -1,0 +1,4 @@
+tasks:
+  compile:be:
+    cmds:
+      - packr
