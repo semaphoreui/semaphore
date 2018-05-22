@@ -138,7 +138,7 @@ tasks:
     desc: Build a binary for the current architecture
     dir: cli
     cmds:
-     - go build -o ../bin/semaphore
+     - go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
 
   release:
     desc: creates a release without performing validations or publishing artifacts
