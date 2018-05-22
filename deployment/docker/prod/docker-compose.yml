@@ -4,7 +4,7 @@ version: '2'
 services:
 
   mysql:
-    image: mysql
+    image: mysql:5.6
     hostname: mysql
     environment:
       MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
