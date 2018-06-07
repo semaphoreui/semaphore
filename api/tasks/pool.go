@@ -75,22 +75,26 @@ func (p *taskPool) run() {
 		select {
 		case task := <-p.register:
 			fmt.Println(task)
-			go task.prepareRun()
 			p.queue = append(p.queue, task)
 		case <-ticker.C:
 			if len(p.queue) == 0 {
 				continue
-			} else if t := p.queue[0]; t.task.Status != taskFailStatus && (!t.prepared || p.blocks(t)) {
+			} else if t := p.queue[0]; t.task.Status != taskFailStatus && p.blocks(t) {
 				p.queue = append(p.queue[1:], t)
 				continue
 			}
 
-			if t := pool.queue[0]; t.task.Status != taskFailStatus {
-				fmt.Println("Running a task.")
-				resourceLocker <- &resourceLock{lock: true, holder: t}
-				go t.run()
+			if t := p.queue[0]; t.task.Status != taskFailStatus {
+				if t.prepared {
+					fmt.Println("Running a task.")
+					resourceLocker <- &resourceLock{lock: true, holder: t}
+					go t.run()
+					p.queue = p.queue[1:]
+				} else {
+					resourceLocker <- &resourceLock{lock: true, holder: t}
+					go t.prepareRun()
+				}
 			}
-			pool.queue = pool.queue[1:]
 		}
 	}
 }
