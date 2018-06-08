@@ -77,25 +77,36 @@ func (p *taskPool) run() {
 		case task := <-p.register:
 			p.queue = append(p.queue, task)
 			log.Debug(task)
-			task.log("Task " + strconv.Itoa(task.task.ID) + " added to queue")
+			msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
+			task.log(msg)
+			log.Info(msg)
 		case <-ticker.C:
 			if len(p.queue) == 0 {
 				continue
-			} else if t := p.queue[0]; t.task.Status != taskFailStatus && p.blocks(t) {
+			}
+
+			//get task from top of queue
+			t := p.queue[0]
+			if t.task.Status == taskFailStatus {
+				//delete failed task from queue
+				p.queue = p.queue[1:]
+				log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
+				continue
+			}
+			if p.blocks(t) {
+				//move blocked task to end of queue
 				p.queue = append(p.queue[1:], t)
 				continue
 			}
-
-			if t := p.queue[0]; t.task.Status != taskFailStatus {
-				log.Info("Set resourse locker with task " + strconv.Itoa(t.task.ID))
-				resourceLocker <- &resourceLock{lock: true, holder: t}
-				if !t.prepared {
-					go t.prepareRun()
-					continue
-				}
-				go t.run()
-				p.queue = p.queue[1:]
+			log.Info("Set resourse locker with task " + strconv.Itoa(t.task.ID))
+			resourceLocker <- &resourceLock{lock: true, holder: t}
+			if !t.prepared {
+				go t.prepareRun()
+				continue
 			}
+			go t.run()
+			p.queue = p.queue[1:]
+			log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
 		}
 	}
 }
