@@ -36,6 +36,7 @@ func main() {
 	}
 
 	fmt.Printf("Semaphore %v\n", util.Version)
+	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
@@ -64,7 +65,7 @@ func main() {
 	var router http.Handler = api.Route()
 	router = handlers.ProxyHeaders(router)
 	http.Handle("/", router)
-	err := http.ListenAndServe(util.Config.Port, nil)
+	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, nil)
 	if err != nil {
 		log.Panic(err)
 	}
