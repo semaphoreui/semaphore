@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -49,7 +50,8 @@ func (t *task) prepareRun() {
 	t.prepared = false
 
 	defer func() {
-		fmt.Println("Stopped preparing task")
+		log.Info("Stopped preparing task " + strconv.Itoa(t.task.ID))
+		log.Info("Release resourse locker with task " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		objType := taskTypeID
@@ -130,7 +132,8 @@ func (t *task) prepareRun() {
 
 func (t *task) run() {
 	defer func() {
-		fmt.Println("Stopped running tasks")
+		log.Info("Stopped running task " + strconv.Itoa(t.task.ID))
+		log.Info("Release resourse locker with task " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()

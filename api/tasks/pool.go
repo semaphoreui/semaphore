@@ -1,9 +1,10 @@
 package tasks
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -74,8 +75,9 @@ func (p *taskPool) run() {
 	for {
 		select {
 		case task := <-p.register:
-			fmt.Println(task)
 			p.queue = append(p.queue, task)
+			log.Debug(task)
+			task.log("Task " + strconv.Itoa(task.task.ID) + " added to queue")
 		case <-ticker.C:
 			if len(p.queue) == 0 {
 				continue
@@ -85,15 +87,14 @@ func (p *taskPool) run() {
 			}
 
 			if t := p.queue[0]; t.task.Status != taskFailStatus {
-				if t.prepared {
-					fmt.Println("Running a task.")
-					resourceLocker <- &resourceLock{lock: true, holder: t}
-					go t.run()
-					p.queue = p.queue[1:]
-				} else {
-					resourceLocker <- &resourceLock{lock: true, holder: t}
+				log.Info("Set resourse locker with task " + strconv.Itoa(t.task.ID))
+				resourceLocker <- &resourceLock{lock: true, holder: t}
+				if !t.prepared {
 					go t.prepareRun()
+					continue
 				}
+				go t.run()
+				p.queue = p.queue[1:]
 			}
 		}
 	}
