@@ -14,15 +14,15 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const (
 	taskFailStatus = "error"
-	taskTypeID = "task"
+	taskTypeID     = "task"
 )
-
 
 type task struct {
 	task        db.Task
@@ -50,7 +50,9 @@ func (t *task) prepareRun() {
 	t.prepared = false
 
 	defer func() {
-		fmt.Println("Stopped preparing task")
+		log.Info("Stopped preparing task " + strconv.Itoa(t.task.ID))
+		log.Info("Release resourse locker with task " + strconv.Itoa(t.task.ID))
+		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
@@ -130,7 +132,8 @@ func (t *task) prepareRun() {
 
 func (t *task) run() {
 	defer func() {
-		fmt.Println("Stopped running tasks")
+		log.Info("Stopped running task " + strconv.Itoa(t.task.ID))
+		log.Info("Release resourse locker with task " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()
@@ -299,7 +302,7 @@ func (t *task) updateRepository() error {
 	repoName := "repository_" + strconv.Itoa(t.repository.ID)
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
 
-	cmd := exec.Command("git")//nolint: gas
+	cmd := exec.Command("git") //nolint: gas
 	cmd.Dir = util.Config.TmpPath
 
 	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
@@ -335,7 +338,7 @@ func (t *task) runGalaxy() error {
 		"--force",
 	}
 
-	cmd := exec.Command("ansible-galaxy", args...)//nolint: gas
+	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 
 	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
@@ -350,13 +353,18 @@ func (t *task) runGalaxy() error {
 }
 
 func (t *task) listPlaybookHosts() (string, error) {
+
+	if util.Config.ConcurrencyMode == "project" {
+		return "", nil
+	}
+
 	args, err := t.getPlaybookArgs()
 	if err != nil {
 		return "", err
 	}
 	args = append(args, "--list-hosts")
 
-	cmd := exec.Command("ansible-playbook", args...)//nolint: gas
+	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
@@ -380,7 +388,7 @@ func (t *task) runPlaybook() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("ansible-playbook", args...)//nolint: gas
+	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 

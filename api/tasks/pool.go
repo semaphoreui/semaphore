@@ -1,9 +1,10 @@
 package tasks
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -74,23 +75,38 @@ func (p *taskPool) run() {
 	for {
 		select {
 		case task := <-p.register:
-			fmt.Println(task)
-			go task.prepareRun()
 			p.queue = append(p.queue, task)
+			log.Debug(task)
+			msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
+			task.log(msg)
+			log.Info(msg)
 		case <-ticker.C:
 			if len(p.queue) == 0 {
 				continue
-			} else if t := p.queue[0]; t.task.Status != taskFailStatus && (!t.prepared || p.blocks(t)) {
+			}
+
+			//get task from top of queue
+			t := p.queue[0]
+			if t.task.Status == taskFailStatus {
+				//delete failed task from queue
+				p.queue = p.queue[1:]
+				log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
+				continue
+			}
+			if p.blocks(t) {
+				//move blocked task to end of queue
 				p.queue = append(p.queue[1:], t)
 				continue
 			}
-
-			if t := pool.queue[0]; t.task.Status != taskFailStatus {
-				fmt.Println("Running a task.")
-				resourceLocker <- &resourceLock{lock: true, holder: t}
-				go t.run()
+			log.Info("Set resourse locker with task " + strconv.Itoa(t.task.ID))
+			resourceLocker <- &resourceLock{lock: true, holder: t}
+			if !t.prepared {
+				go t.prepareRun()
+				continue
 			}
-			pool.queue = pool.queue[1:]
+			go t.run()
+			p.queue = p.queue[1:]
+			log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
 		}
 	}
 }
