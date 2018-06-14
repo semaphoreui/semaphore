@@ -13,7 +13,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-// AddTask inserts a task into the database and returns a header or panics
+// AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "user").(*db.User)
@@ -28,7 +28,9 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.UserID = &user.ID
 
 	if err := db.Mysql.Insert(&taskObj); err != nil {
-		panic(err)
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	pool.register <- &task{
@@ -44,13 +46,13 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    &taskObj.ID,
 		Description: &desc,
 	}.Insert()); err != nil {
-		panic(err)
+		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
 	}
 
 	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
-// GetTasksList returns a list of tasks for the current project in desc order to limit or panics
+// GetTasksList returns a list of tasks for the current project in desc order to limit or error
 func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	project := context.Get(r, "project").(db.Project)
 
@@ -75,7 +77,9 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
 	if _, err := db.Mysql.Select(&tasks, query, args...); err != nil {
-		panic(err)
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	mulekick.WriteJSON(w, http.StatusOK, tasks)
@@ -112,13 +116,15 @@ func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
 	context.Set(r, taskTypeID, task)
 }
 
-// GetTaskOutput returns the logged task output by id and writes it as json
+// GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
 
 	var output []db.TaskOutput
 	if _, err := db.Mysql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
-		panic(err)
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	mulekick.WriteJSON(w, http.StatusOK, output)
@@ -143,7 +149,9 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	for _, statement := range statements {
 		_, err := db.Mysql.Exec(statement, task.ID)
 		if err != nil {
-			panic(err)
+			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 	}
 
