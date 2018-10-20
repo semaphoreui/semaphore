@@ -96,7 +96,7 @@ This means that you should never run these tests against your productive databas
 The best practice to run these tests is to use docker and the task commands.
 
 ```bash
-task dc:build #First run only to build the images
+context=dev task dc:build #First run only to build the images
 context=dev task dc:up
 task test:api
 # alternatively if you want to run dredd in a container use the following command.
