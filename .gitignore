@@ -17,3 +17,5 @@ util/version.go
 /coverage.out
 /public/package-lock.json
 !.gitkeep
+
+.dredd/compiled_hooks
