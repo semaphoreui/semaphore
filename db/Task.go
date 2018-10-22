@@ -2,7 +2,6 @@ package db
 
 import "time"
 
-
 //Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`
@@ -16,6 +15,8 @@ type Task struct {
 	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`
+	// to fit into []string
+	Arguments *string `db:"arguments" json:"arguments"`
 
 	UserID *int `db:"user_id" json:"user_id"`
 

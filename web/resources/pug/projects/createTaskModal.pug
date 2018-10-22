@@ -14,6 +14,10 @@
 			.col-sm-6
 				div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" class="form-control" style="height: 100px" ng-model="task.environment")
 		.form-group
+			label.control-label.col-sm-4(uib-tooltip='*MUST* be a JSON array! Each argument must be an element of the array, for example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]') Extra CLI Arguments
+			.col-sm-6
+				div(ui-ace="{mode: 'json', workerPath: '/public/js/ace/'}" style="height: 100px" class="form-control" ng-model="task.arguments")
+		.form-group
 			.col-sm-6.col-sm-offset-4: .checkbox: label
 				input(type="checkbox" ng-model="task.debug")
 				| Debug (<code>-vvvv</code>)

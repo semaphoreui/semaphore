@@ -444,9 +444,18 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		args = append(args, "--extra-vars", extraVar)
 	}
 
-	var extraArgs []string
+	var templateExtraArgs []string
 	if t.template.Arguments != nil {
-		err := json.Unmarshal([]byte(*t.template.Arguments), &extraArgs)
+		err := json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
+		if err != nil {
+			t.log("Could not unmarshal arguments to []string")
+			return nil, err
+		}
+	}
+
+	var taskExtraArgs []string
+	if t.task.Arguments != nil {
+		err := json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
 		if err != nil {
 			t.log("Could not unmarshal arguments to []string")
 			return nil, err
@@ -454,9 +463,10 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 	}
 
 	if t.template.OverrideArguments {
-		args = extraArgs
+		args = templateExtraArgs
 	} else {
-		args = append(args, extraArgs...)
+		args = append(args, templateExtraArgs...)
+		args = append(args, taskExtraArgs...)
 		args = append(args, playbookName)
 	}
 	return args, nil
