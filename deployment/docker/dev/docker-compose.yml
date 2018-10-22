@@ -9,8 +9,8 @@ services:
       MYSQL_USER: semaphore
       MYSQL_PASSWORD: semaphore
     ## uncomment if you want to store mysql data between launches
-    volumes:
-      - /tmp/mysql_data:/var/lib/mysql
+    #volumes:
+    #  - /tmp/mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
 
