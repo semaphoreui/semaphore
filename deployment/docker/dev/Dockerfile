@@ -29,6 +29,7 @@ WORKDIR ${APP_ROOT}
 COPY . ${APP_ROOT}
 RUN deployment/docker/dev/bin/install
 
-USER 1002
+USER 1000
 EXPOSE 3000
+
 CMD ["task", "watch"]
