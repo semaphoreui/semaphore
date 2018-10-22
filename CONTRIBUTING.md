@@ -96,10 +96,8 @@ This means that you should never run these tests against your productive databas
 The best practice to run these tests is to use docker and the task commands.
 
 ```bash
-context=dev task dc:build #First run only to build the images
-context=dev task dc:up
-task test:api
-# alternatively if you want to run dredd in a container use the following command.
-# You will need to use the host network so that it can reach the docker container on a 0.0.0.0 address
-# docker run -it --rm -v $(pwd):/home/developer/src --network host tomwhiston/dredd --config .dredd/dredd.yml
+context=dev task dc:build #build fresh semaphore images
+context=dev task dc:up  #up semaphore and mysql
+task dc:build:dredd #build fresh dredd image
+task dc:up:dredd #run dredd over docker-compose stack
 ```

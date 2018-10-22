@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+
+  dredd:
+    image: ansiblesemaphore/dredd:dev-compose
+    command: ["--config", ".dredd/dredd.local.yml"]
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/dev/dredd.Dockerfile
+    network_mode: "host"
