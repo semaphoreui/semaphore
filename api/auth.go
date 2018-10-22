@@ -20,7 +20,7 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 		var token db.APIToken
 		if err := db.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
 			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusForbidden)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
@@ -32,20 +32,20 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 		// fetch session from cookie
 		cookie, err := r.Cookie("semaphore")
 		if err != nil {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		value := make(map[string]interface{})
 		if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		user, ok := value["user"]
 		sessionVal, okSession := value["session"]
 		if !ok || !okSession {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -55,7 +55,7 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 		// fetch session
 		var session db.Session
 		if err := db.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -66,7 +66,7 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -78,7 +78,7 @@ func authentication(w http.ResponseWriter, r *http.Request) {
 	user, err := db.FetchUser(userID)
 	if err != nil {
 		fmt.Println("Can't find user", err)
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
