@@ -241,6 +241,27 @@ tasks:
           args: stop
           context: "{{ .context }}"
 
+  dc:build:dredd:
+    desc: build a dredd container to the local testing with docker-compose stack
+    cmds:
+      - task: docker
+        vars:
+          context: dev
+          compose: true
+          prefix: -dredd
+          args: build
+
+  dc:up:dredd:
+    desc: build a dredd container to the local testing with docker-compose stack
+    cmds:
+      - task: docker
+        vars:
+          context: dev
+          compose: true
+          prefix: -dredd
+          args: up
+
+
   docker:build:
     desc: Build an image for Semaphore, requires context
     vars:
@@ -302,4 +323,4 @@ tasks:
     vars:
       docker_root: deployment/docker/
     cmds:
-      - docker{{ if .compose }}-compose{{ end }} {{ if .action }}{{ .action }}{{ end }} -f {{ .docker_root }}{{ .context }}/{{ if .compose }}docker-compose.yml{{ else }}Dockerfile{{ end }} {{if .args }}{{ .args }}{{ end }}
+      - docker{{ if .compose }}-compose{{ end }} {{ if .action }}{{ .action }}{{ end }} -f {{ .docker_root }}{{ .context }}/{{ if .compose }}docker-compose{{ if .prefix }}{{ .prefix }}{{ end }}.yml{{ else }}Dockerfile{{ if .prefix }}{{ .prefix }}{{ end }}{{ end }} {{if .args }}{{ .args }}{{ end }}
