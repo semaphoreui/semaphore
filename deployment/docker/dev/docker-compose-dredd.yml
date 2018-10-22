@@ -1,0 +1,12 @@
+version: '2'
+
+services:
+
+  dredd:
+    image: ansiblesemaphore/dredd:dev-compose
+    command: ["--config", ".dredd/dredd.yml"]
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/dev/dredd.Dockerfile
+    external_links:
+      - dev_semaphore_dev_1:semaphore_dev
