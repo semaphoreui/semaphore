@@ -3,9 +3,9 @@ FROM tomwhiston/dredd:latest
 
 ENV TASK_VERSION=v2.0.1 \
     GOPATH=/home/developer/go \
-    SEMAPHORE_SERVICE=semaphore_dev \
+    SEMAPHORE_SERVICE=127.0.0.1 \
     SEMAPHORE_PORT=3000 \
-    MYSQL_SERVICE=mysql \
+    MYSQL_SERVICE=127.0.0.1 \
     MYSQL_PORT=3306
 
 # We need the source and task to compile the hooks

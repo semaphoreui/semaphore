@@ -4,9 +4,8 @@ services:
 
   dredd:
     image: ansiblesemaphore/dredd:dev-compose
-    command: ["--config", ".dredd/dredd.yml"]
+    command: ["--config", ".dredd/dredd.local.yml"]
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/dev/dredd.Dockerfile
-    external_links:
-      - dev_semaphore_dev_1:semaphore_dev
+    network_mode: "host"
