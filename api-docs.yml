@@ -451,7 +451,7 @@ paths:
       responses:
         200:
           description: OK
-        403:
+        401:
           description: not authenticated
 
   /info:
