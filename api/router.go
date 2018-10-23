@@ -25,6 +25,7 @@ func JSONMiddleware(w http.ResponseWriter, r *http.Request) {
 func PlainTextMiddleware(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/plain; charset=utf-8")
 }
+
 // Route declares all routes
 func Route() mulekick.Router {
 	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware, JSONMiddleware)
@@ -150,7 +151,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// replace base path
-	if util.WebHostURL != nil && path == "html/index.html" {
+	if util.WebHostURL != nil && path == "/html/index.html" {
 		res = []byte(strings.Replace(string(res),
 			"<base href=\"/\">",
 			"<base href=\""+util.WebHostURL.String()+"\">",
