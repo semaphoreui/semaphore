@@ -48,7 +48,9 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 
 		context.Set(r, "inventory", inventory)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -86,7 +88,9 @@ func GetInventory(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, inv)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -146,7 +150,9 @@ func AddInventory(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusCreated, inv)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -217,7 +223,9 @@ func UpdateInventory(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -263,6 +271,8 @@ func RemoveInventory(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

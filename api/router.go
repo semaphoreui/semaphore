@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,7 +21,9 @@ var publicAssets = packr.NewBox("../web/public")
 func JSONMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")
-		next.ServeHTTP(w, r)
+		if next != nil {
+			next.ServeHTTP(w, r)
+		}
 	})
 }
 
@@ -28,30 +31,59 @@ func JSONMiddleware(next http.Handler) http.Handler {
 func PlainTextMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "text/plain; charset=utf-8")
-		next.ServeHTTP(w, r)
+		if next != nil {
+			next.ServeHTTP(w, r)
+		}
 	})
+}
+
+func printRegisteredRoutes(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	pathTemplate, err := route.GetPathTemplate()
+	if err == nil && len(pathTemplate) > 0 {
+		fmt.Println("ROUTE:", pathTemplate)
+	}
+	pathRegexp, err := route.GetPathRegexp()
+	if err == nil && len(pathRegexp) > 0 {
+		fmt.Println("Path regexp:", pathRegexp)
+	}
+	queriesTemplates, err := route.GetQueriesTemplates()
+	if err == nil && len(queriesTemplates) > 0 {
+		fmt.Println("Queries templates:", strings.Join(queriesTemplates, ","))
+	}
+	queriesRegexps, err := route.GetQueriesRegexp()
+	if err == nil && len(queriesRegexps) > 0 {
+		fmt.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
+	}
+	methods, err := route.GetMethods()
+	if err == nil && len(methods) > 0 {
+		fmt.Println("Methods:", strings.Join(methods, ","))
+	}
+	fmt.Println()
+	return nil
 }
 
 // Route declares all routes
 func Route() mulekick.Router {
 	r := mulekick.New(mux.NewRouter())
-	r.NotFoundHandler = servePublic(nil)
-	r.Use(mulekick.CorsMiddleware, JSONMiddleware)
+
+	r.Use(mux.CORSMethodMiddleware(r.Router))
 
 	webPath := "/"
 	if util.WebHostURL != nil {
 		webPath = util.WebHostURL.RequestURI()
 	}
 
+	r.NotFoundHandler = servePublic(nil)
+	r.Handle(webPath, servePublic(nil))
+
+	r.Use(JSONMiddleware)
+
 	r.Get(webPath+"api/ping", PlainTextMiddleware, mulekick.PongHandler)
 
 	// set up the namespace
-	api := r.Group(webPath + "api")
-
-	func(api mulekick.Router) {
-		api.Post("/login", login)
-		api.Post("/logout", logout)
-	}(api.Group("/auth"))
+	api := mulekick.New(r.Path(webPath + "api").Subrouter())
+	api.Post("/login", login)
+	api.Post("/logout", logout)
 
 	api.Use(authentication)
 
@@ -61,14 +93,12 @@ func Route() mulekick.Router {
 	api.Get("/upgrade", checkUpgrade)
 	api.Post("/upgrade", doUpgrade)
 
-	func(api mulekick.Router) {
-		api.Get("", getUser)
-		// api.PUT("/user", misc.UpdateUser)
+	api.Get("", getUser)
+	// api.PUT("/user", misc.UpdateUser)
 
-		api.Get("/tokens", getAPITokens)
-		api.Post("/tokens", createAPIToken)
-		api.Delete("/tokens/{token_id}", expireAPIToken)
-	}(api.Group("/user"))
+	api.Get("/tokens", getAPITokens)
+	api.Post("/tokens", createAPIToken)
+	api.Delete("/tokens/{token_id}", expireAPIToken)
 
 	api.Get("/projects", projects.GetProjects)
 	api.Post("/projects", projects.AddProject)
@@ -82,54 +112,54 @@ func Route() mulekick.Router {
 	api.Post("/users/{user_id}/password", getUserMiddleware, updateUserPassword)
 	api.Delete("/users/{user_id}", getUserMiddleware, deleteUser)
 
-	func(api mulekick.Router) {
-		api.Use(projects.ProjectMiddleware)
+	project := mulekick.New(api.Path("/project/{project_id}").Subrouter())
 
-		api.Get("", projects.GetProject)
-		api.Put("", projects.MustBeAdmin, projects.UpdateProject)
-		api.Delete("", projects.MustBeAdmin, projects.DeleteProject)
+	project.Use(projects.ProjectMiddleware)
 
-		api.Get("/events", getAllEvents)
-		api.Get("/events/last", getLastEvents)
+	project.Get("", projects.GetProject)
+	project.Put("", projects.MustBeAdmin, projects.UpdateProject)
+	project.Delete("", projects.MustBeAdmin, projects.DeleteProject)
 
-		api.Get("/users", projects.GetUsers)
-		api.Post("/users", projects.MustBeAdmin, projects.AddUser)
-		api.Post("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
-		api.Delete("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
-		api.Delete("/users/{user_id}", projects.MustBeAdmin, projects.UserMiddleware, projects.RemoveUser)
+	project.Get("/events", getAllEvents)
+	project.Get("/events/last", getLastEvents)
 
-		api.Get("/keys", projects.GetKeys)
-		api.Post("/keys", projects.AddKey)
-		api.Put("/keys/{key_id}", projects.KeyMiddleware, projects.UpdateKey)
-		api.Delete("/keys/{key_id}", projects.KeyMiddleware, projects.RemoveKey)
+	project.Get("/users", projects.GetUsers)
+	project.Post("/users", projects.MustBeAdmin, projects.AddUser)
+	project.Post("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
+	project.Delete("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
+	project.Delete("/users/{user_id}", projects.MustBeAdmin, projects.UserMiddleware, projects.RemoveUser)
 
-		api.Get("/repositories", projects.GetRepositories)
-		api.Post("/repositories", projects.AddRepository)
-		api.Put("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.UpdateRepository)
-		api.Delete("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.RemoveRepository)
+	project.Get("/keys", projects.GetKeys)
+	project.Post("/keys", projects.AddKey)
+	project.Put("/keys/{key_id}", projects.KeyMiddleware, projects.UpdateKey)
+	project.Delete("/keys/{key_id}", projects.KeyMiddleware, projects.RemoveKey)
 
-		api.Get("/inventory", projects.GetInventory)
-		api.Post("/inventory", projects.AddInventory)
-		api.Put("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.UpdateInventory)
-		api.Delete("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.RemoveInventory)
+	project.Get("/repositories", projects.GetRepositories)
+	project.Post("/repositories", projects.AddRepository)
+	project.Put("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.UpdateRepository)
+	project.Delete("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.RemoveRepository)
 
-		api.Get("/environment", projects.GetEnvironment)
-		api.Post("/environment", projects.AddEnvironment)
-		api.Put("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.UpdateEnvironment)
-		api.Delete("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
+	project.Get("/inventory", projects.GetInventory)
+	project.Post("/inventory", projects.AddInventory)
+	project.Put("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.UpdateInventory)
+	project.Delete("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.RemoveInventory)
 
-		api.Get("/templates", projects.GetTemplates)
-		api.Post("/templates", projects.AddTemplate)
-		api.Put("/templates/{template_id}", projects.TemplatesMiddleware, projects.UpdateTemplate)
-		api.Delete("/templates/{template_id}", projects.TemplatesMiddleware, projects.RemoveTemplate)
+	project.Get("/environment", projects.GetEnvironment)
+	project.Post("/environment", projects.AddEnvironment)
+	project.Put("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.UpdateEnvironment)
+	project.Delete("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
 
-		api.Get("/tasks", tasks.GetAllTasks)
-		api.Get("/tasks/last", tasks.GetLastTasks)
-		api.Post("/tasks", tasks.AddTask)
-		api.Get("/tasks/{task_id}/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
-		api.Get("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.GetTask)
-		api.Delete("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.RemoveTask)
-	}(api.Group("/project/{project_id}"))
+	project.Get("/templates", projects.GetTemplates)
+	project.Post("/templates", projects.AddTemplate)
+	project.Put("/templates/{template_id}", projects.TemplatesMiddleware, projects.UpdateTemplate)
+	project.Delete("/templates/{template_id}", projects.TemplatesMiddleware, projects.RemoveTemplate)
+
+	project.Get("/tasks", tasks.GetAllTasks)
+	project.Get("/tasks/last", tasks.GetLastTasks)
+	project.Post("/tasks", tasks.AddTask)
+	project.Get("/tasks/{task_id}/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
+	project.Get("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.GetTask)
+	project.Delete("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.RemoveTask)
 	return r
 }
 
@@ -222,7 +252,9 @@ func getSystemInfo(next http.Handler) http.Handler {
 		}
 
 		mulekick.WriteJSON(w, http.StatusOK, body)
-		next.ServeHTTP(w, r)
+		if next != nil {
+			next.ServeHTTP(w, r)
+		}
 	})
 }
 
@@ -239,7 +271,9 @@ func checkUpgrade(next http.Handler) http.Handler {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
-		next.ServeHTTP(w, r)
+		if next != nil {
+			next.ServeHTTP(w, r)
+		}
 	})
 }
 
@@ -247,6 +281,8 @@ func doUpgrade(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		util.LogError(util.DoUpgrade(util.Version))
 
-		next.ServeHTTP(w, r)
+		if next != nil {
+			next.ServeHTTP(w, r)
+		}
 	})
 }

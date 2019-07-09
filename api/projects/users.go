@@ -33,7 +33,9 @@ func UserMiddleware(next http.Handler) http.Handler {
 
 		context.Set(r, "projectUser", user)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -75,7 +77,9 @@ func GetUsers(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, users)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -110,7 +114,9 @@ func AddUser(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -137,7 +143,9 @@ func RemoveUser(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -159,6 +167,8 @@ func MakeUserAdmin(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

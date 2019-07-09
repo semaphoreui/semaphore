@@ -199,7 +199,9 @@ func login(next http.Handler) http.Handler {
 		})
 
 		w.WriteHeader(http.StatusNoContent)
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -213,6 +215,8 @@ func logout(next http.Handler) http.Handler {
 		})
 
 		w.WriteHeader(http.StatusNoContent)
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

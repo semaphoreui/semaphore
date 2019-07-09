@@ -32,7 +32,9 @@ func GetProjects(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, projects)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -69,6 +71,8 @@ func AddProject(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusCreated, body)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

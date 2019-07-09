@@ -19,3 +19,5 @@ util/version.go
 !.gitkeep
 
 .dredd/compiled_hooks
+.vscode
+__debug_bin*

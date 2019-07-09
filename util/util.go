@@ -25,7 +25,9 @@ func AuthFailed(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusUnauthorized)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 

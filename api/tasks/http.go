@@ -52,7 +52,9 @@ func AddTask(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusCreated, taskObj)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -94,7 +96,9 @@ func GetAllTasks(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		GetTasksList(w, r, 0)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -103,7 +107,9 @@ func GetLastTasks(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		GetTasksList(w, r, 200)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -113,7 +119,9 @@ func GetTask(next http.Handler) http.Handler {
 		task := context.Get(r, taskTypeID).(db.Task)
 		mulekick.WriteJSON(w, http.StatusOK, task)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -132,7 +140,9 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 
 		context.Set(r, taskTypeID, task)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -150,7 +160,9 @@ func GetTaskOutput(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, output)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -182,6 +194,8 @@ func RemoveTask(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

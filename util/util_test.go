@@ -30,6 +30,8 @@ func mockParam(next http.Handler) http.Handler {
 
 		w.WriteHeader(200)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

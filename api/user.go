@@ -23,7 +23,9 @@ func getUser(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -38,7 +40,9 @@ func getAPITokens(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, tokens)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -63,7 +67,9 @@ func createAPIToken(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusCreated, token)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -89,6 +95,8 @@ func expireAPIToken(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

@@ -84,6 +84,8 @@ func authentication(next http.Handler) http.Handler {
 		}
 
 		context.Set(r, "user", user)
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

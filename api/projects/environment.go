@@ -40,7 +40,9 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 
 		context.Set(r, "environment", env)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -79,7 +81,9 @@ func GetEnvironment(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, env)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -106,7 +110,9 @@ func UpdateEnvironment(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -150,7 +156,9 @@ func AddEnvironment(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -196,6 +204,8 @@ func RemoveEnvironment(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

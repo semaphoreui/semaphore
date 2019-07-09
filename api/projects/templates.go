@@ -33,7 +33,9 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 
 		context.Set(r, "template", template)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -96,7 +98,9 @@ func GetTemplates(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, templates)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -135,7 +139,9 @@ func AddTemplate(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusCreated, template)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -170,7 +176,9 @@ func UpdateTemplate(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -193,6 +201,8 @@ func RemoveTemplate(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }

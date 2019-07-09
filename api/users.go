@@ -22,7 +22,9 @@ func getUsers(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusOK, users)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -49,7 +51,9 @@ func addUser(next http.Handler) http.Handler {
 
 		mulekick.WriteJSON(w, http.StatusCreated, user)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -79,7 +83,9 @@ func getUserMiddleware(next http.Handler) http.Handler {
 
 		context.Set(r, "_user", user)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -117,7 +123,9 @@ func updateUser(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -154,7 +162,9 @@ func updateUserPassword(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
 
@@ -178,6 +188,8 @@ func deleteUser(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNoContent)
 
-		next.ServeHTTP(w, r)
+		if (next != nil) {
+      next.ServeHTTP(w, r)
+    }
 	})
 }
