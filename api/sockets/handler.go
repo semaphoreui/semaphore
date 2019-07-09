@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
+	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/Sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{
@@ -103,26 +103,23 @@ func (c *connection) writePump() {
 }
 
 // Handler is used by the router to handle the /ws endpoint
-func Handler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*db.User)
-		ws, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			panic(err)
-		}
+func Handler(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "user").(*db.User)
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		panic(err)
+	}
 
-		c := &connection{
-			send:   make(chan []byte, 256),
-			ws:     ws,
-			userID: user.ID,
-		}
+	c := &connection{
+		send:   make(chan []byte, 256),
+		ws:     ws,
+		userID: user.ID,
+	}
 
-		h.register <- c
+	h.register <- c
 
-		go c.writePump()
-		c.readPump()
-		next.ServeHTTP(w, r)
-	})
+	go c.writePump()
+	c.readPump()
 }
 
 // Message allows a message to be sent to the websockets, called in API task logging

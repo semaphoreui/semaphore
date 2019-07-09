@@ -4,47 +4,51 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/semaphore/mulekick"
-	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
+	"os"
 	"path/filepath"
 	"strings"
-	"os"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/gorilla/context"
+	"github.com/masterminds/squirrel"
 )
 
 const (
-	asc = "asc"
+	asc  = "asc"
 	desc = "desc"
 )
 
 // InventoryMiddleware ensures an inventory exists and loads it to the context
-func InventoryMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	inventoryID, err := util.GetIntParam("inventory_id", w, r)
-	if err != nil {
-		return
-	}
-
-	query, args, err := squirrel.Select("*").
-		From("project__inventory").
-		Where("project_id=?", project.ID).
-		Where("id=?", inventoryID).
-		ToSql()
-	util.LogWarning(err)
-
-	var inventory db.Inventory
-	if err := db.Mysql.SelectOne(&inventory, query, args...); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+func InventoryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		inventoryID, err := util.GetIntParam("inventory_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		query, args, err := squirrel.Select("*").
+			From("project__inventory").
+			Where("project_id=?", project.ID).
+			Where("id=?", inventoryID).
+			ToSql()
+		util.LogWarning(err)
 
-	context.Set(r, "inventory", inventory)
+		var inventory db.Inventory
+		if err := db.Mysql.SelectOne(&inventory, query, args...); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			panic(err)
+		}
+
+		context.Set(r, "inventory", inventory)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetInventory returns an inventory from the database
@@ -60,7 +64,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := squirrel.Select("*").
-			From("project__inventory pi")
+		From("project__inventory pi")
 
 	switch sort {
 	case "name", "type":
@@ -68,7 +72,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 			OrderBy("pi." + sort + " " + order)
 	default:
 		q = q.Where("pi.project_id=?", project.ID).
-		OrderBy("pi.name " + order)
+			OrderBy("pi.name " + order)
 	}
 
 	query, args, err := q.ToSql()

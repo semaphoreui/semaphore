@@ -7,8 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/ansible-semaphore/semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
@@ -102,18 +102,21 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
-func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
-	taskID, err := util.GetIntParam("task_id", w, r)
-	if err != nil {
-		panic(err)
-	}
+func GetTaskMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		taskID, err := util.GetIntParam("task_id", w, r)
+		if err != nil {
+			panic(err)
+		}
 
-	var task db.Task
-	if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
-		panic(err)
-	}
+		var task db.Task
+		if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+			panic(err)
+		}
 
-	context.Set(r, taskTypeID, task)
+		context.Set(r, taskTypeID, task)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error

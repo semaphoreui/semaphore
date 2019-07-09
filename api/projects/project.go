@@ -50,19 +50,22 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 // MustBeAdmin ensures that the user has administrator rights
-func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	user := context.Get(r, "user").(*db.User)
+func MustBeAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		user := context.Get(r, "user").(*db.User)
 
-	userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
-	if err != nil {
-		panic(err)
-	}
+		userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+		if err != nil {
+			panic(err)
+		}
 
-	if userC == 0 {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
+		if userC == 0 {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // UpdateProject saves updated project details to the database
