@@ -4,11 +4,12 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
+	"time"
+
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
-	"time"
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 // GetProjects returns all projects in this users context
@@ -28,7 +29,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, projects)
+	util.WriteJSON(w, http.StatusOK, projects)
 }
 
 // AddProject adds a new project to the database
@@ -36,7 +37,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	var body db.Project
 	user := context.Get(r, "user").(*db.User)
 
-	if err := mulekick.Bind(w, r, &body); err != nil {
+	if err := util.Bind(w, r, &body); err != nil {
 		return
 	}
 
@@ -56,10 +57,10 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		Description: &desc,
 		ObjectType:  &oType,
 		ObjectID:    &body.ID,
-		Created:  	 db.GetParsedTime(time.Now()),
+		Created:     db.GetParsedTime(time.Now()),
 	}.Insert()); err != nil {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, body)
+	util.WriteJSON(w, http.StatusCreated, body)
 }

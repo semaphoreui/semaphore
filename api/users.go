@@ -7,7 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"golang.org/x/crypto/bcrypt"
@@ -19,12 +19,12 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, users)
+	util.WriteJSON(w, http.StatusOK, users)
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user db.User
-	if err := mulekick.Bind(w, r, &user); err != nil {
+	if err := util.Bind(w, r, &user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -42,7 +42,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, user)
+	util.WriteJSON(w, http.StatusCreated, user)
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
@@ -79,7 +79,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*db.User)
 
 	var user db.User
-	if err := mulekick.Bind(w, r, &user); err != nil {
+	if err := util.Bind(w, r, &user); err != nil {
 		return
 	}
 
@@ -128,7 +128,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mulekick.Bind(w, r, &pwd); err != nil {
+	if err := util.Bind(w, r, &pwd); err != nil {
 		return
 	}
 

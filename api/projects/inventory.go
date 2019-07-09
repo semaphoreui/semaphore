@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -82,7 +81,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, inv)
+	util.WriteJSON(w, http.StatusOK, inv)
 }
 
 // AddInventory creates an inventory in the database
@@ -96,7 +95,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := mulekick.Bind(w, r, &inventory); err != nil {
+	if err := util.Bind(w, r, &inventory); err != nil {
 		return
 	}
 
@@ -138,7 +137,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		Type:      inventory.Type,
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, inv)
+	util.WriteJSON(w, http.StatusCreated, inv)
 }
 
 // IsValidInventoryPath tests a path to ensure it is below the cwd
@@ -174,7 +173,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := mulekick.Bind(w, r, &inventory); err != nil {
+	if err := util.Bind(w, r, &inventory); err != nil {
 		return
 	}
 
@@ -219,7 +218,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Inventory is in use by one or more templates",
 				"inUse": true,
 			})

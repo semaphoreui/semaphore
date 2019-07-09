@@ -8,7 +8,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
@@ -228,12 +228,12 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, body)
+	util.WriteJSON(w, http.StatusOK, body)
 }
 
 func checkUpgrade(w http.ResponseWriter, r *http.Request) {
 	if err := util.CheckUpdate(util.Version); err != nil {
-		mulekick.WriteJSON(w, 500, err)
+		util.WriteJSON(w, 500, err)
 		return
 	}
 

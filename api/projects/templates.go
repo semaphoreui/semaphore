@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -92,7 +92,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, templates)
+	util.WriteJSON(w, http.StatusOK, templates)
 }
 
 // AddTemplate adds a template to the database
@@ -100,7 +100,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
 	var template db.Template
-	if err := mulekick.Bind(w, r, &template); err != nil {
+	if err := util.Bind(w, r, &template); err != nil {
 		return
 	}
 
@@ -127,7 +127,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, template)
+	util.WriteJSON(w, http.StatusCreated, template)
 }
 
 // UpdateTemplate writes a template to an existing key in the database
@@ -135,7 +135,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	oldTemplate := context.Get(r, "template").(db.Template)
 
 	var template db.Template
-	if err := mulekick.Bind(w, r, &template); err != nil {
+	if err := util.Bind(w, r, &template); err != nil {
 		return
 	}
 

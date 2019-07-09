@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -71,7 +71,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, users)
+	util.WriteJSON(w, http.StatusOK, users)
 }
 
 // AddUser adds a user to a projects team in the database
@@ -82,7 +82,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Admin  bool `json:"admin"`
 	}
 
-	if err := mulekick.Bind(w, r, &user); err != nil {
+	if err := util.Bind(w, r, &user); err != nil {
 		return
 	}
 

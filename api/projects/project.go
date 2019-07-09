@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -46,7 +46,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 //GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+	util.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
 // MustBeAdmin ensures that the user has administrator rights
@@ -77,7 +77,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		AlertChat string `json:"alert_chat"`
 	}
 
-	if err := mulekick.Bind(w, r, &body); err != nil {
+	if err := util.Bind(w, r, &body); err != nil {
 		return
 	}
 

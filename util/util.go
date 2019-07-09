@@ -1,11 +1,13 @@
 package util
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
-	"github.com/gorilla/mux"
+
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/mux"
 )
 
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
@@ -48,5 +50,25 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 func ScanErrorChecker(n int, err error) {
 	if err != nil {
 		log.Warn("An input error occured:" + err.Error())
+	}
+}
+
+type H map[string]interface{}
+
+func Bind(w http.ResponseWriter, r *http.Request, out interface{}) error {
+	err := json.NewDecoder(r.Body).Decode(out)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	return err
+}
+
+func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(code)
+
+	if err := json.NewEncoder(w).Encode(out); err != nil {
+		panic(err)
 	}
 }

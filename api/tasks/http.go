@@ -7,7 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -19,7 +19,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	var taskObj db.Task
-	if err := mulekick.Bind(w, r, &taskObj); err != nil {
+	if err := util.Bind(w, r, &taskObj); err != nil {
 		return
 	}
 
@@ -49,7 +49,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
+	util.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
@@ -82,7 +82,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		return
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, tasks)
+	util.WriteJSON(w, http.StatusOK, tasks)
 }
 
 // GetAllTasks returns all tasks for the current project
@@ -98,7 +98,7 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
-	mulekick.WriteJSON(w, http.StatusOK, task)
+	util.WriteJSON(w, http.StatusOK, task)
 }
 
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
@@ -130,7 +130,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, output)
+	util.WriteJSON(w, http.StatusOK, output)
 }
 
 // RemoveTask removes a task from the database

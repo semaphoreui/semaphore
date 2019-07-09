@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -87,7 +87,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, repos)
+	util.WriteJSON(w, http.StatusOK, repos)
 }
 
 // AddRepository creates a new repository in the database
@@ -99,7 +99,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		GitURL   string `json:"git_url" binding:"required"`
 		SSHKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := mulekick.Bind(w, r, &repository); err != nil {
+	if err := util.Bind(w, r, &repository); err != nil {
 		return
 	}
 
@@ -134,7 +134,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		GitURL   string `json:"git_url" binding:"required"`
 		SSHKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := mulekick.Bind(w, r, &repository); err != nil {
+	if err := util.Bind(w, r, &repository); err != nil {
 		return
 	}
 
@@ -171,7 +171,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error":        "Repository is in use by one or more templates",
 				"templatesUse": true,
 			})

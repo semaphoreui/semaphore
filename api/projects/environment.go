@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/mulekick"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -75,20 +75,20 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, env)
+	util.WriteJSON(w, http.StatusOK, env)
 }
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := context.Get(r, "environment").(db.Environment)
 	var env db.Environment
-	if err := mulekick.Bind(w, r, &env); err != nil {
+	if err := util.Bind(w, r, &env); err != nil {
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
@@ -106,13 +106,13 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env db.Environment
 
-	if err := mulekick.Bind(w, r, &env); err != nil {
+	if err := util.Bind(w, r, &env); err != nil {
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
@@ -152,7 +152,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Environment is in use by one or more templates",
 				"inUse": true,
 			})
