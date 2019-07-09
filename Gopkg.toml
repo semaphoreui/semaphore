@@ -3,10 +3,6 @@
   version = "1.0.4"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/castawaylabs/mulekick"
-
-[[constraint]]
   name = "github.com/go-sql-driver/mysql"
   version = "1.3.0"
 
