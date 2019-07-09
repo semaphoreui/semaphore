@@ -12,7 +12,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/castawaylabs/mulekick"
+	"github.com/ansible-semaphore/mulekick"
 	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/ldap.v2"

@@ -27,12 +27,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/castawaylabs/mulekick"
-  packages = ["."]
-  revision = "7029fb389811e0f873c56cfbbda64d66af48b095"
-
-[[projects]]
-  branch = "master"
   name = "github.com/go-openapi/analysis"
   packages = ["."]
   revision = "f59a71f0ece6f9dfb438be7f45148f006cbad88e"
