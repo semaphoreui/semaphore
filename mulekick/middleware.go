@@ -23,7 +23,6 @@ func NotFoundHandler(next http.Handler) http.Handler {
 
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("404 not found"))
-		next.ServeHTTP(w, r)
 	})
 }
 

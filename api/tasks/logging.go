@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	log "github.com/Sirupsen/logrus"
 )
 
 func (t *task) log(msg string) {

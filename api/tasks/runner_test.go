@@ -1,16 +1,15 @@
 package tasks
 
 import (
-	"testing"
 	"math/rand"
-	"time"
 	"os"
+	"testing"
+	"time"
 )
-
 
 func TestCheckTmpDir(t *testing.T) {
 	//It should be able to create a random dir in /tmp
-	dirName := os.TempDir()+ "/" + randString(rand.Intn(10 - 4) + 4)
+	dirName := os.TempDir() + "/" + randString(rand.Intn(10-4)+4)
 	err := checkTmpDir(dirName)
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +21,7 @@ func TestCheckTmpDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.Chmod(dirName,os.FileMode(int(0550)))
+	err = os.Chmod(dirName, os.FileMode(int(0550)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +34,7 @@ func TestCheckTmpDir(t *testing.T) {
 		return
 	}
 
-	err = checkTmpDir(dirName+"/noway")
+	err = checkTmpDir(dirName + "/noway")
 	if err == nil {
 		t.Fatal("You should not be able to write in this folder, causing an error")
 	}
@@ -45,17 +44,18 @@ func TestCheckTmpDir(t *testing.T) {
 	}
 }
 
-
 //HELPERS
 
 //https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
 var src = rand.NewSource(time.Now().UnixNano())
+
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
+
 func randString(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!

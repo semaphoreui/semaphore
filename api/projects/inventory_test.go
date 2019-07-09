@@ -1,8 +1,8 @@
 package projects
 
 import (
-	"testing"
 	"runtime"
+	"testing"
 )
 
 func TestIsValidInventoryPath(t *testing.T) {
@@ -26,4 +26,3 @@ func TestIsValidInventoryPath(t *testing.T) {
 		t.Fatal(" a path out of the cwd should be invalid")
 	}
 }
-

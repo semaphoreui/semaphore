@@ -35,8 +35,8 @@ func PlainTextMiddleware(next http.Handler) http.Handler {
 // Route declares all routes
 func Route() mulekick.Router {
 	r := mulekick.New(mux.NewRouter())
+	r.NotFoundHandler = servePublic(nil)
 	r.Use(mulekick.CorsMiddleware, JSONMiddleware)
-	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
 	if util.WebHostURL != nil {
@@ -130,76 +130,77 @@ func Route() mulekick.Router {
 		api.Get("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.GetTask)
 		api.Delete("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.RemoveTask)
 	}(api.Group("/project/{project_id}"))
-
 	return r
 }
 
 //nolint: gocyclo
-func servePublic(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+func servePublic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
 
-	if strings.HasPrefix(path, "/api") {
-		mulekick.NotFoundHandler(w, r)
-		return
-	}
-
-	webPath := "/"
-	if util.WebHostURL != nil {
-		webPath = util.WebHostURL.RequestURI()
-	}
-
-	if !strings.HasPrefix(path, webPath+"public") {
-		if len(strings.Split(path, ".")) > 1 {
-			w.WriteHeader(http.StatusNotFound)
+		if strings.HasPrefix(path, "/api") {
+			mulekick.NotFoundHandler(next).ServeHTTP(w, r)
 			return
 		}
 
-		path = "/html/index.html"
-	}
+		webPath := "/"
+		if util.WebHostURL != nil {
+			webPath = util.WebHostURL.RequestURI()
+		}
 
-	path = strings.Replace(path, webPath+"public/", "", 1)
-	split := strings.Split(path, ".")
-	suffix := split[len(split)-1]
+		if !strings.HasPrefix(path, webPath+"public") {
+			if len(strings.Split(path, ".")) > 1 {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	res, err := publicAssets.MustBytes(path)
-	if err != nil {
-		mulekick.NotFoundHandler(w, r)
-		return
-	}
+			path = "/html/index.html"
+		}
 
-	// replace base path
-	if util.WebHostURL != nil && path == "/html/index.html" {
-		res = []byte(strings.Replace(string(res),
-			"<base href=\"/\">",
-			"<base href=\""+util.WebHostURL.String()+"\">",
-			1))
-	}
+		path = strings.Replace(path, webPath+"public/", "", 1)
+		split := strings.Split(path, ".")
+		suffix := split[len(split)-1]
 
-	contentType := "text/plain"
-	switch suffix {
-	case "png":
-		contentType = "image/png"
-	case "jpg", "jpeg":
-		contentType = "image/jpeg"
-	case "gif":
-		contentType = "image/gif"
-	case "js":
-		contentType = "application/javascript"
-	case "css":
-		contentType = "text/css"
-	case "woff":
-		contentType = "application/x-font-woff"
-	case "ttf":
-		contentType = "application/x-font-ttf"
-	case "otf":
-		contentType = "application/x-font-otf"
-	case "html":
-		contentType = "text/html"
-	}
+		res, err := publicAssets.MustBytes(path)
+		if err != nil {
+			mulekick.NotFoundHandler(next).ServeHTTP(w, r)
+			return
+		}
 
-	w.Header().Set("content-type", contentType)
-	_, err = w.Write(res)
-	util.LogWarning(err)
+		// replace base path
+		if util.WebHostURL != nil && path == "/html/index.html" {
+			res = []byte(strings.Replace(string(res),
+				"<base href=\"/\">",
+				"<base href=\""+util.WebHostURL.String()+"\">",
+				1))
+		}
+
+		contentType := "text/plain"
+		switch suffix {
+		case "png":
+			contentType = "image/png"
+		case "jpg", "jpeg":
+			contentType = "image/jpeg"
+		case "gif":
+			contentType = "image/gif"
+		case "js":
+			contentType = "application/javascript"
+		case "css":
+			contentType = "text/css"
+		case "woff":
+			contentType = "application/x-font-woff"
+		case "ttf":
+			contentType = "application/x-font-ttf"
+		case "otf":
+			contentType = "application/x-font-otf"
+		case "html":
+			contentType = "text/html"
+		}
+
+		w.Header().Set("content-type", contentType)
+		_, err = w.Write(res)
+		util.LogWarning(err)
+	})
 }
 
 func getSystemInfo(next http.Handler) http.Handler {
@@ -233,7 +234,7 @@ func checkUpgrade(next http.Handler) http.Handler {
 		}
 
 		if util.UpdateAvailable != nil {
-			getSystemInfo(w, r)
+			getSystemInfo(next).ServeHTTP(w, r)
 			return
 		}
 
@@ -242,6 +243,10 @@ func checkUpgrade(next http.Handler) http.Handler {
 	})
 }
 
-func doUpgrade(w http.ResponseWriter, r *http.Request) {
-	util.LogError(util.DoUpgrade(util.Version))
+func doUpgrade(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		util.LogError(util.DoUpgrade(util.Version))
+
+		next.ServeHTTP(w, r)
+	})
 }
