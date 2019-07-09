@@ -25,15 +25,21 @@ func JSONMiddleware(w http.ResponseWriter, r *http.Request) {
 func PlainTextMiddleware(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/plain; charset=utf-8")
 }
+
 // Route declares all routes
 func Route() mulekick.Router {
 	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware, JSONMiddleware)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
-	r.Get("/api/ping", PlainTextMiddleware, mulekick.PongHandler)
+	webPath := "/"
+	if util.WebHostURL != nil {
+		webPath = util.WebHostURL.RequestURI()
+	}
+
+	r.Get(webPath+"api/ping", PlainTextMiddleware, mulekick.PongHandler)
 
 	// set up the namespace
-	api := r.Group("/api")
+	api := r.Group(webPath + "api")
 
 	func(api mulekick.Router) {
 		api.Post("/login", login)
@@ -130,7 +136,12 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.HasPrefix(path, "/public") {
+	webPath := "/"
+	if util.WebHostURL != nil {
+		webPath = util.WebHostURL.RequestURI()
+	}
+
+	if !strings.HasPrefix(path, webPath+"public") {
 		if len(strings.Split(path, ".")) > 1 {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -139,7 +150,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		path = "/html/index.html"
 	}
 
-	path = strings.Replace(path, "/public/", "", 1)
+	path = strings.Replace(path, webPath+"public/", "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
@@ -150,7 +161,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// replace base path
-	if util.WebHostURL != nil && path == "html/index.html" {
+	if util.WebHostURL != nil && path == "/html/index.html" {
 		res = []byte(strings.Replace(string(res),
 			"<base href=\"/\">",
 			"<base href=\""+util.WebHostURL.String()+"\">",
