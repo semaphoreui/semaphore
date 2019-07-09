@@ -1,11 +1,11 @@
 package util
 
 import (
-	"os"
 	"testing"
+	"os"
 )
 
-func TestValidatePort(t *testing.T) {
+func TestValidatePort(t *testing.T){
 
 	Config = new(configType)
 	Config.Port = ""

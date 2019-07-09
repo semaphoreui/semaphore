@@ -10,25 +10,20 @@ import (
 
 	"net/url"
 
-	"io"
-	"strings"
-
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
+	"strings"
+	"io"
 )
 
 // Cookie is a runtime generated secure cookie used for authentication
 var Cookie *securecookie.SecureCookie
-
 // Migration indicates that the user wishes to run database migrations, deprecated
 var Migration bool
-
 // InteractiveSetup indicates that the cli should perform interactive setup mode
 var InteractiveSetup bool
-
 // Upgrade indicates that we should perform an upgrade action
 var Upgrade bool
-
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
 
@@ -424,3 +419,4 @@ func (conf *configType) Scan() {
 		conf.LdapEnable = false
 	}
 }
+

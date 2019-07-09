@@ -121,9 +121,7 @@ func Handler(next http.Handler) http.Handler {
 
 		go c.writePump()
 		c.readPump()
-		if (next != nil) {
-      next.ServeHTTP(w, r)
-    }
+		next.ServeHTTP(w, r)
 	})
 }
 

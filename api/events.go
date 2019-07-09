@@ -76,17 +76,13 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 func getLastEvents(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		getEvents(w, r, 200)
-		if (next != nil) {
-      next.ServeHTTP(w, r)
-    }
+		next.ServeHTTP(w, r)
 	})
 }
 
 func getAllEvents(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		getEvents(w, r, 0)
-		if (next != nil) {
-      next.ServeHTTP(w, r)
-    }
+		next.ServeHTTP(w, r)
 	})
 }

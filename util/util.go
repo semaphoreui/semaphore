@@ -4,9 +4,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	log "github.com/Sirupsen/logrus"
 )
 
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
@@ -16,19 +15,13 @@ func isXHR(w http.ResponseWriter, r *http.Request) bool {
 
 // AuthFailed write a status unauthorized header unless it is an XHR request
 // TODO - never called!
-func AuthFailed(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !isXHR(w, r) {
-			http.Redirect(w, r, "/?hai", http.StatusFound)
-			return
-		}
+func AuthFailed(w http.ResponseWriter, r *http.Request) {
+	if !isXHR(w, r) {
+		http.Redirect(w, r, "/?hai", http.StatusFound)
+		return
+	}
 
-		w.WriteHeader(http.StatusUnauthorized)
-
-		if (next != nil) {
-      next.ServeHTTP(w, r)
-    }
-	})
+	w.WriteHeader(http.StatusUnauthorized)
 }
 
 // GetIntParam fetches a parameter from the route variables as an integer

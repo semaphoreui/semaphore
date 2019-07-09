@@ -50,7 +50,7 @@ func (t *task) sendMailAlert() {
 		if !userObj.Alert {
 			return
 		}
-		t.panicOnError(err, "Can't find user Email!")
+		t.panicOnError(err,"Can't find user Email!")
 
 		t.log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
 		err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
@@ -79,7 +79,7 @@ func (t *task) sendTelegramAlert() {
 	tpl, err := tpl.Parse(telegramTemplate)
 	util.LogError(err)
 
-	t.panicOnError(tpl.Execute(&telegramBuffer, alert), "Can't generate alert template!")
+	t.panicOnError(tpl.Execute(&telegramBuffer, alert),"Can't generate alert template!")
 
 	resp, err := http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
 	t.panicOnError(err, "Can't send telegram alert!")

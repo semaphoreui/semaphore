@@ -1,7 +1,6 @@
 package util
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+	"context"
 
 	"github.com/google/go-github/github"
 )
