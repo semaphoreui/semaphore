@@ -7,8 +7,8 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
+	"github.com/ansible-semaphore/semaphore/mulekick"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 	"github.com/russross/blackfriday"
@@ -17,18 +17,25 @@ import (
 var publicAssets = packr.NewBox("../web/public")
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
-func JSONMiddleware(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
+func JSONMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		next.ServeHTTP(w, r)
+	})
 }
 
 //PlainTextMiddleware resets headers to Plain Text if needed
-func PlainTextMiddleware(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "text/plain; charset=utf-8")
+func PlainTextMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/plain; charset=utf-8")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Route declares all routes
 func Route() mulekick.Router {
-	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware, JSONMiddleware)
+	r := mulekick.New(mux.NewRouter())
+	r.Use(mulekick.CorsMiddleware, JSONMiddleware)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
@@ -195,38 +202,44 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	util.LogWarning(err)
 }
 
-func getSystemInfo(w http.ResponseWriter, r *http.Request) {
-	body := map[string]interface{}{
-		"version": util.Version,
-		"update":  util.UpdateAvailable,
-		"config": map[string]string{
-			"dbHost":  util.Config.MySQL.Hostname,
-			"dbName":  util.Config.MySQL.DbName,
-			"dbUser":  util.Config.MySQL.Username,
-			"path":    util.Config.TmpPath,
-			"cmdPath": util.FindSemaphore(),
-		},
-	}
+func getSystemInfo(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := map[string]interface{}{
+			"version": util.Version,
+			"update":  util.UpdateAvailable,
+			"config": map[string]string{
+				"dbHost":  util.Config.MySQL.Hostname,
+				"dbName":  util.Config.MySQL.DbName,
+				"dbUser":  util.Config.MySQL.Username,
+				"path":    util.Config.TmpPath,
+				"cmdPath": util.FindSemaphore(),
+			},
+		}
 
-	if util.UpdateAvailable != nil {
-		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
-	}
+		if util.UpdateAvailable != nil {
+			body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
+		}
 
-	mulekick.WriteJSON(w, http.StatusOK, body)
+		mulekick.WriteJSON(w, http.StatusOK, body)
+		next.ServeHTTP(w, r)
+	})
 }
 
-func checkUpgrade(w http.ResponseWriter, r *http.Request) {
-	if err := util.CheckUpdate(util.Version); err != nil {
-		mulekick.WriteJSON(w, 500, err)
-		return
-	}
+func checkUpgrade(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := util.CheckUpdate(util.Version); err != nil {
+			mulekick.WriteJSON(w, 500, err)
+			return
+		}
 
-	if util.UpdateAvailable != nil {
-		getSystemInfo(w, r)
-		return
-	}
+		if util.UpdateAvailable != nil {
+			getSystemInfo(w, r)
+			return
+		}
 
-	w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusNoContent)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func doUpgrade(w http.ResponseWriter, r *http.Request) {

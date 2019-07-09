@@ -8,7 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/mulekick"
 	"github.com/gorilla/context"
 	"golang.org/x/crypto/bcrypt"
 )

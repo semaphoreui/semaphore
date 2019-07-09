@@ -11,8 +11,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/mulekick"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/ldap.v2"
@@ -97,116 +97,122 @@ func findLDAPUser(username, password string) (*db.User, error) {
 }
 
 //nolint: gocyclo
-func login(w http.ResponseWriter, r *http.Request) {
-	var login struct {
-		Auth     string `json:"auth" binding:"required"`
-		Password string `json:"password" binding:"required"`
-	}
-	if err := mulekick.Bind(w, r, &login); err != nil {
-		return
-	}
-
-	/*
-		logic:
-		- fetch user from ldap if enabled
-		- fetch user from database by username/email
-		- create user in database if doesn't exist & ldap record found
-		- check password if non-ldap user
-		- create session & send cookie
-	*/
-
-	login.Auth = strings.ToLower(login.Auth)
-
-	var ldapUser *db.User
-	if util.Config.LdapEnable {
-		// search LDAP for users
-		if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
-			ldapUser = lu
-		} else {
-			log.Info(err.Error())
+func login(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var login struct {
+			Auth     string `json:"auth" binding:"required"`
+			Password string `json:"password" binding:"required"`
 		}
-	}
+		if err := mulekick.Bind(w, r, &login); err != nil {
+			return
+		}
 
-	var user db.User
-	q := sq.Select("*").
-		From("user")
+		/*
+			logic:
+			- fetch user from ldap if enabled
+			- fetch user from database by username/email
+			- create user in database if doesn't exist & ldap record found
+			- check password if non-ldap user
+			- create session & send cookie
+		*/
 
-	// determine if login.Auth is email or username
-	if _, err := mail.ParseAddress(login.Auth); err == nil {
-		q = q.Where("email=?", login.Auth)
-	} else {
-		q = q.Where("username=?", login.Auth)
-	}
+		login.Auth = strings.ToLower(login.Auth)
 
-	query, args, err := q.ToSql()
-	util.LogWarning(err)
-	if err = db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
-		if ldapUser != nil {
-			// create new LDAP user
-			user = *ldapUser
-			if err = db.Mysql.Insert(&user); err != nil {
-				panic(err)
+		var ldapUser *db.User
+		if util.Config.LdapEnable {
+			// search LDAP for users
+			if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
+				ldapUser = lu
+			} else {
+				log.Info(err.Error())
 			}
+		}
+
+		var user db.User
+		q := sq.Select("*").
+			From("user")
+
+		// determine if login.Auth is email or username
+		if _, err := mail.ParseAddress(login.Auth); err == nil {
+			q = q.Where("email=?", login.Auth)
 		} else {
+			q = q.Where("username=?", login.Auth)
+		}
+
+		query, args, err := q.ToSql()
+		util.LogWarning(err)
+		if err = db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+			if ldapUser != nil {
+				// create new LDAP user
+				user = *ldapUser
+				if err = db.Mysql.Insert(&user); err != nil {
+					panic(err)
+				}
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		} else if err != nil {
+			panic(err)
+		}
+
+		// check if ldap user & no ldap user found
+		if user.External && ldapUser == nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-	} else if err != nil {
-		panic(err)
-	}
 
-	// check if ldap user & no ldap user found
-	if user.External && ldapUser == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+		// non-ldap login
+		if !user.External {
+			if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 
-	// non-ldap login
-	if !user.External {
-		if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
+			// authenticated.
 		}
 
-		// authenticated.
-	}
+		session := db.Session{
+			UserID:     user.ID,
+			Created:    time.Now(),
+			LastActive: time.Now(),
+			IP:         r.Header.Get("X-Real-IP"),
+			UserAgent:  r.Header.Get("user-agent"),
+			Expired:    false,
+		}
+		if err = db.Mysql.Insert(&session); err != nil {
+			panic(err)
+		}
 
-	session := db.Session{
-		UserID:     user.ID,
-		Created:    time.Now(),
-		LastActive: time.Now(),
-		IP:         r.Header.Get("X-Real-IP"),
-		UserAgent:  r.Header.Get("user-agent"),
-		Expired:    false,
-	}
-	if err = db.Mysql.Insert(&session); err != nil {
-		panic(err)
-	}
+		encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
+			"user":    user.ID,
+			"session": session.ID,
+		})
+		if err != nil {
+			panic(err)
+		}
 
-	encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
-		"user":    user.ID,
-		"session": session.ID,
+		http.SetCookie(w, &http.Cookie{
+			Name:  "semaphore",
+			Value: encoded,
+			Path:  "/",
+		})
+
+		w.WriteHeader(http.StatusNoContent)
+		next.ServeHTTP(w, r)
 	})
-	if err != nil {
-		panic(err)
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:  "semaphore",
-		Value: encoded,
-		Path:  "/",
-	})
-
-	w.WriteHeader(http.StatusNoContent)
 }
 
-func logout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:    "semaphore",
-		Value:   "",
-		Expires: time.Now().Add(24 * 7 * time.Hour * -1),
-		Path:    "/",
-	})
+func logout(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:    "semaphore",
+			Value:   "",
+			Expires: time.Now().Add(24 * 7 * time.Hour * -1),
+			Path:    "/",
+		})
 
-	w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusNoContent)
+		next.ServeHTTP(w, r)
+	})
 }

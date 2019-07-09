@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 //nolint: gocyclo
@@ -73,10 +73,16 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	mulekick.WriteJSON(w, http.StatusOK, events)
 }
 
-func getLastEvents(w http.ResponseWriter, r *http.Request) {
-	getEvents(w, r, 200)
+func getLastEvents(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		getEvents(w, r, 200)
+		next.ServeHTTP(w, r)
+	})
 }
 
-func getAllEvents(w http.ResponseWriter, r *http.Request) {
-	getEvents(w, r, 0)
+func getAllEvents(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		getEvents(w, r, 0)
+		next.ServeHTTP(w, r)
+	})
 }

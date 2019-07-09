@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 	"time"

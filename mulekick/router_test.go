@@ -5,9 +5,12 @@ import "net/http"
 func ExampleRouter_Use() {
 	r := &Router{}
 
-	r.Get("/hello", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}))
+	r.Get("/hello", func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Use(func(next http.Handler) http.Handler {
 		// sample middleware
 		return next
