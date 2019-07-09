@@ -53,8 +53,10 @@ func ScanErrorChecker(n int, err error) {
 	}
 }
 
+//H just a string-to-anything map
 type H map[string]interface{}
 
+//Bind decodes json into object
 func Bind(w http.ResponseWriter, r *http.Request, out interface{}) error {
 	err := json.NewDecoder(r.Body).Decode(out)
 	if err != nil {
@@ -64,6 +66,7 @@ func Bind(w http.ResponseWriter, r *http.Request, out interface{}) error {
 	return err
 }
 
+//WriteJSON writes object as JSON
 func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)

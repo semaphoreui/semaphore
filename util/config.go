@@ -10,20 +10,25 @@ import (
 
 	"net/url"
 
+	"io"
+	"strings"
+
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
-	"strings"
-	"io"
 )
 
 // Cookie is a runtime generated secure cookie used for authentication
 var Cookie *securecookie.SecureCookie
+
 // Migration indicates that the user wishes to run database migrations, deprecated
 var Migration bool
+
 // InteractiveSetup indicates that the cli should perform interactive setup mode
 var InteractiveSetup bool
+
 // Upgrade indicates that we should perform an upgrade action
 var Upgrade bool
+
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
 
@@ -46,7 +51,8 @@ type ldapMappings struct {
 	CN   string `json:"cn"`
 }
 
-type configType struct {
+//ConfigType mapping between Config and the json file that sets it
+type ConfigType struct {
 	MySQL mySQLConfig `json:"mysql"`
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -97,15 +103,15 @@ type configType struct {
 	LdapNeedTLS   bool `json:"ldap_needtls"`
 }
 
-// Config exposes the application configuration storage for use in the application
-var Config *configType
+//Config exposes the application configuration storage for use in the application
+var Config *ConfigType
 
 var confPath *string
 
 // NewConfig returns a reference to a new blank configType
 // nolint: golint
-func NewConfig() *configType {
-	return &configType{}
+func NewConfig() *ConfigType {
+	return &ConfigType{}
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
@@ -136,7 +142,7 @@ func ConfigInit() {
 	}
 
 	if printConfig {
-		cfg := &configType{
+		cfg := &ConfigType{
 			MySQL: mySQLConfig{
 				Hostname: "127.0.0.1:3306",
 				Username: "root",
@@ -238,7 +244,8 @@ func decodeConfig(file io.Reader) {
 	}
 }
 
-func (conf *configType) GenerateCookieSecrets() {
+//GenerateCookieSecrets generates cookie secret during setup
+func (conf *ConfigType) GenerateCookieSecrets() {
 	hash := securecookie.GenerateRandomKey(32)
 	encryption := securecookie.GenerateRandomKey(32)
 
@@ -247,7 +254,7 @@ func (conf *configType) GenerateCookieSecrets() {
 }
 
 //nolint: gocyclo
-func (conf *configType) Scan() {
+func (conf *ConfigType) Scan() {
 	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
 	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Hostname))
 	if len(conf.MySQL.Hostname) == 0 {
@@ -419,4 +426,3 @@ func (conf *configType) Scan() {
 		conf.LdapEnable = false
 	}
 }
-

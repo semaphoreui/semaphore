@@ -1,13 +1,13 @@
 package util
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
-func TestValidatePort(t *testing.T){
+func TestValidatePort(t *testing.T) {
 
-	Config = new(configType)
+	Config = new(ConfigType)
 	Config.Port = ""
 	validatePort()
 	if Config.Port != ":3000" {
