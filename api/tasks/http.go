@@ -7,8 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
@@ -19,7 +19,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	var taskObj db.Task
-	if err := mulekick.Bind(w, r, &taskObj); err != nil {
+	if err := util.Bind(w, r, &taskObj); err != nil {
 		return
 	}
 
@@ -49,7 +49,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, taskObj)
+	util.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
@@ -82,7 +82,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		return
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, tasks)
+	util.WriteJSON(w, http.StatusOK, tasks)
 }
 
 // GetAllTasks returns all tasks for the current project
@@ -98,22 +98,25 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
-	mulekick.WriteJSON(w, http.StatusOK, task)
+	util.WriteJSON(w, http.StatusOK, task)
 }
 
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
-func GetTaskMiddleware(w http.ResponseWriter, r *http.Request) {
-	taskID, err := util.GetIntParam("task_id", w, r)
-	if err != nil {
-		panic(err)
-	}
+func GetTaskMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		taskID, err := util.GetIntParam("task_id", w, r)
+		if err != nil {
+			panic(err)
+		}
 
-	var task db.Task
-	if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
-		panic(err)
-	}
+		var task db.Task
+		if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+			panic(err)
+		}
 
-	context.Set(r, taskTypeID, task)
+		context.Set(r, taskTypeID, task)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
@@ -127,7 +130,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, output)
+	util.WriteJSON(w, http.StatusOK, output)
 }
 
 // RemoveTask removes a task from the database

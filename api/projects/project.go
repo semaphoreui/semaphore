@@ -5,61 +5,67 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 // ProjectMiddleware ensures a project exists and loads it to the context
-func ProjectMiddleware(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+func ProjectMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := context.Get(r, "user").(*db.User)
 
-	projectID, err := util.GetIntParam("project_id", w, r)
-	if err != nil {
-		return
-	}
-
-	query, args, err := squirrel.Select("p.*").
-		From("project as p").
-		Join("project__user as pu on pu.project_id=p.id").
-		Where("p.id=?", projectID).
-		Where("pu.user_id=?", user.ID).
-		ToSql()
-	util.LogWarning(err)
-
-	var project db.Project
-	if err := db.Mysql.SelectOne(&project, query, args...); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+		projectID, err := util.GetIntParam("project_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		query, args, err := squirrel.Select("p.*").
+			From("project as p").
+			Join("project__user as pu on pu.project_id=p.id").
+			Where("p.id=?", projectID).
+			Where("pu.user_id=?", user.ID).
+			ToSql()
+		util.LogWarning(err)
 
-	context.Set(r, "project", project)
+		var project db.Project
+		if err := db.Mysql.SelectOne(&project, query, args...); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			panic(err)
+		}
+
+		context.Set(r, "project", project)
+		next.ServeHTTP(w, r)
+	})
 }
 
 //GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+	util.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
 // MustBeAdmin ensures that the user has administrator rights
-func MustBeAdmin(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	user := context.Get(r, "user").(*db.User)
+func MustBeAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		user := context.Get(r, "user").(*db.User)
 
-	userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
-	if err != nil {
-		panic(err)
-	}
+		userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+		if err != nil {
+			panic(err)
+		}
 
-	if userC == 0 {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
+		if userC == 0 {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // UpdateProject saves updated project details to the database
@@ -71,7 +77,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		AlertChat string `json:"alert_chat"`
 	}
 
-	if err := mulekick.Bind(w, r, &body); err != nil {
+	if err := util.Bind(w, r, &body); err != nil {
 		return
 	}
 

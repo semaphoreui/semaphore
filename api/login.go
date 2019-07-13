@@ -12,7 +12,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
+
 	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/ldap.v2"
@@ -102,7 +102,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	if err := mulekick.Bind(w, r, &login); err != nil {
+	if err := util.Bind(w, r, &login); err != nil {
 		return
 	}
 

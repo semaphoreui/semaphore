@@ -5,31 +5,34 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 // KeyMiddleware ensures a key exists and loads it to the context
-func KeyMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	keyID, err := util.GetIntParam("key_id", w, r)
-	if err != nil {
-		return
-	}
-
-	var key db.AccessKey
-	if err := db.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+func KeyMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		keyID, err := util.GetIntParam("key_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		var key db.AccessKey
+		if err := db.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	context.Set(r, "accessKey", key)
+			panic(err)
+		}
+
+		context.Set(r, "accessKey", key)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetKeys retrieves sorted keys from the database
@@ -72,7 +75,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, keys)
+	util.WriteJSON(w, http.StatusOK, keys)
 }
 
 // AddKey adds a new key to the database
@@ -80,7 +83,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var key db.AccessKey
 
-	if err := mulekick.Bind(w, r, &key); err != nil {
+	if err := util.Bind(w, r, &key); err != nil {
 		return
 	}
 
@@ -89,13 +92,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -132,7 +135,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key db.AccessKey
 	oldKey := context.Get(r, "accessKey").(db.AccessKey)
 
-	if err := mulekick.Bind(w, r, &key); err != nil {
+	if err := util.Bind(w, r, &key); err != nil {
 		return
 	}
 
@@ -141,13 +144,13 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -195,7 +198,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	if templatesC > 0 || inventoryC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Key is in use by one or more templates / inventory",
 				"inUse": true,
 			})

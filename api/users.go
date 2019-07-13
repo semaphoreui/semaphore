@@ -7,8 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,12 +19,12 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, users)
+	util.WriteJSON(w, http.StatusOK, users)
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user db.User
-	if err := mulekick.Bind(w, r, &user); err != nil {
+	if err := util.Bind(w, r, &user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -42,33 +42,36 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, user)
+	util.WriteJSON(w, http.StatusCreated, user)
 }
 
-func getUserMiddleware(w http.ResponseWriter, r *http.Request) {
-	userID, err := util.GetIntParam("user_id", w, r)
-	if err != nil {
-		return
-	}
-
-	var user db.User
-	if err := db.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+func getUserMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, err := util.GetIntParam("user_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		var user db.User
+		if err := db.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	editor := context.Get(r, "user").(*db.User)
-	if !editor.Admin && editor.ID != user.ID {
-		log.Warn(editor.Username + " is not permitted to edit users")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+			panic(err)
+		}
 
-	context.Set(r, "_user", user)
+		editor := context.Get(r, "user").(*db.User)
+		if !editor.Admin && editor.ID != user.ID {
+			log.Warn(editor.Username + " is not permitted to edit users")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		context.Set(r, "_user", user)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +79,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*db.User)
 
 	var user db.User
-	if err := mulekick.Bind(w, r, &user); err != nil {
+	if err := util.Bind(w, r, &user); err != nil {
 		return
 	}
 
@@ -125,7 +128,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mulekick.Bind(w, r, &pwd); err != nil {
+	if err := util.Bind(w, r, &pwd); err != nil {
 		return
 	}
 

@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
@@ -24,24 +24,27 @@ func clearRepositoryCache(repository db.Repository) error {
 }
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
-func RepositoryMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	repositoryID, err := util.GetIntParam("repository_id", w, r)
-	if err != nil {
-		return
-	}
-
-	var repository db.Repository
-	if err := db.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+func RepositoryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		repositoryID, err := util.GetIntParam("repository_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		var repository db.Repository
+		if err := db.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	context.Set(r, "repository", repository)
+			panic(err)
+		}
+
+		context.Set(r, "repository", repository)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetRepositories returns all repositories in a project sorted by type
@@ -57,12 +60,12 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := squirrel.Select("pr.id",
-			"pr.name",
-			"pr.project_id",
-			"pr.git_url",
-			"pr.ssh_key_id",
-			"pr.removed").
-			From("project__repository pr")
+		"pr.name",
+		"pr.project_id",
+		"pr.git_url",
+		"pr.ssh_key_id",
+		"pr.removed").
+		From("project__repository pr")
 
 	switch sort {
 	case "name", "git_url":
@@ -84,7 +87,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, repos)
+	util.WriteJSON(w, http.StatusOK, repos)
 }
 
 // AddRepository creates a new repository in the database
@@ -96,7 +99,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		GitURL   string `json:"git_url" binding:"required"`
 		SSHKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := mulekick.Bind(w, r, &repository); err != nil {
+	if err := util.Bind(w, r, &repository); err != nil {
 		return
 	}
 
@@ -131,7 +134,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		GitURL   string `json:"git_url" binding:"required"`
 		SSHKeyID int    `json:"ssh_key_id" binding:"required"`
 	}
-	if err := mulekick.Bind(w, r, &repository); err != nil {
+	if err := util.Bind(w, r, &repository); err != nil {
 		return
 	}
 
@@ -168,7 +171,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error":        "Repository is in use by one or more templates",
 				"templatesUse": true,
 			})

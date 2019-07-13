@@ -6,31 +6,34 @@ import (
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 // UserMiddleware ensures a user exists and loads it to the context
-func UserMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	userID, err := util.GetIntParam("user_id", w, r)
-	if err != nil {
-		return
-	}
-
-	var user db.User
-	if err := db.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+func UserMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		userID, err := util.GetIntParam("user_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		var user db.User
+		if err := db.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-	context.Set(r, "projectUser", user)
+			panic(err)
+		}
+
+		context.Set(r, "projectUser", user)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetUsers returns all users in a project
@@ -68,7 +71,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, users)
+	util.WriteJSON(w, http.StatusOK, users)
 }
 
 // AddUser adds a user to a projects team in the database
@@ -79,7 +82,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Admin  bool `json:"admin"`
 	}
 
-	if err := mulekick.Bind(w, r, &user); err != nil {
+	if err := util.Bind(w, r, &user); err != nil {
 		return
 	}
 

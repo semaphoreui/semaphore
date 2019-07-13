@@ -1,14 +1,15 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 	"github.com/russross/blackfriday"
@@ -17,18 +18,36 @@ import (
 var publicAssets = packr.NewBox("../web/public")
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
-func JSONMiddleware(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
+func JSONMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		next.ServeHTTP(w, r)
+	})
 }
 
-//PlainTextMiddleware resets headers to Plain Text if needed
-func PlainTextMiddleware(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "text/plain; charset=utf-8")
+//plainTextMiddleware resets headers to Plain Text if needed
+func plainTextMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/plain; charset=utf-8")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func pongHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("pong"))
+}
+
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte("404 not found"))
+	fmt.Println(r.Method, ":", r.URL.String(), "--> 404 Not Found")
 }
 
 // Route declares all routes
-func Route() mulekick.Router {
-	r := mulekick.New(mux.NewRouter(), mulekick.CorsMiddleware, JSONMiddleware)
+func Route() *mux.Router {
+	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
@@ -36,93 +55,90 @@ func Route() mulekick.Router {
 		webPath = util.WebHostURL.RequestURI()
 	}
 
-	r.Get(webPath+"api/ping", PlainTextMiddleware, mulekick.PongHandler)
+	r.HandleFunc(webPath, http.HandlerFunc(servePublic))
+	r.Use(mux.CORSMethodMiddleware(r), JSONMiddleware)
+
+	r.HandleFunc("/api/auth/login", login).Methods("POST")
+	r.HandleFunc("/api/auth/logout", logout).Methods("POST")
+	r.HandleFunc("/api/ping", pongHandler).Methods("GET", "HEAD").Subrouter().Use(plainTextMiddleware)
 
 	// set up the namespace
-	api := r.Group(webPath + "api")
-
-	func(api mulekick.Router) {
-		api.Post("/login", login)
-		api.Post("/logout", logout)
-	}(api.Group("/auth"))
+	api := r.PathPrefix(webPath + "api").Subrouter()
 
 	api.Use(authentication)
 
-	api.Get("/ws", sockets.Handler)
+	api.HandleFunc("/ws", sockets.Handler).Methods("GET", "HEAD")
+	api.HandleFunc("/info", getSystemInfo).Methods("GET", "HEAD")
+	api.HandleFunc("/upgrade", checkUpgrade).Methods("GET", "HEAD")
+	api.HandleFunc("/upgrade", doUpgrade).Methods("POST")
 
-	api.Get("/info", getSystemInfo)
-	api.Get("/upgrade", checkUpgrade)
-	api.Post("/upgrade", doUpgrade)
+	user := api.PathPrefix("/user").Subrouter()
 
-	func(api mulekick.Router) {
-		api.Get("", getUser)
-		// api.PUT("/user", misc.UpdateUser)
+	user.HandleFunc("", getUser).Methods("GET", "HEAD")
+	user.HandleFunc("/tokens", getAPITokens).Methods("GET", "HEAD")
+	user.HandleFunc("/tokens", createAPIToken).Methods("POST")
+	user.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
 
-		api.Get("/tokens", getAPITokens)
-		api.Post("/tokens", createAPIToken)
-		api.Delete("/tokens/{token_id}", expireAPIToken)
-	}(api.Group("/user"))
+	api.HandleFunc("/projects", projects.GetProjects).Methods("GET", "HEAD")
+	api.HandleFunc("/projects", projects.AddProject).Methods("POST")
+	api.HandleFunc("/events", getAllEvents).Methods("GET", "HEAD")
+	api.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
-	api.Get("/projects", projects.GetProjects)
-	api.Post("/projects", projects.AddProject)
-	api.Get("/events", getAllEvents)
-	api.Get("/events/last", getLastEvents)
+	api.HandleFunc("/users", getUsers).Methods("GET", "HEAD")
+	api.HandleFunc("/users", addUser).Methods("POST")
+	api.HandleFunc("/users/{user_id}", getUser).Methods("GET", "HEAD").Subrouter().Use(getUserMiddleware)
+	api.HandleFunc("/users/{user_id}", updateUser).Methods("PUT").Subrouter().Use(getUserMiddleware)
+	api.HandleFunc("/users/{user_id}/password", updateUserPassword).Methods("POST").Subrouter().Use(getUserMiddleware)
+	api.HandleFunc("/users/{user_id}", deleteUser).Methods("DELETE").Subrouter().Use(getUserMiddleware)
 
-	api.Get("/users", getUsers)
-	api.Post("/users", addUser)
-	api.Get("/users/{user_id}", getUserMiddleware, getUser)
-	api.Put("/users/{user_id}", getUserMiddleware, updateUser)
-	api.Post("/users/{user_id}/password", getUserMiddleware, updateUserPassword)
-	api.Delete("/users/{user_id}", getUserMiddleware, deleteUser)
+	project := api.PathPrefix("/project/{project_id}").Subrouter()
 
-	func(api mulekick.Router) {
-		api.Use(projects.ProjectMiddleware)
+	project.Use(projects.ProjectMiddleware)
 
-		api.Get("", projects.GetProject)
-		api.Put("", projects.MustBeAdmin, projects.UpdateProject)
-		api.Delete("", projects.MustBeAdmin, projects.DeleteProject)
+	project.HandleFunc("", projects.GetProject).Methods("GET", "HEAD")
+	project.HandleFunc("", projects.UpdateProject).Methods("PUT").Subrouter().Use(projects.MustBeAdmin)
+	project.HandleFunc("", projects.DeleteProject).Methods("DELETE").Subrouter().Use(projects.MustBeAdmin)
 
-		api.Get("/events", getAllEvents)
-		api.Get("/events/last", getLastEvents)
+	project.HandleFunc("/events", getAllEvents).Methods("GET", "HEAD")
+	project.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
-		api.Get("/users", projects.GetUsers)
-		api.Post("/users", projects.MustBeAdmin, projects.AddUser)
-		api.Post("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
-		api.Delete("/users/{user_id}/admin", projects.MustBeAdmin, projects.UserMiddleware, projects.MakeUserAdmin)
-		api.Delete("/users/{user_id}", projects.MustBeAdmin, projects.UserMiddleware, projects.RemoveUser)
+	project.HandleFunc("/users", projects.GetUsers).Methods("GET", "HEAD")
+	project.HandleFunc("/users", projects.AddUser).Methods("POST").Subrouter().Use(projects.MustBeAdmin)
+	project.HandleFunc("/users/{user_id}/admin", projects.MakeUserAdmin).Methods("POST").Subrouter().Use(projects.UserMiddleware, projects.MustBeAdmin)
+	project.HandleFunc("/users/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE").Subrouter().Use(projects.UserMiddleware, projects.MustBeAdmin)
+	project.HandleFunc("/users/{user_id}", projects.RemoveUser).Methods("DELETE").Subrouter().Use(projects.UserMiddleware, projects.MustBeAdmin)
 
-		api.Get("/keys", projects.GetKeys)
-		api.Post("/keys", projects.AddKey)
-		api.Put("/keys/{key_id}", projects.KeyMiddleware, projects.UpdateKey)
-		api.Delete("/keys/{key_id}", projects.KeyMiddleware, projects.RemoveKey)
+	project.HandleFunc("/keys", projects.GetKeys).Methods("GET", "HEAD")
+	project.HandleFunc("/keys", projects.AddKey).Methods("POST")
+	project.HandleFunc("/keys/{key_id}", projects.UpdateKey).Methods("PUT").Subrouter().Use(projects.KeyMiddleware)
+	project.HandleFunc("/keys/{key_id}", projects.RemoveKey).Methods("DELETE").Subrouter().Use(projects.KeyMiddleware)
 
-		api.Get("/repositories", projects.GetRepositories)
-		api.Post("/repositories", projects.AddRepository)
-		api.Put("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.UpdateRepository)
-		api.Delete("/repositories/{repository_id}", projects.RepositoryMiddleware, projects.RemoveRepository)
+	project.HandleFunc("/repositories", projects.GetRepositories).Methods("GET", "HEAD")
+	project.HandleFunc("/repositories", projects.AddRepository).Methods("POST")
+	project.HandleFunc("/repositories/{repository_id}", projects.UpdateRepository).Methods("PUT").Subrouter().Use(projects.RepositoryMiddleware)
+	project.HandleFunc("/repositories/{repository_id}", projects.RemoveRepository).Methods("DELETE").Subrouter().Use(projects.RepositoryMiddleware)
 
-		api.Get("/inventory", projects.GetInventory)
-		api.Post("/inventory", projects.AddInventory)
-		api.Put("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.UpdateInventory)
-		api.Delete("/inventory/{inventory_id}", projects.InventoryMiddleware, projects.RemoveInventory)
+	project.HandleFunc("/inventory", projects.GetInventory).Methods("GET", "HEAD")
+	project.HandleFunc("/inventory", projects.AddInventory).Methods("POST")
+	project.HandleFunc("/inventory/{inventory_id}", projects.UpdateInventory).Methods("PUT").Subrouter().Use(projects.InventoryMiddleware)
+	project.HandleFunc("/inventory/{inventory_id}", projects.RemoveInventory).Methods("DELETE").Subrouter().Use(projects.InventoryMiddleware)
 
-		api.Get("/environment", projects.GetEnvironment)
-		api.Post("/environment", projects.AddEnvironment)
-		api.Put("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.UpdateEnvironment)
-		api.Delete("/environment/{environment_id}", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
+	project.HandleFunc("/environment", projects.GetEnvironment).Methods("GET", "HEAD")
+	project.HandleFunc("/environment", projects.AddEnvironment).Methods("POST")
+	project.HandleFunc("/environment/{environment_id}", projects.UpdateEnvironment).Methods("PUT").Subrouter().Use(projects.EnvironmentMiddleware)
+	project.HandleFunc("/environment/{environment_id}", projects.RemoveEnvironment).Methods("DELETE").Subrouter().Use(projects.EnvironmentMiddleware)
 
-		api.Get("/templates", projects.GetTemplates)
-		api.Post("/templates", projects.AddTemplate)
-		api.Put("/templates/{template_id}", projects.TemplatesMiddleware, projects.UpdateTemplate)
-		api.Delete("/templates/{template_id}", projects.TemplatesMiddleware, projects.RemoveTemplate)
+	project.HandleFunc("/templates", projects.GetTemplates).Methods("GET", "HEAD")
+	project.HandleFunc("/templates", projects.AddTemplate).Methods("POST")
+	project.HandleFunc("/templates/{template_id}", projects.UpdateTemplate).Methods("PUT").Subrouter().Use(projects.TemplatesMiddleware)
+	project.HandleFunc("/templates/{template_id}", projects.RemoveTemplate).Methods("DELETE").Subrouter().Use(projects.TemplatesMiddleware)
 
-		api.Get("/tasks", tasks.GetAllTasks)
-		api.Get("/tasks/last", tasks.GetLastTasks)
-		api.Post("/tasks", tasks.AddTask)
-		api.Get("/tasks/{task_id}/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
-		api.Get("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.GetTask)
-		api.Delete("/tasks/{task_id}", tasks.GetTaskMiddleware, tasks.RemoveTask)
-	}(api.Group("/project/{project_id}"))
+	project.HandleFunc("/tasks", tasks.GetAllTasks).Methods("GET", "HEAD")
+	project.HandleFunc("/tasks/last", tasks.GetLastTasks).Methods("GET", "HEAD")
+	project.HandleFunc("/tasks", tasks.AddTask).Methods("POST")
+	project.HandleFunc("/tasks/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD").Subrouter().Use(tasks.GetTaskMiddleware)
+	project.HandleFunc("/tasks/{task_id}", tasks.GetTask).Methods("GET", "HEAD").Subrouter().Use(tasks.GetTaskMiddleware)
+	project.HandleFunc("/tasks/{task_id}", tasks.RemoveTask).Methods("DELETE").Subrouter().Use(tasks.GetTaskMiddleware)
 
 	return r
 }
@@ -132,7 +148,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	if strings.HasPrefix(path, "/api") {
-		mulekick.NotFoundHandler(w, r)
+		notFoundHandler(w, r)
 		return
 	}
 
@@ -156,7 +172,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 
 	res, err := publicAssets.MustBytes(path)
 	if err != nil {
-		mulekick.NotFoundHandler(w, r)
+		notFoundHandler(w, r)
 		return
 	}
 
@@ -212,12 +228,12 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, body)
+	util.WriteJSON(w, http.StatusOK, body)
 }
 
 func checkUpgrade(w http.ResponseWriter, r *http.Request) {
 	if err := util.CheckUpdate(util.Version); err != nil {
-		mulekick.WriteJSON(w, 500, err)
+		util.WriteJSON(w, 500, err)
 		return
 	}
 

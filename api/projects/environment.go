@@ -6,38 +6,41 @@ import (
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/mulekick"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
-func EnvironmentMiddleware(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	envID, err := util.GetIntParam("environment_id", w, r)
-	if err != nil {
-		return
-	}
-
-	query, args, err := squirrel.Select("*").
-		From("project__environment").
-		Where("project_id=?", project.ID).
-		Where("id=?", envID).
-		ToSql()
-	util.LogWarning(err)
-
-	var env db.Environment
-	if err := db.Mysql.SelectOne(&env, query, args...); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
+func EnvironmentMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
+		envID, err := util.GetIntParam("environment_id", w, r)
+		if err != nil {
 			return
 		}
 
-		panic(err)
-	}
+		query, args, err := squirrel.Select("*").
+			From("project__environment").
+			Where("project_id=?", project.ID).
+			Where("id=?", envID).
+			ToSql()
+		util.LogWarning(err)
 
-	context.Set(r, "environment", env)
+		var env db.Environment
+		if err := db.Mysql.SelectOne(&env, query, args...); err != nil {
+			if err == sql.ErrNoRows {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			panic(err)
+		}
+
+		context.Set(r, "environment", env)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // GetEnvironment retrieves sorted environments from the database
@@ -72,20 +75,20 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, env)
+	util.WriteJSON(w, http.StatusOK, env)
 }
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := context.Get(r, "environment").(db.Environment)
 	var env db.Environment
-	if err := mulekick.Bind(w, r, &env); err != nil {
+	if err := util.Bind(w, r, &env); err != nil {
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
@@ -103,13 +106,13 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env db.Environment
 
-	if err := mulekick.Bind(w, r, &env); err != nil {
+	if err := util.Bind(w, r, &env); err != nil {
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		mulekick.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
@@ -149,7 +152,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			mulekick.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Environment is in use by one or more templates",
 				"inUse": true,
 			})

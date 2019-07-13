@@ -9,18 +9,19 @@ import (
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/mulekick"
+	"github.com/ansible-semaphore/semaphore/util"
+
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 )
 
 func getUser(w http.ResponseWriter, r *http.Request) {
 	if u, exists := context.GetOk(r, "_user"); exists {
-		mulekick.WriteJSON(w, http.StatusOK, u)
+		util.WriteJSON(w, http.StatusOK, u)
 		return
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
+	util.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +32,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusOK, tokens)
+	util.WriteJSON(w, http.StatusOK, tokens)
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +53,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	mulekick.WriteJSON(w, http.StatusCreated, token)
+	util.WriteJSON(w, http.StatusCreated, token)
 }
 
 func expireAPIToken(w http.ResponseWriter, r *http.Request) {
