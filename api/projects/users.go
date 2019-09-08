@@ -39,10 +39,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	var users []struct {
-		db.User
-		Admin bool `db:"admin" json:"admin"`
-	}
+	var users []db.User
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
