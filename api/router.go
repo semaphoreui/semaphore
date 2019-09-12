@@ -57,21 +57,20 @@ func Route() *mux.Router {
 		webPath = util.WebHostURL.Path
 	}
 
-	r.Use(mux.CORSMethodMiddleware(r), JSONMiddleware)
-	defer r.HandleFunc(webPath, http.HandlerFunc(servePublic))
+	r.Use(mux.CORSMethodMiddleware(r))
 
-	publicAPI := r.PathPrefix(webPath + "api").Subrouter()
-
-	publicAPI.HandleFunc("/auth/login", login).Methods("POST")
-	publicAPI.HandleFunc("/auth/logout", logout).Methods("POST")
-
-	pingRouter := publicAPI.Path("/ping").Subrouter()
+	pingRouter := r.Path(webPath + "api/ping").Subrouter()
 	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
-	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
+	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
+	publicAPIRouter.Use(JSONMiddleware)
 
-	authenticatedAPI.Use(authentication)
+	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
+	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
+
+	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
+	authenticatedAPI.Use(JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
@@ -221,11 +220,6 @@ func debugPrintRoutes(r *mux.Router) {
 //nolint: gocyclo
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-
-	if strings.HasPrefix(path, "/api") {
-		notFoundHandler(w, r)
-		return
-	}
 
 	webPath := "/"
 	if util.WebHostURL != nil {

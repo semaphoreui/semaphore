@@ -100,7 +100,7 @@ tasks:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
         # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json'
+        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json' || true
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
