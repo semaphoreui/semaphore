@@ -142,42 +142,42 @@ func Route() *mux.Router {
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
 
-	projectKeyManagement := projectUserAPI.PathPrefix("/keys").Subrouter()
+	projectKeyManagement := projectAdminAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
-	projectKeyManagement.HandleFunc("/keys/{key_id}", projects.UpdateKey).Methods("PUT")
-	projectKeyManagement.HandleFunc("/keys/{key_id}", projects.RemoveKey).Methods("DELETE")
+	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
+	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
 	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
 	projectRepoManagement.Use(projects.RepositoryMiddleware)
 
-	projectRepoManagement.HandleFunc("/repositories/{repository_id}", projects.UpdateRepository).Methods("PUT")
-	projectRepoManagement.HandleFunc("/repositories/{repository_id}", projects.RemoveRepository).Methods("DELETE")
+	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
+	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
 
-	projectInventoryManagement.HandleFunc("/inventory/{inventory_id}", projects.UpdateInventory).Methods("PUT")
-	projectInventoryManagement.HandleFunc("/inventory/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
+	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
 
 	projectEnvManagement := projectUserAPI.PathPrefix("/environment").Subrouter()
 	projectEnvManagement.Use(projects.EnvironmentMiddleware)
 
-	projectEnvManagement.HandleFunc("/environment/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
-	projectEnvManagement.HandleFunc("/environment/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
+	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
+	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
 
 	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()
 	projectTmplManagement.Use(projects.TemplatesMiddleware)
 
-	projectTmplManagement.HandleFunc("/templates/{template_id}", projects.UpdateTemplate).Methods("PUT")
-	projectTmplManagement.HandleFunc("/templates/{template_id}", projects.RemoveTemplate).Methods("DELETE")
+	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
+	projectTmplManagement.HandleFunc("/{template_id}", projects.RemoveTemplate).Methods("DELETE")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(tasks.GetTaskMiddleware)
 
-	projectTaskManagement.HandleFunc("/tasks/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD")
-	projectTaskManagement.HandleFunc("/tasks/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
-	projectTaskManagement.HandleFunc("/tasks/{task_id}", tasks.RemoveTask).Methods("DELETE")
+	projectTaskManagement.HandleFunc("/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)
