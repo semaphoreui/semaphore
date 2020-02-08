@@ -35,7 +35,8 @@ tasks:
     dir: web
     cmds:
       - npm install
-
+      - npm audit fix
+ 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
     dir: web
