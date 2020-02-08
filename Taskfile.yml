@@ -36,7 +36,7 @@ tasks:
     cmds:
       - npm install
       - npm audit fix
- 
+
   deps:integration:
     desc: Installs requirements for integration testing with dredd
     dir: web
@@ -54,7 +54,7 @@ tasks:
       - go get -u github.com/gobuffalo/packr/...
       - go get -u github.com/haya14busa/goverage
       - go get github.com/snikch/goodman/cmd/goodman
-      - '{{ if ne OS "windows" }} curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C ${GOPATH}/bin{{ else }} {{ end }}'
+      - '{{ if ne OS "windows" }} curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C ${GOPATH}/bin goreleaser{{ else }} {{ end }}'
       - '{{ if ne OS "windows" }} chmod +x ${GOPATH}/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
       - go get -u github.com/alecthomas/gometalinter
