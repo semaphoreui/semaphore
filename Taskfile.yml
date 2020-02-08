@@ -42,7 +42,8 @@ tasks:
     dir: web
     cmds:
      - npm install dredd@5.1.5
-
+     - npm audit fix
+    
   deps:tools:
     desc: Installs tools needed
     dir: web
