@@ -1,5 +1,5 @@
 # Golang testing image with some tools already installed
-FROM tomwhiston/micro-golang:test-base
+FROM golang:1.13-alpine
 
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
@@ -9,12 +9,14 @@ ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
 
 # hadolint ignore=DL3013
 RUN apk add --no-cache git mysql-client python py-pip py-openssl openssl ca-certificates curl curl-dev openssh-client tini nodejs nodejs-npm bash rsync && \
-    apk --update add --virtual build-dependencies python-dev libffi-dev openssl-dev build-base && \
-    pip install --upgrade pip cffi   && \
-    pip install ansible              && \
-    apk del build-dependencies && \
-    rm -rf /var/cache/apk/*    && \
-    adduser -D -u 1002 -g 0 semaphore && \
+    apk --update add --virtual build-dependencies python-dev libffi-dev openssl-dev build-base &&\
+    rm -rf /var/cache/apk/*
+
+RUN pip install --upgrade pip cffi   && \
+    pip install ansible &&\
+    apk del build-dependencies
+
+RUN adduser -D -u 1002 -g 0 semaphore && \
     mkdir -p /go/src/github.com/ansible-semaphore/semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
@@ -22,8 +24,9 @@ RUN apk add --no-cache git mysql-client python py-pip py-openssl openssl ca-cert
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
     ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""       && \
-    ssh-keyscan -H github.com > /root/.ssh/known_hosts      && \
-    go get -u -v github.com/go-task/task/cmd/task
+    ssh-keyscan -H github.com > /root/.ssh/known_hosts
+
+RUN cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
 
 # Copy in app source
 WORKDIR ${APP_ROOT}
