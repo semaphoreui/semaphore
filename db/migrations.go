@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gobuffalo/packr"
-	log "github.com/Sirupsen/logrus"
 )
 
 var dbAssets = packr.NewBox("./migrations")
@@ -16,6 +16,7 @@ func (version *Version) CheckExists() (bool, error) {
 	exists, err := Mysql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
 
 	if err != nil {
+		//nolint: gosimple
 		switch err.(type) {
 		case *mysql.MySQLError:
 			// 1146 is mysql table does not exist
@@ -71,7 +72,7 @@ func (version *Version) Run() error {
 	return tx.Commit()
 }
 
-func handleRollbackError(err error){
+func handleRollbackError(err error) {
 	if err != nil {
 		log.Warn(err.Error())
 	}

@@ -22,7 +22,7 @@ func TestApiSchemaValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	spc := spec.ExpandOptions{RelativeBase: fpath}
-	document, err = document.Expanded(&spc)
+	_, err = document.Expanded(&spc)
 	if err != nil {
 		t.Fatal(err)
 	}

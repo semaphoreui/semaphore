@@ -160,7 +160,7 @@ tasks:
   lint:be:
     # --errors
     cmds:
-      - golangci-lint --exclude "\w*(-packr.go)" --vendor --disable goconst --deadline 240s ./...
+      - golangci-lint run --skip-files "\w*(-packr.go)" --disable goconst --timeout 240s ./...
 
   test:
     cmds:

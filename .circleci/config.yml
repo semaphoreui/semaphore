@@ -4,7 +4,7 @@ version: 2
 aliases:
 
   - &golang-image
-    image: circleci/golang:1.10
+    image: circleci/golang:1.13
 
   - &working-dir
     /go/src/github.com/ansible-semaphore/semaphore
@@ -16,10 +16,8 @@ aliases:
   - &install-task-binary
     run:
       name: install task binary
-      command: |
-        cd /go/bin
-        curl -L https://github.com/go-task/task/releases/download/v2.0.1/task_linux_amd64.tar.gz | tar xvz
-        cd -
+      # subshell prevents potentially unwanted cwd change
+      command: (cd /go && (curl -sL https://taskfile.dev/install.sh | sh))
 
   - &persist-from-build
     persist_to_workspace:

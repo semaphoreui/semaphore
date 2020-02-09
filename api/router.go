@@ -35,6 +35,7 @@ func plainTextMiddleware(next http.Handler) http.Handler {
 }
 
 func pongHandler(w http.ResponseWriter, r *http.Request) {
+	//nolint: errcheck
 	w.Write([]byte("pong"))
 }
 
@@ -42,6 +43,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.WriteHeader(http.StatusNotFound)
+	//nolint: errcheck
 	w.Write([]byte("404 not found"))
 	fmt.Println(r.Method, ":", r.URL.String(), "--> 404 Not Found")
 }
