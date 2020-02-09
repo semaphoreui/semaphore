@@ -1,7 +1,4 @@
-# Golang testing image with some tools already installed
 FROM golang:1.13-alpine
-
-LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
 ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}" \

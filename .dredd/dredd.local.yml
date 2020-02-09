@@ -1,7 +1,6 @@
 dry-run: null
 hookfiles: ./.dredd/compiled_hooks
 language: go
-sandbox: false
 #server: context=dev task dc:up
 server-wait: 240
 init: false
@@ -17,9 +16,7 @@ inline-errors: false
 details: false
 method: []
 color: true
-level: info
-timestamp: false
-silent: false
+loglevel: debug
 path: []
 hooks-worker-timeout: 5000
 hooks-worker-connect-timeout: 1500
@@ -31,4 +28,4 @@ hooks-worker-handler-host: 0.0.0.0
 hooks-worker-handler-port: 61321
 config: ./.dredd/dredd.yml
 blueprint: api-docs.yml
-endpoint: 'http://0.0.0.0:3000'
+endpoint: 'http://semaphore_ci:3000'
