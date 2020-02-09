@@ -3,7 +3,7 @@
 set -e
 
 echo "---> Add Config"
-cat > ./.dredd/config.json <<EOF
+cat > /semaphore/.dredd/config.json <<EOF
 {
 	"mysql": {
 		"host": "${MYSQL_SERVICE}:${MYSQL_PORT}",
@@ -22,4 +22,4 @@ done
 echo "---> Run Dredd"
 # We do this because otherwise it can fail out
 sleep 5
-/home/developer/node_modules/.bin/dredd $@
+dredd $@

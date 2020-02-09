@@ -1,23 +1,27 @@
-# hadolint ignore=DL3006
-FROM tomwhiston/dredd:latest
+FROM golang:1.13-alpine as golang
 
-ENV TASK_VERSION=v2.0.1 \
-    GOPATH=/home/developer/go \
-    SEMAPHORE_SERVICE=semaphore_ci \
+RUN apk add --no-cache curl git
+
+# We need the source and task to compile the hooks
+COPY . /semaphore/
+
+RUN (cd /usr && curl -sL https://taskfile.dev/install.sh | sh)
+WORKDIR /semaphore
+RUN task deps:tools && task deps:be && task compile:be && task compile:api:hooks
+
+FROM apiaryio/dredd:13.0.0 as dredd
+
+RUN apk add --no-cache bash
+
+COPY --from=golang /semaphore /semaphore
+
+WORKDIR /semaphore
+
+COPY deployment/docker/ci/dredd/entrypoint /usr/local/bin
+
+ENV SEMAPHORE_SERVICE=semaphore_ci \
     SEMAPHORE_PORT=3000 \
     MYSQL_SERVICE=mysql \
     MYSQL_PORT=3306
-
-# We need the source and task to compile the hooks
-USER 0
-RUN dnf install -y nc
-COPY deployment/docker/ci/dredd/entrypoint /usr/local/bin
-COPY . /home/developer/go/src/github.com/ansible-semaphore/semaphore
-RUN (cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh) &&\
-    chown -R developer /home/developer/go
-
-# Get tools and do compile
-WORKDIR /home/developer/go/src/github.com/ansible-semaphore/semaphore
-RUN task deps:tools && task deps:be && task compile:be && task compile:api:hooks
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
