@@ -59,7 +59,7 @@ aliases:
 
   - &save-go-cache
     save_cache:
-      key: v1-go-deps-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+      key: v1-go-deps-{{ checksum "go.sum" }}-{{ checksum "go.mod" }}
       paths:
         - vendor
 
@@ -72,8 +72,8 @@ aliases:
   - &load-go-cache
     restore_cache:
       keys:
-        - v1-go-deps-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
-        - v1-go-deps-{{ checksum "Gopkg.lock" }}
+        - v1-go-deps-{{ checksum "go.sum" }}-{{ checksum "go.mod" }}
+        - v1-go-deps-{{ checksum "go.sum" }}
         - v1-go-deps-
 
 jobs:
@@ -104,7 +104,7 @@ jobs:
     steps:
       - *install-node
       - *install-task-binary
-      - run: sudo apt-get install rpm
+      - run: sudo apk add rpm
       - checkout
       - *load-go-cache
       - *load-npm-cache
