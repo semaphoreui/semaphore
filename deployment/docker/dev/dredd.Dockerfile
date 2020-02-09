@@ -3,9 +3,9 @@ FROM tomwhiston/dredd:latest
 
 ENV TASK_VERSION=v2.0.1 \
     GOPATH=/home/developer/go \
-    SEMAPHORE_SERVICE=127.0.0.1 \
+    SEMAPHORE_SERVICE=semaphore_ci \
     SEMAPHORE_PORT=3000 \
-    MYSQL_SERVICE=127.0.0.1 \
+    MYSQL_SERVICE=mysql \
     MYSQL_PORT=3306
 
 # We need the source and task to compile the hooks
@@ -13,8 +13,7 @@ USER 0
 RUN dnf install -y nc
 COPY deployment/docker/ci/dredd/entrypoint /usr/local/bin
 COPY . /home/developer/go/src/github.com/ansible-semaphore/semaphore
-WORKDIR /usr/local/bin
-RUN curl -L "https://github.com/go-task/task/releases/download/${TASK_VERSION}/task_linux_amd64.tar.gz" | tar xvz && \
+RUN (cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh) &&\
     chown -R developer /home/developer/go
 
 # Get tools and do compile
