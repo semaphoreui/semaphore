@@ -58,10 +58,10 @@ tasks:
       - go install github.com/haya14busa/goverage
       - go install github.com/snikch/goodman/cmd/goodman
       - go install github.com/go-swagger/go-swagger/cmd/swagger
-      - '{{ if ne OS "windows" }} bash -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
+      - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
       - '{{ if ne OS "windows" }} chmod +x $(go env GOPATH)/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
-      - '{{ if ne OS "windows" }} bash -c "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v{{ .GOLINTER_VERSION }}"{{ else }}{{ end }}'
+      - '{{ if ne OS "windows" }} sh -c "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v{{ .GOLINTER_VERSION }}"{{ else }}{{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You need to install golangci-lint manually to build this application https://github.com/golangci/golangci-lint#install"{{ else }}{{ end }}'
 
   compile:

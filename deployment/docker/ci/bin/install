@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 echo "--> Turn off StrictKeyChecking"
 cat > /etc/ssh/ssh_config <<EOF
 Host *

@@ -1,10 +1,10 @@
-# Golang testing image with some tools already installed
 FROM golang:1.13-alpine
 
 ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}" \
     APP_ROOT="/go/src/github.com/ansible-semaphore/semaphore/"
 
+# hadolint ignore=DL3013
 RUN apk add --no-cache git mysql-client python py-pip py-openssl openssl ca-certificates curl curl-dev openssh-client tini nodejs nodejs-npm bash rsync && \
     apk --update add --virtual build-dependencies python-dev libffi-dev openssl-dev build-base &&\
     rm -rf /var/cache/apk/*
@@ -28,9 +28,9 @@ RUN cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
 # Copy in app source
 WORKDIR ${APP_ROOT}
 COPY . ${APP_ROOT}
-RUN deployment/docker/dev/bin/install
+RUN deployment/docker/ci/bin/install
 
-USER 1000
+USER semaphore
 EXPOSE 3000
-
-CMD ["task", "watch"]
+ENTRYPOINT ["/usr/local/bin/semaphore-wrapper"]
+CMD ["./bin/semaphore", "--config", "/etc/semaphore/config.json"]
