@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/ansible-semaphore/semaphore/api/projects"
@@ -34,6 +35,7 @@ func plainTextMiddleware(next http.Handler) http.Handler {
 }
 
 func pongHandler(w http.ResponseWriter, r *http.Request) {
+	//nolint: errcheck
 	w.Write([]byte("pong"))
 }
 
@@ -41,116 +43,185 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.WriteHeader(http.StatusNotFound)
+	//nolint: errcheck
 	w.Write([]byte("404 not found"))
 	fmt.Println(r.Method, ":", r.URL.String(), "--> 404 Not Found")
 }
 
 // Route declares all routes
 func Route() *mux.Router {
-	r := mux.NewRouter()
+	r := mux.NewRouter().StrictSlash(true)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
 	if util.WebHostURL != nil {
-		webPath = util.WebHostURL.RequestURI()
+		r.Host(util.WebHostURL.Hostname())
+		webPath = util.WebHostURL.Path
 	}
 
-	r.HandleFunc(webPath, http.HandlerFunc(servePublic))
-	r.Use(mux.CORSMethodMiddleware(r), JSONMiddleware)
+	r.Use(mux.CORSMethodMiddleware(r))
 
-	r.HandleFunc("/api/auth/login", login).Methods("POST")
-	r.HandleFunc("/api/auth/logout", logout).Methods("POST")
-	r.HandleFunc("/api/ping", pongHandler).Methods("GET", "HEAD").Subrouter().Use(plainTextMiddleware)
+	pingRouter := r.Path(webPath + "api/ping").Subrouter()
+	pingRouter.Use(plainTextMiddleware)
+	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
-	// set up the namespace
-	api := r.PathPrefix(webPath + "api").Subrouter()
+	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
+	publicAPIRouter.Use(JSONMiddleware)
 
-	api.Use(authentication)
+	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
+	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 
-	api.HandleFunc("/ws", sockets.Handler).Methods("GET", "HEAD")
-	api.HandleFunc("/info", getSystemInfo).Methods("GET", "HEAD")
-	api.HandleFunc("/upgrade", checkUpgrade).Methods("GET", "HEAD")
-	api.HandleFunc("/upgrade", doUpgrade).Methods("POST")
+	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
+	authenticatedAPI.Use(JSONMiddleware, authentication)
 
-	user := api.PathPrefix("/user").Subrouter()
+	authenticatedAPI.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/upgrade").HandlerFunc(checkUpgrade).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/upgrade").HandlerFunc(doUpgrade).Methods("POST")
 
-	user.HandleFunc("", getUser).Methods("GET", "HEAD")
-	user.HandleFunc("/tokens", getAPITokens).Methods("GET", "HEAD")
-	user.HandleFunc("/tokens", createAPIToken).Methods("POST")
-	user.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
+	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/projects").HandlerFunc(projects.AddProject).Methods("POST")
+	authenticatedAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
+	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
-	api.HandleFunc("/projects", projects.GetProjects).Methods("GET", "HEAD")
-	api.HandleFunc("/projects", projects.AddProject).Methods("POST")
-	api.HandleFunc("/events", getAllEvents).Methods("GET", "HEAD")
-	api.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/users").HandlerFunc(getUsers).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
 
-	api.HandleFunc("/users", getUsers).Methods("GET", "HEAD")
-	api.HandleFunc("/users", addUser).Methods("POST")
-	api.HandleFunc("/users/{user_id}", getUser).Methods("GET", "HEAD").Subrouter().Use(getUserMiddleware)
-	api.HandleFunc("/users/{user_id}", updateUser).Methods("PUT").Subrouter().Use(getUserMiddleware)
-	api.HandleFunc("/users/{user_id}/password", updateUserPassword).Methods("POST").Subrouter().Use(getUserMiddleware)
-	api.HandleFunc("/users/{user_id}", deleteUser).Methods("DELETE").Subrouter().Use(getUserMiddleware)
+	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 
-	project := api.PathPrefix("/project/{project_id}").Subrouter()
+	tokenAPI.Path("/").HandlerFunc(getUser).Methods("GET", "HEAD")
+	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
+	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
+	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
 
-	project.Use(projects.ProjectMiddleware)
+	userAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
+	userAPI.Use(getUserMiddleware)
 
-	project.HandleFunc("", projects.GetProject).Methods("GET", "HEAD")
-	project.HandleFunc("", projects.UpdateProject).Methods("PUT").Subrouter().Use(projects.MustBeAdmin)
-	project.HandleFunc("", projects.DeleteProject).Methods("DELETE").Subrouter().Use(projects.MustBeAdmin)
+	userAPI.Path("/").HandlerFunc(getUser).Methods("GET", "HEAD")
+	userAPI.Path("/").HandlerFunc(updateUser).Methods("PUT")
+	userAPI.Path("/").HandlerFunc(deleteUser).Methods("DELETE")
+	userAPI.Path("/password").HandlerFunc(updateUserPassword).Methods("POST")
 
-	project.HandleFunc("/events", getAllEvents).Methods("GET", "HEAD")
-	project.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
+	projectUserAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectUserAPI.Use(projects.ProjectMiddleware)
 
-	project.HandleFunc("/users", projects.GetUsers).Methods("GET", "HEAD")
-	project.HandleFunc("/users", projects.AddUser).Methods("POST").Subrouter().Use(projects.MustBeAdmin)
-	project.HandleFunc("/users/{user_id}/admin", projects.MakeUserAdmin).Methods("POST").Subrouter().Use(projects.UserMiddleware, projects.MustBeAdmin)
-	project.HandleFunc("/users/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE").Subrouter().Use(projects.UserMiddleware, projects.MustBeAdmin)
-	project.HandleFunc("/users/{user_id}", projects.RemoveUser).Methods("DELETE").Subrouter().Use(projects.UserMiddleware, projects.MustBeAdmin)
+	projectUserAPI.Path("/").HandlerFunc(projects.GetProject).Methods("GET", "HEAD")
+	projectUserAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
+	projectUserAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
-	project.HandleFunc("/keys", projects.GetKeys).Methods("GET", "HEAD")
-	project.HandleFunc("/keys", projects.AddKey).Methods("POST")
-	project.HandleFunc("/keys/{key_id}", projects.UpdateKey).Methods("PUT").Subrouter().Use(projects.KeyMiddleware)
-	project.HandleFunc("/keys/{key_id}", projects.RemoveKey).Methods("DELETE").Subrouter().Use(projects.KeyMiddleware)
+	projectUserAPI.Path("/users").HandlerFunc(projects.GetUsers).Methods("GET", "HEAD")
 
-	project.HandleFunc("/repositories", projects.GetRepositories).Methods("GET", "HEAD")
-	project.HandleFunc("/repositories", projects.AddRepository).Methods("POST")
-	project.HandleFunc("/repositories/{repository_id}", projects.UpdateRepository).Methods("PUT").Subrouter().Use(projects.RepositoryMiddleware)
-	project.HandleFunc("/repositories/{repository_id}", projects.RemoveRepository).Methods("DELETE").Subrouter().Use(projects.RepositoryMiddleware)
+	projectUserAPI.Path("/keys").HandlerFunc(projects.GetKeys).Methods("GET", "HEAD")
+	projectUserAPI.Path("/keys").HandlerFunc(projects.AddKey).Methods("POST")
 
-	project.HandleFunc("/inventory", projects.GetInventory).Methods("GET", "HEAD")
-	project.HandleFunc("/inventory", projects.AddInventory).Methods("POST")
-	project.HandleFunc("/inventory/{inventory_id}", projects.UpdateInventory).Methods("PUT").Subrouter().Use(projects.InventoryMiddleware)
-	project.HandleFunc("/inventory/{inventory_id}", projects.RemoveInventory).Methods("DELETE").Subrouter().Use(projects.InventoryMiddleware)
+	projectUserAPI.Path("/repositories").HandlerFunc(projects.GetRepositories).Methods("GET", "HEAD")
+	projectUserAPI.Path("/repositories").HandlerFunc(projects.AddRepository).Methods("POST")
 
-	project.HandleFunc("/environment", projects.GetEnvironment).Methods("GET", "HEAD")
-	project.HandleFunc("/environment", projects.AddEnvironment).Methods("POST")
-	project.HandleFunc("/environment/{environment_id}", projects.UpdateEnvironment).Methods("PUT").Subrouter().Use(projects.EnvironmentMiddleware)
-	project.HandleFunc("/environment/{environment_id}", projects.RemoveEnvironment).Methods("DELETE").Subrouter().Use(projects.EnvironmentMiddleware)
+	projectUserAPI.Path("/inventory").HandlerFunc(projects.GetInventory).Methods("GET", "HEAD")
+	projectUserAPI.Path("/inventory").HandlerFunc(projects.AddInventory).Methods("POST")
 
-	project.HandleFunc("/templates", projects.GetTemplates).Methods("GET", "HEAD")
-	project.HandleFunc("/templates", projects.AddTemplate).Methods("POST")
-	project.HandleFunc("/templates/{template_id}", projects.UpdateTemplate).Methods("PUT").Subrouter().Use(projects.TemplatesMiddleware)
-	project.HandleFunc("/templates/{template_id}", projects.RemoveTemplate).Methods("DELETE").Subrouter().Use(projects.TemplatesMiddleware)
+	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
+	projectUserAPI.Path("/environment").HandlerFunc(projects.AddEnvironment).Methods("POST")
 
-	project.HandleFunc("/tasks", tasks.GetAllTasks).Methods("GET", "HEAD")
-	project.HandleFunc("/tasks/last", tasks.GetLastTasks).Methods("GET", "HEAD")
-	project.HandleFunc("/tasks", tasks.AddTask).Methods("POST")
-	project.HandleFunc("/tasks/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD").Subrouter().Use(tasks.GetTaskMiddleware)
-	project.HandleFunc("/tasks/{task_id}", tasks.GetTask).Methods("GET", "HEAD").Subrouter().Use(tasks.GetTaskMiddleware)
-	project.HandleFunc("/tasks/{task_id}", tasks.RemoveTask).Methods("DELETE").Subrouter().Use(tasks.GetTaskMiddleware)
+	projectUserAPI.Path("/tasks").HandlerFunc(tasks.GetAllTasks).Methods("GET", "HEAD")
+	projectUserAPI.HandleFunc("/tasks/last", tasks.GetLastTasks).Methods("GET", "HEAD")
+	projectUserAPI.Path("/tasks").HandlerFunc(tasks.AddTask).Methods("POST")
+
+	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
+	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
+
+	projectAdminAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
+
+	projectAdminAPI.Path("/").HandlerFunc(projects.UpdateProject).Methods("PUT")
+	projectAdminAPI.Path("/").HandlerFunc(projects.DeleteProject).Methods("DELETE")
+	projectAdminAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
+
+	projectUserManagement := projectAdminAPI.PathPrefix("/users").Subrouter()
+	projectUserManagement.Use(projects.UserMiddleware)
+
+	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("POST")
+	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
+	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
+
+	projectKeyManagement := projectAdminAPI.PathPrefix("/keys").Subrouter()
+	projectKeyManagement.Use(projects.KeyMiddleware)
+
+	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
+	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
+
+	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
+	projectRepoManagement.Use(projects.RepositoryMiddleware)
+
+	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
+	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
+
+	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
+	projectInventoryManagement.Use(projects.InventoryMiddleware)
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
+
+	projectEnvManagement := projectUserAPI.PathPrefix("/environment").Subrouter()
+	projectEnvManagement.Use(projects.EnvironmentMiddleware)
+
+	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
+	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
+
+	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()
+	projectTmplManagement.Use(projects.TemplatesMiddleware)
+
+	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
+	projectTmplManagement.HandleFunc("/{template_id}", projects.RemoveTemplate).Methods("DELETE")
+
+	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
+	projectTaskManagement.Use(tasks.GetTaskMiddleware)
+
+	projectTaskManagement.HandleFunc("/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
+
+	if os.Getenv("DEBUG") == "1" {
+		defer debugPrintRoutes(r)
+	}
 
 	return r
+}
+
+func debugPrintRoutes(r *mux.Router) {
+	err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err == nil {
+			fmt.Println("ROUTE:", pathTemplate)
+		}
+		pathRegexp, err := route.GetPathRegexp()
+		if err == nil {
+			fmt.Println("Path regexp:", pathRegexp)
+		}
+		queriesTemplates, err := route.GetQueriesTemplates()
+		if err == nil {
+			fmt.Println("Queries templates:", strings.Join(queriesTemplates, ","))
+		}
+		queriesRegexps, err := route.GetQueriesRegexp()
+		if err == nil {
+			fmt.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
+		}
+		methods, err := route.GetMethods()
+		if err == nil {
+			fmt.Println("Methods:", strings.Join(methods, ","))
+		}
+		fmt.Println()
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 //nolint: gocyclo
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-
-	if strings.HasPrefix(path, "/api") {
-		notFoundHandler(w, r)
-		return
-	}
 
 	webPath := "/"
 	if util.WebHostURL != nil {

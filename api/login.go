@@ -148,7 +148,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 		} else {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 	} else if err != nil {
@@ -157,14 +157,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	// check if ldap user & no ldap user found
 	if user.External && ldapUser == nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	// non-ldap login
 	if !user.External {
 		if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 

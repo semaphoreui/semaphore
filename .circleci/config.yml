@@ -4,7 +4,7 @@ version: 2
 aliases:
 
   - &golang-image
-    image: circleci/golang:1.10
+    image: circleci/golang:1.13
 
   - &working-dir
     /go/src/github.com/ansible-semaphore/semaphore
@@ -16,10 +16,8 @@ aliases:
   - &install-task-binary
     run:
       name: install task binary
-      command: |
-        cd /go/bin
-        curl -L https://github.com/go-task/task/releases/download/v2.0.1/task_linux_amd64.tar.gz | tar xvz
-        cd -
+      # subshell prevents potentially unwanted cwd change
+      command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | sh))
 
   - &persist-from-build
     persist_to_workspace:
@@ -35,7 +33,7 @@ aliases:
         curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.5/install.sh | bash
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install 8.2.0 && nvm alias default 8.2.0
+        nvm install 12.15.0 && nvm alias default 12.15.0
         # Each step uses the same `$BASH_ENV`, so need to modify it
         echo 'export NVM_DIR="$HOME/.nvm"' >> $BASH_ENV
         echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV
@@ -51,7 +49,7 @@ aliases:
   - &test-compile-changes
     run:
       name: test that compile did not create/modify untracked files
-      command: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json'
+      command: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
 
   - &save-npm-cache
     save_cache:
@@ -61,7 +59,7 @@ aliases:
 
   - &save-go-cache
     save_cache:
-      key: v1-go-deps-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+      key: v1-go-deps-{{ checksum "go.sum" }}-{{ checksum "go.mod" }}
       paths:
         - vendor
 
@@ -74,8 +72,8 @@ aliases:
   - &load-go-cache
     restore_cache:
       keys:
-        - v1-go-deps-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
-        - v1-go-deps-{{ checksum "Gopkg.lock" }}
+        - v1-go-deps-{{ checksum "go.sum" }}-{{ checksum "go.mod" }}
+        - v1-go-deps-{{ checksum "go.sum" }}
         - v1-go-deps-
 
 jobs:
@@ -106,7 +104,7 @@ jobs:
     steps:
       - *install-node
       - *install-task-binary
-      - run: sudo apt-get install rpm
+      - run: sudo apk add rpm
       - checkout
       - *load-go-cache
       - *load-npm-cache
@@ -159,10 +157,7 @@ jobs:
     machine: true
     steps:
       - checkout
-      - run: |
-          cd /home/circleci/bin
-          sudo curl -L https://github.com/go-task/task/releases/download/v2.0.1/task_linux_amd64.tar.gz | tar xvz
-          cd -
+      - *install-task-binary
       - run: context=ci task dc:up
 
   test:db:migration:

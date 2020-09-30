@@ -9,6 +9,8 @@ vars:
   docker_namespace: ansiblesemaphore
   docker_image: semaphore
 
+
+
 tasks:
   all:
     desc: Install, Compile, Test and Build Semaphore for local architecture
@@ -28,36 +30,39 @@ tasks:
   deps:be:
     desc: Vendor application dependencies
     cmds:
-      - dep ensure -vendor-only
+      - go mod vendor
 
   deps:fe:
     desc: Installs npm requirements for front end from package.json
     dir: web
     cmds:
       - npm install
+      - npm audit fix
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
     dir: web
     cmds:
      - npm install dredd@5.1.5
-
+     - npm audit fix
+    
   deps:tools:
     desc: Installs tools needed
     dir: web
     vars:
       GORELEASER_VERSION: "0.67.0"
+      GOLINTER_VERSION: "1.23.3"
     cmds:
-      - go get -u github.com/golang/dep/cmd/dep
-      - go get github.com/cespare/reflex || true
-      - go get -u github.com/gobuffalo/packr/...
-      - go get -u github.com/haya14busa/goverage
-      - go get github.com/snikch/goodman/cmd/goodman
-      - '{{ if ne OS "windows" }} curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C ${GOPATH}/bin{{ else }} {{ end }}'
-      - '{{ if ne OS "windows" }} chmod +x ${GOPATH}/bin/goreleaser{{ else }} {{ end }}'
+      - go install github.com/cespare/reflex
+      - go install github.com/gobuffalo/packr/...
+      - go install github.com/haya14busa/goverage
+      - go install github.com/snikch/goodman/cmd/goodman
+      - go install github.com/go-swagger/go-swagger/cmd/swagger
+      - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
+      - '{{ if ne OS "windows" }} chmod +x $(go env GOPATH)/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
-      - go get -u github.com/alecthomas/gometalinter
-      - gometalinter --install
+      - '{{ if ne OS "windows" }} sh -c "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v{{ .GOLINTER_VERSION }}"{{ else }}{{ end }}'
+      - '{{ if eq OS "windows" }} echo "NOTICE: You need to install golangci-lint manually to build this application https://github.com/golangci/golangci-lint#install"{{ else }}{{ end }}'
 
   compile:
     desc: Generates compiled frontend and backend resources (must be in this order)
@@ -100,7 +105,7 @@ tasks:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
         # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json'
+        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json' || true
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
@@ -156,7 +161,7 @@ tasks:
   lint:be:
     # --errors
     cmds:
-      - gometalinter --exclude "\w*(-packr.go)" --vendor --disable goconst --deadline 240s ./...
+      - golangci-lint run --skip-files "\w*(-packr.go)" --disable goconst --timeout 240s ./...
 
   test:
     cmds:
@@ -166,6 +171,7 @@ tasks:
     desc: Run go code tests
     cmds:
       - go vet ./...
+      - swagger validate ./api-docs.yml
       # 2> /dev/null makes goverage less noisy about pattern matching
       # if no tests exist but will still print failing test results
       - goverage -v -coverprofile=coverage.out ./... 2> /dev/null
