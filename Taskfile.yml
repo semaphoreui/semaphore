@@ -45,7 +45,7 @@ tasks:
     cmds:
      - npm install dredd@5.1.5
      - npm audit fix
-    
+
   deps:tools:
     desc: Installs tools needed
     dir: web
@@ -125,7 +125,7 @@ tasks:
 
   watch:be:
     cmds:
-      - reflex -r '\.go$' -R '^node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
+      - reflex -r '\.go$' -R '^.idea/' -R '^web/node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
 
   watch:fe:
     dir: web

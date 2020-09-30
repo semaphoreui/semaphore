@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Sirupsen/logrus v1.0.4
-	github.com/cespare/reflex v0.2.0 // indirect
+	github.com/cespare/reflex v0.3.0 // indirect
 	github.com/go-openapi/loads v0.19.4
 	github.com/go-openapi/spec v0.19.6
 	github.com/go-sql-driver/mysql v1.3.0
