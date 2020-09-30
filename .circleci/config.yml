@@ -2,6 +2,11 @@
 version: 2
 
 aliases:
+  - &get-code
+    run:
+      name: Get code
+      command: |
+        git clone -b $CIRCLE_BRANCH https://github.com/ansible-semaphore/semaphore.git ./
 
   - &golang-image
     image: circleci/golang:1.13
@@ -85,7 +90,7 @@ jobs:
     steps:
       - *install-node
       - *install-task-binary
-      - checkout
+      - *get-code
       - *load-go-cache
       - *load-npm-cache
       - run: task deps
@@ -105,7 +110,7 @@ jobs:
       - *install-node
       - *install-task-binary
       - run: sudo apk add rpm
-      - checkout
+      - *get-code
       - *load-go-cache
       - *load-npm-cache
       - run: task deps
@@ -120,7 +125,7 @@ jobs:
       - *golang-image
     working_directory: *working-dir
     steps:
-      - checkout
+      - *get-code
       - *install-node
       - *install-task-binary
       - run: task deps:integration
@@ -140,7 +145,7 @@ jobs:
       - *install-task-binary
       # Needed only in ci to post coverage reports
       - run: go get github.com/schrej/godacov
-      - checkout
+      - *get-code
       - *load-go-cache
       - run: task deps:tools
       - run: task deps:be
@@ -156,7 +161,7 @@ jobs:
   test:integration:
     machine: true
     steps:
-      - checkout
+      - *get-code
       - *install-task-binary
       - run: context=ci task dc:up
 
@@ -184,7 +189,7 @@ jobs:
       - *golang-image
     steps:
       - *install-task-binary
-      - checkout
+      - *get-code
       - setup_remote_docker
       - run: context=prod task docker:test
 
@@ -193,7 +198,7 @@ jobs:
       - *golang-image
     steps:
       - *install-task-binary
-      - checkout
+      - *get-code
       - setup_remote_docker
       - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
       - run: context=prod tag=develop task docker:build
@@ -204,7 +209,7 @@ jobs:
       - *golang-image
     steps:
       - *install-task-binary
-      - checkout
+      - *get-code
       - setup_remote_docker
       - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
       - run: context=prod tag=latest task docker:build
@@ -224,7 +229,7 @@ jobs:
       - *install-node
       - *install-task-binary
       - run: sudo apt-get install rpm
-      - checkout
+      - *get-code
       - *load-go-cache
       - *load-npm-cache
       - run: task deps
