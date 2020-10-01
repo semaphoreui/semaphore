@@ -82,7 +82,7 @@ func createDb() error {
 
 func connect() (*sql.DB, error) {
 	cfg := util.Config.MySQL
-	url := cfg.Username + ":" + cfg.Password + "@tcp(" + cfg.Hostname + ")/" + cfg.DbName + "?parseTime=true&interpolateParams=true"
+	url := cfg.Username + ":" + cfg.Password + "@tcp(" + cfg.Hostname + ")/" + cfg.DbName + "?tls=preferred&parseTime=true&interpolateParams=true"
 
 	return sql.Open("mysql", url)
 }
