@@ -4,7 +4,7 @@ services:
 
   dredd:
     image: ansiblesemaphore/dredd:dev-compose
-    command: ["--config", ".dredd/dredd.local.yml"]
+    command: ["--config", ".dredd/dredd.dev.yml"]
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/dev/dredd.Dockerfile

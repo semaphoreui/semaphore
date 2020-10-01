@@ -511,7 +511,7 @@ paths:
           description: Your session was successfully nuked
 
   # User Tokens
-  /user:
+  /user/:
     get:
       tags:
         - user
@@ -595,7 +595,7 @@ paths:
           schema:
             $ref: "#/definitions/User"
 
-  /users/{user_id}:
+  /users/{user_id}/:
     parameters:
       - $ref: "#/parameters/user_id"
     get:
@@ -704,7 +704,7 @@ paths:
             items:
               $ref: '#/definitions/Event'
 
-  /project/{project_id}:
+  /project/{project_id}/:
     parameters:
       - $ref: "#/parameters/project_id"
     get:
