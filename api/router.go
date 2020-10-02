@@ -54,7 +54,7 @@ func Route() *mux.Router {
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
-	if util.WebHostURL != nil {
+	if util.WebHostURL != nil && util.WebHostURL.Hostname() != "0.0.0.0" {
 		r.Host(util.WebHostURL.Hostname())
 		webPath = util.WebHostURL.Path
 	}

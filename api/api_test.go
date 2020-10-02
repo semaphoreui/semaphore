@@ -2,12 +2,27 @@ package api
 
 import (
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 )
+
+func TestApiPing(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/api/ping", nil)
+	rr := httptest.NewRecorder()
+
+	r := Route()
+
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Errorf("Response code should be 200 %d", rr.Code)
+	}
+}
 
 // TestApi Validates the api description in the root meets the swagger/openapi spec
 func TestApiSchemaValidation(t *testing.T) {

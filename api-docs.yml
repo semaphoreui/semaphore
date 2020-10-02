@@ -50,12 +50,35 @@ definitions:
       name:
         type: string
         x-example: Integration Test User
+        example: Integration Test User
       username:
         type: string
         x-example: test-user
+        example: test-user
       email:
         type: string
         x-example: test@ansiblesemaphore.test
+        example: test@ansiblesemaphore.test
+      alert:
+        type: boolean
+      admin:
+        type: boolean
+
+  UserPutRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        x-example: Integration Test User2
+        example: Integration Test User2
+      username:
+        type: string
+        x-example: test-user2
+        example: test-user2
+      email:
+        type: string
+        x-example: test2@ansiblesemaphore.test
+        example: test2@ansiblesemaphore.test
       alert:
         type: boolean
       admin:
@@ -131,6 +154,7 @@ definitions:
         type: string
       secret:
         type: string
+        example: test
   AccessKey:
     type: object
     properties:
@@ -618,7 +642,7 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/UserRequest"
+            $ref: "#/definitions/UserPutRequest"
       responses:
         204:
           description: User Updated
