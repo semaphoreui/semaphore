@@ -7,19 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 )
-
-func mockParam(w http.ResponseWriter, r *http.Request) {
-	_, err := util.GetIntParam("test_id", w, r)
-	if err != nil {
-		return
-	}
-
-	w.WriteHeader(200)
-}
 
 func TestApiPing(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/ping", nil)
