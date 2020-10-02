@@ -109,14 +109,14 @@ jobs:
     steps:
       - *install-node
       - *install-task-binary
-      - run: sudo apk add rpm
+      - run: sudo apt-get install rpm
       - *get-code
       - *load-go-cache
       - *load-npm-cache
       - run: task deps
       - run: task compile
       - *test-compile-changes
-      - *unlock-gpg
+#      - *unlock-gpg
       - run: task build
       - *store-bin-artifacts
 
