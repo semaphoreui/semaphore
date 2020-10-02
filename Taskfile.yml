@@ -43,8 +43,8 @@ tasks:
     desc: Installs requirements for integration testing with dredd
     dir: web
     cmds:
-     - npm install dredd@5.1.5
-     - npm audit fix
+      - npm install dredd@13.1.2
+      - npm audit fix
 
   deps:tools:
     desc: Installs tools needed

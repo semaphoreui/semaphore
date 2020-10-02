@@ -116,7 +116,7 @@ jobs:
       - run: task deps
       - run: task compile
       - *test-compile-changes
-#      - *unlock-gpg
+      - *unlock-gpg
       - run: task build
       - *store-bin-artifacts
 
