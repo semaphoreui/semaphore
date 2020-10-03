@@ -15,8 +15,12 @@
 
 ## Release Signing
 
-All releases after 2.4.1 are signed with the gpg public key
+All releases after 2.5.1 are signed with the gpg public key
 `8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
+
+## Installation
+
+https://github.com/ansible-semaphore/semaphore/wiki/Installation
 
 ## Contributing
 
