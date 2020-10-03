@@ -16,7 +16,7 @@
 ## Release Signing
 
 All releases after 2.4.1 are signed with the gpg public key
-`9B25 8A9C 32B9 7E50 E753  3575 DE95 8D8F 20C7 845F`
+`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
 
 ## Contributing
 
