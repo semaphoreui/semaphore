@@ -246,12 +246,30 @@ workflows:
 
   build-test:
     jobs:
-      - test:docker
-      - test:golang
-      - test:integration:hooks
-      - test:integration
-      - build:local
+      - test:docker:
+          filters:
+            branches:
+              ignore: web2
+      - test:golang:
+          filters:
+            branches:
+              ignore: web2
+      - test:integration:hooks:
+          filters:
+            branches:
+              ignore: web2
+      - test:integration:
+          filters:
+            branches:
+              ignore: web2
+      - build:local:
+          filters:
+            branches:
+              ignore: web2
       - test:db:migration:
+          filters:
+            branches:
+              ignore: web2
           requires:
             - build:local
 
