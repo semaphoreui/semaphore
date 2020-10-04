@@ -1,10 +1,20 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
+    <TemplateEditDialog
+      :template-id="itemId"
+      v-model="editDialog"
+      @saved="onSaved"
+    />
+
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Task Templates</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="primary" :to="`/project/${projectId}/templates/new/edit`">New template</v-btn>
+      <!--    :to="`/project/${projectId}/templates/new/edit`"-->
+      <v-btn
+        color="primary"
+        @click="editItem()"
+      >New template</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -37,8 +47,12 @@
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
+import TemplateEditDialog from '@/components/TemplateEditDialog.vue';
 
 export default {
+  components: {
+    TemplateEditDialog,
+  },
   props: {
     projectId: Number,
   },
@@ -81,6 +95,8 @@ export default {
         },
       ],
       items: null,
+      itemId: null,
+      editDialog: null,
     };
   },
 
@@ -91,6 +107,18 @@ export default {
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+
+    onSaved(e) {
+      EventBus.$emit('i-snackbar', {
+        color: 'success',
+        text: e.action === 'new' ? `Template "${e.item.alias}" created` : `Template "${e.item.alias}" saved`,
+      });
+    },
+
+    async editItem(itemId) {
+      this.editItemId = itemId;
+      this.editDialog = true;
     },
 
     async loadItems() {

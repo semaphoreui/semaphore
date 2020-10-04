@@ -9,6 +9,7 @@
         color="error"
         @click="goBack()"
         class="mr-2"
+        :disabled="itemFormSaving"
       >
         <v-icon left>mdi-close</v-icon>
         Cancel
@@ -16,11 +17,13 @@
       <v-btn
         color="primary"
         @click="saveItem()"
+        :disabled="itemFormSaving"
       >
         <v-icon left>mdi-content-save</v-icon>
         {{ isNewItem ? 'Create' : 'Save' }}
       </v-btn>
     </v-toolbar>
+    <TemplateEditForm :template="item" ref="itemForm" />
   </div>
 
 </template>
@@ -31,50 +34,20 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+import TemplateEditForm from '@/components/TemplateEditForm.vue';
 
 export default {
+  components: { TemplateEditForm },
   props: {
     projectId: Number,
   },
   data() {
     return {
-      headers: [
-        {
-          text: 'Alias',
-          value: 'alias',
-        },
-        {
-          text: 'Playbook',
-          value: 'playbook',
-          sortable: false,
-        },
-        {
-          text: 'SSH key',
-          value: 'email',
-          sortable: false,
-        },
-        {
-          text: 'Inventory',
-          value: 'inventory',
-          sortable: false,
-        },
-        {
-          text: 'Environment',
-          value: 'environment',
-          sortable: false,
-        },
-        {
-          text: 'Repository',
-          value: 'repository',
-          sortable: false,
-        },
-        {
-          text: 'Actions',
-          value: 'actions',
-          sortable: false,
-        },
-      ],
+      sshKeys: [],
       item: null,
+      itemFormValid: false,
+      itemFormError: null,
+      itemFormSaving: false,
     };
   },
 
@@ -124,36 +97,14 @@ export default {
 
     async saveItem() {
       this.itemFormError = null;
-
-      if (!this.$refs.itemForm.validate()) {
-        return;
-      }
-
-      this.itemFormSaving = true;
       try {
-        await axios({
-          method: this.isNewItem ? 'post' : 'put',
-          url: this.isNewItem
-            ? `/api/project/${this.projectId}/templates`
-            : `/api/project/${this.projectId}/templates/${this.item.id}`,
-          responseType: 'json',
-          data: this.item,
-        });
-
-        if (this.isNewItem) {
-          this.items.push(this.item);
-        } else {
-          const userIndex = this.items.findIndex((item) => this.item.id === item.id);
-          if (userIndex !== -1) {
-            this.items.splice(userIndex, 1, this.item);
-          }
-        }
+        const item = await this.$refs.itemForm.saveItem();
         EventBus.$emit('i-snackbar', {
           color: 'success',
-          text: this.isNewItem ? `Template "${this.item.name}" created` : `Template "${this.item.name}" changed`,
+          text: this.isNewItem ? `Template "${item.alias}" created` : `Template "${item.alias}" saved`,
         });
 
-        this.goBack();
+        await this.goBack();
       } catch (err) {
         this.itemFormError = getErrorMessage(err);
       }
