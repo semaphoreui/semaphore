@@ -43,7 +43,7 @@
 
           <v-btn
             color="green darken-1"
-            flat="flat"
+            text
             :disabled="forgotPasswordSubmitting"
             @click="forgotPasswordDialog = false"
           >
@@ -52,7 +52,7 @@
 
           <v-btn
             color="green darken-1"
-            flat="flat"
+            text
             :disabled="forgotPasswordSubmitting"
             @click="submitForgotPassword()"
           >

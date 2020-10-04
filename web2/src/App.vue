@@ -1,5 +1,5 @@
 <template>
-  <v-app v-if="state === 'success'" style="background: white;">
+  <v-app v-if="state === 'success'"  class="app">
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -17,34 +17,31 @@
 
     <v-navigation-drawer
       app
-      permanent
+      dark
+      fixed
+      width="260"
+      v-model="drawer"
+      mobile-breakpoint="960"
       v-if="$route.path.startsWith('/project/')"
     >
-      <v-toolbar flat class="white">
-        <v-toolbar-title>
-          <v-icon large style="position: absolute; left: 10px; top: 13px;">
-            mdi-play-circle-outline
-          </v-icon>
-          <router-link to="/" style="color: black; text-decoration: none; margin-left: 46px;">
-            {{ project.name }}
-          </router-link>
-        </v-toolbar-title>
-      </v-toolbar>
-      <v-divider></v-divider>
 
-      <div style="padding: 10px 15px;">
-        <v-select
-          solo-inverted
-          flat
-          hide-details
-          :items="projects"
-          item-value="id"
-          item-text="name"
-          v-model="projectId"
-        ></v-select>
-      </div>
+      <v-list class="pt-0">
+        <v-list-item key="project" class="app__project-selector">
+          <v-list-item-icon>
+            <v-icon color="#015157">mdi-checkbox-blank-circle</v-icon>
+          </v-list-item-icon>
 
-      <v-list class="pt-0" rounded>
+          <v-list-item-content>
+            <v-list-item-title class="app__project-selector-title">
+              {{ project.name }}
+            </v-list-item-title>
+          </v-list-item-content>
+
+          <v-list-item-icon>
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-list-item-icon>
+        </v-list-item>
+
         <v-list-item key="templates" :to="`/project/${projectId}/templates`">
           <v-list-item-icon>
             <v-icon>mdi-check-all</v-icon>
@@ -94,11 +91,74 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
-.site-select {
-  & > .v-input__control > .v-input__slot {
-    border-radius: 0 !important;
+.app__project-selector {
+  height: 64px;
+  .v-list-item__icon {
+    margin-top: 20px !important;
   }
 }
+
+.app__project-selector-title {
+  font-size: 1.25rem !important;
+  font-weight: bold;
+}
+
+.v-application--is-ltr .v-list-item__action:first-child,
+.v-application--is-ltr .v-list-item__icon:first-child {
+  margin-right: 16px !important;
+}
+
+.v-toolbar__content {
+  height: 64px !important;
+}
+
+.v-data-table-header {
+  //background: #f7f7f7 !important;
+}
+
+.theme--light.v-data-table > .v-data-table__wrapper > table > thead > tr:last-child > th {
+  //border-bottom: 0 !important;
+  text-transform: uppercase;
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr {
+  background: transparent !important;
+  & > td:first-child {
+    font-weight: bold !important;
+    //font-family: monospace, monospace !important;
+  }
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > th,
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th,
+.v-data-table > .v-data-table__wrapper > table > tfoot > tr > th,
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td {
+  font-size: 16px !important;
+}
+
+.v-toolbar__title {
+  font-weight: bold !important;
+}
+
+.v-app-bar__nav-icon {
+  margin-left: 0 !important;
+}
+
+.v-toolbar__title:not(:first-child) {
+  margin-left: 10px !important;
+}
+
+@media (min-width: 960px) {
+  .v-app-bar__nav-icon {
+    display: none !important;
+  }
+
+  .v-toolbar__title:not(:first-child) {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+}
+
 </style>
 
 <script>
@@ -109,6 +169,8 @@ export default {
   name: 'App',
   data() {
     return {
+      drawer: null,
+
       user: null,
 
       state: 'loading',
@@ -156,7 +218,6 @@ export default {
         if (this.projects.length > 0) {
           this.projectId = this.projects[0].id;
         } else {
-          // TODO: create project page
           this.projectId = parseInt(this.$route.params.projectId, 10) || null;
         }
       }
@@ -187,6 +248,10 @@ export default {
 
     EventBus.$on('i-site-changed', async () => {
       await this.loadProjects();
+    });
+
+    EventBus.$on('i-show-drawer', async () => {
+      this.drawer = true;
     });
   },
 

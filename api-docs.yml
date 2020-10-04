@@ -1153,9 +1153,7 @@ paths:
         200:
           description: template
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/Template"
+            $ref: "#/definitions/Template"
     post:
       tags:
         - project
@@ -1175,6 +1173,17 @@ paths:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - project
+      summary: Get template object
+      responses:
+        200:
+          description: template object
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Template"
     put:
       tags:
         - project

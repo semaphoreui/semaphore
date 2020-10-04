@@ -1,0 +1,180 @@
+<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+  <div v-if="item != null">
+    <v-dialog
+      v-model="deleteItemDialog"
+      max-width="290">
+      <v-card>
+        <v-card-title class="headline">Delete template</v-card-title>
+
+        <v-card-text>
+          Are you really want to delete this template?
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="deleteItemDialog = false"
+          >
+            Cancel
+          </v-btn>
+
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="deleteItem()"
+          >
+            Yes
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-toolbar flat color="white">
+      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+
+      <v-toolbar-title>Task Template: {{ item.alias }}</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <v-btn color="error" @click="askDeleteItem()" class="mr-2">
+        <v-icon left>mdi-delete</v-icon>
+        Delete
+      </v-btn>
+      <v-btn
+        color="secondary"
+        class="mr-2"
+        :to="`/project/${projectId}/templates/new/edit?id=${item.id}`"
+      >
+        <v-icon left>mdi-content-copy</v-icon>
+        Copy
+      </v-btn>
+      <v-btn color="primary" :to="`/project/${projectId}/templates/${item.id}/edit`">
+        <v-icon left>mdi-pencil</v-icon>
+        Edit
+      </v-btn>
+    </v-toolbar>
+  </div>
+
+</template>
+<style lang="scss">
+
+</style>
+<script>
+import axios from 'axios';
+import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
+
+export default {
+  props: {
+    projectId: Number,
+  },
+  data() {
+    return {
+      headers: [
+        {
+          text: 'Alias',
+          value: 'alias',
+        },
+        {
+          text: 'Playbook',
+          value: 'playbook',
+          sortable: false,
+        },
+        {
+          text: 'SSH key',
+          value: 'email',
+          sortable: false,
+        },
+        {
+          text: 'Inventory',
+          value: 'inventory',
+          sortable: false,
+        },
+        {
+          text: 'Environment',
+          value: 'environment',
+          sortable: false,
+        },
+        {
+          text: 'Repository',
+          value: 'repository',
+          sortable: false,
+        },
+        {
+          text: 'Actions',
+          value: 'actions',
+          sortable: false,
+        },
+      ],
+      item: null,
+
+      deleteItemDialog: false,
+      deleteItemId: null,
+    };
+  },
+
+  computed: {
+    itemId() {
+      return this.$route.params.templateId;
+    },
+    isNewItem() {
+      return this.itemId === 'new';
+    },
+  },
+
+  async created() {
+    if (this.isNewItem) {
+      await this.$router.replace({
+        path: `/project/${this.projectId}/templates/new/edit`,
+      });
+    } else {
+      await this.loadItem();
+    }
+  },
+
+  methods: {
+    showDrawer() {
+      EventBus.$emit('i-show-drawer');
+    },
+
+    askDeleteItem() {
+      this.deleteItemDialog = true;
+    },
+
+    async deleteItem() {
+      try {
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/templates/${this.deleteItemId}`,
+          responseType: 'json',
+        });
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: `Template "${this.item.alias}" deleted`,
+        });
+
+        await this.$router.push({
+          path: `/project/${this.projectId}/templates`,
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.deleteItemDialog = false;
+      }
+    },
+
+    async loadItem() {
+      this.item = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.itemId}`,
+        responseType: 'json',
+      })).data;
+    },
+  },
+};
+</script>

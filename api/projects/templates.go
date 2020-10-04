@@ -36,6 +36,12 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// GetTemplate returns single template by ID
+func GetTemplate(w http.ResponseWriter, r *http.Request) {
+	template := context.Get(r, "template").(db.Template)
+	util.WriteJSON(w, http.StatusOK, template)
+}
+
 // GetTemplates returns all templates for a project in a sort order
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
