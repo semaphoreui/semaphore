@@ -1,7 +1,7 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="users != null">
+  <div v-if="items != null">
     <v-dialog
-      v-model="deleteUserDialog"
+      v-model="deleteItemDialog"
       max-width="290">
       <v-card>
         <v-card-title class="headline">Delete template</v-card-title>
@@ -16,7 +16,7 @@
           <v-btn
             color="blue darken-1"
             flat="flat"
-            @click="deleteUserDialog = false"
+            @click="deleteItemDialog = false"
           >
             Cancel
           </v-btn>
@@ -33,84 +33,44 @@
     </v-dialog>
 
     <v-dialog
-      v-model="userDialog"
+      v-model="itemDialog"
       max-width="290"
       persistent
     >
       <v-card>
-        <v-card-title class="headline">{{ isNewUser ? 'New user' : 'Edit user' }}</v-card-title>
+        <v-card-title class="headline">
+          {{ isNewItem ? 'New Template' : 'Edit Template' }}
+        </v-card-title>
 
         <v-alert
-          :value="userFormError"
+          :value="itemFormError"
           color="error"
         >
-          {{ userFormError }}
+          {{ itemFormError }}
         </v-alert>
 
         <v-card-text>
           <v-form
-            ref="userForm"
+            ref="itemForm"
             lazy-validation
-            v-model="userFormValid"
+            v-model="itemFormValid"
           >
-            <div style="display: none">
-              <input type="password" tabindex="-1"/>
-            </div>
-
-            <v-text-field
-              v-model="user.username"
-              label="Username"
-              :rules="[v => !!v || 'Username is required']"
-              required
-              :disabled="!isNewUser || userFormSaving"
-            ></v-text-field>
-
-            <v-text-field
-              v-model="user.email"
-              label="Email"
-              :rules="[v => !!v || 'Email is required']"
-              required
-              :disabled="userFormSaving"
-            ></v-text-field>
-
-            <v-text-field
-              v-model="user.fullName"
-              label="Full Name"
-              :rules="[v => !!v || 'Full Name is required']"
-              required
-              :disabled="userFormSaving"
-            ></v-text-field>
-
-            <v-select
-              :items="userTypes"
-              v-model="user.type"
-              label="Type"
-              :disabled="userFormSaving"
-            ></v-select>
-
-            <v-text-field
-              v-model="user.password"
-              label="Password"
-              type="password"
-              :rules="[v => !v || v.length === 0 || v.length >= 6 || 'Min 6 characters']"
-              :disabled="userFormSaving"
-            ></v-text-field>
           </v-form>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn
             color="blue darken-1"
-            flat="flat"
-            :disabled="userFormSaving"
-            @click="userDialog = false"
+            text
+            :disabled="itemFormSaving"
+            @click="itemDialog = false"
           >
             Cancel
           </v-btn>
           <v-btn
             color="blue darken-1"
-            flat="flat"
-            :disabled="userFormSaving"
+            text
+            :disabled="itemFormSaving"
             @click="saveUser"
           >
             Save
@@ -120,9 +80,9 @@
     </v-dialog>
 
     <v-toolbar flat color="white">
-      <v-toolbar-title>Users</v-toolbar-title>
+      <v-toolbar-title>Task Templates</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="primary" @click="addUser">New User</v-btn>
+      <v-btn color="primary" @click="addUser">New template</v-btn>
     </v-toolbar>
 
     <v-divider></v-divider>
@@ -130,8 +90,8 @@
     <v-container>
       <v-data-table
         :headers="headers"
-        :items="users"
-        hide-actions
+        :items="items"
+        hide-default-footer
       >
         <template v-slot:items="props">
           <td>{{ props.item.username }}</td>
@@ -167,51 +127,59 @@ import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 
 export default {
+  props: {
+    projectId: Number,
+  },
   data() {
     return {
-      userTypes: ['admin', 'user'],
       headers: [
         {
-          text: 'Username',
-          value: 'username',
+          text: 'Alias',
+          value: 'alias',
         },
         {
-          text: 'Full Name',
-          value: 'fullName',
+          text: 'Playbook',
+          value: 'playbook',
           sortable: false,
         },
         {
-          text: 'Email',
+          text: 'SSH key',
           value: 'email',
           sortable: false,
         },
         {
-          text: 'Type',
-          value: 'type',
+          text: 'Inventory',
+          value: 'inventory',
           sortable: false,
         },
         {
-          text: '',
+          text: 'Environment',
+          value: 'environment',
+          sortable: false,
+        },
+        {
+          text: 'Repository',
+          value: 'repository',
           sortable: false,
         },
       ],
-      users: null,
+      items: null,
 
-      user: {},
-      isNewUser: false,
+      item: {},
+      isNewItem: false,
 
-      userDialog: false,
-      userFormValid: false,
-      userFormError: null,
-      userFormSaving: false,
+      itemDialog: false,
+      itemFormValid: false,
+      itemFormError: null,
+      itemFormSaving: false,
       username: '',
       fullName: '',
       email: '',
       type: '',
       password: '',
 
-      deleteUserDialog: false,
-      deleteUsername: null,
+      deleteItemDialog: false,
+      deleteItemId: null,
     };
   },
 
@@ -221,26 +189,26 @@ export default {
 
   methods: {
     askDeleteUser(username) {
-      this.deleteUsername = username;
-      this.deleteUserDialog = true;
+      this.deleteItemId = username;
+      this.deleteItemDialog = true;
     },
 
     async deleteUser() {
       try {
         await axios({
           method: 'delete',
-          url: `/api/users/${this.deleteUsername}`,
+          url: `/api/project/${this.projectId}/${this.deleteItemId}`,
           responseType: 'json',
         });
 
-        const userIndex = this.users.findIndex((user) => user.username === this.deleteUsername);
+        const userIndex = this.items.findIndex((item) => item.username === this.deleteItemId);
         if (userIndex !== -1) {
-          this.users.splice(userIndex, 1);
+          this.items.splice(userIndex, 1);
         }
 
         EventBus.$emit('i-snackbar', {
           color: 'success',
-          text: `User "${this.deleteUsername}" deleted`,
+          text: `User "${this.deleteItemId}" deleted`,
         });
       } catch (err) {
         EventBus.$emit('i-snackbar', {
@@ -248,7 +216,7 @@ export default {
           text: getErrorMessage(err),
         });
       } finally {
-        this.deleteUserDialog = false;
+        this.deleteItemDialog = false;
       }
     },
 
@@ -257,61 +225,61 @@ export default {
     },
 
     async editUser(username) {
-      this.isNewUser = !username;
-      this.userFormError = null;
+      this.isNewItem = !username;
+      this.itemFormError = null;
 
-      this.user = username ? (await axios({
+      this.item = username ? (await axios({
         method: 'get',
-        url: `/api/templates/${username}`,
+        url: `/api/project/${this.projectId}/templates/${username}`,
         responseType: 'json',
-      })).data : { type: 'user' };
-
-      this.$refs.userForm.resetValidation();
-      this.userDialog = true;
+      })).data : { type: 'item' };
+      this.itemDialog = true;
     },
 
     async saveUser() {
-      this.userFormError = null;
+      this.itemFormError = null;
 
-      if (!this.$refs.userForm.validate()) {
+      if (!this.$refs.itemForm.validate()) {
         return;
       }
 
-      this.userFormSaving = true;
+      this.itemFormSaving = true;
       try {
         await axios({
-          method: this.isNewUser ? 'post' : 'put',
-          url: this.isNewUser ? '/api/templates' : `/api/templates/${this.user.id}`,
+          method: this.isNewItem ? 'post' : 'put',
+          url: this.isNewItem
+            ? `/api/project/${this.projectId}/templates`
+            : `/api/project/${this.projectId}/templates/${this.item.id}`,
           responseType: 'json',
-          data: this.user,
+          data: this.item,
         });
 
-        if (this.isNewUser) {
-          this.users.push(this.user);
+        if (this.isNewItem) {
+          this.items.push(this.item);
         } else {
-          const userIndex = this.users.findIndex((user) => this.user.id === user.id);
+          const userIndex = this.items.findIndex((item) => this.item.id === item.id);
           if (userIndex !== -1) {
-            this.users.splice(userIndex, 1, this.user);
+            this.items.splice(userIndex, 1, this.item);
           }
         }
 
-        this.userDialog = false;
+        this.itemDialog = false;
 
         EventBus.$emit('i-snackbar', {
           color: 'success',
-          text: this.isNewUser ? `User "${this.user.username}" created` : `User "${this.user.username}" changed`,
+          text: this.isNewItem ? `User "${this.item.username}" created` : `User "${this.item.username}" changed`,
         });
       } catch (err) {
-        this.userFormError = getErrorMessage(err);
+        this.itemFormError = getErrorMessage(err);
       } finally {
-        this.userFormSaving = false;
+        this.itemFormSaving = false;
       }
     },
 
     async loadUsers() {
-      this.users = (await axios({
+      this.items = (await axios({
         method: 'get',
-        url: '/api/templates',
+        url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
       })).data;
     },
