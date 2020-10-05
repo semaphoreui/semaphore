@@ -9,7 +9,7 @@
       <v-card-title class="headline">{{ isNewItem ? 'New' : 'Edit' }} Template</v-card-title>
 
       <v-card-text>
-        <TemplateEditForm ref="itemForm" :template="item" />
+        <TemplateEditForm :template-id="templateId" :project-id="projectId" ref="itemForm" />
       </v-card-text>
 
       <v-card-actions>
@@ -36,21 +36,19 @@
 </template>
 <script>
 
-import axios from 'axios';
 import TemplateEditForm from '@/components/TemplateEditForm.vue';
 import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: { TemplateEditForm },
   props: {
-    templateId: Number,
+    projectId: Number,
+    templateId: [Number, String],
     value: Boolean,
   },
 
   data() {
     return {
-      item: null,
-
       editDialog: false,
       editFormSaving: false,
       editFormValid: false,
@@ -69,23 +67,13 @@ export default {
         return;
       }
       this.editFormError = false;
-      this.item = null;
-      this.item = this.isNewItem() ? {} : await this.getItem();
       this.editDialog = val;
     },
   },
 
   methods: {
-    async getItem() {
-      return (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.templateId}`,
-        responseType: 'json',
-      })).data;
-    },
-
     isNewItem() {
-      return !this.templateId;
+      return this.templateId === 'new';
     },
 
     async save() {

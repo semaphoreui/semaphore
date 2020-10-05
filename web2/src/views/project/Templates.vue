@@ -1,6 +1,7 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
     <TemplateEditDialog
+      :project-id="projectId"
       :template-id="itemId"
       v-model="editDialog"
       @saved="onSaved"
@@ -116,8 +117,8 @@ export default {
       });
     },
 
-    async editItem(itemId) {
-      this.editItemId = itemId;
+    async editItem(itemId = 'new') {
+      this.itemId = itemId;
       this.editDialog = true;
     },
 

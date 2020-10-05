@@ -1,8 +1,8 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="item != null">
+  <div>
     <v-toolbar flat color="white">
       <v-toolbar-title>
-        {{ isNewItem ? 'New task template' : `Edit task template: ${item.alias}` }}
+        {{ isNewItem ? 'New task template' : `Edit task template` }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
@@ -23,7 +23,7 @@
         {{ isNewItem ? 'Create' : 'Save' }}
       </v-btn>
     </v-toolbar>
-    <TemplateEditForm :template="item" ref="itemForm" />
+    <TemplateEditForm :template-id="itemId" :project-id="projectId" ref="itemForm" />
   </div>
 
 </template>
@@ -31,7 +31,6 @@
 
 </style>
 <script>
-import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import TemplateEditForm from '@/components/TemplateEditForm.vue';
@@ -43,8 +42,6 @@ export default {
   },
   data() {
     return {
-      sshKeys: [],
-      item: null,
       itemFormValid: false,
       itemFormError: null,
       itemFormSaving: false,
@@ -66,19 +63,11 @@ export default {
       return `/project/${this.projectId}/templates/${prevItemId}`;
     },
     itemId() {
-      return this.$route.params.templateId;
+      return this.$route.params.templateId === 'new' ? 'new' : parseInt(this.$route.params.templateId, 10);
     },
     isNewItem() {
       return this.itemId === 'new';
     },
-  },
-
-  async created() {
-    if (this.isNewItem) {
-      this.item = {};
-    } else {
-      await this.loadItem();
-    }
   },
 
   methods: {
@@ -108,14 +97,6 @@ export default {
       } catch (err) {
         this.itemFormError = getErrorMessage(err);
       }
-    },
-
-    async loadItem() {
-      this.item = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.itemId}`,
-        responseType: 'json',
-      })).data;
     },
   },
 };
