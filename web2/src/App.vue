@@ -33,10 +33,9 @@
               v-bind="attrs"
               v-on="on"
             >
-
               <v-list-item-icon>
-                <v-avatar color="primary" size="24">
-                  <span class="white--text">te</span>
+                <v-avatar :color="getProjectColor(project)" size="24">
+                  <span class="white--text">{{ getProjectInitials(project) }}</span>
                 </v-avatar>
               </v-list-item-icon>
 
@@ -56,10 +55,12 @@
           <v-list-item
             v-for="(item, i) in projects"
             :key="i"
+            :to="`/project/${item.id}`"
+            @click="setLastProjectId(item.id)"
           >
             <v-list-item-icon>
-              <v-avatar color="primary" size="24">
-                <span class="white--text">te</span>
+              <v-avatar :color="getProjectColor(item)" size="24">
+                <span class="white--text">{{ getProjectInitials(item) }}</span>
               </v-avatar>
             </v-list-item-icon>
             <v-list-item-content>{{ item.name }}</v-list-item-content>
@@ -163,24 +164,34 @@
                 </v-list-item-icon>
 
                 <v-list-item-content>
-                  <v-list-item-title>{{ project.name }}</v-list-item-title>
+                  <v-list-item-title>{{ user.name }}</v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
             </v-list>
           </template>
 
           <v-list>
-            <v-list-item key="edit">
+            <v-list-item key="users" to="/users">
+              <v-list-item-icon>
+                <v-icon>mdi-account-multiple</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                Users
+              </v-list-item-content>
+            </v-list-item>
+
+            <v-list-item key="edit" to="/user">
               <v-list-item-icon>
                 <v-icon>mdi-pencil</v-icon>
               </v-list-item-icon>
 
               <v-list-item-content>
-                Edit
+                Edit account
               </v-list-item-content>
             </v-list-item>
 
-            <v-list-item key="sign_out">
+            <v-list-item key="sign_out" @click="signOut()">
               <v-list-item-icon>
                 <v-icon>mdi-exit-to-app</v-icon>
               </v-list-item-icon>
@@ -222,10 +233,6 @@
 </template>
 <style lang="scss">
 .app__project-selector {
-  //cursor: pointer;
-  //&:hover {
-  //  background: green;
-  //}
   height: 64px;
   .v-list-item__icon {
     margin-top: 20px !important;
@@ -247,11 +254,9 @@
 }
 
 .v-data-table-header {
-  //background: #f7f7f7 !important;
 }
 
 .theme--light.v-data-table > .v-data-table__wrapper > table > thead > tr:last-child > th {
-  //border-bottom: 0 !important;
   text-transform: uppercase;
 }
 
@@ -259,7 +264,6 @@
   background: transparent !important;
   & > td:first-child {
     font-weight: bold !important;
-    //font-family: monospace, monospace !important;
   }
 }
 
@@ -299,6 +303,13 @@
 import axios from 'axios';
 import EventBus from './event-bus';
 
+const PROJECT_COLORS = [
+  'red',
+  'blue',
+  'orange',
+  'green',
+];
+
 export default {
   name: 'App',
   data() {
@@ -314,27 +325,15 @@ export default {
       snackbarColor: '',
 
       projects: null,
-
-      projectId: null,
     };
   },
 
   computed: {
+    projectId() {
+      return parseInt(this.$route.params.projectId, 10) || null;
+    },
     project() {
       return this.projects.find((x) => x.id === this.projectId);
-    },
-  },
-
-  watch: {
-    async projectId(val) {
-      if (val == null) {
-        return;
-      }
-      const projectId = parseInt(this.$route.params.projectId, 10) || null;
-      if (val === projectId) {
-        return;
-      }
-      await this.$router.push({ path: `/project/${val}` });
     },
   },
 
@@ -354,11 +353,9 @@ export default {
       await this.loadProjects();
 
       if (!this.projectId) {
-        if (this.projects.length > 0) {
-          this.projectId = this.projects[0].id;
-        } else {
-          this.projectId = parseInt(this.$route.params.projectId, 10) || null;
-        }
+        const projectId = parseInt(localStorage.getItem('projectId'), 10)
+          || this.projects[0].id;
+        await this.$router.push({ path: `/project/${projectId}` });
       }
 
       this.state = 'success';
@@ -416,6 +413,34 @@ export default {
         url: '/api/user',
         responseType: 'json',
       })).data;
+    },
+
+    setLastProjectId(projectId) {
+      localStorage.setItem('projectId', projectId);
+    },
+
+    getProjectColor(projectData) {
+      const projectIndex = this.projects.length
+        - this.projects.findIndex((p) => p.id === projectData.id);
+      return PROJECT_COLORS[projectIndex % PROJECT_COLORS.length];
+    },
+
+    getProjectInitials(projectData) {
+      const parts = projectData.name.split(/\s/);
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+      }
+      return parts[0].substr(0, 2).toUpperCase();
+    },
+
+    async signOut() {
+      (await axios({
+        method: 'post',
+        url: '/api/auth/logout',
+        responseType: 'json',
+      }));
+
+      await this.$router.push({ path: '/auth/login' });
     },
   },
 };
