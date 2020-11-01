@@ -3,7 +3,6 @@
     ref="itemForm"
     lazy-validation
     v-model="itemFormValid"
-    class="pa-4"
     v-if="isNewItem || isLoaded"
   >
     <v-text-field

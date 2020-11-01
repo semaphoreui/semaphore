@@ -24,22 +24,67 @@
       mobile-breakpoint="960"
       v-if="$route.path.startsWith('/project/')"
     >
+      <v-menu bottom max-width="235">
+        <template v-slot:activator="{ on, attrs }">
+          <v-list class="pa-0">
+            <v-list-item
+              key="project"
+              class="app__project-selector"
+              v-bind="attrs"
+              v-on="on"
+            >
+
+              <v-list-item-icon>
+                <v-avatar color="primary" size="24">
+                  <span class="white--text">te</span>
+                </v-avatar>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                <v-list-item-title class="app__project-selector-title">
+                  {{ project.name }}
+                </v-list-item-title>
+              </v-list-item-content>
+
+              <v-list-item-icon>
+                <v-icon>mdi-chevron-down</v-icon>
+              </v-list-item-icon>
+            </v-list-item>
+          </v-list>
+        </template>
+        <v-list>
+          <v-list-item
+            v-for="(item, i) in projects"
+            :key="i"
+          >
+            <v-list-item-icon>
+              <v-avatar color="primary" size="24">
+                <span class="white--text">te</span>
+              </v-avatar>
+            </v-list-item-icon>
+            <v-list-item-content>{{ item.name }}</v-list-item-content>
+          </v-list-item>
+          <v-list-item>
+            <v-list-item-icon>
+              <v-icon>mdi-plus</v-icon>
+            </v-list-item-icon>
+
+            <v-list-item-content>
+              New project...
+            </v-list-item-content>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-list class="pt-0">
-        <v-list-item key="project" class="app__project-selector">
+        <v-list-item key="dashboard" :to="`/project/${projectId}/dashboard`">
           <v-list-item-icon>
-            <v-icon color="#015157">mdi-checkbox-blank-circle</v-icon>
+            <v-icon>mdi-view-dashboard</v-icon>
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title class="app__project-selector-title">
-              {{ project.name }}
-            </v-list-item-title>
+            <v-list-item-title>Dashboard</v-list-item-title>
           </v-list-item-content>
-
-          <v-list-item-icon>
-            <v-icon>mdi-chevron-down</v-icon>
-          </v-list-item-icon>
         </v-list-item>
 
         <v-list-item key="templates" :to="`/project/${projectId}/templates`">
@@ -61,7 +106,92 @@
             <v-list-item-title>Inventory</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
+
+        <v-list-item key="environment" :to="`/project/${projectId}/environment`">
+          <v-list-item-icon>
+            <v-icon>mdi-code-braces</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Environment</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="keys" :to="`/project/${projectId}/keys`">
+          <v-list-item-icon>
+            <v-icon>mdi-key-change</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Key Store</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="repositories" :to="`/project/${projectId}/repositories`">
+          <v-list-item-icon>
+            <v-icon>mdi-git</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Playbook Repositories</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="team" :to="`/project/${projectId}/team`">
+          <v-list-item-icon>
+            <v-icon>mdi-account-multiple</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Team</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
       </v-list>
+
+      <template v-slot:append>
+        <v-menu top max-width="235" nudge-top="12">
+          <template v-slot:activator="{ on, attrs }">
+            <v-list class="pa-0">
+              <v-list-item
+                key="project"
+                v-bind="attrs"
+                v-on="on"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-account</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  <v-list-item-title>{{ project.name }}</v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </template>
+
+          <v-list>
+            <v-list-item key="edit">
+              <v-list-item-icon>
+                <v-icon>mdi-pencil</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                Edit
+              </v-list-item-content>
+            </v-list-item>
+
+            <v-list-item key="sign_out">
+              <v-list-item-icon>
+                <v-icon>mdi-exit-to-app</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                Sign out
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </template>
     </v-navigation-drawer>
 
     <v-main>
@@ -92,6 +222,10 @@
 </template>
 <style lang="scss">
 .app__project-selector {
+  //cursor: pointer;
+  //&:hover {
+  //  background: green;
+  //}
   height: 64px;
   .v-list-item__icon {
     margin-top: 20px !important;
@@ -206,7 +340,12 @@ export default {
 
   async created() {
     if (!this.isAuthenticated()) {
-      await this.$router.push({ path: '/auth/login' });
+      this.state = 'success';
+
+      if (this.$route.path !== '/auth/login') {
+        await this.$router.push({ path: '/auth/login' });
+      }
+
       return;
     }
 

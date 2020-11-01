@@ -214,9 +214,8 @@ export default {
             password: this.password,
           },
         });
-        this.state = 'authenticated';
-        await this.loadUserInfo();
-        await this.loadProjects();
+
+        await this.$router.push({ path: '/' });
       } catch (err) {
         this.signInError = getErrorMessage(err);
       } finally {

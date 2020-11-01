@@ -17,7 +17,11 @@ Vue.use(VueRouter);
 
 const routes = [
   {
-    path: '/project/:projectId/',
+    path: '/project/:projectId',
+    redirect: '/project/:projectId/dashboard',
+  },
+  {
+    path: '/project/:projectId/dashboard',
     component: Dashboard,
   },
   {
