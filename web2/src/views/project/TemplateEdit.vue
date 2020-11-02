@@ -25,7 +25,7 @@
     </v-toolbar>
 
     <div style="max-width: 400px; margin: 80px auto auto;">
-      <TemplateEditForm :template-id="itemId" :project-id="projectId" ref="itemForm" />
+      <TemplateForm :template-id="itemId" :project-id="projectId" ref="itemForm" />
     </div>
   </div>
 
@@ -36,10 +36,10 @@
 <script>
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
-import TemplateEditForm from '@/components/TemplateEditForm.vue';
+import TemplateForm from '@/components/TemplateForm.vue';
 
 export default {
-  components: { TemplateEditForm },
+  components: { TemplateForm },
   props: {
     projectId: Number,
   },

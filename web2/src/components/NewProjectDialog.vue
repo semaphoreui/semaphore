@@ -9,7 +9,7 @@
       <v-card-title class="headline">New Project</v-card-title>
 
       <v-card-text>
-        <ProjectEditForm project-id="new" ref="form" />
+        <ProjectForm project-id="new" ref="form" />
       </v-card-text>
 
       <v-card-actions>
@@ -36,11 +36,11 @@
 </template>
 <script>
 
-import ProjectEditForm from '@/components/ProjectEditForm.vue';
+import ProjectForm from '@/components/ProjectForm.vue';
 import EventBus from '@/event-bus';
 
 export default {
-  components: { ProjectEditForm },
+  components: { ProjectForm },
   props: {
     projectId: [Number, String],
     value: Boolean,

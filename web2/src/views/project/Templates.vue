@@ -1,6 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <TemplateEditDialog
+    <TemplateDialog
       :project-id="projectId"
       :template-id="itemId"
       v-model="editDialog"
@@ -46,11 +46,11 @@
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
-import TemplateEditDialog from '@/components/TemplateEditDialog.vue';
+import TemplateDialog from '@/components/TemplateDialog.vue';
 
 export default {
   components: {
-    TemplateEditDialog,
+    TemplateDialog,
   },
   props: {
     projectId: Number,

@@ -9,7 +9,7 @@
       <v-card-title class="headline">{{ isNewItem ? 'New' : 'Edit' }} Template</v-card-title>
 
       <v-card-text>
-        <TemplateEditForm :template-id="templateId" :project-id="projectId" ref="itemForm" />
+        <TemplateForm :template-id="templateId" :project-id="projectId" ref="itemForm" />
       </v-card-text>
 
       <v-card-actions>
@@ -36,11 +36,11 @@
 </template>
 <script>
 
-import TemplateEditForm from '@/components/TemplateEditForm.vue';
+import TemplateForm from '@/components/TemplateForm.vue';
 import { getErrorMessage } from '@/lib/error';
 
 export default {
-  components: { TemplateEditForm },
+  components: { TemplateForm },
   props: {
     projectId: Number,
     templateId: [Number, String],

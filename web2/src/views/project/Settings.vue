@@ -46,7 +46,7 @@
     </v-toolbar>
     <div class="project-settings-form">
       <div style="height: 220px;">
-        <ProjectEditForm :project-id="projectId" ref="editForm"/>
+        <ProjectForm :project-id="projectId" ref="editForm"/>
       </div>
 
       <div class="text-right">
@@ -81,12 +81,12 @@
 </style>
 <script>
 import EventBus from '@/event-bus';
-import ProjectEditForm from '@/components/ProjectEditForm.vue';
+import ProjectForm from '@/components/ProjectForm.vue';
 import { getErrorMessage } from '@/lib/error';
 import axios from 'axios';
 
 export default {
-  components: { ProjectEditForm },
+  components: { ProjectForm },
   props: {
     projectId: Number,
   },

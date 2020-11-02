@@ -8,7 +8,7 @@
 
     <div class="project-settings-form">
       <div style="height: 220px;">
-        <ProjectEditForm project-id="new" ref="editForm"/>
+        <ProjectForm project-id="new" ref="editForm"/>
       </div>
 
       <div class="text-right">
@@ -23,10 +23,10 @@
 </style>
 <script>
 import EventBus from '@/event-bus';
-import ProjectEditForm from '@/components/ProjectEditForm.vue';
+import ProjectForm from '@/components/ProjectForm.vue';
 
 export default {
-  components: { ProjectEditForm },
+  components: { ProjectForm },
   data() {
     return {
     };
