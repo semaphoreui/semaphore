@@ -1,7 +1,6 @@
 <template>
-  <v-app v-if="state === 'success'"  class="app">
+  <v-app v-if="state === 'success'" class="app">
     <NewProjectDialog
-      :project-id="projectId"
       v-model="newProjectDialog"
     />
 
@@ -29,7 +28,7 @@
       mobile-breakpoint="960"
       v-if="$route.path.startsWith('/project/')"
     >
-      <v-menu bottom max-width="235">
+      <v-menu bottom max-width="235" v-if="project">
         <template v-slot:activator="{ on, attrs }">
           <v-list class="pa-0">
             <v-list-item
@@ -61,7 +60,7 @@
             v-for="(item, i) in projects"
             :key="i"
             :to="`/project/${item.id}`"
-            @click="setLastProjectId(item.id)"
+            @click="switchToProject(item.id)"
           >
             <v-list-item-icon>
               <v-avatar :color="getProjectColor(item)" size="24">
@@ -83,7 +82,19 @@
         </v-list>
       </v-menu>
 
-      <v-list class="pt-0">
+      <v-list class="pt-0" v-if="!project">
+        <v-list-item key="new_project" :to="`/project/new`">
+          <v-list-item-icon>
+            <v-icon>mdi-plus</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>New Project</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+
+      <v-list class="pt-0" v-if="project">
         <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
@@ -308,6 +319,7 @@
 <script>
 import axios from 'axios';
 import NewProjectDialog from '@/components/NewProjectDialog.vue';
+import { getErrorMessage } from '@/lib/error';
 import EventBus from './event-bus';
 
 const PROJECT_COLORS = [
@@ -325,25 +337,29 @@ export default {
   data() {
     return {
       drawer: null,
-
       user: null,
-
       state: 'loading',
-
       snackbar: false,
       snackbarText: '',
       snackbarColor: '',
-
       projects: null,
-
       newProjectDialog: null,
     };
+  },
+
+  watch: {
+    async projects(val) {
+      if (val.length === 0 && this.$route.path !== '/project/new') {
+        await this.$router.push({ path: '/project/new' });
+      }
+    },
   },
 
   computed: {
     projectId() {
       return parseInt(this.$route.params.projectId, 10) || null;
     },
+
     project() {
       return this.projects.find((x) => x.id === this.projectId);
     },
@@ -351,10 +367,10 @@ export default {
 
   async created() {
     if (!this.isAuthenticated()) {
-      this.state = 'success';
       if (this.$route.path !== '/auth/login') {
         await this.$router.push({ path: '/auth/login' });
       }
+      this.state = 'success';
       return;
     }
 
@@ -362,17 +378,18 @@ export default {
       await this.loadUserInfo();
       await this.loadProjects();
 
-      if (!this.projectId || !this.projects.find((p) => p.id === this.projectId)) {
-        let projectId = parseInt(localStorage.getItem('projectId'), 10);
-        if (!projectId || !this.projects.find((p) => p.id === projectId)) {
-          projectId = this.projects[0].id;
-        }
-        localStorage.setItem('projectId', projectId.toString());
-        await this.$router.push({ path: `/project/${projectId}` });
+      if (this.$route.path.startsWith('/project/')
+        && this.project == null
+        && this.projects.length > 0) { // try to find project and switch to it
+        await this.tryToSwitchToLastProject();
       }
 
       this.state = 'success';
-    } catch (err) {
+    } catch (err) { // notify about problem and sign out
+      EventBus.$emit('i-snackbar', {
+        color: 'error',
+        text: getErrorMessage(err),
+      });
       EventBus.$emit('i-session-end');
     }
   },
@@ -399,6 +416,10 @@ export default {
       this.drawer = true;
     });
 
+    EventBus.$on('i-open-last-project', async () => {
+      await this.tryToSwitchToLastProject();
+    });
+
     EventBus.$on('i-project', async (e) => {
       let text;
 
@@ -418,6 +439,7 @@ export default {
         default:
           throw new Error('Unknown project action');
       }
+
       EventBus.$emit('i-snackbar', {
         color: 'success',
         text,
@@ -425,17 +447,43 @@ export default {
 
       await this.loadProjects();
 
-      if (e.action === 'new') {
-        localStorage.setItem('projectId', e.item.id);
-        await this.$router.push({ path: `/project/${e.item.id}` });
-      } else if (!this.project) {
-        localStorage.setItem('projectId', this.projects[0].id.toString());
-        await this.$router.push({ path: `/project/${this.projects[0].id}` });
+      switch (e.action) {
+        case 'new':
+          await this.switchToProject(e.item.id);
+          break;
+        case 'delete':
+          if (this.projectId === e.item.id && this.projects.length > 0) {
+            await this.switchToProject(this.projects[0].id);
+          }
+          break;
+        default:
+          break;
       }
     });
   },
 
   methods: {
+    async tryToSwitchToLastProject() {
+      let projectId;
+
+      if (localStorage.getItem('projectId')) {
+        projectId = parseInt(localStorage.getItem('projectId'), 10);
+      }
+
+      if (projectId == null || !this.projects.includes((p) => p.id === projectId)) {
+        projectId = this.projects[0].id;
+      }
+
+      if (projectId != null) {
+        await this.switchToProject(projectId);
+      }
+    },
+
+    async switchToProject(projectId) {
+      localStorage.setItem('projectId', projectId);
+      await this.$router.push({ path: `/project/${projectId}` });
+    },
+
     isAuthenticated() {
       return document.cookie.includes('semaphore=');
     },
@@ -457,10 +505,6 @@ export default {
         url: '/api/user',
         responseType: 'json',
       })).data;
-    },
-
-    setLastProjectId(projectId) {
-      localStorage.setItem('projectId', projectId);
     },
 
     getProjectColor(projectData) {

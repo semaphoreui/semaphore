@@ -13,11 +13,16 @@ import Repositories from '../views/project/Repositories.vue';
 import Team from '../views/project/Team.vue';
 import Users from '../views/Users.vue';
 import Auth from '../views/Auth.vue';
+import New from '../views/project/New.vue';
 import ChangePassword from '../views/ChangePassword.vue';
 
 Vue.use(VueRouter);
 
 const routes = [
+  {
+    path: '/project/new',
+    component: New,
+  },
   {
     path: '/project/:projectId',
     redirect: '/project/:projectId/history',
