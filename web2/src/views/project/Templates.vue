@@ -31,11 +31,9 @@
       </template>
 
       <template v-slot:item.actions="{}">
-        <v-btn icon>
-          <v-icon>mdi-history</v-icon>
-        </v-btn>
-        <v-btn icon>
-          <v-icon>mdi-play</v-icon>
+        <v-btn text color="black" class="pl-1 pr-2">
+          <v-icon class="pr-1">mdi-play</v-icon>
+          Run
         </v-btn>
       </template>
     </v-data-table>
@@ -90,7 +88,7 @@ export default {
           sortable: false,
         },
         {
-          text: 'Actions',
+          text: '',
           value: 'actions',
           sortable: false,
         },

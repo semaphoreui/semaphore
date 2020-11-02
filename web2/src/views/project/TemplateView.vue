@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="item != null">
+  <div v-if="item != null && tasks != null">
     <v-dialog
       v-model="deleteItemDialog"
       max-width="290">
@@ -54,6 +54,14 @@
         Edit
       </v-btn>
     </v-toolbar>
+
+    <v-data-table
+      :headers="headers"
+      :items="tasks"
+      hide-default-footer
+      class="mt-4"
+    >
+    </v-data-table>
   </div>
 
 </template>
@@ -73,42 +81,33 @@ export default {
     return {
       headers: [
         {
-          text: 'Alias',
-          value: 'alias',
-        },
-        {
-          text: 'Playbook',
-          value: 'playbook',
+          text: 'Task',
+          value: 'tpl_alias',
           sortable: false,
         },
         {
-          text: 'SSH key',
-          value: 'email',
+          text: 'Status',
+          value: 'status',
           sortable: false,
         },
         {
-          text: 'Inventory',
-          value: 'inventory',
+          text: 'User',
+          value: 'user_name',
           sortable: false,
         },
         {
-          text: 'Environment',
-          value: 'environment',
+          text: 'Start',
+          value: 'start',
           sortable: false,
         },
         {
-          text: 'Repository',
-          value: 'repository',
-          sortable: false,
-        },
-        {
-          text: 'Actions',
-          value: 'actions',
+          text: 'Duration',
+          value: 'start',
           sortable: false,
         },
       ],
+      tasks: null,
       item: null,
-
       deleteItemDialog: false,
       deleteItemId: null,
     };
@@ -172,6 +171,12 @@ export default {
       this.item = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}`,
+        responseType: 'json',
+      })).data;
+
+      this.tasks = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.itemId}/tasks/last`,
         responseType: 'json',
       })).data;
     },

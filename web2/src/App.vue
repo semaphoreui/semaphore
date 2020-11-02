@@ -1,5 +1,11 @@
 <template>
   <v-app v-if="state === 'success'"  class="app">
+    <NewProjectDialog
+      :project-id="projectId"
+      v-model="newProjectDialog"
+      @saved="onProjectSaved"
+    />
+
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -65,7 +71,8 @@
             </v-list-item-icon>
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
-          <v-list-item>
+
+          <v-list-item @click="newProjectDialog = true">
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
             </v-list-item-icon>
@@ -78,7 +85,7 @@
       </v-menu>
 
       <v-list class="pt-0">
-        <v-list-item key="dashboard" :to="`/project/${projectId}/dashboard`">
+        <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
           </v-list-item-icon>
@@ -187,7 +194,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                Edit account
+                Edit Account
               </v-list-item-content>
             </v-list-item>
 
@@ -197,7 +204,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                Sign out
+                Sign Out
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -301,6 +308,7 @@
 
 <script>
 import axios from 'axios';
+import NewProjectDialog from '@/components/NewProjectDialog.vue';
 import EventBus from './event-bus';
 
 const PROJECT_COLORS = [
@@ -312,6 +320,9 @@ const PROJECT_COLORS = [
 
 export default {
   name: 'App',
+  components: {
+    NewProjectDialog,
+  },
   data() {
     return {
       drawer: null,
@@ -325,6 +336,8 @@ export default {
       snackbarColor: '',
 
       projects: null,
+
+      newProjectDialog: null,
     };
   },
 
@@ -394,6 +407,12 @@ export default {
   methods: {
     isAuthenticated() {
       return document.cookie.includes('semaphore=');
+    },
+
+    async onProjectSaved(e) {
+      if (e.action === 'new') {
+        await this.$router.push({ path: `/project/${e.item.id}` });
+      }
     },
 
     async loadProjects() {

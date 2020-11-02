@@ -1,6 +1,8 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import Dashboard from '../views/project/Dashboard.vue';
+import History from '../views/project/History.vue';
+import Activity from '../views/project/Activity.vue';
+import Settings from '../views/project/Settings.vue';
 import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
 import TemplateEdit from '../views/project/TemplateEdit.vue';
@@ -18,11 +20,19 @@ Vue.use(VueRouter);
 const routes = [
   {
     path: '/project/:projectId',
-    redirect: '/project/:projectId/dashboard',
+    redirect: '/project/:projectId/history',
   },
   {
-    path: '/project/:projectId/dashboard',
-    component: Dashboard,
+    path: '/project/:projectId/history',
+    component: History,
+  },
+  {
+    path: '/project/:projectId/activity',
+    component: Activity,
+  },
+  {
+    path: '/project/:projectId/settings',
+    component: Settings,
   },
   {
     path: '/project/:projectId/templates',

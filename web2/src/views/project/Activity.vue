@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div v-if="items">
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Dashboard</v-toolbar-title>
@@ -19,60 +19,67 @@
       <!--        </v-tabs>-->
       <!--      </template>-->
     </v-toolbar>
-    <div class="project-settings-form">
-      <div style="height: 220px;">
-        <ProjectEditForm :project-id="projectId" ref="itemForm"/>
-      </div>
 
-      <div class="text-right">
-        <v-btn color="primary">Save</v-btn>
-      </div>
-    </div>
-
-    <div class="project-delete-form">
-      <v-row align="center">
-        <v-col class="shrink">
-          <v-btn color="error">Delete Project</v-btn>
-        </v-col>
-        <v-col class="grow">
-          <div style="font-size: 14px; color: #ff5252">
-            Once you delete a project, there is no going back. Please be certain.
-          </div>
-        </v-col>
-      </v-row>
-    </div>
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      hide-default-footer
+      class="mt-4"
+    >
+    </v-data-table>
   </div>
 </template>
 <style lang="scss">
-  .project-settings-form {
-    max-width: 400px;
-    margin: 80px auto auto;
-  }
 
-  .project-delete-form {
-    max-width: 400px;
-    margin: 80px auto auto;
-  }
 </style>
 <script>
+import axios from 'axios';
 import EventBus from '@/event-bus';
-import ProjectEditForm from '@/components/ProjectEditForm.vue';
 
 export default {
-  components: { ProjectEditForm },
+  components: {
+  },
   props: {
     projectId: Number,
   },
-
   data() {
     return {
-      isFormLoaded: false,
+      headers: [
+        {
+          text: 'Time',
+          value: 'created',
+          sortable: false,
+        },
+        {
+          text: 'Description',
+          value: 'description',
+          sortable: false,
+        },
+      ],
+      items: null,
     };
+  },
+
+  async created() {
+    await this.loadItems();
   },
 
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+
+    async editItem(itemId = 'new') {
+      this.itemId = itemId;
+      this.editDialog = true;
+    },
+
+    async loadItems() {
+      this.items = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/events/last`,
+        responseType: 'json',
+      })).data;
     },
   },
 };
