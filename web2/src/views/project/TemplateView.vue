@@ -63,7 +63,6 @@
     >
     </v-data-table>
   </div>
-
 </template>
 <style lang="scss">
 
@@ -81,8 +80,8 @@ export default {
     return {
       headers: [
         {
-          text: 'Task',
-          value: 'tpl_alias',
+          text: 'Task ID',
+          value: 'id',
           sortable: false,
         },
         {

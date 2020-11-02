@@ -11,13 +11,6 @@
           <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
         </v-tabs>
       </div>
-<!--      <template v-slot:extension>-->
-<!--        <v-tabs centered>-->
-<!--          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>-->
-<!--          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>-->
-<!--          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>-->
-<!--        </v-tabs>-->
-<!--      </template>-->
     </v-toolbar>
 
     <v-data-table
@@ -77,6 +70,12 @@ export default {
 
   async created() {
     await this.loadItems();
+  },
+
+  watch: {
+    async projectId() {
+      await this.loadItems();
+    },
   },
 
   methods: {

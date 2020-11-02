@@ -23,7 +23,10 @@
         {{ isNewItem ? 'Create' : 'Save' }}
       </v-btn>
     </v-toolbar>
-    <TemplateEditForm :template-id="itemId" :project-id="projectId" ref="itemForm" />
+
+    <div style="max-width: 400px; margin: 80px auto auto;">
+      <TemplateEditForm :template-id="itemId" :project-id="projectId" ref="itemForm" />
+    </div>
   </div>
 
 </template>

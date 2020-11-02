@@ -3,7 +3,6 @@
     <NewProjectDialog
       :project-id="projectId"
       v-model="newProjectDialog"
-      @saved="onProjectSaved"
     />
 
     <v-snackbar
@@ -353,11 +352,9 @@ export default {
   async created() {
     if (!this.isAuthenticated()) {
       this.state = 'success';
-
       if (this.$route.path !== '/auth/login') {
         await this.$router.push({ path: '/auth/login' });
       }
-
       return;
     }
 
@@ -365,9 +362,12 @@ export default {
       await this.loadUserInfo();
       await this.loadProjects();
 
-      if (!this.projectId) {
-        const projectId = parseInt(localStorage.getItem('projectId'), 10)
-          || this.projects[0].id;
+      if (!this.projectId || !this.projects.find((p) => p.id === this.projectId)) {
+        let projectId = parseInt(localStorage.getItem('projectId'), 10);
+        if (!projectId || !this.projects.find((p) => p.id === projectId)) {
+          projectId = this.projects[0].id;
+        }
+        localStorage.setItem('projectId', projectId.toString());
         await this.$router.push({ path: `/project/${projectId}` });
       }
 
@@ -395,24 +395,49 @@ export default {
       await this.loadUserInfo();
     });
 
-    EventBus.$on('i-site-changed', async () => {
-      await this.loadProjects();
-    });
-
     EventBus.$on('i-show-drawer', async () => {
       this.drawer = true;
+    });
+
+    EventBus.$on('i-project', async (e) => {
+      let text;
+
+      const project = this.projects.find((p) => p.id === e.item.id) || e.item;
+      const projectName = project.name || `#${project.id}`;
+
+      switch (e.action) {
+        case 'new':
+          text = `Project ${projectName} created`;
+          break;
+        case 'edit':
+          text = `Project ${projectName} saved`;
+          break;
+        case 'delete':
+          text = `Project ${projectName} deleted`;
+          break;
+        default:
+          throw new Error('Unknown project action');
+      }
+      EventBus.$emit('i-snackbar', {
+        color: 'success',
+        text,
+      });
+
+      await this.loadProjects();
+
+      if (e.action === 'new') {
+        localStorage.setItem('projectId', e.item.id);
+        await this.$router.push({ path: `/project/${e.item.id}` });
+      } else if (!this.project) {
+        localStorage.setItem('projectId', this.projects[0].id.toString());
+        await this.$router.push({ path: `/project/${this.projects[0].id}` });
+      }
     });
   },
 
   methods: {
     isAuthenticated() {
       return document.cookie.includes('semaphore=');
-    },
-
-    async onProjectSaved(e) {
-      if (e.action === 'new') {
-        await this.$router.push({ path: `/project/${e.item.id}` });
-      }
     },
 
     async loadProjects() {
