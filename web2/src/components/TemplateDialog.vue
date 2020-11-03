@@ -1,15 +1,15 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <v-dialog
-    v-model="editDialog"
+    v-model="dialog"
     max-width="400"
     persistent
     :transition="false"
   >
     <v-card>
-      <v-card-title class="headline">{{ isNewItem ? 'New' : 'Edit' }} Template</v-card-title>
+      <v-card-title class="headline">{{ isNew ? 'New' : 'Edit' }} Template</v-card-title>
 
       <v-card-text>
-        <TemplateForm :template-id="templateId" :project-id="projectId" ref="itemForm" />
+        <TemplateForm :template-id="templateId" :project-id="projectId" ref="form" />
       </v-card-text>
 
       <v-card-actions>
@@ -18,7 +18,7 @@
         <v-btn
           color="blue darken-1"
           text
-          @click="editDialog = false"
+          @click="dialog = false"
         >
           Cancel
         </v-btn>
@@ -49,43 +49,45 @@ export default {
 
   data() {
     return {
-      editDialog: false,
+      dialog: false,
       editFormSaving: false,
       editFormValid: false,
       editFormError: null,
     };
   },
 
+  computed: {
+    isNew() {
+      return this.templateId === 'new';
+    },
+  },
+
   watch: {
-    editDialog(val) {
+    dialog(val) {
       this.$emit('input', val);
     },
 
     async value(val) {
       if (!val) {
-        this.editDialog = val;
+        this.dialog = val;
         return;
       }
       this.editFormError = false;
-      this.editDialog = val;
+      this.dialog = val;
     },
   },
 
   methods: {
-    isNewItem() {
-      return this.templateId === 'new';
-    },
-
     async save() {
       this.editFormSaving = true;
       try {
-        const item = await this.$refs.itemForm.saveItem();
+        const item = await this.$refs.form.saveItem();
         if (item) {
           this.$emit('saved', {
             item,
-            action: this.isNewItem ? 'new' : 'edit',
+            action: this.isNew ? 'new' : 'edit',
           });
-          this.editDialog = false;
+          this.dialog = false;
         }
       } catch (err) {
         this.editFormError = getErrorMessage(err);

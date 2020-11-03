@@ -357,7 +357,9 @@ export default {
 
   watch: {
     async projects(val) {
-      if (val.length === 0 && this.$route.path !== '/project/new') {
+      if (val.length === 0
+        && this.$route.path.startsWith('/project/')
+        && this.$route.path !== '/project/new') {
         await this.$router.push({ path: '/project/new' });
       }
     },
@@ -439,7 +441,7 @@ export default {
           text = `User ${e.item.name} saved`;
           break;
         case 'delete':
-          text = `User #${e.item.id} deleted`;
+          text = `User ${e.item.name} deleted`;
           break;
         default:
           throw new Error('Unknown project action');

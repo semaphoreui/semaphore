@@ -4,14 +4,13 @@
       :project-id="projectId"
       :template-id="itemId"
       v-model="editDialog"
-      @saved="onSaved"
+      @saved="onItemSaved"
     />
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Task Templates</v-toolbar-title>
       <v-spacer></v-spacer>
-      <!--    :to="`/project/${projectId}/templates/new/edit`"-->
       <v-btn
         color="primary"
         @click="editItem()"
@@ -108,7 +107,7 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    onSaved(e) {
+    onItemSaved(e) {
       EventBus.$emit('i-snackbar', {
         color: 'success',
         text: e.action === 'new' ? `Template "${e.item.alias}" created` : `Template "${e.item.alias}" saved`,

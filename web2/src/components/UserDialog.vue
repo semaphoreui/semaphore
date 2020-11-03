@@ -67,10 +67,6 @@ export default {
     },
 
     async value(val) {
-      if (!val) {
-        this.dialog = val;
-        return;
-      }
       this.dialog = val;
     },
   },
@@ -81,10 +77,17 @@ export default {
       if (!item) {
         return null;
       }
+
+      this.$emit('saved', {
+        item,
+        action: this.isNew ? 'new' : 'edit',
+      });
+
       EventBus.$emit('i-user', {
         action: this.isNew ? 'new' : 'edit',
         item,
       });
+
       this.dialog = false;
       return item;
     },

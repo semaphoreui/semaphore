@@ -82,6 +82,7 @@ export default {
 
   methods: {
     async reset() {
+      this.item = null;
       this.$refs.form.resetValidation();
       await this.loadData();
     },
