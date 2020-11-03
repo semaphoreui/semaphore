@@ -6,10 +6,10 @@
     :transition="false"
   >
     <v-card>
-      <v-card-title class="headline">New Project</v-card-title>
+      <v-card-title class="headline">{{ isNew ? 'New' : 'Edit' }} User</v-card-title>
 
       <v-card-text>
-        <ProjectForm project-id="new" ref="form" />
+        <UserForm :user-id="userId" ref="form" />
       </v-card-text>
 
       <v-card-actions>
@@ -28,7 +28,7 @@
           text
           @click="save()"
         >
-          Create
+          {{ isNew ? 'Create' : 'Save' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -36,13 +36,13 @@
 </template>
 <script>
 
-import ProjectForm from '@/components/ProjectForm.vue';
+import UserForm from '@/components/UserForm.vue';
 import EventBus from '@/event-bus';
 
 export default {
-  components: { ProjectForm },
+  components: { UserForm },
   props: {
-    projectId: [Number, String],
+    userId: [Number, String],
     value: Boolean,
   },
 
@@ -50,6 +50,12 @@ export default {
     return {
       dialog: false,
     };
+  },
+
+  computed: {
+    isNew() {
+      return this.userId === 'new';
+    },
   },
 
   watch: {
@@ -75,8 +81,8 @@ export default {
       if (!item) {
         return null;
       }
-      EventBus.$emit('i-project', {
-        action: 'new',
+      EventBus.$emit('i-user', {
+        action: this.isNew ? 'new' : 'edit',
         item,
       });
       this.dialog = false;

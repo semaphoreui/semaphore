@@ -1,5 +1,7 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
+    <UserDialog :user-id="itemId" v-model="editDialog" />
+
     <v-toolbar flat color="white">
       <v-btn
         icon
@@ -32,40 +34,43 @@
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
+import UserDialog from '@/components/UserDialog.vue';
 
 export default {
   components: {
+    UserDialog,
   },
   data() {
     return {
       headers: [
         {
-          text: 'Alias',
-          value: 'alias',
-        },
-        {
-          text: 'Playbook',
-          value: 'playbook',
+          text: 'Name',
+          value: 'name',
           sortable: false,
         },
         {
-          text: 'SSH key',
+          text: 'Username',
+          value: 'username',
+          sortable: false,
+        },
+        {
+          text: 'Email',
           value: 'email',
           sortable: false,
         },
         {
-          text: 'Inventory',
-          value: 'inventory',
+          text: 'Alert',
+          value: 'alert',
           sortable: false,
         },
         {
-          text: 'Environment',
-          value: 'environment',
+          text: 'Admin',
+          value: 'admin',
           sortable: false,
         },
         {
-          text: 'Repository',
-          value: 'repository',
+          text: 'External',
+          value: 'external',
           sortable: false,
         },
         {

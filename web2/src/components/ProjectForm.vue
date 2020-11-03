@@ -85,8 +85,7 @@ export default {
 
     /**
      * Saves or creates project via API.
-     * Method must be wrapped to try-catch block because it can throws exception.
-     * @returns {Promise<null>} null if validation not passed or project data if project saved.
+     * @returns {Promise<null>} null if validation didn't pass or project data if project saved.
      */
     async save() {
       this.formError = null;

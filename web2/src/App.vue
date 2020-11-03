@@ -4,6 +4,11 @@
       v-model="newProjectDialog"
     />
 
+    <UserDialog
+      v-model="userDialog"
+      :user-id="user.id"
+    />
+
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -198,7 +203,7 @@
               </v-list-item-content>
             </v-list-item>
 
-            <v-list-item key="edit" to="/user">
+            <v-list-item key="edit" @click="userDialog = true">
               <v-list-item-icon>
                 <v-icon>mdi-pencil</v-icon>
               </v-list-item-icon>
@@ -320,6 +325,7 @@
 import axios from 'axios';
 import NewProjectDialog from '@/components/NewProjectDialog.vue';
 import { getErrorMessage } from '@/lib/error';
+import UserDialog from '@/components/UserDialog.vue';
 import EventBus from './event-bus';
 
 const PROJECT_COLORS = [
@@ -333,6 +339,7 @@ export default {
   name: 'App',
   components: {
     NewProjectDialog,
+    UserDialog,
   },
   data() {
     return {
@@ -344,6 +351,7 @@ export default {
       snackbarColor: '',
       projects: null,
       newProjectDialog: null,
+      userDialog: null,
     };
   },
 
@@ -418,6 +426,33 @@ export default {
 
     EventBus.$on('i-open-last-project', async () => {
       await this.tryToSwitchToLastProject();
+    });
+
+    EventBus.$on('i-user', async (e) => {
+      let text;
+
+      switch (e.action) {
+        case 'new':
+          text = `User ${e.item.name} created`;
+          break;
+        case 'edit':
+          text = `User ${e.item.name} saved`;
+          break;
+        case 'delete':
+          text = `User #${e.item.id} deleted`;
+          break;
+        default:
+          throw new Error('Unknown project action');
+      }
+
+      EventBus.$emit('i-snackbar', {
+        color: 'success',
+        text,
+      });
+
+      if (e.item.id === this.user.id) {
+        await this.loadUserInfo();
+      }
     });
 
     EventBus.$on('i-project', async (e) => {
