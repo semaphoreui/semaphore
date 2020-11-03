@@ -1,5 +1,110 @@
-<template>
-  <div class="about">
-    <h1>This is an about page</h1>
+<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+  <div v-if="items != null">
+    <TemplateDialog
+      :project-id="projectId"
+      :template-id="itemId"
+      v-model="editDialog"
+      @saved="onItemSaved"
+    />
+
+    <v-toolbar flat color="white">
+      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+      <v-toolbar-title>Environment</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <v-btn
+        color="primary"
+        @click="editItem()"
+      >New environment</v-btn>
+    </v-toolbar>
+
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      hide-default-footer
+      class="mt-4"
+    >
+      <template v-slot:item.alias="{ item }">
+        <router-link :to="`/project/${projectId}/templates/${item.id}`">
+          {{ item.alias }}
+        </router-link>
+      </template>
+
+      <template v-slot:item.actions="{}">
+        <v-btn text color="black" class="pl-1 pr-2">
+          <v-icon class="pr-1">mdi-play</v-icon>
+          Run
+        </v-btn>
+      </template>
+    </v-data-table>
   </div>
+
 </template>
+<style lang="scss">
+
+</style>
+<script>
+import axios from 'axios';
+import EventBus from '@/event-bus';
+import TemplateDialog from '@/components/TemplateDialog.vue';
+
+export default {
+  components: {
+    TemplateDialog,
+  },
+  props: {
+    projectId: Number,
+  },
+  data() {
+    return {
+      headers: [
+        {
+          text: 'Name',
+          value: 'name',
+        },
+        {
+          text: 'Type',
+          value: 'type',
+        },
+        {
+          text: '',
+          value: 'actions',
+          sortable: false,
+        },
+      ],
+      items: null,
+      itemId: null,
+      editDialog: null,
+    };
+  },
+
+  async created() {
+    await this.loadItems();
+  },
+
+  methods: {
+    showDrawer() {
+      EventBus.$emit('i-show-drawer');
+    },
+
+    onItemSaved(e) {
+      EventBus.$emit('i-snackbar', {
+        color: 'success',
+        text: e.action === 'new' ? `Template "${e.item.alias}" created` : `Template "${e.item.alias}" saved`,
+      });
+    },
+
+    async editItem(itemId = 'new') {
+      this.itemId = itemId;
+      this.editDialog = true;
+    },
+
+    async loadItems() {
+      this.items = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/inventory`,
+        responseType: 'json',
+      })).data;
+    },
+  },
+};
+</script>

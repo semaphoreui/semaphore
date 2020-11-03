@@ -9,8 +9,6 @@
     <YesNoDialog
       title="Delete user"
       text="Are you really want to delete this user?"
-      yes-button-title="Yes"
-      no-button-title="Cancel"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />

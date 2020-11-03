@@ -284,9 +284,9 @@
 
 .v-data-table > .v-data-table__wrapper > table > tbody > tr {
   background: transparent !important;
-  & > td:first-child {
-    font-weight: bold !important;
-  }
+  //& > td:first-child {
+  //  font-weight: bold !important;
+  //}
 }
 
 .v-data-table > .v-data-table__wrapper > table > tbody > tr > th,

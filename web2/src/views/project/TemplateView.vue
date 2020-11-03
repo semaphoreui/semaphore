@@ -1,36 +1,11 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="item != null && tasks != null">
-    <v-dialog
+    <YesNoDialog
+      title="Delete template"
+      text="Are you really want to delete this template?"
       v-model="deleteItemDialog"
-      max-width="290">
-      <v-card>
-        <v-card-title class="headline">Delete template</v-card-title>
-
-        <v-card-text>
-          Are you really want to delete this template?
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="deleteItemDialog = false"
-          >
-            Cancel
-          </v-btn>
-
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="deleteItem()"
-          >
-            Yes
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      @yes="deleteItem()"
+    />
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
@@ -71,8 +46,10 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+import YesNoDialog from '@/components/YesNoDialog.vue';
 
 export default {
+  components: { YesNoDialog },
   props: {
     projectId: Number,
   },
