@@ -1,20 +1,37 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <TemplateDialog
-      :project-id="projectId"
-      :template-id="itemId"
+    <ItemDialog
       v-model="editDialog"
-      @saved="onItemSaved"
+      save-button-text="Save"
+      title="Edit inventory"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <InventoryForm
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
+
+    <YesNoDialog
+      title="Delete inventory"
+      text="Are you really want to delete this inventory?"
+      v-model="deleteItemDialog"
+      @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Environment</v-toolbar-title>
+      <v-toolbar-title>Inventory</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem()"
-      >New environment</v-btn>
+      >New Inventory</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -22,18 +39,40 @@
       :items="items"
       hide-default-footer
       class="mt-4"
+      :items-per-page="Number.MAX_VALUE"
     >
-      <template v-slot:item.alias="{ item }">
-        <router-link :to="`/project/${projectId}/templates/${item.id}`">
-          {{ item.alias }}
-        </router-link>
-      </template>
+      <template v-slot:item.actions="{ item }">
+        <div style="white-space: nowrap">
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                icon
+                class="mr-1"
+                v-bind="attrs"
+                v-on="on"
+                @click="askDeleteItem(item.id)"
+              >
+                <v-icon>mdi-delete</v-icon>
+              </v-btn>
+            </template>
+            <span>Delete inventory</span>
+          </v-tooltip>
 
-      <template v-slot:item.actions="{}">
-        <v-btn text color="black" class="pl-1 pr-2">
-          <v-icon class="pr-1">mdi-play</v-icon>
-          Run
-        </v-btn>
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                icon
+                class="mr-1"
+                v-bind="attrs"
+                v-on="on"
+                @click="editItem(item.id)"
+              >
+                <v-icon>mdi-pencil</v-icon>
+              </v-btn>
+            </template>
+            <span>Edit inventory</span>
+          </v-tooltip>
+        </div>
       </template>
     </v-data-table>
   </div>
@@ -45,11 +84,16 @@
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
-import TemplateDialog from '@/components/TemplateDialog.vue';
+import InventoryForm from '@/components/InventoryForm.vue';
+import ItemDialog from '@/components/ItemDialog.vue';
+import YesNoDialog from '@/components/YesNoDialog.vue';
+import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: {
-    TemplateDialog,
+    YesNoDialog,
+    ItemDialog,
+    InventoryForm,
   },
   props: {
     projectId: Number,
@@ -66,7 +110,7 @@ export default {
           value: 'type',
         },
         {
-          text: '',
+          text: 'Actions',
           value: 'actions',
           sortable: false,
         },
@@ -74,6 +118,7 @@ export default {
       items: null,
       itemId: null,
       editDialog: null,
+      deleteItemDialog: null,
     };
   },
 
@@ -86,14 +131,40 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    onItemSaved(e) {
-      EventBus.$emit('i-snackbar', {
-        color: 'success',
-        text: e.action === 'new' ? `Template "${e.item.alias}" created` : `Template "${e.item.alias}" saved`,
-      });
+    async onItemSaved() {
+      await this.loadItems();
     },
 
-    async editItem(itemId = 'new') {
+    askDeleteItem(itemId) {
+      this.itemId = itemId;
+      this.deleteItemDialog = true;
+    },
+
+    async deleteItem(itemId) {
+      try {
+        const item = this.items.find((x) => x.id === itemId);
+
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/environment`,
+          responseType: 'json',
+        });
+
+        EventBus.$emit('i-environment', {
+          action: 'delete',
+          item,
+        });
+
+        await this.loadItems();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
+
+    editItem(itemId = 'new') {
       this.itemId = itemId;
       this.editDialog = true;
     },
@@ -101,7 +172,7 @@ export default {
     async loadItems() {
       this.items = (await axios({
         method: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
+        url: `/api/project/${this.projectId}/environment`,
         responseType: 'json',
       })).data;
     },

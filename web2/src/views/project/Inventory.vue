@@ -25,14 +25,8 @@
     />
 
     <v-toolbar flat color="white">
-      <v-btn
-        icon
-        class="mr-4"
-        @click="returnToProjects()"
-      >
-        <v-icon>mdi-arrow-left</v-icon>
-      </v-btn>
-      <v-toolbar-title>Users</v-toolbar-title>
+      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+      <v-toolbar-title>Inventory</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
@@ -88,103 +82,31 @@
 
 </style>
 <script>
-import axios from 'axios';
-import EventBus from '@/event-bus';
-import InventoryForm from '@/components/InventoryForm.vue';
-import ItemDialog from '@/components/ItemDialog.vue';
-import YesNoDialog from '@/components/YesNoDialog.vue';
-import { getErrorMessage } from '@/lib/error';
+import ItemListPageBase from '@/components/ItemListPageBase';
 
 export default {
-  components: {
-    YesNoDialog,
-    ItemDialog,
-    InventoryForm,
-  },
-  props: {
-    projectId: Number,
-  },
-  data() {
-    return {
-      headers: [
-        {
-          text: 'Name',
-          value: 'name',
-        },
-        {
-          text: 'Type',
-          value: 'type',
-        },
-        {
-          text: 'Actions',
-          value: 'actions',
-          sortable: false,
-        },
-      ],
-      items: null,
-      itemId: null,
-      editDialog: null,
-      deleteItemDialog: null,
-    };
-  },
-
-  async created() {
-    await this.loadItems();
-  },
-
+  mixins: [ItemListPageBase],
   methods: {
-    showDrawer() {
-      EventBus.$emit('i-show-drawer');
+    getHeaders() {
+      return [{
+        text: 'Name',
+        value: 'name',
+      },
+      {
+        text: 'Type',
+        value: 'type',
+      },
+      {
+        text: 'Actions',
+        value: 'actions',
+        sortable: false,
+      }];
     },
-
-    async returnToProjects() {
-      EventBus.$emit('i-open-last-project');
+    getSingleItemUrl() {
+      return `/api/project/${this.projectId}/inventory`;
     },
-
-    async onItemSaved() {
-      await this.loadItems();
-    },
-
-    askDeleteItem(itemId) {
-      this.itemId = itemId;
-      this.deleteItemDialog = true;
-    },
-
-    async deleteItem(itemId) {
-      try {
-        const item = this.items.find((x) => x.id === itemId);
-
-        await axios({
-          method: 'delete',
-          url: `/api/project/${this.projectId}/inventory`,
-          responseType: 'json',
-        });
-
-        EventBus.$emit('i-inventory', {
-          action: 'delete',
-          item,
-        });
-
-        await this.loadItems();
-      } catch (err) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: getErrorMessage(err),
-        });
-      }
-    },
-
-    editItem(itemId = 'new') {
-      this.itemId = itemId;
-      this.editDialog = true;
-    },
-
-    async loadItems() {
-      this.items = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
-        responseType: 'json',
-      })).data;
+    getEventName() {
+      return 'i-inventory';
     },
   },
 };
