@@ -52,11 +52,12 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 
 // GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
 	if inventory := context.Get(r, "inventory"); inventory != nil {
 		util.WriteJSON(w, http.StatusOK, inventory.(db.Inventory))
 		return
 	}
+	
+	project := context.Get(r, "project").(db.Project)
 
 	var inv []db.Inventory
 

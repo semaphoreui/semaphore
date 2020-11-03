@@ -88,7 +88,7 @@ export default {
     async loadItems() {
       this.items = (await axios({
         method: 'get',
-        url: this.getSingleItemUrl(),
+        url: this.getItemsUrl(),
         responseType: 'json',
       })).data;
     },

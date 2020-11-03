@@ -140,6 +140,7 @@ func Route() *mux.Router {
 	projectUserManagement := projectAdminAPI.PathPrefix("/users").Subrouter()
 	projectUserManagement.Use(projects.UserMiddleware)
 
+	projectUserManagement.HandleFunc("/{user_id}", projects.GetUsers).Methods("GET", "HEAD")
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("POST")
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")

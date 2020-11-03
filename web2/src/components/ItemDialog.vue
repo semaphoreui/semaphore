@@ -69,9 +69,12 @@ export default {
   },
 
   methods: {
-    close() {
+    close(e) {
       this.dialog = false;
       this.clearFlags();
+      if (e) {
+        this.$emit('save', e);
+      }
     },
 
     clearFlags() {

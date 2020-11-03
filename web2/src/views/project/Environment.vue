@@ -78,9 +78,6 @@
   </div>
 
 </template>
-<style lang="scss">
-
-</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EnvironmentForm from '@/components/EnvironmentForm.vue';
@@ -100,8 +97,11 @@ export default {
         sortable: false,
       }];
     },
-    getSingleItemUrl() {
+    getItemsUrl() {
       return `/api/project/${this.projectId}/environment`;
+    },
+    getSingleItemUrl() {
+      return `/api/project/${this.projectId}/environment/${this.itemId}`;
     },
     getEventName() {
       return 'i-environment';

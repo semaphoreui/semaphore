@@ -78,9 +78,6 @@
   </div>
 
 </template>
-<style lang="scss">
-
-</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 
@@ -102,8 +99,11 @@ export default {
         sortable: false,
       }];
     },
-    getSingleItemUrl() {
+    getItemsUrl() {
       return `/api/project/${this.projectId}/inventory`;
+    },
+    getSingleItemUrl() {
+      return `/api/project/${this.projectId}/inventory/${this.itemId}`;
     },
     getEventName() {
       return 'i-inventory';
