@@ -499,6 +499,10 @@ export default {
 
   methods: {
     async tryToSwitchToLastProject() {
+      if (this.projects.length === 0) {
+        await this.$router.push({ path: '/project/new' });
+        return;
+      }
       let projectId;
 
       if (localStorage.getItem('projectId')) {
