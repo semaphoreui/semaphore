@@ -80,7 +80,7 @@ export default {
       }
     },
 
-    editItem(itemId = 'new') {
+    editItem(itemId) {
       this.itemId = itemId;
       this.editDialog = true;
     },

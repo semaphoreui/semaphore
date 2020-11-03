@@ -30,7 +30,7 @@
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
-        @click="editItem()"
+        @click="editItem('new')"
       >New Inventory</v-btn>
     </v-toolbar>
 
