@@ -19,6 +19,14 @@
       :disabled="formSaving"
     ></v-text-field>
 
+    <v-text-field
+      v-model="item.repository"
+      label="Repository"
+      :rules="[v => !!v || 'Repository is required']"
+      required
+      :disabled="formSaving"
+    ></v-text-field>
+
     <v-select
       v-model="item.ssh_key_id"
       label="SSH Key"
@@ -29,36 +37,6 @@
       required
       :disabled="formSaving"
     ></v-select>
-
-    <v-select
-      v-model="item.type"
-      label="Type"
-      :rules="[v => !!v || 'Type is required']"
-      :items="inventoryTypes"
-      item-value="id"
-      item-text="name"
-      required
-      :disabled="formSaving"
-    ></v-select>
-
-    <v-text-field
-      v-model="item.inventory"
-      label="Path to inventory file"
-      :rules="[v => !!v || 'Path to inventory file is required']"
-      required
-      :disabled="formSaving"
-      v-if="item.type === 'file'"
-    ></v-text-field>
-
-    <v-textarea
-      v-model="item.inventory"
-      label="Inventory"
-      :rules="[v => !!v || 'Inventory is required']"
-      required
-      :disabled="formSaving"
-      v-if="item.type === 'static'"
-      solo
-    ></v-textarea>
   </v-form>
 </template>
 <script>
@@ -88,11 +66,11 @@ export default {
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/inventory`;
+      return `/api/project/${this.projectId}/repositories`;
     },
 
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/inventory/${this.itemId}`;
+      return `/api/project/${this.projectId}/repositories/${this.itemId}`;
     },
   },
 };

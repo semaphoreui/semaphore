@@ -2,8 +2,10 @@
   <div v-if="items != null">
     <ItemDialog
       v-model="editDialog"
-      save-button-text="Save"
-      title="Edit inventory"
+      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
+      :title="`${itemId === 'new' ? 'New' : 'Edit'} Inventory`"
+      :max-width="450"
+      @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <InventoryForm
@@ -41,37 +43,26 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.inventory="{ item }">
+        <div v-if="item.type === 'file'">{{ item.inventory }}</div>
+      </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="askDeleteItem(item.id)"
-              >
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
-            <span>Delete inventory</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+          >
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
 
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="editItem(item.id)"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-            <span>Edit inventory</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            @click="editItem(item.id)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
         </div>
       </template>
     </v-data-table>
@@ -92,6 +83,10 @@ export default {
       {
         text: 'Type',
         value: 'type',
+      },
+      {
+        text: 'Path',
+        value: 'inventory',
       },
       {
         text: 'Actions',

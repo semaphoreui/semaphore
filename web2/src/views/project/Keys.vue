@@ -2,11 +2,14 @@
   <div v-if="items != null">
     <ItemDialog
       v-model="editDialog"
-      save-button-text="Save"
-      title="Edit Key"
+      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
+      :title="`${itemId === 'new' ? 'New' : 'Edit'} Key`"
+      :max-width="450"
+      position="top"
+      @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <InventoryForm
+        <KeyForm
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -80,8 +83,10 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
+import KeyForm from '@/components/KeyForm.vue';
 
 export default {
+  components: { KeyForm },
   mixins: [ItemListPageBase],
   methods: {
     getHeaders() {

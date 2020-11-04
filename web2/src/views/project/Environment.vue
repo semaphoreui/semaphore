@@ -3,7 +3,9 @@
     <ItemDialog
       v-model="editDialog"
       save-button-text="Save"
-      title="Edit environment"
+      title="Edit Environment"
+      :max-width="500"
+      @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <EnvironmentForm

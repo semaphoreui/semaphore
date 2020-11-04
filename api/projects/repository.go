@@ -49,6 +49,11 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 
 // GetRepositories returns all repositories in a project sorted by type
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
+	if repo := context.Get(r, "repository"); repo != nil {
+		util.WriteJSON(w, http.StatusOK, repo.(db.Repository))
+		return
+	}
+
 	project := context.Get(r, "project").(db.Project)
 	var repos []db.Repository
 

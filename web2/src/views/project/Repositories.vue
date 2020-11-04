@@ -2,11 +2,12 @@
   <div v-if="items != null">
     <ItemDialog
       v-model="editDialog"
-      save-button-text="Save"
-      title="Edit Repository"
+      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
+      :title="`${itemId === 'new' ? 'New' : 'Edit'} Repository`"
+      @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <InventoryForm
+        <RepositoryForm
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -80,9 +81,11 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
+import RepositoryForm from '@/components/RepositoryForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
+  components: { RepositoryForm },
   methods: {
     getHeaders() {
       return [{

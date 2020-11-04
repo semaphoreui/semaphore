@@ -37,6 +37,11 @@ func KeyMiddleware(next http.Handler) http.Handler {
 
 // GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
+	if key := context.Get(r, "accessKey"); key != nil {
+		util.WriteJSON(w, http.StatusOK, key.(db.AccessKey))
+		return
+	}
+
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
 

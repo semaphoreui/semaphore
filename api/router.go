@@ -148,12 +148,14 @@ func Route() *mux.Router {
 	projectKeyManagement := projectAdminAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
+	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
 	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
 	projectRepoManagement.Use(projects.RepositoryMiddleware)
 
+	projectRepoManagement.HandleFunc("/{repository_id}", projects.GetRepositories).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 

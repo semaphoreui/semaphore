@@ -17,17 +17,19 @@
       :disabled="formSaving"
     ></v-text-field>
 
-    <v-text-field
+    <v-textarea
       v-model="item.environment"
       label="Environment Override (*MUST* be valid JSON)"
       :disabled="formSaving"
-    ></v-text-field>
+      rows="4"
+    ></v-textarea>
 
-    <v-text-field
+    <v-textarea
       v-model="item.arguments"
       label="Extra CLI Arguments"
       :disabled="formSaving"
-    ></v-text-field>
+      rows="4"
+    ></v-textarea>
   </v-form>
 </template>
 <script>

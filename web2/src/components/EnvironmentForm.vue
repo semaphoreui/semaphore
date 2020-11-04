@@ -17,13 +17,15 @@
       :rules="[v => !!v || 'Name is required']"
       required
       :disabled="formSaving"
+      class="mb-4"
     ></v-text-field>
 
-    <v-text-field
+    <v-textarea
       v-model="item.json"
       label="Environment (This has to be a JSON object)"
       :disabled="formSaving"
-    ></v-text-field>
+      solo
+    ></v-textarea>
 
     <div>
       Must be valid JSON. You may use the key ENV to pass a json object which sets environmental

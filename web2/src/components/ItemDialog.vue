@@ -4,6 +4,7 @@
     :max-width="maxWidth || 400"
     persistent
     :transition="false"
+    :content-class="'item-dialog item-dialog--' + position"
   >
     <v-card>
       <v-card-title class="headline">{{ title }}</v-card-title>
@@ -40,12 +41,20 @@
     </v-card>
   </v-dialog>
 </template>
+<style lang="scss">
+  .item-dialog--top {
+    align-self: flex-start;
+  }
+  .item-dialog--center {
+  }
+</style>
 <script>
 
 import EventBus from '@/event-bus';
 
 export default {
   props: {
+    position: String,
     title: String,
     saveButtonText: String,
     value: Boolean,
