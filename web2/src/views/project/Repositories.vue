@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div v-if="items != null && keys != null">
     <ItemDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
@@ -42,37 +42,27 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.ssh_key_id="{ item }">
+        {{ keys.find((k) => k.id === item.ssh_key_id).name }}
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="askDeleteItem(item.id)"
-              >
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
-            <span>Delete repository</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+          >
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
 
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="editItem(item.id)"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-            <span>Edit repository</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            @click="editItem(item.id)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
         </div>
       </template>
     </v-data-table>
@@ -82,10 +72,25 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import RepositoryForm from '@/components/RepositoryForm.vue';
+import axios from 'axios';
 
 export default {
   mixins: [ItemListPageBase],
   components: { RepositoryForm },
+  data() {
+    return {
+      keys: null,
+    };
+  },
+
+  async created() {
+    this.keys = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/keys`,
+      responseType: 'json',
+    })).data;
+  },
+
   methods: {
     getHeaders() {
       return [{

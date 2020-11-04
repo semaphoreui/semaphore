@@ -20,8 +20,8 @@
     ></v-text-field>
 
     <v-text-field
-      v-model="item.repository"
-      label="Repository"
+      v-model="item.git_url"
+      label="Git URL"
       :rules="[v => !!v || 'Repository is required']"
       required
       :disabled="formSaving"

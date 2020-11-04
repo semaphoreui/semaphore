@@ -46,16 +46,35 @@
       </v-row>
     </v-container>
 
-    <div class="task-log-view" style="height: 400px;" v-text="output">
+    <div class="task-log-view">
+      <div class="task-log-view__record" v-for="record in output" :key="record.id">
+        <div class="task-log-view__time">{{ record.time }}</div>
+        <div class="task-log-view__output">{{ record.output }}</div>
+      </div>
     </div>
   </div>
 </template>
 <style lang="scss">
   .task-log-view {
+    height: 400px;
     overflow: auto;
     border: 1px solid gray;
     border-radius: 4px;
     font-family: monospace;
+  }
+
+  .task-log-view__record {
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+  }
+
+  .task-log-view__time {
+    width: 250px;
+  }
+
+  .task-log-view__output {
+    width: calc(100% - 250px);
   }
 </style>
 <script>
@@ -88,7 +107,7 @@ export default {
         method: 'get',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
         responseType: 'json',
-      })).data.map((line) => line.output).join('\n');
+      })).data;
 
       this.user = (await axios({
         method: 'get',
