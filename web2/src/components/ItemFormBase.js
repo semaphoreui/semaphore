@@ -71,19 +71,21 @@ export default {
     },
 
     /**
-     * Saves or creates user via API.
+     * Saves or creates item via API.
      * @returns {Promise<null>} null if validation didn't pass or user data if user saved.
      */
     async save() {
       this.formError = null;
 
       if (!this.$refs.form.validate()) {
-        return;
+        return null;
       }
 
       this.formSaving = true;
+      let item;
+
       try {
-        const item = (await axios({
+        item = (await axios({
           method: this.isNew ? 'post' : 'put',
           url: this.isNew
             ? this.getItemsUrl()
@@ -101,6 +103,8 @@ export default {
       } finally {
         this.formSaving = false;
       }
+
+      return item || this.item;
     },
   },
 };

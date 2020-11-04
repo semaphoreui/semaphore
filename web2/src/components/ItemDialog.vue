@@ -1,7 +1,7 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <v-dialog
     v-model="dialog"
-    max-width="400"
+    :max-width="maxWidth || 400"
     persistent
     :transition="false"
   >
@@ -42,11 +42,15 @@
 </template>
 <script>
 
+import EventBus from '@/event-bus';
+
 export default {
   props: {
     title: String,
     saveButtonText: String,
     value: Boolean,
+    maxWidth: Number,
+    eventName: String,
   },
 
   data() {
@@ -74,6 +78,9 @@ export default {
       this.clearFlags();
       if (e) {
         this.$emit('save', e);
+        if (this.eventName) {
+          EventBus.$emit('i-project', e);
+        }
       }
     },
 

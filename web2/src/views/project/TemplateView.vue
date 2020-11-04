@@ -1,5 +1,7 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="item != null && tasks != null">
+    <TaskLogDialog v-model="editDialog" />
+
     <ItemDialog
       v-model="editDialog"
       save-button-text="Save"
@@ -45,8 +47,14 @@
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-
-      <v-toolbar-title>Task Template: {{ item.alias }}</v-toolbar-title>
+      <v-toolbar-title class="breadcrumbs">
+        <router-link
+          class="breadcrumbs__item breadcrumbs__item--link"
+          :to="`/project/${projectId}/templates/`"
+        >Task Templates</router-link>
+        <span class="breadcrumbs__separator">&gt;</span>
+        <span class="breadcrumbs__item">{{ item.alias }}</span>
+      </v-toolbar-title>
       <v-spacer></v-spacer>
 
       <v-btn
@@ -127,6 +135,12 @@
       hide-default-footer
       class="mt-2"
     >
+      <template v-slot:item.id="{ item }">
+        <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
+      </template>
+      <template v-slot:item.status="{ item }">
+        {{ item.status }}
+      </template>
     </v-data-table>
   </div>
 </template>
@@ -140,9 +154,12 @@ import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemDialog from '@/components/ItemDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
+import TaskLogDialog from '@/components/TaskLogDialog.vue';
 
 export default {
-  components: { YesNoDialog, ItemDialog, TemplateForm },
+  components: {
+    YesNoDialog, ItemDialog, TemplateForm, TaskLogDialog,
+  },
   props: {
     projectId: Number,
   },
@@ -180,6 +197,8 @@ export default {
       deleteDialog: null,
       editDialog: null,
       copyDialog: null,
+      taskLogDialog: null,
+      taskId: null,
     };
   },
 
@@ -203,6 +222,11 @@ export default {
   },
 
   methods: {
+    showTaskLog(taskId) {
+      this.taskId = taskId;
+      this.taskLogDialog = true;
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },

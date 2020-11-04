@@ -1,36 +1,11 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div>
-    <v-dialog
+    <YesNoDialog
       v-model="deleteProjectDialog"
-      max-width="290">
-      <v-card>
-        <v-card-title class="headline">Delete project</v-card-title>
-
-        <v-card-text>
-          Are you really want to delete this project?
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="deleteProjectDialog = false"
-          >
-            Cancel
-          </v-btn>
-
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="deleteProject()"
-          >
-            Yes
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      title="Delete project"
+      text="Are you really want to delete this project?"
+      @yes="deleteProject()"
+    />
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
@@ -46,7 +21,7 @@
     </v-toolbar>
     <div class="project-settings-form">
       <div style="height: 220px;">
-        <ProjectForm :project-id="projectId" ref="editForm"/>
+        <ProjectForm :item-id="projectId" ref="form"/>
       </div>
 
       <div class="text-right">
@@ -84,9 +59,10 @@ import EventBus from '@/event-bus';
 import ProjectForm from '@/components/ProjectForm.vue';
 import { getErrorMessage } from '@/lib/error';
 import axios from 'axios';
+import YesNoDialog from '@/components/YesNoDialog.vue';
 
 export default {
-  components: { ProjectForm },
+  components: { YesNoDialog, ProjectForm },
   props: {
     projectId: Number,
   },
@@ -103,7 +79,7 @@ export default {
     },
 
     async saveProject() {
-      const item = await this.$refs.editForm.save();
+      const item = await this.$refs.form.save();
       if (!item) {
         return;
       }

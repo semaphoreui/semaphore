@@ -1,13 +1,37 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
-    <NewProjectDialog
-      v-model="newProjectDialog"
-    />
-
     <UserDialog
       v-model="userDialog"
       :user-id="user ? user.id : null"
     />
+
+    <ItemDialog
+      v-model="taskLogDialog"
+      save-button-text="Delete"
+      title="Task Log"
+      :max-width="800"
+    >
+      <template v-slot:form="{}">
+        <TaskLogView :project-id="projectId" :item-id="taskId" />
+      </template>
+    </ItemDialog>
+
+    <ItemDialog
+      v-model="newProjectDialog"
+      save-button-text="Create"
+      title="New Project"
+      event-name="i-project"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <ProjectForm
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
 
     <v-snackbar
       v-model="snackbar"
@@ -254,6 +278,25 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+
+.breadcrumbs {
+
+}
+
+.breadcrumbs__item {
+}
+
+.breadcrumbs__item--link {
+  text-decoration-line: none;
+  &:hover {
+    text-decoration-line: underline;
+  }
+}
+
+.breadcrumbs__separator {
+  padding: 0 10px;
+}
+
 .app__project-selector {
   height: 64px;
   .v-list-item__icon {
@@ -284,9 +327,15 @@
 
 .v-data-table > .v-data-table__wrapper > table > tbody > tr {
   background: transparent !important;
-  //& > td:first-child {
-  //  font-weight: bold !important;
-  //}
+  & > td:first-child {
+    //font-weight: bold !important;
+    a {
+      text-decoration-line: none;
+      &:hover {
+        text-decoration-line: underline;
+      }
+    }
+  }
 }
 
 .v-data-table > .v-data-table__wrapper > table > tbody > tr > th,
@@ -323,9 +372,11 @@
 
 <script>
 import axios from 'axios';
-import NewProjectDialog from '@/components/NewProjectDialog.vue';
 import { getErrorMessage } from '@/lib/error';
 import UserDialog from '@/components/UserDialog.vue';
+import ItemDialog from '@/components/ItemDialog.vue';
+import TaskLogView from '@/components/TaskLogView.vue';
+import ProjectForm from '@/components/ProjectForm.vue';
 import EventBus from './event-bus';
 
 const PROJECT_COLORS = [
@@ -338,8 +389,10 @@ const PROJECT_COLORS = [
 export default {
   name: 'App',
   components: {
-    NewProjectDialog,
     UserDialog,
+    ItemDialog,
+    TaskLogView,
+    ProjectForm,
   },
   data() {
     return {
@@ -352,6 +405,8 @@ export default {
       projects: null,
       newProjectDialog: null,
       userDialog: null,
+      taskLogDialog: null,
+      taskId: null,
     };
   },
 
@@ -395,6 +450,12 @@ export default {
         await this.tryToSwitchToLastProject();
       }
 
+      if (this.$route.query.t) {
+        EventBus.$emit('i-show-task', {
+          itemId: parseInt(this.$route.query.t || '', 10),
+        });
+      }
+
       this.state = 'success';
     } catch (err) { // notify about problem and sign out
       EventBus.$emit('i-snackbar', {
@@ -426,6 +487,11 @@ export default {
 
     EventBus.$on('i-show-drawer', async () => {
       this.drawer = true;
+    });
+
+    EventBus.$on('i-show-task', async (e) => {
+      this.taskId = e.taskId;
+      this.taskLogDialog = true;
     });
 
     EventBus.$on('i-open-last-project', async () => {

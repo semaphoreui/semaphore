@@ -42,9 +42,10 @@
       save-button-text="Delete"
       title="Task Log"
       @save="onTaskAskDelete"
+      :max-width="800"
     >
       <template v-slot:form="{}">
-        <TaskLogView :item-id="taskId" />
+        <TaskLogView :project-id="projectId" :item-id="taskId" />
       </template>
     </ItemDialog>
 
