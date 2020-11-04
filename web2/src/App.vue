@@ -22,11 +22,19 @@
     <ItemDialog
       v-model="taskLogDialog"
       save-button-text="Delete"
-      title="Task Log"
       :max-width="800"
     >
+      <template v-slot:title={}>
+        <router-link
+          class="breadcrumbs__item breadcrumbs__item--link"
+          :to="`/project/${projectId}/templates/${template ? template.id : null}`"
+          @click="taskLogDialog = false"
+        >{{ template ? template.alias : null }}</router-link>
+        <span class="breadcrumbs__separator">&gt;</span>
+        <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
+      </template>
       <template v-slot:form="{}">
-        <TaskLogView :project-id="projectId" :item-id="taskId" />
+        <TaskLogView :project-id="projectId" :item-id="task ? task.id : null" />
       </template>
     </ItemDialog>
 
@@ -419,8 +427,10 @@ export default {
       projects: null,
       newProjectDialog: null,
       userDialog: null,
+
       taskLogDialog: null,
-      taskId: null,
+      task: null,
+      template: null,
     };
   },
 
@@ -495,7 +505,18 @@ export default {
     });
 
     EventBus.$on('i-show-task', async (e) => {
-      this.taskId = e.taskId;
+      this.task = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/tasks/${e.taskId}`,
+        responseType: 'json',
+      })).data;
+
+      this.template = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.task.template_id}`,
+        responseType: 'json',
+      })).data;
+
       this.taskLogDialog = true;
     });
 

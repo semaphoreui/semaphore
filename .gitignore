@@ -4,6 +4,7 @@ web/public/js/bundle.js
 web/public/css/*.*
 web/public/html/**/*.*
 web/public/fonts/*.*
+web2/dist
 config.json
 .DS_Store
 node_modules/

@@ -1,16 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <ItemDialog
-      v-model="taskLogDialog"
-      save-button-text="Delete"
-      title="Task Log"
-      :max-width="800"
-    >
-      <template v-slot:form="{}">
-        <TaskLogView :project-id="projectId" :item-id="taskId" />
-      </template>
-    </ItemDialog>
-
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Dashboard</v-toolbar-title>
@@ -41,22 +30,10 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import ItemDialog from '@/components/ItemDialog.vue';
-import TaskLogView from '@/components/TaskLogView.vue';
+import EventBus from '@/event-bus';
 
 export default {
-  components: {
-    ItemDialog, TaskLogView,
-  },
-
   mixins: [ItemListPageBase],
-
-  data() {
-    return {
-      taskLogDialog: null,
-      taskId: null,
-    };
-  },
 
   watch: {
     async projectId() {
@@ -66,8 +43,9 @@ export default {
 
   methods: {
     showTaskLog(taskId) {
-      this.taskId = taskId;
-      this.taskLogDialog = true;
+      EventBus.$emit('i-show-task', {
+        taskId,
+      });
     },
 
     getHeaders() {

@@ -7,7 +7,11 @@
     :content-class="'item-dialog item-dialog--' + position"
   >
     <v-card>
-      <v-card-title class="headline">{{ title }}</v-card-title>
+      <v-card-title class="headline">
+        <slot
+          name="title"
+        >{{ title }}</slot>
+      </v-card-title>
 
       <v-card-text>
         <slot

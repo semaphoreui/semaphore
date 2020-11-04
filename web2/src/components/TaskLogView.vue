@@ -1,13 +1,13 @@
 <template>
-  <div>
-    <v-container class="pa-0" v-if="item != null && output != null">
+  <div v-if="item != null && output != null && user != null">
+    <v-container class="pa-0">
       <v-row no-gutters>
         <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
                 <v-list-item-title>Author</v-list-item-title>
-                <v-list-item-subtitle>{{ item.user_name }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ user.name }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
 
@@ -31,14 +31,14 @@
             <v-list-item class="pa-0">
               <v-list-item-content>
                 <v-list-item-title>Started</v-list-item-title>
-                <v-list-item-subtitle>{{ item.start }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ item.start || '&mdash;' }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
 
             <v-list-item class="pa-0">
               <v-list-item-content>
                 <v-list-item-title>Ended</v-list-item-title>
-                <v-list-item-subtitle>{{ item.end }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ item.end || '&mdash;' }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -46,12 +46,12 @@
       </v-row>
     </v-container>
 
-    <div class="text-view" style="height: 400px;" v-text="output">
+    <div class="task-log-view" style="height: 400px;" v-text="output">
     </div>
   </div>
 </template>
 <style lang="scss">
-  .text-view {
+  .task-log-view {
     overflow: auto;
     border: 1px solid gray;
     border-radius: 4px;
@@ -70,6 +70,7 @@ export default {
     return {
       item: null,
       output: null,
+      user: null,
     };
   },
   async created() {
@@ -82,11 +83,18 @@ export default {
         url: `/api/project/${this.projectId}/tasks/${this.itemId}`,
         responseType: 'json',
       })).data;
+
       this.output = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
         responseType: 'json',
       })).data.map((line) => line.output).join('\n');
+
+      this.user = (await axios({
+        method: 'get',
+        url: `/api/users/${this.item.user_id}`,
+        responseType: 'json',
+      })).data;
     },
   },
 };

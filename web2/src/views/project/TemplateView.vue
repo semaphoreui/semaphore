@@ -1,7 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="item != null && tasks != null">
-    <TaskLogDialog v-model="editDialog" />
-
     <ItemDialog
       v-model="editDialog"
       save-button-text="Save"
@@ -154,11 +152,10 @@ import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemDialog from '@/components/ItemDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
-import TaskLogDialog from '@/components/TaskLogDialog.vue';
 
 export default {
   components: {
-    YesNoDialog, ItemDialog, TemplateForm, TaskLogDialog,
+    YesNoDialog, ItemDialog, TemplateForm,
   },
   props: {
     projectId: Number,
@@ -206,13 +203,13 @@ export default {
     itemId() {
       return this.$route.params.templateId;
     },
-    IsNew() {
+    isNew() {
       return this.itemId === 'new';
     },
   },
 
   async created() {
-    if (this.IsNew) {
+    if (this.isNew) {
       await this.$router.replace({
         path: `/project/${this.projectId}/templates/new/edit`,
       });
@@ -223,8 +220,9 @@ export default {
 
   methods: {
     showTaskLog(taskId) {
-      this.taskId = taskId;
-      this.taskLogDialog = true;
+      EventBus.$emit('i-show-task', {
+        taskId,
+      });
     },
 
     showDrawer() {

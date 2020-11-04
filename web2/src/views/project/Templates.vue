@@ -37,18 +37,6 @@
       </template>
     </ItemDialog>
 
-    <ItemDialog
-      v-model="taskLogDialog"
-      save-button-text="Delete"
-      title="Task Log"
-      @save="onTaskAskDelete"
-      :max-width="800"
-    >
-      <template v-slot:form="{}">
-        <TaskLogView :project-id="projectId" :item-id="taskId" />
-      </template>
-    </ItemDialog>
-
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Task Templates</v-toolbar-title>
@@ -105,10 +93,10 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import TemplateForm from '@/components/TemplateForm.vue';
 import axios from 'axios';
 import TaskForm from '@/components/TaskForm.vue';
-import TaskLogView from '@/components/TaskLogView.vue';
+import EventBus from '@/event-bus';
 
 export default {
-  components: { TaskLogView, TemplateForm, TaskForm },
+  components: { TemplateForm, TaskForm },
   mixins: [ItemListPageBase],
   async created() {
     await this.loadData();
@@ -120,7 +108,6 @@ export default {
       environment: null,
       repositories: null,
       newTaskDialog: null,
-      taskLogDialog: null,
       taskId: null,
     };
   },
@@ -131,12 +118,9 @@ export default {
   },
   methods: {
     onTaskCreate(e) {
-      this.taskId = e.item.id;
-      this.taskLogDialog = true;
-    },
-
-    onTaskAskDelete() {
-      // TODO: stop task
+      EventBus.$emit('i-show-task', {
+        taskId: e.item.id,
+      });
     },
 
     createTask(itemId) {
