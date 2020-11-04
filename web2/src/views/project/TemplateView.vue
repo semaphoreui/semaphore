@@ -1,10 +1,46 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="item != null && tasks != null">
+    <ItemDialog
+      v-model="editDialog"
+      save-button-text="Save"
+      title="Edit Template"
+      @save="loadData()"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TemplateForm
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
+
+    <ItemDialog
+      v-model="copyDialog"
+      save-button-text="Create"
+      title="New Template"
+      @save="loadData()"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TemplateForm
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
+
     <YesNoDialog
       title="Delete template"
       text="Are you really want to delete this template?"
-      v-model="deleteItemDialog"
-      @yes="deleteItem()"
+      v-model="deleteDialog"
+      @yes="remove()"
     />
 
     <v-toolbar flat color="white">
@@ -12,29 +48,76 @@
 
       <v-toolbar-title>Task Template: {{ item.alias }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="error" @click="askDeleteItem()" class="mr-2">
-        <v-icon left>mdi-delete</v-icon>
-        Delete
-      </v-btn>
+
       <v-btn
-        color="secondary"
-        class="mr-2"
-        :to="`/project/${projectId}/templates/new/edit?id=${item.id}`"
+        icon
+        color="error"
+        @click="deleteDialog = true"
+      >
+        <v-icon left>mdi-delete</v-icon>
+      </v-btn>
+
+      <v-btn
+        icon
+        color="black"
+        @click="copyDialog = true"
       >
         <v-icon left>mdi-content-copy</v-icon>
-        Copy
       </v-btn>
-      <v-btn color="primary" :to="`/project/${projectId}/templates/${item.id}/edit`">
+
+      <v-btn
+        icon
+        color="black"
+        @click="editDialog = true"
+      >
         <v-icon left>mdi-pencil</v-icon>
-        Edit
       </v-btn>
+
     </v-toolbar>
 
+    <v-list two-line subheader>
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title>Playbook</v-list-item-title>
+          <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title>SSH Key</v-list-item-title>
+          <v-list-item-subtitle>{{ item.ssh_key_id }}</v-list-item-subtitle>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title>Inventory</v-list-item-title>
+          <v-list-item-subtitle>{{ item.inventory_id }}</v-list-item-subtitle>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title>Environment</v-list-item-title>
+          <v-list-item-subtitle>{{ item.environment_id }}</v-list-item-subtitle>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title>Repository</v-list-item-title>
+          <v-list-item-subtitle>{{ item.repository_id }}</v-list-item-subtitle>
+        </v-list-item-content>
+      </v-list-item>
+    </v-list>
+
+    <h4 class="ml-4 mt-4">Task History</h4>
     <v-data-table
       :headers="headers"
       :items="tasks"
       hide-default-footer
-      class="mt-4"
+      class="mt-2"
     >
     </v-data-table>
   </div>
@@ -47,9 +130,11 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import ItemDialog from '@/components/ItemDialog.vue';
+import TemplateForm from '@/components/TemplateForm.vue';
 
 export default {
-  components: { YesNoDialog },
+  components: { YesNoDialog, ItemDialog, TemplateForm },
   props: {
     projectId: Number,
   },
@@ -84,8 +169,9 @@ export default {
       ],
       tasks: null,
       item: null,
-      deleteItemDialog: false,
-      deleteItemId: null,
+      deleteDialog: null,
+      editDialog: null,
+      copyDialog: null,
     };
   },
 
@@ -93,18 +179,18 @@ export default {
     itemId() {
       return this.$route.params.templateId;
     },
-    isNewItem() {
+    IsNew() {
       return this.itemId === 'new';
     },
   },
 
   async created() {
-    if (this.isNewItem) {
+    if (this.IsNew) {
       await this.$router.replace({
         path: `/project/${this.projectId}/templates/new/edit`,
       });
     } else {
-      await this.loadItem();
+      await this.loadData();
     }
   },
 
@@ -113,15 +199,11 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    askDeleteItem() {
-      this.deleteItemDialog = true;
-    },
-
-    async deleteItem() {
+    async remove() {
       try {
         await axios({
           method: 'delete',
-          url: `/api/project/${this.projectId}/templates/${this.deleteItemId}`,
+          url: `/api/project/${this.projectId}/templates/${this.itemId}`,
           responseType: 'json',
         });
 
@@ -139,11 +221,11 @@ export default {
           text: getErrorMessage(err),
         });
       } finally {
-        this.deleteItemDialog = false;
+        this.deleteDialog = false;
       }
     },
 
-    async loadItem() {
+    async loadData() {
       this.item = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}`,

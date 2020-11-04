@@ -12,7 +12,6 @@
         </v-tabs>
       </div>
     </v-toolbar>
-
     <v-data-table
       :headers="headers"
       :items="items"
@@ -22,22 +21,21 @@
     </v-data-table>
   </div>
 </template>
-<style lang="scss">
-
-</style>
 <script>
-import axios from 'axios';
-import EventBus from '@/event-bus';
+import ItemListPageBase from '@/components/ItemListPageBase';
 
 export default {
-  components: {
+  mixins: [ItemListPageBase],
+
+  watch: {
+    async projectId() {
+      await this.loadItems();
+    },
   },
-  props: {
-    projectId: Number,
-  },
-  data() {
-    return {
-      headers: [
+
+  methods: {
+    getHeaders() {
+      return [
         {
           text: 'Task',
           value: 'tpl_alias',
@@ -63,37 +61,11 @@ export default {
           value: 'start',
           sortable: false,
         },
-      ],
-      items: null,
-    };
-  },
-
-  async created() {
-    await this.loadItems();
-  },
-
-  watch: {
-    async projectId() {
-      await this.loadItems();
-    },
-  },
-
-  methods: {
-    showDrawer() {
-      EventBus.$emit('i-show-drawer');
+      ];
     },
 
-    async editItem(itemId = 'new') {
-      this.itemId = itemId;
-      this.editDialog = true;
-    },
-
-    async loadItems() {
-      this.items = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/last`,
-        responseType: 'json',
-      })).data;
+    getItemsUrl() {
+      return `/api/project/${this.projectId}/tasks/last`;
     },
   },
 };

@@ -1,11 +1,22 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
-    <TemplateDialog
-      :project-id="projectId"
-      :template-id="itemId"
+  <div v-if="isLoaded">
+    <ItemDialog
       v-model="editDialog"
-      @saved="onItemSaved"
-    />
+      save-button-text="Create"
+      title="New template"
+      @save="loadItems()"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TemplateForm
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
@@ -13,7 +24,7 @@
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
-        @click="editItem()"
+        @click="editItem('new')"
       >New template</v-btn>
     </v-toolbar>
 
@@ -27,6 +38,22 @@
         <router-link :to="`/project/${projectId}/templates/${item.id}`">
           {{ item.alias }}
         </router-link>
+      </template>
+
+      <template v-slot:item.ssh_key_id="{ item }">
+        {{ keys.find((x) => x.id === item.ssh_key_id).name }}
+      </template>
+
+      <template v-slot:item.inventory_id="{ item }">
+        {{ inventory.find((x) => x.id === item.inventory_id).name }}
+      </template>
+
+      <template v-slot:item.environment_id="{ item }">
+        {{ environment.find((x) => x.id === item.environment_id).name }}
+      </template>
+
+      <template v-slot:item.repository_id="{ item }">
+        {{ repositories.find((x) => x.id === item.repository_id).name }}
       </template>
 
       <template v-slot:item.actions="{}">
@@ -43,20 +70,32 @@
 
 </style>
 <script>
+import ItemListPageBase from '@/components/ItemListPageBase';
+import TemplateForm from '@/components/TemplateForm.vue';
 import axios from 'axios';
-import EventBus from '@/event-bus';
-import TemplateDialog from '@/components/TemplateDialog.vue';
 
 export default {
-  components: {
-    TemplateDialog,
-  },
-  props: {
-    projectId: Number,
+  components: { TemplateForm },
+  mixins: [ItemListPageBase],
+  async created() {
+    await this.loadData();
   },
   data() {
     return {
-      headers: [
+      keys: null,
+      inventory: null,
+      environment: null,
+      repositories: null,
+    };
+  },
+  computed: {
+    isLoaded() {
+      return this.items && this.keys && this.inventory && this.environment && this.repositories;
+    },
+  },
+  methods: {
+    getHeaders() {
+      return [
         {
           text: 'Alias',
           value: 'alias',
@@ -68,61 +107,58 @@ export default {
         },
         {
           text: 'SSH key',
-          value: 'email',
+          value: 'ssh_key_id',
           sortable: false,
         },
         {
           text: 'Inventory',
-          value: 'inventory',
+          value: 'inventory_id',
           sortable: false,
         },
         {
           text: 'Environment',
-          value: 'environment',
+          value: 'environment_id',
           sortable: false,
         },
         {
           text: 'Repository',
-          value: 'repository',
+          value: 'repository_id',
           sortable: false,
         },
         {
-          text: '',
+          text: 'Actions',
           value: 'actions',
           sortable: false,
         },
-      ],
-      items: null,
-      itemId: null,
-      editDialog: null,
-    };
-  },
-
-  async created() {
-    await this.loadItems();
-  },
-
-  methods: {
-    showDrawer() {
-      EventBus.$emit('i-show-drawer');
+      ];
     },
 
-    onItemSaved(e) {
-      EventBus.$emit('i-snackbar', {
-        color: 'success',
-        text: e.action === 'new' ? `Template "${e.item.alias}" created` : `Template "${e.item.alias}" saved`,
-      });
+    getItemsUrl() {
+      return `/api/project/${this.projectId}/templates`;
     },
 
-    async editItem(itemId = 'new') {
-      this.itemId = itemId;
-      this.editDialog = true;
-    },
-
-    async loadItems() {
-      this.items = (await axios({
+    async loadData() {
+      this.inventory = (await axios({
         method: 'get',
-        url: `/api/project/${this.projectId}/templates`,
+        url: `/api/project/${this.projectId}/inventory`,
+        responseType: 'json',
+      })).data;
+
+      this.environment = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/environment`,
+        responseType: 'json',
+      })).data;
+
+      this.keys = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/keys`,
+        responseType: 'json',
+      })).data;
+
+      this.repositories = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/repositories`,
         responseType: 'json',
       })).data;
     },

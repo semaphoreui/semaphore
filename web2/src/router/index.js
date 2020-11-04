@@ -5,7 +5,6 @@ import Activity from '../views/project/Activity.vue';
 import Settings from '../views/project/Settings.vue';
 import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
-import TemplateEdit from '../views/project/TemplateEdit.vue';
 import Environment from '../views/project/Environment.vue';
 import Inventory from '../views/project/Inventory.vue';
 import Keys from '../views/project/Keys.vue';
@@ -46,10 +45,6 @@ const routes = [
   {
     path: '/project/:projectId/templates/:templateId',
     component: TemplateView,
-  },
-  {
-    path: '/project/:projectId/templates/:templateId/edit',
-    component: TemplateEdit,
   },
   {
     path: '/project/:projectId/environment',

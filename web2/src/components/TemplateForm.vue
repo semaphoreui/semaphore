@@ -1,24 +1,24 @@
 <template>
   <v-form
-    ref="itemForm"
+    ref="form"
     lazy-validation
-    v-model="itemFormValid"
-    v-if="isNewItem || isLoaded"
+    v-model="formValid"
+    v-if="isLoaded"
   >
     <v-text-field
       v-model="item.alias"
       label="Playbook Alias"
       :rules="[v => !!v || 'Playbook Alias is required']"
       required
-      :disabled="itemFormSaving"
+      :disabled="formSaving"
     ></v-text-field>
 
     <v-text-field
-      v-model="item.name"
+      v-model="item.playbook"
       label="Playbook Name"
       :rules="[v => !!v || 'Playbook Name is required']"
       required
-      :disabled="itemFormSaving"
+      :disabled="formSaving"
     ></v-text-field>
 
     <v-select
@@ -29,7 +29,7 @@
       item-text="name"
       :rules="[v => !!v || 'SSH Key is required']"
       required
-      :disabled="itemFormSaving"
+      :disabled="formSaving"
     ></v-select>
 
     <v-select
@@ -40,7 +40,7 @@
       item-text="name"
       :rules="[v => !!v || 'Inventory is required']"
       required
-      :disabled="itemFormSaving"
+      :disabled="formSaving"
     ></v-select>
 
     <v-select
@@ -51,7 +51,7 @@
       item-text="name"
       :rules="[v => !!v || 'Playbook Repository is required']"
       required
-      :disabled="itemFormSaving"
+      :disabled="formSaving"
     ></v-select>
 
     <v-select
@@ -62,18 +62,16 @@
       item-text="name"
       :rules="[v => !!v || 'Environment is required']"
       required
-      :disabled="itemFormSaving"
+      :disabled="formSaving"
     ></v-select>
   </v-form>
 </template>
 <script>
+import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
 export default {
-  props: {
-    templateId: [Number, String],
-    projectId: Number,
-  },
+  mixins: [ItemFormBase],
 
   data() {
     return {
@@ -82,16 +80,10 @@ export default {
       inventory: null,
       repositories: null,
       environment: null,
-      itemFormValid: false,
-      itemFormError: null,
-      itemFormSaving: false,
     };
   },
 
   async created() {
-    if (this.isNewItem) {
-      this.item = {};
-    }
     this.keys = (await axios({
       keys: 'get',
       url: `/api/project/${this.projectId}/keys`,
@@ -112,51 +104,24 @@ export default {
       url: `/api/project/${this.projectId}/environment`,
       responseType: 'json',
     })).data;
-    if (!this.isNewItem) {
-      this.item = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.itemId}`,
-        responseType: 'json',
-      })).data;
-    }
   },
 
   computed: {
     isLoaded() {
-      if (this.isNewItem) {
+      if (this.isNew) {
         return true;
       }
       return this.keys && this.repositories && this.inventory && this.environment && this.item;
     },
-    isNewItem() {
-      return this.templateId === 'new';
-    },
-    itemId() {
-      return this.templateId;
-    },
   },
 
   methods: {
-    async saveItem() {
-      if (!this.$refs.itemForm.validate()) {
-        return null;
-      }
+    getItemsUrl() {
+      return `/api/project/${this.projectId}/templates`;
+    },
 
-      this.itemFormSaving = true;
-      try {
-        await axios({
-          method: this.isNewItem ? 'post' : 'put',
-          url: this.isNewItem
-            ? `/api/project/${this.projectId}/templates`
-            : `/api/project/${this.projectId}/templates/${this.item.id}`,
-          responseType: 'json',
-          data: this.item,
-        });
-      } finally {
-        this.itemFormSaving = true;
-      }
-
-      return this.item;
+    getSingleItemUrl() {
+      return `/api/project/${this.projectId}/templates/${this.itemId}`;
     },
   },
 };

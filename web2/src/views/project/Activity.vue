@@ -11,13 +11,6 @@
           <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
         </v-tabs>
       </div>
-      <!--      <template v-slot:extension>-->
-      <!--        <v-tabs centered>-->
-      <!--          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>-->
-      <!--          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>-->
-      <!--          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>-->
-      <!--        </v-tabs>-->
-      <!--      </template>-->
     </v-toolbar>
 
     <v-data-table
@@ -29,22 +22,15 @@
     </v-data-table>
   </div>
 </template>
-<style lang="scss">
-
-</style>
 <script>
-import axios from 'axios';
-import EventBus from '@/event-bus';
+import ItemListPageBase from '@/components/ItemListPageBase';
 
 export default {
-  components: {
-  },
-  props: {
-    projectId: Number,
-  },
-  data() {
-    return {
-      headers: [
+  mixins: [ItemListPageBase],
+
+  methods: {
+    getHeaders() {
+      return [
         {
           text: 'Time',
           value: 'created',
@@ -55,31 +41,11 @@ export default {
           value: 'description',
           sortable: false,
         },
-      ],
-      items: null,
-    };
-  },
-
-  async created() {
-    await this.loadItems();
-  },
-
-  methods: {
-    showDrawer() {
-      EventBus.$emit('i-show-drawer');
+      ];
     },
 
-    async editItem(itemId = 'new') {
-      this.itemId = itemId;
-      this.editDialog = true;
-    },
-
-    async loadItems() {
-      this.items = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/events/last`,
-        responseType: 'json',
-      })).data;
+    getItemsUrl() {
+      return `/api/project/${this.projectId}/events/last`;
     },
   },
 };

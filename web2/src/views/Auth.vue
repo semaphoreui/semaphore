@@ -127,6 +127,7 @@
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
+import EventBus from '@/event-bus';
 
 export default {
   data() {
@@ -162,7 +163,7 @@ export default {
 
   async created() {
     if (this.isAuthenticated()) {
-      await this.$router.push({ path: '/' });
+      EventBus.$emit('i-session-create');
     }
   },
 
@@ -215,7 +216,7 @@ export default {
           },
         });
 
-        await this.$router.push({ path: '/' });
+        EventBus.$emit('i-session-create');
       } catch (err) {
         this.signInError = getErrorMessage(err);
       } finally {

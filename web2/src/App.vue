@@ -6,7 +6,7 @@
 
     <UserDialog
       v-model="userDialog"
-      :user-id="user.id"
+      :user-id="user ? user.id : null"
     />
 
     <v-snackbar
@@ -388,9 +388,10 @@ export default {
       await this.loadUserInfo();
       await this.loadProjects();
 
-      if (this.$route.path.startsWith('/project/')
-        && this.project == null
-        && this.projects.length > 0) { // try to find project and switch to it
+      if (this.$route.path === '/'
+        || this.$route.path === '/project'
+        || (this.$route.path.startsWith('/project/')
+          && this.project == null)) { // try to find project and switch to it
         await this.tryToSwitchToLastProject();
       }
 
@@ -412,13 +413,14 @@ export default {
     });
 
     EventBus.$on('i-session-end', async () => {
-      this.snackbar = false;
-      this.snackbarColor = '';
-      this.snackbarText = '';
-      await this.$router.push({ path: '/auth/login' });
+      await this.signOut();
     });
 
-    EventBus.$on('i-account-changed', async () => {
+    EventBus.$on('i-session-create', async () => {
+      await this.tryToSwitchToLastProject();
+    });
+
+    EventBus.$on('i-account-change', async () => {
       await this.loadUserInfo();
     });
 
@@ -452,7 +454,7 @@ export default {
         text,
       });
 
-      if (e.item.id === this.user.id) {
+      if (this.user && e.item.id === this.user.id) {
         await this.loadUserInfo();
       }
     });
@@ -563,13 +565,19 @@ export default {
     },
 
     async signOut() {
+      this.snackbar = false;
+      this.snackbarColor = '';
+      this.snackbarText = '';
+
       (await axios({
         method: 'post',
         url: '/api/auth/logout',
         responseType: 'json',
       }));
 
-      await this.$router.push({ path: '/auth/login' });
+      if (this.$route.path !== '/auth/login') {
+        await this.$router.push({ path: '/auth/login' });
+      }
     },
   },
 };
