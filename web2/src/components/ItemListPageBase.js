@@ -5,6 +5,9 @@ import ItemDialog from '@/components/ItemDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import { getErrorMessage } from '@/lib/error';
 
+/**
+ *
+ */
 export default {
   components: {
     YesNoDialog,

@@ -9,12 +9,42 @@
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
           :project-id="projectId"
-          :item-id="itemId"
+          item-id="new"
           @save="onSave"
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
         />
+      </template>
+    </ItemDialog>
+
+    <ItemDialog
+      v-model="newTaskDialog"
+      save-button-text="Run"
+      title="New Task"
+      @save="onTaskCreate"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TaskForm
+          :project-id="projectId"
+          item-id="new"
+          :template-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
+
+    <ItemDialog
+      v-model="taskLogDialog"
+      save-button-text="Delete"
+      title="Task Log"
+      @save="onTaskAskDelete"
+    >
+      <template v-slot:form="{}">
+        <TaskLogView :item-id="taskId" />
       </template>
     </ItemDialog>
 
@@ -56,8 +86,8 @@
         {{ repositories.find((x) => x.id === item.repository_id).name }}
       </template>
 
-      <template v-slot:item.actions="{}">
-        <v-btn text color="black" class="pl-1 pr-2">
+      <template v-slot:item.actions="{ item }">
+        <v-btn text color="black" class="pl-1 pr-2" @click="createTask(item.id)">
           <v-icon class="pr-1">mdi-play</v-icon>
           Run
         </v-btn>
@@ -73,9 +103,11 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TemplateForm from '@/components/TemplateForm.vue';
 import axios from 'axios';
+import TaskForm from '@/components/TaskForm.vue';
+import TaskLogView from '@/components/TaskLogView.vue';
 
 export default {
-  components: { TemplateForm },
+  components: { TaskLogView, TemplateForm, TaskForm },
   mixins: [ItemListPageBase],
   async created() {
     await this.loadData();
@@ -86,6 +118,9 @@ export default {
       inventory: null,
       environment: null,
       repositories: null,
+      newTaskDialog: null,
+      taskLogDialog: null,
+      taskId: null,
     };
   },
   computed: {
@@ -94,6 +129,20 @@ export default {
     },
   },
   methods: {
+    onTaskCreate(e) {
+      this.taskId = e.item.id;
+      this.taskLogDialog = true;
+    },
+
+    onTaskAskDelete() {
+      // TODO: stop task
+    },
+
+    createTask(itemId) {
+      this.itemId = itemId;
+      this.newTaskDialog = true;
+    },
+
     getHeaders() {
       return [
         {

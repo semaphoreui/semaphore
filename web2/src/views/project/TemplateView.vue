@@ -72,45 +72,53 @@
       >
         <v-icon left>mdi-pencil</v-icon>
       </v-btn>
-
     </v-toolbar>
 
-    <v-list two-line subheader>
-      <v-list-item>
-        <v-list-item-content>
-          <v-list-item-title>Playbook</v-list-item-title>
-          <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
-        </v-list-item-content>
-      </v-list-item>
+    <v-container class="pa-0">
+      <v-row>
+        <v-col>
+          <v-list two-line subheader>
+            <v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>Playbook</v-list-item-title>
+                <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
 
-      <v-list-item>
-        <v-list-item-content>
-          <v-list-item-title>SSH Key</v-list-item-title>
-          <v-list-item-subtitle>{{ item.ssh_key_id }}</v-list-item-subtitle>
-        </v-list-item-content>
-      </v-list-item>
+            <v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>SSH Key</v-list-item-title>
+                <v-list-item-subtitle>{{ item.ssh_key_id }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-col>
+        <v-col>
+          <v-list two-line subheader>
+            <v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>Inventory</v-list-item-title>
+                <v-list-item-subtitle>{{ item.inventory_id }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
 
-      <v-list-item>
-        <v-list-item-content>
-          <v-list-item-title>Inventory</v-list-item-title>
-          <v-list-item-subtitle>{{ item.inventory_id }}</v-list-item-subtitle>
-        </v-list-item-content>
-      </v-list-item>
+            <v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>Environment</v-list-item-title>
+                <v-list-item-subtitle>{{ item.environment_id }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
 
-      <v-list-item>
-        <v-list-item-content>
-          <v-list-item-title>Environment</v-list-item-title>
-          <v-list-item-subtitle>{{ item.environment_id }}</v-list-item-subtitle>
-        </v-list-item-content>
-      </v-list-item>
-
-      <v-list-item>
-        <v-list-item-content>
-          <v-list-item-title>Repository</v-list-item-title>
-          <v-list-item-subtitle>{{ item.repository_id }}</v-list-item-subtitle>
-        </v-list-item-content>
-      </v-list-item>
-    </v-list>
+            <v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>Repository</v-list-item-title>
+                <v-list-item-subtitle>{{ item.repository_id }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-col>
+      </v-row>
+    </v-container>
 
     <h4 class="ml-4 mt-4">Task History</h4>
     <v-data-table
