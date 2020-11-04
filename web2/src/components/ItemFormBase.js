@@ -95,7 +95,7 @@ export default {
         })).data;
 
         this.$emit('save', {
-          item,
+          item: item || this.item,
           action: this.isNew ? 'new' : 'edit',
         });
       } catch (err) {

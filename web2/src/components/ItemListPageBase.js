@@ -17,6 +17,7 @@ export default {
 
   props: {
     projectId: Number,
+    userId: Number,
   },
 
   data() {

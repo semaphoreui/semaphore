@@ -8,7 +8,7 @@
 
     <div class="project-settings-form">
       <div style="height: 220px;">
-        <ProjectForm project-id="new" ref="editForm"/>
+        <ProjectForm item-id="new" ref="editForm"/>
       </div>
 
       <div class="text-right">

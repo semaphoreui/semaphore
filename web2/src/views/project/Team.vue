@@ -43,16 +43,28 @@
       :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.admin="{ item }">
-        <v-btn icon v-if="item.admin" @click="refuseAdmin(item.id)">
+        <v-btn
+          icon
+          v-if="item.admin"
+          @click="refuseAdmin(item.id)"
+          :disabled="!isUserAdmin()"
+        >
           <v-icon>mdi-checkbox-marked</v-icon>
         </v-btn>
-        <v-btn icon v-else @click="grantAdmin(item.id)">
+        <v-btn
+          icon
+          v-else
+          @click="grantAdmin(item.id)"
+          :disabled="!isUserAdmin()"
+        >
           <v-icon>mdi-checkbox-blank-outline</v-icon>
         </v-btn>
       </template>
+
       <template v-slot:item.actions="{ item }">
         <v-btn
           icon
+          :disabled="!isUserAdmin()"
           @click="askDeleteItem(item.id)"
         >
           <v-icon>mdi-delete</v-icon>
@@ -119,6 +131,9 @@ export default {
     },
     getEventName() {
       return 'i-repositories';
+    },
+    isUserAdmin() {
+      return (this.items.find((x) => x.id === this.userId) || {}).admin;
     },
   },
 };

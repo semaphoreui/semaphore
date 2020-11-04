@@ -1,10 +1,22 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <UserDialog
-      :user-id="itemId"
+    <ItemDialog
       v-model="editDialog"
-      @saved="onItemSaved"
-    />
+      save-button-text="Save"
+      title="Edit User"
+      @save="loadItems()"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <UserForm
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
 
     <YesNoDialog
       title="Delete user"
@@ -25,7 +37,7 @@
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
-        @click="editItem()"
+        @click="editItem('new')"
       >New User</v-btn>
     </v-toolbar>
 
@@ -38,153 +50,90 @@
     >
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="askDeleteItem(item.id)"
-              >
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
-            <span>Delete user</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            :disabled="item.id === userId"
+          >
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
 
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="editItem(item.id)"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-            <span>Edit user</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            @click="editItem(item.id)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
         </div>
       </template>
     </v-data-table>
   </div>
-
 </template>
-<style lang="scss">
-
-</style>
 <script>
-import axios from 'axios';
 import EventBus from '@/event-bus';
-import UserDialog from '@/components/UserDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
-import { getErrorMessage } from '@/lib/error';
+import ItemListPageBase from '@/components/ItemListPageBase';
+import ItemDialog from '@/components/ItemDialog.vue';
+import UserForm from '@/components/UserForm.vue';
 
 export default {
+  mixins: [ItemListPageBase],
+
   components: {
     YesNoDialog,
-    UserDialog,
-  },
-  data() {
-    return {
-      headers: [
-        {
-          text: 'Name',
-          value: 'name',
-        },
-        {
-          text: 'Username',
-          value: 'username',
-        },
-        {
-          text: 'Email',
-          value: 'email',
-        },
-        {
-          text: 'Alert',
-          value: 'alert',
-        },
-        {
-          text: 'Admin',
-          value: 'admin',
-        },
-        {
-          text: 'External',
-          value: 'external',
-        },
-        {
-          text: 'Actions',
-          value: 'actions',
-          sortable: false,
-        },
-      ],
-      items: null,
-      itemId: null,
-      editDialog: null,
-      deleteItemDialog: null,
-    };
-  },
-
-  async created() {
-    await this.loadItems();
+    UserForm,
+    ItemDialog,
   },
 
   methods: {
-    showDrawer() {
-      EventBus.$emit('i-show-drawer');
+    getHeaders() {
+      return [{
+        text: 'Name',
+        value: 'name',
+      },
+      {
+        text: 'Username',
+        value: 'username',
+      },
+      {
+        text: 'Email',
+        value: 'email',
+      },
+      {
+        text: 'Alert',
+        value: 'alert',
+      },
+      {
+        text: 'Admin',
+        value: 'admin',
+      },
+      {
+        text: 'External',
+        value: 'external',
+      },
+      {
+        text: 'Actions',
+        value: 'actions',
+        sortable: false,
+      }];
     },
 
     async returnToProjects() {
       EventBus.$emit('i-open-last-project');
     },
 
-    async onItemSaved() {
-      await this.loadItems();
+    getItemsUrl() {
+      return '/api/users';
     },
 
-    askDeleteItem(itemId) {
-      this.itemId = itemId;
-      this.deleteItemDialog = true;
+    getSingleItemUrl() {
+      return `/api/users/${this.itemId}`;
     },
 
-    async deleteItem(itemId) {
-      try {
-        const item = this.items.find((x) => x.id === itemId);
-
-        await axios({
-          method: 'delete',
-          url: `/api/users/${itemId}`,
-          responseType: 'json',
-        });
-
-        EventBus.$emit('i-user', {
-          action: 'delete',
-          item,
-        });
-
-        await this.loadItems();
-      } catch (err) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: getErrorMessage(err),
-        });
-      }
-    },
-
-    editItem(itemId = 'new') {
-      this.itemId = itemId;
-      this.editDialog = true;
-    },
-
-    async loadItems() {
-      this.items = (await axios({
-        method: 'get',
-        url: '/api/users',
-        responseType: 'json',
-      })).data;
+    getEventName() {
+      return 'i-user';
     },
   },
 };

@@ -1,9 +1,23 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
-    <UserDialog
+    <ItemDialog
       v-model="userDialog"
-      :user-id="user ? user.id : null"
-    />
+      save-button-text="Save"
+      title="Edit User"
+      v-if="user"
+      event-name="i-user"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <UserForm
+          :project-id="projectId"
+          :item-id="user.id"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
 
     <ItemDialog
       v-model="taskLogDialog"
@@ -89,7 +103,7 @@
             v-for="(item, i) in projects"
             :key="i"
             :to="`/project/${item.id}`"
-            @click="switchToProject(item.id)"
+            @click="selectProject(item.id)"
           >
             <v-list-item-icon>
               <v-avatar :color="getProjectColor(item)" size="24">
@@ -252,7 +266,7 @@
     </v-navigation-drawer>
 
     <v-main>
-      <router-view v-bind:projectId="projectId"></router-view>
+      <router-view :projectId="projectId" :userId="user ? user.id : null"></router-view>
     </v-main>
 
   </v-app>
@@ -373,10 +387,10 @@
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
-import UserDialog from '@/components/UserDialog.vue';
 import ItemDialog from '@/components/ItemDialog.vue';
 import TaskLogView from '@/components/TaskLogView.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
+import UserForm from '@/components/UserForm.vue';
 import EventBus from './event-bus';
 
 const PROJECT_COLORS = [
@@ -389,7 +403,7 @@ const PROJECT_COLORS = [
 export default {
   name: 'App',
   components: {
-    UserDialog,
+    UserForm,
     ItemDialog,
     TaskLogView,
     ProjectForm,
@@ -428,10 +442,14 @@ export default {
     project() {
       return this.projects.find((x) => x.id === this.projectId);
     },
+
+    isAuthenticated() {
+      return document.cookie.includes('semaphore=');
+    },
   },
 
   async created() {
-    if (!this.isAuthenticated()) {
+    if (!this.isAuthenticated) {
       if (this.$route.path !== '/auth/login') {
         await this.$router.push({ path: '/auth/login' });
       }
@@ -440,29 +458,15 @@ export default {
     }
 
     try {
-      await this.loadUserInfo();
-      await this.loadProjects();
-
-      if (this.$route.path === '/'
-        || this.$route.path === '/project'
-        || (this.$route.path.startsWith('/project/')
-          && this.project == null)) { // try to find project and switch to it
-        await this.tryToSwitchToLastProject();
-      }
-
-      if (this.$route.query.t) {
-        EventBus.$emit('i-show-task', {
-          itemId: parseInt(this.$route.query.t || '', 10),
-        });
-      }
-
+      await this.init();
       this.state = 'success';
     } catch (err) { // notify about problem and sign out
       EventBus.$emit('i-snackbar', {
         color: 'error',
         text: getErrorMessage(err),
       });
-      EventBus.$emit('i-session-end');
+      // EventBus.$emit('i-session-end');
+      console.error(err);
     }
   },
 
@@ -478,7 +482,8 @@ export default {
     });
 
     EventBus.$on('i-session-create', async () => {
-      await this.tryToSwitchToLastProject();
+      await this.init();
+      await this.trySelectMostSuitableProject();
     });
 
     EventBus.$on('i-account-change', async () => {
@@ -495,7 +500,7 @@ export default {
     });
 
     EventBus.$on('i-open-last-project', async () => {
-      await this.tryToSwitchToLastProject();
+      await this.trySelectMostSuitableProject();
     });
 
     EventBus.$on('i-user', async (e) => {
@@ -554,11 +559,11 @@ export default {
 
       switch (e.action) {
         case 'new':
-          await this.switchToProject(e.item.id);
+          await this.selectProject(e.item.id);
           break;
         case 'delete':
           if (this.projectId === e.item.id && this.projects.length > 0) {
-            await this.switchToProject(this.projects[0].id);
+            await this.selectProject(this.projects[0].id);
           }
           break;
         default:
@@ -568,33 +573,58 @@ export default {
   },
 
   methods: {
-    async tryToSwitchToLastProject() {
+    async init() {
+      await this.loadUserInfo();
+      await this.loadProjects();
+
+      if (this.$route.path === '/'
+        || this.$route.path === '/project'
+        || (this.$route.path.startsWith('/project/'))) {
+        // try to find project and switch to it
+        await this.trySelectMostSuitableProject();
+      }
+
+      if (this.$route.query.t) {
+        EventBus.$emit('i-show-task', {
+          itemId: parseInt(this.$route.query.t || '', 10),
+        });
+      }
+    },
+
+    async trySelectMostSuitableProject() {
       if (this.projects.length === 0) {
-        await this.$router.push({ path: '/project/new' });
+        if (this.$route.path !== '/project/new') {
+          await this.$router.push({ path: '/project/new' });
+        }
         return;
       }
+
       let projectId;
 
-      if (localStorage.getItem('projectId')) {
+      if (this.projectId) {
+        projectId = this.projectId;
+      }
+
+      if ((projectId == null || !this.projects.some((p) => p.id === projectId))
+        && localStorage.getItem('projectId')) {
         projectId = parseInt(localStorage.getItem('projectId'), 10);
       }
 
-      if (projectId == null || !this.projects.includes((p) => p.id === projectId)) {
+      if (projectId == null || !this.projects.some((p) => p.id === projectId)) {
         projectId = this.projects[0].id;
       }
 
       if (projectId != null) {
-        await this.switchToProject(projectId);
+        await this.selectProject(projectId);
       }
     },
 
-    async switchToProject(projectId) {
+    async selectProject(projectId) {
       localStorage.setItem('projectId', projectId);
+      if (this.projectId === projectId) {
+        return;
+      }
       await this.$router.push({ path: `/project/${projectId}` });
-    },
-
-    isAuthenticated() {
-      return document.cookie.includes('semaphore=');
     },
 
     async loadProjects() {
@@ -606,7 +636,7 @@ export default {
     },
 
     async loadUserInfo() {
-      if (!this.isAuthenticated()) {
+      if (!this.isAuthenticated) {
         return;
       }
       this.user = (await axios({

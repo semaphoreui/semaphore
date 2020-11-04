@@ -63,67 +63,63 @@
       </v-card>
     </v-dialog>
 
-    <v-main>
-      <v-container
-        fluid
-        fill-height
-        align-center
-        justify-center
-        class="pa-0"
+    <v-container
+      fluid
+      fill-height
+      align-center
+      justify-center
+      class="pa-0"
+    >
+      <v-form
+        ref="signInForm"
+        lazy-validation
+        v-model="signInFormValid"
+        style="width: 300px; height: 300px;"
       >
-        <v-form
-          ref="signInForm"
-          lazy-validation
-          v-model="signInFormValid"
+        <h3 class="text-center mb-8">SEMAPHORE</h3>
+
+        <v-alert
+          :value="signInError"
+          color="error"
+          style="margin-bottom: 20px;"
+        >{{ signInError }}</v-alert>
+
+        <v-text-field
+          v-model="username"
+          label="Username"
+          :rules="usernameRules"
+          autofocus
+          required
+          :disabled="signInProcess"
+        ></v-text-field>
+
+        <v-text-field
+          v-model="password"
+          label="Password"
+          :rules="[v => !!v || 'Password is required']"
+          type="password"
+          required
+          :disabled="signInProcess"
+          @keyup.enter.native="signIn"
+          style="margin-bottom: 20px;"
+        ></v-text-field>
+        <v-btn
+          color="primary"
+          @click="signIn"
+          :disabled="signInProcess"
+          block
         >
-          <v-alert
-            :value="signInError"
-            color="error"
-            style="margin-bottom: 20px;"
-          >{{ signInError }}</v-alert>
-
-          <v-text-field
-            v-model="username"
-            label="Username"
-            :rules="usernameRules"
-            autofocus
-            required
-            :disabled="signInProcess"
-          ></v-text-field>
-
-          <v-text-field
-            v-model="password"
-            label="Password"
-            :rules="[v => !!v || 'Password is required']"
-            type="password"
-            required
-            :disabled="signInProcess"
-            @keyup.enter.native="signIn"
-            style="margin-bottom: 20px;"
-          ></v-text-field>
-
-          <v-btn
-            color="default"
-            @click="forgotPassword"
-            :disabled="signInProcess"
-          >
-            Forgot password
-          </v-btn>
-
-          <v-btn
-            color="primary"
-            @click="signIn"
-            :disabled="signInProcess"
-            style="margin-right: 0;"
-          >
-            Sign In
-          </v-btn>
-        </v-form>
-      </v-container>
-    </v-main>
+          Sign In
+        </v-btn>
+      </v-form>
+    </v-container>
   </div>
 </template>
-
+<style lang="scss">
+.auth {
+  height: 100vh;
+}
+</style>
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';

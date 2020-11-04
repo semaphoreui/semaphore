@@ -79,7 +79,7 @@ export default {
       if (e) {
         this.$emit('save', e);
         if (this.eventName) {
-          EventBus.$emit('i-project', e);
+          EventBus.$emit(this.eventName, e);
         }
       }
     },
