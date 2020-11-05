@@ -54,7 +54,7 @@ aliases:
   - &test-compile-changes
     run:
       name: test that compile did not create/modify untracked files
-      command: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
+      command: git diff --exit-code --stat -- . ':(exclude)web2/package-lock.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
 
   - &save-npm-cache
     save_cache:
