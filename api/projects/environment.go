@@ -45,6 +45,11 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 
 // GetEnvironment retrieves sorted environments from the database
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
+	if environment := context.Get(r, "environment"); environment != nil {
+		util.WriteJSON(w, http.StatusOK, environment.(db.Environment))
+		return
+	}
+
 	project := context.Get(r, "project").(db.Project)
 	var env []db.Environment
 

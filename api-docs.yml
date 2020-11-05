@@ -1175,6 +1175,15 @@ paths:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - project
+      summary: Get template
+      responses:
+        200:
+          description: template object
+          schema:
+            $ref: "#/definitions/Template"
     put:
       tags:
         - project

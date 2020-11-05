@@ -16,7 +16,15 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-var publicAssets = packr.NewBox("../web/public")
+var publicAssets packr.Box
+
+func getPublicAssetsPath() string {
+	if util.Config != nil && util.Config.OldFrontend {
+		return "../web/public"
+	}
+
+	return "../web2/dist"
+}
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
 func JSONMiddleware(next http.Handler) http.Handler {
@@ -50,6 +58,8 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
 // Route declares all routes
 func Route() *mux.Router {
+	publicAssets = packr.NewBox(getPublicAssetsPath())
+
 	r := mux.NewRouter().StrictSlash(true)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
@@ -140,6 +150,7 @@ func Route() *mux.Router {
 	projectUserManagement := projectAdminAPI.PathPrefix("/users").Subrouter()
 	projectUserManagement.Use(projects.UserMiddleware)
 
+	projectUserManagement.HandleFunc("/{user_id}", projects.GetUsers).Methods("GET", "HEAD")
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("POST")
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
@@ -147,24 +158,28 @@ func Route() *mux.Router {
 	projectKeyManagement := projectAdminAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
+	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
 	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
 	projectRepoManagement.Use(projects.RepositoryMiddleware)
 
+	projectRepoManagement.HandleFunc("/{repository_id}", projects.GetRepositories).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
 
+	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.GetInventory).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
 
 	projectEnvManagement := projectUserAPI.PathPrefix("/environment").Subrouter()
 	projectEnvManagement.Use(projects.EnvironmentMiddleware)
 
+	projectEnvManagement.HandleFunc("/{environment_id}", projects.GetEnvironment).Methods("GET", "HEAD")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
 
@@ -173,6 +188,9 @@ func Route() *mux.Router {
 
 	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.RemoveTemplate).Methods("DELETE")
+	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks", tasks.GetAllTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", tasks.GetLastTasks).Methods("GET")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(tasks.GetTaskMiddleware)
@@ -223,21 +241,33 @@ func debugPrintRoutes(r *mux.Router) {
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
+	htmlPrefix := ""
+	if util.Config.OldFrontend {
+		htmlPrefix = "/html"
+	}
+
+	publicAssetsPrefix := ""
+	if util.Config.OldFrontend {
+		publicAssetsPrefix = "public"
+	}
+
 	webPath := "/"
 	if util.WebHostURL != nil {
 		webPath = util.WebHostURL.RequestURI()
 	}
 
-	if !strings.HasPrefix(path, webPath+"public") {
+	if publicAssetsPrefix != "" && !strings.HasPrefix(path, webPath+publicAssetsPrefix) {
 		if len(strings.Split(path, ".")) > 1 {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		path = "/html/index.html"
+		path = htmlPrefix+"/index.html"
+	} else if len(strings.Split(path, ".")) == 1 {
+		path = htmlPrefix+"/index.html"
 	}
 
-	path = strings.Replace(path, webPath+"public/", "", 1)
+	path = strings.Replace(path, webPath+publicAssetsPrefix+"/", "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
@@ -248,7 +278,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// replace base path
-	if util.WebHostURL != nil && path == "/html/index.html" {
+	if util.WebHostURL != nil && path == htmlPrefix+"/index.html" {
 		res = []byte(strings.Replace(string(res),
 			"<base href=\"/\">",
 			"<base href=\""+util.WebHostURL.String()+"\">",
