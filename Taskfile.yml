@@ -26,6 +26,7 @@ tasks:
      - task: deps:tools
      - task: deps:be
      - task: deps:fe
+     - task: deps:fe2
 
   deps:be:
     desc: Vendor application dependencies
@@ -35,6 +36,13 @@ tasks:
   deps:fe:
     desc: Installs npm requirements for front end from package.json
     dir: web
+    cmds:
+      - npm install
+      - npm audit fix
+
+  deps:fe2:
+    desc: Installs npm requirements for front end from package.json
+    dir: web2
     cmds:
       - npm install
       - npm audit fix
@@ -68,6 +76,7 @@ tasks:
     desc: Generates compiled frontend and backend resources (must be in this order)
     cmds:
       - task: compile:fe
+      - task: compile:fe2
       - task: compile:be
 
   compile:fe:
@@ -87,9 +96,31 @@ tasks:
       - '{{ if eq OS "windows" }} .\\node_modules\\.bin\\pug.cmd --pretty {{ else }} ./node_modules/.bin/pug {{ end }} resources/pug --out public/html'
       - '{{ if eq OS "windows" }} xcopy node_modules\\font-awesome\\fonts public\\fonts /y {{ else }} cp node_modules/font-awesome/fonts/* public/fonts {{ end }}'
       - node bundler.js
+
+  compile:fe2:
+    desc: Build vue.js project
+    dir: web2
+    sources:
+      - src/*.*
+      - src/**/*.*
+      - public/index.html
+      - public/favicon.ico
+      - package.json
+      - package-lock.json
+      - babel.config.js
+      - vue.config.js
+    generates:
+      - dist/css/*.css
+      - dist/js/*.js
+      - dist/index.html
+      - dist/favicon.ico
+    cmds:
+      - npm run build
+
   compile:be:
     desc: Runs Packr for static assets
     sources:
+      - web2/dist/*
       - web/public/*
       - db/migrations/*
     generates:

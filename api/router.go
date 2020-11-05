@@ -16,7 +16,15 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-var publicAssets = packr.NewBox("../web/public")
+var publicAssets packr.Box
+
+func getPublicAssetsPath() string {
+	if util.Config != nil && util.Config.OldFrontend {
+		return "../web/public"
+	}
+
+	return "../web2/dist"
+}
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
 func JSONMiddleware(next http.Handler) http.Handler {
@@ -50,6 +58,8 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
 // Route declares all routes
 func Route() *mux.Router {
+	publicAssets = packr.NewBox(getPublicAssetsPath())
+
 	r := mux.NewRouter().StrictSlash(true)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
@@ -231,21 +241,33 @@ func debugPrintRoutes(r *mux.Router) {
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
+	htmlPrefix := ""
+	if util.Config.OldFrontend {
+		htmlPrefix = "/html"
+	}
+
+	publicAssetsPrefix := ""
+	if util.Config.OldFrontend {
+		publicAssetsPrefix = "public"
+	}
+
 	webPath := "/"
 	if util.WebHostURL != nil {
 		webPath = util.WebHostURL.RequestURI()
 	}
 
-	if !strings.HasPrefix(path, webPath+"public") {
+	if publicAssetsPrefix != "" && !strings.HasPrefix(path, webPath+publicAssetsPrefix) {
 		if len(strings.Split(path, ".")) > 1 {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		path = "/html/index.html"
+		path = htmlPrefix+"/index.html"
+	} else if len(strings.Split(path, ".")) == 1 {
+		path = htmlPrefix+"/index.html"
 	}
 
-	path = strings.Replace(path, webPath+"public/", "", 1)
+	path = strings.Replace(path, webPath+publicAssetsPrefix+"/", "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
@@ -256,7 +278,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// replace base path
-	if util.WebHostURL != nil && path == "/html/index.html" {
+	if util.WebHostURL != nil && path == htmlPrefix+"/index.html" {
 		res = []byte(strings.Replace(string(res),
 			"<base href=\"/\">",
 			"<base href=\""+util.WebHostURL.String()+"\">",
