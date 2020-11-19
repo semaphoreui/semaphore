@@ -96,14 +96,17 @@ export default {
       return [{
         text: 'Name',
         value: 'name',
+        width: '25%',
       },
       {
         text: 'Git URL',
         value: 'git_url',
+        width: '50%',
       },
       {
         text: 'SSH Key',
         value: 'ssh_key_id',
+        width: '25%',
       },
       {
         text: 'Actions',

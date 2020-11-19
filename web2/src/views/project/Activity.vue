@@ -38,11 +38,13 @@ export default {
           text: 'Time',
           value: 'created',
           sortable: false,
+          width: '20%',
         },
         {
           text: 'Description',
           value: 'description',
           sortable: false,
+          width: '80%',
         },
       ];
     },

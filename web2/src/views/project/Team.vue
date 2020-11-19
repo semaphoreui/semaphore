@@ -94,6 +94,7 @@ export default {
         {
           text: 'Name',
           value: 'name',
+          width: '50%',
         },
         {
           text: 'Username',
@@ -102,6 +103,7 @@ export default {
         {
           text: 'Email',
           value: 'email',
+          width: '50%',
         },
         {
           text: 'Admin',

@@ -49,54 +49,18 @@
       :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.external="{ item }">
-        <v-btn
-          icon
-          v-if="item.external"
-          disabled
-        >
-          <v-icon>mdi-checkbox-marked</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          v-else
-          disabled
-        >
-          <v-icon>mdi-checkbox-blank-outline</v-icon>
-        </v-btn>
+        <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
+        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
       </template>
 
       <template v-slot:item.alert="{ item }">
-        <v-btn
-          icon
-          v-if="item.alert"
-          disabled
-        >
-          <v-icon>mdi-checkbox-marked</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          v-else
-          disabled
-        >
-          <v-icon>mdi-checkbox-blank-outline</v-icon>
-        </v-btn>
+        <v-icon v-if="item.alert">mdi-checkbox-marked</v-icon>
+        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
       </template>
 
       <template v-slot:item.admin="{ item }">
-        <v-btn
-          icon
-          v-if="item.admin"
-          disabled
-        >
-          <v-icon>mdi-checkbox-marked</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          v-else
-          disabled
-        >
-          <v-icon>mdi-checkbox-blank-outline</v-icon>
-        </v-btn>
+        <v-icon v-if="item.admin">mdi-checkbox-marked</v-icon>
+        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -143,6 +107,7 @@ export default {
       return [{
         text: 'Name',
         value: 'name',
+        width: '50%',
       },
       {
         text: 'Username',
@@ -163,6 +128,7 @@ export default {
       {
         text: 'External',
         value: 'external',
+        width: '50%',
       },
       {
         text: 'Actions',

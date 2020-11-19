@@ -79,14 +79,17 @@ export default {
       return [{
         text: 'Name',
         value: 'name',
+        width: '33.33%',
       },
       {
         text: 'Type',
         value: 'type',
+        width: '33.33%',
       },
       {
         text: 'Path',
         value: 'inventory',
+        width: '33.33%',
       },
       {
         text: 'Actions',

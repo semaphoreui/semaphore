@@ -354,10 +354,14 @@
 
 .theme--light.v-data-table > .v-data-table__wrapper > table > thead > tr:last-child > th {
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .v-data-table > .v-data-table__wrapper > table > tbody > tr {
   background: transparent !important;
+  & > td {
+    white-space: nowrap;
+  }
   & > td:first-child {
     //font-weight: bold !important;
     a {

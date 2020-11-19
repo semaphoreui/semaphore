@@ -45,35 +45,25 @@
     >
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="askDeleteItem(item.id)"
-              >
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
-            <span>Delete environment</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            v-bind="attrs"
+            v-on="on"
+            @click="askDeleteItem(item.id)"
+          >
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
 
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                class="mr-1"
-                v-bind="attrs"
-                v-on="on"
-                @click="editItem(item.id)"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-            <span>Edit environment</span>
-          </v-tooltip>
+          <v-btn
+            icon
+            class="mr-1"
+            v-bind="attrs"
+            v-on="on"
+            @click="editItem(item.id)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
         </div>
       </template>
     </v-data-table>
@@ -92,6 +82,7 @@ export default {
       return [{
         text: 'Name',
         value: 'name',
+        width: '100%',
       },
       {
         text: 'Actions',

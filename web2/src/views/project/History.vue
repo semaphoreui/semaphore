@@ -25,7 +25,8 @@
 
       <template v-slot:item.status="{ item }">
         <v-chip style="font-weight: bold;" :color="getStatusColor(item.status)">
-          <v-icon left>{{ getStatusIcon(item.status) }}</v-icon>
+          <v-icon v-if="item.status !== 'running'" left>{{ getStatusIcon(item.status) }}</v-icon>
+          <IndeterminateProgressCircular v-else style="margin-left: -5px;" />
           {{ humanizeStatus(item.status) }}
         </v-chip>
       </template>
@@ -36,18 +37,40 @@
       </template>
 
       <template v-slot:item.end="{ item }">
-        <span v-if="item.end">{{ (item.end - item.start) | formatMinutes }}</span>
+        <span v-if="item.end">
+          {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
+        </span>
         <v-chip v-else>Not ended</v-chip>
       </template>
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+  .running-task-progress-circular {
+    .v-progress-circular__overlay {
+      transition: 0s;
+    }
+  }
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 
+import TaskStatus from '@/lib/TaskStatus';
+import IndeterminateProgressCircular from '@/components/IndeterminateProgressCircular.vue';
+
 export default {
   mixins: [ItemListPageBase],
+
+  components: { IndeterminateProgressCircular },
+
+  data() {
+    return {
+      runningTaskProgress: 0,
+      runningTaskRotate: 0,
+      runningTaskInterval: null,
+    };
+  },
 
   watch: {
     async projectId() {
@@ -55,27 +78,71 @@ export default {
     },
   },
 
+  mounted() {
+    this.startRunningTaskProgress();
+    this.runningTaskInterval = setInterval(() => {
+      this.runningTaskRotate += 5;
+    }, 100);
+  },
+
+  beforeDestroy() {
+    clearInterval(this.runningTaskInterval);
+  },
+
   methods: {
+    startRunningTaskProgress() {
+      if (this.runningTaskProgress > 100) {
+        this.runningTaskProgress = 0;
+        setTimeout(() => this.startRunningTaskProgress(), 1000);
+      } else {
+        this.runningTaskProgress += 5;
+        setTimeout(() => this.startRunningTaskProgress(), 300);
+      }
+    },
+
     getStatusIcon(status) {
       switch (status) {
-        case 'error':
+        case TaskStatus.WAITING:
+          return 'mdi-alarm';
+        case TaskStatus.RUNNING:
+          return '';
+        case TaskStatus.SUCCESS:
           return 'mdi-check-circle';
+        case TaskStatus.ERROR:
+          return 'mdi-information';
         default:
-          return status;
+          throw new Error(`Unknown task status ${status}`);
       }
     },
 
     humanizeStatus(status) {
       switch (status) {
-        case 'error':
+        case TaskStatus.WAITING:
+          return 'Waiting';
+        case TaskStatus.RUNNING:
+          return 'Running';
+        case TaskStatus.SUCCESS:
+          return 'Success';
+        case TaskStatus.ERROR:
           return 'Failed';
         default:
-          return status;
+          throw new Error(`Unknown task status ${status}`);
       }
     },
 
     getStatusColor(status) {
-      return status;
+      switch (status) {
+        case TaskStatus.WAITING:
+          return '';
+        case TaskStatus.RUNNING:
+          return 'primary';
+        case TaskStatus.SUCCESS:
+          return 'success';
+        case TaskStatus.ERROR:
+          return 'error';
+        default:
+          throw new Error(`Unknown task status ${status}`);
+      }
     },
 
     showTaskLog(taskId) {

@@ -7,7 +7,7 @@ import vuetify from './plugins/vuetify';
 Vue.config.productionTip = false;
 
 Vue.filter('formatDate', (value) => (value ? moment(String(value)).fromNow() : undefined));
-Vue.filter('formatMinutes', (value) => (value ? moment.duration(parseInt(value, 10), 'minutes').humanize() : undefined));
+Vue.filter('formatMilliseconds', (value) => (value ? moment.duration(parseInt(value, 10), 'milliseconds').humanize() : undefined));
 
 new Vue({
   router,
