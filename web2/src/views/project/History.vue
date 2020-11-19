@@ -22,8 +22,22 @@
         <a @click="showTaskLog(item.id)">{{ item.tpl_alias }}</a>
         <span style="color: gray; margin-left: 10px;">#{{ item.id }}</span>
       </template>
+
       <template v-slot:item.status="{ item }">
-        {{ item.status }}
+        <v-chip style="font-weight: bold;" :color="getStatusColor(item.status)">
+          <v-icon left>{{ getStatusIcon(item.status) }}</v-icon>
+          {{ humanizeStatus(item.status) }}
+        </v-chip>
+      </template>
+
+      <template v-slot:item.start="{ item }">
+        <span v-if="item.start">{{ item.start | formatDate }}</span>
+        <v-chip v-else>Not started</v-chip>
+      </template>
+
+      <template v-slot:item.end="{ item }">
+        <span v-if="item.end">{{ (item.end - item.start) | formatMinutes }}</span>
+        <v-chip v-else>Not ended</v-chip>
       </template>
     </v-data-table>
   </div>
@@ -42,6 +56,28 @@ export default {
   },
 
   methods: {
+    getStatusIcon(status) {
+      switch (status) {
+        case 'error':
+          return 'mdi-check-circle';
+        default:
+          return status;
+      }
+    },
+
+    humanizeStatus(status) {
+      switch (status) {
+        case 'error':
+          return 'Failed';
+        default:
+          return status;
+      }
+    },
+
+    getStatusColor(status) {
+      return status;
+    },
+
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,
@@ -72,7 +108,7 @@ export default {
         },
         {
           text: 'Duration',
-          value: 'start',
+          value: 'end',
           sortable: false,
         },
       ];

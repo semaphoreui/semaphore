@@ -48,6 +48,57 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.external="{ item }">
+        <v-btn
+          icon
+          v-if="item.external"
+          disabled
+        >
+          <v-icon>mdi-checkbox-marked</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          v-else
+          disabled
+        >
+          <v-icon>mdi-checkbox-blank-outline</v-icon>
+        </v-btn>
+      </template>
+
+      <template v-slot:item.alert="{ item }">
+        <v-btn
+          icon
+          v-if="item.alert"
+          disabled
+        >
+          <v-icon>mdi-checkbox-marked</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          v-else
+          disabled
+        >
+          <v-icon>mdi-checkbox-blank-outline</v-icon>
+        </v-btn>
+      </template>
+
+      <template v-slot:item.admin="{ item }">
+        <v-btn
+          icon
+          v-if="item.admin"
+          disabled
+        >
+          <v-icon>mdi-checkbox-marked</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          v-else
+          disabled
+        >
+          <v-icon>mdi-checkbox-blank-outline</v-icon>
+        </v-btn>
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn

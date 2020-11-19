@@ -19,6 +19,9 @@
       hide-default-footer
       class="mt-4"
     >
+      <template v-slot:item.created="{ item }">
+        {{ item.created | formatDate }}
+      </template>
     </v-data-table>
   </div>
 </template>

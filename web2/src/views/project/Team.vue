@@ -43,22 +43,12 @@
       :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.admin="{ item }">
-        <v-btn
-          icon
-          v-if="item.admin"
-          @click="refuseAdmin(item.id)"
-          :disabled="!isUserAdmin()"
-        >
-          <v-icon>mdi-checkbox-marked</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          v-else
-          @click="grantAdmin(item.id)"
-          :disabled="!isUserAdmin()"
-        >
-          <v-icon>mdi-checkbox-blank-outline</v-icon>
-        </v-btn>
+
+        <v-switch
+          v-model="item.admin"
+          inset
+          @change="item.admin ? grantAdmin(item.id) : refuseAdmin(item.id)"
+        ></v-switch>
       </template>
 
       <template v-slot:item.actions="{ item }">

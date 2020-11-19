@@ -3,7 +3,7 @@
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="users != null"
+    v-if="teamMembers != null && users != null"
   >
     <v-alert
       :value="formError"
@@ -39,15 +39,22 @@ export default {
     return {
       users: null,
       userId: null,
+      teamMembers: null,
     };
   },
 
   async created() {
+    this.teamMembers = (await axios({
+      method: 'get',
+      url: this.getItemsUrl(),
+      responseType: 'json',
+    })).data;
+
     this.users = (await axios({
       method: 'get',
       url: '/api/users',
       responseType: 'json',
-    })).data;
+    })).data.filter((user) => !this.teamMembers.some((teamMember) => user.id === teamMember.id));
   },
 
   methods: {
