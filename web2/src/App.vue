@@ -90,7 +90,11 @@
               v-on="on"
             >
               <v-list-item-icon>
-                <v-avatar :color="getProjectColor(project)" size="24" style="font-size: 13px; font-weight: bold;">
+                <v-avatar
+                  :color="getProjectColor(project)"
+                  size="24"
+                  style="font-size: 13px; font-weight: bold;"
+                >
                   <span class="white--text">{{ getProjectInitials(project) }}</span>
                 </v-avatar>
               </v-list-item-icon>
@@ -115,7 +119,11 @@
             @click="selectProject(item.id)"
           >
             <v-list-item-icon>
-              <v-avatar :color="getProjectColor(item)" size="24" style="font-size: 13px; font-weight: bold;">
+              <v-avatar
+                :color="getProjectColor(item)"
+                size="24"
+                style="font-size: 13px; font-weight: bold;"
+              >
                 <span class="white--text">{{ getProjectInitials(item) }}</span>
               </v-avatar>
             </v-list-item-icon>
@@ -477,7 +485,6 @@ export default {
         text: getErrorMessage(err),
       });
       // EventBus.$emit('i-session-end');
-      console.error(err);
     }
   },
 
