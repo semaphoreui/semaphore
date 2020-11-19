@@ -60,7 +60,7 @@
         color="error"
         @click="deleteDialog = true"
       >
-        <v-icon left>mdi-delete</v-icon>
+        <v-icon>mdi-delete</v-icon>
       </v-btn>
 
       <v-btn
@@ -68,7 +68,7 @@
         color="black"
         @click="copyDialog = true"
       >
-        <v-icon left>mdi-content-copy</v-icon>
+        <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
       <v-btn
@@ -76,7 +76,7 @@
         color="black"
         @click="editDialog = true"
       >
-        <v-icon left>mdi-pencil</v-icon>
+        <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-toolbar>
 
