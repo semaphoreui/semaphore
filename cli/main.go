@@ -52,6 +52,7 @@ func main() {
 	if err := db.MigrateAll(); err != nil {
 		panic(err)
 	}
+
 	// legacy
 	if util.Migration {
 		fmt.Println("\n DB migrations run on startup automatically")
@@ -65,6 +66,9 @@ func main() {
 	var router http.Handler = api.Route()
 	router = handlers.ProxyHeaders(router)
 	http.Handle("/", router)
+
+	fmt.Println("Server is running")
+
 	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, nil)
 	if err != nil {
 		log.Panic(err)
