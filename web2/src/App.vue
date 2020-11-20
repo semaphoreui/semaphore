@@ -1,6 +1,25 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
     <ItemDialog
+      v-model="passwordDialog"
+      save-button-text="Save"
+      title="Change password"
+      v-if="user"
+      event-name="i-user"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <ChangePasswordForm
+          :project-id="projectId"
+          :item-id="user.id"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </ItemDialog>
+
+    <ItemDialog
       v-model="userDialog"
       save-button-text="Save"
       title="Edit User"
@@ -224,7 +243,6 @@
             <v-list-item-title>Team</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-
       </v-list>
 
       <template v-slot:append>
@@ -265,6 +283,16 @@
 
               <v-list-item-content>
                 Edit Account
+              </v-list-item-content>
+            </v-list-item>
+
+            <v-list-item key="edit" @click="passwordDialog = true">
+              <v-list-item-icon>
+                <v-icon>mdi-lock</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                Change Password
               </v-list-item-content>
             </v-list-item>
 
@@ -412,6 +440,7 @@ import ItemDialog from '@/components/ItemDialog.vue';
 import TaskLogView from '@/components/TaskLogView.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
+import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from './event-bus';
 
 const PROJECT_COLORS = [
@@ -424,6 +453,7 @@ const PROJECT_COLORS = [
 export default {
   name: 'App',
   components: {
+    ChangePasswordForm,
     UserForm,
     ItemDialog,
     TaskLogView,
@@ -440,6 +470,7 @@ export default {
       projects: null,
       newProjectDialog: null,
       userDialog: null,
+      passwordDialog: null,
 
       taskLogDialog: null,
       task: null,
