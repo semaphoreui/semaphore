@@ -1,6 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <ItemDialog
+    <EditDialog
       v-model="editDialog"
       :save-button-text="(this.itemId === 'new' ? 'Link' : 'Save')"
       :title="(this.itemId === 'new' ? 'New' : 'Edit') + ' Team Member'"
@@ -16,7 +16,7 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
     <YesNoDialog
       title="Delete team member"
@@ -47,6 +47,7 @@
         <v-switch
           v-model="item.admin"
           inset
+          :disabled="!isUserAdmin()"
           @change="item.admin ? grantAdmin(item.id) : refuseAdmin(item.id)"
         ></v-switch>
       </template>

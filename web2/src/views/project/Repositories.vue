@@ -1,6 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null && keys != null">
-    <ItemDialog
+    <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
       :title="`${itemId === 'new' ? 'New' : 'Edit'} Repository`"
@@ -16,7 +16,7 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
     <YesNoDialog
       title="Delete repository"

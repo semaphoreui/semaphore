@@ -6,7 +6,7 @@
     ></v-progress-linear>
   </div>
   <div v-else>
-    <ItemDialog
+    <EditDialog
       v-model="editDialog"
       save-button-text="Create"
       title="New template"
@@ -22,9 +22,9 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
-    <ItemDialog
+    <EditDialog
       v-model="newTaskDialog"
       save-button-text="Run"
       title="New Task"
@@ -41,7 +41,7 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>

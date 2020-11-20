@@ -1,6 +1,6 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
-    <ItemDialog
+    <EditDialog
       v-model="passwordDialog"
       save-button-text="Save"
       title="Change password"
@@ -17,9 +17,9 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
-    <ItemDialog
+    <EditDialog
       v-model="userDialog"
       save-button-text="Save"
       title="Edit User"
@@ -36,9 +36,9 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
-    <ItemDialog
+    <EditDialog
       v-model="taskLogDialog"
       save-button-text="Delete"
       :max-width="800"
@@ -55,9 +55,9 @@
       <template v-slot:form="{}">
         <TaskLogView :project-id="projectId" :item-id="task ? task.id : null" />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
-    <ItemDialog
+    <EditDialog
       v-model="newProjectDialog"
       save-button-text="Create"
       title="New Project"
@@ -72,7 +72,7 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
     <v-snackbar
       v-model="snackbar"
@@ -436,7 +436,7 @@
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
-import ItemDialog from '@/components/ItemDialog.vue';
+import EditDialog from '@/components/EditDialog.vue';
 import TaskLogView from '@/components/TaskLogView.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
@@ -455,7 +455,7 @@ export default {
   components: {
     ChangePasswordForm,
     UserForm,
-    ItemDialog,
+    EditDialog,
     TaskLogView,
     ProjectForm,
   },

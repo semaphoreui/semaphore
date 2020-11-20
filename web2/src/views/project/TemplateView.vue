@@ -1,6 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="item != null && tasks != null">
-    <ItemDialog
+    <EditDialog
       v-model="editDialog"
       save-button-text="Save"
       title="Edit Template"
@@ -16,9 +16,9 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
-    <ItemDialog
+    <EditDialog
       v-model="copyDialog"
       save-button-text="Create"
       title="New Template"
@@ -34,7 +34,7 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
     <YesNoDialog
       title="Delete template"
@@ -136,8 +136,21 @@
       <template v-slot:item.id="{ item }">
         <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
       </template>
+
       <template v-slot:item.status="{ item }">
-        {{ item.status }}
+        <TaskStatus :status="item.status" />
+      </template>
+
+      <template v-slot:item.start="{ item }">
+        <span v-if="item.start">{{ item.start | formatDate }}</span>
+        <v-chip v-else>Not started</v-chip>
+      </template>
+
+      <template v-slot:item.end="{ item }">
+        <span v-if="item.end">
+          {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
+        </span>
+        <v-chip v-else>Not ended</v-chip>
       </template>
     </v-data-table>
   </div>
@@ -150,12 +163,13 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
-import ItemDialog from '@/components/ItemDialog.vue';
+import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
+import TaskStatus from '@/components/TaskStatus.vue';
 
 export default {
   components: {
-    YesNoDialog, ItemDialog, TemplateForm,
+    YesNoDialog, EditDialog, TemplateForm, TaskStatus,
   },
   props: {
     projectId: Number,

@@ -1,6 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <ItemDialog
+    <EditDialog
       v-model="editDialog"
       save-button-text="Save"
       title="Edit User"
@@ -16,7 +16,7 @@
           :need-reset="needReset"
         />
       </template>
-    </ItemDialog>
+    </EditDialog>
 
     <YesNoDialog
       title="Delete user"
@@ -90,7 +90,7 @@
 import EventBus from '@/event-bus';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
-import ItemDialog from '@/components/ItemDialog.vue';
+import EditDialog from '@/components/EditDialog.vue';
 import UserForm from '@/components/UserForm.vue';
 
 export default {
@@ -99,7 +99,7 @@ export default {
   components: {
     YesNoDialog,
     UserForm,
-    ItemDialog,
+    EditDialog,
   },
 
   methods: {

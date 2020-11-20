@@ -41,17 +41,10 @@
     </v-data-table>
   </div>
 </template>
-<style lang="scss">
-  .running-task-progress-circular {
-    .v-progress-circular__overlay {
-      transition: 0s;
-    }
-  }
-</style>
+
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
-
 import TaskStatus from '@/components/TaskStatus.vue';
 
 export default {
@@ -59,42 +52,13 @@ export default {
 
   components: { TaskStatus },
 
-  data() {
-    return {
-      runningTaskProgress: 0,
-      runningTaskRotate: 0,
-      runningTaskInterval: null,
-    };
-  },
-
   watch: {
     async projectId() {
       await this.loadItems();
     },
   },
 
-  mounted() {
-    this.startRunningTaskProgress();
-    this.runningTaskInterval = setInterval(() => {
-      this.runningTaskRotate += 5;
-    }, 100);
-  },
-
-  beforeDestroy() {
-    clearInterval(this.runningTaskInterval);
-  },
-
   methods: {
-    startRunningTaskProgress() {
-      if (this.runningTaskProgress > 100) {
-        this.runningTaskProgress = 0;
-        setTimeout(() => this.startRunningTaskProgress(), 1000);
-      } else {
-        this.runningTaskProgress += 5;
-        setTimeout(() => this.startRunningTaskProgress(), 300);
-      }
-    },
-
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,

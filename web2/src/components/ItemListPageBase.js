@@ -1,18 +1,13 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
-import InventoryForm from '@/components/InventoryForm.vue';
-import ItemDialog from '@/components/ItemDialog.vue';
+import EditDialog from '@/components/EditDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import { getErrorMessage } from '@/lib/error';
 
-/**
- *
- */
 export default {
   components: {
     YesNoDialog,
-    ItemDialog,
-    InventoryForm,
+    EditDialog,
   },
 
   props: {
