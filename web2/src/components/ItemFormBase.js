@@ -70,6 +70,10 @@ export default {
       }
     },
 
+    getRequestOptions() {
+      return {};
+    },
+
     /**
      * Saves or creates item via API.
      * @returns {Promise<null>} null if validation didn't pass or user data if user saved.
@@ -92,6 +96,7 @@ export default {
             : this.getSingleItemUrl(),
           responseType: 'json',
           data: this.item,
+          ...(this.getRequestOptions()),
         })).data;
 
         this.$emit('save', {
