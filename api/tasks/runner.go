@@ -127,8 +127,8 @@ func (t *task) prepareRun() {
 	}
 
 	if err := t.runGalaxy([]string{
-		"install",
 		"collection",
+		"install",
 		"-r",
 		"roles/requirements.yml",
 		"-p",
