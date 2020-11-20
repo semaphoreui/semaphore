@@ -113,8 +113,29 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.runGalaxy(); err != nil {
+	if err := t.runGalaxy([]string{
+		"install",
+		"-r",
+		"roles/requirements.yml",
+		"-p",
+		"./roles/",
+		"--force",
+	}); err != nil {
 		t.log("Running galaxy failed: " + err.Error())
+		t.fail()
+		return
+	}
+
+	if err := t.runGalaxy([]string{
+		"install",
+		"collection",
+		"-r",
+		"roles/requirements.yml",
+		"-p",
+		"./roles/",
+		"--force",
+	}); err != nil {
+		t.log("Running galaxy collection failed: " + err.Error())
 		t.fail()
 		return
 	}
@@ -328,16 +349,7 @@ func (t *task) updateRepository() error {
 	return cmd.Run()
 }
 
-func (t *task) runGalaxy() error {
-	args := []string{
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"-p",
-		"./roles/",
-		"--force",
-	}
-
+func (t *task) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 
