@@ -1,5 +1,5 @@
 <template>
-  <div v-if="item != null && output != null && user != null">
+  <div>
     <v-container class="pa-0 mb-2">
       <v-row no-gutters>
         <v-col>
@@ -88,15 +88,32 @@ export default {
   },
   data() {
     return {
-      item: null,
-      output: null,
-      user: null,
+      item: {},
+      output: [],
+      user: {},
     };
+  },
+  watch: {
+    async itemId() {
+      this.reset();
+      await this.loadData();
+    },
+
+    async projectId() {
+      this.reset();
+      await this.loadData();
+    },
   },
   async created() {
     await this.loadData();
   },
   methods: {
+    reset() {
+      this.item = {};
+      this.output = [];
+      this.user = {};
+    },
+
     async loadData() {
       this.item = (await axios({
         method: 'get',

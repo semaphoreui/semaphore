@@ -1,5 +1,11 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="item != null && tasks != null">
+  <div v-if="!isLoaded">
+    <v-progress-linear
+      indeterminate
+      color="primary darken-2"
+    ></v-progress-linear>
+  </div>
+  <div v-else>
     <EditDialog
       v-model="editDialog"
       save-button-text="Save"
@@ -94,7 +100,9 @@
             <v-list-item>
               <v-list-item-content>
                 <v-list-item-title>SSH Key</v-list-item-title>
-                <v-list-item-subtitle>{{ item.ssh_key_id }}</v-list-item-subtitle>
+                <v-list-item-subtitle>
+                  {{ keys.find((x) => x.id === item.ssh_key_id).name }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -104,21 +112,27 @@
             <v-list-item>
               <v-list-item-content>
                 <v-list-item-title>Inventory</v-list-item-title>
-                <v-list-item-subtitle>{{ item.inventory_id }}</v-list-item-subtitle>
+                <v-list-item-subtitle>
+                  {{ inventory.find((x) => x.id === item.inventory_id).name }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
 
             <v-list-item>
               <v-list-item-content>
                 <v-list-item-title>Environment</v-list-item-title>
-                <v-list-item-subtitle>{{ item.environment_id }}</v-list-item-subtitle>
+                <v-list-item-subtitle>
+                  {{ environment.find((x) => x.id === item.environment_id).name }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
 
             <v-list-item>
               <v-list-item-content>
                 <v-list-item-title>Repository</v-list-item-title>
-                <v-list-item-subtitle>{{ item.repository_id }}</v-list-item-subtitle>
+                <v-list-item-subtitle>
+                  {{ repositories.find((x) => x.id === item.repository_id).name }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -205,6 +219,10 @@ export default {
       ],
       tasks: null,
       item: null,
+      keys: null,
+      inventory: null,
+      environment: null,
+      repositories: null,
       deleteDialog: null,
       editDialog: null,
       copyDialog: null,
@@ -219,6 +237,14 @@ export default {
     },
     isNew() {
       return this.itemId === 'new';
+    },
+    isLoaded() {
+      return this.item
+        && this.tasks
+        && this.keys
+        && this.inventory
+        && this.environment
+        && this.repositories;
     },
   },
 
@@ -279,6 +305,30 @@ export default {
       this.tasks = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}/tasks/last`,
+        responseType: 'json',
+      })).data;
+
+      this.inventory = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/inventory`,
+        responseType: 'json',
+      })).data;
+
+      this.environment = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/environment`,
+        responseType: 'json',
+      })).data;
+
+      this.keys = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/keys`,
+        responseType: 'json',
+      })).data;
+
+      this.repositories = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/repositories`,
         responseType: 'json',
       })).data;
     },
