@@ -1,5 +1,11 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="isLoaded">
+  <div v-if="!isLoaded">
+    <v-progress-linear
+      indeterminate
+      color="primary darken-2"
+    ></v-progress-linear>
+  </div>
+  <div v-else>
     <ItemDialog
       v-model="editDialog"
       save-button-text="Create"
@@ -44,11 +50,14 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        class="mr-1"
       >New template</v-btn>
+
+      <v-btn icon @click="settingsSheet = true"><v-icon>mdi-cog</v-icon></v-btn>
     </v-toolbar>
 
     <v-data-table
-      :headers="headers"
+      :headers="filteredHeaders"
       :items="items"
       hide-default-footer
       class="mt-4"
@@ -82,21 +91,26 @@
         </v-btn>
       </template>
     </v-data-table>
+
+    <TableSettingsSheet
+      v-model="settingsSheet"
+      table-name="project__template"
+      :headers="headers"
+      @change="onTableSettingsChange"
+    />
   </div>
-
 </template>
-<style lang="scss">
 
-</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TemplateForm from '@/components/TemplateForm.vue';
 import axios from 'axios';
 import TaskForm from '@/components/TaskForm.vue';
+import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import EventBus from '@/event-bus';
 
 export default {
-  components: { TemplateForm, TaskForm },
+  components: { TemplateForm, TaskForm, TableSettingsSheet },
   mixins: [ItemListPageBase],
   async created() {
     await this.loadData();
@@ -109,13 +123,21 @@ export default {
       repositories: null,
       newTaskDialog: null,
       taskId: null,
+      settingsSheet: null,
+      filteredHeaders: [],
     };
   },
+
   computed: {
     isLoaded() {
-      return this.items && this.keys && this.inventory && this.environment && this.repositories;
+      return this.items
+        && this.keys
+        && this.inventory
+        && this.environment
+        && this.repositories;
     },
   },
+
   methods: {
     onTaskCreate(e) {
       EventBus.$emit('i-show-task', {
@@ -196,6 +218,10 @@ export default {
         url: `/api/project/${this.projectId}/repositories`,
         responseType: 'json',
       })).data;
+    },
+
+    onTableSettingsChange({ headers }) {
+      this.filteredHeaders = headers;
     },
   },
 };

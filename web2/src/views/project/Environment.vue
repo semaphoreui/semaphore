@@ -48,8 +48,6 @@
           <v-btn
             icon
             class="mr-1"
-            v-bind="attrs"
-            v-on="on"
             @click="askDeleteItem(item.id)"
           >
             <v-icon>mdi-delete</v-icon>
@@ -58,8 +56,6 @@
           <v-btn
             icon
             class="mr-1"
-            v-bind="attrs"
-            v-on="on"
             @click="editItem(item.id)"
           >
             <v-icon>mdi-pencil</v-icon>
