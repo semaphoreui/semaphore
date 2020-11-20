@@ -1,51 +1,50 @@
 <template>
   <div v-if="item != null && output != null && user != null">
-    <v-container class="pa-0">
+    <v-container class="pa-0 mb-2">
       <v-row no-gutters>
         <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
-                <v-list-item-title>Author</v-list-item-title>
-                <v-list-item-subtitle>{{ user.name }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-
-            <v-list-item class="pa-0">
-              <v-list-item-content>
-                <v-list-item-title>Status</v-list-item-title>
-                <v-list-item-subtitle>{{ item.status }}</v-list-item-subtitle>
+                <div>
+                  <TaskStatus :status="item.status" />
+                </div>
               </v-list-item-content>
             </v-list-item>
           </v-list>
         </v-col>
         <v-col>
+        <v-list two-line subheader class="pa-0">
+          <v-list-item class="pa-0">
+            <v-list-item-content>
+              <v-list-item-title>Author</v-list-item-title>
+              <v-list-item-subtitle>{{ user.name }}</v-list-item-subtitle>
+            </v-list-item-content>
+          </v-list-item>
+        </v-list>
+        </v-col>
+        <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
-                <v-list-item-title>Created</v-list-item-title>
-                <v-list-item-subtitle>{{ item.created }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-
-            <v-list-item class="pa-0">
-              <v-list-item-content>
                 <v-list-item-title>Started</v-list-item-title>
-                <v-list-item-subtitle>{{ item.start || '&mdash;' }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-
-            <v-list-item class="pa-0">
-              <v-list-item-content>
-                <v-list-item-title>Ended</v-list-item-title>
-                <v-list-item-subtitle>{{ item.end || '&mdash;' }}</v-list-item-subtitle>
+                <v-list-item-subtitle>
+                  {{ item.start | formatDate }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
         </v-col>
+        <v-col>
+          <v-list-item class="pa-0">
+            <v-list-item-content>
+              <v-list-item-title>Ended</v-list-item-title>
+              <v-list-item-subtitle>{{ item.end | formatDate }}</v-list-item-subtitle>
+            </v-list-item-content>
+          </v-list-item>
+        </v-col>
       </v-row>
     </v-container>
-
     <div class="task-log-view">
       <div class="task-log-view__record" v-for="record in output" :key="record.id">
         <div class="task-log-view__time">{{ record.time }}</div>
@@ -79,8 +78,10 @@
 </style>
 <script>
 import axios from 'axios';
+import TaskStatus from '@/components/TaskStatus.vue';
 
 export default {
+  components: { TaskStatus },
   props: {
     itemId: Number,
     projectId: Number,

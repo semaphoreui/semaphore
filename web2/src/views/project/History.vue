@@ -24,11 +24,7 @@
       </template>
 
       <template v-slot:item.status="{ item }">
-        <v-chip style="font-weight: bold;" :color="getStatusColor(item.status)">
-          <v-icon v-if="item.status !== 'running'" left>{{ getStatusIcon(item.status) }}</v-icon>
-          <IndeterminateProgressCircular v-else style="margin-left: -5px;" />
-          {{ humanizeStatus(item.status) }}
-        </v-chip>
+        <TaskStatus :status="item.status" />
       </template>
 
       <template v-slot:item.start="{ item }">
@@ -56,13 +52,12 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 
-import TaskStatus from '@/lib/TaskStatus';
-import IndeterminateProgressCircular from '@/components/IndeterminateProgressCircular.vue';
+import TaskStatus from '@/components/TaskStatus.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
-  components: { IndeterminateProgressCircular },
+  components: { TaskStatus },
 
   data() {
     return {
@@ -97,51 +92,6 @@ export default {
       } else {
         this.runningTaskProgress += 5;
         setTimeout(() => this.startRunningTaskProgress(), 300);
-      }
-    },
-
-    getStatusIcon(status) {
-      switch (status) {
-        case TaskStatus.WAITING:
-          return 'mdi-alarm';
-        case TaskStatus.RUNNING:
-          return '';
-        case TaskStatus.SUCCESS:
-          return 'mdi-check-circle';
-        case TaskStatus.ERROR:
-          return 'mdi-information';
-        default:
-          throw new Error(`Unknown task status ${status}`);
-      }
-    },
-
-    humanizeStatus(status) {
-      switch (status) {
-        case TaskStatus.WAITING:
-          return 'Waiting';
-        case TaskStatus.RUNNING:
-          return 'Running';
-        case TaskStatus.SUCCESS:
-          return 'Success';
-        case TaskStatus.ERROR:
-          return 'Failed';
-        default:
-          throw new Error(`Unknown task status ${status}`);
-      }
-    },
-
-    getStatusColor(status) {
-      switch (status) {
-        case TaskStatus.WAITING:
-          return '';
-        case TaskStatus.RUNNING:
-          return 'primary';
-        case TaskStatus.SUCCESS:
-          return 'success';
-        case TaskStatus.ERROR:
-          return 'error';
-        default:
-          throw new Error(`Unknown task status ${status}`);
       }
     },
 

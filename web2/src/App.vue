@@ -49,7 +49,7 @@
           :to="`/project/${projectId}/templates/${template ? template.id : null}`"
           @click="taskLogDialog = false"
         >{{ template ? template.alias : null }}</router-link>
-        <span class="breadcrumbs__separator">&gt;</span>
+        <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
       </template>
       <template v-slot:form="{}">

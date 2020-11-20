@@ -50,7 +50,7 @@
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/templates/`"
         >Task Templates</router-link>
-        <span class="breadcrumbs__separator">&gt;</span>
+        <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.alias }}</span>
       </v-toolbar-title>
       <v-spacer></v-spacer>
