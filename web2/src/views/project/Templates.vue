@@ -28,8 +28,14 @@
       v-model="newTaskDialog"
       save-button-text="Run"
       title="New Task"
-      @save="onTaskCreate"
+      @save="onTaskCreated"
     >
+      <template v-slot:title={}>
+        <span class="breadcrumbs__item">{{ templateAlias }}</span>
+        <v-icon>mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item">New Task</span>
+      </template>
+
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TaskForm
           :project-id="projectId"
@@ -129,6 +135,13 @@ export default {
   },
 
   computed: {
+    templateAlias() {
+      if (this.itemId == null || this.itemId === 'new') {
+        return '';
+      }
+      return this.items.find((x) => x.id === this.itemId).alias;
+    },
+
     isLoaded() {
       return this.items
         && this.keys
@@ -139,7 +152,7 @@ export default {
   },
 
   methods: {
-    onTaskCreate(e) {
+    onTaskCreated(e) {
       EventBus.$emit('i-show-task', {
         taskId: e.item.id,
       });

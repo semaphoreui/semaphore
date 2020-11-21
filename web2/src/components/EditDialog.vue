@@ -95,6 +95,7 @@ export default {
           EventBus.$emit(this.eventName, e);
         }
       }
+      this.$emit('close');
     },
 
     clearFlags() {

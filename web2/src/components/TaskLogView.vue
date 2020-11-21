@@ -47,7 +47,7 @@
     </v-container>
     <div class="task-log-view">
       <div class="task-log-view__record" v-for="record in output" :key="record.id">
-        <div class="task-log-view__time">{{ record.time }}</div>
+        <div class="task-log-view__time">{{ record.time | formatTime }}</div>
         <div class="task-log-view__output">{{ record.output }}</div>
       </div>
     </div>
@@ -69,7 +69,7 @@
   }
 
   .task-log-view__time {
-    width: 250px;
+    width: 150px;
   }
 
   .task-log-view__output {
@@ -79,6 +79,7 @@
 <script>
 import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
+import socket from '@/socket';
 
 export default {
   components: { TaskStatus },
@@ -105,13 +106,35 @@ export default {
     },
   },
   async created() {
+    socket.addListener((data) => this.onDataReceive(data));
     await this.loadData();
   },
+
   methods: {
     reset() {
       this.item = {};
       this.output = [];
       this.user = {};
+    },
+
+    onDataReceive(data) {
+      if (data.project_id !== this.projectId || data.task_id !== this.itemId) {
+        return;
+      }
+
+      switch (data.type) {
+        case 'update':
+          Object.assign(this.item, {
+            ...data,
+            type: undefined,
+          });
+          break;
+        case 'log':
+          this.output.push(data);
+          break;
+        default:
+          break;
+      }
     },
 
     async loadData() {

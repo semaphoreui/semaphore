@@ -40,6 +40,17 @@ export default {
   props: {
     templateId: Number,
   },
+  watch: {
+    needReset(val) {
+      if (val) {
+        this.item.template_id = this.templateId;
+      }
+    },
+
+    templateId(val) {
+      this.item.template_id = val;
+    },
+  },
   created() {
     this.item.template_id = this.templateId;
   },

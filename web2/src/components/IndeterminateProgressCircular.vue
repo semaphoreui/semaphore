@@ -17,9 +17,11 @@
   }
 </style>
 <script>
-class IndeterminateTimer {
+import Listenable from '@/lib/Listenable';
+
+class IndeterminateTimer extends Listenable {
   constructor() {
-    this.listeners = {};
+    super();
     this.direction = 1;
     this.value = 0;
     this.rotate = 0;
@@ -47,12 +49,9 @@ class IndeterminateTimer {
         self.rotate %= 360;
       }
 
-      Object.keys(self.listeners).forEach((id) => {
-        const listener = self.listeners[id];
-        listener({
-          value: self.value,
-          rotate: self.rotate,
-        });
+      self.callListeners({
+        value: self.value,
+        rotate: self.rotate,
       });
     }, 50);
   }
@@ -62,17 +61,15 @@ class IndeterminateTimer {
   }
 
   addListener(callback) {
-    if (Object.keys(this.listeners).length === 0) {
+    if (!this.hasListeners()) {
       this.start();
     }
-    const id = Math.floor(Math.random() * 100000000);
-    this.listeners[id] = callback;
-    return id;
+    return super.addListener(callback);
   }
 
   removeListener(id) {
-    delete this.listeners[id];
-    if (Object.keys(this.listeners).length === 0) {
+    super.removeListener(id);
+    if (!this.hasListeners()) {
       this.stop();
     }
   }

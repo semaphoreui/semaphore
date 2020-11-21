@@ -1,5 +1,5 @@
 <template>
-  <v-chip style="font-weight: bold;" :color="getStatusColor(status)">
+  <v-chip v-if="status" style="font-weight: bold;" :color="getStatusColor(status)">
     <v-icon v-if="status !== 'running'" left>{{ getStatusIcon(status) }}</v-icon>
     <IndeterminateProgressCircular v-else style="margin-left: -5px;" />
     {{ humanizeStatus(status) }}

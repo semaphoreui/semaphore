@@ -42,6 +42,7 @@
       v-model="taskLogDialog"
       save-button-text="Delete"
       :max-width="800"
+      @close="onTaskLogDialogClosed()"
     >
       <template v-slot:title={}>
         <router-link
@@ -486,6 +487,17 @@ export default {
         await this.$router.push({ path: '/project/new' });
       }
     },
+
+    async $route(val) {
+      if (val.query.t == null) {
+        this.taskLogDialog = false;
+      } else {
+        const taskId = parseInt(this.$route.query.t || '', 10);
+        if (taskId) {
+          EventBus.$emit('i-show-task', { taskId });
+        }
+      }
+    },
   },
 
   computed: {
@@ -512,7 +524,7 @@ export default {
     }
 
     try {
-      await this.init();
+      await this.reloadData();
       this.state = 'success';
     } catch (err) { // notify about problem and sign out
       EventBus.$emit('i-snackbar', {
@@ -535,7 +547,7 @@ export default {
     });
 
     EventBus.$on('i-session-create', async () => {
-      await this.init();
+      await this.reloadData();
       await this.trySelectMostSuitableProject();
     });
 
@@ -548,6 +560,11 @@ export default {
     });
 
     EventBus.$on('i-show-task', async (e) => {
+      if (parseInt(this.$route.query.t || '', 10) !== e.taskId) {
+        const query = { ...this.$route.query, t: e.taskId };
+        await this.$router.replace({ query });
+      }
+
       this.task = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/tasks/${e.taskId}`,
@@ -637,7 +654,12 @@ export default {
   },
 
   methods: {
-    async init() {
+    async onTaskLogDialogClosed() {
+      const query = { ...this.$route.query, t: undefined };
+      await this.$router.replace({ query });
+    },
+
+    async reloadData() {
       await this.loadUserInfo();
       await this.loadProjects();
 
@@ -649,9 +671,10 @@ export default {
       }
 
       if (this.$route.query.t) {
-        EventBus.$emit('i-show-task', {
-          itemId: parseInt(this.$route.query.t || '', 10),
-        });
+        const taskId = parseInt(this.$route.query.t || '', 10);
+        if (taskId) {
+          EventBus.$emit('i-show-task', { taskId });
+        }
       }
     },
 

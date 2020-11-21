@@ -71,9 +71,11 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
+import InventoryForm from '@/components/InventoryForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
+  components: { InventoryForm },
   methods: {
     getHeaders() {
       return [{

@@ -5,6 +5,7 @@ web/public/css/*.*
 web/public/html/**/*.*
 web/public/fonts/*.*
 web2/dist
+web2/.nyc_output
 config.json
 .DS_Store
 node_modules/
