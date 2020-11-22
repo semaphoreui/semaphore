@@ -46,6 +46,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
+import socket from '@/socket';
 
 export default {
   mixins: [ItemListPageBase],
@@ -58,10 +59,31 @@ export default {
     },
   },
 
+  created() {
+    socket.addListener((data) => this.onWebsocketDataReceived(data));
+  },
+
   methods: {
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,
+      });
+    },
+
+    async onWebsocketDataReceived(data) {
+      if (data.project_id !== this.projectId || data.type !== 'update') {
+        return;
+      }
+
+      if (!this.items.some((item) => item.id === data.task_id)) {
+        await this.loadItems();
+      }
+
+      const task = this.items.find((item) => item.id === data.task_id);
+
+      Object.assign(task, {
+        ...data,
+        type: undefined,
       });
     },
 

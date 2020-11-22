@@ -106,7 +106,7 @@ export default {
     },
   },
   async created() {
-    socket.addListener((data) => this.onDataReceive(data));
+    socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
   },
 
@@ -117,7 +117,7 @@ export default {
       this.user = {};
     },
 
-    onDataReceive(data) {
+    onWebsocketDataReceived(data) {
       if (data.project_id !== this.projectId || data.task_id !== this.itemId) {
         return;
       }
