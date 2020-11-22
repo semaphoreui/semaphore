@@ -29,20 +29,4 @@ export default class Socket extends Listenable {
     this.ws.close();
     delete this.ws;
   }
-
-  addListener(callback) {
-    const isFirstListener = !this.hasListeners();
-    const listenerId = super.addListener(callback);
-    if (isFirstListener) {
-      this.start();
-    }
-    return listenerId;
-  }
-
-  removeListener(id) {
-    super.removeListener(id);
-    if (!this.hasListeners()) {
-      this.stop();
-    }
-  }
 }
