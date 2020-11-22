@@ -12,20 +12,26 @@ export default class Socket extends Listenable {
     }
     this.ws = this.websocketCreator();
     this.ws.onclose = () => {
+      if (!this.isRunning()) {
+        return;
+      }
       setTimeout(() => {
         this.start();
       }, 2000);
     };
     this.ws.onmessage = ({ data }) => {
-      try {
-        this.callListeners(JSON.parse(data));
-      } catch (e) {
-        console.error(e);
-      }
+      this.callListeners(JSON.parse(data));
     };
   }
 
+  isRunning() {
+    return this.ws != null;
+  }
+
   stop() {
+    if (!this.ws) {
+      return;
+    }
     this.ws.close();
     delete this.ws;
   }

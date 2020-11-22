@@ -287,7 +287,7 @@
               </v-list-item-content>
             </v-list-item>
 
-            <v-list-item key="edit" @click="passwordDialog = true">
+            <v-list-item key="password" @click="passwordDialog = true">
               <v-list-item-icon>
                 <v-icon>mdi-lock</v-icon>
               </v-list-item-icon>
@@ -446,7 +446,8 @@ import TaskLogView from '@/components/TaskLogView.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
-import EventBus from './event-bus';
+import EventBus from '@/event-bus';
+import socket from '@/socket';
 
 const PROJECT_COLORS = [
   'red',
@@ -530,12 +531,11 @@ export default {
     try {
       await this.reloadData();
       this.state = 'success';
-    } catch (err) { // notify about problem and sign out
+    } catch (err) {
       EventBus.$emit('i-snackbar', {
         color: 'error',
         text: getErrorMessage(err),
       });
-      // EventBus.$emit('i-session-end');
     }
   },
 
@@ -544,15 +544,6 @@ export default {
       this.snackbar = true;
       this.snackbarColor = e.color;
       this.snackbarText = e.text;
-    });
-
-    EventBus.$on('i-session-end', async () => {
-      await this.signOut();
-    });
-
-    EventBus.$on('i-session-create', async () => {
-      await this.reloadData();
-      await this.trySelectMostSuitableProject();
     });
 
     EventBus.$on('i-account-change', async () => {
@@ -664,6 +655,10 @@ export default {
     },
 
     async reloadData() {
+      if (!socket.isRunning()) {
+        socket.start();
+      }
+
       await this.loadUserInfo();
       await this.loadProjects();
 
@@ -755,6 +750,8 @@ export default {
       this.snackbar = false;
       this.snackbarColor = '';
       this.snackbarText = '';
+
+      socket.stop();
 
       (await axios({
         method: 'post',

@@ -1,68 +1,5 @@
 <template>
   <div class="auth">
-    <v-dialog
-      v-model="forgotPasswordDialog"
-      max-width="290"
-      persistent
-    >
-      <v-card>
-        <v-card-title class="headline">Forgot password?</v-card-title>
-
-        <v-alert
-          :value="forgotPasswordSubmitted"
-          color="success"
-        >
-          Check your inbox.
-        </v-alert>
-
-        <v-alert
-          :value="forgotPasswordError"
-          color="error"
-        >
-          {{ forgotPasswordError }}
-        </v-alert>
-
-        <v-card-text>
-          <v-form
-            ref="forgotPasswordForm"
-            lazy-validation
-            v-model="forgotPasswordFormValid"
-          >
-            <v-text-field
-              v-model="email"
-              label="Email"
-              :rules="emailRules"
-              required
-              :disabled="forgotPasswordSubmitting"
-            ></v-text-field>
-          </v-form>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-
-          <v-btn
-            color="green darken-1"
-            text
-            :disabled="forgotPasswordSubmitting"
-            @click="forgotPasswordDialog = false"
-          >
-            Cancel
-          </v-btn>
-
-          <v-btn
-            color="green darken-1"
-            text
-            :disabled="forgotPasswordSubmitting"
-            @click="submitForgotPassword()"
-          >
-            Reset Password
-          </v-btn>
-        </v-card-actions>
-
-      </v-card>
-    </v-dialog>
-
     <v-container
       fluid
       fill-height
@@ -79,7 +16,7 @@
         <h3 class="text-center mb-8">SEMAPHORE</h3>
 
         <v-alert
-          :value="signInError"
+          :value="signInError != null"
           color="error"
           style="margin-bottom: 20px;"
         >{{ signInError }}</v-alert>
@@ -123,7 +60,6 @@
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
-import EventBus from '@/event-bus';
 
 export default {
   data() {
@@ -131,18 +67,10 @@ export default {
       signInFormValid: false,
       signInError: null,
       signInProcess: false,
+
       password: '',
       username: '',
-
-      forgotPasswordFormValid: false,
-      forgotPasswordError: false,
-      forgotPasswordSubmitted: false,
-      forgotPasswordSubmitting: false,
-      forgotPasswordDialog: false,
       email: '',
-
-      newPassword: '',
-      newPassword2: '',
 
       emailRules: [
         (v) => !!v || 'Email is required',
@@ -159,38 +87,13 @@ export default {
 
   async created() {
     if (this.isAuthenticated()) {
-      EventBus.$emit('i-session-create');
+      document.location = '/';
     }
   },
 
   methods: {
     isAuthenticated() {
       return document.cookie.includes('semaphore=');
-    },
-
-    async submitForgotPassword() {
-      this.forgotPasswordSubmitted = false;
-      this.forgotPasswordError = null;
-
-      if (!this.$refs.forgotPasswordForm.validate()) {
-        return;
-      }
-
-      this.forgotPasswordSubmitting = true;
-      try {
-        await axios({
-          method: 'post',
-          url: '/v1/session/forgot-password',
-          data: {
-            email: this.email,
-          },
-        });
-        this.forgotPasswordSubmitted = true;
-      } catch (err) {
-        this.forgotPasswordError = err.response.data.error;
-      } finally {
-        this.forgotPasswordSubmitting = false;
-      }
     },
 
     async signIn() {
@@ -212,20 +115,17 @@ export default {
           },
         });
 
-        EventBus.$emit('i-session-create');
+        document.location = '/';
       } catch (err) {
-        this.signInError = getErrorMessage(err);
+        console.log(err);
+        if (err.response.status === 401) {
+          this.signInError = 'Incorrect login or password';
+        } else {
+          this.signInError = getErrorMessage(err);
+        }
       } finally {
         this.signInProcess = false;
       }
-    },
-
-    forgotPassword() {
-      this.forgotPasswordError = null;
-      this.forgotPasswordSubmitted = false;
-      this.email = '';
-      this.$refs.forgotPasswordForm.resetValidation();
-      this.forgotPasswordDialog = true;
     },
   },
 };

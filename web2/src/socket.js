@@ -5,6 +5,4 @@ const socket = new Socket(() => {
   return new WebSocket(`${protocol}://${document.location.host}/api/ws`);
 });
 
-socket.start();
-
 export default socket;
