@@ -56,7 +56,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 		util.WriteJSON(w, http.StatusOK, inventory.(db.Inventory))
 		return
 	}
-	
+
 	project := context.Get(r, "project").(db.Project)
 
 	var inv []db.Inventory
@@ -188,7 +188,8 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		break
 	case "file":
 		if !IsValidInventoryPath(inventory.Inventory) {
-			panic("Invalid inventory path")
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 	default:
 		w.WriteHeader(http.StatusBadRequest)
