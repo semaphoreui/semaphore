@@ -67,6 +67,7 @@
       :items="items"
       hide-default-footer
       class="mt-4"
+      :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.alias="{ item }">
         <router-link :to="`/project/${projectId}/templates/${item.id}`">

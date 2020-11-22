@@ -28,12 +28,13 @@
       v-model="copyDialog"
       save-button-text="Create"
       title="New Template"
-      @save="loadData()"
+      @save="onTemplateCopied"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
           :project-id="projectId"
-          :item-id="itemId"
+          item-id="new"
+          :source-item-id="itemId"
           @save="onSave"
           @error="onError"
           :need-save="needSave"
@@ -185,9 +186,11 @@ export default {
   components: {
     YesNoDialog, EditDialog, TemplateForm, TaskStatus,
   },
+
   props: {
     projectId: Number,
   },
+
   data() {
     return {
       headers: [
@@ -248,6 +251,12 @@ export default {
     },
   },
 
+  watch: {
+    async itemId() {
+      await this.loadData();
+    },
+  },
+
   async created() {
     if (this.isNew) {
       await this.$router.replace({
@@ -293,6 +302,12 @@ export default {
       } finally {
         this.deleteDialog = false;
       }
+    },
+
+    async onTemplateCopied(e) {
+      await this.$router.push({
+        path: `/project/${this.projectId}/templates/${e.item.id}`,
+      });
     },
 
     async loadData() {

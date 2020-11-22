@@ -15,7 +15,7 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      hide-default-footer
+      :footer-props="{ itemsPerPageOptions: [20] }"
       class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">

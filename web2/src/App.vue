@@ -406,7 +406,11 @@
 .v-data-table > .v-data-table__wrapper > table > thead > tr > th,
 .v-data-table > .v-data-table__wrapper > table > tfoot > tr > th,
 .v-data-table > .v-data-table__wrapper > table > tbody > tr > td {
-  font-size: 16px !important;
+  font-size: 1rem !important;
+}
+
+.v-data-footer {
+  font-size: 1rem !important;
 }
 
 .v-toolbar__title {

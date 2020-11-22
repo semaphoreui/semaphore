@@ -44,7 +44,7 @@
       :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.inventory="{ item }">
-        <div v-if="item.type === 'file'">{{ item.inventory }}</div>
+        {{ item.type === 'file' ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">

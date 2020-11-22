@@ -73,6 +73,10 @@ import axios from 'axios';
 export default {
   mixins: [ItemFormBase],
 
+  props: {
+    sourceItemId: String,
+  },
+
   data() {
     return {
       item: null,
@@ -83,7 +87,26 @@ export default {
     };
   },
 
+  watch: {
+    needReset(val) {
+      if (val) {
+        this.item.template_id = this.templateId;
+      }
+    },
+
+    sourceItemId(val) {
+      this.item.template_id = val;
+    },
+  },
+
   async created() {
+    if (this.sourceItemId) {
+      this.item = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
+        responseType: 'json',
+      })).data;
+    }
     this.keys = (await axios({
       keys: 'get',
       url: `/api/project/${this.projectId}/keys`,
@@ -108,10 +131,15 @@ export default {
 
   computed: {
     isLoaded() {
-      if (this.isNew) {
+      if (this.isNew && this.sourceItemId == null) {
         return true;
       }
-      return this.keys && this.repositories && this.inventory && this.environment && this.item;
+
+      return this.keys != null
+        && this.repositories != null
+        && this.inventory != null
+        && this.environment != null
+        && this.item != null;
     },
   },
 

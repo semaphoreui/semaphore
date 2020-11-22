@@ -46,7 +46,7 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.external="{ item }">
         <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
