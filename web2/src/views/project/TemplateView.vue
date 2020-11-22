@@ -97,8 +97,45 @@
                 <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
-
+          </v-list>
+        </v-col>
+        <v-col>
+          <v-list two-line subheader>
             <v-list-item>
+              <v-list-item-icon>
+                <v-icon>mdi-monitor</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                <v-list-item-title>Inventory</v-list-item-title>
+                <v-list-item-subtitle>
+                  {{ inventory.find((x) => x.id === item.inventory_id).name }}
+                </v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-col>
+        <v-col>
+          <v-list two-line subheader>
+            <v-list-item>
+              <v-list-item-icon>
+                <v-icon>mdi-code-braces</v-icon>
+              </v-list-item-icon>
+              <v-list-item-content>
+                <v-list-item-title>Environment</v-list-item-title>
+                <v-list-item-subtitle>
+                  {{ environment.find((x) => x.id === item.environment_id).name }}
+                </v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-col>
+        <v-col>
+          <v-list two-line subheader>
+            <v-list-item>
+              <v-list-item-icon>
+                <v-icon>mdi-key</v-icon>
+              </v-list-item-icon>
               <v-list-item-content>
                 <v-list-item-title>SSH Key</v-list-item-title>
                 <v-list-item-subtitle>
@@ -111,24 +148,9 @@
         <v-col>
           <v-list two-line subheader>
             <v-list-item>
-              <v-list-item-content>
-                <v-list-item-title>Inventory</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ inventory.find((x) => x.id === item.inventory_id).name }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-
-            <v-list-item>
-              <v-list-item-content>
-                <v-list-item-title>Environment</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ environment.find((x) => x.id === item.environment_id).name }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-
-            <v-list-item>
+              <v-list-item-icon>
+                <v-icon>mdi-git</v-icon>
+              </v-list-item-icon>
               <v-list-item-content>
                 <v-list-item-title>Repository</v-list-item-title>
                 <v-list-item-subtitle>
@@ -141,12 +163,12 @@
       </v-row>
     </v-container>
 
-    <h4 class="ml-4 mt-4">Task History</h4>
+<!--    <h4 class="ml-4 mt-1">Running History</h4>-->
     <v-data-table
       :headers="headers"
       :items="tasks"
-      hide-default-footer
-      class="mt-2"
+      :footer-props="{ itemsPerPageOptions: [20] }"
+      class="mt-0"
     >
       <template v-slot:item.id="{ item }">
         <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
@@ -157,15 +179,11 @@
       </template>
 
       <template v-slot:item.start="{ item }">
-        <span v-if="item.start">{{ item.start | formatDate }}</span>
-        <v-chip v-else>Not started</v-chip>
+          {{ item.start | formatDate }}
       </template>
 
       <template v-slot:item.end="{ item }">
-        <span v-if="item.end">
           {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
-        </span>
-        <v-chip v-else>Not ended</v-chip>
       </template>
     </v-data-table>
   </div>

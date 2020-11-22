@@ -8,7 +8,7 @@ Vue.config.productionTip = false;
 
 Vue.filter('formatDate', (value) => (value ? moment(String(value)).fromNow() : '—'));
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
-Vue.filter('formatMilliseconds', (value) => (value ? moment.duration(parseInt(value, 10), 'milliseconds').humanize() : undefined));
+Vue.filter('formatMilliseconds', (value) => (value ? moment.duration(parseInt(value, 10), 'milliseconds').humanize() : '—'));
 
 new Vue({
   router,

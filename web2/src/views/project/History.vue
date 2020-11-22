@@ -28,15 +28,11 @@
       </template>
 
       <template v-slot:item.start="{ item }">
-        <span v-if="item.start">{{ item.start | formatDate }}</span>
-        <v-chip v-else>Not started</v-chip>
+        {{ item.start | formatDate }}
       </template>
 
       <template v-slot:item.end="{ item }">
-        <span v-if="item.end">
-          {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
-        </span>
-        <v-chip v-else>Not ended</v-chip>
+        {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
       </template>
     </v-data-table>
   </div>
