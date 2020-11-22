@@ -23,7 +23,7 @@
         ></slot>
       </v-card-text>
 
-      <v-card-actions>
+      <v-card-actions v-if="!hideButtons">
         <v-spacer></v-spacer>
 
         <v-btn
@@ -64,6 +64,7 @@ export default {
     value: Boolean,
     maxWidth: Number,
     eventName: String,
+    hideButtons: Boolean,
   },
 
   data() {

@@ -163,7 +163,6 @@
       </v-row>
     </v-container>
 
-<!--    <h4 class="ml-4 mt-1">Running History</h4>-->
     <v-data-table
       :headers="headers"
       :items="tasks"
@@ -183,7 +182,7 @@
       </template>
 
       <template v-slot:item.end="{ item }">
-          {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
+        {{ [item.start, item.end] | formatMilliseconds }}
       </template>
     </v-data-table>
   </div>
@@ -234,7 +233,7 @@ export default {
         },
         {
           text: 'Duration',
-          value: 'start',
+          value: 'end',
           sortable: false,
         },
       ],

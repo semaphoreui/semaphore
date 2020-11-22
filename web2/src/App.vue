@@ -41,7 +41,8 @@
     <EditDialog
       v-model="taskLogDialog"
       save-button-text="Delete"
-      :max-width="800"
+      :max-width="1000"
+      :hide-buttons="true"
       @close="onTaskLogDialogClosed()"
     >
       <template v-slot:title={}>
@@ -52,6 +53,12 @@
         >{{ template ? template.alias : null }}</router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
+        <v-spacer></v-spacer>
+        <v-btn
+          icon
+        >
+          <v-icon @click="taskLogDialog = false; onTaskLogDialogClosed()">mdi-close</v-icon>
+        </v-btn>
       </template>
       <template v-slot:form="{}">
         <TaskLogView :project-id="projectId" :item-id="task ? task.id : null" />

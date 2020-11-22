@@ -32,7 +32,7 @@
       </template>
 
       <template v-slot:item.end="{ item }">
-        {{ (new Date(item.end) - new Date(item.start)) | formatMilliseconds }}
+        {{ [item.start, item.end] | formatMilliseconds }}
       </template>
     </v-data-table>
   </div>

@@ -38,16 +38,20 @@
         <v-col>
           <v-list-item class="pa-0">
             <v-list-item-content>
-              <v-list-item-title>Ended</v-list-item-title>
-              <v-list-item-subtitle>{{ item.end | formatDate }}</v-list-item-subtitle>
+              <v-list-item-title>Duration</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ [item.start, item.end] | formatMilliseconds }}
+              </v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
         </v-col>
       </v-row>
     </v-container>
-    <div class="task-log-view">
+    <div class="task-log-view" ref="output">
       <div class="task-log-view__record" v-for="record in output" :key="record.id">
-        <div class="task-log-view__time">{{ record.time | formatTime }}</div>
+        <div class="task-log-view__time">
+          {{ record.time | formatTime }}
+        </div>
         <div class="task-log-view__output">{{ record.output }}</div>
       </div>
     </div>
@@ -55,11 +59,13 @@
 </template>
 <style lang="scss">
   .task-log-view {
-    height: 400px;
+    background: black;
+    color: white;
+    height: calc(100vh - 300px);
     overflow: auto;
-    border: 1px solid gray;
-    border-radius: 4px;
     font-family: monospace;
+    margin: 0 -24px -20px;
+    padding: 5px 10px;
   }
 
   .task-log-view__record {
@@ -69,11 +75,12 @@
   }
 
   .task-log-view__time {
-    width: 150px;
+    width: 120px;
+    min-width: 120px;
   }
 
   .task-log-view__output {
-    width: calc(100% - 250px);
+    width: 100%;
   }
 </style>
 <script>
@@ -131,6 +138,9 @@ export default {
           break;
         case 'log':
           this.output.push(data);
+          setTimeout(() => {
+            this.$refs.output.scrollTop = this.$refs.output.scrollHeight;
+          }, 200);
           break;
         default:
           break;
