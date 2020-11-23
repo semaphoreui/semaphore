@@ -16,15 +16,8 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-var publicAssets packr.Box
-
-func getPublicAssetsPath() string {
-	if util.Config != nil && util.Config.OldFrontend {
-		return "../web/public"
-	}
-
-	return "../web2/dist"
-}
+var publicAssets = packr.NewBox("../web/public")
+var publicAssets2 = packr.NewBox("../web2/dist")
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
 func JSONMiddleware(next http.Handler) http.Handler {
@@ -58,8 +51,6 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
 // Route declares all routes
 func Route() *mux.Router {
-	publicAssets = packr.NewBox(getPublicAssetsPath())
-
 	r := mux.NewRouter().StrictSlash(true)
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
@@ -271,7 +262,18 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
-	res, err := publicAssets.MustBytes(path)
+	fmt.Println("path")
+	fmt.Println(path)
+
+	var res []byte
+	var err error
+
+	if util.Config.OldFrontend {
+		res, err = publicAssets.MustBytes(path)
+	} else {
+		res, err = publicAssets2.MustBytes(path)
+	}
+
 	if err != nil {
 		notFoundHandler(w, r)
 		return
