@@ -55,9 +55,11 @@ func Route() *mux.Router {
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
-	if util.WebHostURL != nil && util.WebHostURL.Hostname() != "0.0.0.0" {
-		r.Host(util.WebHostURL.Hostname())
+	if util.WebHostURL != nil {
 		webPath = util.WebHostURL.Path
+		if !strings.HasSuffix(webPath, "/") {
+			webPath += "/"
+		}
 	}
 
 	r.Use(mux.CORSMethodMiddleware(r))
@@ -281,9 +283,13 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 
 	// replace base path
 	if util.WebHostURL != nil && path == htmlPrefix+"/index.html" {
+		baseURL := util.WebHostURL.String()
+		if !strings.HasSuffix(baseURL, "/") {
+			baseURL += "/"
+		}
 		res = []byte(strings.Replace(string(res),
 			"<base href=\"/\">",
-			"<base href=\""+util.WebHostURL.String()+"\">",
+			"<base href=\""+baseURL+"\">",
 			1))
 	}
 
