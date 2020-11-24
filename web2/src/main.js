@@ -1,8 +1,11 @@
 import Vue from 'vue';
 import moment from 'moment';
+import axios from 'axios';
 import App from './App.vue';
 import router from './router';
 import vuetify from './plugins/vuetify';
+
+axios.defaults.baseURL = document.baseURI;
 
 Vue.config.productionTip = false;
 
