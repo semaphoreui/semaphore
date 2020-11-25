@@ -264,9 +264,6 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
-	fmt.Println("path")
-	fmt.Println(path)
-
 	var res []byte
 	var err error
 

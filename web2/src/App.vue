@@ -734,7 +734,7 @@ export default {
       }
       this.user = (await axios({
         method: 'get',
-        url: '/api/user',
+        url: '/api/user/',
         responseType: 'json',
       })).data;
     },
