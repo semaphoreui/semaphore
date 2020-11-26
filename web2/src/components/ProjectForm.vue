@@ -13,7 +13,7 @@
 
     <v-text-field
       v-model="item.name"
-      label="Playbook Alias"
+      label="Project Name"
       :rules="[v => !!v || 'Project name is required']"
       required
       :disabled="formSaving"
