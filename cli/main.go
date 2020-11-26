@@ -21,6 +21,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			r.URL.Path = strings.TrimSuffix(r.URL.Path, "/")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	util.ConfigInit()
 	if util.InteractiveSetup {
@@ -69,7 +78,7 @@ func main() {
 
 	fmt.Println("Server is running")
 
-	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, nil)
+	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
 	if err != nil {
 		log.Panic(err)
 	}

@@ -51,7 +51,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
 // Route declares all routes
 func Route() *mux.Router {
-	r := mux.NewRouter().StrictSlash(true)
+	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	webPath := "/"
@@ -90,9 +90,9 @@ func Route() *mux.Router {
 	authenticatedAPI.Path("/users").HandlerFunc(getUsers).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
 
-	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
+	authenticatedAPI.Path("/user").HandlerFunc(getUser).Methods("GET", "HEAD")
 
-	tokenAPI.Path("/").HandlerFunc(getUser).Methods("GET", "HEAD")
+	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
@@ -100,15 +100,21 @@ func Route() *mux.Router {
 	userAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)
 
-	userAPI.Path("/").HandlerFunc(getUser).Methods("GET", "HEAD")
-	userAPI.Path("/").HandlerFunc(updateUser).Methods("PUT")
-	userAPI.Path("/").HandlerFunc(deleteUser).Methods("DELETE")
-	userAPI.Path("/password").HandlerFunc(updateUserPassword).Methods("POST")
+	userAPI.Methods("GET", "HEAD").HandlerFunc(getUser)
+	userAPI.Methods("PUT").HandlerFunc(updateUser)
+	userAPI.Methods("DELETE").HandlerFunc(deleteUser)
+
+	userPasswordAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
+	userPasswordAPI.Use(getUserMiddleware)
+	userPasswordAPI.Path("/password").HandlerFunc(updateUserPassword).Methods("POST")
+
+	projectGet := authenticatedAPI.Path("/project/{project_id}").Subrouter()
+	projectGet.Use(projects.ProjectMiddleware)
+	projectGet.Methods("GET", "HEAD").HandlerFunc(projects.GetProject)
 
 	projectUserAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectUserAPI.Use(projects.ProjectMiddleware)
 
-	projectUserAPI.Path("/").HandlerFunc(projects.GetProject).Methods("GET", "HEAD")
 	projectUserAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
@@ -136,9 +142,12 @@ func Route() *mux.Router {
 	projectAdminAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
 
-	projectAdminAPI.Path("/").HandlerFunc(projects.UpdateProject).Methods("PUT")
-	projectAdminAPI.Path("/").HandlerFunc(projects.DeleteProject).Methods("DELETE")
-	projectAdminAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
+	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
+	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
+
+	projectAdminUsersAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
+	projectAdminUsersAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
 
 	projectUserManagement := projectAdminAPI.PathPrefix("/users").Subrouter()
 	projectUserManagement.Use(projects.UserMiddleware)
@@ -232,31 +241,33 @@ func debugPrintRoutes(r *mux.Router) {
 
 //nolint: gocyclo
 func servePublic(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
-	htmlPrefix := ""
-	if util.Config.OldFrontend {
-		htmlPrefix = "/html"
-	}
-
-	publicAssetsPrefix := ""
-	if util.Config.OldFrontend {
-		publicAssetsPrefix = "public"
-	}
-
 	webPath := "/"
 	if util.WebHostURL != nil {
 		webPath = util.WebHostURL.RequestURI()
 	}
 
+	path := r.URL.Path
+
+	if path == webPath + "api" || strings.HasPrefix(path, webPath + "api/") {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	htmlPrefix := ""
+	publicAssetsPrefix := ""
+	if util.Config.OldFrontend {
+		htmlPrefix = "/html"
+		publicAssetsPrefix = "public"
+	}
+
 	if publicAssetsPrefix != "" && !strings.HasPrefix(path, webPath+publicAssetsPrefix) {
-		if len(strings.Split(path, ".")) > 1 {
+		if strings.Contains(path, ".") {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		path = htmlPrefix+"/index.html"
-	} else if len(strings.Split(path, ".")) == 1 {
+	} else if !strings.Contains(path, ".") {
 		path = htmlPrefix+"/index.html"
 	}
 

@@ -15,6 +15,7 @@ export default class Socket extends Listenable {
       if (!this.isRunning()) {
         return;
       }
+      this.ws = null;
       setTimeout(() => {
         this.start();
       }, 2000);
