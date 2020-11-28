@@ -2,22 +2,32 @@ package db
 
 import (
 	"fmt"
+	"github.com/lib/pq"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gobuffalo/packr"
+	sqlite "github.com/mattn/go-sqlite3"
 )
 
 var dbAssets = packr.NewBox("./migrations")
 
 // CheckExists queries the database to see if a migration table with this version id exists already
 func (version *Version) CheckExists() (bool, error) {
-	exists, err := Mysql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
+	exists, err := Sql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
 
 	if err != nil {
-		//nolint: gosimple
+		//nolint: gosimples
 		switch err.(type) {
+		case sqlite.Error:
+			fmt.Println("Creating migrations table")
+
+			if _, err = Sql.Exec(PrepareMigration(initialSQL)); err != nil {
+				panic(err)
+			}
+
+			return version.CheckExists()
 		case *mysql.MySQLError:
 			// 1146 is mysql table does not exist
 			if err.(*mysql.MySQLError).Number != 1146 {
@@ -25,10 +35,20 @@ func (version *Version) CheckExists() (bool, error) {
 			}
 
 			fmt.Println("Creating migrations table")
-			if _, err = Mysql.Exec(initialSQL); err != nil {
+			if _, err = Sql.Exec(initialSQL); err != nil {
 				panic(err)
 			}
 
+			return version.CheckExists()
+		case *pq.Error:
+			if err.(*pq.Error).Code != "42P01" {
+				return false, err
+			}
+
+			fmt.Println("Creating migrations table")
+			if _, err = Sql.Exec(PrepareMigration(initialSQL)); err != nil {
+				panic(err)
+			}
 			return version.CheckExists()
 		default:
 			return false, err
@@ -42,7 +62,7 @@ func (version *Version) CheckExists() (bool, error) {
 func (version *Version) Run() error {
 	fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
 
-	tx, err := Mysql.Begin()
+	tx, err := Sql.Begin()
 	if err != nil {
 		return err
 	}
@@ -55,14 +75,14 @@ func (version *Version) Run() error {
 			continue
 		}
 
-		if _, err := tx.Exec(query); err != nil {
+		if _, err := tx.Exec(PrepareMigration(query)); err != nil {
 			handleRollbackError(tx.Rollback())
 			log.Warnf("\n ERR! Query: %v\n\n", query)
 			return err
 		}
 	}
 
-	if _, err := tx.Exec("insert into migrations set version=?, upgraded_date=?", version.VersionString(), time.Now()); err != nil {
+	if _, err := tx.Exec("insert into migrations(version, upgraded_date) values (?, ?)", version.VersionString(), time.Now()); err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
 	}
@@ -93,7 +113,7 @@ func (version *Version) TryRollback() {
 	for _, query := range sql {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 
-		if _, err := Mysql.Exec(query); err != nil {
+		if _, err := Sql.Exec(query); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}

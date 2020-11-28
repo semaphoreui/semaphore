@@ -21,7 +21,7 @@ func KeyMiddleware(next http.Handler) http.Handler {
 		}
 
 		var key db.AccessKey
-		if err := db.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
+		if err := db.Sql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -76,7 +76,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Mysql.Select(&keys, query, args...); err != nil {
+	if _, err := db.Sql.Select(&keys, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -111,7 +111,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	secret := *key.Secret + "\n"
 
-	res, err := db.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, secret)
+	res, err := db.Sql.Exec("insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)", key.Name, key.Type, project.ID, key.Key, secret)
 	if err != nil {
 		panic(err)
 	}
@@ -169,7 +169,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		key.Secret = &secret
 	}
 
-	if _, err := db.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	if _, err := db.Sql.Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
 		panic(err)
 	}
 
@@ -191,12 +191,12 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := context.Get(r, "accessKey").(db.AccessKey)
 
-	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	inventoryC, err := db.Mysql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	inventoryC, err := db.Sql.SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -211,7 +211,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Mysql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
+		if _, err := db.Sql.Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
 			panic(err)
 		}
 
@@ -219,7 +219,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from access_key where id=?", key.ID); err != nil {
 		panic(err)
 	}
 

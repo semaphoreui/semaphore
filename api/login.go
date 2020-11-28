@@ -140,11 +140,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if err = db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+	if err = db.Sql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
 		if ldapUser != nil {
 			// create new LDAP user
 			user = *ldapUser
-			if err = db.Mysql.Insert(&user); err != nil {
+			if err = db.Sql.Insert(&user); err != nil {
 				panic(err)
 			}
 		} else {
@@ -179,7 +179,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err = db.Mysql.Insert(&session); err != nil {
+	if err = db.Sql.Insert(&session); err != nil {
 		panic(err)
 	}
 

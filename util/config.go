@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -37,11 +38,19 @@ const (
 	shortPos = "y"
 )
 
-type mySQLConfig struct {
-	Hostname string `json:"host"`
-	Username string `json:"user"`
-	Password string `json:"pass"`
-	DbName   string `json:"name"`
+type DbDriver int
+
+const (
+	DbDriverMySQL DbDriver = iota
+	DbDriverSQLite
+)
+
+type DbConfig struct {
+	Dialect  DbDriver `json:"-"`
+	Hostname string   `json:"host"`
+	Username string   `json:"user"`
+	Password string   `json:"pass"`
+	DbName   string   `json:"name"`
 }
 
 type ldapMappings struct {
@@ -53,7 +62,9 @@ type ldapMappings struct {
 
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
-	MySQL mySQLConfig `json:"mysql"`
+	MySQL      DbConfig `json:"mysql"`
+	SQLite     DbConfig `json:"sqlite"`
+
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
 	Port string `json:"port"`
@@ -145,7 +156,7 @@ func ConfigInit() {
 
 	if printConfig {
 		cfg := &ConfigType{
-			MySQL: mySQLConfig{
+			MySQL: DbConfig{
 				Hostname: "127.0.0.1:3306",
 				Username: "root",
 				DbName:   "semaphore",
@@ -246,6 +257,61 @@ func decodeConfig(file io.Reader) {
 	}
 }
 
+func (d DbDriver) String() string {
+	return [...]string{"mysql", "sqlite3"}[d]
+}
+
+func (d *DbConfig) isPresent() bool {
+	return d.Hostname != ""
+}
+
+func (d *DbConfig) HasSupportMultipleDatabases() bool {
+	return d.Dialect != DbDriverSQLite
+}
+
+func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
+	switch d.Dialect {
+	case DbDriverMySQL:
+		if includeDbName {
+			connectionString = fmt.Sprintf(
+				"%s:%s@tcp(%s)/%s?parseTime=true&interpolateParams=true",
+				d.Username,
+				d.Password,
+				d.Hostname,
+				d.DbName)
+		} else {
+			connectionString = fmt.Sprintf(
+				"%s:%s@tcp(%s)?parseTime=true&interpolateParams=true",
+				d.Username,
+				d.Password,
+				d.Hostname)
+		}
+	case DbDriverSQLite:
+		if includeDbName {
+			connectionString = fmt.Sprintf("file://%s?&cache=shared", d.Hostname)
+		} else {
+			err = errors.New("sqlite3 not support multiple databases and argument includeDbName can not be false")
+		}
+	default:
+		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
+	}
+	return
+}
+
+func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
+	switch {
+	case conf.MySQL.isPresent():
+		dbConfig = conf.MySQL
+		dbConfig.Dialect = DbDriverMySQL
+	case conf.SQLite.isPresent():
+		dbConfig = conf.SQLite
+		dbConfig.Dialect = DbDriverSQLite
+	default:
+		err = errors.New("database configuration not found")
+	}
+	return
+}
+
 //GenerateCookieSecrets generates cookie secret during setup
 func (conf *ConfigType) GenerateCookieSecrets() {
 	hash := securecookie.GenerateRandomKey(32)
@@ -255,8 +321,8 @@ func (conf *ConfigType) GenerateCookieSecrets() {
 	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
 }
 
-//nolint: gocyclo
-func (conf *ConfigType) Scan() {
+func (conf *ConfigType) ScanMySQL() {
+
 	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
 	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Hostname))
 	if len(conf.MySQL.Hostname) == 0 {
@@ -276,6 +342,39 @@ func (conf *ConfigType) Scan() {
 	ScanErrorChecker(fmt.Scanln(&conf.MySQL.DbName))
 	if len(conf.MySQL.DbName) == 0 {
 		conf.MySQL.DbName = "semaphore"
+	}
+}
+
+
+func (conf *ConfigType) ScanSQLite() {
+	homeDir, err := os.UserHomeDir()
+
+	if err == nil {
+		fmt.Print(" > DB file path (default " + homeDir + "/semaphore.sqlite): ")
+		ScanErrorChecker(fmt.Scanln(&conf.SQLite.Hostname))
+		if len(conf.SQLite.Hostname) == 0 {
+			conf.SQLite.Hostname = homeDir + "/semaphore.sqlite"
+		}
+	} else {
+		fmt.Print(" > DB file path (for example /path/to/the/file.sqlite): ")
+		ScanErrorChecker(fmt.Scanln(&conf.SQLite.Hostname))
+	}
+}
+
+//nolint: gocyclo
+func (conf *ConfigType) Scan() {
+	db := 1
+	fmt.Println(" > DB")
+	fmt.Println("   1 - MySQL")
+	fmt.Println("   2 - SQLite")
+	fmt.Print("   (default 1): ")
+	ScanErrorChecker(fmt.Scanln(&db))
+
+	switch db {
+	case 1:
+		conf.ScanMySQL()
+	case 2:
+		conf.ScanSQLite()
 	}
 
 	fmt.Print(" > Playbook path (default /tmp/semaphore): ")

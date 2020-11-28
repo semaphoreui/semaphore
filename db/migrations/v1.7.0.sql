@@ -1,1 +1,1 @@
-alter table task add user_id int after environment;
+alter table task add user_id int;

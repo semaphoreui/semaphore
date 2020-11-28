@@ -17,7 +17,7 @@ type Project struct {
 func (project *Project) CreateProject() error {
 	project.Created = time.Now()
 
-	res, err := Mysql.Exec("insert into project set name=?, created=?", project.Name, project.Created)
+	res, err := Sql.Exec("insert into project(name, created) values (?, ?)", project.Name, project.Created)
 	if err != nil {
 		return err
 	}

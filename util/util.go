@@ -49,7 +49,7 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 // and move on
 func ScanErrorChecker(n int, err error) {
 	if err != nil {
-		log.Warn("An input error occured:" + err.Error())
+		log.Warn("An input error occurred:" + err.Error())
 	}
 }
 

@@ -168,7 +168,7 @@ func doSetup() int {
 	user.Email = strings.ToLower(user.Email)
 
 	var existingUser db.User
-	err = db.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
+	err = db.Sql.SelectOne(&existingUser, "select * from `user` where email=? or username=?", user.Email, user.Username)
 	util.LogWarning(err)
 
 	if existingUser.ID > 0 {
@@ -180,7 +180,13 @@ func doSetup() int {
 		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 		util.LogWarning(err)
 
-		if _, err := db.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, admin=1, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
+		if _, err := db.Sql.Exec(
+			"insert into `user`(name, username, email, password, admin, created) values (?, ?, ?, ?, true, ?)",
+			user.Name,
+			user.Username,
+			user.Email,
+			pwdHash,
+			time.Now()); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}

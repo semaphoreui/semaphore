@@ -37,7 +37,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if _, err := db.Mysql.Select(&events, query, args...); err != nil {
+	if _, err := db.Sql.Select(&events, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 		query, args, err := q.ToSql()
 		util.LogWarning(err)
-		name, err := db.Mysql.SelectNullStr(query, args...)
+		name, err := db.Sql.SelectNullStr(query, args...)
 		if err != nil {
 			panic(err)
 		}

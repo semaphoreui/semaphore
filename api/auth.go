@@ -19,7 +19,7 @@ func authentication(next http.Handler) http.Handler {
 
 		if authHeader := strings.ToLower(r.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 			var token db.APIToken
-			if err := db.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
+			if err := db.Sql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
 				if err == sql.ErrNoRows {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
@@ -55,7 +55,7 @@ func authentication(next http.Handler) http.Handler {
 
 			// fetch session
 			var session db.Session
-			if err := db.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
+			if err := db.Sql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -63,7 +63,7 @@ func authentication(next http.Handler) http.Handler {
 			if time.Since(session.LastActive).Hours() > 7*24 {
 				// more than week old unused session
 				// destroy.
-				if _, err := db.Mysql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
+				if _, err := db.Sql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
 					panic(err)
 				}
 
@@ -71,7 +71,7 @@ func authentication(next http.Handler) http.Handler {
 				return
 			}
 
-			if _, err := db.Mysql.Exec("update session set last_active=UTC_TIMESTAMP() where id=?", sessionID); err != nil {
+			if _, err := db.Sql.Exec("update session set last_active=? where id=?", time.Now(), sessionID); err != nil {
 				panic(err)
 			}
 		}

@@ -36,7 +36,7 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 		util.LogWarning(err)
 
 		var inventory db.Inventory
-		if err := db.Mysql.SelectOne(&inventory, query, args...); err != nil {
+		if err := db.Sql.SelectOne(&inventory, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -83,7 +83,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Mysql.Select(&inv, query, args...); err != nil {
+	if _, err := db.Sql.Select(&inv, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -113,7 +113,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
+	res, err := db.Sql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
 	if err != nil {
 		panic(err)
 	}
@@ -196,7 +196,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+	if _, err := db.Sql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
 		panic(err)
 	}
 
@@ -218,7 +218,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(db.Inventory)
 
-	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
+	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -233,7 +233,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Mysql.Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
+		if _, err := db.Sql.Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
 			panic(err)
 		}
 
@@ -241,7 +241,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
 		panic(err)
 	}
 

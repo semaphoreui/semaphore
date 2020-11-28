@@ -543,6 +543,7 @@ export default {
         color: 'error',
         text: getErrorMessage(err),
       });
+      await this.signOut();
     }
   },
 

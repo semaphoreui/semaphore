@@ -16,7 +16,13 @@ type Event struct {
 
 // Insert writes the event to the database
 func (evt Event) Insert() error {
-	_, err := Mysql.Exec("insert into event set project_id=?, object_id=?, object_type=?, description=?, created=UTC_TIMESTAMP(6)", evt.ProjectID, evt.ObjectID, evt.ObjectType, evt.Description)
+	_, err := Sql.Exec(
+		"insert into event(project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?)",
+		evt.ProjectID,
+		evt.ObjectID,
+		evt.ObjectType,
+		evt.Description,
+		time.Now().Format("2006-01-02 15:04:05"))
 
 	return err
 }

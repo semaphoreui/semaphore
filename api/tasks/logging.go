@@ -30,7 +30,7 @@ func (t *task) log(msg string) {
 	}
 
 	go func() {
-		_, err := db.Mysql.Exec("insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)", t.task.ID, msg, now)
+		_, err := db.Sql.Exec("insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)", t.task.ID, msg, now)
 		util.LogPanicWithFields(err, log.Fields{"error": "Failed to insert task output"})
 	}()
 }
@@ -51,7 +51,7 @@ func (t *task) updateStatus() {
 		sockets.Message(user, b)
 	}
 
-	if _, err := db.Mysql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
+	if _, err := db.Sql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
 		t.panicOnError(err, "Failed to update task status")
 	}
 }

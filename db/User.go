@@ -21,6 +21,6 @@ type User struct {
 func FetchUser(userID int) (*User, error) {
 	var user User
 
-	err := Mysql.SelectOne(&user, "select * from user where id=?", userID)
+	err := Sql.SelectOne(&user, "select * from `user` where id=?", userID)
 	return &user, err
 }

@@ -22,7 +22,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 		}
 
 		var user db.User
-		if err := db.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
+		if err := db.Sql.SelectOne(&user, "select u.* from project__user as pu join `user` as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -69,7 +69,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	query, args, _ := q.ToSql()
 
-	if _, err := db.Mysql.Select(&users, query, args...); err != nil {
+	if _, err := db.Sql.Select(&users, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -89,7 +89,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//TODO - check if user already exists
-	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, `admin`=?", user.UserID, project.ID, user.Admin); err != nil {
+	if _, err := db.Sql.Exec("insert into project__user(user_id, project_id, `admin`) values (?, ?, ?)", user.UserID, project.ID, user.Admin); err != nil {
 		panic(err)
 	}
 
@@ -112,7 +112,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
 
-	if _, err := db.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
 		panic(err)
 	}
 
@@ -141,7 +141,7 @@ func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 		admin = 0
 	}
 
-	if _, err := db.Mysql.Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+	if _, err := db.Sql.Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
 		panic(err)
 	}
 

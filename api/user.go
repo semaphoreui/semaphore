@@ -28,7 +28,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	var tokens []db.APIToken
-	if _, err := db.Mysql.Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
+	if _, err := db.Sql.Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
 		panic(err)
 	}
 
@@ -49,7 +49,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		Expired: false,
 	}
 
-	if err := db.Mysql.Insert(&token); err != nil {
+	if err := db.Sql.Insert(&token); err != nil {
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func expireAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	tokenID := mux.Vars(r)["token_id"]
-	res, err := db.Mysql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
+	res, err := db.Sql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
 	if err != nil {
 		panic(err)
 	}

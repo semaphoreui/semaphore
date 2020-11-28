@@ -208,7 +208,7 @@ func (t *task) run() {
 }
 
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := db.Mysql.SelectOne(ptr, query, args...)
+	err := db.Sql.SelectOne(ptr, query, args...)
 	if err == sql.ErrNoRows {
 		t.log(errMsg)
 		return err
@@ -241,7 +241,7 @@ func (t *task) populateDetails() error {
 	var users []struct {
 		ID int `db:"id"`
 	}
-	if _, err := db.Mysql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
+	if _, err := db.Sql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
 		return err
 	}
 

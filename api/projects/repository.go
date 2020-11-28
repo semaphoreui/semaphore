@@ -33,7 +33,7 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 		}
 
 		var repository db.Repository
-		if err := db.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
+		if err := db.Sql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -88,7 +88,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Mysql.Select(&repos, query, args...); err != nil {
+	if _, err := db.Sql.Select(&repos, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -108,7 +108,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitURL, repository.SSHKeyID, repository.Name)
+	res, err := db.Sql.Exec("insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)", project.ID, repository.GitURL, repository.SSHKeyID, repository.Name)
 	if err != nil {
 		panic(err)
 	}
@@ -143,7 +143,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitURL, repository.SSHKeyID, oldRepo.ID); err != nil {
+	if _, err := db.Sql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitURL, repository.SSHKeyID, oldRepo.ID); err != nil {
 		panic(err)
 	}
 
@@ -169,7 +169,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	repository := context.Get(r, "repository").(db.Repository)
 
-	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
+	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -184,7 +184,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Mysql.Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
+		if _, err := db.Sql.Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
 			panic(err)
 		}
 
@@ -192,7 +192,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
 		panic(err)
 	}
 

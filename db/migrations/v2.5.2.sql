@@ -1,1 +1,1 @@
-alter table task add `arguments` text null;
+alter table `task` add `arguments` text null;

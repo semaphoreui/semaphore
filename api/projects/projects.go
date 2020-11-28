@@ -25,7 +25,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 
 	util.LogWarning(err)
 	var projects []db.Project
-	if _, err := db.Mysql.Select(&projects, query, args...); err != nil {
+	if _, err := db.Sql.Select(&projects, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -46,7 +46,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if _, err := db.Mysql.Exec("insert into project__user set project_id=?, user_id=?, `admin`=1", body.ID, user.ID); err != nil {
+	if _, err := db.Sql.Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, 1)", body.ID, user.ID); err != nil {
 		panic(err)
 	}
 

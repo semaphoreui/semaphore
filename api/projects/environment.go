@@ -29,7 +29,7 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 		util.LogWarning(err)
 
 		var env db.Environment
-		if err := db.Mysql.SelectOne(&env, query, args...); err != nil {
+		if err := db.Sql.SelectOne(&env, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -76,7 +76,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Mysql.Select(&env, query, args...); err != nil {
+	if _, err := db.Sql.Select(&env, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -99,7 +99,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
+	if _, err := db.Sql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
 		panic(err)
 	}
 
@@ -123,7 +123,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", project.ID, env.Name, env.JSON, env.Password)
+	res, err := db.Sql.Exec("insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)", project.ID, env.Name, env.JSON, env.Password)
 	if err != nil {
 		panic(err)
 	}
@@ -150,7 +150,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(db.Environment)
 
-	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
+	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +165,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Mysql.Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
+		if _, err := db.Sql.Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
 			panic(err)
 		}
 
@@ -173,7 +173,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from project__environment where id=?", env.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from project__environment where id=?", env.ID); err != nil {
 		panic(err)
 	}
 

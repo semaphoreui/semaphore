@@ -27,7 +27,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
 
-	if err := db.Mysql.Insert(&taskObj); err != nil {
+	if err := db.Sql.Insert(&taskObj); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -82,7 +82,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
-	if _, err := db.Mysql.Select(&tasks, query, args...); err != nil {
+	if _, err := db.Sql.Select(&tasks, query, args...); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -116,7 +116,7 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 		}
 
 		var task db.Task
-		if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+		if err := db.Sql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
 			panic(err)
 		}
 
@@ -130,7 +130,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
 
 	var output []db.TaskOutput
-	if _, err := db.Mysql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
+	if _, err := db.Sql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -156,7 +156,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, statement := range statements {
-		_, err := db.Mysql.Exec(statement, task.ID)
+		_, err := db.Sql.Exec(statement, task.ID)
 		if err != nil {
 			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 			w.WriteHeader(http.StatusBadRequest)

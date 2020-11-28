@@ -2,17 +2,19 @@ package db
 
 import (
 	"database/sql"
-
-	"github.com/ansible-semaphore/semaphore/util"
-	_ "github.com/go-sql-driver/mysql" // imports mysql driver
-	"gopkg.in/gorp.v1"
-	"time"
 	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-gorp/gorp/v3"
+	_ "github.com/go-sql-driver/mysql" // imports mysql driver
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
+	"regexp"
+	"time"
 )
 
-// Mysql is the gorp database map
+// Sql is the gorp database map
 // db.Connect must be called to set this up correctly
-var Mysql *gorp.DbMap
+var Sql *gorp.DbMap
 
 // DatabaseTimeFormat represents the format that dredd uses to validate the datetime.
 // This is not the same as the raw value we pass to a new object so
@@ -29,6 +31,7 @@ func GetParsedTime(t time.Time) time.Time {
 	}
 	return parsedTime
 }
+
 // Connect ensures that the db is connected and mapped properly with gorp
 func Connect() error {
 	db, err := connect()
@@ -51,38 +54,82 @@ func Connect() error {
 		}
 	}
 
-	Mysql = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}}
+	cfg, err := util.Config.GetDBConfig()
+	if err != nil {
+		return err
+	}
+
+	var dialect gorp.Dialect
+
+	switch cfg.Dialect {
+	case util.DbDriverMySQL:
+		dialect = gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}
+	case util.DbDriverSQLite:
+		dialect = gorp.SqliteDialect{}
+	}
+
+	Sql = &gorp.DbMap{Db: db, Dialect: dialect}
 	return nil
 }
 
 // Close closes the mysql connection and reports any errors
 // called from main with a defer
 func Close() {
-	err := Mysql.Db.Close()
+	err := Sql.Db.Close()
 	if err != nil {
 		log.Warn("Error closing database:" + err.Error())
 	}
 }
 
 func createDb() error {
-	cfg := util.Config.MySQL
-	url := cfg.Username + ":" + cfg.Password + "@tcp(" + cfg.Hostname + ")/?parseTime=true&interpolateParams=true"
-
-	db, err := sql.Open("mysql", url)
+	cfg, err := util.Config.GetDBConfig()
 	if err != nil {
 		return err
 	}
 
-	if _, err := db.Exec("create database if not exists " + cfg.DbName); err != nil {
+	if !cfg.HasSupportMultipleDatabases() {
+		return nil
+	}
+
+	connectionString, err := cfg.GetConnectionString(false)
+	if err != nil {
 		return err
 	}
+
+	db, err := sql.Open(cfg.Dialect.String(), connectionString)
+	if err != nil {
+		return err
+	}
+
+	db.Exec("create database " + cfg.DbName)
 
 	return nil
 }
 
 func connect() (*sql.DB, error) {
-	cfg := util.Config.MySQL
-	url := cfg.Username + ":" + cfg.Password + "@tcp(" + cfg.Hostname + ")/" + cfg.DbName + "?parseTime=true&interpolateParams=true"
+	cfg, err := util.Config.GetDBConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	return sql.Open("mysql", url)
+	connectionString, err := cfg.GetConnectionString(true)
+	if err != nil {
+		return nil, err
+	}
+
+
+	return sql.Open(cfg.Dialect.String(), connectionString)
+}
+
+
+var (
+	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
+)
+
+func PrepareMigration(query string) string {
+	switch Sql.Dialect.(type) {
+	case gorp.MySQLDialect:
+		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
+	}
+	return query
 }

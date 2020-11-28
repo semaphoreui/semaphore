@@ -1,3 +1,16 @@
-ALTER TABLE `project__template_schedule` ADD PRIMARY KEY(template_id);
+alter table task__output rename to task__output_backup;
 
-ALTER TABLE `task__output` ADD `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST;
+create table task__output
+(
+    id integer primary key autoincrement,
+    task_id int not null
+        references task
+            on delete cascade,
+    task varchar(255) not null,
+    time datetime not null,
+    output longtext not null
+);
+
+insert into task__output(task_id, task, time, output) select * from task__output_backup;
+
+drop table task__output_backup;

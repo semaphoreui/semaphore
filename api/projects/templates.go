@@ -22,7 +22,7 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 		}
 
 		var template db.Template
-		if err := db.Mysql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
+		if err := db.Sql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -94,7 +94,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Mysql.Select(&templates, query, args...); err != nil {
+	if _, err := db.Sql.Select(&templates, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -110,7 +110,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SSHKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
+	res, err := db.Sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SSHKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
 	if err != nil {
 		panic(err)
 	}
@@ -149,7 +149,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
-	if _, err := db.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SSHKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	if _, err := db.Sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SSHKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
 		panic(err)
 	}
 
@@ -171,7 +171,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 	tpl := context.Get(r, "template").(db.Template)
 
-	if _, err := db.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
 		panic(err)
 	}
 

@@ -15,7 +15,7 @@ import (
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	var users []db.User
-	if _, err := db.Mysql.Select(&users, "select * from user"); err != nil {
+	if _, err := db.Sql.Select(&users, "select * from user"); err != nil {
 		panic(err)
 	}
 
@@ -38,7 +38,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 
 	user.Created = db.GetParsedTime(time.Now())
 
-	if err := db.Mysql.Insert(&user); err != nil {
+	if err := db.Sql.Insert(&user); err != nil {
 		panic(err)
 	}
 
@@ -53,7 +53,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 		}
 
 		var user db.User
-		if err := db.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
+		if err := db.Sql.SelectOne(&user, "select * from `user` where id=?", userID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -101,7 +101,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=?, admin=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.Admin, oldUser.ID); err != nil {
+	if _, err := db.Sql.Exec("update user set name=?, username=?, email=?, alert=?, admin=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.Admin, oldUser.ID); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -136,7 +136,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 
 	password, err := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
 	util.LogWarning(err)
-	if _, err := db.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
+	if _, err := db.Sql.Exec("update `user` set password=? where id=?", string(password), user.ID); err != nil {
 		panic(err)
 	}
 
@@ -153,10 +153,10 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
 		panic(err)
 	}
-	if _, err := db.Mysql.Exec("delete from user where id=?", user.ID); err != nil {
+	if _, err := db.Sql.Exec("delete from `user` where id=?", user.ID); err != nil {
 		panic(err)
 	}
 
