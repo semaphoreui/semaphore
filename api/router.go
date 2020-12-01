@@ -97,7 +97,7 @@ func Route() *mux.Router {
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
 
-	userAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
+	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)
 
 	userAPI.Methods("GET", "HEAD").HandlerFunc(getUser)
@@ -139,7 +139,7 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
-	projectAdminAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
 
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
