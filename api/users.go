@@ -2,20 +2,19 @@ package api
 
 import (
 	"database/sql"
-	"net/http"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
-	var users []db.User
-	if _, err := db.Sql.Select(&users, "select * from user"); err != nil {
+	users, err := context.Get(r, "store").(db.Store).GetAllUsers()
+
+	if err != nil {
 		panic(err)
 	}
 
@@ -23,38 +22,40 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
-	var user db.User
+	var user models.User
 	if err := util.Bind(w, r, &user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	editor := context.Get(r, "user").(*db.User)
+	editor := context.Get(r, "user").(*models.User)
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	user.Created = db.GetParsedTime(time.Now())
+	newUser, err := context.Get(r, "store").(db.Store).CreateUser(user)
 
-	if err := db.Sql.Insert(&user); err != nil {
+	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	util.WriteJSON(w, http.StatusCreated, user)
+	util.WriteJSON(w, http.StatusCreated, newUser)
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, err := util.GetIntParam("user_id", w, r)
+
 		if err != nil {
 			return
 		}
 
-		var user db.User
-		if err := db.Sql.SelectOne(&user, "select * from `user` where id=?", userID); err != nil {
+		user, err := context.Get(r, "store").(db.Store).GetUserById(userID)
+
+		if err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -63,7 +64,8 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			panic(err)
 		}
 
-		editor := context.Get(r, "user").(*db.User)
+		editor := context.Get(r, "user").(*models.User)
+
 		if !editor.Admin && editor.ID != user.ID {
 			log.Warn(editor.Username + " is not permitted to edit users")
 			w.WriteHeader(http.StatusUnauthorized)
@@ -76,10 +78,10 @@ func getUserMiddleware(next http.Handler) http.Handler {
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	oldUser := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	oldUser := context.Get(r, "_user").(models.User)
+	editor := context.Get(r, "user").(*models.User)
 
-	var user db.User
+	var user models.User
 	if err := util.Bind(w, r, &user); err != nil {
 		return
 	}
@@ -102,7 +104,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("update user set name=?, username=?, email=?, alert=?, admin=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.Admin, oldUser.ID); err != nil {
+	if err := context.Get(r, "store").(db.Store).UpdateUser(oldUser.ID, user); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -112,8 +114,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "_user").(models.User)
+	editor := context.Get(r, "user").(*models.User)
 
 	var pwd struct {
 		Pwd string `json:"password"`
@@ -135,18 +137,18 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
-	util.LogWarning(err)
-	if _, err := db.Sql.Exec("update `user` set password=? where id=?", string(password), user.ID); err != nil {
-		panic(err)
+	if err := context.Get(r, "store").(db.Store).SetUserPassword(user.ID, pwd.Pwd); err != nil {
+		util.LogWarning(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "_user").(models.User)
+	editor := context.Get(r, "user").(*models.User)
 
 	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to delete users")
@@ -154,11 +156,8 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
-		panic(err)
-	}
-	if _, err := db.Sql.Exec("delete from `user` where id=?", user.ID); err != nil {
-		panic(err)
+	if err := context.Get(r, "store").(db.Store).DeleteUser(user.ID); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

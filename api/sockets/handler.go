@@ -2,14 +2,14 @@ package sockets
 
 import (
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
-	"github.com/ansible-semaphore/semaphore/util"
-	log "github.com/Sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{
@@ -104,7 +104,7 @@ func (c *connection) writePump() {
 
 // Handler is used by the router to handle the /ws endpoint
 func Handler(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "user").(*models.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		panic(err)

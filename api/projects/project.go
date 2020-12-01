@@ -2,9 +2,9 @@ package projects
 
 import (
 	"database/sql"
-	"net/http"
-
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -14,7 +14,7 @@ import (
 // ProjectMiddleware ensures a project exists and loads it to the context
 func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*db.User)
+		user := context.Get(r, "user").(*models.User)
 
 		projectID, err := util.GetIntParam("project_id", w, r)
 		if err != nil {
@@ -29,8 +29,8 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			ToSql()
 		util.LogWarning(err)
 
-		var project db.Project
-		if err := db.Sql.SelectOne(&project, query, args...); err != nil {
+		var project models.Project
+		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&project, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -52,10 +52,10 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 // MustBeAdmin ensures that the user has administrator rights
 func MustBeAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
-		user := context.Get(r, "user").(*db.User)
+		project := context.Get(r, "project").(models.Project)
+		user := context.Get(r, "user").(*models.User)
 
-		userC, err := db.Sql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+		userC, err := context.Get(r, "store").(db.Store).Sql().SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 		if err != nil {
 			panic(err)
 		}
@@ -70,7 +70,7 @@ func MustBeAdmin(next http.Handler) http.Handler {
 
 // UpdateProject saves updated project details to the database
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 	var body struct {
 		Name      string `json:"name"`
 		Alert     bool   `json:"alert"`
@@ -81,7 +81,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
 		panic(err)
 	}
 
@@ -90,9 +90,9 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 // DeleteProject removes a project from the database
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 
-	tx, err := db.Sql.Begin()
+	tx, err := context.Get(r, "store").(db.Store).Sql().Begin()
 	if err != nil {
 		panic(err)
 	}

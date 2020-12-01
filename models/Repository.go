@@ -1,4 +1,4 @@
-package db
+package models
 
 // Repository is the model for code stored in a git repository
 type Repository struct {

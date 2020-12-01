@@ -2,18 +2,19 @@ package projects
 
 import (
 	"database/sql"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"os"
 	"strconv"
-
-	"github.com/ansible-semaphore/semaphore/db"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
 
-func clearRepositoryCache(repository db.Repository) error {
+func clearRepositoryCache(repository models.Repository) error {
 	repoName := "repository_" + strconv.Itoa(repository.ID)
 	repoPath := util.Config.TmpPath + "/" + repoName
 	_, err := os.Stat(repoPath)
@@ -26,14 +27,14 @@ func clearRepositoryCache(repository db.Repository) error {
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(models.Project)
 		repositoryID, err := util.GetIntParam("repository_id", w, r)
 		if err != nil {
 			return
 		}
 
-		var repository db.Repository
-		if err := db.Sql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
+		var repository models.Repository
+		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -50,12 +51,12 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 // GetRepositories returns all repositories in a project sorted by type
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	if repo := context.Get(r, "repository"); repo != nil {
-		util.WriteJSON(w, http.StatusOK, repo.(db.Repository))
+		util.WriteJSON(w, http.StatusOK, repo.(models.Repository))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
-	var repos []db.Repository
+	project := context.Get(r, "project").(models.Project)
+	var repos []models.Repository
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -88,7 +89,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Sql.Select(&repos, query, args...); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&repos, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -97,7 +98,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 // AddRepository creates a new repository in the database
 func AddRepository(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
@@ -108,7 +109,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Sql.Exec("insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)", project.ID, repository.GitURL, repository.SSHKeyID, repository.Name)
+	res, err := context.Get(r, "store").(db.Store).Sql().Exec("insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)", project.ID, repository.GitURL, repository.SSHKeyID, repository.Name)
 	if err != nil {
 		panic(err)
 	}
@@ -119,13 +120,17 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 	objType := "repository"
 
 	desc := "Repository (" + repository.GitURL + ") created"
-	if err := (db.Event{
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -133,7 +138,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 
 // UpdateRepository updates the values of a repository in the database
 func UpdateRepository(w http.ResponseWriter, r *http.Request) {
-	oldRepo := context.Get(r, "repository").(db.Repository)
+	oldRepo := context.Get(r, "repository").(models.Repository)
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
 		GitURL   string `json:"git_url" binding:"required"`
@@ -143,7 +148,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitURL, repository.SSHKeyID, oldRepo.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__repository set name=?, git_url=?, ssh_key_id=? where id=?", repository.Name, repository.GitURL, repository.SSHKeyID, oldRepo.ID); err != nil {
 		panic(err)
 	}
 
@@ -153,13 +158,18 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Repository (" + repository.GitURL + ") updated"
 	objType := "inventory"
-	if err := (db.Event{
+
+	_, err := context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &oldRepo.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldRepo.ID,
 		ObjectType:  &objType,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -167,9 +177,9 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 
 // RemoveRepository deletes a repository from a project in the database
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
-	repository := context.Get(r, "repository").(db.Repository)
+	repository := context.Get(r, "repository").(models.Repository)
 
-	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
+	templatesC, err := context.Get(r, "store").(db.Store).Sql().SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -184,7 +194,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Sql.Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
+		if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__repository set removed=1 where id=?", repository.ID); err != nil {
 			panic(err)
 		}
 
@@ -192,18 +202,22 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("delete from project__repository where id=?", repository.ID); err != nil {
 		panic(err)
 	}
 
 	util.LogWarning(clearRepositoryCache(repository))
 
 	desc := "Repository (" + repository.GitURL + ") deleted"
-	if err := (db.Event{
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

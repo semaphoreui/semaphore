@@ -4,13 +4,15 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/gorilla/context"
 	"net/http"
 	"net/mail"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 
 	sq "github.com/masterminds/squirrel"
@@ -18,7 +20,7 @@ import (
 	"gopkg.in/ldap.v2"
 )
 
-func findLDAPUser(username, password string) (*db.User, error) {
+func findLDAPUser(username, password string) (*models.User, error) {
 	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
@@ -83,7 +85,7 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	ldapUser := db.User{
+	ldapUser := models.User{
 		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID),
 		Created:  time.Now(),
 		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
@@ -117,7 +119,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
-	var ldapUser *db.User
+	var ldapUser *models.User
 	if util.Config.LdapEnable {
 		// search LDAP for users
 		if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
@@ -127,7 +129,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var user db.User
+	var user models.User
 	q := sq.Select("*").
 		From("user")
 
@@ -140,11 +142,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if err = db.Sql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+	if err = context.Get(r, "store").(db.Store).Sql().SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
 		if ldapUser != nil {
 			// create new LDAP user
 			user = *ldapUser
-			if err = db.Sql.Insert(&user); err != nil {
+			if err = context.Get(r, "store").(db.Store).Sql().Insert(&user); err != nil {
 				panic(err)
 			}
 		} else {
@@ -171,7 +173,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		// authenticated.
 	}
 
-	session := db.Session{
+	session := models.Session{
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
@@ -179,7 +181,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err = db.Sql.Insert(&session); err != nil {
+	if err = context.Get(r, "store").(db.Store).Sql().Insert(&session); err != nil {
 		panic(err)
 	}
 

@@ -3,9 +3,10 @@ package projects
 import (
 	"database/sql"
 	"encoding/json"
-	"net/http"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -15,7 +16,7 @@ import (
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(models.Project)
 		envID, err := util.GetIntParam("environment_id", w, r)
 		if err != nil {
 			return
@@ -28,8 +29,8 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 			ToSql()
 		util.LogWarning(err)
 
-		var env db.Environment
-		if err := db.Sql.SelectOne(&env, query, args...); err != nil {
+		var env models.Environment
+		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&env, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -46,12 +47,12 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 // GetEnvironment retrieves sorted environments from the database
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	if environment := context.Get(r, "environment"); environment != nil {
-		util.WriteJSON(w, http.StatusOK, environment.(db.Environment))
+		util.WriteJSON(w, http.StatusOK, environment.(models.Environment))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
-	var env []db.Environment
+	project := context.Get(r, "project").(models.Project)
+	var env []models.Environment
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -76,7 +77,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Sql.Select(&env, query, args...); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&env, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -85,8 +86,8 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
-	oldEnv := context.Get(r, "environment").(db.Environment)
-	var env db.Environment
+	oldEnv := context.Get(r, "environment").(models.Environment)
+	var env models.Environment
 	if err := util.Bind(w, r, &env); err != nil {
 		return
 	}
@@ -99,7 +100,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
 		panic(err)
 	}
 
@@ -108,8 +109,8 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // AddEnvironment creates an environment in the database
 func AddEnvironment(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	var env db.Environment
+	project := context.Get(r, "project").(models.Project)
+	var env models.Environment
 
 	if err := util.Bind(w, r, &env); err != nil {
 		return
@@ -123,7 +124,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Sql.Exec("insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)", project.ID, env.Name, env.JSON, env.Password)
+	res, err := context.Get(r, "store").(db.Store).Sql().Exec("insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)", project.ID, env.Name, env.JSON, env.Password)
 	if err != nil {
 		panic(err)
 	}
@@ -134,13 +135,17 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	objType := "environment"
 
 	desc := "Environment " + env.Name + " created"
-	if err := (db.Event{
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -148,9 +153,9 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // RemoveEnvironment deletes an environment from the database
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
-	env := context.Get(r, "environment").(db.Environment)
+	env := context.Get(r, "environment").(models.Environment)
 
-	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
+	templatesC, err := context.Get(r, "store").(db.Store).Sql().SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +170,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Sql.Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
+		if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
 			panic(err)
 		}
 
@@ -173,16 +178,20 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("delete from project__environment where id=?", env.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("delete from project__environment where id=?", env.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Environment " + env.Name + " deleted"
-	if err := (db.Event{
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &env.ProjectID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

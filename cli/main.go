@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/db/factory"
+	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/gorilla/context"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,14 +14,13 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/handlers"
 	"golang.org/x/crypto/bcrypt"
-	log "github.com/Sirupsen/logrus"
 )
 
 func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
@@ -29,6 +31,7 @@ func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
 
 func main() {
 	util.ConfigInit()
@@ -50,29 +53,34 @@ func main() {
 	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
-	if err := db.Connect(); err != nil {
+	store := factory.CreateStore()
+
+	if err := store.Connect(); err != nil {
 		fmt.Println("\n Have you run semaphore -setup?")
 		panic(err)
 	}
 
-	db.SetupDBLink()
-	defer db.Close()
+	defer store.Close()
 
-	if err := db.MigrateAll(); err != nil {
+	if err := store.Migrate(); err != nil {
 		panic(err)
-	}
-
-	// legacy
-	if util.Migration {
-		fmt.Println("\n DB migrations run on startup automatically")
-		return
 	}
 
 	go sockets.StartWS()
 	go checkUpdates()
 	go tasks.StartRunner()
 
-	var router http.Handler = api.Route()
+	route := api.Route()
+
+	route.Use(func (next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			context.Set(r, "store", store)
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	var router http.Handler = route
+
 	router = handlers.ProxyHeaders(router)
 	http.Handle("/", router)
 
@@ -86,6 +94,8 @@ func main() {
 
 //nolint: gocyclo
 func doSetup() int {
+	store := factory.CreateStore()
+
 	fmt.Print(`
  Hello! You will now be guided through a setup to:
 
@@ -148,27 +158,27 @@ func doSetup() int {
 	fmt.Println(" Pinging db..")
 	util.Config = setup
 
-	if err = db.Connect(); err != nil {
+	if err = store.Connect(); err != nil {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	fmt.Println("\n Running DB Migrations..")
-	if err = db.MigrateAll(); err != nil {
+	if err = store.Migrate(); err != nil {
 		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	stdin := bufio.NewReader(os.Stdin)
 
-	var user db.User
+	var user models.User
 	user.Username = readNewline("\n\n > Username: ", stdin)
 	user.Username = strings.ToLower(user.Username)
 	user.Email = readNewline(" > Email: ", stdin)
 	user.Email = strings.ToLower(user.Email)
 
-	var existingUser db.User
-	err = db.Sql.SelectOne(&existingUser, "select * from `user` where email=? or username=?", user.Email, user.Username)
+	var existingUser models.User
+	err = store.Sql().SelectOne(&existingUser, "select * from `user` where email=? or username=?", user.Email, user.Username)
 	util.LogWarning(err)
 
 	if existingUser.ID > 0 {
@@ -180,7 +190,7 @@ func doSetup() int {
 		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 		util.LogWarning(err)
 
-		if _, err := db.Sql.Exec(
+		if _, err := store.Sql().Exec(
 			"insert into `user`(name, username, email, password, admin, created) values (?, ?, ?, ?, true, ?)",
 			user.Name,
 			user.Username,

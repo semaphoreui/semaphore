@@ -1,13 +1,13 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
-
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -15,11 +15,13 @@ import (
 
 // AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	user := context.Get(r, "user").(*db.User)
+	project := context.Get(r, "project").(models.Project)
+	user := context.Get(r, "user").(*models.User)
 
-	var taskObj db.Task
-	if err := util.Bind(w, r, &taskObj); err != nil {
+	var taskObj models.Task
+	err := util.Bind(w, r, &taskObj)
+
+	if err != nil {
 		return
 	}
 
@@ -27,26 +29,31 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
 
-	if err := db.Sql.Insert(&taskObj); err != nil {
+	if err := context.Get(r, "store").(db.Store).Sql().Insert(&taskObj); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	pool.register <- &task{
+		db:        context.Get(r, "store").(db.Store),
 		task:      taskObj,
 		projectID: project.ID,
 	}
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
-	if err := (db.Event{
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &taskObj.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
+	})
+
+	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	util.WriteJSON(w, http.StatusCreated, taskObj)
@@ -54,7 +61,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
 func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 
 	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
@@ -62,7 +69,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		LeftJoin("user on task.user_id=user.id");
 
 	if tpl := context.Get(r, "template"); tpl != nil {
-		q = q.Where("tpl.project_id=? AND task.template_id=?", project.ID, tpl.(db.Template).ID)
+		q = q.Where("tpl.project_id=? AND task.template_id=?", project.ID, tpl.(models.Template).ID)
 	} else {
 		q = q.Where("tpl.project_id=?", project.ID)
 	}
@@ -76,13 +83,13 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	query, args, _ := q.ToSql()
 
 	var tasks []struct {
-		db.Task
+		models.Task
 
 		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
 		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
-	if _, err := db.Sql.Select(&tasks, query, args...); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&tasks, query, args...); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -103,7 +110,7 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	task := context.Get(r, taskTypeID).(models.Task)
 	util.WriteJSON(w, http.StatusOK, task)
 }
 
@@ -115,8 +122,8 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			panic(err)
 		}
 
-		var task db.Task
-		if err := db.Sql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+		var task models.Task
+		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&task, "select * from task where id=?", taskID); err != nil {
 			panic(err)
 		}
 
@@ -127,10 +134,10 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	task := context.Get(r, taskTypeID).(models.Task)
 
-	var output []db.TaskOutput
-	if _, err := db.Sql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
+	var output []models.TaskOutput
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -141,8 +148,8 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTask removes a task from the database
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
-	editor := context.Get(r, "user").(*db.User)
+	task := context.Get(r, taskTypeID).(models.Task)
+	editor := context.Get(r, "user").(*models.User)
 
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to delete task logs")
@@ -156,7 +163,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, statement := range statements {
-		_, err := db.Sql.Exec(statement, task.ID)
+		_, err := context.Get(r, "store").(db.Store).Sql().Exec(statement, task.ID)
 		if err != nil {
 			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 			w.WriteHeader(http.StatusBadRequest)

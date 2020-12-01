@@ -1,4 +1,4 @@
-package db
+package models
 
 import (
 	"time"
@@ -15,12 +15,4 @@ type User struct {
 	Admin    bool      `db:"admin" json:"admin"`
 	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
-}
-
-//FetchUser retrieves a user from the database by ID
-func FetchUser(userID int) (*User, error) {
-	var user User
-
-	err := Sql.SelectOne(&user, "select * from `user` where id=?", userID)
-	return &user, err
 }

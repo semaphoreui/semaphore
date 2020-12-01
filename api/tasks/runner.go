@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	db2 "github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,7 +17,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -25,12 +26,13 @@ const (
 )
 
 type task struct {
-	task        db.Task
-	template    db.Template
-	sshKey      db.AccessKey
-	inventory   db.Inventory
-	repository  db.Repository
-	environment db.Environment
+	db          db2.Store
+	task        models.Task
+	template    models.Template
+	sshKey      models.AccessKey
+	inventory   models.Inventory
+	repository  models.Repository
+	environment models.Environment
 	users       []int
 	projectID   int
 	hosts       []string
@@ -56,12 +58,15 @@ func (t *task) prepareRun() {
 
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
-		if err := (db.Event{
+
+		_, err := t.db.CreateEvent(models.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
 			Description: &desc,
-		}.Insert()); err != nil {
+		})
+
+		if err != nil {
 			t.panicOnError(err, "Fatal error inserting an event")
 		}
 	}()
@@ -83,12 +88,14 @@ func (t *task) prepareRun() {
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
-	if err := (db.Event{
+	_, err = t.db.CreateEvent(models.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
+	})
+
+	if err != nil {
 		t.log("Fatal error inserting an event")
 		panic(err)
 	}
@@ -154,7 +161,7 @@ func (t *task) prepareRun() {
 func (t *task) run() {
 	defer func() {
 		log.Info("Stopped running task " + strconv.Itoa(t.task.ID))
-		log.Info("Release resourse locker with task " + strconv.Itoa(t.task.ID))
+		log.Info("Release resource locker with task " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()
@@ -163,12 +170,15 @@ func (t *task) run() {
 
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
-		if err := (db.Event{
+
+		_, err := t.db.CreateEvent(models.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
 			Description: &desc,
-		}.Insert()); err != nil {
+		})
+
+		if err != nil {
 			t.log("Fatal error inserting an event")
 			panic(err)
 		}
@@ -184,12 +194,16 @@ func (t *task) run() {
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
-	if err := (db.Event{
+
+
+	_, err := t.db.CreateEvent(models.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
+	})
+
+	if err != nil {
 		t.log("Fatal error inserting an event")
 		panic(err)
 	}
@@ -208,7 +222,7 @@ func (t *task) run() {
 }
 
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := db.Sql.SelectOne(ptr, query, args...)
+	err := t.db.Sql().SelectOne(ptr, query, args...)
 	if err == sql.ErrNoRows {
 		t.log(errMsg)
 		return err
@@ -229,7 +243,7 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	var project db.Project
+	var project models.Project
 	// get project alert setting
 	if err := t.fetch("Alert setting not found!", &project, "select alert, alert_chat from project where id=?", t.template.ProjectID); err != nil {
 		return err
@@ -241,7 +255,7 @@ func (t *task) populateDetails() error {
 	var users []struct {
 		ID int `db:"id"`
 	}
-	if _, err := db.Sql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
+	if _, err := t.db.Sql().Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
 		return err
 	}
 
@@ -306,7 +320,7 @@ func (t *task) populateDetails() error {
 	return nil
 }
 
-func (t *task) installKey(key db.AccessKey) error {
+func (t *task) installKey(key models.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 
 	path := key.GetPath()

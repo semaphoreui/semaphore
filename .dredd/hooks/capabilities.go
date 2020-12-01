@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	trans "github.com/snikch/goodman/transaction"
 	"strconv"
 	"strings"
@@ -10,11 +11,11 @@ import (
 
 // STATE
 // Runtime created objects we needs to reference in test setups
-var testRunnerUser *db.User
-var userPathTestUser *db.User
-var userProject *db.Project
-var userKey *db.AccessKey
-var task *db.Task
+var testRunnerUser *models.User
+var userPathTestUser *models.User
+var userProject *models.Project
+var userKey *models.AccessKey
+var task *models.Task
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int64
@@ -41,7 +42,7 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 
 func addCapabilities(caps []string) {
 	dbConnect()
-	defer db.Mysql.Db.Close()
+	defer db.Sql.Db.Close()
 	resolved := make([]string, 0)
 	uid := getUUID()
 	resolveCapability(caps, resolved, uid)
@@ -72,19 +73,19 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "access_key":
 			userKey = addAccessKey(&userProject.ID)
 		case "repository":
-			pRepo, err := db.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", userProject.ID, "git@github.com/ansible,semaphore/semaphore", userKey.ID, "ITR-"+uid)
+			pRepo, err := db.Sql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", userProject.ID, "git@github.com/ansible,semaphore/semaphore", userKey.ID, "ITR-"+uid)
 			printError(err)
 			repoID, _ = pRepo.LastInsertId()
 		case "inventory":
-			res, err := db.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", userProject.ID, "ITI-"+uid, "static", userKey.ID, userKey.ID, "Test Inventory")
+			res, err := db.Sql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", userProject.ID, "ITI-"+uid, "static", userKey.ID, userKey.ID, "Test Inventory")
 			printError(err)
 			inventoryID, _ = res.LastInsertId()
 		case "environment":
-			res, err := db.Mysql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", userProject.ID, "ITI-"+uid, "{}", "test-pass")
+			res, err := db.Sql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", userProject.ID, "ITI-"+uid, "{}", "test-pass")
 			printError(err)
 			environmentID, _ = res.LastInsertId()
 		case "template":
-			res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", userKey.ID, userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
+			res, err := db.Sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", userKey.ID, userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
 			printError(err)
 			templateID, _ = res.LastInsertId()
 		case "task":

@@ -62,6 +62,7 @@ done
 if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
     echoerr "Generating ${SEMAPHORE_TMP_PATH}/config.stdin ..."
     cat << EOF > "${SEMAPHORE_TMP_PATH}/config.stdin"
+1
 ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}
 ${SEMAPHORE_DB_USER}
 ${SEMAPHORE_DB_PASS}

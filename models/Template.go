@@ -1,4 +1,4 @@
-package db
+package models
 
 // Template is a user defined model that is used to run a task
 type Template struct {

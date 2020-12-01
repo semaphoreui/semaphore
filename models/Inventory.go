@@ -1,4 +1,4 @@
-package db
+package models
 
 // Inventory is the model of an ansible inventory file
 type Inventory struct {

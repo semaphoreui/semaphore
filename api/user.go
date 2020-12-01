@@ -3,12 +3,13 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 
 	"github.com/gorilla/context"
@@ -25,10 +26,10 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "user").(*models.User)
 
-	var tokens []db.APIToken
-	if _, err := db.Sql.Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
+	var tokens []models.APIToken
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
 		panic(err)
 	}
 
@@ -36,31 +37,32 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "user").(*models.User)
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
 	}
 
-	token := db.APIToken{
+	token := models.APIToken{
 		ID:      strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
-		Created: db.GetParsedTime(time.Now()),
+		Created: time.Now(), // TODO: use GetParsedTime
 		UserID:  user.ID,
 		Expired: false,
 	}
 
-	if err := db.Sql.Insert(&token); err != nil {
+	createdToken, err := context.Get(r, "store").(db.Store).CreateAPIToken(token)
+	if err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusCreated, token)
+	util.WriteJSON(w, http.StatusCreated, createdToken)
 }
 
 func expireAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "user").(*models.User)
 
 	tokenID := mux.Vars(r)["token_id"]
-	res, err := db.Sql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
+	res, err := context.Get(r, "store").(db.Store).Sql().Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
 	if err != nil {
 		panic(err)
 	}

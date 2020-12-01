@@ -1,4 +1,4 @@
-package db
+package sql
 
 import (
 	"fmt"
@@ -19,13 +19,6 @@ type Version struct {
 
 // Versions holds all sql schema version references
 var Versions []*Version
-var initialSQL = `
-create table ` + "`migrations`" + ` (
-	` + "`version`" + ` varchar(255) not null primary key,
-	` + "`upgraded_date`" + ` datetime null,
-	` + "`notes`" + ` text null
-);
-`
 
 // VersionString returns a well formatted string of the current Version
 func (version *Version) VersionString() string {

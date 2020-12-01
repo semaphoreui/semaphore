@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -45,7 +44,7 @@ func (t *task) sendMailAlert() {
 	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
 	for _, user := range t.users {
-		userObj, err := db.FetchUser(user)
+		userObj, err := t.db.GetUserById(user)
 
 		if !userObj.Alert {
 			return

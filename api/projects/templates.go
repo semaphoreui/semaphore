@@ -2,10 +2,11 @@ package projects
 
 import (
 	"database/sql"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"strconv"
-
-	"github.com/ansible-semaphore/semaphore/db"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -15,14 +16,14 @@ import (
 // TemplatesMiddleware ensures a template exists and loads it to the context
 func TemplatesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(models.Project)
 		templateID, err := util.GetIntParam("template_id", w, r)
 		if err != nil {
 			return
 		}
 
-		var template db.Template
-		if err := db.Sql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
+		var template models.Template
+		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -38,14 +39,14 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 
 // GetTemplate returns single template by ID
 func GetTemplate(w http.ResponseWriter, r *http.Request) {
-	template := context.Get(r, "template").(db.Template)
+	template := context.Get(r, "template").(models.Template)
 	util.WriteJSON(w, http.StatusOK, template)
 }
 
 // GetTemplates returns all templates for a project in a sort order
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	var templates []db.Template
+	project := context.Get(r, "project").(models.Project)
+	var templates []models.Template
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -94,7 +95,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Sql.Select(&templates, query, args...); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&templates, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -103,14 +104,14 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 
 // AddTemplate adds a template to the database
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 
-	var template db.Template
+	var template models.Template
 	if err := util.Bind(w, r, &template); err != nil {
 		return
 	}
 
-	res, err := db.Sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SSHKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
+	res, err := context.Get(r, "store").(db.Store).Sql().Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", template.SSHKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments)
 	if err != nil {
 		panic(err)
 	}
@@ -124,13 +125,18 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	objType := "template"
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
-	if err := (db.Event{
+
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &template.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	util.WriteJSON(w, http.StatusCreated, template)
@@ -138,9 +144,9 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTemplate writes a template to an existing key in the database
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	oldTemplate := context.Get(r, "template").(db.Template)
+	oldTemplate := context.Get(r, "template").(models.Template)
 
-	var template db.Template
+	var template models.Template
 	if err := util.Bind(w, r, &template); err != nil {
 		return
 	}
@@ -149,19 +155,24 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
-	if _, err := db.Sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SSHKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?", template.SSHKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Alias, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
 	objType := "template"
-	if err := (db.Event{
+
+	_, err := context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &oldTemplate.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldTemplate.ID,
 		ObjectType:  &objType,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -169,18 +180,23 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTemplate deletes a template from the database
 func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
-	tpl := context.Get(r, "template").(db.Template)
+	tpl := context.Get(r, "template").(models.Template)
 
-	if _, err := db.Sql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("delete from project__template where id=?", tpl.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
-	if err := (db.Event{
+
+	_, err := context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &tpl.ProjectID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

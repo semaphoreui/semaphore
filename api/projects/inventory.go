@@ -2,13 +2,15 @@ package projects
 
 import (
 	"database/sql"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -22,7 +24,7 @@ const (
 // InventoryMiddleware ensures an inventory exists and loads it to the context
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(models.Project)
 		inventoryID, err := util.GetIntParam("inventory_id", w, r)
 		if err != nil {
 			return
@@ -35,8 +37,8 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 			ToSql()
 		util.LogWarning(err)
 
-		var inventory db.Inventory
-		if err := db.Sql.SelectOne(&inventory, query, args...); err != nil {
+		var inventory models.Inventory
+		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&inventory, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -53,13 +55,13 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 // GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
 	if inventory := context.Get(r, "inventory"); inventory != nil {
-		util.WriteJSON(w, http.StatusOK, inventory.(db.Inventory))
+		util.WriteJSON(w, http.StatusOK, inventory.(models.Inventory))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 
-	var inv []db.Inventory
+	var inv []models.Inventory
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -83,7 +85,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := db.Sql.Select(&inv, query, args...); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&inv, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -92,7 +94,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 // AddInventory creates an inventory in the database
 func AddInventory(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(models.Project)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`
@@ -113,7 +115,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Sql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
+	res, err := context.Get(r, "store").(db.Store).Sql().Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
 	if err != nil {
 		panic(err)
 	}
@@ -124,16 +126,21 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	objType := "inventory"
 
 	desc := "Inventory " + inventory.Name + " created"
-	if err := (db.Event{
+
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
-	inv := db.Inventory{
+	inv := models.Inventory{
 		ID:        insertIDInt,
 		Name:      inventory.Name,
 		ProjectID: project.ID,
@@ -169,7 +176,7 @@ func IsValidInventoryPath(path string) bool {
 
 // UpdateInventory writes updated values to an existing inventory item in the database
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
-	oldInventory := context.Get(r, "inventory").(db.Inventory)
+	oldInventory := context.Get(r, "inventory").(models.Inventory)
 
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
@@ -196,19 +203,23 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " updated"
 	objType := "inventory"
-	if err := (db.Event{
+	_, err := context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &oldInventory.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldInventory.ID,
 		ObjectType:  &objType,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -216,9 +227,9 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 
 // RemoveInventory deletes an inventory from the database
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
-	inventory := context.Get(r, "inventory").(db.Inventory)
+	inventory := context.Get(r, "inventory").(models.Inventory)
 
-	templatesC, err := db.Sql.SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
+	templatesC, err := context.Get(r, "store").(db.Store).Sql().SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -233,7 +244,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := db.Sql.Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
+		if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
 			panic(err)
 		}
 
@@ -241,16 +252,21 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Sql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " deleted"
-	if err := (db.Event{
+
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &inventory.ProjectID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

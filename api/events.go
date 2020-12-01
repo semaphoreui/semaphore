@@ -1,9 +1,9 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/models"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -12,7 +12,7 @@ import (
 
 //nolint: gocyclo
 func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
-	user := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "user").(*models.User)
 
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
@@ -26,18 +26,18 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	projectObj, exists := context.GetOk(r, "project")
 	if exists {
 		// limit query to project
-		project := projectObj.(db.Project)
+		project := projectObj.(models.Project)
 		q = q.Where("event.project_id=?", project.ID)
 	} else {
 		q = q.LeftJoin("project__user as pu on pu.project_id=p.id").
 			Where("p.id IS NULL or pu.user_id=?", user.ID)
 	}
 
-	var events []db.Event
+	var events []models.Event
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if _, err := db.Sql.Select(&events, query, args...); err != nil {
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&events, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 		query, args, err := q.ToSql()
 		util.LogWarning(err)
-		name, err := db.Sql.SelectNullStr(query, args...)
+		name, err := context.Get(r, "store").(db.Store).Sql().SelectNullStr(query, args...)
 		if err != nil {
 			panic(err)
 		}

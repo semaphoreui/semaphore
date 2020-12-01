@@ -1,11 +1,10 @@
 package projects
 
 import (
-	"net/http"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-
-	"time"
+	"github.com/ansible-semaphore/semaphore/models"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -14,7 +13,7 @@ import (
 
 // GetProjects returns all projects in this users context
 func GetProjects(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := context.Get(r, "user").(*models.User)
 
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
@@ -24,8 +23,8 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 		ToSql()
 
 	util.LogWarning(err)
-	var projects []db.Project
-	if _, err := db.Sql.Select(&projects, query, args...); err != nil {
+	var projects []models.Project
+	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&projects, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -34,32 +33,39 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 
 // AddProject adds a new project to the database
 func AddProject(w http.ResponseWriter, r *http.Request) {
-	var body db.Project
-	user := context.Get(r, "user").(*db.User)
+	var body models.Project
 
-	if err := util.Bind(w, r, &body); err != nil {
+	user := context.Get(r, "user").(*models.User)
+
+	err := util.Bind(w, r, &body)
+	if err != nil {
 		return
 	}
 
-	err := body.CreateProject()
+	body, err = context.Get(r, "store").(db.Store).CreateProject(body)
 	if err != nil {
 		panic(err)
 	}
 
-	if _, err := db.Sql.Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, 1)", body.ID, user.ID); err != nil {
+	_, err = context.Get(r, "store").(db.Store).CreateProjectUser(models.ProjectUser{ProjectID: body.ID, UserID: user.ID, Admin: true})
+
+	if err != nil {
 		panic(err)
 	}
 
 	desc := "Project Created"
 	oType := "Project"
-	if err := (db.Event{
+	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
 		ProjectID:   &body.ID,
 		Description: &desc,
 		ObjectType:  &oType,
 		ObjectID:    &body.ID,
-		Created:     db.GetParsedTime(time.Now()),
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	util.WriteJSON(w, http.StatusCreated, body)
