@@ -101,7 +101,11 @@ func createDb() error {
 		return err
 	}
 
-	db.Exec("create database " + cfg.DbName)
+	_, err = db.Exec("create database " + cfg.DbName)
+
+	if err != nil {
+		log.Warn(err.Error())
+	}
 
 	return nil
 }

@@ -39,7 +39,8 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	user.Created = db.GetParsedTime(time.Now())
 
 	if err := db.Sql.Insert(&user); err != nil {
-		panic(err)
+		log.Warn(editor.Username + " is not created: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	util.WriteJSON(w, http.StatusCreated, user)

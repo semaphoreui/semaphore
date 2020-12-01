@@ -97,7 +97,7 @@ func Route() *mux.Router {
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
 
-	userAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
+	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)
 
 	userAPI.Methods("GET", "HEAD").HandlerFunc(getUser)
@@ -139,9 +139,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
-	projectAdminAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
-
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
 	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
 
@@ -149,7 +148,7 @@ func Route() *mux.Router {
 	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
 	projectAdminUsersAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
 
-	projectUserManagement := projectAdminAPI.PathPrefix("/users").Subrouter()
+	projectUserManagement := projectAdminUsersAPI.PathPrefix("/users").Subrouter()
 	projectUserManagement.Use(projects.UserMiddleware)
 
 	projectUserManagement.HandleFunc("/{user_id}", projects.GetUsers).Methods("GET", "HEAD")
@@ -157,7 +156,7 @@ func Route() *mux.Router {
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
 
-	projectKeyManagement := projectAdminAPI.PathPrefix("/keys").Subrouter()
+	projectKeyManagement := projectAdminUsersAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
 	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
