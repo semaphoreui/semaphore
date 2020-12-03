@@ -1,7 +1,8 @@
-package util
+package helpers
 
 import (
 	"encoding/json"
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetStore(r *http.Request) db.Store {
+func Store(r *http.Request) db.Store {
 	return context.Get(r, "store").(db.Store)
 }
 
@@ -53,13 +54,13 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 type H map[string]interface{}
 
 //Bind decodes json into object
-func Bind(w http.ResponseWriter, r *http.Request, out interface{}) error {
+func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 	err := json.NewDecoder(r.Body).Decode(out)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	return err
+	return err == nil
 }
 
 //WriteJSON writes object as JSON
@@ -70,4 +71,15 @@ func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	if err := json.NewEncoder(w).Encode(out); err != nil {
 		panic(err)
 	}
+}
+
+
+func WriteError(w http.ResponseWriter, err error) {
+	if err == db.ErrNotFound {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	log.Error(err)
+	w.WriteHeader(http.StatusInternalServerError)
 }

@@ -1,42 +1,32 @@
 package projects
 
 import (
-	"database/sql"
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
-	util2 "github.com/ansible-semaphore/semaphore/api/util"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(models.Project)
-		envID, err := util2.GetIntParam("environment_id", w, r)
+		envID, err := helpers.GetIntParam("environment_id", w, r)
 		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		query, args, err := squirrel.Select("*").
-			From("project__environment").
-			Where("project_id=?", project.ID).
-			Where("id=?", envID).
-			ToSql()
-		util.LogWarning(err)
+		env, err := helpers.Store(r).GetEnvironment(project.ID, envID)
 
-		var env models.Environment
-		if err := util2.GetStore(r).Sql().SelectOne(&env, query, args...); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-
-			panic(err)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
 		}
 
 		context.Set(r, "environment", env)
@@ -46,62 +36,54 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 
 // GetEnvironment retrieves sorted environments from the database
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
+
+	// return single environment if request has environment ID
 	if environment := context.Get(r, "environment"); environment != nil {
-		util2.WriteJSON(w, http.StatusOK, environment.(models.Environment))
+		helpers.WriteJSON(w, http.StatusOK, environment.(models.Environment))
 		return
 	}
 
 	project := context.Get(r, "project").(models.Project)
-	var env []models.Environment
 
-	sort := r.URL.Query().Get("sort")
-	order := r.URL.Query().Get("order")
-
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	params := db.RetrieveQueryParams{
+		SortBy: r.URL.Query().Get("sort"),
+		SortInverted: r.URL.Query().Get("order") == desc,
 	}
 
-	q := squirrel.Select("*").
-		From("project__environment pe").
-		Where("project_id=?", project.ID)
+	env, err := helpers.Store(r).GetEnvironments(project.ID, params)
 
-	switch sort {
-	case "name":
-		q = q.Where("pe.project_id=?", project.ID).
-			OrderBy("pe." + sort + " " + order)
-	default:
-		q = q.Where("pe.project_id=?", project.ID).
-			OrderBy("pe.name " + order)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
-	query, args, err := q.ToSql()
-	util.LogWarning(err)
-
-	if _, err := util2.GetStore(r).Sql().Select(&env, query, args...); err != nil {
-		panic(err)
-	}
-
-	util2.WriteJSON(w, http.StatusOK, env)
+	helpers.WriteJSON(w, http.StatusOK, env)
 }
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := context.Get(r, "environment").(models.Environment)
 	var env models.Environment
-	if err := util2.Bind(w, r, &env); err != nil {
+	if !helpers.Bind(w, r, &env) {
+		return
+	}
+
+	if env.ID != oldEnv.ID || env.ProjectID != oldEnv.ProjectID {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		util2.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
 	}
 
-	if _, err := util2.GetStore(r).Sql().Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
-		panic(err)
+	if err := helpers.Store(r).UpdateEnvironment(env); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -112,19 +94,19 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
 	var env models.Environment
 
-	if err := util2.Bind(w, r, &env); err != nil {
+	if !helpers.Bind(w, r, &env) {
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		util2.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
 	}
 
-	res, err := util2.GetStore(r).Sql().Exec("insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)", project.ID, env.Name, env.JSON, env.Password)
+	res, err := helpers.Store(r).Sql().Exec("insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)", project.ID, env.Name, env.JSON, env.Password)
 	if err != nil {
 		panic(err)
 	}
@@ -135,7 +117,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	objType := "environment"
 
 	desc := "Environment " + env.Name + " created"
-	_, err = util2.GetStore(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -155,14 +137,18 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(models.Environment)
 
-	templatesC, err := util2.GetStore(r).Sql().SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
+	templatesC, err := helpers.Store(r).Sql().SelectInt(
+		"select count(1) from project__template where project_id=? and environment_id=?",
+		env.ProjectID,
+		env.ID)
+
 	if err != nil {
 		panic(err)
 	}
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			util2.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Environment is in use by one or more templates",
 				"inUse": true,
 			})
@@ -170,7 +156,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := util2.GetStore(r).Sql().Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
+		if _, err := helpers.Store(r).Sql().Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
 			panic(err)
 		}
 
@@ -178,12 +164,12 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := util2.GetStore(r).Sql().Exec("delete from project__environment where id=?", env.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("delete from project__environment where id=?", env.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Environment " + env.Name + " deleted"
-	_, err = util2.GetStore(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   &env.ProjectID,
 		Description: &desc,
 	})

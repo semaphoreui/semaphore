@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	util2 "github.com/ansible-semaphore/semaphore/api/util"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"net/http"
 	"os"
 	"strings"
@@ -345,12 +345,12 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
 	}
 
-	util2.WriteJSON(w, http.StatusOK, body)
+	helpers.WriteJSON(w, http.StatusOK, body)
 }
 
 func checkUpgrade(w http.ResponseWriter, r *http.Request) {
 	if err := util.CheckUpdate(util.Version); err != nil {
-		util2.WriteJSON(w, 500, err)
+		helpers.WriteJSON(w, 500, err)
 		return
 	}
 

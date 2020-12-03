@@ -20,7 +20,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/handlers"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
@@ -187,16 +186,10 @@ func doSetup() int {
 	} else {
 		user.Name = readNewline(" > Your name: ", stdin)
 		user.Password = readNewline(" > Password: ", stdin)
-		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
-		util.LogWarning(err)
+		//pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+		//util.LogWarning(err)
 
-		if _, err := store.Sql().Exec(
-			"insert into `user`(name, username, email, password, admin, created) values (?, ?, ?, ?, true, ?)",
-			user.Name,
-			user.Username,
-			user.Email,
-			pwdHash,
-			time.Now()); err != nil {
+		if _, err := store.CreateUser(user); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}

@@ -3,7 +3,7 @@ package projects
 import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
-	util2 "github.com/ansible-semaphore/semaphore/api/util"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
@@ -25,7 +25,7 @@ const (
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(models.Project)
-		inventoryID, err := util2.GetIntParam("inventory_id", w, r)
+		inventoryID, err := helpers.GetIntParam("inventory_id", w, r)
 		if err != nil {
 			return
 		}
@@ -38,7 +38,7 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 		util.LogWarning(err)
 
 		var inventory models.Inventory
-		if err := util2.GetStore(r).Sql().SelectOne(&inventory, query, args...); err != nil {
+		if err := helpers.Store(r).Sql().SelectOne(&inventory, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -55,7 +55,7 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 // GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
 	if inventory := context.Get(r, "inventory"); inventory != nil {
-		util2.WriteJSON(w, http.StatusOK, inventory.(models.Inventory))
+		helpers.WriteJSON(w, http.StatusOK, inventory.(models.Inventory))
 		return
 	}
 
@@ -85,11 +85,11 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := util2.GetStore(r).Sql().Select(&inv, query, args...); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&inv, query, args...); err != nil {
 		panic(err)
 	}
 
-	util2.WriteJSON(w, http.StatusOK, inv)
+	helpers.WriteJSON(w, http.StatusOK, inv)
 }
 
 // AddInventory creates an inventory in the database
@@ -103,7 +103,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := util2.Bind(w, r, &inventory); err != nil {
+	if !helpers.Bind(w, r, &inventory) {
 		return
 	}
 
@@ -115,7 +115,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := util2.GetStore(r).Sql().Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
+	res, err := helpers.Store(r).Sql().Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
 	if err != nil {
 		panic(err)
 	}
@@ -127,7 +127,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Inventory " + inventory.Name + " created"
 
-	_, err = util2.GetStore(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -150,7 +150,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		Type:      inventory.Type,
 	}
 
-	util2.WriteJSON(w, http.StatusCreated, inv)
+	helpers.WriteJSON(w, http.StatusCreated, inv)
 }
 
 // IsValidInventoryPath tests a path to ensure it is below the cwd
@@ -186,7 +186,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		Inventory string `json:"inventory"`
 	}
 
-	if err := util2.Bind(w, r, &inventory); err != nil {
+	if !helpers.Bind(w, r, &inventory) {
 		return
 	}
 
@@ -203,13 +203,13 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := util2.GetStore(r).Sql().Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " updated"
 	objType := "inventory"
-	_, err := util2.GetStore(r).CreateEvent(models.Event{
+	_, err := helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   &oldInventory.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldInventory.ID,
@@ -229,14 +229,14 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(models.Inventory)
 
-	templatesC, err := util2.GetStore(r).Sql().SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
+	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
 	if err != nil {
 		panic(err)
 	}
 
 	if templatesC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			util2.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Inventory is in use by one or more templates",
 				"inUse": true,
 			})
@@ -244,7 +244,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := util2.GetStore(r).Sql().Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
+		if _, err := helpers.Store(r).Sql().Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
 			panic(err)
 		}
 
@@ -252,13 +252,13 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := util2.GetStore(r).Sql().Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " deleted"
 
-	_, err = util2.GetStore(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   &inventory.ProjectID,
 		Description: &desc,
 	})

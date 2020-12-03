@@ -41,7 +41,22 @@ var (
 
 const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
 
-// GetParsedTime returns the timestamp as it will retrieved from the database
+// validateMutationResult checks the success of the update query
+func validateMutationResult(res sql.Result, err error) error {
+	if err != nil {
+		return err
+	}
+
+	affected, err := res.RowsAffected()
+
+	if affected == 0 {
+		return db.ErrNotFound
+	}
+
+	return nil
+}
+
+// getParsedTime returns the timestamp as it will retrieved from the database
 // This allows us to create timestamp consistency on return values from create requests
 func getParsedTime(t time.Time) time.Time {
 	parsedTime, err := time.Parse(databaseTimeFormat, t.Format(databaseTimeFormat))
@@ -260,10 +275,6 @@ func (d *SqlDb) Connect() error {
 	return nil
 }
 
-func (d *SqlDb) GetDbMap() *gorp.DbMap {
-	return d.sql
-}
-
 func (d *SqlDb) CreateProject(project models.Project) (newProject models.Project, err error) {
 	project.Created = time.Now()
 
@@ -316,20 +327,21 @@ func (d *SqlDb) CreateUser(user models.User) (newUser models.User, err error) {
 }
 
 func (d *SqlDb) DeleteUser(userID int) error {
-	_, err := d.sql.Exec("delete from `user` where id=?", userID)
-	return err
+	res, err := d.sql.Exec("delete from `user` where id=?", userID)
+
+	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) UpdateUser(userID int, user models.User) error {
-	_, err := d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+func (d *SqlDb) UpdateUser(user models.User) error {
+	res, err := d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
 		user.Name,
 		user.Username,
 		user.Email,
 		user.Alert,
 		user.Admin,
-		userID)
+		user.ID)
 
-	return err
+	return validateMutationResult(res, err)
 }
 
 func (d *SqlDb) SetUserPassword(userID int, password string) error {
@@ -383,9 +395,15 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 }
 
 //FetchUser retrieves a user from the database by ID
-func (d *SqlDb) GetUserById(userID int) (models.User, error) {
+func (d *SqlDb) GetUser(userID int) (models.User, error) {
 	var user models.User
+
 	err := d.sql.SelectOne(&user, "select * from `user` where id=?", userID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
 	return user, err
 }
 
@@ -423,12 +441,6 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []models.User, er
 	return
 }
 
-func (d *SqlDb) GetAllUsers() (users []models.User, err error) {
-	_, err = d.sql.Select(&users, "select * from `user`")
-	return
-}
-
-
 func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.sql
 }
@@ -438,4 +450,229 @@ func (d *SqlDb) CreateAPIToken(token models.APIToken) (models.APIToken, error) {
 	token.Created = getParsedTime(time.Now())
 	err := d.sql.Insert(&token)
 	return token, err
+}
+
+
+func (d *SqlDb) GetAPIToken(tokenID string) (token models.APIToken, err error) {
+	err = d.sql.SelectOne(&token, "select * from user__token where id=? and expired=0", tokenID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) (err error) {
+	res, err := d.sql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, userID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) GetSession(userID int, sessionID int) (session models.Session, err error) {
+	err = d.sql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
+	res, err := d.sql.Exec("update session set expired=1 where id=? and user_id=?", sessionID, userID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) TouchSession(userID int, sessionID int) error{
+	res, err := d.sql.Exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) GetAPITokens(userID int) (tokens []models.APIToken, err error) {
+	_, err = d.sql.Select(&tokens, "select * from user__token where user_id=?", userID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (env models.Environment, err error) {
+	query, args, err := squirrel.Select("*").
+		From("project__environment").
+		Where("project_id=?", projectID).
+		Where("id=?", environmentID).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.sql.SelectOne(&env, query, args...)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err = db.ErrNotFound
+			return
+		}
+
+		return
+	}
+
+	return
+}
+
+func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (environments []models.Environment, err error) {
+	q := squirrel.Select("*").
+		From("project__environment pe").
+		Where("project_id=?", projectID)
+
+	order := "ASC"
+	if params.SortInverted {
+		order = "DESC"
+	}
+
+	switch params.SortBy {
+	case "name":
+		q = q.Where("pe.project_id=?", projectID).
+			OrderBy("pe." + params.SortBy + " " + order)
+	default:
+		q = q.Where("pe.project_id=?", projectID).
+			OrderBy("pe.name " + order)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(&environments, query, args...)
+
+	return
+}
+
+func (d *SqlDb) UpdateEnvironment(env models.Environment) error {
+	res, err := d.sql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, env.ID)
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) CreateTemplate(template models.Template) (newTemplate models.Template, err error) {
+	res, err := d.sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
+		template.SSHKeyID,
+		template.ProjectID,
+		template.InventoryID,
+		template.RepositoryID,
+		template.EnvironmentID,
+		template.Alias,
+		template.Playbook,
+		template.Arguments,
+		template.OverrideArguments)
+	if err != nil {
+		return
+	}
+
+	insertID, err := res.LastInsertId()
+	if err != nil {
+		return
+	}
+
+	newTemplate = template
+	newTemplate.ID = int(insertID)
+	return
+}
+
+func (d *SqlDb) UpdateTemplate(template models.Template) error {
+	res, err := d.sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
+		template.SSHKeyID,
+		template.InventoryID,
+		template.RepositoryID,
+		template.EnvironmentID,
+		template.Alias,
+		template.Playbook,
+		template.Arguments,
+		template.OverrideArguments,
+		template.ID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []models.Template, err error) {
+	q := squirrel.Select("pt.id",
+		"pt.ssh_key_id",
+		"pt.project_id",
+		"pt.inventory_id",
+		"pt.repository_id",
+		"pt.environment_id",
+		"pt.alias",
+		"pt.playbook",
+		"pt.arguments",
+		"pt.override_args").
+		From("project__template pt")
+
+	order := "ASC"
+	if params.SortInverted {
+		order = "DESC"
+	}
+
+	switch params.SortBy {
+	case "alias", "playbook":
+		q = q.Where("pt.project_id=?", projectID).
+			OrderBy("pt." + params.SortBy + " " + order)
+	case "ssh_key":
+		q = q.LeftJoin("access_key ak ON (pt.ssh_key_id = ak.id)").
+			Where("pt.project_id=?", projectID).
+			OrderBy("ak.name " + order)
+	case "inventory":
+		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
+			Where("pt.project_id=?", projectID).
+			OrderBy("pi.name " + order)
+	case "environment":
+		q = q.LeftJoin("project__environment pe ON (pt.environment_id = pe.id)").
+			Where("pt.project_id=?", projectID).
+			OrderBy("pe.name " + order)
+	case "repository":
+		q = q.LeftJoin("project__repository pr ON (pt.repository_id = pr.id)").
+			Where("pt.project_id=?", projectID).
+			OrderBy("pr.name " + order)
+	default:
+		q = q.Where("pt.project_id=?", projectID).
+			OrderBy("pt.alias " + order)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(&templates, query, args...)
+	return
+}
+
+func (d *SqlDb) GetTemplate(projectID int, templateID int) (template models.Template, err error) {
+	err = d.sql.SelectOne(
+		&template,
+		"select * from project__template where project_id=? and id=?",
+		projectID,
+		templateID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
+	res, err := d.sql.Exec(
+		"delete from project__template where project_id=? and id=?",
+		projectID,
+		templateID)
+
+	return validateMutationResult(res, err)
 }

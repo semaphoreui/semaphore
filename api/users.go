@@ -3,7 +3,8 @@ package api
 import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
-	util2 "github.com/ansible-semaphore/semaphore/api/util"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
@@ -12,19 +13,18 @@ import (
 )
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := util2.GetStore(r).GetAllUsers()
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
 
 	if err != nil {
 		panic(err)
 	}
 
-	util2.WriteJSON(w, http.StatusOK, users)
+	helpers.WriteJSON(w, http.StatusOK, users)
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
-	if err := util2.Bind(w, r, &user); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
@@ -35,25 +35,25 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := util2.GetStore(r).CreateUser(user)
+	newUser, err := helpers.Store(r).CreateUser(user)
 
 	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	util2.WriteJSON(w, http.StatusCreated, newUser)
+	helpers.WriteJSON(w, http.StatusCreated, newUser)
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := util2.GetIntParam("user_id", w, r)
+		userID, err := helpers.GetIntParam("user_id", w, r)
 
 		if err != nil {
 			return
 		}
 
-		user, err := util2.GetStore(r).GetUserById(userID)
+		user, err := helpers.Store(r).GetUser(userID)
 
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -82,7 +82,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*models.User)
 
 	var user models.User
-	if err := util2.Bind(w, r, &user); err != nil {
+	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
@@ -104,7 +104,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := util2.GetStore(r).UpdateUser(oldUser.ID, user); err != nil {
+	user.ID = oldUser.ID
+	if err := helpers.Store(r).UpdateUser(user); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -133,11 +134,11 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := util2.Bind(w, r, &pwd); err != nil {
+	if !helpers.Bind(w, r, &pwd) {
 		return
 	}
 
-	if err := util2.GetStore(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {
+	if err := helpers.Store(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {
 		util.LogWarning(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -156,7 +157,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := util2.GetStore(r).DeleteUser(user.ID); err != nil {
+	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 

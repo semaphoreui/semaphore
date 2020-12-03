@@ -3,7 +3,7 @@ package projects
 import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
-	util2 "github.com/ansible-semaphore/semaphore/api/util"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
@@ -16,13 +16,13 @@ import (
 func KeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(models.Project)
-		keyID, err := util2.GetIntParam("key_id", w, r)
+		keyID, err := helpers.GetIntParam("key_id", w, r)
 		if err != nil {
 			return
 		}
 
 		var key models.AccessKey
-		if err := util2.GetStore(r).Sql().SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
+		if err := helpers.Store(r).Sql().SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -39,7 +39,7 @@ func KeyMiddleware(next http.Handler) http.Handler {
 // GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	if key := context.Get(r, "accessKey"); key != nil {
-		util2.WriteJSON(w, http.StatusOK, key.(models.AccessKey))
+		helpers.WriteJSON(w, http.StatusOK, key.(models.AccessKey))
 		return
 	}
 
@@ -77,11 +77,11 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
 
-	if _, err := util2.GetStore(r).Sql().Select(&keys, query, args...); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&keys, query, args...); err != nil {
 		panic(err)
 	}
 
-	util2.WriteJSON(w, http.StatusOK, keys)
+	helpers.WriteJSON(w, http.StatusOK, keys)
 }
 
 // AddKey adds a new key to the database
@@ -89,7 +89,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
 	var key models.AccessKey
 
-	if err := util2.Bind(w, r, &key); err != nil {
+	if !helpers.Bind(w, r, &key) {
 		return
 	}
 
@@ -98,13 +98,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			util2.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		util2.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -112,7 +112,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	secret := *key.Secret + "\n"
 
-	res, err := util2.GetStore(r).Sql().Exec("insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)", key.Name, key.Type, project.ID, key.Key, secret)
+	res, err := helpers.Store(r).Sql().Exec("insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)", key.Name, key.Type, project.ID, key.Key, secret)
 	if err != nil {
 		panic(err)
 	}
@@ -123,7 +123,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	objType := "key"
 
 	desc := "Access Key " + key.Name + " created"
-	_, err = util2.GetStore(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -145,7 +145,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key models.AccessKey
 	oldKey := context.Get(r, "accessKey").(models.AccessKey)
 
-	if err := util2.Bind(w, r, &key); err != nil {
+	if !helpers.Bind(w, r, &key) {
 		return
 	}
 
@@ -154,13 +154,13 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		break
 	case "ssh":
 		if key.Secret == nil || len(*key.Secret) == 0 {
-			util2.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
 			})
 			return
 		}
 	default:
-		util2.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key type",
 		})
 		return
@@ -174,14 +174,14 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		key.Secret = &secret
 	}
 
-	if _, err := util2.GetStore(r).Sql().Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Access Key " + key.Name + " updated"
 	objType := "key"
 
-	_, err := util2.GetStore(r).CreateEvent(models.Event{
+	_, err := helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldKey.ID,
@@ -201,19 +201,19 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := context.Get(r, "accessKey").(models.AccessKey)
 
-	templatesC, err := util2.GetStore(r).Sql().SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	inventoryC, err := util2.GetStore(r).Sql().SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
+	inventoryC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
 		panic(err)
 	}
 
 	if templatesC > 0 || inventoryC > 0 {
 		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			util2.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Key is in use by one or more templates / inventory",
 				"inUse": true,
 			})
@@ -221,7 +221,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if _, err := util2.GetStore(r).Sql().Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
+		if _, err := helpers.Store(r).Sql().Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
 			panic(err)
 		}
 
@@ -229,13 +229,13 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := util2.GetStore(r).Sql().Exec("delete from access_key where id=?", key.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("delete from access_key where id=?", key.ID); err != nil {
 		panic(err)
 	}
 
 	desc := "Access Key " + key.Name + " deleted"
 
-	_, err = util2.GetStore(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(models.Event{
 		ProjectID:   key.ProjectID,
 		Description: &desc,
 	})
