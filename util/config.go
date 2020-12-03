@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"os"
 	"path"
 
@@ -125,6 +126,15 @@ var confPath *string
 // nolint: golint
 func NewConfig() *ConfigType {
 	return &ConfigType{}
+}
+
+// ScanErrorChecker deals with errors encountered while scanning lines
+// since we do not fail on these errors currently we can simply note them
+// and move on
+func ScanErrorChecker(n int, err error) {
+	if err != nil {
+		log.Warn("An input error occurred:" + err.Error())
+	}
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them

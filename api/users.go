@@ -3,7 +3,7 @@ package api
 import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
+	util2 "github.com/ansible-semaphore/semaphore/api/util"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
@@ -12,18 +12,18 @@ import (
 )
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := context.Get(r, "store").(db.Store).GetAllUsers()
+	users, err := util2.GetStore(r).GetAllUsers()
 
 	if err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusOK, users)
+	util2.WriteJSON(w, http.StatusOK, users)
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
-	if err := util.Bind(w, r, &user); err != nil {
+	if err := util2.Bind(w, r, &user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -35,25 +35,25 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := context.Get(r, "store").(db.Store).CreateUser(user)
+	newUser, err := util2.GetStore(r).CreateUser(user)
 
 	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	util.WriteJSON(w, http.StatusCreated, newUser)
+	util2.WriteJSON(w, http.StatusCreated, newUser)
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := util.GetIntParam("user_id", w, r)
+		userID, err := util2.GetIntParam("user_id", w, r)
 
 		if err != nil {
 			return
 		}
 
-		user, err := context.Get(r, "store").(db.Store).GetUserById(userID)
+		user, err := util2.GetStore(r).GetUserById(userID)
 
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -82,7 +82,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*models.User)
 
 	var user models.User
-	if err := util.Bind(w, r, &user); err != nil {
+	if err := util2.Bind(w, r, &user); err != nil {
 		return
 	}
 
@@ -104,7 +104,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := context.Get(r, "store").(db.Store).UpdateUser(oldUser.ID, user); err != nil {
+	if err := util2.GetStore(r).UpdateUser(oldUser.ID, user); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -133,11 +133,11 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := util.Bind(w, r, &pwd); err != nil {
+	if err := util2.Bind(w, r, &pwd); err != nil {
 		return
 	}
 
-	if err := context.Get(r, "store").(db.Store).SetUserPassword(user.ID, pwd.Pwd); err != nil {
+	if err := util2.GetStore(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {
 		util.LogWarning(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -156,7 +156,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := context.Get(r, "store").(db.Store).DeleteUser(user.ID); err != nil {
+	if err := util2.GetStore(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 

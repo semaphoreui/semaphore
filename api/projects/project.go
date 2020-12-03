@@ -2,7 +2,7 @@ package projects
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
+	util2 "github.com/ansible-semaphore/semaphore/api/util"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
@@ -16,7 +16,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := context.Get(r, "user").(*models.User)
 
-		projectID, err := util.GetIntParam("project_id", w, r)
+		projectID, err := util2.GetIntParam("project_id", w, r)
 		if err != nil {
 			return
 		}
@@ -30,7 +30,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		util.LogWarning(err)
 
 		var project models.Project
-		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&project, query, args...); err != nil {
+		if err := util2.GetStore(r).Sql().SelectOne(&project, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -46,7 +46,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 //GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	util.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+	util2.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
 // MustBeAdmin ensures that the user has administrator rights
@@ -55,7 +55,7 @@ func MustBeAdmin(next http.Handler) http.Handler {
 		project := context.Get(r, "project").(models.Project)
 		user := context.Get(r, "user").(*models.User)
 
-		userC, err := context.Get(r, "store").(db.Store).Sql().SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+		userC, err := util2.GetStore(r).Sql().SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 		if err != nil {
 			panic(err)
 		}
@@ -77,11 +77,11 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		AlertChat string `json:"alert_chat"`
 	}
 
-	if err := util.Bind(w, r, &body); err != nil {
+	if err := util2.Bind(w, r, &body); err != nil {
 		return
 	}
 
-	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
+	if _, err := util2.GetStore(r).Sql().Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
 		panic(err)
 	}
 
@@ -92,7 +92,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
 
-	tx, err := context.Get(r, "store").(db.Store).Sql().Begin()
+	tx, err := util2.GetStore(r).Sql().Begin()
 	if err != nil {
 		panic(err)
 	}

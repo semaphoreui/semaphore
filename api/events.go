@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	util2 "github.com/ansible-semaphore/semaphore/api/util"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
@@ -37,7 +37,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&events, query, args...); err != nil {
+	if _, err := util2.GetStore(r).Sql().Select(&events, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 		query, args, err := q.ToSql()
 		util.LogWarning(err)
-		name, err := context.Get(r, "store").(db.Store).Sql().SelectNullStr(query, args...)
+		name, err := util2.GetStore(r).Sql().SelectNullStr(query, args...)
 		if err != nil {
 			panic(err)
 		}
@@ -70,7 +70,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 		}
 	}
 
-	util.WriteJSON(w, http.StatusOK, events)
+	util2.WriteJSON(w, http.StatusOK, events)
 }
 
 func getLastEvents(w http.ResponseWriter, r *http.Request) {

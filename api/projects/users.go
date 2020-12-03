@@ -2,13 +2,12 @@ package projects
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
+	util2 "github.com/ansible-semaphore/semaphore/api/util"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
@@ -17,13 +16,13 @@ import (
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(models.Project)
-		userID, err := util.GetIntParam("user_id", w, r)
+		userID, err := util2.GetIntParam("user_id", w, r)
 		if err != nil {
 			return
 		}
 
 		var user models.User
-		if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&user, "select u.* from project__user as pu join `user` as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
+		if err := util2.GetStore(r).Sql().SelectOne(&user, "select u.* from project__user as pu join `user` as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -40,7 +39,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	if user := context.Get(r, "projectUser"); user != nil {
-		util.WriteJSON(w, http.StatusOK, user.(models.User))
+		util2.WriteJSON(w, http.StatusOK, user.(models.User))
 		return
 	}
 
@@ -70,11 +69,11 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	query, args, _ := q.ToSql()
 
-	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&users, query, args...); err != nil {
+	if _, err := util2.GetStore(r).Sql().Select(&users, query, args...); err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusOK, users)
+	util2.WriteJSON(w, http.StatusOK, users)
 }
 
 // AddUser adds a user to a projects team in the database
@@ -85,14 +84,14 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Admin  bool `json:"admin"`
 	}
 
-	err := util.Bind(w, r, &user)
+	err := util2.Bind(w, r, &user)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	_, err = context.Get(r, "store").(db.Store).CreateProjectUser(models.ProjectUser{ProjectID: project.ID, UserID: user.UserID, Admin: user.Admin})
+	_, err = util2.GetStore(r).CreateProjectUser(models.ProjectUser{ProjectID: project.ID, UserID: user.UserID, Admin: user.Admin})
 
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
@@ -102,7 +101,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
 
-	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
+	_, err = util2.GetStore(r).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.UserID,
@@ -123,7 +122,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(models.Project)
 	user := context.Get(r, "projectUser").(models.User)
 
-	err := context.Get(r, "store").(db.Store).DeleteProjectUser(project.ID, user.ID)
+	err := util2.GetStore(r).DeleteProjectUser(project.ID, user.ID)
 
 	if err != nil {
 		log.Error(err)
@@ -134,7 +133,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
 
-	_, err = context.Get(r, "store").(db.Store).CreateEvent(models.Event{
+	_, err = util2.GetStore(r).CreateEvent(models.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.ID,
@@ -161,7 +160,7 @@ func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 		admin = 0
 	}
 
-	if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+	if _, err := util2.GetStore(r).Sql().Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
 		panic(err)
 	}
 

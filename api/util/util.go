@@ -2,13 +2,18 @@ package util
 
 import (
 	"encoding/json"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/gorilla/context"
 	"net/http"
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
+
+func GetStore(r *http.Request) db.Store {
+	return context.Get(r, "store").(db.Store)
+}
 
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
 	accept := r.Header.Get("Accept")
@@ -42,15 +47,6 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 	}
 
 	return intParam, nil
-}
-
-// ScanErrorChecker deals with errors encountered while scanning lines
-// since we do not fail on these errors currently we can simply note them
-// and move on
-func ScanErrorChecker(n int, err error) {
-	if err != nil {
-		log.Warn("An input error occurred:" + err.Error())
-	}
 }
 
 //H just a string-to-anything map

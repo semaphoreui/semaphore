@@ -3,14 +3,12 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/ansible-semaphore/semaphore/db"
+	util2 "github.com/ansible-semaphore/semaphore/api/util"
 	"github.com/ansible-semaphore/semaphore/models"
 	"io"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/ansible-semaphore/semaphore/util"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -18,22 +16,22 @@ import (
 
 func getUser(w http.ResponseWriter, r *http.Request) {
 	if u, exists := context.GetOk(r, "_user"); exists {
-		util.WriteJSON(w, http.StatusOK, u)
+		util2.WriteJSON(w, http.StatusOK, u)
 		return
 	}
 
-	util.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
+	util2.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*models.User)
 
 	var tokens []models.APIToken
-	if _, err := context.Get(r, "store").(db.Store).Sql().Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
+	if _, err := util2.GetStore(r).Sql().Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusOK, tokens)
+	util2.WriteJSON(w, http.StatusOK, tokens)
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
@@ -50,19 +48,19 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		Expired: false,
 	}
 
-	createdToken, err := context.Get(r, "store").(db.Store).CreateAPIToken(token)
+	createdToken, err := util2.GetStore(r).CreateAPIToken(token)
 	if err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusCreated, createdToken)
+	util2.WriteJSON(w, http.StatusCreated, createdToken)
 }
 
 func expireAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*models.User)
 
 	tokenID := mux.Vars(r)["token_id"]
-	res, err := context.Get(r, "store").(db.Store).Sql().Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
+	res, err := util2.GetStore(r).Sql().Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
 	if err != nil {
 		panic(err)
 	}

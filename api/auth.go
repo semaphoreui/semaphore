@@ -3,7 +3,7 @@ package api
 import (
 	"database/sql"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
+	util2 "github.com/ansible-semaphore/semaphore/api/util"
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"strings"
@@ -20,7 +20,7 @@ func authentication(next http.Handler) http.Handler {
 
 		if authHeader := strings.ToLower(r.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 			var token models.APIToken
-			if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
+			if err := util2.GetStore(r).Sql().SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
 				if err == sql.ErrNoRows {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
@@ -56,7 +56,7 @@ func authentication(next http.Handler) http.Handler {
 
 			// fetch session
 			var session models.Session
-			if err := context.Get(r, "store").(db.Store).Sql().SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
+			if err := util2.GetStore(r).Sql().SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -64,7 +64,7 @@ func authentication(next http.Handler) http.Handler {
 			if time.Since(session.LastActive).Hours() > 7*24 {
 				// more than week old unused session
 				// destroy.
-				if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update session set expired=1 where id=?", sessionID); err != nil {
+				if _, err := util2.GetStore(r).Sql().Exec("update session set expired=1 where id=?", sessionID); err != nil {
 					panic(err)
 				}
 
@@ -72,12 +72,12 @@ func authentication(next http.Handler) http.Handler {
 				return
 			}
 
-			if _, err := context.Get(r, "store").(db.Store).Sql().Exec("update session set last_active=? where id=?", time.Now(), sessionID); err != nil {
+			if _, err := util2.GetStore(r).Sql().Exec("update session set last_active=? where id=?", time.Now(), sessionID); err != nil {
 				panic(err)
 			}
 		}
 
-		user, err := context.Get(r, "store").(db.Store).GetUserById(userID)
+		user, err := util2.GetStore(r).GetUserById(userID)
 		if err != nil {
 			fmt.Println("Can't find user", err)
 			w.WriteHeader(http.StatusUnauthorized)
