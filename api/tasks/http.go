@@ -35,7 +35,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pool.register <- &task{
-		db:        helpers.Store(r),
+		store:     helpers.Store(r),
 		task:      taskObj,
 		projectID: project.ID,
 	}

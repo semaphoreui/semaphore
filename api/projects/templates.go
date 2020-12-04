@@ -104,7 +104,9 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	// project ID and template ID in the body and the path must be the same
 	if template.ID != oldTemplate.ID || template.ProjectID != oldTemplate.ProjectID {
-		w.WriteHeader(http.StatusBadRequest)
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "You can not move ",
+		})
 		return
 	}
 

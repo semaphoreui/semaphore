@@ -44,7 +44,7 @@ func (t *task) sendMailAlert() {
 	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
 	for _, user := range t.users {
-		userObj, err := t.db.GetUser(user)
+		userObj, err := t.store.GetUser(user)
 
 		if !userObj.Alert {
 			return

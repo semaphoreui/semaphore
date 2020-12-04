@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/snikch/goodman/transaction"
@@ -13,6 +14,22 @@ import (
 	"time"
 )
 
+var tablesShouldBeTruncated = [...]string {
+	"access_key",
+	"event",
+	"user__token",
+	"project",
+	"task__output",
+	"task",
+	"session",
+	"project__environment",
+	"project__inventory",
+	"project__repository",
+	"project__template",
+	"project__template_schedule",
+	"project__user",
+	"user",
+}
 // Test Runner User
 func addTestRunnerUser() {
 	uid := getUUID()
@@ -25,35 +42,58 @@ func addTestRunnerUser() {
 	}
 
 	dbConnect()
-	defer db.Sql.Db.Close()
-	if err := db.Sql.Insert(testRunnerUser); err != nil {
+	defer store.Sql().Db.Close()
+
+	truncateAll()
+
+	if err := store.Sql().Insert(testRunnerUser); err != nil {
 		panic(err)
 	}
 	addToken(adminToken, testRunnerUser.ID)
 }
 
+func truncateAll() {
+	tx, err := store.Sql().Begin()
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
+	if err == nil {
+		for _, tableName := range tablesShouldBeTruncated {
+			tx.Exec("TRUNCATE TABLE " + tableName)
+		}
+		tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
+	}
+
+	if err := tx.Commit(); err != nil {
+		panic(err)
+	}
+}
+
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
-	defer db.Sql.Db.Close()
+	defer store.Sql().Db.Close()
 	deleteToken(adminToken, testRunnerUser.ID)
 	deleteObject(testRunnerUser)
 }
 
 // Parameter Substitution
 func setupObjectsAndPaths(t *transaction.Transaction) {
-	alterRequestBody(t)
 	alterRequestPath(t)
+	alterRequestBody(t)
 }
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	_, err := db.Sql.Exec("insert into project__user set project_id=?, user_id=?, `admin`=1", pid, user)
+	_, err := store.Sql().Exec("insert into project__user set project_id=?, user_id=?, `admin`=1", pid, user)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
+
 func deleteUserProjectRelation(pid int, user int) {
-	_, err := db.Sql.Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
+	_, err := store.Sql().Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -68,7 +108,7 @@ func addAccessKey(pid *int) *models.AccessKey {
 		Secret:	   &secret,
 		ProjectID: pid,
 	}
-	if err := db.Sql.Insert(&key); err != nil {
+	if err := store.Sql().Insert(&key); err != nil {
 		fmt.Println(err)
 	}
 	return &key
@@ -80,7 +120,7 @@ func addProject() *models.Project {
 		Name:    "ITP-" + uid,
 		Created: time.Now(),
 	}
-	if err := db.Sql.Insert(&project); err != nil {
+	if err := store.Sql().Insert(&project); err != nil {
 		fmt.Println(err)
 	}
 	return &project
@@ -93,7 +133,7 @@ func addUser() *models.User {
 		Username: "ITU-" + uid,
 		Email:    "test@semaphore." + uid,
 	}
-	if err := db.Sql.Insert(&user); err != nil {
+	if err := store.Sql().Insert(&user); err != nil {
 		fmt.Println(err)
 	}
 	return &user
@@ -106,14 +146,14 @@ func addTask() *models.Task {
 		UserID: &userPathTestUser.ID,
 		Created: db.GetParsedTime(time.Now()),
 	}
-	if err := db.Sql.Insert(&t); err != nil {
+	if err := store.Sql().Insert(&t); err != nil {
 		fmt.Println(err)
 	}
 	return &t
 }
 
 func deleteObject(i interface{}) {
-	_, err := db.Sql.Delete(i)
+	_, err := store.Sql().Delete(i)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -127,7 +167,7 @@ func addToken(tok string, user int) {
 		UserID:  user,
 		Expired: false,
 	}
-	if err := db.Sql.Insert(&token); err != nil {
+	if err := store.Sql().Insert(&token); err != nil {
 		fmt.Println(err)
 	}
 }
@@ -170,11 +210,14 @@ func loadConfig() {
 	}
 }
 
+var store db.Store
+
 func dbConnect() {
-	if err := db.Connect(); err != nil {
+	store = factory.CreateStore()
+
+	if err := store.Connect(); err != nil {
 		panic(err)
 	}
-	db.SetupDBLink()
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

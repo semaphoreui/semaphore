@@ -38,6 +38,8 @@ func UserMiddleware(next http.Handler) http.Handler {
 
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
+
+	// get single user if user ID specified in the request
 	if user := context.Get(r, "projectUser"); user != nil {
 		helpers.WriteJSON(w, http.StatusOK, user.(models.User))
 		return

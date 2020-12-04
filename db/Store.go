@@ -2,10 +2,24 @@ package db
 
 import (
 	"errors"
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/go-gorp/gorp/v3"
+	"time"
 )
 
+
+const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
+
+// GetParsedTime returns the timestamp as it will retrieved from the database
+// This allows us to create timestamp consistency on return values from create requests
+func GetParsedTime(t time.Time) time.Time {
+	parsedTime, err := time.Parse(databaseTimeFormat, t.Format(databaseTimeFormat))
+	if err != nil {
+		log.Error(err)
+	}
+	return parsedTime
+}
 
 type RetrieveQueryParams struct {
 	Offset       int

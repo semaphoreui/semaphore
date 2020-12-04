@@ -26,7 +26,7 @@ const (
 )
 
 type task struct {
-	db          db2.Store
+	store       db2.Store
 	task        models.Task
 	template    models.Template
 	sshKey      models.AccessKey
@@ -59,7 +59,7 @@ func (t *task) prepareRun() {
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-		_, err := t.db.CreateEvent(models.Event{
+		_, err := t.store.CreateEvent(models.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -88,7 +88,7 @@ func (t *task) prepareRun() {
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
-	_, err = t.db.CreateEvent(models.Event{
+	_, err = t.store.CreateEvent(models.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -171,7 +171,7 @@ func (t *task) run() {
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-		_, err := t.db.CreateEvent(models.Event{
+		_, err := t.store.CreateEvent(models.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -196,7 +196,7 @@ func (t *task) run() {
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
 
-	_, err := t.db.CreateEvent(models.Event{
+	_, err := t.store.CreateEvent(models.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -222,7 +222,7 @@ func (t *task) run() {
 }
 
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := t.db.Sql().SelectOne(ptr, query, args...)
+	err := t.store.Sql().SelectOne(ptr, query, args...)
 	if err == sql.ErrNoRows {
 		t.log(errMsg)
 		return err
@@ -255,7 +255,7 @@ func (t *task) populateDetails() error {
 	var users []struct {
 		ID int `db:"id"`
 	}
-	if _, err := t.db.Sql().Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
+	if _, err := t.store.Sql().Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
 		return err
 	}
 

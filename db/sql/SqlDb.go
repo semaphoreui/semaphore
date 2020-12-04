@@ -39,8 +39,6 @@ var (
 	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
 )
 
-const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
-
 // validateMutationResult checks the success of the update query
 func validateMutationResult(res sql.Result, err error) error {
 	if err != nil {
@@ -49,21 +47,15 @@ func validateMutationResult(res sql.Result, err error) error {
 
 	affected, err := res.RowsAffected()
 
+	if err != nil {
+		return err
+	}
+
 	if affected == 0 {
 		return db.ErrNotFound
 	}
 
 	return nil
-}
-
-// getParsedTime returns the timestamp as it will retrieved from the database
-// This allows us to create timestamp consistency on return values from create requests
-func getParsedTime(t time.Time) time.Time {
-	parsedTime, err := time.Parse(databaseTimeFormat, t.Format(databaseTimeFormat))
-	if err != nil {
-		log.Error(err)
-	}
-	return parsedTime
 }
 
 func (d *SqlDb) prepareMigration(query string) string {
@@ -298,7 +290,7 @@ func (d *SqlDb) CreateUser(user models.User) (newUser models.User, err error) {
 		return
 	}
 
-	created := getParsedTime(time.Now())
+	created := db.GetParsedTime(time.Now())
 
 	res, err := d.sql.Exec(
 		"insert into `user`(name, username, email, password, admin, created) values (?, ?, ?, ?, true, ?)",
@@ -406,6 +398,10 @@ func (d *SqlDb) GetUser(userID int) (models.User, error) {
 }
 
 func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []interface{}, error) {
+	if p.Count > 0 && p.Offset <= 0 {
+		return "", nil, fmt.Errorf("offset cannot be without limit")
+	}
+
 	q := squirrel.Select("*").
 		From(tableName)
 
@@ -418,7 +414,9 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 		q = q.OrderBy(p.SortBy + " " + sortDirection)
 	}
 
-	q = q.Offset(uint64(p.Offset))
+	if p.Offset > 0 {
+		q = q.Offset(uint64(p.Offset))
+	}
 
 	if p.Count > 0 {
 		q = q.Limit(uint64(p.Count))
@@ -445,7 +443,7 @@ func (d *SqlDb) Sql() *gorp.DbMap {
 
 
 func (d *SqlDb) CreateAPIToken(token models.APIToken) (models.APIToken, error) {
-	token.Created = getParsedTime(time.Now())
+	token.Created = db.GetParsedTime(time.Now())
 	err := d.sql.Insert(&token)
 	return token, err
 }
@@ -715,8 +713,10 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 	return
 }
 
-func (d *SqlDb) GetTemplate(projectID int, templateID int) (template models.Template, err error) {
-	err = d.sql.SelectOne(
+func (d *SqlDb) GetTemplate(projectID int, templateID int) (models.Template, error) {
+	var template models.Template
+
+	err := d.sql.SelectOne(
 		&template,
 		"select * from project__template where project_id=? and id=?",
 		projectID,
@@ -726,7 +726,7 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (template models.Temp
 		err = db.ErrNotFound
 	}
 
-	return
+	return template, err
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {

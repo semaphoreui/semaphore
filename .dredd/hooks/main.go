@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/snikch/goodman/hooks"
 	trans "github.com/snikch/goodman/transaction"
 	"strconv"
@@ -55,12 +54,12 @@ func main() {
 
 	h.Before("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer db.Sql.Db.Close()
+		defer store.Sql().Db.Close()
 		addToken(expiredToken, testRunnerUser.ID)
 	})
 	h.After("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer db.Sql.Db.Close()
+		defer store.Sql().Db.Close()
 		//tokens are expired and not deleted so we need to clean up
 		deleteToken(expiredToken, testRunnerUser.ID)
 	})
@@ -73,7 +72,7 @@ func main() {
 	// delete the auto generated association and insert the user id into the query
 	h.Before("project > /api/project/{project_id}/users > Link user to project > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer db.Sql.Db.Close()
+		defer store.Sql().Db.Close()
 		deleteUserProjectRelation(userProject.ID, userPathTestUser.ID)
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"admin\": true}"
 	})
