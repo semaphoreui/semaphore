@@ -254,8 +254,6 @@ func (d *SqlDb) Connect() error {
 	switch cfg.Dialect {
 	case util.DbDriverMySQL:
 		dialect = gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}
-	case util.DbDriverSQLite:
-		dialect = gorp.SqliteDialect{}
 	}
 
 	d.sql = &gorp.DbMap{Db: db, Dialect: dialect}
