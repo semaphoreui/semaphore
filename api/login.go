@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -19,7 +19,7 @@ import (
 	"gopkg.in/ldap.v2"
 )
 
-func findLDAPUser(username, password string) (*models.User, error) {
+func findLDAPUser(username, password string) (*db.User, error) {
 	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
@@ -84,7 +84,7 @@ func findLDAPUser(username, password string) (*models.User, error) {
 		return nil, err
 	}
 
-	ldapUser := models.User{
+	ldapUser := db.User{
 		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID),
 		Created:  time.Now(),
 		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
@@ -118,7 +118,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
-	var ldapUser *models.User
+	var ldapUser *db.User
 	if util.Config.LdapEnable {
 		// search LDAP for users
 		if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
@@ -128,7 +128,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var user models.User
+	var user db.User
 	q := sq.Select("*").
 		From("user")
 
@@ -172,7 +172,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		// authenticated.
 	}
 
-	session := models.Session{
+	session := db.Session{
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),

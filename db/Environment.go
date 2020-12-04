@@ -1,4 +1,4 @@
-package models
+package db
 
 // Environment is used to pass additional arguments, in json form to ansible
 type Environment struct {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/snikch/goodman/transaction"
 	"math/rand"
@@ -33,7 +32,7 @@ var tablesShouldBeTruncated = [...]string {
 // Test Runner User
 func addTestRunnerUser() {
 	uid := getUUID()
-	testRunnerUser = &models.User{
+	testRunnerUser = &db.User{
 		Username: "ITU-" + uid,
 		Name:     "ITU-" + uid,
 		Email:    uid + "@semaphore.test",
@@ -99,10 +98,10 @@ func deleteUserProjectRelation(pid int, user int) {
 	}
 }
 
-func addAccessKey(pid *int) *models.AccessKey {
+func addAccessKey(pid *int) *db.AccessKey {
 	uid := getUUID()
 	secret := "5up3r53cr3t"
-	key := models.AccessKey{
+	key := db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",
 		Secret:	   &secret,
@@ -114,9 +113,9 @@ func addAccessKey(pid *int) *models.AccessKey {
 	return &key
 }
 
-func addProject() *models.Project {
+func addProject() *db.Project {
 	uid := getUUID()
-	project := models.Project{
+	project := db.Project{
 		Name:    "ITP-" + uid,
 		Created: time.Now(),
 	}
@@ -126,9 +125,9 @@ func addProject() *models.Project {
 	return &project
 }
 
-func addUser() *models.User {
+func addUser() *db.User {
 	uid := getUUID()
-	user := models.User{
+	user := db.User{
 		Created:  time.Now(),
 		Username: "ITU-" + uid,
 		Email:    "test@semaphore." + uid,
@@ -139,8 +138,8 @@ func addUser() *models.User {
 	return &user
 }
 
-func addTask() *models.Task {
-	t := models.Task{
+func addTask() *db.Task {
+	t := db.Task{
 		TemplateID: int(templateID),
 		Status: "testing",
 		UserID: &userPathTestUser.ID,
@@ -161,7 +160,7 @@ func deleteObject(i interface{}) {
 
 // Token Handling
 func addToken(tok string, user int) {
-	token := models.APIToken{
+	token := db.APIToken{
 		ID:      tok,
 		Created: time.Now(),
 		UserID:  user,
@@ -173,7 +172,7 @@ func addToken(tok string, user int) {
 }
 
 func deleteToken(tok string, user int) {
-	token := models.APIToken{
+	token := db.APIToken{
 		ID:     tok,
 		UserID: user,
 	}

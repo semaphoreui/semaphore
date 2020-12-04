@@ -2,7 +2,7 @@ package sockets
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"time"
 
@@ -104,7 +104,7 @@ func (c *connection) writePump() {
 
 // Handler is used by the router to handle the /ws endpoint
 func Handler(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		panic(err)

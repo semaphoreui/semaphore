@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"io"
@@ -22,7 +22,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 	tokens, err := helpers.Store(r).GetAPITokens(user.ID)
 	if err != nil {
@@ -34,13 +34,13 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
 	}
 
-	token, err := helpers.Store(r).CreateAPIToken(models.APIToken{
+	token, err := helpers.Store(r).CreateAPIToken(db.APIToken{
 		ID:      strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
 		UserID:  user.ID,
 		Expired: false,
@@ -53,7 +53,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func expireAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 	tokenID := mux.Vars(r)["token_id"]
 

@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	trans "github.com/snikch/goodman/transaction"
 	"regexp"
 	"strconv"
@@ -11,11 +11,11 @@ import (
 
 // STATE
 // Runtime created objects we needs to reference in test setups
-var testRunnerUser *models.User
-var userPathTestUser *models.User
-var userProject *models.Project
-var userKey *models.AccessKey
-var task *models.Task
+var testRunnerUser *db.User
+var userPathTestUser *db.User
+var userProject *db.Project
+var userKey *db.AccessKey
+var task *db.Task
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int64

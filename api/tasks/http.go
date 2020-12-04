@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,10 +15,10 @@ import (
 
 // AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "user").(*models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "user").(*db.User)
 
-	var taskObj models.Task
+	var taskObj db.Task
 
 	if !helpers.Bind(w, r, &taskObj) {
 		return
@@ -42,7 +42,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
-	_, err := helpers.Store(r).CreateEvent(models.Event{
+	_, err := helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &taskObj.ID,
@@ -60,7 +60,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
 func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
 	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").
@@ -68,7 +68,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		LeftJoin("user on task.user_id=user.id");
 
 	if tpl := context.Get(r, "template"); tpl != nil {
-		q = q.Where("tpl.project_id=? AND task.template_id=?", project.ID, tpl.(models.Template).ID)
+		q = q.Where("tpl.project_id=? AND task.template_id=?", project.ID, tpl.(db.Template).ID)
 	} else {
 		q = q.Where("tpl.project_id=?", project.ID)
 	}
@@ -82,7 +82,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	query, args, _ := q.ToSql()
 
 	var tasks []struct {
-		models.Task
+		db.Task
 
 		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
 		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
@@ -109,7 +109,7 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(models.Task)
+	task := context.Get(r, taskTypeID).(db.Task)
 	helpers.WriteJSON(w, http.StatusOK, task)
 }
 
@@ -121,7 +121,7 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			panic(err)
 		}
 
-		var task models.Task
+		var task db.Task
 		if err := helpers.Store(r).Sql().SelectOne(&task, "select * from task where id=?", taskID); err != nil {
 			panic(err)
 		}
@@ -133,9 +133,9 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(models.Task)
+	task := context.Get(r, taskTypeID).(db.Task)
 
-	var output []models.TaskOutput
+	var output []db.TaskOutput
 	if _, err := helpers.Store(r).Sql().Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
@@ -147,8 +147,8 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTask removes a task from the database
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(models.Task)
-	editor := context.Get(r, "user").(*models.User)
+	task := context.Get(r, taskTypeID).(db.Task)
+	editor := context.Get(r, "user").(*db.User)
 
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to delete task logs")

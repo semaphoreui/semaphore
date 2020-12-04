@@ -3,7 +3,6 @@ package db
 import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/go-gorp/gorp/v3"
 	"time"
 )
@@ -36,44 +35,44 @@ type Store interface {
 	Close() error
 	Migrate() error
 
-	GetEnvironment(projectID int, environmentID int) (models.Environment, error)
-	GetEnvironments(projectID int, params RetrieveQueryParams) ([]models.Environment, error)
-	UpdateEnvironment(env models.Environment) error
-	CreateEnvironment(env models.Environment) (models.Environment, error)
+	GetEnvironment(projectID int, environmentID int) (Environment, error)
+	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
+	UpdateEnvironment(env Environment) error
+	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
 	DeleteEnvironmentSoft(projectID int, templateID int) error
 
-	GetUsers(params RetrieveQueryParams) ([]models.User, error)
-	CreateUser(user models.User) (models.User, error)
+	GetUsers(params RetrieveQueryParams) ([]User, error)
+	CreateUser(user User) (User, error)
 	DeleteUser(userID int) error
-	UpdateUser(user models.User) error
+	UpdateUser(user User) error
 	SetUserPassword(userID int, password string) error
-	GetUser(userID int) (models.User, error)
+	GetUser(userID int) (User, error)
 
-	CreateProject(project models.Project) (models.Project, error)
+	CreateProject(project Project) (Project, error)
 	//DeleteProject(projectId int) error
 	//UpdateProject(project Project) error
 	//GetProjectById(projectId int) (Project, error)
 	//GetProjects(userId int) ([]Project, error)
 	//
 
-	GetTemplates(projectID int, params RetrieveQueryParams) ([]models.Template, error)
-	CreateTemplate(template models.Template) (models.Template, error)
-	UpdateTemplate(template models.Template) error
-	GetTemplate(projectID int, templateID int) (models.Template, error)
+	GetTemplates(projectID int, params RetrieveQueryParams) ([]Template, error)
+	CreateTemplate(template Template) (Template, error)
+	UpdateTemplate(template Template) error
+	GetTemplate(projectID int, templateID int) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
 
-	CreateProjectUser(projectUser models.ProjectUser) (models.ProjectUser, error)
+	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
 	DeleteProjectUser(projectID, userID int) error
 
-	CreateEvent(event models.Event) (models.Event, error)
+	CreateEvent(event Event) (Event, error)
 
-	GetAPITokens(userID int) ([]models.APIToken, error)
-	CreateAPIToken(token models.APIToken) (models.APIToken, error)
-	GetAPIToken(tokenID string) (models.APIToken, error)
+	GetAPITokens(userID int) ([]APIToken, error)
+	CreateAPIToken(token APIToken) (APIToken, error)
+	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
 
-	GetSession(userID int, sessionID int) (models.Session, error)
+	GetSession(userID int, sessionID int) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
 

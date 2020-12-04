@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,7 +14,7 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-func clearRepositoryCache(repository models.Repository) error {
+func clearRepositoryCache(repository db.Repository) error {
 	repoName := "repository_" + strconv.Itoa(repository.ID)
 	repoPath := util.Config.TmpPath + "/" + repoName
 	_, err := os.Stat(repoPath)
@@ -27,13 +27,13 @@ func clearRepositoryCache(repository models.Repository) error {
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
+		project := context.Get(r, "project").(db.Project)
 		repositoryID, err := helpers.GetIntParam("repository_id", w, r)
 		if err != nil {
 			return
 		}
 
-		var repository models.Repository
+		var repository db.Repository
 		if err := helpers.Store(r).Sql().SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
@@ -51,12 +51,12 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 // GetRepositories returns all repositories in a project sorted by type
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	if repo := context.Get(r, "repository"); repo != nil {
-		helpers.WriteJSON(w, http.StatusOK, repo.(models.Repository))
+		helpers.WriteJSON(w, http.StatusOK, repo.(db.Repository))
 		return
 	}
 
-	project := context.Get(r, "project").(models.Project)
-	var repos []models.Repository
+	project := context.Get(r, "project").(db.Project)
+	var repos []db.Repository
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -98,7 +98,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 // AddRepository creates a new repository in the database
 func AddRepository(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
@@ -120,7 +120,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 	objType := "repository"
 
 	desc := "Repository (" + repository.GitURL + ") created"
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -138,7 +138,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 
 // UpdateRepository updates the values of a repository in the database
 func UpdateRepository(w http.ResponseWriter, r *http.Request) {
-	oldRepo := context.Get(r, "repository").(models.Repository)
+	oldRepo := context.Get(r, "repository").(db.Repository)
 	var repository struct {
 		Name     string `json:"name" binding:"required"`
 		GitURL   string `json:"git_url" binding:"required"`
@@ -159,7 +159,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	desc := "Repository (" + repository.GitURL + ") updated"
 	objType := "inventory"
 
-	_, err := helpers.Store(r).CreateEvent(models.Event{
+	_, err := helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &oldRepo.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldRepo.ID,
@@ -177,7 +177,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 
 // RemoveRepository deletes a repository from a project in the database
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
-	repository := context.Get(r, "repository").(models.Repository)
+	repository := context.Get(r, "repository").(db.Repository)
 
 	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and repository_id=?", repository.ProjectID, repository.ID)
 	if err != nil {
@@ -209,7 +209,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	util.LogWarning(clearRepositoryCache(repository))
 
 	desc := "Repository (" + repository.GitURL + ") deleted"
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
 	})

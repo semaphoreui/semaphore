@@ -4,7 +4,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 	"strconv"
 
@@ -14,7 +13,7 @@ import (
 // TemplatesMiddleware ensures a template exists and loads it to the context
 func TemplatesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
+		project := context.Get(r, "project").(db.Project)
 		templateID, err := helpers.GetIntParam("template_id", w, r)
 		if err != nil {
 			return
@@ -34,13 +33,13 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 
 // GetTemplate returns single template by ID
 func GetTemplate(w http.ResponseWriter, r *http.Request) {
-	template := context.Get(r, "template").(models.Template)
+	template := context.Get(r, "template").(db.Template)
 	helpers.WriteJSON(w, http.StatusOK, template)
 }
 
 // GetTemplates returns all templates for a project in a sort order
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
 	params := db.RetrieveQueryParams{
 		SortBy: r.URL.Query().Get("sort"),
@@ -59,9 +58,9 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 
 // AddTemplate adds a template to the database
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
-	var template models.Template
+	var template db.Template
 	if !helpers.Bind(w, r, &template) {
 		return
 	}
@@ -77,7 +76,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	objType := "template"
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &template.ID,
@@ -95,9 +94,9 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTemplate writes a template to an existing key in the database
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	oldTemplate := context.Get(r, "template").(models.Template)
+	oldTemplate := context.Get(r, "template").(db.Template)
 
-	var template models.Template
+	var template db.Template
 	if !helpers.Bind(w, r, &template) {
 		return
 	}
@@ -123,7 +122,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
 	objType := "template"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &template.ProjectID,
 		Description: &desc,
 		ObjectID:    &template.ID,
@@ -141,7 +140,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTemplate deletes a template from the database
 func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
-	tpl := context.Get(r, "template").(models.Template)
+	tpl := context.Get(r, "template").(db.Template)
 
 	err := helpers.Store(r).DeleteTemplate(tpl.ProjectID, tpl.ID)
 	if err != nil {
@@ -151,7 +150,7 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &tpl.ProjectID,
 		Description: &desc,
 	})

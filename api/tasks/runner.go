@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	db2 "github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -27,12 +26,12 @@ const (
 
 type task struct {
 	store       db2.Store
-	task        models.Task
-	template    models.Template
-	sshKey      models.AccessKey
-	inventory   models.Inventory
-	repository  models.Repository
-	environment models.Environment
+	task        db2.Task
+	template    db2.Template
+	sshKey      db2.AccessKey
+	inventory   db2.Inventory
+	repository  db2.Repository
+	environment db2.Environment
 	users       []int
 	projectID   int
 	hosts       []string
@@ -59,7 +58,7 @@ func (t *task) prepareRun() {
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-		_, err := t.store.CreateEvent(models.Event{
+		_, err := t.store.CreateEvent(db2.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -88,7 +87,7 @@ func (t *task) prepareRun() {
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
-	_, err = t.store.CreateEvent(models.Event{
+	_, err = t.store.CreateEvent(db2.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -171,7 +170,7 @@ func (t *task) run() {
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-		_, err := t.store.CreateEvent(models.Event{
+		_, err := t.store.CreateEvent(db2.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -196,7 +195,7 @@ func (t *task) run() {
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
 
-	_, err := t.store.CreateEvent(models.Event{
+	_, err := t.store.CreateEvent(db2.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -243,7 +242,7 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	var project models.Project
+	var project db2.Project
 	// get project alert setting
 	if err := t.fetch("Alert setting not found!", &project, "select alert, alert_chat from project where id=?", t.template.ProjectID); err != nil {
 		return err
@@ -320,7 +319,7 @@ func (t *task) populateDetails() error {
 	return nil
 }
 
-func (t *task) installKey(key models.AccessKey) error {
+func (t *task) installKey(key db2.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 
 	path := key.GetPath()

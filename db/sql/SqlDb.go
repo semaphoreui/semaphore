@@ -5,7 +5,6 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
@@ -216,22 +215,22 @@ func (d *SqlDb) Close() error {
 }
 
 func (d *SqlDb) Connect() error {
-	db, err := connect()
+	sqlDb, err := connect()
 	if err != nil {
 		return err
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := sqlDb.Ping(); err != nil {
 		if err = createDb(); err != nil {
 			return err
 		}
 
-		db, err = connect()
+		sqlDb, err = connect()
 		if err != nil {
 			return err
 		}
 
-		if err = db.Ping(); err != nil {
+		if err = sqlDb.Ping(); err != nil {
 			return err
 		}
 	}
@@ -248,24 +247,24 @@ func (d *SqlDb) Connect() error {
 		dialect = gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}
 	}
 
-	d.sql = &gorp.DbMap{Db: db, Dialect: dialect}
+	d.sql = &gorp.DbMap{Db: sqlDb, Dialect: dialect}
 
-	d.sql.AddTableWithName(models.APIToken{}, "user__token").SetKeys(false, "id")
-	d.sql.AddTableWithName(models.AccessKey{}, "access_key").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.Environment{}, "project__environment").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.Inventory{}, "project__inventory").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.Project{}, "project").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.Repository{}, "project__repository").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.Task{}, "task").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.TaskOutput{}, "task__output").SetUniqueTogether("task_id", "time")
-	d.sql.AddTableWithName(models.Template{}, "project__template").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.User{}, "user").SetKeys(true, "id")
-	d.sql.AddTableWithName(models.Session{}, "session").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.APIToken{}, "user__token").SetKeys(false, "id")
+	d.sql.AddTableWithName(db.AccessKey{}, "access_key").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Environment{}, "project__environment").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Inventory{}, "project__inventory").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Project{}, "project").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Repository{}, "project__repository").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Task{}, "task").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.TaskOutput{}, "task__output").SetUniqueTogether("task_id", "time")
+	d.sql.AddTableWithName(db.Template{}, "project__template").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.User{}, "user").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
 
 	return nil
 }
 
-func (d *SqlDb) CreateProject(project models.Project) (newProject models.Project, err error) {
+func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err error) {
 	project.Created = time.Now()
 
 	res, err := d.sql.Exec("insert into project(name, created) values (?, ?)", project.Name, project.Created)
@@ -283,7 +282,7 @@ func (d *SqlDb) CreateProject(project models.Project) (newProject models.Project
 	return
 }
 
-func (d *SqlDb) CreateUser(user models.User) (newUser models.User, err error) {
+func (d *SqlDb) CreateUser(user db.User) (newUser db.User, err error) {
 	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 
 	if err != nil {
@@ -322,7 +321,7 @@ func (d *SqlDb) DeleteUser(userID int) error {
 	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) UpdateUser(user models.User) error {
+func (d *SqlDb) UpdateUser(user db.User) error {
 	res, err := d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
 		user.Name,
 		user.Username,
@@ -344,7 +343,7 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 }
 
 
-func (d *SqlDb) CreateProjectUser(projectUser models.ProjectUser) (newProjectUser models.ProjectUser, err error) {
+func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
 	_, err = d.sql.Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
 		projectUser.ProjectID,
 		projectUser.UserID,
@@ -358,7 +357,7 @@ func (d *SqlDb) CreateProjectUser(projectUser models.ProjectUser) (newProjectUse
 	return
 }
 
-func (d *SqlDb) CreateEvent(evt models.Event) (newEvent models.Event, err error) {
+func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	var created = time.Now()
 
 	_, err = d.sql.Exec(
@@ -385,8 +384,8 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 }
 
 //FetchUser retrieves a user from the database by ID
-func (d *SqlDb) GetUser(userID int) (models.User, error) {
-	var user models.User
+func (d *SqlDb) GetUser(userID int) (db.User, error) {
+	var user db.User
 
 	err := d.sql.SelectOne(&user, "select * from `user` where id=?", userID)
 
@@ -425,7 +424,7 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 	return q.ToSql()
 }
 
-func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []models.User, err error) {
+func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
 	query, args, err := getSqlForTable("user", params)
 
 	if err != nil {
@@ -442,14 +441,14 @@ func (d *SqlDb) Sql() *gorp.DbMap {
 }
 
 
-func (d *SqlDb) CreateAPIToken(token models.APIToken) (models.APIToken, error) {
+func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 	token.Created = db.GetParsedTime(time.Now())
 	err := d.sql.Insert(&token)
 	return token, err
 }
 
 
-func (d *SqlDb) GetAPIToken(tokenID string) (token models.APIToken, err error) {
+func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
 	err = d.sql.SelectOne(&token, "select * from user__token where id=? and expired=0", tokenID)
 
 	if err == sql.ErrNoRows {
@@ -465,7 +464,7 @@ func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) (err error) {
 	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) GetSession(userID int, sessionID int) (session models.Session, err error) {
+func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err error) {
 	err = d.sql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID)
 
 	if err == sql.ErrNoRows {
@@ -487,7 +486,7 @@ func (d *SqlDb) TouchSession(userID int, sessionID int) error{
 	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) GetAPITokens(userID int) (tokens []models.APIToken, err error) {
+func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
 	_, err = d.sql.Select(&tokens, "select * from user__token where user_id=?", userID)
 
 	if err == sql.ErrNoRows {
@@ -497,7 +496,7 @@ func (d *SqlDb) GetAPITokens(userID int) (tokens []models.APIToken, err error) {
 	return
 }
 
-func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (env models.Environment, err error) {
+func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (env db.Environment, err error) {
 	query, args, err := squirrel.Select("*").
 		From("project__environment").
 		Where("project_id=?", projectID).
@@ -522,7 +521,7 @@ func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (env models.Env
 	return
 }
 
-func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (environments []models.Environment, err error) {
+func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (environments []db.Environment, err error) {
 	q := squirrel.Select("*").
 		From("project__environment pe").
 		Where("project_id=?", projectID)
@@ -552,7 +551,7 @@ func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (e
 	return
 }
 
-func (d *SqlDb) UpdateEnvironment(env models.Environment) error {
+func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 	res, err := d.sql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, env.ID)
 	return validateMutationResult(res, err)
 }
@@ -570,7 +569,7 @@ func (d *SqlDb) isEnvironmentInUse(projectID int, environmentID int) (bool, erro
 	return templatesC > 0, nil
 }
 
-func (d *SqlDb) CreateEnvironment(env models.Environment) (newEnv models.Environment, err error) {
+func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
 	res, err := d.sql.Exec(
 		"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
 		env.ProjectID,
@@ -619,7 +618,7 @@ func (d *SqlDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
 			environmentID))
 }
 
-func (d *SqlDb) CreateTemplate(template models.Template) (newTemplate models.Template, err error) {
+func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
 	res, err := d.sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
 		template.SSHKeyID,
 		template.ProjectID,
@@ -645,7 +644,7 @@ func (d *SqlDb) CreateTemplate(template models.Template) (newTemplate models.Tem
 	return
 }
 
-func (d *SqlDb) UpdateTemplate(template models.Template) error {
+func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	res, err := d.sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
 		template.SSHKeyID,
 		template.InventoryID,
@@ -660,7 +659,7 @@ func (d *SqlDb) UpdateTemplate(template models.Template) error {
 	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []models.Template, err error) {
+func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	q := squirrel.Select("pt.id",
 		"pt.ssh_key_id",
 		"pt.project_id",
@@ -713,8 +712,8 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 	return
 }
 
-func (d *SqlDb) GetTemplate(projectID int, templateID int) (models.Template, error) {
-	var template models.Template
+func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) {
+	var template db.Template
 
 	err := d.sql.SelectOne(
 		&template,

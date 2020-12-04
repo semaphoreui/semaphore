@@ -3,7 +3,7 @@ package projects
 import (
 	"database/sql"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -14,7 +14,7 @@ import (
 // ProjectMiddleware ensures a project exists and loads it to the context
 func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*models.User)
+		user := context.Get(r, "user").(*db.User)
 
 		projectID, err := helpers.GetIntParam("project_id", w, r)
 		if err != nil {
@@ -29,7 +29,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			ToSql()
 		util.LogWarning(err)
 
-		var project models.Project
+		var project db.Project
 		if err := helpers.Store(r).Sql().SelectOne(&project, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
@@ -52,8 +52,8 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 // MustBeAdmin ensures that the user has administrator rights
 func MustBeAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
-		user := context.Get(r, "user").(*models.User)
+		project := context.Get(r, "project").(db.Project)
+		user := context.Get(r, "user").(*db.User)
 
 		userC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 		if err != nil {
@@ -70,7 +70,7 @@ func MustBeAdmin(next http.Handler) http.Handler {
 
 // UpdateProject saves updated project details to the database
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	var body struct {
 		Name      string `json:"name"`
 		Alert     bool   `json:"alert"`
@@ -90,7 +90,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 // DeleteProject removes a project from the database
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
 	tx, err := helpers.Store(r).Sql().Begin()
 	if err != nil {

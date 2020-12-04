@@ -5,7 +5,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -23,12 +22,12 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
-	var user models.User
+	var user db.User
 	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
-	editor := context.Get(r, "user").(*models.User)
+	editor := context.Get(r, "user").(*db.User)
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -64,7 +63,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			panic(err)
 		}
 
-		editor := context.Get(r, "user").(*models.User)
+		editor := context.Get(r, "user").(*db.User)
 
 		if !editor.Admin && editor.ID != user.ID {
 			log.Warn(editor.Username + " is not permitted to edit users")
@@ -78,10 +77,10 @@ func getUserMiddleware(next http.Handler) http.Handler {
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	oldUser := context.Get(r, "_user").(models.User)
-	editor := context.Get(r, "user").(*models.User)
+	oldUser := context.Get(r, "_user").(db.User)
+	editor := context.Get(r, "user").(*db.User)
 
-	var user models.User
+	var user db.User
 	if !helpers.Bind(w, r, &user) {
 		return
 	}
@@ -115,8 +114,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(models.User)
-	editor := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "_user").(db.User)
+	editor := context.Get(r, "user").(*db.User)
 
 	var pwd struct {
 		Pwd string `json:"password"`
@@ -148,8 +147,8 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(models.User)
-	editor := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "_user").(db.User)
+	editor := context.Get(r, "user").(*db.User)
 
 	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to delete users")

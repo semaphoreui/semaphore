@@ -3,7 +3,7 @@ package projects
 import (
 	"database/sql"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"strconv"
 
@@ -15,13 +15,13 @@ import (
 // UserMiddleware ensures a user exists and loads it to the context
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
+		project := context.Get(r, "project").(db.Project)
 		userID, err := helpers.GetIntParam("user_id", w, r)
 		if err != nil {
 			return
 		}
 
-		var user models.User
+		var user db.User
 		if err := helpers.Store(r).Sql().SelectOne(&user, "select u.* from project__user as pu join `user` as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
@@ -41,12 +41,12 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// get single user if user ID specified in the request
 	if user := context.Get(r, "projectUser"); user != nil {
-		helpers.WriteJSON(w, http.StatusOK, user.(models.User))
+		helpers.WriteJSON(w, http.StatusOK, user.(db.User))
 		return
 	}
 
-	project := context.Get(r, "project").(models.Project)
-	var users []models.User
+	project := context.Get(r, "project").(db.Project)
+	var users []db.User
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -80,7 +80,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // AddUser adds a user to a projects team in the database
 func AddUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	var user struct {
 		UserID int  `json:"user_id" binding:"required"`
 		Admin  bool `json:"admin"`
@@ -90,7 +90,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := helpers.Store(r).CreateProjectUser(models.ProjectUser{ProjectID: project.ID, UserID: user.UserID, Admin: user.Admin})
+	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: project.ID, UserID: user.UserID, Admin: user.Admin})
 
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
@@ -100,7 +100,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.UserID,
@@ -118,8 +118,8 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "projectUser").(models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "projectUser").(db.User)
 
 	err := helpers.Store(r).DeleteProjectUser(project.ID, user.ID)
 
@@ -132,7 +132,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.ID,
@@ -150,8 +150,8 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 
 // MakeUserAdmin writes the admin flag to the users account
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	user := context.Get(r, "projectUser").(models.User)
+	project := context.Get(r, "project").(db.Project)
+	user := context.Get(r, "projectUser").(db.User)
 	admin := 1
 
 	if r.Method == "DELETE" {

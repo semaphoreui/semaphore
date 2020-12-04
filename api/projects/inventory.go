@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
 	"os"
@@ -24,7 +24,7 @@ const (
 // InventoryMiddleware ensures an inventory exists and loads it to the context
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
+		project := context.Get(r, "project").(db.Project)
 		inventoryID, err := helpers.GetIntParam("inventory_id", w, r)
 		if err != nil {
 			return
@@ -37,7 +37,7 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 			ToSql()
 		util.LogWarning(err)
 
-		var inventory models.Inventory
+		var inventory db.Inventory
 		if err := helpers.Store(r).Sql().SelectOne(&inventory, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
@@ -55,13 +55,13 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 // GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
 	if inventory := context.Get(r, "inventory"); inventory != nil {
-		helpers.WriteJSON(w, http.StatusOK, inventory.(models.Inventory))
+		helpers.WriteJSON(w, http.StatusOK, inventory.(db.Inventory))
 		return
 	}
 
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
-	var inv []models.Inventory
+	var inv []db.Inventory
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -94,7 +94,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 // AddInventory creates an inventory in the database
 func AddInventory(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`
@@ -127,7 +127,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Inventory " + inventory.Name + " created"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -140,7 +140,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inv := models.Inventory{
+	inv := db.Inventory{
 		ID:        insertIDInt,
 		Name:      inventory.Name,
 		ProjectID: project.ID,
@@ -176,7 +176,7 @@ func IsValidInventoryPath(path string) bool {
 
 // UpdateInventory writes updated values to an existing inventory item in the database
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
-	oldInventory := context.Get(r, "inventory").(models.Inventory)
+	oldInventory := context.Get(r, "inventory").(db.Inventory)
 
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
@@ -209,7 +209,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Inventory " + inventory.Name + " updated"
 	objType := "inventory"
-	_, err := helpers.Store(r).CreateEvent(models.Event{
+	_, err := helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &oldInventory.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldInventory.ID,
@@ -227,7 +227,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 
 // RemoveInventory deletes an inventory from the database
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
-	inventory := context.Get(r, "inventory").(models.Inventory)
+	inventory := context.Get(r, "inventory").(db.Inventory)
 
 	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
 	if err != nil {
@@ -258,7 +258,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Inventory " + inventory.Name + " deleted"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &inventory.ProjectID,
 		Description: &desc,
 	})

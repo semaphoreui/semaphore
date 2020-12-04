@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -12,7 +12,7 @@ import (
 
 //nolint: gocyclo
 func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
@@ -26,14 +26,14 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	projectObj, exists := context.GetOk(r, "project")
 	if exists {
 		// limit query to project
-		project := projectObj.(models.Project)
+		project := projectObj.(db.Project)
 		q = q.Where("event.project_id=?", project.ID)
 	} else {
 		q = q.LeftJoin("project__user as pu on pu.project_id=p.id").
 			Where("p.id IS NULL or pu.user_id=?", user.ID)
 	}
 
-	var events []models.Event
+	var events []db.Event
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)

@@ -1,4 +1,4 @@
-package models
+package db
 
 type ProjectUser struct {
 	ProjectID int  `db:"project_id" json:"project_id"`

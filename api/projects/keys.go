@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -15,13 +15,13 @@ import (
 // KeyMiddleware ensures a key exists and loads it to the context
 func KeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
+		project := context.Get(r, "project").(db.Project)
 		keyID, err := helpers.GetIntParam("key_id", w, r)
 		if err != nil {
 			return
 		}
 
-		var key models.AccessKey
+		var key db.AccessKey
 		if err := helpers.Store(r).Sql().SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
@@ -39,12 +39,12 @@ func KeyMiddleware(next http.Handler) http.Handler {
 // GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	if key := context.Get(r, "accessKey"); key != nil {
-		helpers.WriteJSON(w, http.StatusOK, key.(models.AccessKey))
+		helpers.WriteJSON(w, http.StatusOK, key.(db.AccessKey))
 		return
 	}
 
-	project := context.Get(r, "project").(models.Project)
-	var keys []models.AccessKey
+	project := context.Get(r, "project").(db.Project)
+	var keys []db.AccessKey
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
@@ -86,8 +86,8 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 
 // AddKey adds a new key to the database
 func AddKey(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	var key models.AccessKey
+	project := context.Get(r, "project").(db.Project)
+	var key db.AccessKey
 
 	if !helpers.Bind(w, r, &key) {
 		return
@@ -123,7 +123,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	objType := "key"
 
 	desc := "Access Key " + key.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &insertIDInt,
@@ -142,8 +142,8 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 // UpdateKey updates key in database
 // nolint: gocyclo
 func UpdateKey(w http.ResponseWriter, r *http.Request) {
-	var key models.AccessKey
-	oldKey := context.Get(r, "accessKey").(models.AccessKey)
+	var key db.AccessKey
+	oldKey := context.Get(r, "accessKey").(db.AccessKey)
 
 	if !helpers.Bind(w, r, &key) {
 		return
@@ -181,7 +181,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	desc := "Access Key " + key.Name + " updated"
 	objType := "key"
 
-	_, err := helpers.Store(r).CreateEvent(models.Event{
+	_, err := helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldKey.ID,
@@ -199,7 +199,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 
 // RemoveKey deletes a key from the database
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
-	key := context.Get(r, "accessKey").(models.AccessKey)
+	key := context.Get(r, "accessKey").(db.AccessKey)
 
 	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
 	if err != nil {
@@ -235,7 +235,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Access Key " + key.Name + " deleted"
 
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   key.ProjectID,
 		Description: &desc,
 	})

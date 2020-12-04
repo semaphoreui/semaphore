@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/models"
 	"github.com/gorilla/context"
 	"io/ioutil"
 	"net/http"
@@ -34,6 +34,7 @@ func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
 
 func main() {
 	util.ConfigInit()
+
 	if util.InteractiveSetup {
 		os.Exit(doSetup())
 	}
@@ -63,6 +64,12 @@ func main() {
 
 	if err := store.Migrate(); err != nil {
 		panic(err)
+	}
+
+	// legacy
+	if util.Migration {
+		fmt.Println("\n DB migrations run on startup automatically")
+		return
 	}
 
 	go sockets.StartWS()
@@ -170,13 +177,13 @@ func doSetup() int {
 
 	stdin := bufio.NewReader(os.Stdin)
 
-	var user models.User
+	var user db.User
 	user.Username = readNewline("\n\n > Username: ", stdin)
 	user.Username = strings.ToLower(user.Username)
 	user.Email = readNewline(" > Email: ", stdin)
 	user.Email = strings.ToLower(user.Email)
 
-	var existingUser models.User
+	var existingUser db.User
 	err = store.Sql().SelectOne(&existingUser, "select * from `user` where email=? or username=?", user.Email, user.Username)
 	util.LogWarning(err)
 

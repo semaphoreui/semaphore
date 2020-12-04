@@ -3,7 +3,7 @@ package projects
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/models"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -13,7 +13,7 @@ import (
 
 // GetProjects returns all projects in this users context
 func GetProjects(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
@@ -23,7 +23,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 		ToSql()
 
 	util.LogWarning(err)
-	var projects []models.Project
+	var projects []db.Project
 	if _, err := helpers.Store(r).Sql().Select(&projects, query, args...); err != nil {
 		panic(err)
 	}
@@ -33,9 +33,9 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 
 // AddProject adds a new project to the database
 func AddProject(w http.ResponseWriter, r *http.Request) {
-	var body models.Project
+	var body db.Project
 
-	user := context.Get(r, "user").(*models.User)
+	user := context.Get(r, "user").(*db.User)
 
 
 	if !helpers.Bind(w, r, &body) {
@@ -47,7 +47,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	_, err = helpers.Store(r).CreateProjectUser(models.ProjectUser{ProjectID: body.ID, UserID: user.ID, Admin: true})
+	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Admin: true})
 
 	if err != nil {
 		panic(err)
@@ -55,7 +55,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Project Created"
 	oType := "Project"
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &body.ID,
 		Description: &desc,
 		ObjectType:  &oType,

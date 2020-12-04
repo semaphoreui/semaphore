@@ -5,7 +5,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -14,7 +13,7 @@ import (
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(models.Project)
+		project := context.Get(r, "project").(db.Project)
 		envID, err := helpers.GetIntParam("environment_id", w, r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -38,11 +37,11 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	// return single environment if request has environment ID
 	if environment := context.Get(r, "environment"); environment != nil {
-		helpers.WriteJSON(w, http.StatusOK, environment.(models.Environment))
+		helpers.WriteJSON(w, http.StatusOK, environment.(db.Environment))
 		return
 	}
 
-	project := context.Get(r, "project").(models.Project)
+	project := context.Get(r, "project").(db.Project)
 
 	params := db.RetrieveQueryParams{
 		SortBy: r.URL.Query().Get("sort"),
@@ -61,8 +60,8 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
-	oldEnv := context.Get(r, "environment").(models.Environment)
-	var env models.Environment
+	oldEnv := context.Get(r, "environment").(db.Environment)
+	var env db.Environment
 	if !helpers.Bind(w, r, &env) {
 		return
 	}
@@ -90,8 +89,8 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // AddEnvironment creates an environment in the database
 func AddEnvironment(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(models.Project)
-	var env models.Environment
+	project := context.Get(r, "project").(db.Project)
+	var env db.Environment
 
 	if !helpers.Bind(w, r, &env) {
 		return
@@ -120,7 +119,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	objType := "environment"
 
 	desc := "Environment " + newEnv.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &newEnv.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newEnv.ID,
@@ -138,7 +137,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // RemoveEnvironment deletes an environment from the database
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
-	env := context.Get(r, "environment").(models.Environment)
+	env := context.Get(r, "environment").(db.Environment)
 
 	var err error
 
@@ -163,7 +162,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	desc := "Environment " + env.Name + " deleted"
-	_, err = helpers.Store(r).CreateEvent(models.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &env.ProjectID,
 		Description: &desc,
 	})
