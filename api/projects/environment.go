@@ -8,7 +8,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/models"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 )
 
@@ -98,6 +97,12 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if project.ID != env.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid Project ID",
+		})
+	}
+
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -106,21 +111,19 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := helpers.Store(r).Sql().Exec("insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)", project.ID, env.Name, env.JSON, env.Password)
+	newEnv, err := helpers.Store(r).CreateEnvironment(env)
 	if err != nil {
-		panic(err)
+		helpers.WriteError(w, err)
+		return
 	}
 
-	insertID, err := res.LastInsertId()
-	util.LogWarning(err)
-	insertIDInt := int(insertID)
 	objType := "environment"
 
-	desc := "Environment " + env.Name + " created"
+	desc := "Environment " + newEnv.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(models.Event{
-		ProjectID:   &project.ID,
+		ProjectID:   &newEnv.ID,
 		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
+		ObjectID:    &newEnv.ID,
 		Description: &desc,
 	})
 
@@ -137,35 +140,26 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(models.Environment)
 
-	templatesC, err := helpers.Store(r).Sql().SelectInt(
-		"select count(1) from project__template where project_id=? and environment_id=?",
-		env.ProjectID,
-		env.ID)
+	var err error
 
-	if err != nil {
-		panic(err)
-	}
+	softDeletion := len(r.URL.Query().Get("setRemoved")) == 0
 
-	if templatesC > 0 {
-		if len(r.URL.Query().Get("setRemoved")) == 0 {
+	if softDeletion {
+		err = helpers.Store(r).DeleteEnvironmentSoft(env.ProjectID, env.ID)
+	} else {
+		err = helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
+		if err == db.ErrInvalidOperation {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Environment is in use by one or more templates",
 				"inUse": true,
 			})
-
 			return
 		}
-
-		if _, err := helpers.Store(r).Sql().Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
-			panic(err)
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-		return
 	}
 
-	if _, err := helpers.Store(r).Sql().Exec("delete from project__environment where id=?", env.ID); err != nil {
-		panic(err)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	desc := "Environment " + env.Name + " deleted"

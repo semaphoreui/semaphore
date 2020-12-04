@@ -281,13 +281,13 @@ func (d *SqlDb) CreateProject(project models.Project) (newProject models.Project
 		return
 	}
 
-	projectID, err := res.LastInsertId()
+	insertId, err := res.LastInsertId()
 	if err != nil {
 		return
 	}
 
 	newProject = project
-	newProject.ID = int(projectID)
+	newProject.ID = int(insertId)
 	return
 }
 
@@ -312,14 +312,14 @@ func (d *SqlDb) CreateUser(user models.User) (newUser models.User, err error) {
 		return
 	}
 
-	userID, err := res.LastInsertId()
+	insertID, err := res.LastInsertId()
 
 	if err != nil {
 		return
 	}
 
 	newUser = user
-	newUser.ID = int(userID)
+	newUser.ID = int(insertID)
 	newUser.Created = created
 	return
 }
@@ -559,6 +559,68 @@ func (d *SqlDb) UpdateEnvironment(env models.Environment) error {
 	return validateMutationResult(res, err)
 }
 
+func (d *SqlDb) isEnvironmentInUse(projectID int, environmentID int) (bool, error) {
+	templatesC, err := d.sql.SelectInt(
+		"select count(1) from project__template where project_id=? and environment_id=?",
+		projectID,
+		environmentID)
+
+	if err != nil {
+		return false, err
+	}
+
+	return templatesC > 0, nil
+}
+
+func (d *SqlDb) CreateEnvironment(env models.Environment) (newEnv models.Environment, err error) {
+	res, err := d.sql.Exec(
+		"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
+		env.ProjectID,
+		env.Name,
+		env.JSON,
+		env.Password)
+
+	if err != nil {
+		return
+	}
+
+	insertID, err := res.LastInsertId()
+
+	if err != nil {
+		return
+	}
+
+	newEnv = env
+	newEnv.ID = int(insertID)
+	return
+}
+
+func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
+	inUse, err := d.isEnvironmentInUse(projectID, environmentID)
+
+	if err != nil {
+		return err
+	}
+
+	if inUse {
+		return db.ErrInvalidOperation
+	}
+
+	return validateMutationResult(
+		d.sql.Exec(
+			"delete from project__environment where project_id=? and id=?",
+			projectID,
+			environmentID))
+}
+
+func (d *SqlDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
+	return validateMutationResult(
+		d.sql.Exec(
+			"update project__environment set removed=1 where project_id=? and id=?",
+			projectID,
+			environmentID))
+}
+
 func (d *SqlDb) CreateTemplate(template models.Template) (newTemplate models.Template, err error) {
 	res, err := d.sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
 		template.SSHKeyID,
@@ -570,6 +632,7 @@ func (d *SqlDb) CreateTemplate(template models.Template) (newTemplate models.Tem
 		template.Playbook,
 		template.Arguments,
 		template.OverrideArguments)
+
 	if err != nil {
 		return
 	}

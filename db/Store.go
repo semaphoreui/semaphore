@@ -15,6 +15,7 @@ type RetrieveQueryParams struct {
 }
 
 var ErrNotFound = errors.New("sql: no rows in result set")
+var ErrInvalidOperation = errors.New("sql: no rows in result set")
 
 type Store interface {
 	Connect() error
@@ -24,6 +25,9 @@ type Store interface {
 	GetEnvironment(projectID int, environmentID int) (models.Environment, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]models.Environment, error)
 	UpdateEnvironment(env models.Environment) error
+	CreateEnvironment(env models.Environment) (models.Environment, error)
+	DeleteEnvironment(projectID int, templateID int) error
+	DeleteEnvironmentSoft(projectID int, templateID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]models.User, error)
 	CreateUser(user models.User) (models.User, error)
