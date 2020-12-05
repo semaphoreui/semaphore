@@ -33,6 +33,8 @@
     "nyc": "^15.1.0",
     "sass": "^1.19.0",
     "sass-loader": "^8.0.2",
+    "stylus": "^0.54.8",
+    "stylus-loader": "^3.0.1",
     "vue-cli-plugin-vuetify": "~2.0.7",
     "vue-template-compiler": "^2.6.11",
     "vuetify-loader": "^1.3.0"
