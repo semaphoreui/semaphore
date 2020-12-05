@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/ansible-semaphore/semaphore/db"
 	trans "github.com/snikch/goodman/transaction"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -41,7 +42,7 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 
 func addCapabilities(caps []string) {
 	dbConnect()
-	defer db.Mysql.Db.Close()
+	defer store.Sql().Db.Close()
 	resolved := make([]string, 0)
 	uid := getUUID()
 	resolveCapability(caps, resolved, uid)
@@ -72,19 +73,19 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "access_key":
 			userKey = addAccessKey(&userProject.ID)
 		case "repository":
-			pRepo, err := db.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", userProject.ID, "git@github.com/ansible,semaphore/semaphore", userKey.ID, "ITR-"+uid)
+			pRepo, err := store.Sql().Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", userProject.ID, "git@github.com/ansible,semaphore/semaphore", userKey.ID, "ITR-"+uid)
 			printError(err)
 			repoID, _ = pRepo.LastInsertId()
 		case "inventory":
-			res, err := db.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", userProject.ID, "ITI-"+uid, "static", userKey.ID, userKey.ID, "Test Inventory")
+			res, err := store.Sql().Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", userProject.ID, "ITI-"+uid, "static", userKey.ID, userKey.ID, "Test Inventory")
 			printError(err)
 			inventoryID, _ = res.LastInsertId()
 		case "environment":
-			res, err := db.Mysql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", userProject.ID, "ITI-"+uid, "{}", "test-pass")
+			res, err := store.Sql().Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", userProject.ID, "ITI-"+uid, "{}", "test-pass")
 			printError(err)
 			environmentID, _ = res.LastInsertId()
 		case "template":
-			res, err := db.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", userKey.ID, userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
+			res, err := store.Sql().Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?", userKey.ID, userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
 			printError(err)
 			templateID, _ = res.LastInsertId()
 		case "task":
@@ -146,6 +147,22 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("template_id", templateID, &request)
 	if task != nil {
 		bodyFieldProcessor("task_id", task.ID, &request)
+	}
+
+	// Inject object ID to body for PUT requests
+	if strings.ToLower(t.Request.Method) == "put" {
+		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?$`)
+		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
+		if len(m) > 0 {
+			objectID, err := strconv.Atoi(m[1])
+			if err != nil {
+				panic("Invalid object ID in PUT request " + t.FullPath)
+			}
+			request["id"] = objectID
+
+		} else {
+			panic("Unexpected PUT request " + t.FullPath)
+		}
 	}
 
 	out, _ := json.Marshal(request)

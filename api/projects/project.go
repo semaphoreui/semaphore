@@ -2,9 +2,9 @@ package projects
 
 import (
 	"database/sql"
-	"net/http"
-
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -16,7 +16,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := context.Get(r, "user").(*db.User)
 
-		projectID, err := util.GetIntParam("project_id", w, r)
+		projectID, err := helpers.GetIntParam("project_id", w, r)
 		if err != nil {
 			return
 		}
@@ -30,7 +30,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		util.LogWarning(err)
 
 		var project db.Project
-		if err := db.Mysql.SelectOne(&project, query, args...); err != nil {
+		if err := helpers.Store(r).Sql().SelectOne(&project, query, args...); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -46,7 +46,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 //GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	util.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }
 
 // MustBeAdmin ensures that the user has administrator rights
@@ -55,7 +55,7 @@ func MustBeAdmin(next http.Handler) http.Handler {
 		project := context.Get(r, "project").(db.Project)
 		user := context.Get(r, "user").(*db.User)
 
-		userC, err := db.Mysql.SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
+		userC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=? and pu.admin=1", user.ID, project.ID)
 		if err != nil {
 			panic(err)
 		}
@@ -77,11 +77,11 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		AlertChat string `json:"alert_chat"`
 	}
 
-	if err := util.Bind(w, r, &body); err != nil {
+	if !helpers.Bind(w, r, &body) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("update project set name=?, alert=?, alert_chat=? where id=?", body.Name, body.Alert, body.AlertChat, project.ID); err != nil {
 		panic(err)
 	}
 
@@ -92,14 +92,14 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
-	tx, err := db.Mysql.Begin()
+	tx, err := helpers.Store(r).Sql().Begin()
 	if err != nil {
 		panic(err)
 	}
 
 	statements := []string{
-		"delete tao from task__output as tao join task as t on t.id=tao.task_id join project__template as pt on pt.id=t.template_id where pt.project_id=?",
-		"delete t from task as t join project__template as pt on pt.id=t.template_id where pt.project_id=?",
+		//"delete tao from task__output as tao join task as t on t.id=tao.task_id join project__template as pt on pt.id=t.template_id where pt.project_id=?",
+		//"delete t from task as t join project__template as pt on pt.id=t.template_id where pt.project_id=?",
 		"delete from project__template where project_id=?",
 		"delete from project__user where project_id=?",
 		"delete from project__repository where project_id=?",

@@ -2,12 +2,12 @@ package projects
 
 import (
 	"database/sql"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/db"
-
-	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
 )
@@ -16,13 +16,13 @@ import (
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(db.Project)
-		userID, err := util.GetIntParam("user_id", w, r)
+		userID, err := helpers.GetIntParam("user_id", w, r)
 		if err != nil {
 			return
 		}
 
 		var user db.User
-		if err := db.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
+		if err := helpers.Store(r).Sql().SelectOne(&user, "select u.* from project__user as pu join `user` as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -38,8 +38,10 @@ func UserMiddleware(next http.Handler) http.Handler {
 
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
+
+	// get single user if user ID specified in the request
 	if user := context.Get(r, "projectUser"); user != nil {
-		util.WriteJSON(w, http.StatusOK, user.(db.User))
+		helpers.WriteJSON(w, http.StatusOK, user.(db.User))
 		return
 	}
 
@@ -69,11 +71,11 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	query, args, _ := q.ToSql()
 
-	if _, err := db.Mysql.Select(&users, query, args...); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&users, query, args...); err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusOK, users)
+	helpers.WriteJSON(w, http.StatusOK, users)
 }
 
 // AddUser adds a user to a projects team in the database
@@ -84,24 +86,31 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Admin  bool `json:"admin"`
 	}
 
-	if err := util.Bind(w, r, &user); err != nil {
+	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
-	//TODO - check if user already exists
-	if _, err := db.Mysql.Exec("insert into project__user set user_id=?, project_id=?, `admin`=?", user.UserID, project.ID, user.Admin); err != nil {
-		panic(err)
+	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: project.ID, UserID: user.UserID, Admin: user.Admin})
+
+	if err != nil {
+		w.WriteHeader(http.StatusConflict)
+		return
 	}
 
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
-	if err := (db.Event{
+
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.UserID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -112,19 +121,28 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
 
-	if _, err := db.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
-		panic(err)
+	err := helpers.Store(r).DeleteProjectUser(project.ID, user.ID)
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	objType := "user"
 	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
-	if err := (db.Event{
+
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &user.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -141,7 +159,7 @@ func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 		admin = 0
 	}
 
-	if _, err := db.Mysql.Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
 		panic(err)
 	}
 

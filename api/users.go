@@ -2,30 +2,28 @@ package api
 
 import (
 	"database/sql"
-	"net/http"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
-	var users []db.User
-	if _, err := db.Mysql.Select(&users, "select * from user"); err != nil {
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
+
+	if err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusOK, users)
+	helpers.WriteJSON(w, http.StatusOK, users)
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
 	var user db.User
-	if err := util.Bind(w, r, &user); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
@@ -36,25 +34,27 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.Created = db.GetParsedTime(time.Now())
+	newUser, err := helpers.Store(r).CreateUser(user)
 
-	if err := db.Mysql.Insert(&user); err != nil {
+	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	util.WriteJSON(w, http.StatusCreated, user)
+	helpers.WriteJSON(w, http.StatusCreated, newUser)
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := util.GetIntParam("user_id", w, r)
+		userID, err := helpers.GetIntParam("user_id", w, r)
+
 		if err != nil {
 			return
 		}
 
-		var user db.User
-		if err := db.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
+		user, err := helpers.Store(r).GetUser(userID)
+
+		if err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -64,6 +64,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 		}
 
 		editor := context.Get(r, "user").(*db.User)
+
 		if !editor.Admin && editor.ID != user.ID {
 			log.Warn(editor.Username + " is not permitted to edit users")
 			w.WriteHeader(http.StatusUnauthorized)
@@ -80,7 +81,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*db.User)
 
 	var user db.User
-	if err := util.Bind(w, r, &user); err != nil {
+	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
@@ -102,7 +103,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=?, admin=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.Admin, oldUser.ID); err != nil {
+	user.ID = oldUser.ID
+	if err := helpers.Store(r).UpdateUser(user); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -131,14 +133,14 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := util.Bind(w, r, &pwd); err != nil {
+	if !helpers.Bind(w, r, &pwd) {
 		return
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
-	util.LogWarning(err)
-	if _, err := db.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
-		panic(err)
+	if err := helpers.Store(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {
+		util.LogWarning(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -154,11 +156,8 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
-		panic(err)
-	}
-	if _, err := db.Mysql.Exec("delete from user where id=?", user.ID); err != nil {
-		panic(err)
+	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

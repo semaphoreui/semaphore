@@ -4,13 +4,14 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"net/mail"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 
 	sq "github.com/masterminds/squirrel"
@@ -102,7 +103,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	if err := util.Bind(w, r, &login); err != nil {
+	if !helpers.Bind(w, r, &login) {
 		return
 	}
 
@@ -140,11 +141,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if err = db.Mysql.SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+	if err = helpers.Store(r).Sql().SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
 		if ldapUser != nil {
 			// create new LDAP user
 			user = *ldapUser
-			if err = db.Mysql.Insert(&user); err != nil {
+			if err = helpers.Store(r).Sql().Insert(&user); err != nil {
 				panic(err)
 			}
 		} else {
@@ -179,7 +180,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err = db.Mysql.Insert(&session); err != nil {
+	if err = helpers.Store(r).Sql().Insert(&session); err != nil {
 		panic(err)
 	}
 

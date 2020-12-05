@@ -1,13 +1,13 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
-
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/masterminds/squirrel"
@@ -19,7 +19,8 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	var taskObj db.Task
-	if err := util.Bind(w, r, &taskObj); err != nil {
+
+	if !helpers.Bind(w, r, &taskObj) {
 		return
 	}
 
@@ -27,29 +28,34 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
 
-	if err := db.Mysql.Insert(&taskObj); err != nil {
+	if err := helpers.Store(r).Sql().Insert(&taskObj); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	pool.register <- &task{
+		store:     helpers.Store(r),
 		task:      taskObj,
 		projectID: project.ID,
 	}
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
-	if err := (db.Event{
+	_, err := helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &taskObj.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
+	})
+
+	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
-	util.WriteJSON(w, http.StatusCreated, taskObj)
+	helpers.WriteJSON(w, http.StatusCreated, taskObj)
 }
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
@@ -82,13 +88,13 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
 		UserName         *string `db:"user_name" json:"user_name"`
 	}
-	if _, err := db.Mysql.Select(&tasks, query, args...); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&tasks, query, args...); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	util.WriteJSON(w, http.StatusOK, tasks)
+	helpers.WriteJSON(w, http.StatusOK, tasks)
 }
 
 // GetAllTasks returns all tasks for the current project
@@ -104,19 +110,19 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
-	util.WriteJSON(w, http.StatusOK, task)
+	helpers.WriteJSON(w, http.StatusOK, task)
 }
 
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		taskID, err := util.GetIntParam("task_id", w, r)
+		taskID, err := helpers.GetIntParam("task_id", w, r)
 		if err != nil {
 			panic(err)
 		}
 
 		var task db.Task
-		if err := db.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+		if err := helpers.Store(r).Sql().SelectOne(&task, "select * from task where id=?", taskID); err != nil {
 			panic(err)
 		}
 
@@ -130,13 +136,13 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
 
 	var output []db.TaskOutput
-	if _, err := db.Mysql.Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	util.WriteJSON(w, http.StatusOK, output)
+	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
 // RemoveTask removes a task from the database
@@ -156,7 +162,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, statement := range statements {
-		_, err := db.Mysql.Exec(statement, task.ID)
+		_, err := helpers.Store(r).Sql().Exec(statement, task.ID)
 		if err != nil {
 			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 			w.WriteHeader(http.StatusBadRequest)

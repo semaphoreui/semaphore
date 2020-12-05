@@ -1,14 +1,20 @@
-package util
+package helpers
 
 import (
 	"encoding/json"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/gorilla/context"
 	"net/http"
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
+
+func Store(r *http.Request) db.Store {
+	return context.Get(r, "store").(db.Store)
+}
 
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
 	accept := r.Header.Get("Accept")
@@ -44,26 +50,17 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 	return intParam, nil
 }
 
-// ScanErrorChecker deals with errors encountered while scanning lines
-// since we do not fail on these errors currently we can simply note them
-// and move on
-func ScanErrorChecker(n int, err error) {
-	if err != nil {
-		log.Warn("An input error occured:" + err.Error())
-	}
-}
-
 //H just a string-to-anything map
 type H map[string]interface{}
 
 //Bind decodes json into object
-func Bind(w http.ResponseWriter, r *http.Request, out interface{}) error {
+func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 	err := json.NewDecoder(r.Body).Decode(out)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	return err
+	return err == nil
 }
 
 //WriteJSON writes object as JSON
@@ -74,4 +71,15 @@ func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	if err := json.NewEncoder(w).Encode(out); err != nil {
 		panic(err)
 	}
+}
+
+
+func WriteError(w http.ResponseWriter, err error) {
+	if err == db.ErrNotFound {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	log.Error(err)
+	w.WriteHeader(http.StatusInternalServerError)
 }

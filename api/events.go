@@ -1,9 +1,9 @@
 package api
 
 import (
-	"net/http"
-
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -37,7 +37,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 	query, args, err := q.ToSql()
 	util.LogWarning(err)
-	if _, err := db.Mysql.Select(&events, query, args...); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&events, query, args...); err != nil {
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 		query, args, err := q.ToSql()
 		util.LogWarning(err)
-		name, err := db.Mysql.SelectNullStr(query, args...)
+		name, err := helpers.Store(r).Sql().SelectNullStr(query, args...)
 		if err != nil {
 			panic(err)
 		}
@@ -70,7 +70,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 		}
 	}
 
-	util.WriteJSON(w, http.StatusOK, events)
+	helpers.WriteJSON(w, http.StatusOK, events)
 }
 
 func getLastEvents(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/factory"
+	"github.com/gorilla/context"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,14 +14,12 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/handlers"
-	"golang.org/x/crypto/bcrypt"
-	log "github.com/Sirupsen/logrus"
 )
 
 func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
@@ -30,8 +31,10 @@ func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+
 func main() {
 	util.ConfigInit()
+
 	if util.InteractiveSetup {
 		os.Exit(doSetup())
 	}
@@ -50,15 +53,16 @@ func main() {
 	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
-	if err := db.Connect(); err != nil {
+	store := factory.CreateStore()
+
+	if err := store.Connect(); err != nil {
 		fmt.Println("\n Have you run semaphore -setup?")
 		panic(err)
 	}
 
-	db.SetupDBLink()
-	defer db.Close()
+	defer store.Close()
 
-	if err := db.MigrateAll(); err != nil {
+	if err := store.Migrate(); err != nil {
 		panic(err)
 	}
 
@@ -72,7 +76,17 @@ func main() {
 	go checkUpdates()
 	go tasks.StartRunner()
 
-	var router http.Handler = api.Route()
+	route := api.Route()
+
+	route.Use(func (next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			context.Set(r, "store", store)
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	var router http.Handler = route
+
 	router = handlers.ProxyHeaders(router)
 	http.Handle("/", router)
 
@@ -86,6 +100,8 @@ func main() {
 
 //nolint: gocyclo
 func doSetup() int {
+	store := factory.CreateStore()
+
 	fmt.Print(`
  Hello! You will now be guided through a setup to:
 
@@ -148,13 +164,13 @@ func doSetup() int {
 	fmt.Println(" Pinging db..")
 	util.Config = setup
 
-	if err = db.Connect(); err != nil {
+	if err = store.Connect(); err != nil {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	fmt.Println("\n Running DB Migrations..")
-	if err = db.MigrateAll(); err != nil {
+	if err = store.Migrate(); err != nil {
 		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -168,7 +184,7 @@ func doSetup() int {
 	user.Email = strings.ToLower(user.Email)
 
 	var existingUser db.User
-	err = db.Mysql.SelectOne(&existingUser, "select * from user where email=? or username=?", user.Email, user.Username)
+	err = store.Sql().SelectOne(&existingUser, "select * from `user` where email=? or username=?", user.Email, user.Username)
 	util.LogWarning(err)
 
 	if existingUser.ID > 0 {
@@ -177,10 +193,10 @@ func doSetup() int {
 	} else {
 		user.Name = readNewline(" > Your name: ", stdin)
 		user.Password = readNewline(" > Password: ", stdin)
-		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
-		util.LogWarning(err)
+		//pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+		//util.LogWarning(err)
 
-		if _, err := db.Mysql.Exec("insert into user set name=?, username=?, email=?, password=?, admin=1, created=UTC_TIMESTAMP()", user.Name, user.Username, user.Email, pwdHash); err != nil {
+		if _, err := store.CreateUser(user); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}

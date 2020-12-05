@@ -2,14 +2,14 @@ package sockets
 
 import (
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
-	"github.com/ansible-semaphore/semaphore/util"
-	log "github.com/Sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{

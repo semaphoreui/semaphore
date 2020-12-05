@@ -1,11 +1,10 @@
 package projects
 
 import (
-	"net/http"
-
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-
-	"time"
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -25,42 +24,49 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 
 	util.LogWarning(err)
 	var projects []db.Project
-	if _, err := db.Mysql.Select(&projects, query, args...); err != nil {
+	if _, err := helpers.Store(r).Sql().Select(&projects, query, args...); err != nil {
 		panic(err)
 	}
 
-	util.WriteJSON(w, http.StatusOK, projects)
+	helpers.WriteJSON(w, http.StatusOK, projects)
 }
 
 // AddProject adds a new project to the database
 func AddProject(w http.ResponseWriter, r *http.Request) {
 	var body db.Project
+
 	user := context.Get(r, "user").(*db.User)
 
-	if err := util.Bind(w, r, &body); err != nil {
+
+	if !helpers.Bind(w, r, &body) {
 		return
 	}
 
-	err := body.CreateProject()
+	body, err := helpers.Store(r).CreateProject(body)
 	if err != nil {
 		panic(err)
 	}
 
-	if _, err := db.Mysql.Exec("insert into project__user set project_id=?, user_id=?, `admin`=1", body.ID, user.ID); err != nil {
+	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Admin: true})
+
+	if err != nil {
 		panic(err)
 	}
 
 	desc := "Project Created"
 	oType := "Project"
-	if err := (db.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &body.ID,
 		Description: &desc,
 		ObjectType:  &oType,
 		ObjectID:    &body.ID,
-		Created:     db.GetParsedTime(time.Now()),
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
-	util.WriteJSON(w, http.StatusCreated, body)
+	helpers.WriteJSON(w, http.StatusCreated, body)
 }

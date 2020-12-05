@@ -16,11 +16,3 @@ type User struct {
 	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
 }
-
-//FetchUser retrieves a user from the database by ID
-func FetchUser(userID int) (*User, error) {
-	var user User
-
-	err := Mysql.SelectOne(&user, "select * from user where id=?", userID)
-	return &user, err
-}

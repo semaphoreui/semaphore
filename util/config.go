@@ -3,8 +3,10 @@ package util
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"os"
 	"path"
 
@@ -37,11 +39,18 @@ const (
 	shortPos = "y"
 )
 
-type mySQLConfig struct {
-	Hostname string `json:"host"`
-	Username string `json:"user"`
-	Password string `json:"pass"`
-	DbName   string `json:"name"`
+type DbDriver int
+
+const (
+	DbDriverMySQL DbDriver = iota
+)
+
+type DbConfig struct {
+	Dialect  DbDriver `json:"-"`
+	Hostname string   `json:"host"`
+	Username string   `json:"user"`
+	Password string   `json:"pass"`
+	DbName   string   `json:"name"`
 }
 
 type ldapMappings struct {
@@ -53,7 +62,8 @@ type ldapMappings struct {
 
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
-	MySQL mySQLConfig `json:"mysql"`
+	MySQL      DbConfig `json:"mysql"`
+
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
 	Port string `json:"port"`
@@ -116,6 +126,15 @@ func NewConfig() *ConfigType {
 	return &ConfigType{}
 }
 
+// ScanErrorChecker deals with errors encountered while scanning lines
+// since we do not fail on these errors currently we can simply note them
+// and move on
+func ScanErrorChecker(n int, err error) {
+	if err != nil {
+		log.Warn("An input error occurred:" + err.Error())
+	}
+}
+
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit() {
 	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
@@ -145,7 +164,7 @@ func ConfigInit() {
 
 	if printConfig {
 		cfg := &ConfigType{
-			MySQL: mySQLConfig{
+			MySQL: DbConfig{
 				Hostname: "127.0.0.1:3306",
 				Username: "root",
 				DbName:   "semaphore",
@@ -246,6 +265,52 @@ func decodeConfig(file io.Reader) {
 	}
 }
 
+func (d DbDriver) String() string {
+	return [...]string{"mysql"}[d]
+}
+
+func (d *DbConfig) isPresent() bool {
+	return d.Hostname != ""
+}
+
+func (d *DbConfig) HasSupportMultipleDatabases() bool {
+	return true
+}
+
+func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
+	switch d.Dialect {
+	case DbDriverMySQL:
+		if includeDbName {
+			connectionString = fmt.Sprintf(
+				"%s:%s@tcp(%s)/%s?parseTime=true&interpolateParams=true",
+				d.Username,
+				d.Password,
+				d.Hostname,
+				d.DbName)
+		} else {
+			connectionString = fmt.Sprintf(
+				"%s:%s@tcp(%s)?parseTime=true&interpolateParams=true",
+				d.Username,
+				d.Password,
+				d.Hostname)
+		}
+	default:
+		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
+	}
+	return
+}
+
+func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
+	switch {
+	case conf.MySQL.isPresent():
+		dbConfig = conf.MySQL
+		dbConfig.Dialect = DbDriverMySQL
+	default:
+		err = errors.New("database configuration not found")
+	}
+	return
+}
+
 //GenerateCookieSecrets generates cookie secret during setup
 func (conf *ConfigType) GenerateCookieSecrets() {
 	hash := securecookie.GenerateRandomKey(32)
@@ -255,8 +320,8 @@ func (conf *ConfigType) GenerateCookieSecrets() {
 	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
 }
 
-//nolint: gocyclo
-func (conf *ConfigType) Scan() {
+func (conf *ConfigType) ScanMySQL() {
+
 	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
 	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Hostname))
 	if len(conf.MySQL.Hostname) == 0 {
@@ -276,6 +341,20 @@ func (conf *ConfigType) Scan() {
 	ScanErrorChecker(fmt.Scanln(&conf.MySQL.DbName))
 	if len(conf.MySQL.DbName) == 0 {
 		conf.MySQL.DbName = "semaphore"
+	}
+}
+
+//nolint: gocyclo
+func (conf *ConfigType) Scan() {
+	db := 1
+	fmt.Println(" > DB")
+	fmt.Println("   1 - MySQL")
+	fmt.Print("   (default 1): ")
+	ScanErrorChecker(fmt.Scanln(&db))
+
+	switch db {
+	case 1:
+		conf.ScanMySQL()
 	}
 
 	fmt.Print(" > Playbook path (default /tmp/semaphore): ")

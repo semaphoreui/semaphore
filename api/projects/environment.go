@@ -1,41 +1,30 @@
 package projects
 
 import (
-	"database/sql"
 	"encoding/json"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/db"
-
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(db.Project)
-		envID, err := util.GetIntParam("environment_id", w, r)
+		envID, err := helpers.GetIntParam("environment_id", w, r)
 		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		query, args, err := squirrel.Select("*").
-			From("project__environment").
-			Where("project_id=?", project.ID).
-			Where("id=?", envID).
-			ToSql()
-		util.LogWarning(err)
+		env, err := helpers.Store(r).GetEnvironment(project.ID, envID)
 
-		var env db.Environment
-		if err := db.Mysql.SelectOne(&env, query, args...); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-
-			panic(err)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
 		}
 
 		context.Set(r, "environment", env)
@@ -45,62 +34,54 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 
 // GetEnvironment retrieves sorted environments from the database
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
+
+	// return single environment if request has environment ID
 	if environment := context.Get(r, "environment"); environment != nil {
-		util.WriteJSON(w, http.StatusOK, environment.(db.Environment))
+		helpers.WriteJSON(w, http.StatusOK, environment.(db.Environment))
 		return
 	}
 
 	project := context.Get(r, "project").(db.Project)
-	var env []db.Environment
 
-	sort := r.URL.Query().Get("sort")
-	order := r.URL.Query().Get("order")
-
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	params := db.RetrieveQueryParams{
+		SortBy: r.URL.Query().Get("sort"),
+		SortInverted: r.URL.Query().Get("order") == desc,
 	}
 
-	q := squirrel.Select("*").
-		From("project__environment pe").
-		Where("project_id=?", project.ID)
+	env, err := helpers.Store(r).GetEnvironments(project.ID, params)
 
-	switch sort {
-	case "name":
-		q = q.Where("pe.project_id=?", project.ID).
-			OrderBy("pe." + sort + " " + order)
-	default:
-		q = q.Where("pe.project_id=?", project.ID).
-			OrderBy("pe.name " + order)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
-	query, args, err := q.ToSql()
-	util.LogWarning(err)
-
-	if _, err := db.Mysql.Select(&env, query, args...); err != nil {
-		panic(err)
-	}
-
-	util.WriteJSON(w, http.StatusOK, env)
+	helpers.WriteJSON(w, http.StatusOK, env)
 }
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := context.Get(r, "environment").(db.Environment)
 	var env db.Environment
-	if err := util.Bind(w, r, &env); err != nil {
+	if !helpers.Bind(w, r, &env) {
+		return
+	}
+
+	if env.ID != oldEnv.ID || env.ProjectID != oldEnv.ProjectID {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, oldEnv.ID); err != nil {
-		panic(err)
+	if err := helpers.Store(r).UpdateEnvironment(env); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -111,36 +92,44 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var env db.Environment
 
-	if err := util.Bind(w, r, &env); err != nil {
+	if !helpers.Bind(w, r, &env) {
 		return
+	}
+
+	if project.ID != env.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid Project ID",
+		})
 	}
 
 	var js map[string]interface{}
 	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		util.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "JSON is not valid",
 		})
 		return
 	}
 
-	res, err := db.Mysql.Exec("insert into project__environment set project_id=?, name=?, json=?, password=?", project.ID, env.Name, env.JSON, env.Password)
+	newEnv, err := helpers.Store(r).CreateEnvironment(env)
 	if err != nil {
-		panic(err)
+		helpers.WriteError(w, err)
+		return
 	}
 
-	insertID, err := res.LastInsertId()
-	util.LogWarning(err)
-	insertIDInt := int(insertID)
 	objType := "environment"
 
-	desc := "Environment " + env.Name + " created"
-	if err := (db.Event{
-		ProjectID:   &project.ID,
+	desc := "Environment " + newEnv.Name + " created"
+	_, err = helpers.Store(r).CreateEvent(db.Event{
+		ProjectID:   &newEnv.ID,
 		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
+		ObjectID:    &newEnv.ID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -150,39 +139,38 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(db.Environment)
 
-	templatesC, err := db.Mysql.SelectInt("select count(1) from project__template where project_id=? and environment_id=?", env.ProjectID, env.ID)
-	if err != nil {
-		panic(err)
-	}
+	var err error
 
-	if templatesC > 0 {
-		if len(r.URL.Query().Get("setRemoved")) == 0 {
-			util.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+	softDeletion := len(r.URL.Query().Get("setRemoved")) == 0
+
+	if softDeletion {
+		err = helpers.Store(r).DeleteEnvironmentSoft(env.ProjectID, env.ID)
+	} else {
+		err = helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
+		if err == db.ErrInvalidOperation {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Environment is in use by one or more templates",
 				"inUse": true,
 			})
-
 			return
 		}
+	}
 
-		if _, err := db.Mysql.Exec("update project__environment set removed=1 where id=?", env.ID); err != nil {
-			panic(err)
-		}
-
-		w.WriteHeader(http.StatusNoContent)
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 
-	if _, err := db.Mysql.Exec("delete from project__environment where id=?", env.ID); err != nil {
-		panic(err)
-	}
-
 	desc := "Environment " + env.Name + " deleted"
-	if err := (db.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &env.ProjectID,
 		Description: &desc,
-	}.Insert()); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

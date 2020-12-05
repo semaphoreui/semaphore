@@ -1,1 +1,0 @@
-ALTER TABLE `user__token` CHANGE COLUMN `id` `id` VARCHAR(44) NOT NULL;

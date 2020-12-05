@@ -1,13 +1,13 @@
 package api
 
 import (
-	"database/sql"
-	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 )
@@ -18,14 +18,16 @@ func authentication(next http.Handler) http.Handler {
 		var userID int
 
 		if authHeader := strings.ToLower(r.Header.Get("authorization")); len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
-			var token db.APIToken
-			if err := db.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
-				if err == sql.ErrNoRows {
-					w.WriteHeader(http.StatusUnauthorized)
-					return
+			token, err := helpers.Store(r).GetAPIToken(strings.Replace(authHeader, "bearer ", "", 1))
+
+			if err != nil {
+				if err != db.ErrNotFound {
+					// internal error
+					log.Error(err)
 				}
 
-				panic(err)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
 			}
 
 			userID = token.UserID
@@ -54,8 +56,9 @@ func authentication(next http.Handler) http.Handler {
 			sessionID := sessionVal.(int)
 
 			// fetch session
-			var session db.Session
-			if err := db.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
+			session, err := helpers.Store(r).GetSession(userID, sessionID)
+
+			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -63,27 +66,33 @@ func authentication(next http.Handler) http.Handler {
 			if time.Since(session.LastActive).Hours() > 7*24 {
 				// more than week old unused session
 				// destroy.
-				if _, err := db.Mysql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
-					panic(err)
+				if err := helpers.Store(r).ExpireSession(userID, sessionID); err != nil {
+					// it is internal error, it doesn't concern the user
+					log.Error(err)
 				}
 
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
-			if _, err := db.Mysql.Exec("update session set last_active=UTC_TIMESTAMP() where id=?", sessionID); err != nil {
-				panic(err)
+			if err := helpers.Store(r).TouchSession(userID, sessionID); err != nil {
+				log.Error(err)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
 			}
 		}
 
-		user, err := db.FetchUser(userID)
+		user, err := helpers.Store(r).GetUser(userID)
 		if err != nil {
-			fmt.Println("Can't find user", err)
+			if err != db.ErrNotFound {
+				// internal error
+				log.Error(err)
+			}
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		context.Set(r, "user", user)
+		context.Set(r, "user", &user)
 
 		next.ServeHTTP(w, r)
 	})
