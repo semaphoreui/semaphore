@@ -115,7 +115,6 @@ func (d *SqlDb) applyMigration(version *Version) error {
 	return tx.Commit()
 }
 
-
 // TryRollback attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) tryRollbackMigration(version *Version) {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
@@ -342,7 +341,6 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 	return err
 }
 
-
 func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
 	_, err = d.sql.Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
 		projectUser.ProjectID,
@@ -376,7 +374,6 @@ func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	newEvent.Created = created
 	return
 }
-
 
 func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 	_, err := d.sql.Exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
@@ -440,13 +437,11 @@ func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.sql
 }
 
-
 func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 	token.Created = db.GetParsedTime(time.Now())
 	err := d.sql.Insert(&token)
 	return token, err
 }
-
 
 func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
 	err = d.sql.SelectOne(&token, "select * from user__token where id=? and expired=0", tokenID)
@@ -480,10 +475,10 @@ func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
 	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) TouchSession(userID int, sessionID int) error{
-	res, err := d.sql.Exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
+func (d *SqlDb) TouchSession(userID int, sessionID int) error {
+	_, err := d.sql.Exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
 
-	return validateMutationResult(res, err)
+	return err
 }
 
 func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
