@@ -564,8 +564,7 @@ export default {
 
     try {
       await this.loadData();
-      throw new Error('Hello, World!');
-      // this.state = 'success';
+      this.state = 'success';
     } catch (err) {
       EventBus.$emit('i-snackbar', {
         color: 'error',
