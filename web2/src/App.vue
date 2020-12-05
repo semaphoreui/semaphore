@@ -323,7 +323,6 @@
     </v-main>
 
   </v-app>
-
   <v-app v-else-if="state === 'loading'">
     <v-main>
       <v-container
@@ -341,7 +340,35 @@
       </v-container>
     </v-main>
   </v-app>
-
+  <v-app v-else-if="state === 'error'">
+    <v-main>
+      <v-container
+        fluid
+        flex-column
+        fill-height
+        align-center
+        justify-center
+        class="pa-0 text-center"
+      >
+        <v-alert text color="error" class="d-inline-block">
+          <h3 class="headline">
+            Error
+          </h3>
+          {{ snackbarText }}
+        </v-alert>
+        <div class="mb-6">
+          <v-btn text color="blue darken-1" @click="refreshPage()">
+            <v-icon left>mdi-refresh</v-icon>
+            Refresh Page
+          </v-btn>
+          <v-btn text color="blue darken-1" @click="signOut()">
+            <v-icon left>mdi-exit-to-app</v-icon>
+            Relogin
+          </v-btn>
+        </div>
+      </v-container>
+    </v-main>
+  </v-app>
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
@@ -536,14 +563,15 @@ export default {
     }
 
     try {
-      await this.reloadData();
+      await this.loadData();
       this.state = 'success';
     } catch (err) {
       EventBus.$emit('i-snackbar', {
         color: 'error',
         text: getErrorMessage(err),
       });
-      await this.signOut();
+      this.state = 'error';
+      socket.stop();
     }
   },
 
@@ -662,7 +690,7 @@ export default {
       await this.$router.replace({ query });
     },
 
-    async reloadData() {
+    async loadData() {
       if (!socket.isRunning()) {
         socket.start();
       }
@@ -670,13 +698,14 @@ export default {
       await this.loadUserInfo();
       await this.loadProjects();
 
+      // try to find project and switch to it if URL not pointing to any project
       if (this.$route.path === '/'
         || this.$route.path === '/project'
         || (this.$route.path.startsWith('/project/'))) {
-        // try to find project and switch to it
         await this.trySelectMostSuitableProject();
       }
 
+      // display task dialog if query param t specified
       if (this.$route.query.t) {
         const taskId = parseInt(this.$route.query.t || '', 10);
         if (taskId) {
@@ -769,7 +798,13 @@ export default {
 
       if (this.$route.path !== '/auth/login') {
         await this.$router.push({ path: '/auth/login' });
+        this.state = 'success';
       }
+    },
+
+    refreshPage() {
+      const { location } = document;
+      document.location = location;
     },
   },
 };
