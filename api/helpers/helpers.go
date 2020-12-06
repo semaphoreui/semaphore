@@ -21,17 +21,6 @@ func isXHR(w http.ResponseWriter, r *http.Request) bool {
 	return !strings.Contains(accept, "text/html")
 }
 
-// AuthFailed write a status unauthorized header unless it is an XHR request
-// TODO - never called!
-func AuthFailed(w http.ResponseWriter, r *http.Request) {
-	if !isXHR(w, r) {
-		http.Redirect(w, r, "/?hai", http.StatusFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusUnauthorized)
-}
-
 // GetIntParam fetches a parameter from the route variables as an integer
 // redirects to a 404 or writes bad request state depending on error state
 func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, error) {
