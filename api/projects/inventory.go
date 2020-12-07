@@ -185,32 +185,26 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 // RemoveInventory deletes an inventory from the database
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(db.Inventory)
+	var err error
 
-	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and inventory_id=?", inventory.ProjectID, inventory.ID)
-	if err != nil {
-		panic(err)
-	}
+	softDeletion := len(r.URL.Query().Get("setRemoved")) == 0
 
-	if templatesC > 0 {
-		if len(r.URL.Query().Get("setRemoved")) == 0 {
+	if softDeletion {
+		err = helpers.Store(r).DeleteInventorySoft(inventory.ProjectID, inventory.ID)
+	} else {
+		err = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
+		if err == db.ErrInvalidOperation {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Inventory is in use by one or more templates",
 				"inUse": true,
 			})
-
 			return
 		}
-
-		if _, err := helpers.Store(r).Sql().Exec("update project__inventory set removed=1 where id=?", inventory.ID); err != nil {
-			panic(err)
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-		return
 	}
 
-	if _, err := helpers.Store(r).Sql().Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
-		panic(err)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	desc := "Inventory " + inventory.Name + " deleted"
@@ -222,7 +216,6 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

@@ -169,7 +169,6 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
