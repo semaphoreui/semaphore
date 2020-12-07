@@ -66,8 +66,17 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if env.ID != oldEnv.ID || env.ProjectID != oldEnv.ProjectID {
-		w.WriteHeader(http.StatusBadRequest)
+	if env.ID != oldEnv.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Environment ID in body and URL must be the same",
+		})
+		return
+	}
+
+	if env.ProjectID != oldEnv.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Project ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -98,7 +107,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	if project.ID != env.ProjectID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Project ID",
+			"error": "Project ID in body and URL must be the same",
 		})
 	}
 

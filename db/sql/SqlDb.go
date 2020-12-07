@@ -767,9 +767,9 @@ func (d *SqlDb) GetInventory(projectID int, inventoryID int) (db.Inventory, erro
 }
 
 func (d *SqlDb) GetInventories(projectID int, params db.RetrieveQueryParams) ([]db.Inventory, error) {
-	var inventory []db.Inventory
-	err := d.getObjects(projectID, "project__inventory", params, &inventory)
-	return inventory, err
+	var inventories []db.Inventory
+	err := d.getObjects(projectID, "project__inventory", params, &inventories)
+	return inventories, err
 }
 
 func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
@@ -816,4 +816,92 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 	newInventory = inventory
 	newInventory.ID = int(insertID)
 	return
+}
+
+
+
+func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, error) {
+	var repository db.Repository
+	err := d.getObject(projectID, "project__repository", repositoryID, &repository)
+	return repository, err
+}
+
+func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (repositories []db.Repository, err error) {
+	q := squirrel.Select("pr.id",
+		"pr.name",
+		"pr.project_id",
+		"pr.git_url",
+		"pr.ssh_key_id",
+		"pr.removed").
+		From("project__repository pr")
+
+	order := "ASC"
+	if params.SortInverted {
+		order = "DESC"
+	}
+
+	switch params.SortBy {
+	case "name", "git_url":
+		q = q.Where("pr.project_id=?", projectID).
+			OrderBy("pr." + params.SortBy + " " + order)
+	case "ssh_key":
+		q = q.LeftJoin("access_key ak ON (pr.ssh_key_id = ak.id)").
+			Where("pr.project_id=?", projectID).
+			OrderBy("ak.name " + order)
+	default:
+		q = q.Where("pr.project_id=?", projectID).
+			OrderBy("pr.name " + order)
+	}
+
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(&repositories, query, args...)
+
+	return
+}
+
+func (d *SqlDb) UpdateRepository(repository db.Repository) error {
+	res, err := d.sql.Exec(
+		"update project__repository set name=?, git_url=?, ssh_key_id=? where id=?",
+		repository.Name,
+		repository.GitURL,
+		repository.SSHKeyID,
+		repository.ID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repository, err error) {
+	res, err := d.sql.Exec(
+		"insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)",
+		repository.ProjectID,
+		repository.GitURL,
+		repository.SSHKeyID,
+		repository.Name)
+
+	if err != nil {
+		return
+	}
+
+	insertID, err := res.LastInsertId()
+	if err != nil {
+		return
+	}
+
+	newRepo = repository
+	newRepo.ID = int(insertID)
+	return
+}
+
+func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
+	return d.deleteObject(projectID, "project__repository", "repository_id", repositoryId)
+}
+
+func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
+	return d.deleteObjectSoft(projectID, "project__repository", repositoryId)
 }

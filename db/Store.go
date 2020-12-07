@@ -47,8 +47,16 @@ type Store interface {
 	GetInventories(projectID int, params RetrieveQueryParams) ([]Inventory, error)
 	UpdateInventory(inventory Inventory) error
 	CreateInventory(inventory Inventory) (Inventory, error)
-	DeleteInventory(projectID int, templateID int) error
-	DeleteInventorySoft(projectID int, templateID int) error
+	DeleteInventory(projectID int, inventoryID int) error
+	DeleteInventorySoft(projectID int, inventoryID int) error
+
+	GetRepository(projectID int, repositoryID int) (Repository, error)
+	GetRepositories(projectID int, params RetrieveQueryParams) ([]Repository, error)
+	UpdateRepository(repository Repository) error
+	CreateRepository(repository Repository) (Repository, error)
+	DeleteRepository(projectID int, repositoryID int) error
+	DeleteRepositorySoft(projectID int, repositoryID int) error
+
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUser(user User) (User, error)
@@ -86,3 +94,5 @@ type Store interface {
 
 	Sql() *gorp.DbMap
 }
+
+
