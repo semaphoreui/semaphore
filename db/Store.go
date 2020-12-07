@@ -8,6 +8,7 @@ import (
 )
 
 
+
 const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
 
 // GetParsedTime returns the timestamp as it will retrieved from the database
@@ -41,6 +42,13 @@ type Store interface {
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
 	DeleteEnvironmentSoft(projectID int, templateID int) error
+
+	GetInventory(projectID int, inventoryID int) (Inventory, error)
+	GetInventories(projectID int, params RetrieveQueryParams) ([]Inventory, error)
+	UpdateInventory(inventory Inventory) error
+	CreateInventory(inventory Inventory) (Inventory, error)
+	DeleteInventory(projectID int, templateID int) error
+	DeleteInventorySoft(projectID int, templateID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUser(user User) (User, error)

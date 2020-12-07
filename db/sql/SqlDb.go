@@ -180,6 +180,104 @@ func createDb() error {
 	return nil
 }
 
+
+
+func (d *SqlDb) getObject(projectID int, tableName string, objectID int, object interface{}) (err error) {
+	query, args, err := squirrel.Select("*").
+		From(tableName).
+		Where("project_id=?", projectID).
+		Where("id=?", objectID).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.sql.SelectOne(object, query, args...)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err = db.ErrNotFound
+			return
+		}
+
+		return
+	}
+
+	return
+}
+
+func (d *SqlDb) getObjects(projectID int, tableName string, params db.RetrieveQueryParams, objects interface{}) (err error) {
+	q := squirrel.Select("*").
+		From(tableName + " pe").
+		Where("project_id=?", projectID)
+
+	order := "ASC"
+	if params.SortInverted {
+		order = "DESC"
+	}
+
+	switch params.SortBy {
+	case "name":
+		q = q.Where("pe.project_id=?", projectID).
+			OrderBy("pe." + params.SortBy + " " + order)
+	default:
+		q = q.Where("pe.project_id=?", projectID).
+			OrderBy("pe.name " + order)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(objects, query, args...)
+
+	return
+}
+
+func (d *SqlDb) isObjectInUse(projectID int, templateColumnName string, objectID int) (bool, error) {
+	templatesC, err := d.sql.SelectInt(
+		"select count(1) from project__template where project_id=? and " + templateColumnName + "=?",
+		projectID,
+		objectID)
+
+	if err != nil {
+		return false, err
+	}
+
+	return templatesC > 0, nil
+}
+
+func (d *SqlDb) deleteObject(projectID int, tableName string, templateColumnName string, objectID int) error {
+	inUse, err := d.isObjectInUse(projectID, templateColumnName, objectID)
+
+	if err != nil {
+		return err
+	}
+
+	if inUse {
+		return db.ErrInvalidOperation
+	}
+
+	return validateMutationResult(
+		d.sql.Exec(
+			"delete from " + tableName + " where project_id=? and id=?",
+			projectID,
+			objectID))
+}
+
+func (d *SqlDb) deleteObjectSoft(projectID int, tableName string, objectID int) error {
+	return validateMutationResult(
+		d.sql.Exec(
+			"update " + tableName + " set removed=1 where project_id=? and id=?",
+			projectID,
+			objectID))
+}
+
+
+
 func (d *SqlDb) Migrate() error {
 	fmt.Println("Checking DB migrations")
 	didRun := false
@@ -491,77 +589,25 @@ func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
 	return
 }
 
-func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (env db.Environment, err error) {
-	query, args, err := squirrel.Select("*").
-		From("project__environment").
-		Where("project_id=?", projectID).
-		Where("id=?", environmentID).
-		ToSql()
-
-	if err != nil {
-		return
-	}
-
-	err = d.sql.SelectOne(&env, query, args...)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			err = db.ErrNotFound
-			return
-		}
-
-		return
-	}
-
-	return
+func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
+	var environment db.Environment
+	err := d.getObject(projectID, "project__environment", environmentID, &environment)
+	return environment, err
 }
 
-func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (environments []db.Environment, err error) {
-	q := squirrel.Select("*").
-		From("project__environment pe").
-		Where("project_id=?", projectID)
-
-	order := "ASC"
-	if params.SortInverted {
-		order = "DESC"
-	}
-
-	switch params.SortBy {
-	case "name":
-		q = q.Where("pe.project_id=?", projectID).
-			OrderBy("pe." + params.SortBy + " " + order)
-	default:
-		q = q.Where("pe.project_id=?", projectID).
-			OrderBy("pe.name " + order)
-	}
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	_, err = d.sql.Select(&environments, query, args...)
-
-	return
+func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
+	var environment []db.Environment
+	err := d.getObjects(projectID, "project__environment", params, &environment)
+	return environment, err
 }
 
 func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
-	res, err := d.sql.Exec("update project__environment set name=?, json=? where id=?", env.Name, env.JSON, env.ID)
+	res, err := d.sql.Exec(
+		"update project__environment set name=?, json=? where id=?",
+		env.Name,
+		env.JSON,
+		env.ID)
 	return validateMutationResult(res, err)
-}
-
-func (d *SqlDb) isEnvironmentInUse(projectID int, environmentID int) (bool, error) {
-	templatesC, err := d.sql.SelectInt(
-		"select count(1) from project__template where project_id=? and environment_id=?",
-		projectID,
-		environmentID)
-
-	if err != nil {
-		return false, err
-	}
-
-	return templatesC > 0, nil
 }
 
 func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
@@ -588,29 +634,11 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 }
 
 func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
-	inUse, err := d.isEnvironmentInUse(projectID, environmentID)
-
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return db.ErrInvalidOperation
-	}
-
-	return validateMutationResult(
-		d.sql.Exec(
-			"delete from project__environment where project_id=? and id=?",
-			projectID,
-			environmentID))
+	return d.deleteObject(projectID, "project__environment", "environment_id", environmentID)
 }
 
 func (d *SqlDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
-	return validateMutationResult(
-		d.sql.Exec(
-			"update project__environment set removed=1 where project_id=? and id=?",
-			projectID,
-			environmentID))
+	return d.deleteObjectSoft(projectID, "project__environment", environmentID)
 }
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
@@ -730,4 +758,62 @@ func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
 		templateID)
 
 	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) GetInventory(projectID int, inventoryID int) (db.Inventory, error) {
+	var inventory db.Inventory
+	err := d.getObject(projectID, "project__inventory", inventoryID, &inventory)
+	return inventory, err
+}
+
+func (d *SqlDb) GetInventories(projectID int, params db.RetrieveQueryParams) ([]db.Inventory, error) {
+	var inventory []db.Inventory
+	err := d.getObjects(projectID, "project__inventory", params, &inventory)
+	return inventory, err
+}
+
+func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
+	return d.deleteObject(projectID, "project__inventory", "inventory_id", inventoryID);
+}
+
+func (d *SqlDb) DeleteInventorySoft(projectID int, inventoryID int) error {
+	return d.deleteObjectSoft(projectID, "project__inventory",  inventoryID)
+}
+
+
+func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
+	res, err := d.sql.Exec(
+		"update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?",
+		inventory.Name,
+		inventory.Type,
+		inventory.KeyID,
+		inventory.SSHKeyID,
+		inventory.Inventory,
+		inventory.ID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
+	res, err := d.sql.Exec(
+		"insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?",
+		inventory.ProjectID,
+		inventory.Name,
+		inventory.Type,
+		inventory.KeyID,
+		inventory.SSHKeyID,
+		inventory.Inventory)
+
+	if err != nil {
+		return
+	}
+
+	insertID, err := res.LastInsertId()
+	if err != nil {
+		return
+	}
+
+	newInventory = inventory
+	newInventory.ID = int(insertID)
+	return
 }

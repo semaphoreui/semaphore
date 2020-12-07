@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -11,9 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 const (
@@ -30,21 +27,10 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		query, args, err := squirrel.Select("*").
-			From("project__inventory").
-			Where("project_id=?", project.ID).
-			Where("id=?", inventoryID).
-			ToSql()
-		util.LogWarning(err)
+		inventory, err := helpers.Store(r).GetInventory(project.ID, inventoryID)
 
-		var inventory db.Inventory
-		if err := helpers.Store(r).Sql().SelectOne(&inventory, query, args...); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-
-			panic(err)
+		if err != nil {
+			helpers.WriteError(w, err)
 		}
 
 		context.Set(r, "inventory", inventory)
@@ -61,49 +47,36 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	var inv []db.Inventory
 
-	sort := r.URL.Query().Get("sort")
-	order := r.URL.Query().Get("order")
-
-	if order != asc && order != desc {
-		order = asc
+	params := db.RetrieveQueryParams{
+		SortBy: r.URL.Query().Get("sort"),
+		SortInverted: r.URL.Query().Get("order") == desc,
 	}
 
-	q := squirrel.Select("*").
-		From("project__inventory pi")
+	inventories, err := helpers.Store(r).GetInventories(project.ID, params)
 
-	switch sort {
-	case "name", "type":
-		q = q.Where("pi.project_id=?", project.ID).
-			OrderBy("pi." + sort + " " + order)
-	default:
-		q = q.Where("pi.project_id=?", project.ID).
-			OrderBy("pi.name " + order)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
-	query, args, err := q.ToSql()
-	util.LogWarning(err)
-
-	if _, err := helpers.Store(r).Sql().Select(&inv, query, args...); err != nil {
-		panic(err)
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, inv)
+	helpers.WriteJSON(w, http.StatusOK, inventories)
 }
 
 // AddInventory creates an inventory in the database
 func AddInventory(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	var inventory struct {
-		Name      string `json:"name" binding:"required"`
-		KeyID     *int   `json:"key_id"`
-		SSHKeyID  int    `json:"ssh_key_id"`
-		Type      string `json:"type"`
-		Inventory string `json:"inventory"`
-	}
+
+	var inventory db.Inventory
 
 	if !helpers.Bind(w, r, &inventory) {
+		return
+	}
+
+	if inventory.ProjectID != project.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Project ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -111,46 +84,34 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	case "static", "file":
 		break
 	default:
-		w.WriteHeader(http.StatusBadRequest)
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Not supported inventory type",
+		})
 		return
 	}
 
-	res, err := helpers.Store(r).Sql().Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory)
+	newInventory, err := helpers.Store(r).CreateInventory(inventory)
+
 	if err != nil {
-		panic(err)
+		helpers.WriteError(w, err)
+		return
 	}
 
-	insertID, err := res.LastInsertId()
-	util.LogWarning(err)
-	insertIDInt := int(insertID)
 	objType := "inventory"
-
 	desc := "Inventory " + inventory.Name + " created"
-
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
+		ObjectID:    &newInventory.ID,
 		Description: &desc,
 	})
 
 	if err != nil {
+		// Write error to log but return ok to user, because inventory created
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
-	inv := db.Inventory{
-		ID:        insertIDInt,
-		Name:      inventory.Name,
-		ProjectID: project.ID,
-		Inventory: inventory.Inventory,
-		KeyID:     inventory.KeyID,
-		SSHKeyID:  &inventory.SSHKeyID,
-		Type:      inventory.Type,
-	}
-
-	helpers.WriteJSON(w, http.StatusCreated, inv)
+	helpers.WriteJSON(w, http.StatusCreated, newInventory)
 }
 
 // IsValidInventoryPath tests a path to ensure it is below the cwd
@@ -178,15 +139,23 @@ func IsValidInventoryPath(path string) bool {
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	oldInventory := context.Get(r, "inventory").(db.Inventory)
 
-	var inventory struct {
-		Name      string `json:"name" binding:"required"`
-		KeyID     *int   `json:"key_id"`
-		SSHKeyID  int    `json:"ssh_key_id"`
-		Type      string `json:"type"`
-		Inventory string `json:"inventory"`
-	}
+	var inventory db.Inventory
 
 	if !helpers.Bind(w, r, &inventory) {
+		return
+	}
+
+	if inventory.ID != oldInventory.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Inventory ID in body and URL must be the same",
+		})
+		return
+	}
+
+	if inventory.ProjectID != oldInventory.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Project ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -203,22 +172,10 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := helpers.Store(r).Sql().Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SSHKeyID, inventory.Inventory, oldInventory.ID); err != nil {
-		panic(err)
-	}
-
-	desc := "Inventory " + inventory.Name + " updated"
-	objType := "inventory"
-	_, err := helpers.Store(r).CreateEvent(db.Event{
-		ProjectID:   &oldInventory.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldInventory.ID,
-		ObjectType:  &objType,
-	})
+	err := helpers.Store(r).UpdateInventory(inventory)
 
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		helpers.WriteError(w, err)
 		return
 	}
 
