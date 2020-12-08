@@ -57,6 +57,13 @@ type Store interface {
 	DeleteRepository(projectID int, repositoryID int) error
 	DeleteRepositorySoft(projectID int, repositoryID int) error
 
+	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
+	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
+	UpdateAccessKey(accessKey AccessKey) error
+	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
+	DeleteAccessKey(projectID int, accessKeyID int) error
+	DeleteAccessKeySoft(projectID int, accessKeyID int) error
+
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUser(user User) (User, error)

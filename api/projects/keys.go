@@ -1,15 +1,12 @@
 package projects
 
 import (
-	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 // KeyMiddleware ensures a key exists and loads it to the context
@@ -21,14 +18,11 @@ func KeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		var key db.AccessKey
-		if err := helpers.Store(r).Sql().SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
+		key, err := helpers.Store(r).GetAccessKey(project.ID, keyID)
 
-			panic(err)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
 		}
 
 		context.Set(r, "accessKey", key)
@@ -46,39 +40,16 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
 
-	sort := r.URL.Query().Get("sort")
-	order := r.URL.Query().Get("order")
-
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	params := db.RetrieveQueryParams{
+		SortBy: r.URL.Query().Get("sort"),
+		SortInverted: r.URL.Query().Get("order") == desc,
 	}
 
-	q := squirrel.Select("ak.id",
-		"ak.name",
-		"ak.type",
-		"ak.project_id",
-		"ak.key",
-		"ak.removed").
-		From("access_key ak")
+	keys, err := helpers.Store(r).GetAccessKeys(project.ID, params)
 
-	if t := r.URL.Query().Get("type"); len(t) > 0 {
-		q = q.Where("type=?", t)
-	}
-
-	switch sort {
-	case "name", "type":
-		q = q.Where("ak.project_id=?", project.ID).
-			OrderBy("ak." + sort + " " + order)
-	default:
-		q = q.Where("ak.project_id=?", project.ID).
-			OrderBy("ak.name " + order)
-	}
-
-	query, args, err := q.ToSql()
-	util.LogWarning(err)
-
-	if _, err := helpers.Store(r).Sql().Select(&keys, query, args...); err != nil {
-		panic(err)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, keys)
@@ -90,6 +61,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	var key db.AccessKey
 
 	if !helpers.Bind(w, r, &key) {
+		return
+	}
+
+	if key.ProjectID == nil || *key.ProjectID != project.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Inventory ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -110,29 +88,27 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secret := *key.Secret + "\n"
+	*key.Secret += "\n"
 
-	res, err := helpers.Store(r).Sql().Exec("insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)", key.Name, key.Type, project.ID, key.Key, secret)
+	newKey, err := helpers.Store(r).CreateAccessKey(key)
+
 	if err != nil {
-		panic(err)
+		helpers.WriteError(w, err)
+		return
 	}
 
-	insertID, err := res.LastInsertId()
-	util.LogWarning(err)
-	insertIDInt := int(insertID)
 	objType := "key"
 
 	desc := "Access Key " + key.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		ProjectID:   &project.ID,
+		ProjectID:   newKey.ProjectID,
 		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
+		ObjectID:    &newKey.ID,
 		Description: &desc,
 	})
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -174,8 +150,9 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		key.Secret = &secret
 	}
 
-	if _, err := helpers.Store(r).Sql().Exec("update access_key set name=?, type=?, `key`=?, secret=? where id=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
-		panic(err)
+	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	desc := "Access Key " + key.Name + " updated"
@@ -190,7 +167,6 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -201,36 +177,26 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := context.Get(r, "accessKey").(db.AccessKey)
 
-	templatesC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__template where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
-	if err != nil {
-		panic(err)
-	}
+	var err error
 
-	inventoryC, err := helpers.Store(r).Sql().SelectInt("select count(1) from project__inventory where project_id=? and ssh_key_id=?", *key.ProjectID, key.ID)
-	if err != nil {
-		panic(err)
-	}
+	softDeletion := len(r.URL.Query().Get("setRemoved")) == 0
 
-	if templatesC > 0 || inventoryC > 0 {
-		if len(r.URL.Query().Get("setRemoved")) == 0 {
+	if softDeletion {
+		err = helpers.Store(r).DeleteAccessKeySoft(*key.ProjectID, key.ID)
+	} else {
+		err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
+		if err == db.ErrInvalidOperation {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Key is in use by one or more templates / inventory",
+				"error": "Inventory is in use by one or more templates",
 				"inUse": true,
 			})
-
 			return
 		}
-
-		if _, err := helpers.Store(r).Sql().Exec("update access_key set removed=1 where id=?", key.ID); err != nil {
-			panic(err)
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-		return
 	}
 
-	if _, err := helpers.Store(r).Sql().Exec("delete from access_key where id=?", key.ID); err != nil {
-		panic(err)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	desc := "Access Key " + key.Name + " deleted"
@@ -242,7 +208,6 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

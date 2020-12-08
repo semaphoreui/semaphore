@@ -28,6 +28,15 @@ create table ` + "`migrations`" + ` (
 `
 var dbAssets = packr.NewBox("./migrations")
 
+func containsStr(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
+}
+
 func handleRollbackError(err error) {
 	if err != nil {
 		log.Warn(err.Error())
@@ -207,24 +216,22 @@ func (d *SqlDb) getObject(projectID int, tableName string, objectID int, object 
 	return
 }
 
-func (d *SqlDb) getObjects(projectID int, tableName string, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func (d *SqlDb) getObjects(projectID int, tableName string, sortableColumns []string, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
 		From(tableName + " pe").
-		Where("project_id=?", projectID)
+		Where("pe.project_id=?", projectID)
 
-	order := "ASC"
+	orderDirection := "ASC"
 	if params.SortInverted {
-		order = "DESC"
+		orderDirection = "DESC"
 	}
 
-	switch params.SortBy {
-	case "name":
-		q = q.Where("pe.project_id=?", projectID).
-			OrderBy("pe." + params.SortBy + " " + order)
-	default:
-		q = q.Where("pe.project_id=?", projectID).
-			OrderBy("pe.name " + order)
+	orderColumn := "name"
+	if containsStr(sortableColumns, params.SortBy) {
+		orderColumn = params.SortBy
 	}
+
+	q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
 
 	query, args, err := q.ToSql()
 
@@ -597,7 +604,7 @@ func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
 	var environment []db.Environment
-	err := d.getObjects(projectID, "project__environment", params, &environment)
+	err := d.getObjects(projectID, "project__environment", []string{"name"}, params, &environment)
 	return environment, err
 }
 
@@ -768,7 +775,7 @@ func (d *SqlDb) GetInventory(projectID int, inventoryID int) (db.Inventory, erro
 
 func (d *SqlDb) GetInventories(projectID int, params db.RetrieveQueryParams) ([]db.Inventory, error) {
 	var inventories []db.Inventory
-	err := d.getObjects(projectID, "project__inventory", params, &inventories)
+	err := d.getObjects(projectID, "project__inventory", []string{"name"}, params, &inventories)
 	return inventories, err
 }
 
@@ -827,12 +834,7 @@ func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, e
 }
 
 func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (repositories []db.Repository, err error) {
-	q := squirrel.Select("pr.id",
-		"pr.name",
-		"pr.project_id",
-		"pr.git_url",
-		"pr.ssh_key_id",
-		"pr.removed").
+	q := squirrel.Select("*").
 		From("project__repository pr")
 
 	order := "ASC"
@@ -852,7 +854,6 @@ func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (r
 		q = q.Where("pr.project_id=?", projectID).
 			OrderBy("pr.name " + order)
 	}
-
 
 	query, args, err := q.ToSql()
 
@@ -904,4 +905,60 @@ func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
 
 func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
 	return d.deleteObjectSoft(projectID, "project__repository", repositoryId)
+}
+
+
+func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error) {
+	var key db.AccessKey
+	err := d.getObject(projectID, "access_key", accessKeyID, &key)
+	return key, err
+}
+
+func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
+	var keys []db.AccessKey
+	err := d.getObjects(projectID, "access_key", []string{"name", "type"}, params, &keys)
+	return keys, err
+}
+
+func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
+	res, err := d.sql.Exec(
+		"update access_key set name=?, type=?, `key`=?, secret=? where id=?",
+		key.Name,
+		key.Type,
+		key.Key,
+		key.Secret,
+		key.ID)
+
+	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
+	res, err := d.sql.Exec(
+		"insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)",
+		key.Name,
+		key.Type,
+		key.ProjectID,
+		key.Key,
+		key.Secret)
+
+	if err != nil {
+		return
+	}
+
+	insertID, err := res.LastInsertId()
+	if err != nil {
+		return
+	}
+
+	newKey = key
+	newKey.ID = int(insertID)
+	return
+}
+
+func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
+	return d.deleteObject(projectID, "access_key", "ssh_key_id", accessKeyID)
+}
+
+func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
+	return d.deleteObjectSoft(projectID, "access_key", accessKeyID)
 }
