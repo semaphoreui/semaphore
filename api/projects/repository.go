@@ -102,7 +102,6 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -154,7 +153,6 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -196,7 +194,6 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

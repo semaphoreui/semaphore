@@ -137,8 +137,6 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -178,7 +176,6 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

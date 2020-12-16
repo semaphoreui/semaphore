@@ -30,6 +30,7 @@ type RetrieveQueryParams struct {
 
 var ErrNotFound = errors.New("sql: no rows in result set")
 var ErrInvalidOperation = errors.New("sql: no rows in result set")
+var Forbidden = errors.New("sql: no rows in result set")
 
 type Store interface {
 	Connect() error
@@ -72,12 +73,12 @@ type Store interface {
 	SetUserPassword(userID int, password string) error
 	GetUser(userID int) (User, error)
 
+	GetProject(projectID int) (Project, error)
+	GetProjects(userID int) ([]Project, error)
 	CreateProject(project Project) (Project, error)
-	//DeleteProject(projectId int) error
-	//UpdateProject(project Project) error
-	//GetProjectById(projectId int) (Project, error)
-	//GetProjects(userId int) ([]Project, error)
-	//
+	DeleteProject(projectID int) error
+	UpdateProject(project Project) error
+
 
 	GetTemplates(projectID int, params RetrieveQueryParams) ([]Template, error)
 	CreateTemplate(template Template) (Template, error)
@@ -85,8 +86,10 @@ type Store interface {
 	GetTemplate(projectID int, templateID int) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
 
+	GetProjectUsers(projectID int) ([]ProjectUser, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
 	DeleteProjectUser(projectID, userID int) error
+	GetProjectUser(projectID, userID int) (ProjectUser, error)
 
 	CreateEvent(event Event) (Event, error)
 

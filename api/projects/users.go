@@ -109,8 +109,6 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -141,8 +139,6 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

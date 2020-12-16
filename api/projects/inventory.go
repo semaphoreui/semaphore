@@ -216,7 +216,6 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

@@ -6,6 +6,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -70,5 +71,6 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 
 	log.Error(err)
+	debug.PrintStack()
 	w.WriteHeader(http.StatusInternalServerError)
 }

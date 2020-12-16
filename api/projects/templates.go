@@ -85,8 +85,6 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, template)
@@ -131,8 +129,6 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -156,8 +152,7 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		helpers.WriteError(w, err)
-		return
+		log.Error(err)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

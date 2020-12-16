@@ -204,13 +204,8 @@ func (d *SqlDb) getObject(projectID int, tableName string, objectID int, object 
 
 	err = d.sql.SelectOne(object, query, args...)
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			err = db.ErrNotFound
-			return
-		}
-
-		return
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
 	}
 
 	return
@@ -386,6 +381,76 @@ func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err er
 	return
 }
 
+func (d *SqlDb) GetProjects(userID int) (projects []db.Project, err error) {
+	query, args, err := squirrel.Select("p.*").
+		From("project as p").
+		Join("project__user as pu on pu.project_id=p.id").
+		Where("pu.user_id=?", userID).
+		OrderBy("p.name").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(&projects, query, args...)
+
+	return
+}
+
+func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
+	query, args, err := squirrel.Select("p.*").
+		From("project as p").
+		Where("p.id=?", projectID).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.sql.SelectOne(&project, query, args...)
+
+	return
+}
+
+func (d *SqlDb) DeleteProject(projectID int) error {
+	tx, err := d.sql.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	statements := []string{
+		"delete from project__template where project_id=?",
+		"delete from project__user where project_id=?",
+		"delete from project__repository where project_id=?",
+		"delete from project__inventory where project_id=?",
+		"delete from access_key where project_id=?",
+		"delete from project where id=?",
+	}
+
+	for _, statement := range statements {
+		_, err = tx.Exec(statement, projectID)
+
+		if err != nil {
+			err = tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (d *SqlDb) UpdateProject(project db.Project) error {
+	_, err := d.sql.Exec(
+		"update project set name=?, alert=?, alert_chat=? where id=?",
+		project.Name,
+		project.Alert,
+		project.AlertChat,
+		project.ID)
+	return err
+}
+
 func (d *SqlDb) CreateUser(user db.User) (newUser db.User, err error) {
 	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 
@@ -426,7 +491,7 @@ func (d *SqlDb) DeleteUser(userID int) error {
 }
 
 func (d *SqlDb) UpdateUser(user db.User) error {
-	res, err := d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+	_, err := d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
 		user.Name,
 		user.Username,
 		user.Email,
@@ -434,7 +499,7 @@ func (d *SqlDb) UpdateUser(user db.User) error {
 		user.Admin,
 		user.ID)
 
-	return validateMutationResult(res, err)
+	return err
 }
 
 func (d *SqlDb) SetUserPassword(userID int, password string) error {
@@ -458,6 +523,36 @@ func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db
 
 	newProjectUser = projectUser
 	return
+}
+
+func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
+	var user db.ProjectUser
+
+	err := d.sql.SelectOne(&user,
+		"select * from project__user where project_id=? and user_id=?",
+		projectID,
+		userID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return user, err
+}
+
+func (d *SqlDb) GetProjectUsers(projectID int) ([]db.ProjectUser, error) {
+	var users []db.ProjectUser
+
+	err := d.sql.SelectOne(
+		&users,
+		"select * from project__user where project_id=?",
+		projectID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return users, err
 }
 
 func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
@@ -609,12 +704,12 @@ func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([
 }
 
 func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
-	res, err := d.sql.Exec(
+	_, err := d.sql.Exec(
 		"update project__environment set name=?, json=? where id=?",
 		env.Name,
 		env.JSON,
 		env.ID)
-	return validateMutationResult(res, err)
+	return err
 }
 
 func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
@@ -675,7 +770,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	res, err := d.sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
+	_, err := d.sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
 		template.SSHKeyID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -686,7 +781,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.OverrideArguments,
 		template.ID)
 
-	return validateMutationResult(res, err)
+	return err
 }
 
 func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
@@ -789,7 +884,7 @@ func (d *SqlDb) DeleteInventorySoft(projectID int, inventoryID int) error {
 
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
-	res, err := d.sql.Exec(
+	_, err := d.sql.Exec(
 		"update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?",
 		inventory.Name,
 		inventory.Type,
@@ -798,7 +893,7 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 		inventory.Inventory,
 		inventory.ID)
 
-	return validateMutationResult(res, err)
+	return err
 }
 
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
@@ -867,14 +962,14 @@ func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (r
 }
 
 func (d *SqlDb) UpdateRepository(repository db.Repository) error {
-	res, err := d.sql.Exec(
+	_, err := d.sql.Exec(
 		"update project__repository set name=?, git_url=?, ssh_key_id=? where id=?",
 		repository.Name,
 		repository.GitURL,
 		repository.SSHKeyID,
 		repository.ID)
 
-	return validateMutationResult(res, err)
+	return err
 }
 
 func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repository, err error) {

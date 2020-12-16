@@ -6,26 +6,18 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 // GetProjects returns all projects in this users context
 func GetProjects(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
-	query, args, err := squirrel.Select("p.*").
-		From("project as p").
-		Join("project__user as pu on pu.project_id=p.id").
-		Where("pu.user_id=?", user.ID).
-		OrderBy("p.name").
-		ToSql()
+	projects, err := helpers.Store(r).GetProjects(user.ID)
 
-	util.LogWarning(err)
-	var projects []db.Project
-	if _, err := helpers.Store(r).Sql().Select(&projects, query, args...); err != nil {
-		panic(err)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, projects)
@@ -44,13 +36,14 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 
 	body, err := helpers.Store(r).CreateProject(body)
 	if err != nil {
-		panic(err)
+		helpers.WriteError(w, err)
+		return
 	}
 
 	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Admin: true})
-
 	if err != nil {
-		panic(err)
+		helpers.WriteError(w, err)
+		return
 	}
 
 	desc := "Project Created"
@@ -64,8 +57,6 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, body)
