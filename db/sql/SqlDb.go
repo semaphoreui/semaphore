@@ -1057,3 +1057,64 @@ func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
 	return d.deleteObjectSoft(projectID, "access_key", accessKeyID)
 }
+
+func (d *SqlDb) GetEvents(projectID int, params db.RetrieveQueryParams) (events []db.Event, err error) {
+	q := squirrel.Select("event.*, p.name as project_name").
+		From("event").
+		LeftJoin("project as p on event.project_id=p.id").
+		OrderBy("created desc").
+		Where("event.project_id=?", projectID)
+
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(&events, query, args...)
+
+	if err != nil {
+		return
+	}
+
+	for i, evt := range events {
+		if evt.ObjectID == nil || evt.ObjectType == nil {
+			continue
+		}
+
+		var q squirrel.SelectBuilder
+
+		switch *evt.ObjectType {
+		case "task":
+			q = squirrel.Select("case when length(task.playbook) > 0 then task.playbook else tpl.playbook end").
+				From("task").
+				Join("project__template as tpl on task.template_id=tpl.id").
+				Where("task.id=?", evt.ObjectID)
+		default:
+			continue
+		}
+
+		query, args, err = q.ToSql()
+
+		if err != nil {
+			return
+		}
+
+		var name sql.NullString
+		name, err = d.sql.SelectNullStr(query, args...)
+
+		if err != nil {
+			return
+		}
+
+		if name.Valid {
+			events[i].ObjectName = name.String
+		}
+	}
+
+	return
+}

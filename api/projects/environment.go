@@ -67,9 +67,9 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if env.ID != oldEnv.ID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Environment ID in body and URL must be the same",
-		})
+				helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+					"error": "Environment ID in body and URL must be the same",
+				})
 		return
 	}
 
