@@ -103,6 +103,7 @@ type Store interface {
 	TouchSession(userID int, sessionID int) error
 
 
+	GetUserEvents(userID int, params RetrieveQueryParams) ([]Event, error)
 	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
 
 	Sql() *gorp.DbMap

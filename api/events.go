@@ -12,23 +12,24 @@ import (
 func getEvents(w http.ResponseWriter, r *http.Request, limit int) {
 	user := context.Get(r, "user").(*db.User)
 	projectObj, exists := context.GetOk(r, "project")
-	if !exists {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Project ID not specified",
-		})
-		return
+
+	var err error
+	var events []db.Event
+
+	if exists {
+		project := projectObj.(db.Project)
+
+		_, err = helpers.Store(r).GetProjectUser(project.ID, user.ID)
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		events, err = helpers.Store(r).GetEvents(project.ID, db.RetrieveQueryParams{Count: limit})
+	} else {
+		events, err = helpers.Store(r).GetUserEvents(user.ID, db.RetrieveQueryParams{Count: limit})
 	}
-
-	project := projectObj.(db.Project)
-
-	_, err := helpers.Store(r).GetProjectUser(project.ID, user.ID)
-
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
-	events, err := helpers.Store(r).GetEvents(project.ID, db.RetrieveQueryParams{Count: limit})
 
 	if err != nil {
 		helpers.WriteError(w, err)
