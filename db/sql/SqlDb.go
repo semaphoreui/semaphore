@@ -540,19 +540,44 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 	return user, err
 }
 
-func (d *SqlDb) GetProjectUsers(projectID int) ([]db.ProjectUser, error) {
-	var users []db.ProjectUser
+func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
+	q := squirrel.Select("u.*").Column("pu.admin").
+		From("project__user as pu").
+		LeftJoin("user as u on pu.user_id=u.id").
+		Where("pu.project_id=?", projectID)
 
-	err := d.sql.SelectOne(
-		&users,
-		"select * from project__user where project_id=?",
-		projectID)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
+	sortDirection := "ASC"
+	if params.SortInverted {
+		sortDirection = "DESC"
 	}
 
-	return users, err
+	switch params.SortBy {
+	case "name", "username", "email":
+		q = q.OrderBy("u." + params.SortBy + " " + sortDirection)
+	case "admin":
+		q = q.OrderBy("pu." + params.SortBy + " " + sortDirection)
+	default:
+		q = q.OrderBy("u.name " + sortDirection)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.sql.Select(&users, query, args...)
+
+	return
+}
+
+func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
+	_, err := d.sql.Exec("update `project__user` set admin=? where user_id=? and project_id = ?",
+		projectUser.Admin,
+		projectUser.UserID,
+		projectUser.ProjectID)
+
+	return err
 }
 
 func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
@@ -1149,4 +1174,9 @@ func (d *SqlDb) GetEvents(projectID int, params db.RetrieveQueryParams) ([]db.Ev
 		Where("event.project_id=?", projectID)
 
 	return d.getEvents(q, params)
+}
+
+func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser db.User, err error) {
+	err = d.sql.SelectOne(&existingUser, "select * from `user` where email=? or username=?", email, login)
+	return
 }

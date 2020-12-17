@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"database/sql"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
@@ -9,7 +8,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 // UserMiddleware ensures a user exists and loads it to the context
@@ -21,14 +19,18 @@ func UserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		var user db.User
-		if err := helpers.Store(r).Sql().SelectOne(&user, "select u.* from project__user as pu join `user` as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
+		_, err = helpers.Store(r).GetProjectUser(project.ID, userID)
 
-			panic(err)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		user, err := helpers.Store(r).GetUser(userID)
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
 		}
 
 		context.Set(r, "projectUser", user)
@@ -46,33 +48,16 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	project := context.Get(r, "project").(db.Project)
-	var users []db.User
-
-	sort := r.URL.Query().Get("sort")
-	order := r.URL.Query().Get("order")
-
-	if order != asc && order != desc {
-		order = asc
+	params := db.RetrieveQueryParams{
+		SortBy: r.URL.Query().Get("sort"),
+		SortInverted: r.URL.Query().Get("order") == desc,
 	}
 
-	q := squirrel.Select("u.*").Column("pu.admin").
-		From("project__user as pu").
-		LeftJoin("user as u on pu.user_id=u.id").
-		Where("pu.project_id=?", project.ID)
+	users, err := helpers.Store(r).GetProjectUsers(project.ID, params)
 
-	switch sort {
-	case "name", "username", "email":
-		q = q.OrderBy("u." + sort + " " + order)
-	case "admin":
-		q = q.OrderBy("pu." + sort + " " + order)
-	default:
-		q = q.OrderBy("u.name " + order)
-	}
-
-	query, args, _ := q.ToSql()
-
-	if _, err := helpers.Store(r).Sql().Select(&users, query, args...); err != nil {
-		panic(err)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, users)
@@ -122,8 +107,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	err := helpers.Store(r).DeleteProjectUser(project.ID, user.ID)
 
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		helpers.WriteError(w, err)
 		return
 	}
 
@@ -148,15 +132,18 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
-	admin := 1
+	admin := true
 
 	if r.Method == "DELETE" {
 		// strip admin
-		admin = 0
+		admin = false
 	}
 
-	if _, err := helpers.Store(r).Sql().Exec("update project__user set `admin`=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
-		panic(err)
+	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{UserID: user.ID, ProjectID: project.ID, Admin: admin})
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

@@ -183,8 +183,7 @@ func doSetup() int {
 	user.Email = readNewline(" > Email: ", stdin)
 	user.Email = strings.ToLower(user.Email)
 
-	var existingUser db.User
-	err = store.Sql().SelectOne(&existingUser, "select * from `user` where email=? or username=?", user.Email, user.Username)
+	existingUser, err := store.GetUserByLoginOrEmail(user.Username, user.Email)
 	util.LogWarning(err)
 
 	if existingUser.ID > 0 {

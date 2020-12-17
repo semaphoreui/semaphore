@@ -72,6 +72,7 @@ type Store interface {
 	UpdateUser(user User) error
 	SetUserPassword(userID int, password string) error
 	GetUser(userID int) (User, error)
+	GetUserByLoginOrEmail(login string, email string) (User, error)
 
 	GetProject(projectID int) (Project, error)
 	GetProjects(userID int) ([]Project, error)
@@ -86,10 +87,11 @@ type Store interface {
 	GetTemplate(projectID int, templateID int) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
 
-	GetProjectUsers(projectID int) ([]ProjectUser, error)
+	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]User, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
-	DeleteProjectUser(projectID, userID int) error
-	GetProjectUser(projectID, userID int) (ProjectUser, error)
+	DeleteProjectUser(projectID int, userID int) error
+	GetProjectUser(projectID int, userID int) (ProjectUser, error)
+	UpdateProjectUser(projectUser ProjectUser) error
 
 	CreateEvent(event Event) (Event, error)
 

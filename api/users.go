@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -55,12 +54,8 @@ func getUserMiddleware(next http.Handler) http.Handler {
 		user, err := helpers.Store(r).GetUser(userID)
 
 		if err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-
-			panic(err)
+			helpers.WriteError(w, err)
+			return
 		}
 
 		editor := context.Get(r, "user").(*db.User)
