@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	db2 "github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,13 +25,13 @@ const (
 )
 
 type task struct {
-	store       db2.Store
-	task        db2.Task
-	template    db2.Template
-	sshKey      db2.AccessKey
-	inventory   db2.Inventory
-	repository  db2.Repository
-	environment db2.Environment
+	store       db.Store
+	task        db.Task
+	template    db.Template
+	sshKey      db.AccessKey
+	inventory   db.Inventory
+	repository  db.Repository
+	environment db.Environment
 	users       []int
 	projectID   int
 	hosts       []string
@@ -58,7 +58,7 @@ func (t *task) prepareRun() {
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-		_, err := t.store.CreateEvent(db2.Event{
+		_, err := t.store.CreateEvent(db.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -87,7 +87,7 @@ func (t *task) prepareRun() {
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
-	_, err = t.store.CreateEvent(db2.Event{
+	_, err = t.store.CreateEvent(db.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -170,7 +170,7 @@ func (t *task) run() {
 		objType := taskTypeID
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-		_, err := t.store.CreateEvent(db2.Event{
+		_, err := t.store.CreateEvent(db.Event{
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -195,7 +195,7 @@ func (t *task) run() {
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
 
-	_, err := t.store.CreateEvent(db2.Event{
+	_, err := t.store.CreateEvent(db.Event{
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -220,6 +220,20 @@ func (t *task) run() {
 	t.updateStatus()
 }
 
+func (t *task) prepareError(err error, errMsg string) error {
+	if err == sql.ErrNoRows {
+		t.log(errMsg)
+		return err
+	}
+
+	if err != nil {
+		t.fail()
+		panic(err)
+	}
+
+	return nil
+}
+
 func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
 	err := t.store.Sql().SelectOne(ptr, query, args...)
 	if err == sql.ErrNoRows {
@@ -238,25 +252,24 @@ func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...inter
 //nolint: gocyclo
 func (t *task) populateDetails() error {
 	// get template
-	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
-		return err
+	var err error
+
+	t.template, err = t.store.GetTemplate(t.projectID, t.task.TemplateID)
+	if err != nil {
+		return t.prepareError(err, "Template not found!")
 	}
 
-	var project db2.Project
 	// get project alert setting
-	if err := t.fetch("Alert setting not found!", &project, "select alert, alert_chat from project where id=?", t.template.ProjectID); err != nil {
-		return err
+	project, err := t.store.GetProject(t.template.ProjectID)
+	if err != nil {
+		return t.prepareError(err, "Project not found!")
 	}
+
 	t.alert = project.Alert
 	t.alertChat = project.AlertChat
 
 	// get project users
-	var users []struct {
-		ID int `db:"id"`
-	}
-	if _, err := t.store.Sql().Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
-		return err
-	}
+	users, err := t.store.GetProjectUsers(t.template.ProjectID, db.RetrieveQueryParams{})
 
 	t.users = []int{}
 	for _, user := range users {
@@ -264,21 +277,24 @@ func (t *task) populateDetails() error {
 	}
 
 	// get access key
-	if err := t.fetch("Template Access Key not found!", &t.sshKey, "select * from access_key where id=?", t.template.SSHKeyID); err != nil {
-		return err
+	t.sshKey, err = t.store.GetAccessKey(t.template.ProjectID, t.template.SSHKeyID)
+	if err != nil {
+		return t.prepareError(err, "Template AccessKey not found!")
 	}
 
 	if t.sshKey.Type != "ssh" {
 		t.log("Non ssh-type keys are currently not supported: " + t.sshKey.Type)
-		return errors.New("Unsupported SSH Key")
+		return errors.New("unsupported SSH Key")
 	}
 
 	// get inventory
-	if err := t.fetch("Template Inventory not found!", &t.inventory, "select * from project__inventory where id=?", t.template.InventoryID); err != nil {
-		return err
+	t.inventory, err = t.store.GetInventory(t.template.ProjectID, t.template.InventoryID)
+	if err != nil {
+		return t.prepareError(err, "Template Inventory not found!")
 	}
 
 	// get inventory services key
+
 	if t.inventory.KeyID != nil {
 		if err := t.fetch("Inventory AccessKey not found!", &t.inventory.Key, "select * from access_key where id=?", *t.inventory.KeyID); err != nil {
 			return err
@@ -303,7 +319,7 @@ func (t *task) populateDetails() error {
 	}
 	if t.repository.SSHKey.Type != "ssh" {
 		t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
-		return errors.New("Unsupported SSH Key")
+		return errors.New("unsupported SSH Key")
 	}
 
 	// get environment
@@ -319,7 +335,7 @@ func (t *task) populateDetails() error {
 	return nil
 }
 
-func (t *task) installKey(key db2.AccessKey) error {
+func (t *task) installKey(key db.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 
 	path := key.GetPath()

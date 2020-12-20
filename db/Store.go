@@ -65,6 +65,12 @@ type Store interface {
 	DeleteAccessKey(projectID int, accessKeyID int) error
 	DeleteAccessKeySoft(projectID int, accessKeyID int) error
 
+	GetGlobalAccessKey(accessKeyID int) (AccessKey, error)
+	GetGlobalAccessKeys(params RetrieveQueryParams) ([]AccessKey, error)
+	UpdateGlobalAccessKey(accessKey AccessKey) error
+	CreateGlobalAccessKey(accessKey AccessKey) (AccessKey, error)
+	DeleteGlobalAccessKey(accessKeyID int) error
+	DeleteGlobalAccessKeySoft(accessKeyID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUser(user User) (User, error)
@@ -80,7 +86,6 @@ type Store interface {
 	DeleteProject(projectID int) error
 	UpdateProject(project Project) error
 
-
 	GetTemplates(projectID int, params RetrieveQueryParams) ([]Template, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
@@ -94,6 +99,8 @@ type Store interface {
 	UpdateProjectUser(projectUser ProjectUser) error
 
 	CreateEvent(event Event) (Event, error)
+	GetUserEvents(userID int, params RetrieveQueryParams) ([]Event, error)
+	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
 
 	GetAPITokens(userID int) ([]APIToken, error)
 	CreateAPIToken(token APIToken) (APIToken, error)
@@ -103,10 +110,6 @@ type Store interface {
 	GetSession(userID int, sessionID int) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
-
-
-	GetUserEvents(userID int, params RetrieveQueryParams) ([]Event, error)
-	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
 
 	Sql() *gorp.DbMap
 }
