@@ -23,7 +23,12 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
-	var user db.User
+	type User struct {
+		Pwd string    `db:"-" json:"password"`
+		db.User
+	}
+
+	var user User
 	if err := util.Bind(w, r, &user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -36,9 +41,18 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	password, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	user.Password = string(password)
 	user.Created = db.GetParsedTime(time.Now())
 
-	if err := db.Mysql.Insert(&user); err != nil {
+	err = db.Mysql.Insert(&user.User)
+
+	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -79,7 +93,12 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := context.Get(r, "_user").(db.User)
 	editor := context.Get(r, "user").(*db.User)
 
-	var user db.User
+	type User struct {
+		Pwd string    `db:"password" json:"password"`
+		db.User
+	}
+
+	var user User
 	if err := util.Bind(w, r, &user); err != nil {
 		return
 	}
@@ -102,7 +121,37 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.Mysql.Exec("update user set name=?, username=?, email=?, alert=?, admin=? where id=?", user.Name, user.Username, user.Email, user.Alert, user.Admin, oldUser.ID); err != nil {
+	var err error
+
+	if user.Pwd != "" {
+		var password []byte
+		password, err = bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_, err = db.Mysql.Exec(
+			"update user set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
+			user.Name,
+			user.Username,
+			user.Email,
+			user.Alert,
+			user.Admin,
+			string(password),
+			oldUser.ID)
+
+	} else {
+		_, err = db.Mysql.Exec(
+			"update user set name=?, username=?, email=?, alert=?, admin=? where id=?",
+			user.Name,
+			user.Username,
+			user.Email,
+			user.Alert,
+			user.Admin,
+			oldUser.ID)
+	}
+
+	if err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
