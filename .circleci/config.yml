@@ -9,7 +9,7 @@ aliases:
 #        git clone -b $CIRCLE_BRANCH https://github.com/ansible-semaphore/semaphore.git ./
 
   - &golang-image
-    image: circleci/golang:1.16
+    image: circleci/golang:1.14
 
   - &working-dir
     /go/src/github.com/ansible-semaphore/semaphore
