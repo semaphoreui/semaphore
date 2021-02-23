@@ -286,7 +286,7 @@ func (conf *ConfigType) Scan() {
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
-	fmt.Print(" > Web root URL (optional, example http://localhost:8010/): ")
+	fmt.Print(" > Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL): ")
 	ScanErrorChecker(fmt.Scanln(&conf.WebHost))
 
 	var EmailAlertAnswer string
