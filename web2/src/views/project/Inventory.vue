@@ -33,6 +33,7 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        :disabled="!project.admin"
       >New Inventory</v-btn>
     </v-toolbar>
 

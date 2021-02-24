@@ -57,6 +57,7 @@
         color="primary"
         @click="editItem('new')"
         class="mr-1"
+        :disabled="!project.admin"
       >New template</v-btn>
 
       <v-btn icon @click="settingsSheet = true"><v-icon>mdi-cog</v-icon></v-btn>

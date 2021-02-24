@@ -32,6 +32,7 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        :disabled="!project.admin"
       >New Repository</v-btn>
     </v-toolbar>
 

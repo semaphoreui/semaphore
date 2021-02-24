@@ -34,6 +34,7 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        :disabled="!project.admin"
       >New Key</v-btn>
     </v-toolbar>
 

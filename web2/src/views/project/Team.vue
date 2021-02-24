@@ -32,6 +32,7 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        :disabled="!project.admin"
       >New Team Member</v-btn>
     </v-toolbar>
 
