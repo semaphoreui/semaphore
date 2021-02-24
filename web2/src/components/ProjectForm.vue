@@ -16,19 +16,18 @@
       label="Project Name"
       :rules="[v => !!v || 'Project name is required']"
       required
-      :disabled="formSaving || !item.admin"
+      :disabled="formSaving"
     ></v-text-field>
 
     <v-checkbox
       v-model="item.alert"
       label="Allow alerts for this project"
-      :disabled="formSaving || !item.admin"
     ></v-checkbox>
 
     <v-text-field
       v-model="item.alert_chat"
       label="Chat ID"
-      :disabled="formSaving || !item.admin"
+      :disabled="formSaving"
     ></v-text-field>
   </v-form>
 </template>

@@ -15,7 +15,7 @@ import (
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(ProjectWithAdmin)
 		envID, err := util.GetIntParam("environment_id", w, r)
 		if err != nil {
 			return
@@ -50,7 +50,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var env []db.Environment
 
 	sort := r.URL.Query().Get("sort")
@@ -108,7 +108,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // AddEnvironment creates an environment in the database
 func AddEnvironment(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var env db.Environment
 
 	if err := util.Bind(w, r, &env); err != nil {

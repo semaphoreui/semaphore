@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/ansible-semaphore/semaphore/api/projects"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/db"
@@ -26,7 +27,7 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit uint64) {
 	projectObj, exists := context.GetOk(r, "project")
 	if exists {
 		// limit query to project
-		project := projectObj.(db.Project)
+		project := projectObj.(projects.ProjectWithAdmin)
 		q = q.Where("event.project_id=?", project.ID)
 	} else {
 		q = q.LeftJoin("project__user as pu on pu.project_id=p.id").

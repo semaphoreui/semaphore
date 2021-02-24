@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/api/projects"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 // AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(projects.ProjectWithAdmin)
 	user := context.Get(r, "user").(*db.User)
 
 	var taskObj db.Task
@@ -54,7 +55,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
 func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(projects.ProjectWithAdmin)
 
 	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
 		From("task").

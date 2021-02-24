@@ -14,7 +14,7 @@ import (
 // KeyMiddleware ensures a key exists and loads it to the context
 func KeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(ProjectWithAdmin)
 		keyID, err := util.GetIntParam("key_id", w, r)
 		if err != nil {
 			return
@@ -42,7 +42,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var keys []db.AccessKey
 
 	sort := r.URL.Query().Get("sort")
@@ -85,7 +85,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 
 // AddKey adds a new key to the database
 func AddKey(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var key db.AccessKey
 
 	if err := util.Bind(w, r, &key); err != nil {

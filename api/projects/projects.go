@@ -24,7 +24,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 		ToSql()
 
 	util.LogWarning(err)
-	var projects []db.Project
+	var projects []ProjectWithAdmin
 	if _, err := db.Mysql.Select(&projects, query, args...); err != nil {
 		panic(err)
 	}

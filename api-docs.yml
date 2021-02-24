@@ -137,6 +137,8 @@ definitions:
         pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
+      admin:
+        type: boolean
 
   AccessKeyRequest:
     type: object

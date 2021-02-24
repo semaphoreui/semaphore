@@ -11,7 +11,6 @@ type Project struct {
 	Created   time.Time `db:"created" json:"created"`
 	Alert     bool      `db:"alert" json:"alert"`
 	AlertChat string    `db:"alert_chat" json:"alert_chat"`
-	Admin 	  bool		`db:"admin" json:"admin"`
 }
 
 // CreateProject writes a project to the database

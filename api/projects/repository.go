@@ -26,7 +26,7 @@ func clearRepositoryCache(repository db.Repository) error {
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(ProjectWithAdmin)
 		repositoryID, err := util.GetIntParam("repository_id", w, r)
 		if err != nil {
 			return
@@ -54,7 +54,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var repos []db.Repository
 
 	sort := r.URL.Query().Get("sort")
@@ -97,7 +97,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 // AddRepository creates a new repository in the database
 func AddRepository(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 
 	var repository struct {
 		Name     string `json:"name" binding:"required"`

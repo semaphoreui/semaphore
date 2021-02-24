@@ -22,7 +22,7 @@ const (
 // InventoryMiddleware ensures an inventory exists and loads it to the context
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(ProjectWithAdmin)
 		inventoryID, err := util.GetIntParam("inventory_id", w, r)
 		if err != nil {
 			return
@@ -57,7 +57,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 
 	var inv []db.Inventory
 
@@ -92,7 +92,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 // AddInventory creates an inventory in the database
 func AddInventory(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var inventory struct {
 		Name      string `json:"name" binding:"required"`
 		KeyID     *int   `json:"key_id"`

@@ -15,7 +15,7 @@ import (
 // UserMiddleware ensures a user exists and loads it to the context
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(ProjectWithAdmin)
 		userID, err := util.GetIntParam("user_id", w, r)
 		if err != nil {
 			return
@@ -43,7 +43,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var users []db.User
 
 	sort := r.URL.Query().Get("sort")
@@ -78,7 +78,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // AddUser adds a user to a projects team in the database
 func AddUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var user struct {
 		UserID int  `json:"user_id" binding:"required"`
 		Admin  bool `json:"admin"`
@@ -109,7 +109,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	user := context.Get(r, "projectUser").(db.User)
 
 	if _, err := db.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
@@ -132,7 +132,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 
 // MakeUserAdmin writes the admin flag to the users account
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	user := context.Get(r, "projectUser").(db.User)
 	admin := 1
 

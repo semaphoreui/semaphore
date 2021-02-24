@@ -15,7 +15,7 @@ import (
 // TemplatesMiddleware ensures a template exists and loads it to the context
 func TemplatesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := context.Get(r, "project").(ProjectWithAdmin)
 		templateID, err := util.GetIntParam("template_id", w, r)
 		if err != nil {
 			return
@@ -44,7 +44,7 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 
 // GetTemplates returns all templates for a project in a sort order
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 	var templates []db.Template
 
 	sort := r.URL.Query().Get("sort")
@@ -103,7 +103,7 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 
 // AddTemplate adds a template to the database
 func AddTemplate(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := context.Get(r, "project").(ProjectWithAdmin)
 
 	var template db.Template
 	if err := util.Bind(w, r, &template); err != nil {
