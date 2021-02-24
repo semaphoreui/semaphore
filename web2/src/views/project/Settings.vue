@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div v-if="project != null">
     <YesNoDialog
       v-model="deleteProjectDialog"
       title="Delete project"
@@ -25,14 +25,16 @@
       </div>
 
       <div class="text-right">
-        <v-btn color="primary" @click="saveProject()">Save</v-btn>
+        <v-btn color="primary" @click="saveProject()" :disabled="!project.admin">Save</v-btn>
       </div>
     </div>
 
     <div class="project-delete-form">
       <v-row align="center">
         <v-col class="shrink">
-          <v-btn color="error" @click="deleteProjectDialog = true">Delete Project</v-btn>
+          <v-btn color="error" @click="deleteProjectDialog = true" :disabled="!project.admin">
+            Delete Project
+          </v-btn>
         </v-col>
         <v-col class="grow">
           <div style="font-size: 14px; color: #ff5252">
@@ -70,7 +72,16 @@ export default {
   data() {
     return {
       deleteProjectDialog: null,
+      project: null,
     };
+  },
+
+  async created() {
+    this.project = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}`,
+      responseType: 'json',
+    })).data;
   },
 
   methods: {

@@ -21,7 +21,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		query, args, err := squirrel.Select("p.*").
+		query, args, err := squirrel.Select("p.*", "pu.admin").
 			From("project as p").
 			Join("project__user as pu on pu.project_id=p.id").
 			Where("p.id=?", projectID).

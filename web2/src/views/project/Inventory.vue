@@ -51,6 +51,7 @@
           <v-btn
             icon
             class="mr-1"
+            :disabled="!project.admin"
             @click="askDeleteItem(item.id)"
           >
             <v-icon>mdi-delete</v-icon>
@@ -59,6 +60,7 @@
           <v-btn
             icon
             class="mr-1"
+            :disabled="!project.admin"
             @click="editItem(item.id)"
           >
             <v-icon>mdi-pencil</v-icon>

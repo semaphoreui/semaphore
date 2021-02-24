@@ -65,6 +65,7 @@
       <v-btn
         icon
         color="error"
+        :disabled="!project.admin"
         @click="deleteDialog = true"
       >
         <v-icon>mdi-delete</v-icon>
@@ -73,6 +74,7 @@
       <v-btn
         icon
         color="black"
+        :disabled="!project.admin"
         @click="copyDialog = true"
       >
         <v-icon>mdi-content-copy</v-icon>
@@ -81,6 +83,7 @@
       <v-btn
         icon
         color="black"
+        :disabled="!project.admin"
         @click="editDialog = true"
       >
         <v-icon>mdi-pencil</v-icon>
@@ -328,6 +331,12 @@ export default {
     },
 
     async loadData() {
+      this.project = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}`,
+        responseType: 'json',
+      })).data;
+
       this.item = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}`,

@@ -157,7 +157,7 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="newProjectDialog = true">
+          <v-list-item @click="newProjectDialog = true" v-if="user.admin">
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
             </v-list-item-icon>
@@ -274,7 +274,7 @@
           </template>
 
           <v-list>
-            <v-list-item key="users" to="/users">
+            <v-list-item key="users" to="/users" v-if="user.admin">
               <v-list-item-icon>
                 <v-icon>mdi-account-multiple</v-icon>
               </v-list-item-icon>

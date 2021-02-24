@@ -22,6 +22,7 @@ export default {
       itemId: null,
       editDialog: null,
       deleteItemDialog: null,
+      project: null,
     };
   },
 
@@ -85,6 +86,14 @@ export default {
     },
 
     async loadItems() {
+      if (this.projectId != null) {
+        this.project = (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}`,
+          responseType: 'json',
+        })).data;
+      }
+
       this.items = (await axios({
         method: 'get',
         url: this.getItemsUrl(),

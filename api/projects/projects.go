@@ -16,7 +16,7 @@ import (
 func GetProjects(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
-	query, args, err := squirrel.Select("p.*").
+	query, args, err := squirrel.Select("p.*, pu.admin").
 		From("project as p").
 		Join("project__user as pu on pu.project_id=p.id").
 		Where("pu.user_id=?", user.ID).
