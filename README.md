@@ -22,6 +22,12 @@ All releases after 2.5.1 are signed with the gpg public key
 
 https://github.com/ansible-semaphore/semaphore/wiki/Installation
 
+## Demo
+
+https://demo.ansible-semaphore.com
+
+Login / password: `demo / demo`.
+
 ## Contributing
 
 PR's & UX reviews are welcome!
