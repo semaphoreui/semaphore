@@ -52,7 +52,7 @@ func (t *task) prepareRun() {
 
 	defer func() {
 		log.Info("Stopped preparing task " + strconv.Itoa(t.task.ID))
-		log.Info("Release resourse locker with task " + strconv.Itoa(t.task.ID))
+		log.Info("Release resource locker with task " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		objType := taskTypeID

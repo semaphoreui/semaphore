@@ -85,23 +85,31 @@ func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) ([
 }
 
 func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
+	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.sql.Exec("delete from task__output where project_id=? AND task_id=?", projectID, taskID)
+	_, err = d.sql.Exec("delete from task__output where task_id=?", taskID)
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.sql.Exec("delete from task where id=?", projectID, taskID)
+	_, err = d.sql.Exec("delete from task where id=?", taskID)
 	return
 }
 
 func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutput, err error) {
+	// check if task exists in the project
+	_, err = d.GetTask(projectID, taskID)
+
+	if err != nil {
+		return
+	}
+
 	_, err = d.sql.Select(&output,
 		"select task_id, task, time, output from task__output where task_id=? order by time asc",
 		taskID)

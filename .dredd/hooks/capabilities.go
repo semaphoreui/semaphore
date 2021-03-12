@@ -26,7 +26,7 @@ var templateID int64
 var capabilities = map[string][]string{
 	"user":        {},
 	"project":     {"user"},
-	"access_key":  {"project"},
+	//"access_key":  {"project"},
 	"repository":  {"access_key"},
 	"inventory":   {"repository"},
 	"environment": {"repository"},

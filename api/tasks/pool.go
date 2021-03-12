@@ -98,7 +98,7 @@ func (p *taskPool) run() {
 				p.queue = append(p.queue[1:], t)
 				continue
 			}
-			log.Info("Set resourse locker with task " + strconv.Itoa(t.task.ID))
+			log.Info("Set resource locker with task " + strconv.Itoa(t.task.ID))
 			resourceLocker <- &resourceLock{lock: true, holder: t}
 			if !t.prepared {
 				go t.prepareRun()
