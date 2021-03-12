@@ -270,6 +270,9 @@ func (t *task) populateDetails() error {
 
 	// get project users
 	users, err := t.store.GetProjectUsers(t.template.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return t.prepareError(err, "Users not found!")
+	}
 
 	t.users = []int{}
 	for _, user := range users {

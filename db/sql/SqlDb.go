@@ -188,22 +188,6 @@ func createDb() error {
 	return nil
 }
 
-func (d *SqlDb) getObjectByQuery(q squirrel.SelectBuilder, object interface{}) (err error) {
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	err = d.sql.SelectOne(object, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
-	return
-}
-
 type objectProperties struct {
 	TableName string
 	SortableColumns []string
