@@ -16,3 +16,8 @@ type User struct {
 	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
 }
+
+type UserWithPwd struct {
+	Pwd string    `db:"-" json:"password"`
+	User
+}

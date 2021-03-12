@@ -177,7 +177,7 @@ func doSetup() int {
 
 	stdin := bufio.NewReader(os.Stdin)
 
-	var user db.User
+	var user db.UserWithPwd
 	user.Username = readNewline("\n\n > Username: ", stdin)
 	user.Username = strings.ToLower(user.Username)
 	user.Email = readNewline(" > Email: ", stdin)
@@ -191,9 +191,7 @@ func doSetup() int {
 		fmt.Printf("\n Welcome back, %v! (a user with this username/email is already set up..)\n\n", existingUser.Name)
 	} else {
 		user.Name = readNewline(" > Your name: ", stdin)
-		user.Password = readNewline(" > Password: ", stdin)
-		//pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
-		//util.LogWarning(err)
+		user.Pwd = readNewline(" > Password: ", stdin)
 
 		if _, err := store.CreateUser(user); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())

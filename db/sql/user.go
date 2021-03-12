@@ -8,53 +8,58 @@ import (
 	"time"
 )
 
-func (d *SqlDb) CreateUser(user db.User) (newUser db.User, err error) {
-	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
+func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
+	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
 
 	if err != nil {
 		return
 	}
 
-	created := db.GetParsedTime(time.Now())
+	user.Password = string(pwdHash)
+	user.Created = db.GetParsedTime(time.Now())
 
-	res, err := d.sql.Exec(
-		"insert into `user`(name, username, email, password, admin, created) values (?, ?, ?, ?, true, ?)",
-		user.Name,
-		user.Username,
-		user.Email,
-		pwdHash,
-		created)
+	err = d.sql.Insert(&user.User)
 
 	if err != nil {
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-
-	if err != nil {
-		return
-	}
-
-	newUser = user
-	newUser.ID = int(insertID)
-	newUser.Created = created
+	newUser = user.User
 	return
 }
 
 func (d *SqlDb) DeleteUser(userID int) error {
 	res, err := d.sql.Exec("delete from `user` where id=?", userID)
-
 	return validateMutationResult(res, err)
 }
 
-func (d *SqlDb) UpdateUser(user db.User) error {
-	_, err := d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
-		user.Name,
-		user.Username,
-		user.Email,
-		user.Alert,
-		user.Admin,
-		user.ID)
+func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
+	var err error
+
+	if user.Pwd != "" {
+		var pwdHash []byte
+		pwdHash, err = bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+		if err != nil {
+			return err
+		}
+		_, err = d.sql.Exec(
+			"update user set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
+			user.Name,
+			user.Username,
+			user.Email,
+			user.Alert,
+			user.Admin,
+			string(pwdHash),
+			user.ID)
+	} else {
+		_, err = d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+			user.Name,
+			user.Username,
+			user.Email,
+			user.Alert,
+			user.Admin,
+			user.ID)
+	}
 
 	return err
 }

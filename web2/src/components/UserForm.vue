@@ -35,6 +35,15 @@
       :disabled="formSaving"
     ></v-text-field>
 
+    <v-text-field
+      v-model="item.password"
+      label="Password"
+      type="password"
+      :required="isNew"
+      :rules="isNew ? [v => !!v || 'Password is required'] : []"
+      :disabled="formSaving"
+    ></v-text-field>
+
     <v-checkbox
       v-model="item.admin"
       label="Admin user"

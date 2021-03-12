@@ -73,9 +73,9 @@ type Store interface {
 	DeleteGlobalAccessKeySoft(accessKeyID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
-	CreateUser(user User) (User, error)
+	CreateUser(user UserWithPwd) (User, error)
 	DeleteUser(userID int) error
-	UpdateUser(user User) error
+	UpdateUser(user UserWithPwd) error
 	SetUserPassword(userID int, password string) error
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)

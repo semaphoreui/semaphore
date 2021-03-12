@@ -21,7 +21,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
-	var user db.User
+	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
 		return
 	}
@@ -75,7 +75,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	oldUser := context.Get(r, "_user").(db.User)
 	editor := context.Get(r, "user").(*db.User)
 
-	var user db.User
+	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
 		return
 	}
