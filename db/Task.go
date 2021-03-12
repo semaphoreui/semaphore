@@ -25,6 +25,13 @@ type Task struct {
 	End     *time.Time `db:"end" json:"end"`
 }
 
+type TaskWithTpl struct {
+	Task
+	TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
+	TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
+	UserName         *string `db:"user_name" json:"user_name"`
+}
+
 // TaskOutput is the ansible log output from the task
 type TaskOutput struct {
 	TaskID int       `db:"task_id" json:"task_id"`

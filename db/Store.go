@@ -108,8 +108,20 @@ type Store interface {
 	ExpireAPIToken(userID int, tokenID string) error
 
 	GetSession(userID int, sessionID int) (Session, error)
+	CreateSession(session Session) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
+
+	CreateTask(task Task) (Task, error)
+	UpdateTask(task Task) error
+
+	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetTask(projectID int, taskID int) (Task, error)
+	DeleteTaskWithOutputs(projectID int, taskID int) error
+	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
+	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+
 
 	Sql() *gorp.DbMap
 }

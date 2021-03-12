@@ -3,6 +3,7 @@ package tasks
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/ansible-semaphore/semaphore/db"
 	"os/exec"
 	"time"
 
@@ -29,8 +30,12 @@ func (t *task) log(msg string) {
 	}
 
 	go func() {
-		_, err := t.store.Sql().Exec(
-			"insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)", t.task.ID, msg, now)
+		_, err := t.store.CreateTaskOutput(db.TaskOutput{
+			TaskID: t.task.ID,
+			Output: msg,
+			Time: now,
+		})
+
 		util.LogPanicWithFields(err, log.Fields{"error": "Failed to insert task output"})
 	}()
 }
@@ -51,7 +56,7 @@ func (t *task) updateStatus() {
 		sockets.Message(user, b)
 	}
 
-	if _, err := t.store.Sql().Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
+	if err := t.store.UpdateTask(t.task); err != nil {
 		t.panicOnError(err, "Failed to update task status")
 	}
 }

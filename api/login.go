@@ -172,21 +172,22 @@ func login(w http.ResponseWriter, r *http.Request) {
 		// authenticated.
 	}
 
-	session := db.Session{
+	newSession, err := helpers.Store(r).CreateSession(db.Session{
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
 		IP:         r.Header.Get("X-Real-IP"),
 		UserAgent:  r.Header.Get("user-agent"),
 		Expired:    false,
-	}
-	if err = helpers.Store(r).Sql().Insert(&session); err != nil {
+	})
+
+	if err != nil {
 		panic(err)
 	}
 
 	encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
 		"user":    user.ID,
-		"session": session.ID,
+		"session": newSession.ID,
 	})
 	if err != nil {
 		panic(err)

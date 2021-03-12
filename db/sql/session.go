@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
+	err := d.sql.Insert(&session)
+	return session, err
+}
+
 func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 	token.Created = db.GetParsedTime(time.Now())
 	err := d.sql.Insert(&token)

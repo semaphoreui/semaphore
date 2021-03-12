@@ -10,7 +10,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"github.com/masterminds/squirrel"
 )
 
 // AddTask inserts a task into the database and returns a header or returns error
@@ -28,7 +27,8 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
 
-	if err := helpers.Store(r).Sql().Insert(&taskObj); err != nil {
+	newTask, err := helpers.Store(r).CreateTask(taskObj)
+	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -36,16 +36,16 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 	pool.register <- &task{
 		store:     helpers.Store(r),
-		task:      taskObj,
+		task:      newTask,
 		projectID: project.ID,
 	}
 
 	objType := taskTypeID
-	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
-	_, err := helpers.Store(r).CreateEvent(db.Event{
+	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
-		ObjectID:    &taskObj.ID,
+		ObjectID:    &newTask.ID,
 		Description: &desc,
 	})
 
@@ -61,34 +61,22 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
 func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	project := context.Get(r, "project").(db.Project)
+	tpl := context.Get(r, "template")
 
-	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
-		From("task").
-		Join("project__template as tpl on task.template_id=tpl.id").
-		LeftJoin("user on task.user_id=user.id");
+	var err error
+	var tasks []db.TaskWithTpl
 
-	if tpl := context.Get(r, "template"); tpl != nil {
-		q = q.Where("tpl.project_id=? AND task.template_id=?", project.ID, tpl.(db.Template).ID)
+	if tpl != nil {
+		tasks, err = helpers.Store(r).GetTemplateTasks(project.ID, tpl.(db.Template).ID, db.RetrieveQueryParams{
+			Count: int(limit),
+		})
 	} else {
-		q = q.Where("tpl.project_id=?", project.ID)
+		tasks, err = helpers.Store(r).GetProjectTasks(project.ID, db.RetrieveQueryParams{
+			Count: int(limit),
+		})
 	}
 
-	q = q.OrderBy("task.created desc, id desc")
-
-	if limit > 0 {
-		q = q.Limit(limit)
-	}
-
-	query, args, _ := q.ToSql()
-
-	var tasks []struct {
-		db.Task
-
-		TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
-		TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
-		UserName         *string `db:"user_name" json:"user_name"`
-	}
-	if _, err := helpers.Store(r).Sql().Select(&tasks, query, args...); err != nil {
+	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -116,14 +104,20 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := context.Get(r, "project").(db.Project)
 		taskID, err := helpers.GetIntParam("task_id", w, r)
+
 		if err != nil {
-			panic(err)
+			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task_id from request"})
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
-		var task db.Task
-		if err := helpers.Store(r).Sql().SelectOne(&task, "select * from task where id=?", taskID); err != nil {
-			panic(err)
+		task, err := helpers.Store(r).GetTask(project.ID, taskID)
+		if err != nil {
+			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task from database"})
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		context.Set(r, taskTypeID, task)
@@ -134,9 +128,12 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
+	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
-	if _, err := helpers.Store(r).Sql().Select(&output, "select task_id, task, time, output from task__output where task_id=? order by time asc", task.ID); err != nil {
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+
+	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -149,6 +146,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, taskTypeID).(db.Task)
 	editor := context.Get(r, "user").(*db.User)
+	project := context.Get(r, "project").(db.Project)
 
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to delete task logs")
@@ -156,18 +154,11 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statements := []string{
-		"delete from task__output where task_id=?",
-		"delete from task where id=?",
-	}
-
-	for _, statement := range statements {
-		_, err := helpers.Store(r).Sql().Exec(statement, task.ID)
-		if err != nil {
-			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	err := helpers.Store(r).DeleteTaskWithOutputs(project.ID, task.ID)
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
