@@ -58,7 +58,7 @@ tasks:
     desc: Installs tools needed
     dir: web
     vars:
-      GORELEASER_VERSION: "0.67.0"
+      GORELEASER_VERSION: "0.159.0"
       GOLINTER_VERSION: "1.31.0"
     cmds:
       - go install github.com/cespare/reflex

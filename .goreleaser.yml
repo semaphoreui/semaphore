@@ -2,9 +2,6 @@
 # for building binaries and packages for distributions and releasing on github
 dist: bin
 
-git:
-  short_hash: true
-
 builds:
   - binary: semaphore
     main: ./cli/main.go
@@ -26,45 +23,48 @@ builds:
     hooks:
       pre: task compile
 
-archive:
-  format_overrides:
-    - goos: windows
-      format: zip
-  files:
-    - LICENSE
+archives:
+  -
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
 
-sign:
-   artifacts: checksum
-   # gpg --sign -u "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82" --pinentry-mode loopback --yes --batch --passphrase "${GPG_PASS}" --output ${signature} --detach-sign "${artifact}"
-   args: ["-u", "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
+signs:
+  -
+    artifacts: checksum
+    # gpg --sign -u "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82" --pinentry-mode loopback --yes --batch --passphrase "${GPG_PASS}" --output ${signature} --detach-sign "${artifact}"
+    args: ["-u", "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
 
 # Start the snapshot name with a numerical value
 # so it does not need to be force installed
 snapshot:
-  name_template: "{{ .Timestamp }}-{{ .Commit }}-SNAPSHOT"
+  name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
 
-nfpm:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+nfpms:
+  - 
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
-  vendor: Castaway Consulting LLC
-  homepage: https://github.com/ansible-semaphore/semaphore
-  maintainer: Castaway Consulting LLC <support@castawaylabs.com>
-  description: Open Source alternative to Ansible Tower
-  license: MIT
+    vendor: Castaway Consulting LLC
+    homepage: https://github.com/ansible-semaphore/semaphore
+    maintainer: Castaway Consulting LLC <support@castawaylabs.com>
+    description: Open Source alternative to Ansible Tower
+    license: MIT
 
-  formats:
-    - deb
-    - rpm
+    formats:
+      - deb
+      - rpm
 
-  # Packages your package depends on.
-  dependencies:
-    - git
+    # Packages your package depends on.
+    dependencies:
+      - git
 
-  suggests:
-    - ansible
+    suggests:
+      - ansible
 
-  # install binary in /usr/bin
-  bindir: /usr/bin
+    # install binary in /usr/bin
+    bindir: /usr/bin
 
 release:
   # Do not auto publish release
