@@ -39,9 +39,10 @@ require (
 	github.com/radovskyb/watcher v1.0.7 // indirect
 	github.com/russross/blackfriday v1.5.2
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
+	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
 	github.com/spf13/cobra v0.0.5 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
+	go.etcd.io/bbolt v1.3.2
 	golang.org/x/crypto v0.0.0-20200208060501-ecb85df21340
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
 	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect

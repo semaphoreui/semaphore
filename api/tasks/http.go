@@ -55,7 +55,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, taskObj)
+	helpers.WriteJSON(w, http.StatusCreated, newTask)
 }
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
