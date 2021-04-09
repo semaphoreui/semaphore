@@ -107,9 +107,9 @@
       mobile-breakpoint="960"
       v-if="$route.path.startsWith('/project/')"
     >
-      <v-menu bottom max-width="235" v-if="project">
+      <v-menu bottom max-width="235" max-height="100%" v-if="project">
         <template v-slot:activator="{ on, attrs }">
-          <v-list class="pa-0">
+          <v-list class="pa-0 overflow-y-auto">
             <v-list-item
               key="project"
               class="app__project-selector"
