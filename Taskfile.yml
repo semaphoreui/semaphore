@@ -25,7 +25,7 @@ tasks:
     cmds:
      - task: deps:tools
      - task: deps:be
-     - task: deps:fe
+    #  - task: deps:fe
      - task: deps:fe2
 
   deps:be:
@@ -75,7 +75,7 @@ tasks:
   compile:
     desc: Generates compiled frontend and backend resources (must be in this order)
     cmds:
-      - task: compile:fe
+      # - task: compile:fe
       - task: compile:fe2
       - task: compile:be
 
@@ -152,7 +152,7 @@ tasks:
     desc: Watch fe and be file changes and rebuild
     dir: web/resources
     cmds:
-      - task: watch:fe
+      # - task: watch:fe
       - task: watch:be
 
   watch:be:
