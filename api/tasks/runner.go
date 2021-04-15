@@ -551,6 +551,15 @@ func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePat
 	return string(oldFileMD5HashBytes) != newFileMD5Hash
 }
 
+func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
+	newFileMD5Hash, err := helpers.GetMD5Hash(requirementsFile)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
+}
+
 // extractCommandEnvironment unmarshalls a json string, extracts the ENV key from it and returns it as
 // []string where strings are in key=value format
 func extractCommandEnvironment(envJSON string) []string {
