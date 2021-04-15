@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,7 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
+
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
