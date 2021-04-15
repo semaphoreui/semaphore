@@ -537,6 +537,20 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	return env
 }
 
+func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
+	oldFileMD5HashBytes, err := ioutil.ReadFile(requirementsHashFilePath)
+	if err != nil {
+		return true
+	}
+
+	newFileMD5Hash, err := helpers.GetMD5Hash(requirementsFilePath)
+	if err != nil {
+		return true
+	}
+
+	return string(oldFileMD5HashBytes) != newFileMD5Hash
+}
+
 // extractCommandEnvironment unmarshalls a json string, extracts the ENV key from it and returns it as
 // []string where strings are in key=value format
 func extractCommandEnvironment(envJSON string) []string {
