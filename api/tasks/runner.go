@@ -119,29 +119,8 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.runGalaxy([]string{
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"-p",
-		"./roles/",
-		"--force",
-	}); err != nil {
+	if err := t.installRequirements(); err != nil {
 		t.log("Running galaxy failed: " + err.Error())
-		t.fail()
-		return
-	}
-
-	if err := t.runGalaxy([]string{
-		"collection",
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"-p",
-		"./roles/",
-		"--force",
-	}); err != nil {
-		t.log("Running galaxy collection failed: " + err.Error())
 		t.fail()
 		return
 	}
@@ -379,6 +358,30 @@ func (t *task) updateRepository() error {
 
 	t.logCmd(cmd)
 	return cmd.Run()
+}
+
+func (t *task) installRequirements() error {
+	if err := t.runGalaxy([]string{
+		"install",
+		"-r",
+		"roles/requirements.yml",
+		"-p",
+		"./roles/",
+		"--force",
+	}); err != nil {
+		return err
+	}
+
+	if err := t.runGalaxy([]string{
+		"collection",
+		"install",
+		"-r",
+		"roles/requirements.yml",
+		"--force",
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (t *task) runGalaxy(args []string) error {
