@@ -361,6 +361,12 @@ func (t *task) updateRepository() error {
 }
 
 func (t *task) installRequirements() error {
+	requirementsFilePath := fmt.Sprintf("%s/repository_%d/roles/requirements.yml", util.Config.TmpPath, t.repository.ID)
+	if _, err := os.Stat(requirementsFilePath); err != nil {
+		t.log("No requirements.yml found in roles directory\n")
+		return nil
+	}
+
 	if err := t.runGalaxy([]string{
 		"install",
 		"-r",
@@ -390,10 +396,6 @@ func (t *task) runGalaxy(args []string) error {
 
 	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
-
-	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
-		return nil
-	}
 
 	t.logCmd(cmd)
 	return cmd.Run()
