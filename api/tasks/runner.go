@@ -362,31 +362,29 @@ func (t *task) updateRepository() error {
 
 func (t *task) installRequirements() error {
 	requirementsFilePath := fmt.Sprintf("%s/repository_%d/roles/requirements.yml", util.Config.TmpPath, t.repository.ID)
+	requirementsHashFilePath := fmt.Sprintf("%s/repository_%d/requirements.md5", util.Config.TmpPath, t.repository.ID)
+
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.log("No requirements.yml found in roles directory\n")
 		return nil
 	}
 
-	if err := t.runGalaxy([]string{
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"-p",
-		"./roles/",
-		"--force",
-	}); err != nil {
-		return err
+	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
+		if err := t.runGalaxy([]string{
+			"install",
+			"-r",
+			"roles/requirements.yml",
+			"--force",
+		}); err != nil {
+			return err
+		}
+		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
+			return err
+		}
+	} else {
+		t.log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
 	}
 
-	if err := t.runGalaxy([]string{
-		"collection",
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"--force",
-	}); err != nil {
-		return err
-	}
 	return nil
 }
 
