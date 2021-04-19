@@ -1,14 +1,20 @@
 package helpers
 
 import (
+	"crypto/md5"
 	"encoding/json"
-	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/gorilla/context"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/context"
+
+	"github.com/ansible-semaphore/semaphore/db"
 
 	"github.com/gorilla/mux"
 )
@@ -63,7 +69,6 @@ func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	}
 }
 
-
 func WriteError(w http.ResponseWriter, err error) {
 	if err == db.ErrNotFound {
 		w.WriteHeader(http.StatusNotFound)
@@ -74,3 +79,18 @@ func WriteError(w http.ResponseWriter, err error) {
 	debug.PrintStack()
 	w.WriteHeader(http.StatusInternalServerError)
 }
+
+func GetMD5Hash(filepath string) (string, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+

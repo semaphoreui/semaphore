@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,7 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
+
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -119,29 +122,8 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.runGalaxy([]string{
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"-p",
-		"./roles/",
-		"--force",
-	}); err != nil {
+	if err := t.installRequirements(); err != nil {
 		t.log("Running galaxy failed: " + err.Error())
-		t.fail()
-		return
-	}
-
-	if err := t.runGalaxy([]string{
-		"collection",
-		"install",
-		"-r",
-		"roles/requirements.yml",
-		"-p",
-		"./roles/",
-		"--force",
-	}); err != nil {
-		t.log("Running galaxy collection failed: " + err.Error())
 		t.fail()
 		return
 	}
@@ -381,16 +363,40 @@ func (t *task) updateRepository() error {
 	return cmd.Run()
 }
 
+func (t *task) installRequirements() error {
+	requirementsFilePath := fmt.Sprintf("%s/repository_%d/roles/requirements.yml", util.Config.TmpPath, t.repository.ID)
+	requirementsHashFilePath := fmt.Sprintf("%s/repository_%d/requirements.md5", util.Config.TmpPath, t.repository.ID)
+
+	if _, err := os.Stat(requirementsFilePath); err != nil {
+		t.log("No roles/requirements.yml file found. Skip galaxy install process.\n")
+		return nil
+	}
+
+	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
+		if err := t.runGalaxy([]string{
+			"install",
+			"-r",
+			"roles/requirements.yml",
+			"--force",
+		}); err != nil {
+			return err
+		}
+		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
+			return err
+		}
+	} else {
+		t.log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
+	}
+
+	return nil
+}
+
 func (t *task) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
 
 	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
-
-	if _, err := os.Stat(cmd.Dir + "/roles/requirements.yml"); err != nil {
-		return nil
-	}
 
 	t.logCmd(cmd)
 	return cmd.Run()
@@ -530,6 +536,29 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	}
 
 	return env
+}
+
+func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
+	oldFileMD5HashBytes, err := ioutil.ReadFile(requirementsHashFilePath)
+	if err != nil {
+		return true
+	}
+
+	newFileMD5Hash, err := helpers.GetMD5Hash(requirementsFilePath)
+	if err != nil {
+		return true
+	}
+
+	return string(oldFileMD5HashBytes) != newFileMD5Hash
+}
+
+func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
+	newFileMD5Hash, err := helpers.GetMD5Hash(requirementsFile)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
 }
 
 // extractCommandEnvironment unmarshalls a json string, extracts the ENV key from it and returns it as
