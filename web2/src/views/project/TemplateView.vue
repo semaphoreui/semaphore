@@ -7,6 +7,7 @@
   </div>
   <div v-else>
     <EditDialog
+      max-width="700"
       v-model="editDialog"
       save-button-text="Save"
       title="Edit Template"
