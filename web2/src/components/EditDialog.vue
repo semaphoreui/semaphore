@@ -13,7 +13,7 @@
         >{{ title }}</slot>
       </v-card-title>
 
-      <v-card-text>
+      <v-card-text class="pb-0">
         <slot
           name="form"
           :onSave="close"

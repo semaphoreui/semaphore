@@ -5,6 +5,8 @@
     v-model="formValid"
     v-if="isLoaded"
   >
+      <v-row>
+        <v-col cols="12" md="6" class="pb-0">
     <v-text-field
       v-model="item.alias"
       label="Playbook Alias"
@@ -42,7 +44,9 @@
       required
       :disabled="formSaving"
     ></v-select>
+        </v-col>
 
+        <v-col cols="12" md="6" class="pb-0">
     <v-select
       v-model="item.repository_id"
       label="Playbook Repository"
@@ -64,6 +68,20 @@
       required
       :disabled="formSaving"
     ></v-select>
+
+    <v-textarea
+      outlined
+      class="mt-4"
+      v-model="item.arguments"
+      label="Extra CLI Arguments"
+      :disabled="formSaving"
+      placeholder='*MUST* be a JSON array!
+Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
+      rows="4"
+    ></v-textarea>
+
+        </v-col>
+      </v-row>
   </v-form>
 </template>
 <script>
