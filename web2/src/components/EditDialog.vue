@@ -1,3 +1,8 @@
+<!--
+Modal dialog which contains slot "form" and two buttons ("Cancel" and "OK").
+Should be used to wrap forms which need to be displayed in modal dialog.
+Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
+-->
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <v-dialog
     v-model="dialog"

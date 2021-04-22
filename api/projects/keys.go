@@ -66,7 +66,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	if key.ProjectID == nil || *key.ProjectID != project.ID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Inventory ID in body and URL must be the same",
+			"error": "Project ID in body and URL must be the same",
 		})
 		return
 	}

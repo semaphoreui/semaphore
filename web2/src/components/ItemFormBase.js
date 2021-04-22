@@ -1,12 +1,17 @@
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 
+/**
+ * Most of Semaphore entities (keys, environments, etc) has similar REST API for access and
+ * manipulation. This class presents this entity. Something like CRUD. It should be used as mixin
+ * in vue.js template. Example: KeyForm.vue.
+ */
 export default {
   props: {
     itemId: [Number, String],
     projectId: [Number, String],
-    needSave: Boolean,
-    needReset: Boolean,
+    needSave: Boolean, // flag which signal about user want to save form
+    needReset: Boolean, // flag which signal about user want to reset form
   },
 
   data() {
@@ -82,6 +87,7 @@ export default {
       this.formError = null;
 
       if (!this.$refs.form.validate()) {
+        this.$emit('error', {});
         return null;
       }
 
@@ -95,7 +101,10 @@ export default {
             ? this.getItemsUrl()
             : this.getSingleItemUrl(),
           responseType: 'json',
-          data: this.item,
+          data: {
+            ...this.item,
+            project_id: this.projectId,
+          },
           ...(this.getRequestOptions()),
         })).data;
 
@@ -105,6 +114,7 @@ export default {
         });
       } catch (err) {
         this.formError = getErrorMessage(err);
+        this.$emit('error', {});
       } finally {
         this.formSaving = false;
       }
