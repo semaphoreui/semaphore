@@ -1,5 +1,5 @@
 # ansible-semaphore production image
-FROM golang:1.13-alpine3.10 as builder
+FROM golang:1.16.3-alpine3.13 as builder
 
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
@@ -11,7 +11,7 @@ RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
 
 # Uses frolvlad alpine so we have access to glibc which is needed for golang
 # and when deploying in openshift
-FROM frolvlad/alpine-glibc:alpine-3.10 as runner
+FROM frolvlad/alpine-glibc:alpine-3.13 as runner
 
 RUN apk add --no-cache git curl ansible mysql-client openssh-client tini && \
     adduser -D -u 1001 -G root semaphore && \
