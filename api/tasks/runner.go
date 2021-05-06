@@ -216,21 +216,6 @@ func (t *task) prepareError(err error, errMsg string) error {
 	return nil
 }
 
-func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := t.store.Sql().SelectOne(ptr, query, args...)
-	if err == sql.ErrNoRows {
-		t.log(errMsg)
-		return err
-	}
-
-	if err != nil {
-		t.fail()
-		panic(err)
-	}
-
-	return nil
-}
-
 //nolint: gocyclo
 func (t *task) populateDetails() error {
 	// get template
@@ -278,30 +263,13 @@ func (t *task) populateDetails() error {
 		return t.prepareError(err, "Template Inventory not found!")
 	}
 
-	// get inventory services key
-
-	if t.inventory.KeyID != nil {
-		if err := t.fetch("Inventory AccessKey not found!", &t.inventory.Key, "select * from access_key where id=?", *t.inventory.KeyID); err != nil {
-			return err
-		}
-	}
-
-	// get inventory ssh key
-	if t.inventory.SSHKeyID != nil {
-		if err := t.fetch("Inventory Ssh Key not found!", &t.inventory.SSHKey, "select * from access_key where id=?", *t.inventory.SSHKeyID); err != nil {
-			return err
-		}
-	}
-
 	// get repository
-	if err := t.fetch("Repository not found!", &t.repository, "select * from project__repository where id=?", t.template.RepositoryID); err != nil {
+	t.repository, err = t.store.GetRepository(t.template.ProjectID, t.template.RepositoryID)
+
+	if err != nil {
 		return err
 	}
 
-	// get repository access key
-	if err := t.fetch("Repository Access Key not found!", &t.repository.SSHKey, "select * from access_key where id=?", t.repository.SSHKeyID); err != nil {
-		return err
-	}
 	if t.repository.SSHKey.Type != "ssh" {
 		t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
 		return errors.New("unsupported SSH Key")
@@ -309,7 +277,7 @@ func (t *task) populateDetails() error {
 
 	// get environment
 	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
-		err := t.fetch("Environment not found", &t.environment, "select * from project__environment where id=?", *t.template.EnvironmentID)
+		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
 		if err != nil {
 			return err
 		}

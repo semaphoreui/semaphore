@@ -8,10 +8,24 @@ var inventoryObject = objectProperties{
 	TemplateColumnName: "inventory_id",
 }
 
-func (d *SqlDb) GetInventory(projectID int, inventoryID int) (db.Inventory, error) {
-	var inventory db.Inventory
-	err := d.getObject(projectID, inventoryObject, inventoryID, &inventory)
-	return inventory, err
+func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
+	err = d.getObject(projectID, inventoryObject, inventoryID, &inventory)
+	if err != nil {
+		return
+	}
+
+	if inventory.KeyID != nil {
+		inventory.Key, err = d.GetAccessKey(projectID, *inventory.KeyID)
+		if err != nil {
+			return
+		}
+	}
+
+	if inventory.SSHKeyID != nil {
+		inventory.SSHKey, err = d.GetAccessKey(projectID, *inventory.SSHKeyID)
+	}
+
+	return
 }
 
 func (d *SqlDb) GetInventories(projectID int, params db.RetrieveQueryParams) ([]db.Inventory, error) {

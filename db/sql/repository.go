@@ -14,6 +14,13 @@ var repositoryObject = objectProperties{
 func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, error) {
 	var repository db.Repository
 	err := d.getObject(projectID, repositoryObject, repositoryID, &repository)
+
+	if err != nil {
+		return repository, err
+	}
+
+	repository.SSHKey, err = d.GetAccessKey(projectID, repository.SSHKeyID)
+
 	return repository, err
 }
 
