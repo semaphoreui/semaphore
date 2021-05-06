@@ -32,6 +32,10 @@ var ErrNotFound = errors.New("sql: no rows in result set")
 var ErrInvalidOperation = errors.New("sql: no rows in result set")
 var Forbidden = errors.New("sql: no rows in result set")
 
+func ValidateUsername(login string) error {
+	return nil
+}
+
 type Store interface {
 	Connect() error
 	Close() error
@@ -73,6 +77,7 @@ type Store interface {
 	DeleteGlobalAccessKeySoft(accessKeyID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
+	CreateUserWithoutPassword(user User) (User, error)
 	CreateUser(user UserWithPwd) (User, error)
 	DeleteUser(userID int) error
 	UpdateUser(user UserWithPwd) error

@@ -11,13 +11,13 @@ type User struct {
 	Username string    `db:"username" json:"username" binding:"required"`
 	Name     string    `db:"name" json:"name" binding:"required"`
 	Email    string    `db:"email" json:"email" binding:"required"`
-	Password string    `db:"password" json:"-"`
+	Password string    `db:"password" json:"-"` // password hash
 	Admin    bool      `db:"admin" json:"admin"`
 	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
 }
 
 type UserWithPwd struct {
-	Pwd string    `db:"-" json:"password"`
+	Pwd string    `db:"-" json:"password"` // raw password from JSON
 	User
 }

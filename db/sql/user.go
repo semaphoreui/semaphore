@@ -8,7 +8,34 @@ import (
 	"time"
 )
 
+
+func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
+
+	err = db.ValidateUsername(user.Username)
+	if err != nil {
+		return
+	}
+
+	user.Password = ""
+	user.Created = db.GetParsedTime(time.Now())
+
+	err = d.sql.Insert(&user)
+
+	if err != nil {
+		return
+	}
+
+	newUser = user
+	return
+}
+
 func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
+
+	err = db.ValidateUsername(user.Username)
+	if err != nil {
+		return
+	}
+
 	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
 
 	if err != nil {

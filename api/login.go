@@ -2,19 +2,16 @@ package api
 
 import (
 	"crypto/tls"
-	"database/sql"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
-	"net/mail"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 
-	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/ldap.v2"
 )
@@ -128,24 +125,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var user db.User
-	q := sq.Select("*").
-		From("user")
 
-	// determine if login.Auth is email or username
-	if _, err := mail.ParseAddress(login.Auth); err == nil {
-		q = q.Where("email=?", login.Auth)
-	} else {
-		q = q.Where("username=?", login.Auth)
-	}
+	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
 
-	query, args, err := q.ToSql()
-	util.LogWarning(err)
-	if err = helpers.Store(r).Sql().SelectOne(&user, query, args...); err != nil && err == sql.ErrNoRows {
+	if err != nil && err == db.ErrNotFound {
 		if ldapUser != nil {
 			// create new LDAP user
 			user = *ldapUser
-			if err = helpers.Store(r).Sql().Insert(&user); err != nil {
+			_, err = helpers.Store(r).CreateUserWithoutPassword(user)
+			if err != nil {
 				panic(err)
 			}
 		} else {
