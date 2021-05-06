@@ -400,7 +400,8 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 }
 
 
-
-
+func (d *SqlDb) Sql() *gorp.DbMap {
+	return d.sql
+}
 
 

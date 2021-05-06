@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/factory"
+	"github.com/ansible-semaphore/semaphore/db/sql"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/snikch/goodman/transaction"
 	"math/rand"
@@ -209,10 +209,10 @@ func loadConfig() {
 	}
 }
 
-var store db.Store
+var store sql.SqlDb
 
 func dbConnect() {
-	store = factory.CreateStore()
+	store = sql.SqlDb{}
 
 	if err := store.Connect(); err != nil {
 		panic(err)

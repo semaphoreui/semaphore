@@ -39,7 +39,7 @@ require (
 	github.com/radovskyb/watcher v1.0.7 // indirect
 	github.com/russross/blackfriday v1.5.2
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
+	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
 	github.com/spf13/cobra v0.0.5 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.etcd.io/bbolt v1.3.2
