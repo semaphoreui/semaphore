@@ -3,7 +3,6 @@ package db
 import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-gorp/gorp/v3"
 	"time"
 )
 
@@ -126,9 +125,6 @@ type Store interface {
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
-
-
-	Sql() *gorp.DbMap
 }
 
 

@@ -399,9 +399,6 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 	return q.ToSql()
 }
 
-func (d *SqlDb) Sql() *gorp.DbMap {
-	return d.sql
-}
 
 
 
