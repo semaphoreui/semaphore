@@ -5,15 +5,9 @@ import (
 	"github.com/masterminds/squirrel"
 )
 
-
-var repositoryObject = objectProperties{
-	TableName: "project__repository",
-	TemplateColumnName: "repository_id",
-}
-
 func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, error) {
 	var repository db.Repository
-	err := d.getObject(projectID, repositoryObject, repositoryID, &repository)
+	err := d.getObject(projectID, db.RepositoryObject, repositoryID, &repository)
 
 	if err != nil {
 		return repository, err
@@ -91,10 +85,10 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 }
 
 func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
-	return d.deleteObject(projectID, repositoryObject, repositoryId)
+	return d.deleteObject(projectID, db.RepositoryObject, repositoryId)
 }
 
 func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
-	return d.deleteObjectSoft(projectID, repositoryObject, repositoryId)
+	return d.deleteObjectSoft(projectID, db.RepositoryObject, repositoryId)
 }
 

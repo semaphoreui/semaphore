@@ -27,6 +27,13 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
+type ObjectProperties struct {
+	TableName          string
+	SortableColumns    []string
+	IsGlobal           bool
+	TemplateColumnName string
+}
+
 var ErrNotFound = errors.New("sql: no rows in result set")
 var ErrInvalidOperation = errors.New("sql: no rows in result set")
 var Forbidden = errors.New("sql: no rows in result set")
@@ -127,4 +134,32 @@ type Store interface {
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
 }
 
+var AccessKeyObject = ObjectProperties{
+	TableName:          "access_key",
+	SortableColumns:    []string{"name", "type"},
+	TemplateColumnName: "ssh_key_id",
+}
+
+var GlobalAccessKeyObject = ObjectProperties{
+	IsGlobal:           true,
+	TableName:          "access_key",
+	SortableColumns:    []string{"name", "type"},
+	TemplateColumnName: "ssh_key_id",
+}
+
+var EnvironmentObject = ObjectProperties{
+	TableName:       "project__environment",
+	SortableColumns: []string{"name"},
+}
+
+var InventoryObject = ObjectProperties{
+	TableName:          "project__inventory",
+	SortableColumns:    []string{"name"},
+	TemplateColumnName: "inventory_id",
+}
+
+var RepositoryObject = ObjectProperties{
+	TableName:          "project__repository",
+	TemplateColumnName: "repository_id",
+}
 

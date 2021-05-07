@@ -188,14 +188,7 @@ func createDb() error {
 	return nil
 }
 
-type objectProperties struct {
-	TableName string
-	SortableColumns []string
-	IsGlobal bool
-	TemplateColumnName string
-}
-
-func (d *SqlDb) getObject(projectID int, props objectProperties, objectID int, object interface{}) (err error) {
+func (d *SqlDb) getObject(projectID int, props db.ObjectProperties, objectID int, object interface{}) (err error) {
 	q := squirrel.Select("*").
 		From(props.TableName).
 		Where("id=?", objectID)
@@ -221,7 +214,7 @@ func (d *SqlDb) getObject(projectID int, props objectProperties, objectID int, o
 	return
 }
 
-func (d *SqlDb) getObjects(projectID int, props objectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
 		From(props.TableName + " pe").
 		Where("pe.project_id=?", projectID)
@@ -249,7 +242,7 @@ func (d *SqlDb) getObjects(projectID int, props objectProperties, params db.Retr
 	return
 }
 
-func (d *SqlDb) isObjectInUse(projectID int, props objectProperties, objectID int) (bool, error) {
+func (d *SqlDb) isObjectInUse(projectID int, props db.ObjectProperties, objectID int) (bool, error) {
 	templatesC, err := d.sql.SelectInt(
 		"select count(1) from project__template where project_id=? and " + props.TemplateColumnName + "=?",
 		projectID,
@@ -262,7 +255,7 @@ func (d *SqlDb) isObjectInUse(projectID int, props objectProperties, objectID in
 	return templatesC > 0, nil
 }
 
-func (d *SqlDb) deleteObject(projectID int, props objectProperties, objectID int) error {
+func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID int) error {
 	inUse, err := d.isObjectInUse(projectID, props, objectID)
 
 	if err != nil {
@@ -280,7 +273,7 @@ func (d *SqlDb) deleteObject(projectID int, props objectProperties, objectID int
 			objectID))
 }
 
-func (d *SqlDb) deleteObjectSoft(projectID int, props objectProperties, objectID int) error {
+func (d *SqlDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
 	return validateMutationResult(
 		d.sql.Exec(
 			"update " + props.TableName + " set removed=1 where project_id=? and id=?",

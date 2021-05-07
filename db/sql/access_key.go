@@ -2,28 +2,15 @@ package sql
 
 import "github.com/ansible-semaphore/semaphore/db"
 
-var accessKeyObject = objectProperties{
-	TableName: "access_key",
-	SortableColumns: []string{"name", "type"},
-	TemplateColumnName: "ssh_key_id",
-}
-
-var globalAccessKeyObject = objectProperties{
-	IsGlobal: true,
-	TableName: "access_key",
-	SortableColumns: []string{"name", "type"},
-	TemplateColumnName: "ssh_key_id",
-}
-
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error) {
 	var key db.AccessKey
-	err := d.getObject(projectID, accessKeyObject, accessKeyID, &key)
+	err := d.getObject(projectID, db.AccessKeyObject, accessKeyID, &key)
 	return key, err
 }
 
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(projectID, accessKeyObject, params, &keys)
+	err := d.getObjects(projectID, db.AccessKeyObject, params, &keys)
 	return keys, err
 }
 
@@ -64,23 +51,23 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 }
 
 func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
-	return d.deleteObject(projectID, accessKeyObject, accessKeyID)
+	return d.deleteObject(projectID, db.AccessKeyObject, accessKeyID)
 }
 
 func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
-	return d.deleteObjectSoft(projectID, accessKeyObject, accessKeyID)
+	return d.deleteObjectSoft(projectID, db.AccessKeyObject, accessKeyID)
 }
 
 
 func (d *SqlDb) GetGlobalAccessKey(accessKeyID int) (db.AccessKey, error) {
 	var key db.AccessKey
-	err := d.getObject(0, globalAccessKeyObject, accessKeyID, &key)
+	err := d.getObject(0, db.GlobalAccessKeyObject, accessKeyID, &key)
 	return key, err
 }
 
 func (d *SqlDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(0, globalAccessKeyObject, params, &keys)
+	err := d.getObjects(0, db.GlobalAccessKeyObject, params, &keys)
 	return keys, err
 }
 
@@ -119,9 +106,9 @@ func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (d *SqlDb) DeleteGlobalAccessKey(accessKeyID int) error {
-	return d.deleteObject(0, globalAccessKeyObject, accessKeyID)
+	return d.deleteObject(0, db.GlobalAccessKeyObject, accessKeyID)
 }
 
 func (d *SqlDb) DeleteGlobalAccessKeySoft(accessKeyID int) error {
-	return d.deleteObjectSoft(0, globalAccessKeyObject, accessKeyID)
+	return d.deleteObjectSoft(0, db.GlobalAccessKeyObject, accessKeyID)
 }

@@ -174,7 +174,7 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 	return err
 }
 
-//FetchUser retrieves a user from the database by ID
+//GetUser retrieves a user from the database by ID
 func (d *SqlDb) GetUser(userID int) (db.User, error) {
 	var user db.User
 

@@ -2,20 +2,15 @@ package sql
 
 import "github.com/ansible-semaphore/semaphore/db"
 
-var environmentObject = objectProperties{
-	TableName: "project__environment",
-	SortableColumns: []string{"name"},
-}
-
 func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
 	var environment db.Environment
-	err := d.getObject(projectID, environmentObject, environmentID, &environment)
+	err := d.getObject(projectID, db.EnvironmentObject, environmentID, &environment)
 	return environment, err
 }
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
 	var environment []db.Environment
-	err := d.getObjects(projectID, environmentObject, params, &environment)
+	err := d.getObjects(projectID, db.EnvironmentObject, params, &environment)
 	return environment, err
 }
 
@@ -52,9 +47,9 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 }
 
 func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
-	return d.deleteObject(projectID, environmentObject, environmentID)
+	return d.deleteObject(projectID, db.EnvironmentObject, environmentID)
 }
 
 func (d *SqlDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
-	return d.deleteObjectSoft(projectID, environmentObject, environmentID)
+	return d.deleteObjectSoft(projectID, db.EnvironmentObject, environmentID)
 }

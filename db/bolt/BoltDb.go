@@ -1,16 +1,28 @@
 package bolt
 
 import (
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/util"
-	bolt "go.etcd.io/bbolt"
+	"go.etcd.io/bbolt"
 )
 
 type BoltDb struct {
-	db *bolt.DB
+	db *bbolt.DB
 }
 
-func (d *BoltDb) Migrate() {
+func makeObjectId(tableName string, ids ...int) ([]byte, error) {
+	n := len(ids)
 
+	id := tableName
+	for i := 0; i < n; i++ {
+		id += fmt.Sprintf("_%010d", ids[i])
+	}
+
+	return []byte(id), nil
+}
+
+func (d *BoltDb) Migrate() error {
+	return nil
 }
 
 func (d *BoltDb) Connect() error {
@@ -18,7 +30,7 @@ func (d *BoltDb) Connect() error {
 	if err != nil {
 		return err
 	}
-	db, err := bolt.Open(config.Hostname, 0666, nil)
+	db, err := bbolt.Open(config.Hostname, 0666, nil)
 	if err != nil {
 		return err
 	}
