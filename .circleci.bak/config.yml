@@ -243,51 +243,51 @@ jobs:
       - *store-bin-artifacts
 
 
-#workflows:
-#  version: 2
-#
-#  build-test:
-#    jobs:
-#      - test:docker
-#      - test:golang
-#      - test:integration:hooks
-#      - test:integration
-#      - build:local
-#      - test:db:migration:
-#          requires:
-#            - build:local
-#
-## Don't build on master because build is just a gorelease without the release
-#      - build:
-#          requires:
-#            - test:golang
-#            - test:db:migration
-#            - test:integration
-#          filters:
-#            branches:
-#              ignore: master
-#
-## Dev deploys require all tests to pass and app builds
-#      - deploy:dev:
-#          requires:
-#            - build
-#            - test:docker
-#          filters:
-#            branches:
-#              only: develop
-#
-## Production deploys only happen if everything passes
-## and we have a tag starting with v
-#      - release:
-#          filters:
-#            branches:
-#              ignore: /.*/
-#            tags:
-#              only: /^v.*/
-#
-#      - deploy:prod:
-#          filters:
-#            branches:
-#              ignore: /.*/
-#            tags:
-#              only: /^v.*/
+workflows:
+  version: 2
+
+  build-test:
+    jobs:
+      - test:docker
+      - test:golang
+      - test:integration:hooks
+      - test:integration
+      - build:local
+      - test:db:migration:
+          requires:
+            - build:local
+
+# Don't build on master because build is just a gorelease without the release
+      - build:
+          requires:
+            - test:golang
+            - test:db:migration
+            - test:integration
+          filters:
+            branches:
+              ignore: master
+
+# Dev deploys require all tests to pass and app builds
+      - deploy:dev:
+          requires:
+            - build
+            - test:docker
+          filters:
+            branches:
+              only: develop
+
+# Production deploys only happen if everything passes
+# and we have a tag starting with v
+      - release:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+
+      - deploy:prod:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
