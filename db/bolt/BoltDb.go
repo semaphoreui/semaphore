@@ -11,14 +11,21 @@ import (
 	"strconv"
 )
 
+
+type enumerable interface {
+	First() (key []byte, value []byte)
+	Next() (key []byte, value []byte)
+}
+
+
 type BoltDb struct {
 	db *bbolt.DB
 }
 
-func makeBucketId(obj db.ObjectProperties, ids ...int) []byte {
+func makeBucketId(props db.ObjectProperties, ids ...int) []byte {
 	n := len(ids)
 
-	id := obj.TableName
+	id := props.TableName
 	for i := 0; i < n; i++ {
 		id += fmt.Sprintf("_%010d", ids[i])
 	}
@@ -78,15 +85,19 @@ func getFieldNameByTag(t reflect.Type, tag string, value string) (string, error)
 func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
+
 	fieldName, err := getFieldNameByTag(objType, "db", sortBy)
 	if err != nil {
 		return err
 	}
 
 	sort.SliceStable(objectsValue.Interface(), func (i, j int) bool {
-		fieldI := objectsValue.Index(i).FieldByName(fieldName)
-		fieldJ := objectsValue.Index(j).FieldByName(fieldName)
-		switch fieldJ.Kind() {
+		valueI := objectsValue.Index(i).FieldByName(fieldName)
+		valueJ := objectsValue.Index(j).FieldByName(fieldName)
+
+		less := false
+
+		switch valueI.Kind() {
 		case reflect.Int:
 		case reflect.Int8:
 		case reflect.Int16:
@@ -97,63 +108,70 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 		case reflect.Uint16:
 		case reflect.Uint32:
 		case reflect.Uint64:
-			return fieldI.Int() < fieldJ.Int()
+			less = valueI.Int() < valueJ.Int()
 		case reflect.Float32:
 		case reflect.Float64:
-			return fieldI.Float() < fieldJ.Float()
+			less = valueI.Float() < valueJ.Float()
 		case reflect.String:
-			return fieldI.String() < fieldJ.String()
+			less = valueI.String() < valueJ.String()
 		}
-		return false
+
+		if sortInverted {
+			less = !less
+		}
+
+		return less
 	})
 
 	return nil
 }
 
-func (d *BoltDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func unmarshalObjects(rawData enumerable, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
-	// Read elements from database
-	err = d.db.View(func(tx *bbolt.Tx) error {
+	i := 0 // current item index
+	n := 0 // number of added items
 
-		b := tx.Bucket(makeBucketId(props, projectID))
-		c := b.Cursor()
-		i := 0 // current item index
-		n := 0 // number of added items
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if i < params.Offset {
-				continue
-			}
-
-			obj := reflect.New(objType).Elem()
-			err2 := json.Unmarshal(v, &obj)
-			if err2 == nil {
-				return err2
-			}
-
-			objectsValue.Set(reflect.Append(objectsValue, obj))
-
-			n++
-
-			if n > params.Count {
-				break
-			}
+	for k, v := rawData.First(); k != nil; k, v = rawData.Next() {
+		if i < params.Offset {
+			continue
 		}
 
-		return nil
-	})
+		obj := reflect.New(objType).Elem()
+		err = json.Unmarshal(v, &obj)
+		if err == nil {
+			return err
+		}
+
+		objectsValue.Set(reflect.Append(objectsValue, obj))
+
+		n++
+
+		if n > params.Count {
+			break
+		}
+	}
 
 	if err != nil {
 		return
 	}
 
-
-	// Sort elements
-	err = sortObjects(objects, params.SortBy, params.SortInverted)
+	if params.SortBy != "" {
+		err = sortObjects(objects, params.SortBy, params.SortInverted)
+	}
 
 	return
+}
+
+func (d *BoltDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) error {
+	return d.db.View(func(tx *bbolt.Tx) error {
+
+		b := tx.Bucket(makeBucketId(props, projectID))
+		c := b.Cursor()
+
+		return unmarshalObjects(c, params, objects)
+	})
 }
 
 
@@ -189,4 +207,54 @@ func (d *BoltDb) deleteObject(projectID int, props db.ObjectProperties, objectID
 
 func (d *BoltDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
 	return d.deleteObject(projectID, props, objectID)
+}
+
+func (d *BoltDb) updateObject(projectID int, props db.ObjectProperties, object interface{}) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, projectID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		idValue := reflect.ValueOf(object).FieldByName("ID")
+
+		id := []byte(strconv.Itoa(int(idValue.Int())))
+		if b.Get(id) == nil {
+			return db.ErrNotFound
+		}
+
+		str, err := json.Marshal(object)
+		if err != nil {
+			return err
+		}
+
+		return b.Put(id, str)
+	})
+}
+
+func (d *BoltDb) createObject(projectID int, props db.ObjectProperties, object interface{}) (interface{}, error) {
+	err := d.db.Update(func(tx *bbolt.Tx) error {
+		b, err2 := tx.CreateBucketIfNotExists(makeBucketId(props, projectID))
+		if err2 != nil {
+			return err2
+		}
+
+		id, err2 := b.NextSequence()
+		if err2 != nil {
+			return err2
+		}
+
+		idValue := reflect.ValueOf(object).FieldByName("ID")
+
+		idValue.SetInt(int64(id))
+
+		str, err2 := json.Marshal(object)
+		if err2 != nil {
+			return err2
+		}
+
+		return b.Put([]byte(strconv.Itoa(int(id))), str)
+	})
+
+	return object, err
 }

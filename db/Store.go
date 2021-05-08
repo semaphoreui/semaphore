@@ -163,3 +163,8 @@ var RepositoryObject = ObjectProperties{
 	TemplateColumnName: "repository_id",
 }
 
+var TemplateObject = ObjectProperties{
+	TableName:          "project__template",
+	SortableColumns:    []string{"name"},
+}
+
