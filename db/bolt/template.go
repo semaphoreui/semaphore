@@ -19,10 +19,10 @@ func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (tem
 }
 
 func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
-	err = d.getObject(projectID, db.TemplateObject, templateID, &template)
+	err = d.getObject(projectID, db.TemplateObject, intObjectID(templateID), &template)
 	return
 }
 
 func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
-	return d.deleteObject(projectID, db.TemplateObject, templateID)
+	return d.deleteObject(projectID, db.TemplateObject, intObjectID(templateID))
 }

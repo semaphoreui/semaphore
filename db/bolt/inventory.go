@@ -6,7 +6,7 @@ import (
 
 
 func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
-	err = d.getObject(projectID, db.InventoryObject, inventoryID, &inventory)
+	err = d.getObject(projectID, db.InventoryObject, intObjectID(inventoryID), &inventory)
 
 	if err != nil {
 		return
@@ -32,11 +32,11 @@ func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams) (i
 }
 
 func (d *BoltDb) DeleteInventory(projectID int, inventoryID int) error {
-	return d.deleteObject(projectID, db.InventoryObject, inventoryID)
+	return d.deleteObject(projectID, db.InventoryObject, intObjectID(inventoryID))
 }
 
 func (d *BoltDb) DeleteInventorySoft(projectID int, inventoryID int) error {
-	return d.deleteObjectSoft(projectID, db.InventoryObject, inventoryID)
+	return d.deleteObjectSoft(projectID, db.InventoryObject, intObjectID(inventoryID))
 }
 
 func (d *BoltDb) UpdateInventory(inventory db.Inventory) error {

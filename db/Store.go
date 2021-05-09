@@ -168,3 +168,24 @@ var TemplateObject = ObjectProperties{
 	SortableColumns:    []string{"name"},
 }
 
+var ProjectUserObject = ObjectProperties{
+	TableName:          "project__user",
+}
+
+var ProjectObject = ObjectProperties{
+	TableName:          "project",
+	IsGlobal:           true,
+}
+
+var UserObject = ObjectProperties{
+	TableName:          "user",
+	IsGlobal:           true,
+}
+
+var SessionObject = ObjectProperties{
+	TableName:          "session",
+}
+
+var TokenObject = ObjectProperties{
+	TableName:          "user__token",
+}

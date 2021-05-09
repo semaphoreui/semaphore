@@ -5,7 +5,7 @@ import (
 )
 
 func (d *BoltDb) GetRepository(projectID int, repositoryID int) (repository db.Repository, err error) {
-	err = d.getObject(projectID, db.RepositoryObject, repositoryID, &repository)
+	err = d.getObject(projectID, db.RepositoryObject, intObjectID(repositoryID), &repository)
 	return
 }
 
@@ -24,10 +24,10 @@ func (d *BoltDb) CreateRepository(repository db.Repository) (db.Repository, erro
 }
 
 func (d *BoltDb) DeleteRepository(projectID int, repositoryId int) error {
-	return d.deleteObject(projectID, db.RepositoryObject, repositoryId)
+	return d.deleteObject(projectID, db.RepositoryObject, intObjectID(repositoryId))
 }
 
 func (d *BoltDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
-	return d.deleteObjectSoft(projectID, db.RepositoryObject, repositoryId)
+	return d.deleteObjectSoft(projectID, db.RepositoryObject, intObjectID(repositoryId))
 }
 

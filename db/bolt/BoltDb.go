@@ -8,7 +8,6 @@ import (
 	"go.etcd.io/bbolt"
 	"reflect"
 	"sort"
-	"strconv"
 )
 
 
@@ -22,12 +21,44 @@ type BoltDb struct {
 	db *bbolt.DB
 }
 
+type objectID interface {
+	ToBytes() []byte
+}
+
+type intObjectID int
+type strObjectID string
+
+func (d intObjectID) ToBytes() []byte {
+	return []byte(fmt.Sprintf("%010d", d))
+}
+
+func (d strObjectID) ToBytes() []byte {
+	return []byte(d)
+}
+
+func makeObjectId(ids ...int) []byte {
+	n := len(ids)
+
+	id := ""
+	for i := 0; i < n; i++ {
+		if id != "" {
+			id += "_"
+		}
+		id += fmt.Sprintf("%010d", ids[i])
+	}
+
+	return []byte(id)
+}
+
 func makeBucketId(props db.ObjectProperties, ids ...int) []byte {
 	n := len(ids)
 
 	id := props.TableName
-	for i := 0; i < n; i++ {
-		id += fmt.Sprintf("_%010d", ids[i])
+
+	if !props.IsGlobal {
+		for i := 0; i < n; i++ {
+			id += fmt.Sprintf("_%010d", ids[i])
+		}
 	}
 
 	return []byte(id)
@@ -53,15 +84,14 @@ func (d *BoltDb) Close() error {
 	return d.db.Close()
 }
 
-func (d *BoltDb) getObject(projectID int, props db.ObjectProperties, objectID int, object interface{}) (err error) {
+func (d *BoltDb) getObject(bucketID int, props db.ObjectProperties, objectID objectID, object interface{}) (err error) {
 	err = d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, projectID))
+		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
 			return db.ErrNotFound
 		}
 
-		id := []byte(strconv.Itoa(objectID))
-		str := b.Get(id)
+		str := b.Get(objectID.ToBytes())
 		if str == nil {
 			return db.ErrNotFound
 		}
@@ -126,7 +156,7 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 	return nil
 }
 
-func unmarshalObjects(rawData enumerable, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
@@ -157,36 +187,47 @@ func unmarshalObjects(rawData enumerable, params db.RetrieveQueryParams, objects
 		return
 	}
 
+	sortable := false
+
 	if params.SortBy != "" {
+		for _, v := range props.SortableColumns {
+			if v == params.SortBy {
+				sortable = true
+				break
+			}
+		}
+	}
+
+	if sortable {
 		err = sortObjects(objects, params.SortBy, params.SortInverted)
 	}
 
 	return
 }
 
-func (d *BoltDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) error {
+func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 
-		b := tx.Bucket(makeBucketId(props, projectID))
+		b := tx.Bucket(makeBucketId(props, bucketID))
 		c := b.Cursor()
 
-		return unmarshalObjects(c, params, objects)
+		return unmarshalObjects(c, props, params, objects)
 	})
 }
 
 
-func (d *BoltDb) isObjectInUse(projectID int, props db.ObjectProperties, objectID int) (inUse bool, err error) {
+func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objectID objectID) (inUse bool, err error) {
 	err = d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, projectID))
-		inUse = b != nil && b.Get([]byte(strconv.Itoa(objectID))) != nil
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		inUse = b != nil && b.Get(objectID.ToBytes()) != nil
 		return nil
 	})
 
 	return
 }
 
-func (d *BoltDb) deleteObject(projectID int, props db.ObjectProperties, objectID int) error {
-	inUse, err := d.isObjectInUse(projectID, props, objectID)
+func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
+	inUse, err := d.isObjectInUse(bucketID, props, objectID)
 
 	if err != nil {
 		return err
@@ -197,28 +238,29 @@ func (d *BoltDb) deleteObject(projectID int, props db.ObjectProperties, objectID
 	}
 
 	return d.db.Update(func (tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(db.InventoryObject, projectID))
+		b := tx.Bucket(makeBucketId(db.InventoryObject, bucketID))
 		if b == nil {
 			return db.ErrNotFound
 		}
-		return b.Delete([]byte(strconv.Itoa(objectID)))
+		return b.Delete(objectID.ToBytes())
 	})
 }
 
-func (d *BoltDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
-	return d.deleteObject(projectID, props, objectID)
+func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objectID objectID) error {
+	return d.deleteObject(bucketID, props, objectID)
 }
 
-func (d *BoltDb) updateObject(projectID int, props db.ObjectProperties, object interface{}) error {
+// updateObject updates data for object in database.
+func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object interface{}) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, projectID))
+		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
 			return db.ErrNotFound
 		}
 
 		idValue := reflect.ValueOf(object).FieldByName("ID")
 
-		id := []byte(strconv.Itoa(int(idValue.Int())))
+		id := makeObjectId(int(idValue.Int()))
 		if b.Get(id) == nil {
 			return db.ErrNotFound
 		}
@@ -232,28 +274,55 @@ func (d *BoltDb) updateObject(projectID int, props db.ObjectProperties, object i
 	})
 }
 
-func (d *BoltDb) createObject(projectID int, props db.ObjectProperties, object interface{}) (interface{}, error) {
+func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object interface{}) (interface{}, error) {
 	err := d.db.Update(func(tx *bbolt.Tx) error {
-		b, err2 := tx.CreateBucketIfNotExists(makeBucketId(props, projectID))
-		if err2 != nil {
-			return err2
-		}
+		b, err2 := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
 
-		id, err2 := b.NextSequence()
 		if err2 != nil {
 			return err2
 		}
 
 		idValue := reflect.ValueOf(object).FieldByName("ID")
+		var objectID objectID
 
-		idValue.SetInt(int64(id))
+		switch idValue.Kind() {
+		case reflect.Int:
+		case reflect.Int8:
+		case reflect.Int16:
+		case reflect.Int32:
+		case reflect.Int64:
+		case reflect.Uint:
+		case reflect.Uint8:
+		case reflect.Uint16:
+		case reflect.Uint32:
+		case reflect.Uint64:
+			if idValue.Int() == 0 {
+				id, err2 := b.NextSequence()
+				if err2 != nil {
+					return err2
+				}
+				idValue.SetInt(int64(id))
+				objectID = intObjectID(id)
+			}
+		case reflect.String:
+			if idValue.String() == "" {
+				return fmt.Errorf("object ID can not be empty string")
+			}
+			objectID = strObjectID(idValue.String())
+		default:
+			return fmt.Errorf("unsupported ID type")
+		}
+
+		if objectID == nil {
+			return fmt.Errorf("object ID can not be nil")
+		}
 
 		str, err2 := json.Marshal(object)
 		if err2 != nil {
 			return err2
 		}
 
-		return b.Put([]byte(strconv.Itoa(int(id))), str)
+		return b.Put(objectID.ToBytes(), str)
 	})
 
 	return object, err

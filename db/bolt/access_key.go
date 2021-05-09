@@ -6,7 +6,7 @@ import (
 
 func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error) {
 	var key db.AccessKey
-	err := d.getObject(projectID, db.AccessKeyObject, accessKeyID, &key)
+	err := d.getObject(projectID, db.AccessKeyObject, intObjectID(accessKeyID), &key)
 	return key, err
 }
 
@@ -26,16 +26,15 @@ func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey,  error) {
 }
 
 func (d *BoltDb) DeleteAccessKey(projectID int, accessKeyID int) error {
-	return d.deleteObject(projectID, db.AccessKeyObject, accessKeyID)
+	return d.deleteObject(projectID, db.AccessKeyObject, intObjectID(accessKeyID))
 }
 
 func (d *BoltDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
-	return d.deleteObjectSoft(projectID, db.AccessKeyObject, accessKeyID)
+	return d.deleteObjectSoft(projectID, db.AccessKeyObject, intObjectID(accessKeyID))
 }
 
-
 func (d *BoltDb) GetGlobalAccessKey(accessKeyID int) (key db.AccessKey, err error) {
-	err = d.getObject(0, db.GlobalAccessKeyObject, accessKeyID, &key)
+	err = d.getObject(0, db.GlobalAccessKeyObject, intObjectID(accessKeyID), &key)
 	return
 }
 
@@ -54,9 +53,9 @@ func (d *BoltDb) CreateGlobalAccessKey(key db.AccessKey) (db.AccessKey, error) {
 }
 
 func (d *BoltDb) DeleteGlobalAccessKey(accessKeyID int) error {
-	return d.deleteObject(0, db.GlobalAccessKeyObject, accessKeyID)
+	return d.deleteObject(0, db.GlobalAccessKeyObject, intObjectID(accessKeyID))
 }
 
 func (d *BoltDb) DeleteGlobalAccessKeySoft(accessKeyID int) error {
-	return d.deleteObjectSoft(0, db.GlobalAccessKeyObject, accessKeyID)
+	return d.deleteObjectSoft(0, db.GlobalAccessKeyObject, intObjectID(accessKeyID))
 }

@@ -3,7 +3,7 @@ package bolt
 import "github.com/ansible-semaphore/semaphore/db"
 
 func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
-	err = d.getObject(projectID, db.EnvironmentObject, environmentID, &environment)
+	err = d.getObject(projectID, db.EnvironmentObject, intObjectID(environmentID), &environment)
 	return
 }
 
@@ -22,9 +22,9 @@ func (d *BoltDb) CreateEnvironment(env db.Environment) (db.Environment, error) {
 }
 
 func (d *BoltDb) DeleteEnvironment(projectID int, environmentID int) error {
-	return d.deleteObject(projectID, db.EnvironmentObject, environmentID)
+	return d.deleteObject(projectID, db.EnvironmentObject, intObjectID(environmentID))
 }
 
 func (d *BoltDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
-	return d.deleteObjectSoft(projectID, db.EnvironmentObject, environmentID)
+	return d.deleteObjectSoft(projectID, db.EnvironmentObject, intObjectID(environmentID))
 }
