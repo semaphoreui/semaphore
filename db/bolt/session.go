@@ -41,7 +41,12 @@ func (d *BoltDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 }
 
 func (d *BoltDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
-	err = d.getObject(0, globalTokenObject, strObjectID(tokenID), &token)
+	var t globalToken
+	err = d.getObject(0, globalTokenObject, strObjectID(tokenID), &t)
+	if err != nil {
+		return
+	}
+	err = d.getObject(t.UserID, db.TokenObject, strObjectID(tokenID), &token)
 	return
 }
 

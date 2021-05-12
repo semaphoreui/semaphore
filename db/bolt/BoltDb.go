@@ -160,11 +160,12 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
-	i := 0 // current item index
+	i := 0 // offset counter
 	n := 0 // number of added items
 
 	for k, v := rawData.First(); k != nil; k, v = rawData.Next() {
-		if i < params.Offset {
+		if params.Offset > 0 && i < params.Offset {
+			i++
 			continue
 		}
 

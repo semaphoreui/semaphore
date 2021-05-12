@@ -1,10 +1,8 @@
 package bolt
 
 import (
-	"database/sql"
 	"encoding/json"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
 	"go.etcd.io/bbolt"
 	"time"
 )
@@ -13,54 +11,57 @@ func (d *BoltDb) getEventObjectName(evt db.Event) (string, error) {
 	if evt.ObjectID == nil || evt.ObjectType == nil {
 		return "", nil
 	}
-
-	var q squirrel.SelectBuilder
-
 	switch *evt.ObjectType {
 	case "task":
-
-		q = squirrel.Select("case when length(task.playbook) > 0 then task.playbook else tpl.playbook end").
-			From("task").
-			Join("project__template as tpl on task.template_id=tpl.id").
-			Where("task.id=?", evt.ObjectID)
+		task, err := d.GetTask(*evt.ProjectID, *evt.ObjectID)
+		if err != nil {
+			return "", err
+		}
+		return task.Playbook, nil
 	default:
-		return "", nil
-	}
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return "", err
-	}
-
-	var name sql.NullString
-	name, err = d.sql.SelectNullStr(query, args...)
-
-	if err != nil {
-		return "", err
-	}
-
-	if name.Valid {
-		return name.String, nil
-	} else {
 		return "", nil
 	}
 }
 
-func (d *BoltDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParams) (events []db.Event, err error) {
+// getEvents filter and sort enumerable object passed via parameter.
+func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter func (db.Event) bool) (events []db.Event, err error) {
 
-	if params.Count > 0 {
-		q = q.Limit(uint64(params.Count))
-	}
-	query, args, err := q.ToSql()
-	if err != nil {
-		return
-	}
-	_, err = d.sql.Select(&events, query, args...)
+	i := 0 // offset counter
+	n := 0 // number of added items
 
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		if params.Offset > 0 && i < params.Offset {
+			i++
+			continue
+		}
 
-	if err != nil {
-		return
+		var evt db.Event
+		err = json.Unmarshal(v, &evt)
+
+		if err != nil {
+			break
+		}
+
+		if !filter(evt) {
+			continue
+		}
+
+		if evt.ProjectID != nil {
+			var proj db.Project
+			proj, err = d.GetProject(*evt.ProjectID)
+			if err != nil {
+				break
+			}
+			evt.ProjectName = &proj.Name
+		}
+
+		events = append(events, evt)
+
+		n++
+
+		if n > params.Count {
+			break
+		}
 	}
 
 	for i, evt := range events {
@@ -106,23 +107,45 @@ func (d *BoltDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	return
 }
 
-func (d *BoltDb) GetUserEvents(userID int, params db.RetrieveQueryParams) ([]db.Event, error) {
-	q := squirrel.Select("event.*, p.name as project_name").
-		From("event").
-		LeftJoin("project as p on event.project_id=p.id").
-		OrderBy("created desc").
-		LeftJoin("project__user as pu on pu.project_id=p.id").
-		Where("p.id IS NULL or pu.user_id=?", userID)
+func (d *BoltDb) GetUserEvents(userID int, params db.RetrieveQueryParams) (events []db.Event, err error) {
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("events"))
+		if b == nil {
+			return nil
+		}
 
-	return d.getEvents(q, params)
+		c := b.Cursor()
+		events, err = d.getEvents(c, params, func (evt db.Event) bool {
+			if evt.ProjectID == nil {
+				return false
+			}
+			_, err2 := d.GetProjectUser(*evt.ProjectID, userID)
+			return err2 == nil
+		})
+
+		return nil
+	})
+
+	return
 }
 
-func (d *BoltDb) GetEvents(projectID int, params db.RetrieveQueryParams) ([]db.Event, error) {
-	q := squirrel.Select("event.*, p.name as project_name").
-		From("event").
-		LeftJoin("project as p on event.project_id=p.id").
-		OrderBy("created desc").
-		Where("event.project_id=?", projectID)
+func (d *BoltDb) GetEvents(projectID int, params db.RetrieveQueryParams) (events []db.Event, err error) {
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("events"))
+		if b == nil {
+			return nil
+		}
 
-	return d.getEvents(q, params)
+		c := b.Cursor()
+		events, err = d.getEvents(c, params, func (evt db.Event) bool {
+			if evt.ProjectID == nil {
+				return false
+			}
+			return *evt.ProjectID == projectID
+		})
+
+		return nil
+	})
+
+	return
 }

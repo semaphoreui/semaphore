@@ -1,9 +1,7 @@
 package bolt
 
 import (
-	"database/sql"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
@@ -19,13 +17,13 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 	user.Password = ""
 	user.Created = db.GetParsedTime(time.Now())
 
-	err = d.sql.Insert(&user)
+	usr, err := d.createObject(0, db.UserObject, user)
 
 	if err != nil {
 		return
 	}
 
-	newUser = user
+	newUser = usr.(db.User)
 	return
 }
 
@@ -45,161 +43,109 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	user.Password = string(pwdHash)
 	user.Created = db.GetParsedTime(time.Now())
 
-	err = d.sql.Insert(&user.User)
+	usr, err := d.createObject(0, db.UserObject, user)
 
 	if err != nil {
 		return
 	}
 
-	newUser = user.User
+	newUser = usr.(db.User)
 	return
 }
 
 func (d *BoltDb) DeleteUser(userID int) error {
-	res, err := d.sql.Exec("delete from `user` where id=?", userID)
-	return validateMutationResult(res, err)
+	return d.deleteObject(0, db.UserObject, intObjectID(userID))
 }
 
 func (d *BoltDb) UpdateUser(user db.UserWithPwd) error {
-	var err error
+	var password string
 
 	if user.Pwd != "" {
 		var pwdHash []byte
-		pwdHash, err = bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
 		if err != nil {
 			return err
 		}
-		_, err = d.sql.Exec(
-			"update user set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
-			user.Name,
-			user.Username,
-			user.Email,
-			user.Alert,
-			user.Admin,
-			string(pwdHash),
-			user.ID)
+		password = string(pwdHash)
 	} else {
-		_, err = d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
-			user.Name,
-			user.Username,
-			user.Email,
-			user.Alert,
-			user.Admin,
-			user.ID)
+		oldUser, err := d.GetUser(user.ID)
+		if err != nil {
+			return err
+		}
+		password = oldUser.Password
 	}
 
-	return err
+	user.Password = password
+
+	return d.updateObject(0, db.UserObject, user)
 }
 
 func (d *BoltDb) SetUserPassword(userID int, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 11)
+	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 11)
 	if err != nil {
 		return err
 	}
-	_, err = d.sql.Exec("update `user` set password=? where id=?", string(hash), userID)
-	return err
+	user, err := d.GetUser(userID)
+	if err != nil {
+		return err
+	}
+	user.Password = string(pwdHash)
+	return d.updateObject(0, db.UserObject, user)
 }
 
-func (d *BoltDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
-	_, err = d.sql.Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
-		projectUser.ProjectID,
-		projectUser.UserID,
-		projectUser.Admin)
+func (d *BoltDb) CreateProjectUser(projectUser db.ProjectUser) (db.ProjectUser, error) {
+	newProjectUser, err := d.createObject(projectUser.ProjectID, db.ProjectUserObject, projectUser)
 
 	if err != nil {
-		return
+		return db.ProjectUser{}, err
 	}
 
-	newProjectUser = projectUser
+	return newProjectUser.(db.ProjectUser), nil
+}
+
+func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err error) {
+	err = d.getObject(projectID, db.ProjectUserObject, intObjectID(userID), &user)
 	return
 }
 
-func (d *BoltDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
-	var user db.ProjectUser
-
-	err := d.sql.SelectOne(&user,
-		"select * from project__user where project_id=? and user_id=?",
-		projectID,
-		userID)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
-	return user, err
-}
-
 func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
-	q := squirrel.Select("u.*").Column("pu.admin").
-		From("project__user as pu").
-		LeftJoin("user as u on pu.user_id=u.id").
-		Where("pu.project_id=?", projectID)
-
-	sortDirection := "ASC"
-	if params.SortInverted {
-		sortDirection = "DESC"
-	}
-
-	switch params.SortBy {
-	case "name", "username", "email":
-		q = q.OrderBy("u." + params.SortBy + " " + sortDirection)
-	case "admin":
-		q = q.OrderBy("pu." + params.SortBy + " " + sortDirection)
-	default:
-		q = q.OrderBy("u.name " + sortDirection)
-	}
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	_, err = d.sql.Select(&users, query, args...)
-
+	err = d.getObjects(projectID, db.ProjectUserObject, params, &users)
 	return
 }
 
 func (d *BoltDb) UpdateProjectUser(projectUser db.ProjectUser) error {
-	_, err := d.sql.Exec("update `project__user` set admin=? where user_id=? and project_id = ?",
-		projectUser.Admin,
-		projectUser.UserID,
-		projectUser.ProjectID)
-
-	return err
+	return d.updateObject(projectUser.ProjectID, db.ProjectUserObject, projectUser)
 }
 
 func (d *BoltDb) DeleteProjectUser(projectID, userID int) error {
-	_, err := d.sql.Exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
-	return err
+	return d.deleteObject(projectID, db.ProjectUserObject, intObjectID(userID))
 }
 
 //GetUser retrieves a user from the database by ID
-func (d *BoltDb) GetUser(userID int) (db.User, error) {
-	var user db.User
-
-	err := d.sql.SelectOne(&user, "select * from `user` where id=?", userID)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
-	return user, err
+func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
+	err = d.getObject(0, db.UserObject, intObjectID(userID), &user)
+	return
 }
 
 func (d *BoltDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
-	query, args, err := getSqlForTable("user", params)
-
-	if err != nil {
-		return
-	}
-
-	_, err = d.sql.Select(&users, query, args...)
-
+	err = d.getObjects(0, db.UserObject, params, &users)
 	return
 }
 
 func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser db.User, err error) {
-	err = d.sql.SelectOne(&existingUser, "select * from `user` where email=? or username=?", email, login)
+	var users []db.User
+	err = d.getObjects(0, db.UserObject, db.RetrieveQueryParams{}, &users)
+	if err != nil {
+		return
+	}
+
+	for _, user := range users {
+		if user.Username == login || user.Email == email {
+			existingUser = user
+			return
+		}
+	}
+
+	err = db.ErrNotFound
 	return
 }
