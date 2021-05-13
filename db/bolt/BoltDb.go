@@ -169,9 +169,14 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 			continue
 		}
 
-		obj := reflect.New(objType).Elem()
-		err = json.Unmarshal(v, &obj)
-		if err == nil {
+		tmp := reflect.New(objType)
+		ptr := tmp.Interface()
+		str := string(v)
+		fmt.Println(str)
+		err = json.Unmarshal(v, ptr)
+		obj := reflect.ValueOf(ptr).Elem().Interface()
+
+		if err != nil {
 			return err
 		}
 
@@ -181,7 +186,8 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 			}
 		}
 
-		objectsValue.Set(reflect.Append(objectsValue, obj))
+		newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(obj))
+		objectsValue.Set(newObjectValues)
 
 		n++
 
@@ -249,7 +255,7 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 	}
 
 	return d.db.Update(func (tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(db.InventoryObject, bucketID))
+		b := tx.Bucket(makeBucketId(db.InventoryProps, bucketID))
 		if b == nil {
 			return db.ErrNotFound
 		}
@@ -276,6 +282,8 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			return db.ErrNotFound
 		}
 
+		// TODO: marshal by tag db
+
 		str, err := json.Marshal(object)
 		if err != nil {
 			return err
@@ -293,29 +301,25 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 			return err2
 		}
 
-		idValue := reflect.ValueOf(object).FieldByName("ID")
-		var objectID objectID
+		objPtr := reflect.ValueOf(&object).Elem()
 
-		switch idValue.Kind() {
-		case reflect.Int:
-		case reflect.Int8:
-		case reflect.Int16:
-		case reflect.Int32:
-		case reflect.Int64:
-		case reflect.Uint:
-		case reflect.Uint8:
-		case reflect.Uint16:
-		case reflect.Uint32:
-		case reflect.Uint64:
+		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
+		tmpObj.Set(objPtr.Elem())
+
+		idValue := tmpObj.FieldByName("ID")
+		var objectID objectID
+		idKind := idValue.Kind()
+		switch {
+		case idKind >= reflect.Int && idKind <= reflect.Uint64:
 			if idValue.Int() == 0 {
 				id, err2 := b.NextSequence()
 				if err2 != nil {
 					return err2
 				}
 				idValue.SetInt(int64(id))
-				objectID = intObjectID(id)
 			}
-		case reflect.String:
+			objectID = intObjectID(idValue.Int())
+		case idKind == reflect.String:
 			if idValue.String() == "" {
 				return fmt.Errorf("object ID can not be empty string")
 			}
@@ -328,6 +332,8 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 			return fmt.Errorf("object ID can not be nil")
 		}
 
+
+		objPtr.Set(tmpObj)
 		str, err2 := json.Marshal(object)
 		if err2 != nil {
 			return err2

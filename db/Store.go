@@ -134,67 +134,67 @@ type Store interface {
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
 }
 
-var AccessKeyObject = ObjectProperties{
+var AccessKeyProps = ObjectProperties{
 	TableName:          "access_key",
 	SortableColumns:    []string{"name", "type"},
 	TemplateColumnName: "ssh_key_id",
 }
 
-var GlobalAccessKeyObject = ObjectProperties{
+var GlobalAccessKeyProps = ObjectProperties{
 	IsGlobal:           true,
 	TableName:          "access_key",
 	SortableColumns:    []string{"name", "type"},
 	TemplateColumnName: "ssh_key_id",
 }
 
-var EnvironmentObject = ObjectProperties{
+var EnvironmentProps = ObjectProperties{
 	TableName:       "project__environment",
 	SortableColumns: []string{"name"},
 }
 
-var InventoryObject = ObjectProperties{
+var InventoryProps = ObjectProperties{
 	TableName:          "project__inventory",
 	SortableColumns:    []string{"name"},
 	TemplateColumnName: "inventory_id",
 }
 
-var RepositoryObject = ObjectProperties{
+var RepositoryProps = ObjectProperties{
 	TableName:          "project__repository",
 	TemplateColumnName: "repository_id",
 }
 
-var TemplateObject = ObjectProperties{
+var TemplateProps = ObjectProperties{
 	TableName:          "project__template",
 	SortableColumns:    []string{"name"},
 }
 
-var ProjectUserObject = ObjectProperties{
+var ProjectUserProps = ObjectProperties{
 	TableName:          "project__user",
 }
 
-var ProjectObject = ObjectProperties{
+var ProjectProps = ObjectProperties{
 	TableName:          "project",
 	IsGlobal:           true,
 }
 
-var UserObject = ObjectProperties{
+var UserProps = ObjectProperties{
 	TableName:          "user",
 	IsGlobal:           true,
 }
 
-var SessionObject = ObjectProperties{
+var SessionProps = ObjectProperties{
 	TableName:          "session",
 }
 
-var TokenObject = ObjectProperties{
+var TokenProps = ObjectProperties{
 	TableName:          "user__token",
 }
 
-var TaskObject = ObjectProperties{
+var TaskProps = ObjectProperties{
 	TableName:          "task",
 	IsGlobal:           true,
 }
 
-var TaskOutputObject = ObjectProperties{
+var TaskOutputProps = ObjectProperties{
 	TableName:          "task__output",
 }

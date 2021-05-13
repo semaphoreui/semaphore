@@ -4,13 +4,13 @@ import "github.com/ansible-semaphore/semaphore/db"
 
 func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
 	var environment db.Environment
-	err := d.getObject(projectID, db.EnvironmentObject, environmentID, &environment)
+	err := d.getObject(projectID, db.EnvironmentProps, environmentID, &environment)
 	return environment, err
 }
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
 	var environment []db.Environment
-	err := d.getObjects(projectID, db.EnvironmentObject, params, &environment)
+	err := d.getObjects(projectID, db.EnvironmentProps, params, &environment)
 	return environment, err
 }
 
@@ -47,9 +47,9 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 }
 
 func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
-	return d.deleteObject(projectID, db.EnvironmentObject, environmentID)
+	return d.deleteObject(projectID, db.EnvironmentProps, environmentID)
 }
 
 func (d *SqlDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
-	return d.deleteObjectSoft(projectID, db.EnvironmentObject, environmentID)
+	return d.deleteObjectSoft(projectID, db.EnvironmentProps, environmentID)
 }

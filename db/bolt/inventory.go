@@ -6,7 +6,7 @@ import (
 
 
 func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
-	err = d.getObject(projectID, db.InventoryObject, intObjectID(inventoryID), &inventory)
+	err = d.getObject(projectID, db.InventoryProps, intObjectID(inventoryID), &inventory)
 
 	if err != nil {
 		return
@@ -27,24 +27,24 @@ func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inve
 }
 
 func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams) (inventories []db.Inventory, err error) {
-	err = d.getObjects(projectID, db.AccessKeyObject, params, nil, &inventories)
+	err = d.getObjects(projectID, db.AccessKeyProps, params, nil, &inventories)
 	return
 }
 
 func (d *BoltDb) DeleteInventory(projectID int, inventoryID int) error {
-	return d.deleteObject(projectID, db.InventoryObject, intObjectID(inventoryID))
+	return d.deleteObject(projectID, db.InventoryProps, intObjectID(inventoryID))
 }
 
 func (d *BoltDb) DeleteInventorySoft(projectID int, inventoryID int) error {
-	return d.deleteObjectSoft(projectID, db.InventoryObject, intObjectID(inventoryID))
+	return d.deleteObjectSoft(projectID, db.InventoryProps, intObjectID(inventoryID))
 }
 
 func (d *BoltDb) UpdateInventory(inventory db.Inventory) error {
-	return d.updateObject(inventory.ProjectID, db.InventoryObject, inventory)
+	return d.updateObject(inventory.ProjectID, db.InventoryProps, inventory)
 }
 
 func (d *BoltDb) CreateInventory(inventory db.Inventory) (db.Inventory, error) {
-	newInventory, err := d.createObject(inventory.ProjectID, db.InventoryObject, inventory)
+	newInventory, err := d.createObject(inventory.ProjectID, db.InventoryProps, inventory)
 	return newInventory.(db.Inventory), err
 }
 

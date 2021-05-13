@@ -8,7 +8,7 @@ import (
 func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
 	project.Created = time.Now()
 
-	newProject, err := d.createObject(0, db.ProjectObject, project)
+	newProject, err := d.createObject(0, db.ProjectProps, project)
 
 	if err != nil {
 		return db.Project{}, err
@@ -20,7 +20,7 @@ func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
 func (d *BoltDb) GetProjects(userID int) (projects []db.Project, err error) {
 	var allProjects []db.Project
 
-	err = d.getObjects(0, db.ProjectObject, db.RetrieveQueryParams{}, nil, &allProjects)
+	err = d.getObjects(0, db.ProjectProps, db.RetrieveQueryParams{}, nil, &allProjects)
 
 	if err != nil {
 		return
@@ -40,14 +40,14 @@ func (d *BoltDb) GetProjects(userID int) (projects []db.Project, err error) {
 }
 
 func (d *BoltDb) GetProject(projectID int) (project db.Project, err error) {
-	err = d.getObject(0, db.ProjectObject, intObjectID(projectID), &project)
+	err = d.getObject(0, db.ProjectProps, intObjectID(projectID), &project)
 	return
 }
 
 func (d *BoltDb) DeleteProject(projectID int) error {
-	return d.deleteObject(0, db.ProjectObject, intObjectID(projectID))
+	return d.deleteObject(0, db.ProjectProps, intObjectID(projectID))
 }
 
 func (d *BoltDb) UpdateProject(project db.Project) error {
-	return d.updateObject(0, db.ProjectObject, project)
+	return d.updateObject(0, db.ProjectProps, project)
 }

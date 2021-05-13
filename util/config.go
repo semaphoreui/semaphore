@@ -43,6 +43,7 @@ type DbDriver int
 
 const (
 	DbDriverMySQL DbDriver = iota
+	DbDriverBolt
 )
 
 type DbConfig struct {
@@ -63,6 +64,7 @@ type ldapMappings struct {
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL      DbConfig `json:"mysql"`
+	BoltDb	   DbConfig `json:"bolt"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -279,6 +281,8 @@ func (d *DbConfig) HasSupportMultipleDatabases() bool {
 
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	switch d.Dialect {
+	case DbDriverBolt:
+		connectionString = d.Hostname
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
@@ -305,6 +309,9 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	case conf.MySQL.isPresent():
 		dbConfig = conf.MySQL
 		dbConfig.Dialect = DbDriverMySQL
+	case conf.BoltDb.isPresent():
+		dbConfig = conf.BoltDb
+		dbConfig.Dialect = DbDriverBolt
 	default:
 		err = errors.New("database configuration not found")
 	}
@@ -318,6 +325,14 @@ func (conf *ConfigType) GenerateCookieSecrets() {
 
 	conf.CookieHash = base64.StdEncoding.EncodeToString(hash)
 	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
+}
+
+func (conf *ConfigType) ScanBoltDb() {
+	fmt.Print(" > DB filename (default /tmp/boltdb): ")
+	ScanErrorChecker(fmt.Scanln(&conf.BoltDb.Hostname))
+	if len(conf.BoltDb.Hostname) == 0 {
+		conf.BoltDb.Hostname = "/tmp/boltdb"
+	}
 }
 
 func (conf *ConfigType) ScanMySQL() {
@@ -349,12 +364,15 @@ func (conf *ConfigType) Scan() {
 	db := 1
 	fmt.Println(" > DB")
 	fmt.Println("   1 - MySQL")
+	fmt.Println("   2 - bbolt")
 	fmt.Print("   (default 1): ")
 	ScanErrorChecker(fmt.Scanln(&db))
 
 	switch db {
 	case 1:
 		conf.ScanMySQL()
+	case 2:
+		conf.ScanBoltDb()
 	}
 
 	fmt.Print(" > Playbook path (default /tmp/semaphore): ")

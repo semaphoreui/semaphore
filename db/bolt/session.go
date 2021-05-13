@@ -17,7 +17,7 @@ type globalToken struct {
 
 
 func (d *BoltDb) CreateSession(session db.Session) (db.Session, error) {
-	newSession, err := d.createObject(session.UserID, db.SessionObject, session)
+	newSession, err := d.createObject(session.UserID, db.SessionProps, session)
 	if err != nil {
 		return db.Session{}, err
 	}
@@ -26,7 +26,7 @@ func (d *BoltDb) CreateSession(session db.Session) (db.Session, error) {
 
 func (d *BoltDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 	// create token in bucket "token_<user id>"
-	newToken, err := d.createObject(token.UserID, db.TokenObject, token)
+	newToken, err := d.createObject(token.UserID, db.TokenProps, token)
 	if err != nil {
 		return db.APIToken{}, err
 	}
@@ -46,50 +46,50 @@ func (d *BoltDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
 	if err != nil {
 		return
 	}
-	err = d.getObject(t.UserID, db.TokenObject, strObjectID(tokenID), &token)
+	err = d.getObject(t.UserID, db.TokenProps, strObjectID(tokenID), &token)
 	return
 }
 
 func (d *BoltDb) ExpireAPIToken(userID int, tokenID string) (err error) {
 	var token db.APIToken
-	err = d.getObject(userID, db.TokenObject, strObjectID(tokenID), &token)
+	err = d.getObject(userID, db.TokenProps, strObjectID(tokenID), &token)
 	if err != nil {
 		return
 	}
 	token.Expired = true
-	err = d.updateObject(userID, db.TokenObject, token)
+	err = d.updateObject(userID, db.TokenProps, token)
 	return
 }
 
 func (d *BoltDb) GetSession(userID int, sessionID int) (session db.Session, err error) {
-	err = d.getObject(userID, db.SessionObject, intObjectID(sessionID), &session)
+	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
 	return
 }
 
 func (d *BoltDb) ExpireSession(userID int, sessionID int) (err error) {
 	var session db.Session
-	err = d.getObject(userID, db.SessionObject, intObjectID(sessionID), &session)
+	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
 	if err != nil {
 		return
 	}
 	session.Expired = true
-	err = d.updateObject(userID, db.SessionObject, session)
+	err = d.updateObject(userID, db.SessionProps, session)
 	return
 }
 
 func (d *BoltDb) TouchSession(userID int, sessionID int) (err error) {
 	var session db.Session
-	err = d.getObject(userID, db.SessionObject, intObjectID(sessionID), &session)
+	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
 	if err != nil {
 		return
 	}
 	session.LastActive = time.Now()
-	err = d.updateObject(userID, db.SessionObject, session)
+	err = d.updateObject(userID, db.SessionProps, session)
 	return
 }
 
 func (d *BoltDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	err = d.getObjects(userID, db.SessionObject, db.RetrieveQueryParams{}, nil, &tokens)
+	err = d.getObjects(userID, db.SessionProps, db.RetrieveQueryParams{}, nil, &tokens)
 	return
 }
 

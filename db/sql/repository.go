@@ -7,7 +7,7 @@ import (
 
 func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, error) {
 	var repository db.Repository
-	err := d.getObject(projectID, db.RepositoryObject, repositoryID, &repository)
+	err := d.getObject(projectID, db.RepositoryProps, repositoryID, &repository)
 
 	if err != nil {
 		return repository, err
@@ -85,10 +85,10 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 }
 
 func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
-	return d.deleteObject(projectID, db.RepositoryObject, repositoryId)
+	return d.deleteObject(projectID, db.RepositoryProps, repositoryId)
 }
 
 func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
-	return d.deleteObjectSoft(projectID, db.RepositoryObject, repositoryId)
+	return d.deleteObjectSoft(projectID, db.RepositoryProps, repositoryId)
 }
 

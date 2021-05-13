@@ -8,16 +8,16 @@ import (
 
 func (d *BoltDb) CreateTask(task db.Task) (newTask db.Task, err error) {
 	task.Created = time.Now()
-	err = d.getObject(0, db.TaskObject, intObjectID(task.ID), &newTask)
+	err = d.getObject(0, db.TaskProps, intObjectID(task.ID), &newTask)
 	return
 }
 
 func (d *BoltDb) UpdateTask(task db.Task) error {
-	return d.updateObject(0, db.TaskObject, task)
+	return d.updateObject(0, db.TaskProps, task)
 }
 
 func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
-	newOutput, err := d.createObject(output.TaskID, db.TaskOutputObject, output)
+	newOutput, err := d.createObject(output.TaskID, db.TaskOutputProps, output)
 	if err != nil {
 		return db.TaskOutput{}, err
 	}
@@ -25,7 +25,7 @@ func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 }
 
 func (d *BoltDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getObjects(0, db.TaskObject, params, func (tsk interface{}) bool {
+	err = d.getObjects(0, db.TaskProps, params, func (tsk interface{}) bool {
 		task := tsk.(db.TaskWithTpl)
 
 		if task.ProjectID != projectID {
@@ -70,7 +70,7 @@ func (d *BoltDb) getTasks(projectID int, templateID* int, params db.RetrieveQuer
 }
 
 func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
-	err = d.getObject(0, db.TaskObject, intObjectID(taskID), &task)
+	err = d.getObject(0, db.TaskProps, intObjectID(taskID), &task)
 	if err != nil {
 		return
 	}
@@ -97,13 +97,13 @@ func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 		return
 	}
 
-	err = d.deleteObject(0, db.TaskObject, intObjectID(taskID))
+	err = d.deleteObject(0, db.TaskProps, intObjectID(taskID))
 	if err != nil {
 		return
 	}
 
 	_ = d.db.Update(func (tx *bbolt.Tx) error {
-		return tx.DeleteBucket(makeBucketId(db.TaskOutputObject, taskID))
+		return tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
 	})
 
 	return
@@ -117,7 +117,7 @@ func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOut
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskOutputObject, db.RetrieveQueryParams{}, nil, &outputs)
+	err = d.getObjects(taskID, db.TaskOutputProps, db.RetrieveQueryParams{}, nil, &outputs)
 
 	return
 }

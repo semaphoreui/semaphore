@@ -4,13 +4,13 @@ import "github.com/ansible-semaphore/semaphore/db"
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error) {
 	var key db.AccessKey
-	err := d.getObject(projectID, db.AccessKeyObject, accessKeyID, &key)
+	err := d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
 	return key, err
 }
 
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(projectID, db.AccessKeyObject, params, &keys)
+	err := d.getObjects(projectID, db.AccessKeyProps, params, &keys)
 	return keys, err
 }
 
@@ -51,23 +51,23 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 }
 
 func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
-	return d.deleteObject(projectID, db.AccessKeyObject, accessKeyID)
+	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
 }
 
 func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
-	return d.deleteObjectSoft(projectID, db.AccessKeyObject, accessKeyID)
+	return d.deleteObjectSoft(projectID, db.AccessKeyProps, accessKeyID)
 }
 
 
 func (d *SqlDb) GetGlobalAccessKey(accessKeyID int) (db.AccessKey, error) {
 	var key db.AccessKey
-	err := d.getObject(0, db.GlobalAccessKeyObject, accessKeyID, &key)
+	err := d.getObject(0, db.GlobalAccessKeyProps, accessKeyID, &key)
 	return key, err
 }
 
 func (d *SqlDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(0, db.GlobalAccessKeyObject, params, &keys)
+	err := d.getObjects(0, db.GlobalAccessKeyProps, params, &keys)
 	return keys, err
 }
 
@@ -106,9 +106,9 @@ func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (d *SqlDb) DeleteGlobalAccessKey(accessKeyID int) error {
-	return d.deleteObject(0, db.GlobalAccessKeyObject, accessKeyID)
+	return d.deleteObject(0, db.GlobalAccessKeyProps, accessKeyID)
 }
 
 func (d *SqlDb) DeleteGlobalAccessKeySoft(accessKeyID int) error {
-	return d.deleteObjectSoft(0, db.GlobalAccessKeyObject, accessKeyID)
+	return d.deleteObjectSoft(0, db.GlobalAccessKeyProps, accessKeyID)
 }
