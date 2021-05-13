@@ -216,6 +216,10 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 	return d.db.View(func(tx *bbolt.Tx) error {
 
 		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
 		c := b.Cursor()
 
 		return unmarshalObjects(c, props, params, filter, objects)
