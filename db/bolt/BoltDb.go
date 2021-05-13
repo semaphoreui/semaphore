@@ -240,6 +240,8 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
+	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
+
 	i := 0 // offset counter
 	n := 0 // number of added items
 

@@ -104,12 +104,39 @@ func (d *BoltDb) CreateProjectUser(projectUser db.ProjectUser) (db.ProjectUser, 
 }
 
 func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err error) {
-	err = d.getObject(projectID, db.ProjectUserProps, intObjectID(userID), &user)
+	var projectUsers []db.ProjectUser
+	err = d.getObjects(projectID, db.ProjectUserProps, db.RetrieveQueryParams{}, nil, &projectUsers)
+
+	if err != nil {
+		return
+	}
+
+	for _, usr := range projectUsers {
+		if usr.UserID == userID {
+			user = usr
+			return
+		}
+	}
+
+	err = db.ErrNotFound
 	return
 }
 
+
 func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
-	err = d.getObjects(projectID, db.ProjectUserProps, params, nil, &users)
+	var projectUsers []db.ProjectUser
+	err = d.getObjects(projectID, db.ProjectUserProps, params, nil, &projectUsers)
+	if err != nil {
+		return
+	}
+	for _, projUser := range projectUsers {
+		var usr db.User
+		usr, err = d.GetUser(projUser.UserID)
+		if err != nil {
+			return
+		}
+		users = append(users, usr)
+	}
 	return
 }
 
