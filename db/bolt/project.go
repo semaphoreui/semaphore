@@ -18,6 +18,8 @@ func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
 }
 
 func (d *BoltDb) GetProjects(userID int) (projects []db.Project, err error) {
+	projects = make([]db.Project, 0, 0)
+
 	var allProjects []db.Project
 
 	err = d.getObjects(0, db.ProjectProps, db.RetrieveQueryParams{}, nil, &allProjects)

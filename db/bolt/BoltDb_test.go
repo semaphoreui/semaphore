@@ -13,6 +13,30 @@ type Test1 struct {
 	PasswordRepeat string `db:"-" json:"passwordRepeat"`
 	PasswordHash string `db:"password" json:"-"`
 }
+func TestMarshalObject_UserWithPwd(t *testing.T) {
+	user := db.UserWithPwd{
+		Pwd: "123456",
+		User: db.User{
+			Username: "fiftin",
+			Password: "345345234523452345234",
+		},
+	}
+
+	bytes, err := marshalObject(user)
+
+	if err != nil {
+		t.Fatal(fmt.Errorf("function returns error: " + err.Error()))
+	}
+
+	str := string(bytes)
+
+	if str != `{"id":0,"created":"0001-01-01T00:00:00Z","username":"fiftin","name":"","email":"","password":"345345234523452345234","admin":false,"external":false,"alert":false}` {
+		t.Fatal(fmt.Errorf("incorrect marshalling result"))
+	}
+
+	fmt.Println(str)
+}
+
 
 func TestMarshalObject(t *testing.T) {
 	test1 := Test1{

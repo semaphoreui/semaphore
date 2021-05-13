@@ -16,6 +16,15 @@ type enumerable interface {
 	Next() (key []byte, value []byte)
 }
 
+type emptyEnumerable struct {}
+
+func (d emptyEnumerable) First() (key []byte, value []byte) {
+	return nil, nil
+}
+
+func (d emptyEnumerable) Next() (key []byte, value []byte) {
+	return nil, nil
+}
 
 type BoltDb struct {
 	db *bbolt.DB
@@ -156,9 +165,7 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 	return nil
 }
 
-func createObjectType(obj interface{}) reflect.Type {
-	t := reflect.TypeOf(obj)
-
+func createObjectType(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -170,10 +177,13 @@ func createObjectType(obj interface{}) reflect.Type {
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		tag := f.Tag.Get("db")
-		if tag == "" {
-			continue
+		if tag != "" {
+			f.Tag = reflect.StructTag(`json:"` + tag + `"`)
+		} else {
+			if f.Type.Kind() == reflect.Struct {
+				f.Type = createObjectType(f.Type)
+			}
 		}
-		f.Tag = reflect.StructTag(`json:"` + tag + `""`)
 		fields[i] = f
 	}
 
@@ -181,7 +191,7 @@ func createObjectType(obj interface{}) reflect.Type {
 }
 
 func unmarshalObject(data []byte, obj interface{}) error {
-	newType := createObjectType(obj)
+	newType := createObjectType(reflect.TypeOf(obj))
 	ptr := reflect.New(newType).Interface()
 
 	err := json.Unmarshal(data, ptr)
@@ -200,17 +210,30 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	return nil
 }
 
-func marshalObject(obj interface{}) ([]byte, error) {
-	newType := createObjectType(obj)
+func copyObject(obj interface{}, newType reflect.Type) interface{} {
 	newValue := reflect.New(newType).Elem()
 
 	oldValue := reflect.ValueOf(obj)
 
 	for i := 0; i < newType.NumField(); i++ {
-		newValue.Field(i).Set(oldValue.Field(i))
+		var v interface{}
+		pkg := newValue.Field(i).Type().PkgPath()
+		fmt.Println(pkg)
+		if newValue.Field(i).Kind() == reflect.Struct &&
+			newValue.Field(i).Type().PkgPath() == "" {
+			v = copyObject(oldValue.Field(i).Interface(), newValue.Field(i).Type())
+		} else {
+			v = oldValue.Field(i).Interface()
+		}
+		newValue.Field(i).Set(reflect.ValueOf(v))
 	}
 
-	return json.Marshal(newValue.Interface())
+	return newValue.Interface()
+}
+
+func marshalObject(obj interface{}) ([]byte, error) {
+	newType := createObjectType(reflect.TypeOf(obj))
+	return json.Marshal(copyObject(obj, newType))
 }
 
 func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
@@ -266,19 +289,19 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 		err = sortObjects(objects, params.SortBy, params.SortInverted)
 	}
 
+
 	return
 }
 
 func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
-
 		b := tx.Bucket(makeBucketId(props, bucketID))
+		var c enumerable
 		if b == nil {
-			return db.ErrNotFound
+			c = emptyEnumerable{}
+		} else {
+			c = b.Cursor()
 		}
-
-		c := b.Cursor()
-
 		return unmarshalObjects(c, props, params, filter, objects)
 	})
 }
@@ -373,6 +396,12 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 				return fmt.Errorf("object ID can not be empty string")
 			}
 			objectID = strObjectID(idValue.String())
+		case idKind == reflect.Invalid:
+			id, err2 := b.NextSequence()
+			if err2 != nil {
+				return err2
+			}
+			objectID = intObjectID(id)
 		default:
 			return fmt.Errorf("unsupported ID type")
 		}
@@ -383,7 +412,7 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 
 
 		objPtr.Set(tmpObj)
-		str, err2 := json.Marshal(object)
+		str, err2 := marshalObject(object)
 		if err2 != nil {
 			return err2
 		}
