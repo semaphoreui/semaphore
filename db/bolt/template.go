@@ -14,7 +14,7 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 }
 
 func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	err = d.getObjects(projectID, db.TemplateObject, params, &templates)
+	err = d.getObjects(projectID, db.TemplateObject, params, nil, &templates)
 	return
 }
 
