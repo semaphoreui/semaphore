@@ -156,6 +156,63 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 	return nil
 }
 
+func createObjectType(obj interface{}) reflect.Type {
+	t := reflect.TypeOf(obj)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	n := t.NumField()
+
+	fields := make([]reflect.StructField, n)
+
+	for i := 0; i < n; i++ {
+		f := t.Field(i)
+		tag := f.Tag.Get("db")
+		if tag == "" {
+			continue
+		}
+		f.Tag = reflect.StructTag(`json:"` + tag + `""`)
+		fields[i] = f
+	}
+
+	return reflect.StructOf(fields)
+}
+
+func unmarshalObject(data []byte, obj interface{}) error {
+	newType := createObjectType(obj)
+	ptr := reflect.New(newType).Interface()
+
+	err := json.Unmarshal(data, ptr)
+	if err != nil {
+		return err
+	}
+
+	value := reflect.ValueOf(ptr).Elem()
+
+	objValue := reflect.ValueOf(obj).Elem()
+
+	for i := 0; i < newType.NumField(); i++ {
+		objValue.Field(i).Set(value.Field(i))
+	}
+
+	return nil
+}
+
+func marshalObject(obj interface{}) ([]byte, error) {
+	newType := createObjectType(obj)
+	newValue := reflect.New(newType).Elem()
+
+	oldValue := reflect.ValueOf(obj)
+
+	for i := 0; i < newType.NumField(); i++ {
+		newValue.Field(i).Set(oldValue.Field(i))
+	}
+
+	return json.Marshal(newValue.Interface())
+}
+
 func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
@@ -171,13 +228,11 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 
 		tmp := reflect.New(objType)
 		ptr := tmp.Interface()
-		str := string(v)
-		fmt.Println(str)
-		err = json.Unmarshal(v, ptr)
+		err = unmarshalObject(v, ptr)
 		obj := reflect.ValueOf(ptr).Elem().Interface()
 
 		if err != nil {
-			return err
+			return
 		}
 
 		if filter != nil {
@@ -194,10 +249,6 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 		if n > params.Count {
 			break
 		}
-	}
-
-	if err != nil {
-		return
 	}
 
 	sortable := false
@@ -282,9 +333,7 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			return db.ErrNotFound
 		}
 
-		// TODO: marshal by tag db
-
-		str, err := json.Marshal(object)
+		str, err := marshalObject(object)
 		if err != nil {
 			return err
 		}
