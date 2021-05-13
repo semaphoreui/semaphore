@@ -189,3 +189,12 @@ var SessionObject = ObjectProperties{
 var TokenObject = ObjectProperties{
 	TableName:          "user__token",
 }
+
+var TaskObject = ObjectProperties{
+	TableName:          "task",
+	IsGlobal:           true,
+}
+
+var TaskOutputObject = ObjectProperties{
+	TableName:          "task__output",
+}

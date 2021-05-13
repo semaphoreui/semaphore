@@ -12,7 +12,7 @@ func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, err
 
 func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(projectID, db.AccessKeyObject, params, &keys)
+	err := d.getObjects(projectID, db.AccessKeyObject, params, nil, &keys)
 	return keys, err
 }
 
@@ -39,7 +39,7 @@ func (d *BoltDb) GetGlobalAccessKey(accessKeyID int) (key db.AccessKey, err erro
 }
 
 func (d *BoltDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
-	err = d.getObjects(0, db.GlobalAccessKeyObject, params, &keys)
+	err = d.getObjects(0, db.GlobalAccessKeyObject, params, nil, &keys)
 	return
 }
 

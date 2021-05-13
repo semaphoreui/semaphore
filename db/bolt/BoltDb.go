@@ -156,7 +156,7 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 	return nil
 }
 
-func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
@@ -173,6 +173,12 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 		err = json.Unmarshal(v, &obj)
 		if err == nil {
 			return err
+		}
+
+		if filter != nil {
+			if !filter(obj) {
+				continue
+			}
 		}
 
 		objectsValue.Set(reflect.Append(objectsValue, obj))
@@ -206,13 +212,13 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 	return
 }
 
-func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) error {
+func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		c := b.Cursor()
 
-		return unmarshalObjects(c, props, params, objects)
+		return unmarshalObjects(c, props, params, filter, objects)
 	})
 }
 

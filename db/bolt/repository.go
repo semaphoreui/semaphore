@@ -10,7 +10,7 @@ func (d *BoltDb) GetRepository(projectID int, repositoryID int) (repository db.R
 }
 
 func (d *BoltDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (repositories []db.Repository, err error) {
-	err = d.getObjects(projectID, db.RepositoryObject, params, &repositories)
+	err = d.getObjects(projectID, db.RepositoryObject, params, nil, &repositories)
 	return
 }
 

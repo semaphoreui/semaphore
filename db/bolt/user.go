@@ -109,7 +109,7 @@ func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err
 }
 
 func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
-	err = d.getObjects(projectID, db.ProjectUserObject, params, &users)
+	err = d.getObjects(projectID, db.ProjectUserObject, params, nil, &users)
 	return
 }
 
@@ -128,13 +128,13 @@ func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 }
 
 func (d *BoltDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
-	err = d.getObjects(0, db.UserObject, params, &users)
+	err = d.getObjects(0, db.UserObject, params, nil, &users)
 	return
 }
 
 func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser db.User, err error) {
 	var users []db.User
-	err = d.getObjects(0, db.UserObject, db.RetrieveQueryParams{}, &users)
+	err = d.getObjects(0, db.UserObject, db.RetrieveQueryParams{}, nil, &users)
 	if err != nil {
 		return
 	}

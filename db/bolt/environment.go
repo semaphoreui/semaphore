@@ -8,7 +8,7 @@ func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment d
 }
 
 func (d *BoltDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (environment []db.Environment, err error) {
-	err = d.getObjects(projectID, db.EnvironmentObject, params, &environment)
+	err = d.getObjects(projectID, db.EnvironmentObject, params, nil, &environment)
 	return
 }
 

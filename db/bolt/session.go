@@ -89,7 +89,7 @@ func (d *BoltDb) TouchSession(userID int, sessionID int) (err error) {
 }
 
 func (d *BoltDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	err = d.getObjects(userID, db.SessionObject, db.RetrieveQueryParams{}, &tokens)
+	err = d.getObjects(userID, db.SessionObject, db.RetrieveQueryParams{}, nil, &tokens)
 	return
 }
 

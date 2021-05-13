@@ -27,7 +27,7 @@ func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inve
 }
 
 func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams) (inventories []db.Inventory, err error) {
-	err = d.getObjects(projectID, db.AccessKeyObject, params, &inventories)
+	err = d.getObjects(projectID, db.AccessKeyObject, params, nil, &inventories)
 	return
 }
 
