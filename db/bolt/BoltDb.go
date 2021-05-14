@@ -318,13 +318,7 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 
 
 func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objectID objectID) (inUse bool, err error) {
-	err = d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		inUse = b != nil && b.Get(objectID.ToBytes()) != nil
-		return nil
-	})
-
-	return
+	return false, nil
 }
 
 func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
@@ -339,7 +333,7 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 	}
 
 	return d.db.Update(func (tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(db.InventoryProps, bucketID))
+		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
 			return db.ErrNotFound
 		}

@@ -75,6 +75,11 @@ func WriteError(w http.ResponseWriter, err error) {
 		return
 	}
 
+	if err == db.ErrInvalidOperation {
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+
 	log.Error(err)
 	debug.PrintStack()
 	w.WriteHeader(http.StatusInternalServerError)
