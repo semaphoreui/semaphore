@@ -69,4 +69,9 @@ func TestGetUser(t *testing.T) {
 		t.Failed()
 	}
 
+	err = store.DeleteUser(usr.ID)
+
+	if err != nil {
+		t.Failed()
+	}
 }

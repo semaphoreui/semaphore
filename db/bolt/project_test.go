@@ -86,4 +86,9 @@ func TestGetProject(t *testing.T) {
 		t.Failed()
 	}
 
+	err = store.DeleteProject(proj.ID)
+
+	if err != nil {
+		t.Failed()
+	}
 }
