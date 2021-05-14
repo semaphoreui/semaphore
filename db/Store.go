@@ -34,9 +34,8 @@ type ObjectProperties struct {
 	TemplateColumnName string
 }
 
-var ErrNotFound = errors.New("sql: no rows in result set")
-var ErrInvalidOperation = errors.New("sql: no rows in result set")
-var Forbidden = errors.New("sql: no rows in result set")
+var ErrNotFound = errors.New("no rows in result set")
+var ErrInvalidOperation = errors.New("invalid operation")
 
 func ValidateUsername(login string) error {
 	return nil

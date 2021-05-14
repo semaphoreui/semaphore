@@ -3,16 +3,25 @@ package bolt
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
+	"math/rand"
+	"strconv"
 	"testing"
 )
 
-type Test1 struct {
+type test1 struct {
 	FistName string `db:"first_name" json:"firstName"`
 	LastName string `db:"last_name" json:"lastName"`
 	Password string `db:"-" json:"password"`
 	PasswordRepeat string `db:"-" json:"passwordRepeat"`
 	PasswordHash string `db:"password" json:"-"`
 }
+
+func createStore() db.Store {
+	return &BoltDb{
+		Filename: "/tmp/test_semaphore_db_" + strconv.Itoa(rand.Int()),
+	}
+}
+
 func TestMarshalObject_UserWithPwd(t *testing.T) {
 	user := db.UserWithPwd{
 		Pwd: "123456",
@@ -37,9 +46,8 @@ func TestMarshalObject_UserWithPwd(t *testing.T) {
 	fmt.Println(str)
 }
 
-
 func TestMarshalObject(t *testing.T) {
-	test1 := Test1{
+	test1 := test1{
 		FistName: "Denis",
 		LastName: "Gukov",
 		Password: "1234556",
@@ -62,7 +70,7 @@ func TestMarshalObject(t *testing.T) {
 }
 
 func TestUnmarshalObject(t *testing.T) {
-	test1 := Test1{}
+	test1 := test1{}
 	data := `{
 	"first_name": "Denis", 
 	"last_name": "Gukov",

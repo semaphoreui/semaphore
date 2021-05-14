@@ -21,7 +21,7 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey,  error) {
-	newKey, err := d.createObject(*key.ProjectID, db.GlobalAccessKeyProps, key)
+	newKey, err := d.createObject(*key.ProjectID, db.AccessKeyProps, key)
 	return newKey.(db.AccessKey), err
 }
 
@@ -44,7 +44,7 @@ func (d *BoltDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) (keys []db.A
 }
 
 func (d *BoltDb) UpdateGlobalAccessKey(key db.AccessKey) error {
-	return d.updateObject(0, db.AccessKeyProps, key)
+	return d.updateObject(0, db.GlobalAccessKeyProps, key)
 }
 
 func (d *BoltDb) CreateGlobalAccessKey(key db.AccessKey) (db.AccessKey, error) {

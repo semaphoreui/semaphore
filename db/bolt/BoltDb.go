@@ -27,6 +27,7 @@ func (d emptyEnumerable) Next() (key []byte, value []byte) {
 }
 
 type BoltDb struct {
+	Filename string
 	db *bbolt.DB
 }
 
@@ -78,14 +79,23 @@ func (d *BoltDb) Migrate() error {
 }
 
 func (d *BoltDb) Connect() error {
-	config, err := util.Config.GetDBConfig()
+	var filename string
+	if d.Filename == "" {
+		config, err := util.Config.GetDBConfig()
+		if err != nil {
+			return err
+		}
+		filename = config.Hostname
+	} else {
+		filename = d.Filename
+	}
+
+	var err error
+	d.db, err = bbolt.Open(filename, 0666, nil)
 	if err != nil {
 		return err
 	}
-	d.db, err = bbolt.Open(config.Hostname, 0666, nil)
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -217,8 +227,6 @@ func copyObject(obj interface{}, newType reflect.Type) interface{} {
 
 	for i := 0; i < newType.NumField(); i++ {
 		var v interface{}
-		pkg := newValue.Field(i).Type().PkgPath()
-		fmt.Println(pkg)
 		if newValue.Field(i).Kind() == reflect.Struct &&
 			newValue.Field(i).Type().PkgPath() == "" {
 			v = copyObject(oldValue.Field(i).Interface(), newValue.Field(i).Type())
@@ -271,7 +279,7 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 
 		n++
 
-		if n > params.Count {
+		if params.Count > 0 && n > params.Count {
 			break
 		}
 	}
