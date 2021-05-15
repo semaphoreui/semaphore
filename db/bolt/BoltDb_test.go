@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"testing"
 )
@@ -117,7 +118,7 @@ func TestMarshalObject(t *testing.T) {
 	}
 
 	str := string(bytes)
-	if str != `{"first_name":"Denis","last_name":"Gukov","password":"9347502348723"}` {
+	if str != `{"ID":0,"first_name":"Denis","last_name":"Gukov","password":"9347502348723","removed":false}` {
 		t.Fatal(fmt.Errorf("incorrect marshalling result"))
 	}
 
@@ -182,5 +183,15 @@ func TestSortObjects(t *testing.T) {
 
 	if !expected {
 		t.Fatal(fmt.Errorf("objects not sorted"))
+	}
+}
+
+func TestGetFieldNameByTag(t *testing.T) {
+	f, err := getFieldNameByTag(reflect.TypeOf(test1{}), "db", "first_name")
+	if err != nil {
+		t.Failed()
+	}
+	if f != "FistName" {
+		t.Failed()
 	}
 }

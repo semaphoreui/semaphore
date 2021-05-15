@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -121,14 +122,16 @@ func (d *BoltDb) getObject(bucketID int, props db.ObjectProperties, objectID obj
 	return
 }
 
-func getFieldNameByTag(t reflect.Type, tag string, value string) (string, error) {
+// getFieldNameByTag tries to find field by tag name and value in provided type.
+// It returns error if field not found.
+func getFieldNameByTag(t reflect.Type, tagName string, tagValue string) (string, error) {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
-		if t.Field(i).Tag.Get(tag) == value {
+		if t.Field(i).Tag.Get(tagName) == tagValue {
 			return t.Field(i).Name, nil
 		}
 	}
-	return "", fmt.Errorf("")
+	return "", fmt.Errorf("field not found")
 }
 
 func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
@@ -147,16 +150,16 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 		less := false
 
 		switch valueI.Kind() {
-		case reflect.Int:
-		case reflect.Int8:
-		case reflect.Int16:
-		case reflect.Int32:
-		case reflect.Int64:
-		case reflect.Uint:
-		case reflect.Uint8:
-		case reflect.Uint16:
-		case reflect.Uint32:
-		case reflect.Uint64:
+		case reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64:
 			less = valueI.Int() < valueJ.Int()
 		case reflect.Float32:
 		case reflect.Float64:
@@ -316,25 +319,59 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 	})
 }
 
+func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID objectID) (inUse bool, err error) {
+	var templates []db.Template
 
-//func (d *BoltDb) isObjectUsedByTemplate(bucketID int, props db.ObjectProperties, objectID objectID) (inUse bool, err error) {
-//	if props.IsGlobal {
-//		return false, fmt.Errorf("global object can't be checked by usege")
-//	}
-//
-//	var templates []db.Template
-//	objs := d.getObjects(bucketID, db.TemplateProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
-//		f := reflect.ValueOf(tpl).FieldByName(props.TemplateColumnName)
-//		if f.IsZero() {
-//			return false
-//		}
-//		return f.Int() == int64(objectID)
-//	}, &templates)
-//
-//	return false, nil
-//}
+	err = d.getObjects(bucketID, db.TemplateProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
+		f := reflect.ValueOf(tpl).FieldByName(props.TemplateColumnName)
+		if f.IsZero() {
+			return false
+		}
+
+		var fVal objectID
+		switch f.Kind() {
+		case reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64:
+			fVal = intObjectID(f.Int())
+		case reflect.String:
+			fVal = strObjectID(f.String())
+		}
+
+		if fVal == nil {
+			return false
+		}
+
+		return bytes.Compare(fVal.ToBytes(), objID.ToBytes()) == 0
+	}, &templates)
+
+	if err != nil {
+		return
+	}
+
+	inUse = len(templates) > 0
+
+	return
+}
 
 func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
+	inUse, err := d.isObjectInUse(bucketID, props, objectID)
+
+	if err != nil {
+		return err
+	}
+
+	if inUse {
+		return db.ErrInvalidOperation
+	}
+
 	return d.db.Update(func (tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
@@ -393,16 +430,16 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 		var objectID objectID
 
 		switch idValue.Kind() {
-		case reflect.Int:
-		case reflect.Int8:
-		case reflect.Int16:
-		case reflect.Int32:
-		case reflect.Int64:
-		case reflect.Uint:
-		case reflect.Uint8:
-		case reflect.Uint16:
-		case reflect.Uint32:
-		case reflect.Uint64:
+		case reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64:
 			objectID = intObjectID(idValue.Int())
 		case reflect.String:
 			objectID = strObjectID(idValue.String())
@@ -440,9 +477,17 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 
 		idValue := tmpObj.FieldByName("ID")
 		var objectID objectID
-		idKind := idValue.Kind()
-		switch {
-		case idKind >= reflect.Int && idKind <= reflect.Uint64:
+		switch idValue.Kind() {
+		case reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64:
 			if idValue.Int() == 0 {
 				id, err2 := b.NextSequence()
 				if err2 != nil {
@@ -451,12 +496,12 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 				idValue.SetInt(int64(id))
 			}
 			objectID = intObjectID(idValue.Int())
-		case idKind == reflect.String:
+		case reflect.String:
 			if idValue.String() == "" {
 				return fmt.Errorf("object ID can not be empty string")
 			}
 			objectID = strObjectID(idValue.String())
-		case idKind == reflect.Invalid:
+		case reflect.Invalid:
 			id, err2 := b.NextSequence()
 			if err2 != nil {
 				return err2
@@ -469,7 +514,6 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 		if objectID == nil {
 			return fmt.Errorf("object ID can not be nil")
 		}
-
 
 		objPtr.Set(tmpObj)
 		str, err2 := marshalObject(object)
