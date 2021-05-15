@@ -47,20 +47,6 @@ func (d strObjectID) ToBytes() []byte {
 	return []byte(d)
 }
 
-func makeObjectId(ids ...int) []byte {
-	n := len(ids)
-
-	id := ""
-	for i := 0; i < n; i++ {
-		if id != "" {
-			id += "_"
-		}
-		id += fmt.Sprintf("%010d", ids[i])
-	}
-
-	return []byte(id)
-}
-
 func makeBucketId(props db.ObjectProperties, ids ...int) []byte {
 	n := len(ids)
 
@@ -382,7 +368,7 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 }
 
 func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	var data interface{}
+	var data map[string]interface{}
 
 	// load data
 	err := d.db.View(func(tx *bbolt.Tx) error {
@@ -403,6 +389,9 @@ func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objec
 	if err != nil {
 		return err
 	}
+
+	// mark as removed
+	data["removed"] = true
 
 	// store data
 	res, err := json.Marshal(data)

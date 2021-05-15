@@ -101,7 +101,7 @@ func (d *BoltDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 			return err2
 		}
 
-		return b.Put(makeObjectId(int(id)), str)
+		return b.Put(intObjectID(id).ToBytes(), str)
 	})
 
 	return

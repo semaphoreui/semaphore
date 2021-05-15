@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 type test1 struct {
@@ -20,8 +21,10 @@ type test1 struct {
 }
 
 func createBoltDb() BoltDb {
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
 	return BoltDb{
-		Filename: "/tmp/test_semaphore_db_" + strconv.Itoa(rand.Int()),
+		Filename: fn,
 	}
 }
 
@@ -35,7 +38,7 @@ func TestDeleteObjectSoft(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	obj := test1{
@@ -51,7 +54,7 @@ func TestDeleteObjectSoft(t *testing.T) {
 	newObj, err := store.createObject(0, props, obj)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	objID := intObjectID(newObj.(test1).ID)
@@ -59,14 +62,14 @@ func TestDeleteObjectSoft(t *testing.T) {
 	err = store.deleteObjectSoft(0, props, objID)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	var found test1
 	err = store.getObject(0, props, objID, &found)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	if found.ID != int(objID) ||
@@ -74,7 +77,7 @@ func TestDeleteObjectSoft(t *testing.T) {
 		found.Password != obj.Password ||
 		found.LastName != obj.LastName {
 
-		t.Failed()
+		t.Fatal()
 	}
 }
 
@@ -189,9 +192,9 @@ func TestSortObjects(t *testing.T) {
 func TestGetFieldNameByTag(t *testing.T) {
 	f, err := getFieldNameByTag(reflect.TypeOf(test1{}), "db", "first_name")
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 	if f != "FistName" {
-		t.Failed()
+		t.Fatal()
 	}
 }

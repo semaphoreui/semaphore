@@ -11,7 +11,7 @@ func TestGetProjects(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	usr, err := store.CreateUser(db.UserWithPwd{
@@ -24,7 +24,7 @@ func TestGetProjects(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	proj1, err := store.CreateProject(db.Project{
@@ -33,7 +33,7 @@ func TestGetProjects(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	_, err = store.CreateProjectUser(db.ProjectUser{
@@ -43,17 +43,17 @@ func TestGetProjects(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	found, err := store.GetProjects(usr.ID)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	if len(found) != 1 {
-		t.Failed()
+		t.Fatal()
 	}
 
 }
@@ -63,7 +63,7 @@ func TestGetProject(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	proj, err := store.CreateProject(db.Project{
@@ -73,22 +73,22 @@ func TestGetProject(t *testing.T) {
 
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	found, err := store.GetProject(proj.ID)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	if found.Name != "Test1" {
-		t.Failed()
+		t.Fatal()
 	}
 
 	err = store.DeleteProject(proj.ID)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 }

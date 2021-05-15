@@ -10,7 +10,7 @@ func TestGetUsers(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	_, err = store.CreateUser(db.UserWithPwd{
@@ -23,17 +23,17 @@ func TestGetUsers(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	found, err := store.GetUsers(db.RetrieveQueryParams{})
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	if len(found) != 1 {
-		t.Failed()
+		t.Fatal()
 	}
 
 }
@@ -43,7 +43,7 @@ func TestGetUser(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	usr, err := store.CreateUser(db.UserWithPwd{
@@ -56,22 +56,22 @@ func TestGetUser(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	found, err := store.GetUser(usr.ID)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 
 	if found.Username != "fiftin" {
-		t.Failed()
+		t.Fatal()
 	}
 
 	err = store.DeleteUser(usr.ID)
 
 	if err != nil {
-		t.Failed()
+		t.Fatal()
 	}
 }
