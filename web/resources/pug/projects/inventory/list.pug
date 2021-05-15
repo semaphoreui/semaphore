@@ -1,9 +1,0 @@
-h3 Inventory
-	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") Create Inventory
-
-table.table.table-hover
-	tbody: tr(ng-repeat="inv in inventory" ng-click="edit(inv)" ng-class="{ danger: inv.removed }" style="cursor: pointer;")
-		td
-			code {{ inv.type }}
-			| &nbsp; {{ inv.name }}
-			button.btn.btn-info.btn-xs.pull-right(ng-if="inv.type != 'file'" ng-click="editContent(inv); $event.stopPropagation();") edit inventory content

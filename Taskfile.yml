@@ -25,20 +25,12 @@ tasks:
     cmds:
      - task: deps:tools
      - task: deps:be
-    #  - task: deps:fe
      - task: deps:fe2
 
   deps:be:
     desc: Vendor application dependencies
     cmds:
       - go mod vendor
-
-  deps:fe:
-    desc: Installs npm requirements for front end from package.json
-    dir: web
-    cmds:
-      - npm install
-      - npm audit fix
 
   deps:fe2:
     desc: Installs npm requirements for front end from package.json
@@ -49,14 +41,14 @@ tasks:
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
-    dir: web
+    dir: web2
     cmds:
       - npm install dredd@13.1.2
       - npm audit fix
 
   deps:tools:
     desc: Installs tools needed
-    dir: web
+    dir: web2
     vars:
       GORELEASER_VERSION: "0.159.0"
       GOLINTER_VERSION: "1.31.0"
@@ -75,27 +67,8 @@ tasks:
   compile:
     desc: Generates compiled frontend and backend resources (must be in this order)
     cmds:
-      # - task: compile:fe
       - task: compile:fe2
       - task: compile:be
-
-  compile:fe:
-    desc: Runs less, pug and node
-    dir: web
-    sources:
-      - resources/css/semaphore.less
-      - resources/html/*.pug
-      - resources/html/**/*.pug
-    generates:
-      - public/css/semaphore.css
-      - public/html/*.html
-      - public/html/**/*.html
-      - bundle.json
-    cmds:
-      - '{{ if eq OS "windows" }} .\\node_modules\\.bin\\lessc.cmd {{ else }} ./node_modules/.bin/lessc {{ end }} resources/less/semaphore.less > public/css/semaphore.css'
-      - '{{ if eq OS "windows" }} .\\node_modules\\.bin\\pug.cmd --pretty {{ else }} ./node_modules/.bin/pug {{ end }} resources/pug --out public/html'
-      - '{{ if eq OS "windows" }} xcopy node_modules\\font-awesome\\fonts public\\fonts /y {{ else }} cp node_modules/font-awesome/fonts/* public/fonts {{ end }}'
-      - node bundler.js
 
   compile:fe2:
     desc: Build vue.js project
@@ -121,7 +94,6 @@ tasks:
     desc: Runs Packr for static assets
     sources:
       - web2/dist/*
-      - web/public/*
       - db/migrations/*
     generates:
       - db/db-packr.go
@@ -137,7 +109,7 @@ tasks:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
         # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json' || true
+        sh: git diff --exit-code --stat -- . ':(exclude)web2/package-lock.json' ':(exclude)web2/package.json' || true
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
@@ -147,24 +119,6 @@ tasks:
     dir: ./.dredd/hooks
     cmds:
       - go build -o ../compiled_hooks
-
-  watch:
-    desc: Watch fe and be file changes and rebuild
-    dir: web/resources
-    cmds:
-      # - task: watch:fe
-      - task: watch:be
-
-  watch:be:
-    cmds:
-      - reflex -r '\.go$' -R '^.idea/' -R '^web/node_modules/' -s -d none -- sh -c 'go build -i -o /tmp/semaphore_bin cli/main.go && /tmp/semaphore_bin -config $(pwd)/config.json'
-
-  watch:fe:
-    dir: web
-    cmds:
-      - ./node_modules/.bin/nodemon -w js -i bundle.js -e js bundler.js &
-      - ./node_modules/.bin/nodemon -w css -e less --exec "lessc resources/less/semaphore.less > public/css/semaphore.css" &
-      - ./node_modules/.bin/pug -w -P --doctype html resources/pug --out public/html &
 
   build:
     desc: Build a full set of release binaries and packages
@@ -211,7 +165,7 @@ tasks:
   test:api:
     desc: test the api with dredd
     cmds:
-      - ./web/node_modules/.bin/dredd --config .dredd/dredd.yml
+      - ./web2/node_modules/.bin/dredd --config .dredd/dredd.yml
 
   ci:artifacts:
     cmds:

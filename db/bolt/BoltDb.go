@@ -390,10 +390,14 @@ func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objec
 		return err
 	}
 
-	// mark as removed
+	// mark as removed if "removed" exists
+	if _, ok := data["removed"]; !ok {
+		return fmt.Errorf("removed field not exists")
+	}
+
 	data["removed"] = true
 
-	// store data
+	// store data back
 	res, err := json.Marshal(data)
 
 	return d.db.Update(func(tx *bbolt.Tx) error {

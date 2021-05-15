@@ -1,6 +1,0 @@
-h3 Environment
-	button.btn.btn-success.btn-xs.pull-right(ng-click="add()") Create Environment
-
-table.table.table-hover
-	tbody: tr(ng-repeat="env in environment" ng-click="editEnvironment(env)" style="cursor: pointer;" ng-class="{ danger: env.removed }")
-		td {{ env.name }}

@@ -17,7 +17,6 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-var publicAssets = packr.NewBox("../web/public")
 var publicAssets2 = packr.NewBox("../web2/dist")
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
@@ -253,36 +252,18 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	htmlPrefix := ""
-	publicAssetsPrefix := ""
-	if util.Config.OldFrontend {
-		htmlPrefix = "/html"
-		publicAssetsPrefix = "public"
+	if !strings.Contains(path, ".") {
+		path = "/index.html"
 	}
 
-	if publicAssetsPrefix != "" && !strings.HasPrefix(path, webPath+publicAssetsPrefix) {
-		if strings.Contains(path, ".") {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		path = htmlPrefix+"/index.html"
-	} else if !strings.Contains(path, ".") {
-		path = htmlPrefix+"/index.html"
-	}
-
-	path = strings.Replace(path, webPath+publicAssetsPrefix+"/", "", 1)
+	path = strings.Replace(path, webPath+"/", "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
 	var res []byte
 	var err error
 
-	if util.Config.OldFrontend {
-		res, err = publicAssets.MustBytes(path)
-	} else {
-		res, err = publicAssets2.MustBytes(path)
-	}
+	res, err = publicAssets2.MustBytes(path)
 
 	if err != nil {
 		notFoundHandler(w, r)
@@ -290,7 +271,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// replace base path
-	if util.WebHostURL != nil && path == htmlPrefix+"/index.html" {
+	if util.WebHostURL != nil && path == "/index.html" {
 		baseURL := util.WebHostURL.String()
 		if !strings.HasSuffix(baseURL, "/") {
 			baseURL += "/"
