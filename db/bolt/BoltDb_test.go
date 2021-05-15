@@ -9,16 +9,71 @@ import (
 )
 
 type test1 struct {
+	ID int `db:"ID"`
 	FistName string `db:"first_name" json:"firstName"`
 	LastName string `db:"last_name" json:"lastName"`
 	Password string `db:"-" json:"password"`
 	PasswordRepeat string `db:"-" json:"passwordRepeat"`
 	PasswordHash string `db:"password" json:"-"`
+	Removed bool `db:"removed"`
+}
+
+func createBoltDb() BoltDb {
+	return BoltDb{
+		Filename: "/tmp/test_semaphore_db_" + strconv.Itoa(rand.Int()),
+	}
 }
 
 func createStore() db.Store {
-	return &BoltDb{
-		Filename: "/tmp/test_semaphore_db_" + strconv.Itoa(rand.Int()),
+	store := createBoltDb()
+	return &store
+}
+
+func TestDeleteObjectSoft(t *testing.T) {
+	store := createBoltDb()
+	err := store.Connect()
+
+	if err != nil {
+		t.Failed()
+	}
+
+	obj := test1{
+		FistName: "Denis",
+		LastName: "Gukov",
+	}
+
+	props := db.ObjectProperties{
+		IsGlobal: true,
+		TableName: "test1",
+	}
+
+	newObj, err := store.createObject(0, props, obj)
+
+	if err != nil {
+		t.Failed()
+	}
+
+	objID := intObjectID(newObj.(test1).ID)
+
+	err = store.deleteObjectSoft(0, props, objID)
+
+	if err != nil {
+		t.Failed()
+	}
+
+	var found test1
+	err = store.getObject(0, props, objID, &found)
+
+	if err != nil {
+		t.Failed()
+	}
+
+	if found.ID != int(objID) ||
+		found.Removed != true ||
+		found.Password != obj.Password ||
+		found.LastName != obj.LastName {
+
+		t.Failed()
 	}
 }
 

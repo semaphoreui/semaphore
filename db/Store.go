@@ -27,6 +27,15 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
+type ObjectScope int
+
+//const (
+//	GlobalScope ObjectScope = iota
+//	ProjectScope
+//	UserScope
+//  TaskScope
+//)
+
 type ObjectProperties struct {
 	TableName          string
 	SortableColumns    []string

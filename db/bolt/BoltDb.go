@@ -115,7 +115,7 @@ func (d *BoltDb) getObject(bucketID int, props db.ObjectProperties, objectID obj
 			return db.ErrNotFound
 		}
 
-		return json.Unmarshal(str, &object)
+		return unmarshalObject(str, object)
 	})
 
 	return
@@ -317,21 +317,24 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 }
 
 
-func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objectID objectID) (inUse bool, err error) {
-	return false, nil
-}
+//func (d *BoltDb) isObjectUsedByTemplate(bucketID int, props db.ObjectProperties, objectID objectID) (inUse bool, err error) {
+//	if props.IsGlobal {
+//		return false, fmt.Errorf("global object can't be checked by usege")
+//	}
+//
+//	var templates []db.Template
+//	objs := d.getObjects(bucketID, db.TemplateProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
+//		f := reflect.ValueOf(tpl).FieldByName(props.TemplateColumnName)
+//		if f.IsZero() {
+//			return false
+//		}
+//		return f.Int() == int64(objectID)
+//	}, &templates)
+//
+//	return false, nil
+//}
 
 func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	inUse, err := d.isObjectInUse(bucketID, props, objectID)
-
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return db.ErrInvalidOperation
-	}
-
 	return d.db.Update(func (tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
@@ -342,7 +345,39 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 }
 
 func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	return d.deleteObject(bucketID, props, objectID)
+	var data interface{}
+
+	// load data
+	err := d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		d := b.Get(objectID.ToBytes())
+
+		if d == nil {
+			return db.ErrNotFound
+		}
+
+		return json.Unmarshal(d, &data)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// store data
+	res, err := json.Marshal(data)
+
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		return b.Put(objectID.ToBytes(), res)
+	})
 }
 
 // updateObject updates data for object in database.
@@ -355,8 +390,29 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 
 		idValue := reflect.ValueOf(object).FieldByName("ID")
 
-		id := makeObjectId(int(idValue.Int()))
-		if b.Get(id) == nil {
+		var objectID objectID
+
+		switch idValue.Kind() {
+		case reflect.Int:
+		case reflect.Int8:
+		case reflect.Int16:
+		case reflect.Int32:
+		case reflect.Int64:
+		case reflect.Uint:
+		case reflect.Uint8:
+		case reflect.Uint16:
+		case reflect.Uint32:
+		case reflect.Uint64:
+			objectID = intObjectID(idValue.Int())
+		case reflect.String:
+			objectID = strObjectID(idValue.String())
+		}
+
+		if objectID == nil {
+			return fmt.Errorf("unsupported ID type")
+		}
+
+		if b.Get(objectID.ToBytes()) == nil {
 			return db.ErrNotFound
 		}
 
@@ -365,7 +421,7 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			return err
 		}
 
-		return b.Put(id, str)
+		return b.Put(objectID.ToBytes(), str)
 	})
 }
 
