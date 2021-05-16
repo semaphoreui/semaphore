@@ -117,6 +117,15 @@ func getFieldNameByTag(t reflect.Type, tagName string, tagValue string) (string,
 			return t.Field(i).Name, nil
 		}
 	}
+	for i := 0; i < n; i++ {
+		if t.Field(i).Tag != "" || t.Field(i).Type.Kind() != reflect.Struct {
+			continue
+		}
+		str, err := getFieldNameByTag(t.Field(i).Type, tagName, tagValue)
+		if err == nil {
+			return str, nil
+		}
+	}
 	return "", fmt.Errorf("field not found")
 }
 
@@ -305,13 +314,32 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 	})
 }
 
-func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID objectID) (inUse bool, err error) {
+func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID objectID, userProps db.ObjectProperties) (inUse bool, err error) {
 	var templates []db.Template
 
-	err = d.getObjects(bucketID, db.TemplateProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
-		f := reflect.ValueOf(tpl).FieldByName(props.TemplateColumnName)
+	err = d.getObjects(bucketID, userProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
+		if props.ForeignColumnName == "" {
+			return false
+		}
+
+		fieldName, err := getFieldNameByTag(reflect.TypeOf(tpl), "db", props.ForeignColumnName)
+
+		if err != nil {
+			return false
+		}
+
+		f := reflect.ValueOf(tpl).FieldByName(fieldName)
+
 		if f.IsZero() {
 			return false
+		}
+
+		if f.Kind() == reflect.Ptr {
+			if f.IsNil() {
+				return false
+			}
+
+			f = f.Elem()
 		}
 
 		var fVal objectID
@@ -348,14 +376,14 @@ func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID ob
 }
 
 func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	inUse, err := d.isObjectInUse(bucketID, props, objectID)
-
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return db.ErrInvalidOperation
+	for _, u := range []db.ObjectProperties{ db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps } {
+		inUse, err := d.isObjectInUse(bucketID, props, objectID, u)
+		if err != nil {
+			return err
+		}
+		if inUse {
+			return db.ErrInvalidOperation
+		}
 	}
 
 	return d.db.Update(func (tx *bbolt.Tx) error {
@@ -418,7 +446,13 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			return db.ErrNotFound
 		}
 
-		idValue := reflect.ValueOf(object).FieldByName("ID")
+		idFieldName, err := getFieldNameByTag(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+		if err != nil {
+			return err
+		}
+
+		idValue := reflect.ValueOf(object).FieldByName(idFieldName)
 
 		var objectID objectID
 
@@ -457,10 +491,10 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 
 func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object interface{}) (interface{}, error) {
 	err := d.db.Update(func(tx *bbolt.Tx) error {
-		b, err2 := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
+		b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
 
-		if err2 != nil {
-			return err2
+		if err != nil {
+			return err
 		}
 
 		objPtr := reflect.ValueOf(&object).Elem()
@@ -468,7 +502,13 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
 		tmpObj.Set(objPtr.Elem())
 
-		idValue := tmpObj.FieldByName("ID")
+		idFieldName, err := getFieldNameByTag(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+		if err != nil {
+			return err
+		}
+
+		idValue := tmpObj.FieldByName(idFieldName)
 		var objectID objectID
 		switch idValue.Kind() {
 		case reflect.Int,
@@ -509,9 +549,9 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 		}
 
 		objPtr.Set(tmpObj)
-		str, err2 := marshalObject(object)
-		if err2 != nil {
-			return err2
+		str, err := marshalObject(object)
+		if err != nil {
+			return err
 		}
 
 		return b.Put(objectID.ToBytes(), str)

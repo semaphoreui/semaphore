@@ -244,7 +244,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 
 func (d *SqlDb) isObjectInUse(projectID int, props db.ObjectProperties, objectID int) (bool, error) {
 	templatesC, err := d.sql.SelectInt(
-		"select count(1) from project__template where project_id=? and " + props.TemplateColumnName + "=?",
+		"select count(1) from project__template where project_id=? and " + props.ForeignColumnName+ "=?",
 		projectID,
 		objectID)
 

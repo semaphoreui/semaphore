@@ -1,1 +1,1 @@
-alter table `task` add `project_id` int DEFAULT 0;
+alter table `task` add `project_id` int null references project(`id`);

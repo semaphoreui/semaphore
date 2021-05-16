@@ -3,14 +3,64 @@ package bolt
 import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"testing"
+	"time"
 )
+
+func TestBoltDb_UpdateProjectUser(t *testing.T) {
+	store := createStore()
+	err := store.Connect()
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+
+	usr, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "123456",
+		User: db.User{
+			Email: "denguk@example.com",
+			Name: "Denis Gukov",
+			Username: "fiftin",
+		},
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	proj1, err := store.CreateProject(db.Project{
+		Created: time.Now(),
+		Name: "Test1",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	projUser, err := store.CreateProjectUser(db.ProjectUser{
+		ProjectID: proj1.ID,
+		UserID: usr.ID,
+		Admin: true,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	projUser.Admin = true
+	err = store.UpdateProjectUser(projUser)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+}
 
 func TestGetUsers(t *testing.T) {
 	store := createStore()
 	err := store.Connect()
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	_, err = store.CreateUser(db.UserWithPwd{
@@ -23,17 +73,17 @@ func TestGetUsers(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	found, err := store.GetUsers(db.RetrieveQueryParams{})
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	if len(found) != 1 {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 }
@@ -43,7 +93,7 @@ func TestGetUser(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	usr, err := store.CreateUser(db.UserWithPwd{
@@ -56,22 +106,22 @@ func TestGetUser(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	found, err := store.GetUser(usr.ID)
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	if found.Username != "fiftin" {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	err = store.DeleteUser(usr.ID)
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 }

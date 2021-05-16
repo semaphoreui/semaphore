@@ -178,7 +178,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	softDeletion := len(r.URL.Query().Get("setRemoved")) == 0
+	softDeletion := r.URL.Query().Get("setRemoved") == "1"
 
 	if softDeletion {
 		err = helpers.Store(r).DeleteAccessKeySoft(*key.ProjectID, key.ID)

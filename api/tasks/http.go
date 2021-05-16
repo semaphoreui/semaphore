@@ -26,6 +26,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	taskObj.Created = time.Now()
 	taskObj.Status = "waiting"
 	taskObj.UserID = &user.ID
+	taskObj.ProjectID = project.ID
 
 	newTask, err := helpers.Store(r).CreateTask(taskObj)
 	if err != nil {

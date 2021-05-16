@@ -90,7 +90,7 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateProject(project)
+	err := helpers.Store(r).UpdateProject(body)
 
 	if err != nil {
 		helpers.WriteError(w, err)

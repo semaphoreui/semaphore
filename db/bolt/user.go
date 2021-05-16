@@ -54,6 +54,17 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 }
 
 func (d *BoltDb) DeleteUser(userID int) error {
+	projects, err := d.GetProjects(userID)
+	if err != nil {
+		return err
+	}
+
+	// TODO: add transaction
+
+	for _, p := range projects {
+		_ = d.DeleteProjectUser(p.ID, userID)
+	}
+
 	return d.deleteObject(0, db.UserProps, intObjectID(userID))
 }
 
@@ -104,21 +115,7 @@ func (d *BoltDb) CreateProjectUser(projectUser db.ProjectUser) (db.ProjectUser, 
 }
 
 func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err error) {
-	var projectUsers []db.ProjectUser
-	err = d.getObjects(projectID, db.ProjectUserProps, db.RetrieveQueryParams{}, nil, &projectUsers)
-
-	if err != nil {
-		return
-	}
-
-	for _, usr := range projectUsers {
-		if usr.UserID == userID {
-			user = usr
-			return
-		}
-	}
-
-	err = db.ErrNotFound
+	err = d.getObject(projectID, db.ProjectUserProps, intObjectID(userID), &user)
 	return
 }
 
@@ -135,6 +132,7 @@ func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (
 		if err != nil {
 			return
 		}
+		usr.Admin = projUser.Admin
 		users = append(users, usr)
 	}
 	return

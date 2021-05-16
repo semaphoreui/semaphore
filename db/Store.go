@@ -29,18 +29,12 @@ type RetrieveQueryParams struct {
 
 type ObjectScope int
 
-//const (
-//	GlobalScope ObjectScope = iota
-//	ProjectScope
-//	UserScope
-//  TaskScope
-//)
-
 type ObjectProperties struct {
-	TableName          string
-	SortableColumns    []string
-	IsGlobal           bool
-	TemplateColumnName string
+	TableName         string
+	IsGlobal          bool // doesn't belong to other table, for example to project or user.
+	ForeignColumnName string
+	PrimaryColumnName string
+	SortableColumns   []string
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -143,66 +137,80 @@ type Store interface {
 }
 
 var AccessKeyProps = ObjectProperties{
-	TableName:          "access_key",
-	SortableColumns:    []string{"name", "type"},
-	TemplateColumnName: "ssh_key_id",
+	TableName:         "access_key",
+	SortableColumns:   []string{"name", "type"},
+	ForeignColumnName: "ssh_key_id",
+	PrimaryColumnName: "id",
 }
 
 var GlobalAccessKeyProps = ObjectProperties{
-	IsGlobal:           true,
-	TableName:          "access_key",
-	SortableColumns:    []string{"name", "type"},
-	TemplateColumnName: "ssh_key_id",
+	IsGlobal:          true,
+	TableName:         "access_key",
+	SortableColumns:   []string{"name", "type"},
+	ForeignColumnName: "ssh_key_id",
+	PrimaryColumnName: "id",
 }
 
 var EnvironmentProps = ObjectProperties{
-	TableName:       "project__environment",
-	SortableColumns: []string{"name"},
+	TableName:         "project__environment",
+	SortableColumns:   []string{"name"},
+	ForeignColumnName: "environment_id",
+	PrimaryColumnName: "id",
 }
 
 var InventoryProps = ObjectProperties{
-	TableName:          "project__inventory",
-	SortableColumns:    []string{"name"},
-	TemplateColumnName: "inventory_id",
+	TableName:         "project__inventory",
+	SortableColumns:   []string{"name"},
+	ForeignColumnName: "inventory_id",
+	PrimaryColumnName: "id",
 }
 
 var RepositoryProps = ObjectProperties{
-	TableName:          "project__repository",
-	TemplateColumnName: "repository_id",
+	TableName:         "project__repository",
+	ForeignColumnName: "repository_id",
+	PrimaryColumnName: "id",
 }
 
 var TemplateProps = ObjectProperties{
 	TableName:          "project__template",
 	SortableColumns:    []string{"name"},
+	PrimaryColumnName: "id",
 }
 
 var ProjectUserProps = ObjectProperties{
 	TableName:          "project__user",
+	PrimaryColumnName: "user_id",
 }
 
 var ProjectProps = ObjectProperties{
 	TableName:          "project",
 	IsGlobal:           true,
+	PrimaryColumnName: "id",
 }
 
 var UserProps = ObjectProperties{
 	TableName:          "user",
 	IsGlobal:           true,
+	PrimaryColumnName: "id",
 }
 
 var SessionProps = ObjectProperties{
 	TableName:          "session",
+	PrimaryColumnName: "id",
 }
 
 var TokenProps = ObjectProperties{
 	TableName:          "user__token",
+	PrimaryColumnName: "id",
 }
 
 var TaskProps = ObjectProperties{
 	TableName:          "task",
 	IsGlobal:           true,
+	PrimaryColumnName: "id",
 }
 
 var TaskOutputProps = ObjectProperties{
 	TableName:          "task__output",
+	PrimaryColumnName: "id",
 }

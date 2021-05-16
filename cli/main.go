@@ -192,6 +192,7 @@ func doSetup() int {
 	} else {
 		user.Name = readNewline(" > Your name: ", stdin)
 		user.Pwd = readNewline(" > Password: ", stdin)
+		user.Admin = true
 
 		if _, err := store.CreateUser(user); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())

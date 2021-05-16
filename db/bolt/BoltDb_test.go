@@ -12,12 +12,18 @@ import (
 
 type test1 struct {
 	ID int `db:"ID"`
-	FistName string `db:"first_name" json:"firstName"`
+	FirstName string `db:"first_name" json:"firstName"`
 	LastName string `db:"last_name" json:"lastName"`
 	Password string `db:"-" json:"password"`
 	PasswordRepeat string `db:"-" json:"passwordRepeat"`
 	PasswordHash string `db:"password" json:"-"`
 	Removed bool `db:"removed"`
+}
+
+var test1props = db.ObjectProperties{
+	IsGlobal: true,
+	TableName: "test1",
+	PrimaryColumnName: "ID",
 }
 
 func createBoltDb() BoltDb {
@@ -38,38 +44,32 @@ func TestDeleteObjectSoft(t *testing.T) {
 	err := store.Connect()
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	obj := test1{
-		FistName: "Denis",
+		FirstName: "Denis",
 		LastName: "Gukov",
 	}
-
-	props := db.ObjectProperties{
-		IsGlobal: true,
-		TableName: "test1",
-	}
-
-	newObj, err := store.createObject(0, props, obj)
+	newObj, err := store.createObject(0, test1props, obj)
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	objID := intObjectID(newObj.(test1).ID)
 
-	err = store.deleteObjectSoft(0, props, objID)
+	err = store.deleteObjectSoft(0, test1props, objID)
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	var found test1
-	err = store.getObject(0, props, objID, &found)
+	err = store.getObject(0, test1props, objID, &found)
 
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err.Error())
 	}
 
 	if found.ID != int(objID) ||
@@ -107,7 +107,7 @@ func TestMarshalObject_UserWithPwd(t *testing.T) {
 
 func TestMarshalObject(t *testing.T) {
 	test1 := test1{
-		FistName: "Denis",
+		FirstName: "Denis",
 		LastName: "Gukov",
 		Password: "1234556",
 		PasswordRepeat: "123456",
@@ -139,7 +139,7 @@ func TestUnmarshalObject(t *testing.T) {
 	if err != nil {
 		t.Fatal(fmt.Errorf("function returns error: " + err.Error()))
 	}
-	if test1.FistName != "Denis" ||
+	if test1.FirstName != "Denis" ||
 		test1.LastName != "Gukov" ||
 		test1.Password != "" ||
 		test1.PasswordRepeat != "" ||
@@ -192,9 +192,136 @@ func TestSortObjects(t *testing.T) {
 func TestGetFieldNameByTag(t *testing.T) {
 	f, err := getFieldNameByTag(reflect.TypeOf(test1{}), "db", "first_name")
 	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if f != "FirstName" {
 		t.Fatal()
 	}
-	if f != "FistName" {
+}
+
+func TestGetFieldNameByTag2(t *testing.T) {
+	f, err := getFieldNameByTag(reflect.TypeOf(db.UserWithPwd{}), "db", "id")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if f != "ID" {
 		t.Fatal()
 	}
+}
+
+func TestIsObjectInUse(t *testing.T) {
+	store := createBoltDb()
+	err := store.Connect()
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	proj, err := store.CreateProject(db.Project{
+		Name: "test",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	_, err = store.CreateTemplate(db.Template{
+		Alias: "Test",
+		ProjectID: proj.ID,
+		InventoryID: 10,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	isUse, err := store.isObjectInUse(proj.ID, db.InventoryProps, intObjectID(10), db.TemplateProps)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if !isUse {
+		t.Fatal()
+	}
+
+}
+
+func TestIsObjectInUse_Environment(t *testing.T) {
+	store := createBoltDb()
+	err := store.Connect()
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	proj, err := store.CreateProject(db.Project{
+		Name: "test",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	envID := 10
+
+	_, err = store.CreateTemplate(db.Template{
+		Alias: "Test",
+		ProjectID: proj.ID,
+		EnvironmentID: &envID,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if !isUse {
+		t.Fatal()
+	}
+
+}
+
+func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
+	store := createBoltDb()
+	err := store.Connect()
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	proj, err := store.CreateProject(db.Project{
+		Name: "test",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	_, err = store.CreateTemplate(db.Template{
+		Alias: "Test",
+		ProjectID: proj.ID,
+		EnvironmentID: nil,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if isUse {
+		t.Fatal()
+	}
+
 }

@@ -187,7 +187,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(db.Inventory)
 	var err error
 
-	softDeletion := len(r.URL.Query().Get("setRemoved")) == 0
+	softDeletion := r.URL.Query().Get("setRemoved") == "1"
 
 	if softDeletion {
 		err = helpers.Store(r).DeleteInventorySoft(inventory.ProjectID, inventory.ID)
