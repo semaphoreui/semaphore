@@ -53,11 +53,11 @@ tasks:
       GORELEASER_VERSION: "0.159.0"
       GOLINTER_VERSION: "1.31.0"
     cmds:
-      - go install github.com/cespare/reflex
-      - go install github.com/gobuffalo/packr/...
-      - go install github.com/haya14busa/goverage
-      - go install github.com/snikch/goodman/cmd/goodman
-      - go install github.com/go-swagger/go-swagger/cmd/swagger
+      - '{{ if ne OS "windows" }} go get github.com/cespare/reflex{{ else }} {{ end }}'
+      - go get github.com/gobuffalo/packr/...
+      - go get github.com/haya14busa/goverage
+      - go get github.com/snikch/goodman/cmd/goodman
+      - go get github.com/go-swagger/go-swagger/cmd/swagger
       - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
       - '{{ if ne OS "windows" }} chmod +x $(go env GOPATH)/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'

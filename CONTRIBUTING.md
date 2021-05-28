@@ -1,4 +1,6 @@
-# Pull Requests
+# Contributing
+
+## Pull Requests
 
 When creating a pull-request you should:
 
@@ -8,15 +10,16 @@ When creating a pull-request you should:
 - __Update api documentation:__ If your pull-request adding/modifying an API request, make sure you update the swagger documentation (`api-docs.yml`)
 - __Run Api Tests:__ If your pull request modifies the API make sure you run the integration tests using dredd.
 
-# Installation in a development environment
+## Installation in a development environment
 
 - Check out the `develop` branch
 - [Install Go](https://golang.org/doc/install). Go must be >= v1.10 for all the tools we use to work
 - Install MySQL / MariaDB
 - Install node.js
 
-1) Set up GOPATH, GOBIN and Workspace.
-```
+1. Set up GOPATH, GOBIN and Workspace.
+
+```bash
 cd {WORKING_DIRECTORY}
 # Exports only needed pre Go 1.8 or for custom GOPATH location
 export GOPATH=`pwd`
@@ -26,35 +29,34 @@ export PATH=$PATH:$GOBIN
 mkdir -p $GOPATH/src/github.com/ansible-semaphore && cd $GOPATH/src/github.com/ansible-semaphore
 ```
 
-2) Clone semaphore (with submodules)
+2. Clone semaphore (with submodules)
 
-```
+```bash
 git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semaphore
 ```
 
-3) Install dev dependencies
+3. Install dev dependencies
 
-```
-go get -u github.com/go-task/task/cmd/task
+```bash
+go get github.com/go-task/task/v2/cmd/task
 task deps
 ```
-Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
+Windows users will additionally need to manually install goreleaser from <https://github.com/goreleaser/goreleaser/releases>
 
-4) Set up config, database & run migrations
+4. Set up config, database & run migrations
 
-```
-    cat <<EOT >> config.json
-    {
-        "mysql": {
-            "host": "127.0.0.1:3306",
-            "user": "root",
-            "pass": "",
-            "name": "semaphore"
-        },
-        "port": ":3000"
-    }
-    EOT
+```bash
+cat config.json
+{
+    "mysql": {
+        "host": "127.0.0.1:3306",
+        "user": "root",
+        "pass": "",
+        "name": "semaphore"
+    },
+    "port": ":3000"
+}
 
 echo "create database semaphore;" | mysql -uroot -p
 task compile
@@ -79,16 +81,16 @@ matches the responses.
 
 As Dredd and the application database config may differ it expects it's own config.json in the .dredd folder.
 The most basic configuration for this using a local docker container to run the database would be
+
 ```json
 {
-	"mysql": {
-		"host": "0.0.0.0:3306",
-		"user": "semaphore",
-		"pass": "semaphore",
-		"name": "semaphore"
-	}
+    "mysql": {
+        "host": "0.0.0.0:3306",
+        "user": "semaphore",
+        "pass": "semaphore",
+        "name": "semaphore"
+    }
 }
-
 ```
 
 It is strongly advised to run these tests inside docker containers, as dredd will write a lot of test information and will __NOT__ clear it up.

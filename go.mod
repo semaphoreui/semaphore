@@ -8,20 +8,23 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Sirupsen/logrus v1.0.4
 	github.com/cespare/reflex v0.3.0 // indirect
+	github.com/corbym/gocrest v1.0.3 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2
-	github.com/go-openapi/loads v0.19.4
-	github.com/go-openapi/spec v0.19.6
-	github.com/go-sql-driver/mysql v1.4.1
-	github.com/go-swagger/go-swagger v0.22.0 // indirect
+	github.com/go-openapi/loads v0.20.2 // indirect
+	github.com/go-openapi/spec v0.20.3 // indirect
+	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-swagger/go-swagger v0.27.0 // indirect
 	github.com/go-task/task v2.2.0+incompatible // indirect
-	github.com/gobuffalo/packr v1.10.4
+	github.com/go-task/task/v2 v2.8.1 // indirect
+	github.com/gobuffalo/packr v1.30.1
+	github.com/gobuffalo/packr/v2 v2.8.1 // indirect
 	github.com/google/go-github v15.0.0+incompatible
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f
-	github.com/gorilla/handlers v1.4.2
+	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/securecookie v1.1.1
-	github.com/gorilla/websocket v1.4.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/haya14busa/goverage v0.0.0-20180129164344-eec3514a20b5 // indirect
 	github.com/huandu/xstrings v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
@@ -39,13 +42,10 @@ require (
 	github.com/radovskyb/watcher v1.0.7 // indirect
 	github.com/russross/blackfriday v1.5.2
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
-	github.com/spf13/cobra v0.0.5 // indirect
+	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.etcd.io/bbolt v1.3.2
-	golang.org/x/crypto v0.0.0-20200208060501-ecb85df21340
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
