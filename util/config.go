@@ -6,9 +6,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"os"
 	"path"
+
+	log "github.com/Sirupsen/logrus"
 
 	"net/url"
 
@@ -63,8 +64,8 @@ type ldapMappings struct {
 
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
-	MySQL      DbConfig `json:"mysql"`
-	BoltDb	   DbConfig `json:"bolt"`
+	MySQL  DbConfig `json:"mysql"`
+	BoltDb DbConfig `json:"bolt"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -170,7 +171,7 @@ func ConfigInit() {
 				DbName:   "semaphore",
 			},
 			Port:    ":3000",
-			TmpPath: "/tmp/semaphore",
+			TmpPath: path.Join(os.TempDir(), "semaphore"),
 		}
 		cfg.GenerateCookieSecrets()
 
@@ -229,7 +230,7 @@ func validateConfig() {
 	validatePort()
 
 	if len(Config.TmpPath) == 0 {
-		Config.TmpPath = "/tmp/semaphore"
+		Config.TmpPath = path.Join(os.TempDir(), "semaphore")
 	}
 
 	if Config.MaxParallelTasks < 1 {
@@ -326,15 +327,15 @@ func (conf *ConfigType) GenerateCookieSecrets() {
 }
 
 func (conf *ConfigType) ScanBoltDb() {
-	fmt.Print(" > DB filename (default /tmp/boltdb): ")
+	defaultBoltDBPath := path.Join(os.TempDir(), "boltdb")
+	fmt.Print(" > DB filename (default " + defaultBoltDBPath + "): ")
 	ScanErrorChecker(fmt.Scanln(&conf.BoltDb.Hostname))
 	if len(conf.BoltDb.Hostname) == 0 {
-		conf.BoltDb.Hostname = "/tmp/boltdb"
+		conf.BoltDb.Hostname = defaultBoltDBPath
 	}
 }
 
 func (conf *ConfigType) ScanMySQL() {
-
 	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
 	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Hostname))
 	if len(conf.MySQL.Hostname) == 0 {
@@ -373,11 +374,12 @@ func (conf *ConfigType) Scan() {
 		conf.ScanBoltDb()
 	}
 
-	fmt.Print(" > Playbook path (default /tmp/semaphore): ")
+	defaultPlaybookPath := path.Join(os.TempDir(), "semaphore")
+	fmt.Print(" > Playbook path (default " + defaultPlaybookPath + "): ")
 	ScanErrorChecker(fmt.Scanln(&conf.TmpPath))
 
 	if len(conf.TmpPath) == 0 {
-		conf.TmpPath = "/tmp/semaphore"
+		conf.TmpPath = defaultPlaybookPath
 	}
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
