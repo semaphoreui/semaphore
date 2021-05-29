@@ -9,8 +9,6 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
-
 	"net/url"
 
 	"io"
@@ -34,11 +32,6 @@ var Upgrade bool
 
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
-
-const (
-	longPos  = "yes"
-	shortPos = "y"
-)
 
 type DbDriver int
 
@@ -119,21 +112,8 @@ type ConfigType struct {
 //Config exposes the application configuration storage for use in the application
 var Config *ConfigType
 
-var confPath *string
-
-// NewConfig returns a reference to a new blank configType
-// nolint: golint
-func NewConfig() *ConfigType {
-	return &ConfigType{}
-}
-
-// ScanErrorChecker deals with errors encountered while scanning lines
-// since we do not fail on these errors currently we can simply note them
-// and move on
-func ScanErrorChecker(n int, err error) {
-	if err != nil {
-		log.Warn("An input error occurred:" + err.Error())
-	}
+func (config *ConfigType) ToJSON() ([]byte, error) {
+	return json.MarshalIndent(&config, " ", "\t")
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
@@ -141,7 +121,7 @@ func ConfigInit() {
 	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
 	flag.BoolVar(&Migration, "migrate", false, "execute migrations")
 	flag.BoolVar(&Upgrade, "upgrade", false, "upgrade semaphore")
-	confPath = flag.String("config", "", "config path")
+	configPath := flag.String("config", "", "config path")
 
 	var unhashedPwd string
 	flag.StringVar(&unhashedPwd, "hash", "", "generate hash of given password")
@@ -164,7 +144,7 @@ func ConfigInit() {
 	}
 
 	if printConfig {
-		cfg := &ConfigType{
+		config := &ConfigType{
 			MySQL: DbConfig{
 				Hostname: "127.0.0.1:3306",
 				Username: "root",
@@ -173,10 +153,10 @@ func ConfigInit() {
 			Port:    ":3000",
 			TmpPath: path.Join(os.TempDir(), "semaphore"),
 		}
-		cfg.GenerateCookieSecrets()
+		config.GenerateCookieSecrets()
 
-		b, _ := json.MarshalIndent(cfg, "", "\t")
-		fmt.Println(string(b))
+		bytes, _ := config.ToJSON()
+		fmt.Println(string(bytes))
 
 		os.Exit(0)
 	}
@@ -188,7 +168,7 @@ func ConfigInit() {
 		os.Exit(0)
 	}
 
-	loadConfig()
+	loadConfig(configPath)
 	validateConfig()
 
 	var encryption []byte
@@ -205,24 +185,27 @@ func ConfigInit() {
 	}
 }
 
-func loadConfig() {
-
-	//If the confPath option has been set try to load and decode it
-	if confPath != nil && len(*confPath) > 0 {
-		file, err := os.Open(*confPath)
+func loadConfig(configPath *string) {
+	//If the configPath option has been set try to load and decode it
+	var usedPath string
+	if configPath != nil && len(*configPath) > 0 {
+		path := *configPath
+		file, err := os.Open(path)
 		exitOnConfigError(err)
 		decodeConfig(file)
+		usedPath = path
 	} else {
-		// if no confPath look in the cwd
+		// if no configPath look in the cwd
 		cwd, err := os.Getwd()
 		exitOnConfigError(err)
-		cwd = cwd + "/config.json"
-		confPath = &cwd
-		file, err := os.Open(*confPath)
+		defaultPath := path.Join(cwd, "config.json")
+		file, err := os.Open(defaultPath)
 		exitOnConfigError(err)
 		decodeConfig(file)
+		usedPath = defaultPath
 	}
-	fmt.Println("Using config file: " + *confPath)
+
+	fmt.Println("Using config file: " + usedPath)
 }
 
 func validateConfig() {
@@ -324,204 +307,4 @@ func (conf *ConfigType) GenerateCookieSecrets() {
 
 	conf.CookieHash = base64.StdEncoding.EncodeToString(hash)
 	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
-}
-
-func (conf *ConfigType) ScanBoltDb() {
-	defaultBoltDBPath := path.Join(os.TempDir(), "boltdb")
-	fmt.Print(" > DB filename (default " + defaultBoltDBPath + "): ")
-	ScanErrorChecker(fmt.Scanln(&conf.BoltDb.Hostname))
-	if len(conf.BoltDb.Hostname) == 0 {
-		conf.BoltDb.Hostname = defaultBoltDBPath
-	}
-}
-
-func (conf *ConfigType) ScanMySQL() {
-	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
-	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Hostname))
-	if len(conf.MySQL.Hostname) == 0 {
-		conf.MySQL.Hostname = "127.0.0.1:3306"
-	}
-
-	fmt.Print(" > DB User (default root): ")
-	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Username))
-	if len(conf.MySQL.Username) == 0 {
-		conf.MySQL.Username = "root"
-	}
-
-	fmt.Print(" > DB Password: ")
-	ScanErrorChecker(fmt.Scanln(&conf.MySQL.Password))
-
-	fmt.Print(" > DB Name (default semaphore): ")
-	ScanErrorChecker(fmt.Scanln(&conf.MySQL.DbName))
-	if len(conf.MySQL.DbName) == 0 {
-		conf.MySQL.DbName = "semaphore"
-	}
-}
-
-//nolint: gocyclo
-func (conf *ConfigType) Scan() {
-	db := 1
-	fmt.Println(" > DB")
-	fmt.Println("   1 - MySQL")
-	fmt.Println("   2 - bbolt")
-	fmt.Print("   (default 1): ")
-	ScanErrorChecker(fmt.Scanln(&db))
-
-	switch db {
-	case 1:
-		conf.ScanMySQL()
-	case 2:
-		conf.ScanBoltDb()
-	}
-
-	defaultPlaybookPath := path.Join(os.TempDir(), "semaphore")
-	fmt.Print(" > Playbook path (default " + defaultPlaybookPath + "): ")
-	ScanErrorChecker(fmt.Scanln(&conf.TmpPath))
-
-	if len(conf.TmpPath) == 0 {
-		conf.TmpPath = defaultPlaybookPath
-	}
-	conf.TmpPath = path.Clean(conf.TmpPath)
-
-	fmt.Print(" > Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL): ")
-	ScanErrorChecker(fmt.Scanln(&conf.WebHost))
-
-	var EmailAlertAnswer string
-	fmt.Print(" > Enable email alerts (y/n, default n): ")
-	ScanErrorChecker(fmt.Scanln(&EmailAlertAnswer))
-	if EmailAlertAnswer == longPos || EmailAlertAnswer == shortPos {
-
-		conf.EmailAlert = true
-
-		fmt.Print(" > Mail server host (default localhost): ")
-		ScanErrorChecker(fmt.Scanln(&conf.EmailHost))
-
-		if len(conf.EmailHost) == 0 {
-			conf.EmailHost = "localhost"
-		}
-
-		fmt.Print(" > Mail server port (default 25): ")
-		ScanErrorChecker(fmt.Scanln(&conf.EmailPort))
-
-		if len(conf.EmailPort) == 0 {
-			conf.EmailPort = "25"
-		}
-
-		fmt.Print(" > Mail sender address (default semaphore@localhost): ")
-		ScanErrorChecker(fmt.Scanln(&conf.EmailSender))
-
-		if len(conf.EmailSender) == 0 {
-			conf.EmailSender = "semaphore@localhost"
-		}
-
-	} else {
-		conf.EmailAlert = false
-	}
-
-	var TelegramAlertAnswer string
-	fmt.Print(" > Enable telegram alerts (y/n, default n): ")
-	ScanErrorChecker(fmt.Scanln(&TelegramAlertAnswer))
-	if TelegramAlertAnswer == longPos || TelegramAlertAnswer == shortPos {
-
-		conf.TelegramAlert = true
-
-		fmt.Print(" > Telegram bot token (you can get it from @BotFather) (default ''): ")
-		ScanErrorChecker(fmt.Scanln(&conf.TelegramToken))
-
-		if len(conf.TelegramToken) == 0 {
-			conf.TelegramToken = ""
-		}
-
-		fmt.Print(" > Telegram chat ID (default ''): ")
-		ScanErrorChecker(fmt.Scanln(&conf.TelegramChat))
-
-		if len(conf.TelegramChat) == 0 {
-			conf.TelegramChat = ""
-		}
-
-	} else {
-		conf.TelegramAlert = false
-	}
-
-	var LdapAnswer string
-	fmt.Print(" > Enable LDAP authentication (y/n, default n): ")
-	ScanErrorChecker(fmt.Scanln(&LdapAnswer))
-	if LdapAnswer == longPos || LdapAnswer == shortPos {
-
-		conf.LdapEnable = true
-
-		fmt.Print(" > LDAP server host (default localhost:389): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapServer))
-
-		if len(conf.LdapServer) == 0 {
-			conf.LdapServer = "localhost:389"
-		}
-
-		var LdapTLSAnswer string
-		fmt.Print(" > Enable LDAP TLS connection (y/n, default n): ")
-		ScanErrorChecker(fmt.Scanln(&LdapTLSAnswer))
-		if LdapTLSAnswer == longPos || LdapTLSAnswer == shortPos {
-			conf.LdapNeedTLS = true
-		} else {
-			conf.LdapNeedTLS = false
-		}
-
-		fmt.Print(" > LDAP DN for bind (default cn=user,ou=users,dc=example): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapBindDN))
-
-		if len(conf.LdapBindDN) == 0 {
-			conf.LdapBindDN = "cn=user,ou=users,dc=example"
-		}
-
-		fmt.Print(" > Password for LDAP bind user (default pa55w0rd): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapBindPassword))
-
-		if len(conf.LdapBindPassword) == 0 {
-			conf.LdapBindPassword = "pa55w0rd"
-		}
-
-		fmt.Print(" > LDAP DN for user search (default ou=users,dc=example): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapSearchDN))
-
-		if len(conf.LdapSearchDN) == 0 {
-			conf.LdapSearchDN = "ou=users,dc=example"
-		}
-
-		fmt.Print(" > LDAP search filter (default (uid=" + "%" + "s)): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapSearchFilter))
-
-		if len(conf.LdapSearchFilter) == 0 {
-			conf.LdapSearchFilter = "(uid=%s)"
-		}
-
-		fmt.Print(" > LDAP mapping for DN field (default dn): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapMappings.DN))
-
-		if len(conf.LdapMappings.DN) == 0 {
-			conf.LdapMappings.DN = "dn"
-		}
-
-		fmt.Print(" > LDAP mapping for username field (default uid): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapMappings.UID))
-
-		if len(conf.LdapMappings.UID) == 0 {
-			conf.LdapMappings.UID = "uid"
-		}
-
-		fmt.Print(" > LDAP mapping for full name field (default cn): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapMappings.CN))
-
-		if len(conf.LdapMappings.CN) == 0 {
-			conf.LdapMappings.CN = "cn"
-		}
-
-		fmt.Print(" > LDAP mapping for email field (default mail): ")
-		ScanErrorChecker(fmt.Scanln(&conf.LdapMappings.Mail))
-
-		if len(conf.LdapMappings.Mail) == 0 {
-			conf.LdapMappings.Mail = "mail"
-		}
-	} else {
-		conf.LdapEnable = false
-	}
 }

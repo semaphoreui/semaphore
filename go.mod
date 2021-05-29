@@ -31,6 +31,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/lann/builder v0.0.0-20180216234317-1b87b36280d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/manifoldco/promptui v0.8.0
 	github.com/markbates/grift v1.5.0 // indirect
 	github.com/masterminds/squirrel v0.0.0-20170825200431-a6b93000bd21
 	github.com/mattn/go-zglob v0.0.1 // indirect

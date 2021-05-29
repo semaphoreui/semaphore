@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
-	"context"
 
 	"github.com/google/go-github/github"
 )
@@ -58,7 +58,7 @@ func DoUpgrade(version string) error {
 	// replace it
 	cmdPath := FindSemaphore()
 	if len(cmdPath) == 0 {
-		return errors.New("Cannot find semaphore binary")
+		return errors.New("cannot find semaphore binary")
 	}
 
 	fmt.Printf("replacing %s\n", cmdPath)

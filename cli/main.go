@@ -2,22 +2,21 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/gorilla/context"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"path"
-	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
+	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/handlers"
 )
@@ -30,7 +29,6 @@ func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
 
 func main() {
 	util.ConfigInit()
@@ -47,14 +45,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	fmt.Printf("Semaphore %v\n", util.Version)
-	fmt.Printf("Interface %v\n", util.Config.Interface)
-	fmt.Printf("Port %v\n", util.Config.Port)
-	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
-	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
+	printDebugInfo()
 
 	store := factory.CreateStore()
-
 	if err := store.Connect(); err != nil {
 		fmt.Println("\n Have you run semaphore -setup?")
 		panic(err)
@@ -78,7 +71,7 @@ func main() {
 
 	route := api.Route()
 
-	route.Use(func (next http.Handler) http.Handler {
+	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			context.Set(r, "store", store)
 			next.ServeHTTP(w, r)
@@ -98,79 +91,43 @@ func main() {
 	}
 }
 
-//nolint: gocyclo
+func printDebugInfo() {
+	fmt.Printf("Semaphore %v\n", util.Version)
+	fmt.Printf("Interface %v\n", util.Config.Interface)
+	fmt.Printf("Port %v\n", util.Config.Port)
+	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
+	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
+}
+
 func doSetup() int {
-	store := factory.CreateStore()
-
-	fmt.Print(`
- Hello! You will now be guided through a setup to:
-
- 1. Set up configuration for a MySQL/MariaDB database
- 2. Set up a path for your playbooks (auto-created)
- 3. Run database Migrations
- 4. Set up initial semaphore user & password
-
-`)
-
-	var b []byte
-	setup := util.NewConfig()
+	var config *util.ConfigType
 	for {
-		setup.Scan()
-		setup.GenerateCookieSecrets()
+		config = &util.ConfigType{}
+		config.GenerateCookieSecrets()
+		setup.InteractiveSetup(config)
 
-		var err error
-		b, err = json.MarshalIndent(&setup, " ", "\t")
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("\n Generated configuration:\n %v\n\n", string(b))
-		fmt.Print(" > Is this correct? (yes/no): ")
-
-		var answer string
-		util.ScanErrorChecker(fmt.Scanln(&answer))
-		if answer == "yes" || answer == "y" {
+		if setup.VerifyConfig(config) {
 			break
 		}
 
 		fmt.Println()
-		setup = util.NewConfig()
 	}
 
-	confDir, err := os.Getwd()
-	if err != nil {
-		confDir = "/etc/semaphore"
-	}
-	fmt.Print(" > Config output directory (default " + confDir + "): ")
+	configPath := setup.ScanConfigPathAndSave(config)
 
-	var answer string
-	util.ScanErrorChecker(fmt.Scanln(&answer))
-	if len(answer) > 0 {
-		confDir = answer
-	}
-
-	fmt.Printf(" Running: mkdir -p %v..\n", confDir)
-	err = os.MkdirAll(confDir, 0755) //nolint: gas
-	if err != nil {
-		log.Panic("Could not create config directory: " + err.Error())
-	}
-
-	configPath := path.Join(confDir, "/config.json")
-	if err = ioutil.WriteFile(configPath, b, 0644); err != nil {
-		panic(err)
-	}
-	fmt.Printf(" Configuration written to %v..\n", configPath)
+	// Store new config globally
+	util.Config = config
 
 	fmt.Println(" Pinging db..")
-	util.Config = setup
+	store := factory.CreateStore()
 
-	if err = store.Connect(); err != nil {
+	if err := store.Connect(); err != nil {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	fmt.Println("\n Running DB Migrations..")
-	if err = store.Migrate(); err != nil {
+	if err := store.Migrate(); err != nil {
 		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
