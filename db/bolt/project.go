@@ -1,8 +1,9 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
 )
 
 func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
@@ -18,7 +19,7 @@ func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
 }
 
 func (d *BoltDb) GetProjects(userID int) (projects []db.Project, err error) {
-	projects = make([]db.Project, 0, 0)
+	projects = make([]db.Project, 0)
 
 	var allProjects []db.Project
 

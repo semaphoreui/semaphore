@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"sort"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"go.etcd.io/bbolt"
-	"reflect"
-	"sort"
 )
-
 
 type enumerable interface {
 	First() (key []byte, value []byte)
 	Next() (key []byte, value []byte)
 }
 
-type emptyEnumerable struct {}
+type emptyEnumerable struct{}
 
 func (d emptyEnumerable) First() (key []byte, value []byte) {
 	return nil, nil
@@ -29,7 +29,7 @@ func (d emptyEnumerable) Next() (key []byte, value []byte) {
 
 type BoltDb struct {
 	Filename string
-	db *bbolt.DB
+	db       *bbolt.DB
 }
 
 type objectID interface {
@@ -138,7 +138,7 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 		return err
 	}
 
-	sort.SliceStable(objectsValue.Interface(), func (i, j int) bool {
+	sort.SliceStable(objectsValue.Interface(), func(i, j int) bool {
 		valueI := objectsValue.Index(i).FieldByName(fieldName)
 		valueJ := objectsValue.Index(j).FieldByName(fieldName)
 
@@ -297,7 +297,6 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 		err = sortObjects(objects, params.SortBy, params.SortInverted)
 	}
 
-
 	return
 }
 
@@ -317,7 +316,7 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID objectID, userProps db.ObjectProperties) (inUse bool, err error) {
 	var templates []db.Template
 
-	err = d.getObjects(bucketID, userProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
+	err = d.getObjects(bucketID, userProps, db.RetrieveQueryParams{}, func(tpl interface{}) bool {
 		if props.ForeignColumnName == "" {
 			return false
 		}
@@ -363,7 +362,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID ob
 			return false
 		}
 
-		return bytes.Compare(fVal.ToBytes(), objID.ToBytes()) == 0
+		return bytes.Equal(fVal.ToBytes(), objID.ToBytes())
 	}, &templates)
 
 	if err != nil {
@@ -376,7 +375,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID ob
 }
 
 func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	for _, u := range []db.ObjectProperties{ db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps } {
+	for _, u := range []db.ObjectProperties{db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps} {
 		inUse, err := d.isObjectInUse(bucketID, props, objectID, u)
 		if err != nil {
 			return err
@@ -386,7 +385,7 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 		}
 	}
 
-	return d.db.Update(func (tx *bbolt.Tx) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
 			return db.ErrNotFound
@@ -426,7 +425,10 @@ func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objec
 	data["removed"] = true
 
 	// store data back
-	res, err := json.Marshal(data)
+	marshaledObject, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
@@ -434,7 +436,7 @@ func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objec
 			return db.ErrNotFound
 		}
 
-		return b.Put(objectID.ToBytes(), res)
+		return b.Put(objectID.ToBytes(), marshaledObject)
 	})
 }
 

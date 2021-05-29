@@ -2,10 +2,11 @@ package api
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
@@ -247,7 +248,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 
-	if path == webPath + "api" || strings.HasPrefix(path, webPath + "api/") {
+	if path == webPath+"api" || strings.HasPrefix(path, webPath+"api/") {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -263,7 +264,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	var res []byte
 	var err error
 
-	res, err = publicAssets2.MustBytes(path)
+	res, err = publicAssets2.Find(path)
 
 	if err != nil {
 		notFoundHandler(w, r)

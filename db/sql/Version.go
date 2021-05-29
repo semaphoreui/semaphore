@@ -48,7 +48,7 @@ func (version *Version) GetErrPath() string {
 
 // GetSQL takes a path to an SQL file and returns it from packr as a slice of strings separated by newlines
 func (version *Version) GetSQL(path string) []string {
-	sql, err := dbAssets.MustString(path)
+	sql, err := dbAssets.FindString(path)
 	if err != nil {
 		panic(err)
 	}

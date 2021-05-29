@@ -3,6 +3,9 @@ package sql
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -10,8 +13,6 @@ import (
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	"github.com/gobuffalo/packr"
 	"github.com/masterminds/squirrel"
-	"regexp"
-	"time"
 )
 
 type SqlDb struct {
@@ -127,8 +128,8 @@ func (d *SqlDb) applyMigration(version *Version) error {
 func (d *SqlDb) tryRollbackMigration(version *Version) {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
 
-	data := dbAssets.Bytes(version.GetErrPath())
-	if len(data) == 0 {
+	data, err := dbAssets.Find(version.GetErrPath())
+	if err != nil || len(data) == 0 {
 		fmt.Println("Rollback SQL does not exist.")
 		fmt.Println()
 		return
@@ -216,7 +217,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProperties, objectID int
 
 func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
-		From(props.TableName + " pe").
+		From(props.TableName+" pe").
 		Where("pe.project_id=?", projectID)
 
 	orderDirection := "ASC"
@@ -244,7 +245,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 
 func (d *SqlDb) isObjectInUse(projectID int, props db.ObjectProperties, objectID int) (bool, error) {
 	templatesC, err := d.sql.SelectInt(
-		"select count(1) from project__template where project_id=? and " + props.ForeignColumnName+ "=?",
+		"select count(1) from project__template where project_id=? and "+props.ForeignColumnName+"=?",
 		projectID,
 		objectID)
 
@@ -268,7 +269,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID 
 
 	return validateMutationResult(
 		d.sql.Exec(
-			"delete from " + props.TableName + " where project_id=? and id=?",
+			"delete from "+props.TableName+" where project_id=? and id=?",
 			projectID,
 			objectID))
 }
@@ -276,7 +277,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID 
 func (d *SqlDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
 	return validateMutationResult(
 		d.sql.Exec(
-			"update " + props.TableName + " set removed=1 where project_id=? and id=?",
+			"update "+props.TableName+" set removed=1 where project_id=? and id=?",
 			projectID,
 			objectID))
 }
@@ -392,9 +393,6 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 	return q.ToSql()
 }
 
-
 func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.sql
 }
-
-
