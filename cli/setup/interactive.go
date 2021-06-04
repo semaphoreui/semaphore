@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -47,9 +47,9 @@ func InteractiveSetup(conf *util.ConfigType) {
 		scanBoltDb(conf, stdin)
 	}
 
-	defaultPlaybookPath := path.Join(os.TempDir(), "semaphore")
+	defaultPlaybookPath := filepath.Join(os.TempDir(), "semaphore")
 	promptValue(stdin, "Playbook path", defaultPlaybookPath, &conf.TmpPath)
-	conf.TmpPath = path.Clean(conf.TmpPath)
+	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
 	promptValue(stdin, "Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
 
@@ -82,7 +82,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 }
 
 func scanBoltDb(conf *util.ConfigType, stdin *bufio.Reader) {
-	defaultBoltDBPath := path.Join(os.TempDir(), "boltdb")
+	defaultBoltDBPath := filepath.Join(os.TempDir(), "boltdb")
 	promptValue(stdin, "DB filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
 }
 
@@ -98,7 +98,7 @@ func ScanConfigPathAndSave(config *util.ConfigType) string {
 
 	configDirectory, err := os.UserConfigDir()
 	if err == nil {
-		configDirectory = path.Join(configDirectory, "semaphore")
+		configDirectory = filepath.Join(configDirectory, "semaphore")
 	} else {
 		configDirectory = "/etc/semaphore"
 	}
@@ -116,7 +116,7 @@ func ScanConfigPathAndSave(config *util.ConfigType) string {
 		panic(err)
 	}
 
-	configPath := path.Join(configDirectory, "/config.json")
+	configPath := filepath.Join(configDirectory, "config.json")
 	if err = ioutil.WriteFile(configPath, bytes, 0644); err != nil {
 		panic(err)
 	}
