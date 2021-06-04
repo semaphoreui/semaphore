@@ -1,246 +1,110 @@
 package setup
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-const (
-	yesLong  = "yes"
-	yesShort = "y"
-)
+const yesLong = "yes"
+const yesShort = "y"
+
+const interactiveSetupBlurb = `
+Hello! You will now be guided through a setup to:
+
+1. Set up configuration for a MySQL/MariaDB database
+2. Set up a path for your playbooks (auto-created)
+3. Run database Migrations
+4. Set up initial semaphore user & password
+
+`
 
 func InteractiveSetup(conf *util.ConfigType) {
-	fmt.Print(`
- Hello! You will now be guided through a setup to:
+	stdin := bufio.NewReader(os.Stdin)
 
- 1. Set up configuration for a MySQL/MariaDB database
- 2. Set up a path for your playbooks (auto-created)
- 3. Run database Migrations
- 4. Set up initial semaphore user & password
+	fmt.Print(interactiveSetupBlurb)
 
-`)
+	dbPrompt := `What database to use:
+   1 - MySQL
+   2 - BoltDB
+`
 
-	db := 1
-	fmt.Println(" > DB")
-	fmt.Println("   1 - MySQL")
-	fmt.Println("   2 - bbolt")
-	fmt.Print("   (default 1): ")
-	scanErrorChecker(fmt.Scanln(&db))
+	var db int
+	promptValue(stdin, dbPrompt, "1", &db)
 
 	switch db {
 	case 1:
-		scanMySQL(conf)
+		scanMySQL(conf, stdin)
 	case 2:
-		scanBoltDb(conf)
+		scanBoltDb(conf, stdin)
 	}
 
 	defaultPlaybookPath := path.Join(os.TempDir(), "semaphore")
-	fmt.Print(" > Playbook path (default " + defaultPlaybookPath + "): ")
-	scanErrorChecker(fmt.Scanln(&conf.TmpPath))
-
-	if len(conf.TmpPath) == 0 {
-		conf.TmpPath = defaultPlaybookPath
-	}
+	promptValue(stdin, "Playbook path", defaultPlaybookPath, &conf.TmpPath)
 	conf.TmpPath = path.Clean(conf.TmpPath)
 
-	fmt.Print(" > Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL): ")
-	scanErrorChecker(fmt.Scanln(&conf.WebHost))
+	promptValue(stdin, "Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
 
-	var EmailAlertAnswer string
-	fmt.Print(" > Enable email alerts (y/n, default n): ")
-	scanErrorChecker(fmt.Scanln(&EmailAlertAnswer))
-	if EmailAlertAnswer == yesLong || EmailAlertAnswer == yesShort {
-
-		conf.EmailAlert = true
-
-		fmt.Print(" > Mail server host (default localhost): ")
-		scanErrorChecker(fmt.Scanln(&conf.EmailHost))
-
-		if len(conf.EmailHost) == 0 {
-			conf.EmailHost = "localhost"
-		}
-
-		fmt.Print(" > Mail server port (default 25): ")
-		scanErrorChecker(fmt.Scanln(&conf.EmailPort))
-
-		if len(conf.EmailPort) == 0 {
-			conf.EmailPort = "25"
-		}
-
-		fmt.Print(" > Mail sender address (default semaphore@localhost): ")
-		scanErrorChecker(fmt.Scanln(&conf.EmailSender))
-
-		if len(conf.EmailSender) == 0 {
-			conf.EmailSender = "semaphore@localhost"
-		}
-
-	} else {
-		conf.EmailAlert = false
+	promptConfirmation(stdin, "Enable email alerts?", false, &conf.EmailAlert)
+	if conf.EmailAlert {
+		promptValue(stdin, "Mail server host", "localhost", &conf.EmailHost)
+		promptValue(stdin, "Mail server port", "25", &conf.EmailPort)
+		promptValue(stdin, "Mail sender address", "semaphore@localhost", &conf.EmailSender)
 	}
 
-	var TelegramAlertAnswer string
-	fmt.Print(" > Enable telegram alerts (y/n, default n): ")
-	scanErrorChecker(fmt.Scanln(&TelegramAlertAnswer))
-	if TelegramAlertAnswer == yesLong || TelegramAlertAnswer == yesShort {
-
-		conf.TelegramAlert = true
-
-		fmt.Print(" > Telegram bot token (you can get it from @BotFather) (default ''): ")
-		scanErrorChecker(fmt.Scanln(&conf.TelegramToken))
-
-		if len(conf.TelegramToken) == 0 {
-			conf.TelegramToken = ""
-		}
-
-		fmt.Print(" > Telegram chat ID (default ''): ")
-		scanErrorChecker(fmt.Scanln(&conf.TelegramChat))
-
-		if len(conf.TelegramChat) == 0 {
-			conf.TelegramChat = ""
-		}
-
-	} else {
-		conf.TelegramAlert = false
+	promptConfirmation(stdin, "Enable telegram alerts?", false, &conf.TelegramAlert)
+	if conf.TelegramAlert {
+		promptValue(stdin, "Telegram bot token (you can get it from @BotFather)", "", &conf.TelegramToken)
+		promptValue(stdin, "Telegram chat ID", "", &conf.TelegramChat)
 	}
 
-	var LdapAnswer string
-	fmt.Print(" > Enable LDAP authentication (y/n, default n): ")
-	scanErrorChecker(fmt.Scanln(&LdapAnswer))
-	if LdapAnswer == yesLong || LdapAnswer == yesShort {
-
-		conf.LdapEnable = true
-
-		fmt.Print(" > LDAP server host (default localhost:389): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapServer))
-
-		if len(conf.LdapServer) == 0 {
-			conf.LdapServer = "localhost:389"
-		}
-
-		var LdapTLSAnswer string
-		fmt.Print(" > Enable LDAP TLS connection (y/n, default n): ")
-		scanErrorChecker(fmt.Scanln(&LdapTLSAnswer))
-		if LdapTLSAnswer == yesLong || LdapTLSAnswer == yesShort {
-			conf.LdapNeedTLS = true
-		} else {
-			conf.LdapNeedTLS = false
-		}
-
-		fmt.Print(" > LDAP DN for bind (default cn=user,ou=users,dc=example): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapBindDN))
-
-		if len(conf.LdapBindDN) == 0 {
-			conf.LdapBindDN = "cn=user,ou=users,dc=example"
-		}
-
-		fmt.Print(" > Password for LDAP bind user (default pa55w0rd): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapBindPassword))
-
-		if len(conf.LdapBindPassword) == 0 {
-			conf.LdapBindPassword = "pa55w0rd"
-		}
-
-		fmt.Print(" > LDAP DN for user search (default ou=users,dc=example): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapSearchDN))
-
-		if len(conf.LdapSearchDN) == 0 {
-			conf.LdapSearchDN = "ou=users,dc=example"
-		}
-
-		fmt.Print(" > LDAP search filter (default (uid=" + "%" + "s)): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapSearchFilter))
-
-		if len(conf.LdapSearchFilter) == 0 {
-			conf.LdapSearchFilter = "(uid=%s)"
-		}
-
-		fmt.Print(" > LDAP mapping for DN field (default dn): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapMappings.DN))
-
-		if len(conf.LdapMappings.DN) == 0 {
-			conf.LdapMappings.DN = "dn"
-		}
-
-		fmt.Print(" > LDAP mapping for username field (default uid): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapMappings.UID))
-
-		if len(conf.LdapMappings.UID) == 0 {
-			conf.LdapMappings.UID = "uid"
-		}
-
-		fmt.Print(" > LDAP mapping for full name field (default cn): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapMappings.CN))
-
-		if len(conf.LdapMappings.CN) == 0 {
-			conf.LdapMappings.CN = "cn"
-		}
-
-		fmt.Print(" > LDAP mapping for email field (default mail): ")
-		scanErrorChecker(fmt.Scanln(&conf.LdapMappings.Mail))
-
-		if len(conf.LdapMappings.Mail) == 0 {
-			conf.LdapMappings.Mail = "mail"
-		}
-	} else {
-		conf.LdapEnable = false
+	promptConfirmation(stdin, "Enable LDAP authentication?", false, &conf.LdapEnable)
+	if conf.LdapEnable {
+		promptValue(stdin, "LDAP server host", "localhost:389", &conf.LdapServer)
+		promptConfirmation(stdin, "Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
+		promptValue(stdin, "LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
+		promptValue(stdin, "Password for LDAP bind user", "pa55w0rd", &conf.LdapBindPassword)
+		promptValue(stdin, "LDAP DN for user search", "ou=users,dc=example", &conf.LdapSearchDN)
+		promptValue(stdin, "LDAP search filter", `(uid=%s)`, &conf.LdapSearchFilter)
+		promptValue(stdin, "LDAP mapping for DN field", "dn", &conf.LdapMappings.DN)
+		promptValue(stdin, "LDAP mapping for username field", "uid", &conf.LdapMappings.UID)
+		promptValue(stdin, "LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
+		promptValue(stdin, "LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
 	}
 }
 
-func scanBoltDb(conf *util.ConfigType) {
+func scanBoltDb(conf *util.ConfigType, stdin *bufio.Reader) {
 	defaultBoltDBPath := path.Join(os.TempDir(), "boltdb")
-	fmt.Print(" > DB filename (default " + defaultBoltDBPath + "): ")
-	scanErrorChecker(fmt.Scanln(&conf.BoltDb.Hostname))
-	if len(conf.BoltDb.Hostname) == 0 {
-		conf.BoltDb.Hostname = defaultBoltDBPath
-	}
+	promptValue(stdin, "DB filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
 }
 
-func scanMySQL(conf *util.ConfigType) {
-	fmt.Print(" > DB Hostname (default 127.0.0.1:3306): ")
-	scanErrorChecker(fmt.Scanln(&conf.MySQL.Hostname))
-	if len(conf.MySQL.Hostname) == 0 {
-		conf.MySQL.Hostname = "127.0.0.1:3306"
-	}
-
-	fmt.Print(" > DB User (default root): ")
-	scanErrorChecker(fmt.Scanln(&conf.MySQL.Username))
-	if len(conf.MySQL.Username) == 0 {
-		conf.MySQL.Username = "root"
-	}
-
-	fmt.Print(" > DB Password: ")
-	scanErrorChecker(fmt.Scanln(&conf.MySQL.Password))
-
-	fmt.Print(" > DB Name (default semaphore): ")
-	scanErrorChecker(fmt.Scanln(&conf.MySQL.DbName))
-	if len(conf.MySQL.DbName) == 0 {
-		conf.MySQL.DbName = "semaphore"
-	}
+func scanMySQL(conf *util.ConfigType, stdin *bufio.Reader) {
+	promptValue(stdin, "DB Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
+	promptValue(stdin, "DB User", "root", &conf.MySQL.Username)
+	promptValue(stdin, "DB Password", "", &conf.MySQL.Password)
+	promptValue(stdin, "DB Name", "semaphore", &conf.MySQL.DbName)
 }
 
 func ScanConfigPathAndSave(config *util.ConfigType) string {
+	stdin := bufio.NewReader(os.Stdin)
+
 	configDirectory, err := os.UserConfigDir()
-	if err != nil {
+	if err == nil {
 		configDirectory = path.Join(configDirectory, "semaphore")
 	} else {
 		configDirectory = "/etc/semaphore"
 	}
-	fmt.Print(" > Config output directory (default " + configDirectory + "): ")
+	promptValue(stdin, "Config output directory", configDirectory, &configDirectory)
 
-	var answer string
-	scanErrorChecker(fmt.Scanln(&answer))
-	if len(answer) > 0 {
-		configDirectory = answer
-	}
-
-	fmt.Printf(" Running: mkdir -p %v..\n", configDirectory)
+	fmt.Printf("Running: mkdir -p %v..\n", configDirectory)
 	err = os.MkdirAll(configDirectory, 0755)
 	if err != nil {
 		log.Panic("Could not create config directory: " + err.Error())
@@ -257,29 +121,83 @@ func ScanConfigPathAndSave(config *util.ConfigType) string {
 		panic(err)
 	}
 
-	fmt.Printf(" Configuration written to %v..\n", configPath)
+	fmt.Printf("Configuration written to %v..\n", configPath)
 	return configPath
 }
 
 func VerifyConfig(config *util.ConfigType) bool {
+	stdin := bufio.NewReader(os.Stdin)
+
 	bytes, err := config.ToJSON()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("\n Generated configuration:\n %v\n\n", string(bytes))
-	fmt.Print(" > Is this correct? (yes/no): ")
+	fmt.Printf("\nGenerated configuration:\n %v\n\n", string(bytes))
 
-	var answer string
-	scanErrorChecker(fmt.Scanln(&answer))
-	return answer == yesLong || answer == yesShort
+	var correct bool
+	promptConfirmation(stdin, "Is this correct?", true, &correct)
+	return correct
 }
 
-// scanErrorChecker deals with errors encountered while scanning lines
-// since we do not fail on these errors currently we can simply note them
-// and move on
-func scanErrorChecker(n int, err error) {
-	if err != nil {
-		log.Warn("An input error occurred:" + err.Error())
+func promptValue(stdin *bufio.Reader, prompt string, def string, item interface{}) {
+	// Print prompt with optional default value
+	fmt.Print(prompt)
+	if len(def) != 0 {
+		fmt.Print(" (default " + def + ")")
 	}
+	fmt.Print("\n> ")
+
+	str, err := stdin.ReadString('\n')
+	if err != nil {
+		log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
+	}
+
+	// Remove newlines
+	str = strings.TrimSuffix(str, "\n")
+	str = strings.TrimSuffix(str, "\r")
+
+	// If default, print default on input line
+	if len(str) == 0 {
+		str = def
+		fmt.Print("\033[1A")
+		fmt.Println("> " + def)
+	}
+
+	//Parse
+	if _, err := fmt.Sscanln(str, item); err != nil && err != io.EOF {
+		log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
+	}
+
+	// Empty line after prompt
+	fmt.Println("")
+}
+
+func promptConfirmation(stdin *bufio.Reader, prompt string, def bool, item *bool) {
+	defString := "yes"
+	if !def {
+		defString = "no"
+	}
+
+	fmt.Print(prompt + " (yes/no) (default " + defString + ")")
+	fmt.Print("\n> ")
+
+	str, err := stdin.ReadString('\n')
+	if err != nil {
+		log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
+	}
+
+	switch strings.ToLower(str) {
+	case "y", "yes":
+		*item = true
+	case "n", "no":
+		*item = false
+	default:
+		*item = def
+		fmt.Print("\033[1A")
+		fmt.Println("> " + defString)
+	}
+
+	// Empty line after prompt
+	fmt.Println("")
 }

@@ -118,17 +118,17 @@ func doSetup() int {
 	// Store new config globally
 	util.Config = config
 
-	fmt.Println(" Pinging db..")
+	fmt.Println("Pinging db..")
 	store := factory.CreateStore()
 
 	if err := store.Connect(); err != nil {
-		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
+		fmt.Printf("Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
-	fmt.Println("\n Running DB Migrations..")
+	fmt.Println("Running DB Migrations...")
 	if err := store.Migrate(); err != nil {
-		fmt.Printf("\n Database migrations failed!\n %v\n", err.Error())
+		fmt.Printf("Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
 
