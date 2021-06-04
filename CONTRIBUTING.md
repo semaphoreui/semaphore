@@ -47,7 +47,7 @@ Windows users will additionally need to manually install goreleaser from <https:
 4. Set up config, database & run migrations
 
 ```bash
-cat config.json
+cat <<EOT >> config.json
 {
     "mysql": {
         "host": "127.0.0.1:3306",
@@ -57,6 +57,7 @@ cat config.json
     },
     "port": ":3000"
 }
+EOT
 
 echo "create database semaphore;" | mysql -uroot -p
 task compile
