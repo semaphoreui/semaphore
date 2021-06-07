@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/Sirupsen/logrus v1.0.4
+	github.com/cespare/reflex v0.3.0
 	github.com/go-gorp/gorp/v3 v3.0.2
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/go-swagger/go-swagger v0.27.0
