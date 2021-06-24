@@ -355,7 +355,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID ob
 			reflect.Uint16,
 			reflect.Uint32,
 			reflect.Uint64:
-			fVal = intObjectID(2147483647 - f.Int())
+			fVal = intObjectID(f.Int())
 		case reflect.String:
 			fVal = strObjectID(f.String())
 		}
