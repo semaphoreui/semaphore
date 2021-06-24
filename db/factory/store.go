@@ -3,11 +3,21 @@ package factory
 import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
-
-	//"github.com/ansible-semaphore/semaphore/db/sql"
+	"github.com/ansible-semaphore/semaphore/db/sql"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 func CreateStore() db.Store {
-	return &bolt.BoltDb{}
-	//return &sql.SqlDb{}
+	config, err := util.Config.GetDBConfig()
+	if err != nil {
+		panic("Can not read configuration")
+	}
+	switch config.Dialect {
+	case util.DbDriverMySQL:
+		return &sql.SqlDb{}
+	case util.DbDriverBolt:
+		return &bolt.BoltDb{}
+	default:
+		panic("Unsupported database dialect")
+	}
 }
