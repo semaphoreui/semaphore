@@ -9,6 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"os"
 	"path"
+	"path/filepath"
 
 	"net/url"
 
@@ -326,10 +327,13 @@ func (conf *ConfigType) GenerateCookieSecrets() {
 }
 
 func (conf *ConfigType) ScanBoltDb() {
-	fmt.Print(" > DB filename (default /tmp/boltdb): ")
+	filename, err := os.Getwd() // os.UserHomeDir()
+	exitOnConfigError(err)
+	filename = filepath.Join(filename, "database.bolt")
+	fmt.Print(" > DB filename (default " + filename + "): ")
 	ScanErrorChecker(fmt.Scanln(&conf.BoltDb.Hostname))
 	if len(conf.BoltDb.Hostname) == 0 {
-		conf.BoltDb.Hostname = "/tmp/boltdb"
+		conf.BoltDb.Hostname = filename
 	}
 }
 

@@ -6,7 +6,9 @@ web/public/html/**/*.*
 web/public/fonts/*.*
 web2/.nyc_output
 web2/dist/**/*
-config.json
+/config.json
+/.dredd/config.json
+/database.bolt
 .DS_Store
 node_modules/
 

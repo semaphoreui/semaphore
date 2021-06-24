@@ -33,6 +33,7 @@ type ObjectProperties struct {
 	ForeignColumnName string
 	PrimaryColumnName string
 	SortableColumns   []string
+	SortInverted      bool
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -206,6 +207,7 @@ var TaskProps = ObjectProperties{
 	TableName:         "task",
 	IsGlobal:          true,
 	PrimaryColumnName: "id",
+	SortInverted:      true,
 }
 
 var TaskOutputProps = ObjectProperties{

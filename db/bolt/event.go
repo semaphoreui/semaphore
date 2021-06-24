@@ -101,6 +101,8 @@ func (d *BoltDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 			return err2
 		}
 
+		id = MaxID - id
+
 		return b.Put(intObjectID(id).ToBytes(), str)
 	})
 

@@ -11,6 +11,7 @@ import (
 	"sort"
 )
 
+const MaxID = 2147483647
 
 type enumerable interface {
 	First() (key []byte, value []byte)
@@ -354,7 +355,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID ob
 			reflect.Uint16,
 			reflect.Uint32,
 			reflect.Uint64:
-			fVal = intObjectID(f.Int())
+			fVal = intObjectID(2147483647 - f.Int())
 		case reflect.String:
 			fVal = strObjectID(f.String())
 		}
@@ -529,8 +530,12 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 					if err2 != nil {
 						return err2
 					}
+					if props.SortInverted {
+						id = MaxID - id
+					}
 					idValue.SetInt(int64(id))
 				}
+
 				objectID = intObjectID(idValue.Int())
 			case reflect.String:
 				if idValue.String() == "" {
@@ -550,6 +555,9 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 			id, err2 := b.NextSequence()
 			if err2 != nil {
 				return err2
+			}
+			if props.SortInverted {
+				id = MaxID - id
 			}
 			objectID = intObjectID(id)
 		}
