@@ -18,7 +18,7 @@ func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
 }
 
 func (d *BoltDb) GetProjects(userID int) (projects []db.Project, err error) {
-	projects = make([]db.Project, 0, 0)
+	projects = make([]db.Project, 0)
 
 	var allProjects []db.Project
 

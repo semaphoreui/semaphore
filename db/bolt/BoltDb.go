@@ -364,7 +364,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID ob
 			return false
 		}
 
-		return bytes.Compare(fVal.ToBytes(), objID.ToBytes()) == 0
+		return bytes.Equal(fVal.ToBytes(), objID.ToBytes())
 	}, &templates)
 
 	if err != nil {
@@ -428,6 +428,10 @@ func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objec
 
 	// store data back
 	res, err := json.Marshal(data)
+
+	if err != nil {
+		return err
+	}
 
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
