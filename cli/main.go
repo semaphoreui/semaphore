@@ -100,7 +100,6 @@ func main() {
 
 //nolint: gocyclo
 func doSetup() int {
-	store := factory.CreateStore()
 
 	fmt.Print(`
  Hello! You will now be guided through a setup to:
@@ -163,6 +162,8 @@ func doSetup() int {
 
 	fmt.Println(" Pinging db..")
 	util.Config = setup
+
+	store := factory.CreateStore()
 
 	if err = store.Connect(); err != nil {
 		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
