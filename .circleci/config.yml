@@ -60,9 +60,9 @@ aliases:
 
   - &save-npm-cache
     save_cache:
-      key: v1-npm-deps-{{ checksum "web/package.json" }}
+      key: v1-npm-deps-{{ checksum "web2/package.json" }}
       paths:
-        - web/node_modules
+        - web2/node_modules
 
   - &save-go-cache
     save_cache:
@@ -73,7 +73,7 @@ aliases:
   - &load-npm-cache
     restore_cache:
       keys:
-        - v1-npm-deps-{{ checksum "web/package.json" }}
+        - v1-npm-deps-{{ checksum "web2/package.json" }}
         - v1-npm-deps-
 
   - &load-go-cache
