@@ -26,6 +26,7 @@ type Task struct {
 	End     *time.Time `db:"end" json:"end"`
 }
 
+// TaskWithTpl is the task data with additional fields
 type TaskWithTpl struct {
 	Task
 	TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`

@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-
-
 const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
 
 // GetParsedTime returns the timestamp as it will retrieved from the database
@@ -172,45 +170,45 @@ var RepositoryProps = ObjectProperties{
 }
 
 var TemplateProps = ObjectProperties{
-	TableName:          "project__template",
-	SortableColumns:    []string{"name"},
+	TableName:         "project__template",
+	SortableColumns:   []string{"name"},
 	PrimaryColumnName: "id",
 }
 
 var ProjectUserProps = ObjectProperties{
-	TableName:          "project__user",
+	TableName:         "project__user",
 	PrimaryColumnName: "user_id",
 }
 
 var ProjectProps = ObjectProperties{
-	TableName:          "project",
-	IsGlobal:           true,
+	TableName:         "project",
+	IsGlobal:          true,
 	PrimaryColumnName: "id",
 }
 
 var UserProps = ObjectProperties{
-	TableName:          "user",
-	IsGlobal:           true,
+	TableName:         "user",
+	IsGlobal:          true,
 	PrimaryColumnName: "id",
 }
 
 var SessionProps = ObjectProperties{
-	TableName:          "session",
+	TableName:         "session",
 	PrimaryColumnName: "id",
 }
 
 var TokenProps = ObjectProperties{
-	TableName:          "user__token",
+	TableName:         "user__token",
 	PrimaryColumnName: "id",
 }
 
 var TaskProps = ObjectProperties{
-	TableName:          "task",
-	IsGlobal:           true,
+	TableName:         "task",
+	IsGlobal:          true,
 	PrimaryColumnName: "id",
 }
 
 var TaskOutputProps = ObjectProperties{
-	TableName:          "task__output",
-	PrimaryColumnName: "id",
+	TableName:         "task__output",
+	PrimaryColumnName: "",
 }

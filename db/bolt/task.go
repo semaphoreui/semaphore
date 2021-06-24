@@ -8,7 +8,11 @@ import (
 
 func (d *BoltDb) CreateTask(task db.Task) (newTask db.Task, err error) {
 	task.Created = time.Now()
-	err = d.getObject(0, db.TaskProps, intObjectID(task.ID), &newTask)
+	res, err := d.createObject(0, db.TaskProps, task)
+	if err != nil {
+		return
+	}
+	newTask = res.(db.Task)
 	return
 }
 
@@ -24,9 +28,11 @@ func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return newOutput.(db.TaskOutput), nil
 }
 
-func (d *BoltDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getObjects(0, db.TaskProps, params, func (tsk interface{}) bool {
-		task := tsk.(db.TaskWithTpl)
+func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
+	var tasks []db.Task
+
+	err = d.getObjects(0, db.TaskProps, params, func(tsk interface{}) bool {
+		task := tsk.(db.Task)
 
 		if task.ProjectID != projectID {
 			return false
@@ -42,7 +48,8 @@ func (d *BoltDb) getTasks(projectID int, templateID* int, params db.RetrieveQuer
 	var templates = make(map[int]db.Template)
 	var users = make(map[int]db.User)
 
-	for _, task := range tasks {
+	tasksWithTpl = make([]db.TaskWithTpl, len(tasks))
+	for i, task := range tasks {
 		tpl, ok := templates[task.TemplateID]
 		if !ok {
 			tpl, err = d.GetTemplate(task.ProjectID, task.TemplateID)
@@ -51,8 +58,9 @@ func (d *BoltDb) getTasks(projectID int, templateID* int, params db.RetrieveQuer
 			}
 			templates[task.TemplateID] = tpl
 		}
-		task.TemplatePlaybook = tpl.Playbook
-		task.TemplateAlias = tpl.Alias
+		tasksWithTpl[i] = db.TaskWithTpl{Task: task}
+		tasksWithTpl[i].TemplatePlaybook = tpl.Playbook
+		tasksWithTpl[i].TemplateAlias = tpl.Alias
 		if task.UserID != nil {
 			usr, ok := users[*task.UserID]
 			if !ok {
@@ -62,7 +70,7 @@ func (d *BoltDb) getTasks(projectID int, templateID* int, params db.RetrieveQuer
 				}
 				users[*task.UserID] = usr
 			}
-			task.UserName = &usr.Name
+			tasksWithTpl[i].UserName = &usr.Name
 		}
 	}
 
@@ -102,7 +110,7 @@ func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 		return
 	}
 
-	_ = d.db.Update(func (tx *bbolt.Tx) error {
+	_ = d.db.Update(func(tx *bbolt.Tx) error {
 		return tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
 	})
 

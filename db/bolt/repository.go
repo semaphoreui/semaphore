@@ -6,6 +6,7 @@ import (
 
 func (d *BoltDb) GetRepository(projectID int, repositoryID int) (repository db.Repository, err error) {
 	err = d.getObject(projectID, db.RepositoryProps, intObjectID(repositoryID), &repository)
+	repository.SSHKey, err = d.GetAccessKey(projectID, repository.SSHKeyID)
 	return
 }
 

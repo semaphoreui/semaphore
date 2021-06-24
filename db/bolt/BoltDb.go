@@ -502,46 +502,56 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
 		tmpObj.Set(objPtr.Elem())
 
-		idFieldName, err := getFieldNameByTag(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-		if err != nil {
-			return err
-		}
-
-		idValue := tmpObj.FieldByName(idFieldName)
 		var objectID objectID
-		switch idValue.Kind() {
-		case reflect.Int,
-			reflect.Int8,
-			reflect.Int16,
-			reflect.Int32,
-			reflect.Int64,
-			reflect.Uint,
-			reflect.Uint8,
-			reflect.Uint16,
-			reflect.Uint32,
-			reflect.Uint64:
-			if idValue.Int() == 0 {
+
+		if props.PrimaryColumnName != "" {
+			idFieldName, err := getFieldNameByTag(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+			if err != nil {
+				return err
+			}
+
+			idValue := tmpObj.FieldByName(idFieldName)
+
+			switch idValue.Kind() {
+			case reflect.Int,
+				reflect.Int8,
+				reflect.Int16,
+				reflect.Int32,
+				reflect.Int64,
+				reflect.Uint,
+				reflect.Uint8,
+				reflect.Uint16,
+				reflect.Uint32,
+				reflect.Uint64:
+				if idValue.Int() == 0 {
+					id, err2 := b.NextSequence()
+					if err2 != nil {
+						return err2
+					}
+					idValue.SetInt(int64(id))
+				}
+				objectID = intObjectID(idValue.Int())
+			case reflect.String:
+				if idValue.String() == "" {
+					return fmt.Errorf("object ID can not be empty string")
+				}
+				objectID = strObjectID(idValue.String())
+			case reflect.Invalid:
 				id, err2 := b.NextSequence()
 				if err2 != nil {
 					return err2
 				}
-				idValue.SetInt(int64(id))
+				objectID = intObjectID(id)
+			default:
+				return fmt.Errorf("unsupported ID type")
 			}
-			objectID = intObjectID(idValue.Int())
-		case reflect.String:
-			if idValue.String() == "" {
-				return fmt.Errorf("object ID can not be empty string")
-			}
-			objectID = strObjectID(idValue.String())
-		case reflect.Invalid:
+		} else {
 			id, err2 := b.NextSequence()
 			if err2 != nil {
 				return err2
 			}
 			objectID = intObjectID(id)
-		default:
-			return fmt.Errorf("unsupported ID type")
 		}
 
 		if objectID == nil {
