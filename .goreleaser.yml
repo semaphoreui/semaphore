@@ -2,6 +2,10 @@
 # for building binaries and packages for distributions and releasing on github
 dist: bin
 
+before:
+  hooks:
+    - task compile
+
 builds:
   - binary: semaphore
     main: ./cli/main.go
@@ -20,8 +24,8 @@ builds:
     ignore:
       - goos: darwin
         goarch: 386
-    hooks:
-      pre: task compile
+#    hooks:
+#      pre: task compile
 
 archives:
   -
@@ -43,7 +47,7 @@ snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
 
 nfpms:
-  - 
+  -
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
     vendor: Castaway Consulting LLC
