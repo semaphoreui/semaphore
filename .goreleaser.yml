@@ -13,12 +13,12 @@ builds:
       - windows
       - darwin
       - linux
-      - freebsd
-      - openbsd
-      - netbsd
+      #- freebsd
+      #- openbsd
+      #- netbsd
     goarch:
       - amd64
-      - 386
+      #- 386
       - arm
       - arm64
     ignore:
