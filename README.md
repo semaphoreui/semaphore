@@ -1,4 +1,4 @@
-![semaphore](web/public/img/logo.png)
+![semaphore](https://user-images.githubusercontent.com/914224/125253358-c214ed80-e312-11eb-952e-d96a1eba93f6.png)
 
 [![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
