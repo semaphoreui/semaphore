@@ -40,11 +40,15 @@ task deps
 ```
 Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
-
-4) Set up config, database & run
+4) If you want to use MySQL (you also can use https://github.com/etcd-io/bbolt, it is not requre manual actions), create database
 
 ```
 echo "create database semaphore;" | mysql -uroot -p
+```
+
+5) Set up config & run
+
+```
 task compile
 go run cli/main.go -setup
 go run cli/main.go -config ./config.json
