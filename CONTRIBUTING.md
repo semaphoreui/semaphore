@@ -35,7 +35,7 @@ git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semap
 3) Install dev dependencies
 
 ```
-go get -u github.com/go-task/task/cmd/task
+go install github.com/go-task/task/v3/cmd/task@latest
 task deps
 ```
 Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
