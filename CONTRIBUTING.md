@@ -40,7 +40,7 @@ task deps
 ```
 Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
-4) If you want to use MySQL (you also can use https://github.com/etcd-io/bbolt, it is not requre manual actions), create database
+4) If you want to use MySQL (you also can use https://github.com/etcd-io/bbolt, it is not require additional actions), create database
 
 ```
 echo "create database semaphore;" | mysql -uroot -p
