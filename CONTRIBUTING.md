@@ -12,7 +12,7 @@ When creating a pull-request you should:
 
 - Check out the `develop` branch
 - [Install Go](https://golang.org/doc/install). Go must be >= v1.10 for all the tools we use to work
-- Install MySQL / MariaDB
+- Install MySQL / MariaDB (OPTIONAL!!!)
 - Install node.js
 
 1) Set up GOPATH, GOBIN and Workspace.
