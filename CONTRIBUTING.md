@@ -41,33 +41,16 @@ task deps
 Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
 
-4) Set up config, database & run migrations
+4) Set up config, database & run
 
 ```
-    cat <<EOT >> config.json
-    {
-        "mysql": {
-            "host": "127.0.0.1:3306",
-            "user": "root",
-            "pass": "",
-            "name": "semaphore"
-        },
-        "port": ":3000"
-    }
-    EOT
-
 echo "create database semaphore;" | mysql -uroot -p
 task compile
-go run cli/main.go -config ./config.json -migrate
+go run cli/main.go -setup
+go run cli/main.go -config ./config.json
 ```
 
-Now it's ready to start.. Run `task watch`
-
-- Watches js files in `public/js/*` and compiles into a bundle
-- Watches css files in `public/css/*` and compiles into css code
-- Watches pug files in `public/html/*` and compiles them into html
-- Watches go files and recompiles the binary
-- Open [localhost:3000](http://localhost:3000)
+Open [localhost:3000](http://localhost:3000)
 
 Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows. 
 You may encounter issues when running `task watch`, but running `task build` etc... will still be OK.
