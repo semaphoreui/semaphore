@@ -48,7 +48,17 @@ func main() {
 	fmt.Printf("Semaphore %v\n", util.Version)
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
-	fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
+
+	switch {
+	case util.Config.MySQL.IsPresent():
+		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
+	case util.Config.BoltDb.IsPresent():
+		fmt.Printf("BoltDB %v\n", util.Config.BoltDb.Hostname)
+	default:
+		panic(fmt.Errorf("database configuration not found"))
+	}
+
+
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
 	store := factory.CreateStore()
@@ -62,6 +72,22 @@ func main() {
 
 	if err := store.Migrate(); err != nil {
 		panic(err)
+	}
+
+	if util.UserAdd != nil {
+		if _, err := store.CreateUser(db.UserWithPwd{
+			Pwd: util.UserAdd.Password,
+			User: db.User{
+				Name: util.UserAdd.Name,
+				Username: util.UserAdd.Username,
+				Email: util.UserAdd.Email,
+			},
+		}); err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("User %s <%s> added!", util.UserAdd.Username, util.UserAdd.Email)
+		return
 	}
 
 	// legacy

@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"golang.org/x/crypto/bcrypt"
 	"time"
@@ -11,6 +12,17 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 
 	err = db.ValidateUsername(user.Username)
 	if err != nil {
+		return
+	}
+
+	_, err = d.GetUserByLoginOrEmail(user.Username, user.Email)
+
+	if err == nil {
+		err = fmt.Errorf("user already exists")
+		return
+	}
+
+	if err != db.ErrNotFound {
 		return
 	}
 
@@ -31,6 +43,17 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 
 	err = db.ValidateUsername(user.Username)
 	if err != nil {
+		return
+	}
+
+	_, err = d.GetUserByLoginOrEmail(user.Username, user.Email)
+
+	if err == nil {
+		err = fmt.Errorf("user already exists")
+		return
+	}
+
+	if err != db.ErrNotFound {
 		return
 	}
 
