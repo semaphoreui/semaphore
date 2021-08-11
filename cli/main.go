@@ -104,14 +104,14 @@ func doSetup() int {
 		config.GenerateCookieSecrets()
 		setup.InteractiveSetup(config)
 
-		if setup.VerifyConfig(config) {
+		if setup.AskConfigConfirmation(config) {
 			break
 		}
 
 		fmt.Println()
 	}
 
-	configPath := setup.ScanConfigPathAndSave(config)
+	configPath := setup.SaveConfig(config)
 	util.Config = config
 
 	fmt.Println(" Pinging db..")

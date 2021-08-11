@@ -1,9 +1,7 @@
 package setup
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -25,8 +23,6 @@ Hello! You will now be guided through a setup to:
 `
 
 func InteractiveSetup(conf *util.ConfigType) {
-	stdin := bufio.NewReader(os.Stdin)
-
 	fmt.Print(interactiveSetupBlurb)
 
 	dbPrompt := `What database to use:
@@ -35,68 +31,72 @@ func InteractiveSetup(conf *util.ConfigType) {
 `
 
 	var db int
-	promptValue(stdin, dbPrompt, "1", &db)
+	askValue(dbPrompt, "1", &db)
 
 	switch db {
 	case 1:
-		scanMySQL(conf, stdin)
+		scanMySQL(conf)
 	case 2:
-		scanBoltDb(conf, stdin)
+		scanBoltDb(conf)
 	}
 
 	defaultPlaybookPath := filepath.Join(os.TempDir(), "semaphore")
-	promptValue(stdin, "Playbook path", defaultPlaybookPath, &conf.TmpPath)
+	askValue("Playbook path", defaultPlaybookPath, &conf.TmpPath)
 	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
-	promptValue(stdin, "Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
+	askValue("Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
 
-	promptConfirmation(stdin, "Enable email alerts?", false, &conf.EmailAlert)
+	askConfirmation("Enable email alerts?", false, &conf.EmailAlert)
 	if conf.EmailAlert {
-		promptValue(stdin, "Mail server host", "localhost", &conf.EmailHost)
-		promptValue(stdin, "Mail server port", "25", &conf.EmailPort)
-		promptValue(stdin, "Mail sender address", "semaphore@localhost", &conf.EmailSender)
+		askValue("Mail server host", "localhost", &conf.EmailHost)
+		askValue("Mail server port", "25", &conf.EmailPort)
+		askValue("Mail sender address", "semaphore@localhost", &conf.EmailSender)
 	}
 
-	promptConfirmation(stdin, "Enable telegram alerts?", false, &conf.TelegramAlert)
+	askConfirmation("Enable telegram alerts?", false, &conf.TelegramAlert)
 	if conf.TelegramAlert {
-		promptValue(stdin, "Telegram bot token (you can get it from @BotFather)", "", &conf.TelegramToken)
-		promptValue(stdin, "Telegram chat ID", "", &conf.TelegramChat)
+		askValue("Telegram bot token (you can get it from @BotFather)", "", &conf.TelegramToken)
+		askValue("Telegram chat ID", "", &conf.TelegramChat)
 	}
 
-	promptConfirmation(stdin, "Enable LDAP authentication?", false, &conf.LdapEnable)
+	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
-		promptValue(stdin, "LDAP server host", "localhost:389", &conf.LdapServer)
-		promptConfirmation(stdin, "Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
-		promptValue(stdin, "LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
-		promptValue(stdin, "Password for LDAP bind user", "pa55w0rd", &conf.LdapBindPassword)
-		promptValue(stdin, "LDAP DN for user search", "ou=users,dc=example", &conf.LdapSearchDN)
-		promptValue(stdin, "LDAP search filter", `(uid=%s)`, &conf.LdapSearchFilter)
-		promptValue(stdin, "LDAP mapping for DN field", "dn", &conf.LdapMappings.DN)
-		promptValue(stdin, "LDAP mapping for username field", "uid", &conf.LdapMappings.UID)
-		promptValue(stdin, "LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
-		promptValue(stdin, "LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
+		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
+		askConfirmation("Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
+		askValue("LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
+		askValue("Password for LDAP bind user", "pa55w0rd", &conf.LdapBindPassword)
+		askValue("LDAP DN for user search", "ou=users,dc=example", &conf.LdapSearchDN)
+		askValue("LDAP search filter", `(uid=%s)`, &conf.LdapSearchFilter)
+		askValue("LDAP mapping for DN field", "dn", &conf.LdapMappings.DN)
+		askValue("LDAP mapping for username field", "uid", &conf.LdapMappings.UID)
+		askValue("LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
+		askValue("LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
 	}
 }
 
-func scanBoltDb(conf *util.ConfigType, stdin *bufio.Reader) {
+func scanBoltDb(conf *util.ConfigType) {
 	workingDirectory, err := os.Getwd()
 	if err != nil {
 		workingDirectory = os.TempDir()
 	}
 	defaultBoltDBPath := filepath.Join(workingDirectory, "database.boltdb")
-	promptValue(stdin, "DB filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
+	askValue("DB filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
 }
 
-func scanMySQL(conf *util.ConfigType, stdin *bufio.Reader) {
-	promptValue(stdin, "DB Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
-	promptValue(stdin, "DB User", "root", &conf.MySQL.Username)
-	promptValue(stdin, "DB Password", "", &conf.MySQL.Password)
-	promptValue(stdin, "DB Name", "semaphore", &conf.MySQL.DbName)
+func scanMySQL(conf *util.ConfigType) {
+	askValue("DB Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
+	askValue("DB User", "root", &conf.MySQL.Username)
+	askValue("DB Password", "", &conf.MySQL.Password)
+	askValue("DB Name", "semaphore", &conf.MySQL.DbName)
 }
 
-func ScanConfigPathAndSave(config *util.ConfigType) string {
-	stdin := bufio.NewReader(os.Stdin)
+func scanErrorChecker(n int, err error) {
+	if err != nil && err.Error() != "unexpected newline" {
+		log.Warn("An input error occurred: " + err.Error())
+	}
+}
 
+func SaveConfig(config *util.ConfigType) (configPath string) {
 	configDirectory, err := os.Getwd()
 	if err != nil {
 		configDirectory, err = os.UserConfigDir()
@@ -106,7 +106,7 @@ func ScanConfigPathAndSave(config *util.ConfigType) string {
 		}
 		configDirectory = filepath.Join(configDirectory, "semaphore")
 	}
-	promptValue(stdin, "Config output directory", configDirectory, &configDirectory)
+	askValue("Config output directory", configDirectory, &configDirectory)
 
 	fmt.Printf("Running: mkdir -p %v..\n", configDirectory)
 	err = os.MkdirAll(configDirectory, 0755)
@@ -120,18 +120,16 @@ func ScanConfigPathAndSave(config *util.ConfigType) string {
 		panic(err)
 	}
 
-	configPath := filepath.Join(configDirectory, "config.json")
+	configPath = filepath.Join(configDirectory, "config.json")
 	if err = ioutil.WriteFile(configPath, bytes, 0644); err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Configuration written to %v..\n", configPath)
-	return configPath
+	return
 }
 
-func VerifyConfig(config *util.ConfigType) bool {
-	stdin := bufio.NewReader(os.Stdin)
-
+func AskConfigConfirmation(config *util.ConfigType) bool {
 	bytes, err := config.ToJSON()
 	if err != nil {
 		panic(err)
@@ -140,66 +138,63 @@ func VerifyConfig(config *util.ConfigType) bool {
 	fmt.Printf("\nGenerated configuration:\n %v\n\n", string(bytes))
 
 	var correct bool
-	promptConfirmation(stdin, "Is this correct?", true, &correct)
+	askConfirmation("Is this correct?", true, &correct)
 	return correct
 }
 
-func promptValue(stdin *bufio.Reader, prompt string, def string, item interface{}) {
+func askValue(prompt string, defaultValue string, item interface{}) {
 	// Print prompt with optional default value
 	fmt.Print(prompt)
-	if len(def) != 0 {
-		fmt.Print(" (default " + def + ")")
+	if len(defaultValue) != 0 {
+		fmt.Print(" (default " + defaultValue + ")")
 	}
-	fmt.Print("\n> ")
+	fmt.Print(": ")
 
-	str, err := stdin.ReadString('\n')
-	if err != nil {
-		log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
-	}
+	scanErrorChecker(fmt.Scanln(item))
+	//str, err := stdin.ReadString('\n')
+	//if err != nil {
+	//	log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
+	//}
 
 	// Remove newlines
-	str = strings.TrimSuffix(str, "\n")
-	str = strings.TrimSuffix(str, "\r")
-
-	// If default, print default on input line
-	if len(str) == 0 {
-		str = def
-		fmt.Print("\033[1A")
-		fmt.Println("> " + def)
-	}
-
-	//Parse
-	if _, err := fmt.Sscanln(str, item); err != nil && err != io.EOF {
-		log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
-	}
+	//str = strings.TrimSuffix(str, "\n")
+	//str = strings.TrimSuffix(str, "\r")
+	//
+	//// If default, print default on input line
+	//if len(str) == 0 {
+	//	str = defaultValue
+	//	fmt.Print("\033[1A")
+	//	fmt.Println("> " + defaultValue)
+	//}
+	//
+	////Parse
+	//if _, err := fmt.Sscanln(str, item); err != nil && err != io.EOF {
+	//	log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
+	//}
 
 	// Empty line after prompt
 	fmt.Println("")
 }
 
-func promptConfirmation(stdin *bufio.Reader, prompt string, def bool, item *bool) {
+func askConfirmation(prompt string, defaultValue bool, item *bool) {
 	defString := "yes"
-	if !def {
+	if !defaultValue {
 		defString = "no"
 	}
 
-	fmt.Print(prompt + " (yes/no) (default " + defString + ")")
-	fmt.Print("\n> ")
+	fmt.Print(prompt + " (yes/no) (default " + defString + "): ")
 
-	str, err := stdin.ReadString('\n')
-	if err != nil {
-		log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
-	}
+	var answer string
 
-	switch strings.ToLower(str) {
+	scanErrorChecker(fmt.Scanln(&answer))
+
+	switch strings.ToLower(answer) {
 	case "y", "yes":
 		*item = true
 	case "n", "no":
 		*item = false
 	default:
-		*item = def
-		fmt.Print("\033[1A")
-		fmt.Println("> " + defString)
+		*item = defaultValue
 	}
 
 	// Empty line after prompt
