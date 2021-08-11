@@ -201,5 +201,10 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err er
 
 func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser db.User, err error) {
 	err = d.sql.SelectOne(&existingUser, "select * from `user` where email=? or username=?", email, login)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
 	return
 }

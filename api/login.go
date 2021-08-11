@@ -128,7 +128,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
 
-	if err != nil && err == db.ErrNotFound {
+	if err == db.ErrNotFound {
 		if ldapUser != nil {
 			// create new LDAP user
 			user = *ldapUser
