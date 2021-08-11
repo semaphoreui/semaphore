@@ -150,27 +150,9 @@ func askValue(prompt string, defaultValue string, item interface{}) {
 	}
 	fmt.Print(": ")
 
-	scanErrorChecker(fmt.Scanln(item))
-	//str, err := stdin.ReadString('\n')
-	//if err != nil {
-	//	log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
-	//}
+	_, _ = fmt.Sscanln(defaultValue, item)
 
-	// Remove newlines
-	//str = strings.TrimSuffix(str, "\n")
-	//str = strings.TrimSuffix(str, "\r")
-	//
-	//// If default, print default on input line
-	//if len(str) == 0 {
-	//	str = defaultValue
-	//	fmt.Print("\033[1A")
-	//	fmt.Println("> " + defaultValue)
-	//}
-	//
-	////Parse
-	//if _, err := fmt.Sscanln(str, item); err != nil && err != io.EOF {
-	//	log.WithFields(log.Fields{"level": "Warn"}).Warn(err.Error())
-	//}
+	scanErrorChecker(fmt.Scanln(item))
 
 	// Empty line after prompt
 	fmt.Println("")
