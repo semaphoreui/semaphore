@@ -111,7 +111,7 @@ jobs:
     steps:
       - *install-node
       - *install-task-binary
-      - run: sudo apt-get install rpm
+      - run: sudo apt update && sudo apt-get install rpm
       - checkout
       - *load-go-cache
       - *load-npm-cache
@@ -230,7 +230,7 @@ jobs:
     steps:
       - *install-node
       - *install-task-binary
-      - run: sudo apt-get install rpm
+      - run: sudo apt update && sudo apt-get install rpm
       - checkout
       - *load-go-cache
       - *load-npm-cache
