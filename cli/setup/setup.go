@@ -14,9 +14,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-const yesLong = "yes"
-const yesShort = "y"
-
 const interactiveSetupBlurb = `
 Hello! You will now be guided through a setup to:
 
