@@ -9,8 +9,8 @@ require (
 	github.com/Sirupsen/logrus v1.0.4
 	github.com/cespare/reflex v0.3.0 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2
-	github.com/go-openapi/loads v0.19.4
-	github.com/go-openapi/spec v0.19.6
+	github.com/go-openapi/loads v0.19.4 // indirect
+	github.com/go-openapi/spec v0.19.6 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/go-swagger/go-swagger v0.22.0 // indirect
 	github.com/go-task/task v2.2.0+incompatible // indirect
@@ -39,7 +39,7 @@ require (
 	github.com/radovskyb/watcher v1.0.7 // indirect
 	github.com/russross/blackfriday v1.5.2
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
+	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
 	github.com/spf13/cobra v0.0.5 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.etcd.io/bbolt v1.3.2
