@@ -1,1 +1,1 @@
-SEMPAPHORE_CONFIG=/etc/semaphore/config.json
+SEMAPHORE_CONFIG=/etc/semaphore/config.json
