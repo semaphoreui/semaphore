@@ -22,6 +22,8 @@ All releases after 2.5.1 are signed with the gpg public key
 
 https://github.com/ansible-semaphore/semaphore/wiki/Installation
 
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
+
 ## Demo
 
 https://demo.ansible-semaphore.com
