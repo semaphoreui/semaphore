@@ -44,6 +44,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newTask.ID,

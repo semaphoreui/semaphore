@@ -66,29 +66,31 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 // AddUser adds a user to a projects team in the database
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	var user struct {
+	var projectUser struct {
 		UserID int  `json:"user_id" binding:"required"`
 		Admin  bool `json:"admin"`
 	}
 
-	if !helpers.Bind(w, r, &user) {
+	if !helpers.Bind(w, r, &projectUser) {
 		return
 	}
 
-	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: project.ID, UserID: user.UserID, Admin: user.Admin})
+	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: project.ID, UserID: projectUser.UserID, Admin: projectUser.Admin})
 
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
 	objType := "user"
-	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
+	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:		 &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
-		ObjectID:    &user.UserID,
+		ObjectID:    &projectUser.UserID,
 		Description: &desc,
 	})
 
@@ -102,22 +104,24 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	user := context.Get(r, "projectUser").(db.User)
+	projectUser := context.Get(r, "projectUser").(db.User)
 
-	err := helpers.Store(r).DeleteProjectUser(project.ID, user.ID)
+	err := helpers.Store(r).DeleteProjectUser(project.ID, projectUser.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
 	objType := "user"
-	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
+	desc := "User ID " + strconv.Itoa(projectUser.ID) + " removed from team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
-		ObjectID:    &user.ID,
+		ObjectID:    &projectUser.ID,
 		Description: &desc,
 	})
 

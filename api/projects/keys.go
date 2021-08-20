@@ -97,10 +97,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	objType := "key"
 
 	desc := "Access Key " + key.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   newKey.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &newKey.ID,
@@ -154,10 +157,13 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	desc := "Access Key " + key.Name + " updated"
 	objType := "key"
 
 	_, err := helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
 		ObjectID:    &oldKey.ID,
@@ -198,9 +204,12 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	desc := "Access Key " + key.Name + " deleted"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   key.ProjectID,
 		Description: &desc,
 	})

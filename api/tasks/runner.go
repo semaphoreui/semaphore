@@ -62,6 +62,7 @@ func (t *task) prepareRun() {
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 		_, err := t.store.CreateEvent(db.Event{
+			UserID:	     t.task.UserID,
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -91,6 +92,7 @@ func (t *task) prepareRun() {
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	_, err = t.store.CreateEvent(db.Event{
+		UserID:	     t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -153,6 +155,7 @@ func (t *task) run() {
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 		_, err := t.store.CreateEvent(db.Event{
+			UserID:	     t.task.UserID,
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -178,6 +181,7 @@ func (t *task) run() {
 
 
 	_, err := t.store.CreateEvent(db.Event{
+		UserID:	     t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,

@@ -90,10 +90,13 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	objType := "repository"
 
 	desc := "Repository (" + repository.GitURL + ") created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &newRepo.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &newRepo.ID,
@@ -141,10 +144,13 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		util.LogWarning(clearRepositoryCache(oldRepo))
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	desc := "Repository (" + repository.GitURL + ") updated"
 	objType := "repository"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:	     &user.ID,
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
 		ObjectID:    &repository.ID,
@@ -185,9 +191,11 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.LogWarning(clearRepositoryCache(repository))
+	user := context.Get(r, "user").(*db.User)
 
 	desc := "Repository (" + repository.GitURL + ") deleted"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
 	})

@@ -125,10 +125,13 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	objType := "environment"
 
 	desc := "Environment " + newEnv.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID: 	 &user.ID,
 		ProjectID:   &newEnv.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newEnv.ID,
@@ -168,8 +171,11 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	desc := "Environment " + env.Name + " deleted"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &env.ProjectID,
 		Description: &desc,
 	})

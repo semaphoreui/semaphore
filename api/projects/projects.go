@@ -49,6 +49,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	desc := "Project Created"
 	oType := "Project"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &body.ID,
 		Description: &desc,
 		ObjectType:  &oType,

@@ -97,9 +97,12 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	objType := "inventory"
 	desc := "Inventory " + inventory.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newInventory.ID,
@@ -209,7 +212,10 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Inventory " + inventory.Name + " deleted"
 
+	user := context.Get(r, "user").(*db.User)
+
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &inventory.ProjectID,
 		Description: &desc,
 	})

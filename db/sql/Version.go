@@ -75,5 +75,6 @@ func init() {
 		{Major: 2, Minor: 5},
 		{Major: 2, Minor: 5, Patch: 2},
 		{Major: 2, Minor: 7, Patch: 1},
+		{Major: 2, Minor: 7, Patch: 4},
 	}
 }

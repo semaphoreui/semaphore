@@ -83,7 +83,8 @@ func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	var created = time.Now()
 
 	_, err = d.sql.Exec(
-		"insert into event(project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?)",
+		"insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",
+		evt.UserID,
 		evt.ProjectID,
 		evt.ObjectID,
 		evt.ObjectType,

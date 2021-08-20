@@ -73,10 +73,12 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
 	objType := "template"
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &template.ID,
@@ -117,10 +119,13 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
+
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
 	objType := "template"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:		 &user.ID,
 		ProjectID:   &template.ProjectID,
 		Description: &desc,
 		ObjectID:    &template.ID,
@@ -144,9 +149,10 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := context.Get(r, "user").(*db.User)
 	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
-
 	_, err = helpers.Store(r).CreateEvent(db.Event{
+		UserID:      &user.ID,
 		ProjectID:   &tpl.ProjectID,
 		Description: &desc,
 	})
