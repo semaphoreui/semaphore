@@ -303,7 +303,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				d.DbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)?parseTime=true&interpolateParams=true",
+				"%s:%s@tcp(%s)/?parseTime=true&interpolateParams=true",
 				d.Username,
 				d.Password,
 				d.Hostname)
