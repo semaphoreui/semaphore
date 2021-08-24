@@ -46,6 +46,7 @@ type DbDriver int
 const (
 	DbDriverMySQL DbDriver = iota
 	DbDriverBolt
+	DbDriverPostgres
 )
 
 type DbConfig struct {

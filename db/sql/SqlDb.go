@@ -69,6 +69,8 @@ func (d *SqlDb) prepareMigration(query string) string {
 	switch d.sql.Dialect.(type) {
 	case gorp.MySQLDialect:
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
+	case gorp.PostgresDialect:
+
 	}
 	return query
 }
