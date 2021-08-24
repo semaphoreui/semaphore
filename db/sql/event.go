@@ -31,7 +31,7 @@ func (d *SqlDb) getEventObjectName(evt db.Event) (string, error) {
 	}
 
 	var name sql.NullString
-	name, err = d.sql.SelectNullStr(query, args...)
+	name, err = d.selectNullStr(query, args...)
 
 	if err != nil {
 		return "", err
@@ -56,7 +56,7 @@ func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParam
 		return
 	}
 
-	_, err = d.sql.Select(&events, query, args...)
+	_, err = d.selectAll(&events, query, args...)
 
 	if err != nil {
 		return

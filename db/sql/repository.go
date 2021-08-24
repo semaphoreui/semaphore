@@ -46,7 +46,7 @@ func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (r
 		return
 	}
 
-	_, err = d.sql.Select(&repositories, query, args...)
+	_, err = d.selectAll(&repositories, query, args...)
 
 	return
 }
@@ -63,7 +63,8 @@ func (d *SqlDb) UpdateRepository(repository db.Repository) error {
 }
 
 func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repository, err error) {
-	res, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)",
 		repository.ProjectID,
 		repository.GitURL,
@@ -74,13 +75,8 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-	if err != nil {
-		return
-	}
-
 	newRepo = repository
-	newRepo.ID = int(insertID)
+	newRepo.ID = insertID
 	return
 }
 

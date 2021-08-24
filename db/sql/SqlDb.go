@@ -98,12 +98,52 @@ func (d *SqlDb) prepareQuery(query string) string {
 	return d.prepareQueryWithDialect(query, d.sql.Dialect)
 }
 
+
+func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...interface{}) (int, error) {
+	var insertId int64
+
+	switch d.sql.Dialect.(type) {
+	case gorp.PostgresDialect:
+		query += " returning " + primaryKeyColumnName
+
+		err := d.sql.QueryRow(d.prepareQuery(query), args...).Scan(&insertId)
+
+		if err != nil {
+			return 0, err
+		}
+	default:
+		res, err := d.exec(query, args...)
+
+		if err != nil {
+			return 0, err
+		}
+
+		insertId, err = res.LastInsertId()
+
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return int(insertId), nil
+}
+
 func (d *SqlDb) exec(query string, args ...interface{}) (sql.Result, error) {
-	return d.sql.Exec(d.prepareQuery(query), args...)
+	q := d.prepareQuery(query)
+	return d.sql.Exec(q, args...)
 }
 
 func (d *SqlDb) selectOne(holder interface{}, query string, args ...interface{}) error {
 	return d.sql.SelectOne(holder, d.prepareQuery(query), args...)
+}
+
+func (d *SqlDb) selectNullStr(query string, args ...interface{}) (sql.NullString, error) {
+	return d.sql.SelectNullStr(d.prepareQuery(query), args...)
+}
+
+func (d *SqlDb) selectAll(i interface{}, query string, args ...interface{}) ([]interface{}, error) {
+	q := d.prepareQuery(query)
+	return d.sql.Select(i, q, args...)
 }
 
 // prepareMigration converts migration SQLite-query to current dialect.
@@ -289,7 +329,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 		return
 	}
 
-	_, err = d.sql.Select(objects, query, args...)
+	_, err = d.selectAll(objects, query, args...)
 
 	return
 }
@@ -424,7 +464,7 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 	}
 
 	q := squirrel.Select("*").
-		From(tableName)
+		From("`" + tableName + "`")
 
 	if p.SortBy != "" {
 		sortDirection := "ASC"

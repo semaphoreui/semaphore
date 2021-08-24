@@ -32,10 +32,10 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 }
 
 func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, user.name as user_name, tpl.alias as tpl_alias").
+	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, `user`.name as user_name, tpl.alias as tpl_alias").
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
-		LeftJoin("user on task.user_id=user.id").
+		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("task.created desc, id desc")
 
 	if templateID == nil {
@@ -50,7 +50,7 @@ func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQuery
 
 	query, args, _ := q.ToSql()
 
-	_, err = d.sql.Select(&tasks, query, args...)
+	_, err = d.selectAll(&tasks, query, args...)
 
 	return
 }
@@ -110,7 +110,7 @@ func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutpu
 		return
 	}
 
-	_, err = d.sql.Select(&output,
+	_, err = d.selectAll(&output,
 		"select task_id, task, time, output from task__output where task_id=? order by time asc",
 		taskID)
 	return

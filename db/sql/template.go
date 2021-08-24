@@ -7,7 +7,9 @@ import (
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
-	res, err := d.exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
+	insertID, err := d.insert(
+		"id",
+		"insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
 		template.SSHKeyID,
 		template.ProjectID,
 		template.InventoryID,
@@ -22,13 +24,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-	if err != nil {
-		return
-	}
-
 	newTemplate = template
-	newTemplate.ID = int(insertID)
+	newTemplate.ID = insertID
 	return
 }
 
@@ -96,7 +93,7 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 		return
 	}
 
-	_, err = d.sql.Select(&templates, query, args...)
+	_, err = d.selectAll(&templates, query, args...)
 	return
 }
 

@@ -9,18 +9,17 @@ import (
 func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err error) {
 	project.Created = time.Now()
 
-	res, err := d.exec("insert into project(name, created) values (?, ?)", project.Name, project.Created)
-	if err != nil {
-		return
-	}
+	insertId, err := d.insert(
+		"id",
+		"insert into project(name, created) values (?, ?)",
+		project.Name, project.Created)
 
-	insertId, err := res.LastInsertId()
 	if err != nil {
 		return
 	}
 
 	newProject = project
-	newProject.ID = int(insertId)
+	newProject.ID = insertId
 	return
 }
 
@@ -36,7 +35,7 @@ func (d *SqlDb) GetProjects(userID int) (projects []db.Project, err error) {
 		return
 	}
 
-	_, err = d.sql.Select(&projects, query, args...)
+	_, err = d.selectAll(&projects, query, args...)
 
 	return
 }
@@ -73,7 +72,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	for _, statement := range statements {
-		_, err = tx.Exec(statement, projectID)
+		_, err = tx.Exec(d.prepareQuery(statement), projectID)
 
 		if err != nil {
 			err = tx.Rollback()

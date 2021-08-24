@@ -50,7 +50,8 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 }
 
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
-	res, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?",
 		inventory.ProjectID,
 		inventory.Name,
@@ -63,13 +64,8 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-	if err != nil {
-		return
-	}
-
 	newInventory = inventory
-	newInventory.ID = int(insertID)
+	newInventory.ID = insertID
 	return
 }
 

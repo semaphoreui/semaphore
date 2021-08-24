@@ -24,7 +24,8 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 }
 
 func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
-	res, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
 		env.ProjectID,
 		env.Name,
@@ -35,14 +36,8 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-
-	if err != nil {
-		return
-	}
-
 	newEnv = env
-	newEnv.ID = int(insertID)
+	newEnv.ID = insertID
 	return
 }
 

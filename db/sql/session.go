@@ -56,7 +56,7 @@ func (d *SqlDb) TouchSession(userID int, sessionID int) error {
 }
 
 func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	_, err = d.sql.Select(&tokens, d.prepareQuery("select * from user__token where user_id=?"), userID)
+	_, err = d.selectAll(&tokens, d.prepareQuery("select * from user__token where user_id=?"), userID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound

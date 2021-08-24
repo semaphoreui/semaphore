@@ -28,7 +28,8 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	res, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
@@ -40,13 +41,8 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-	if err != nil {
-		return
-	}
-
 	newKey = key
-	newKey.ID = int(insertID)
+	newKey.ID = insertID
 	return
 }
 
@@ -84,7 +80,8 @@ func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	res, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into access_key (name, type, `key`, secret) values (?, ?, ?, ?)",
 		key.Name,
 		key.Type,
@@ -95,13 +92,8 @@ func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, er
 		return
 	}
 
-	insertID, err := res.LastInsertId()
-	if err != nil {
-		return
-	}
-
 	newKey = key
-	newKey.ID = int(insertID)
+	newKey.ID = insertID
 	return
 }
 
