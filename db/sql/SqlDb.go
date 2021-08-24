@@ -78,7 +78,7 @@ func (d *SqlDb) prepareQueryWithDialect(query string, dialect gorp.Dialect) stri
 	case gorp.PostgresDialect:
 		var queryBuilder strings.Builder
 		argNum := 1
-		for _, r := range []rune(query) {
+		for _, r := range query {
 			switch r {
 			case '?':
 				queryBuilder.WriteString("$" + strconv.Itoa(argNum))
