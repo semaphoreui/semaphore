@@ -310,13 +310,20 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
+	dbConfig, err := util.Config.GetDBConfig()
+
+	if err != nil {
+		helpers.WriteError(w, fmt.Errorf("can't get config"))
+		return
+	}
+
 	body := map[string]interface{}{
 		"version": util.Version,
 		"update":  util.UpdateAvailable,
 		"config": map[string]string{
-			"dbHost":  util.Config.MySQL.Hostname,
-			"dbName":  util.Config.MySQL.DbName,
-			"dbUser":  util.Config.MySQL.Username,
+			"dbHost":  dbConfig.Hostname,
+			"dbName":  dbConfig.DbName,
+			"dbUser":  dbConfig.Username,
 			"path":    util.Config.TmpPath,
 			"cmdPath": util.FindSemaphore(),
 		},

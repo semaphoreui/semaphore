@@ -6,7 +6,7 @@ create table user__token
 (
     id varchar(44) not null primary key,
     created datetime not null,
-    expired tinyint default 0 not null,
+    expired boolean default false not null,
     user_id int not null
         references `user`
             on delete cascade

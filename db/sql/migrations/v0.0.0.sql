@@ -19,7 +19,7 @@ create table `project` (
 create table `project__user` (
 	`project_id` int not null,
 	`user_id` int not null,
-	`admin` tinyint not null default 0,
+	`admin` boolean not null default false,
 
 	unique (`project_id`, `user_id`),
 	foreign key (`project_id`) references project(`id`) on delete cascade,

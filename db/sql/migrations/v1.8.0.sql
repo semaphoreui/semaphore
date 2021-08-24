@@ -1,1 +1,1 @@
-ALTER TABLE task ADD dry_run tinyint NOT NULL DEFAULT 0;
+ALTER TABLE task ADD dry_run boolean NOT NULL DEFAULT false;

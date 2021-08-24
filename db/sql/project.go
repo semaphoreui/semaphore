@@ -9,7 +9,7 @@ import (
 func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err error) {
 	project.Created = time.Now()
 
-	res, err := d.sql.Exec("insert into project(name, created) values (?, ?)", project.Name, project.Created)
+	res, err := d.exec("insert into project(name, created) values (?, ?)", project.Name, project.Created)
 	if err != nil {
 		return
 	}
@@ -51,7 +51,7 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 		return
 	}
 
-	err = d.sql.SelectOne(&project, query, args...)
+	err = d.selectOne(&project, query, args...)
 
 	return
 }
@@ -85,7 +85,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 }
 
 func (d *SqlDb) UpdateProject(project db.Project) error {
-	_, err := d.sql.Exec(
+	_, err := d.exec(
 		"update project set name=?, alert=?, alert_chat=? where id=?",
 		project.Name,
 		project.Alert,

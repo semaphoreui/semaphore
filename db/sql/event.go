@@ -82,7 +82,7 @@ func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParam
 func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	var created = time.Now()
 
-	_, err = d.sql.Exec(
+	_, err = d.exec(
 		"insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",
 		evt.UserID,
 		evt.ProjectID,

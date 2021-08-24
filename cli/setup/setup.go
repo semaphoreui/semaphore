@@ -28,6 +28,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	dbPrompt := `What database to use:
    1 - MySQL
    2 - BoltDB
+   3 - PostgreSQL
 `
 
 	var db int
@@ -38,6 +39,8 @@ func InteractiveSetup(conf *util.ConfigType) {
 		scanMySQL(conf)
 	case 2:
 		scanBoltDb(conf)
+	case 3:
+		scanPostgres(conf)
 	}
 
 	defaultPlaybookPath := filepath.Join(os.TempDir(), "semaphore")
@@ -88,6 +91,13 @@ func scanMySQL(conf *util.ConfigType) {
 	askValue("DB User", "root", &conf.MySQL.Username)
 	askValue("DB Password", "", &conf.MySQL.Password)
 	askValue("DB Name", "semaphore", &conf.MySQL.DbName)
+}
+
+func scanPostgres(conf *util.ConfigType) {
+	askValue("DB Hostname", "127.0.0.1:5432", &conf.Postgres.Hostname)
+	askValue("DB User", "root", &conf.Postgres.Username)
+	askValue("DB Password", "", &conf.Postgres.Password)
+	askValue("DB Name", "semaphore", &conf.Postgres.DbName)
 }
 
 func scanErrorChecker(n int, err error) {

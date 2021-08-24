@@ -18,7 +18,7 @@ func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 }
 
 func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
-	err = d.sql.SelectOne(&token, "select * from user__token where id=? and expired=0", tokenID)
+	err = d.selectOne(&token, d.prepareQuery("select * from user__token where id=? and expired=false"), tokenID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -28,13 +28,13 @@ func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
 }
 
 func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) (err error) {
-	res, err := d.sql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, userID)
+	res, err := d.exec("update user__token set expired=true where id=? and user_id=?", tokenID, userID)
 
 	return validateMutationResult(res, err)
 }
 
 func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err error) {
-	err = d.sql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID)
+	err = d.selectOne(&session, "select * from session where id=? and user_id=? and expired=false", sessionID, userID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -44,19 +44,19 @@ func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err e
 }
 
 func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
-	res, err := d.sql.Exec("update session set expired=1 where id=? and user_id=?", sessionID, userID)
+	res, err := d.exec("update session set expired=1 where id=? and user_id=?", sessionID, userID)
 
 	return validateMutationResult(res, err)
 }
 
 func (d *SqlDb) TouchSession(userID int, sessionID int) error {
-	_, err := d.sql.Exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
+	_, err := d.exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
 
 	return err
 }
 
 func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	_, err = d.sql.Select(&tokens, "select * from user__token where user_id=?", userID)
+	_, err = d.sql.Select(&tokens, d.prepareQuery("select * from user__token where user_id=?"), userID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound

@@ -56,7 +56,7 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 }
 
 func (d *SqlDb) DeleteUser(userID int) error {
-	res, err := d.sql.Exec("delete from `user` where id=?", userID)
+	res, err := d.exec("delete from `user` where id=?", userID)
 	return validateMutationResult(res, err)
 }
 
@@ -69,7 +69,7 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 		if err != nil {
 			return err
 		}
-		_, err = d.sql.Exec(
+		_, err = d.exec(
 			"update user set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
 			user.Name,
 			user.Username,
@@ -79,7 +79,8 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 			string(pwdHash),
 			user.ID)
 	} else {
-		_, err = d.sql.Exec("update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+		_, err = d.exec(
+			"update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
@@ -96,12 +97,15 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.sql.Exec("update `user` set password=? where id=?", string(hash), userID)
+	_, err = d.exec(
+		"update `user` set password=? where id=?",
+		string(hash), userID)
 	return err
 }
 
 func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
-	_, err = d.sql.Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
+	_, err = d.exec(
+		"insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
 		projectUser.ProjectID,
 		projectUser.UserID,
 		projectUser.Admin)
@@ -117,7 +121,7 @@ func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db
 func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 	var user db.ProjectUser
 
-	err := d.sql.SelectOne(&user,
+	err := d.selectOne(&user,
 		"select * from project__user where project_id=? and user_id=?",
 		projectID,
 		userID)
@@ -161,7 +165,8 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 }
 
 func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
-	_, err := d.sql.Exec("update `project__user` set admin=? where user_id=? and project_id = ?",
+	_, err := d.exec(
+		"update `project__user` set admin=? where user_id=? and project_id = ?",
 		projectUser.Admin,
 		projectUser.UserID,
 		projectUser.ProjectID)
@@ -170,7 +175,7 @@ func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
 }
 
 func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
-	_, err := d.sql.Exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
+	_, err := d.exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
 	return err
 }
 
@@ -178,7 +183,7 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 func (d *SqlDb) GetUser(userID int) (db.User, error) {
 	var user db.User
 
-	err := d.sql.SelectOne(&user, "select * from `user` where id=?", userID)
+	err := d.selectOne(&user, "select * from `user` where id=?", userID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -200,7 +205,10 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err er
 }
 
 func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser db.User, err error) {
-	err = d.sql.SelectOne(&existingUser, "select * from `user` where email=? or username=?", email, login)
+	err = d.selectOne(
+		&existingUser,
+		d.prepareQuery("select * from `user` where email=? or username=?"),
+		email, login)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound

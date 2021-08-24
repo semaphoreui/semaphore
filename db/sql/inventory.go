@@ -37,7 +37,7 @@ func (d *SqlDb) DeleteInventorySoft(projectID int, inventoryID int) error {
 }
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
-	_, err := d.sql.Exec(
+	_, err := d.exec(
 		"update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?",
 		inventory.Name,
 		inventory.Type,
@@ -50,7 +50,7 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 }
 
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
-	res, err := d.sql.Exec(
+	res, err := d.exec(
 		"insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?",
 		inventory.ProjectID,
 		inventory.Name,

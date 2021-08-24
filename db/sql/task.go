@@ -12,7 +12,7 @@ func (d *SqlDb) CreateTask(task db.Task) (db.Task, error) {
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
-	_, err := d.sql.Exec(
+	_, err := d.exec(
 		"update task set status=?, start=?, end=? where id=?",
 		task.Status,
 		task.Start,
@@ -23,7 +23,7 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 }
 
 func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
-	_, err := d.sql.Exec(
+	_, err := d.exec(
 		"insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)",
 		output.TaskID,
 		output.Output,
@@ -67,7 +67,7 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 		return
 	}
 
-	err = d.sql.SelectOne(&task, query, args...)
+	err = d.selectOne(&task, query, args...)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -92,13 +92,13 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 		return
 	}
 
-	_, err = d.sql.Exec("delete from task__output where task_id=?", taskID)
+	_, err = d.exec("delete from task__output where task_id=?", taskID)
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.sql.Exec("delete from task where id=?", taskID)
+	_, err = d.exec("delete from task where id=?", taskID)
 	return
 }
 

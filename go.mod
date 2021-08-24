@@ -28,6 +28,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/lann/builder v0.0.0-20180216234317-1b87b36280d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/lib/pq v1.2.0
 	github.com/markbates/grift v1.5.0 // indirect
 	github.com/masterminds/squirrel v0.0.0-20170825200431-a6b93000bd21
 	github.com/mattn/go-zglob v0.0.1 // indirect
@@ -39,7 +40,7 @@ require (
 	github.com/radovskyb/watcher v1.0.7 // indirect
 	github.com/russross/blackfriday v1.5.2
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
+	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
 	github.com/spf13/cobra v0.0.5 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.etcd.io/bbolt v1.3.2

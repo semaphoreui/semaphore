@@ -11,7 +11,7 @@ create table session
     last_active datetime not null,
     ip varchar(39) default '' not null,
     user_agent text not null,
-    expired tinyint default '0' not null
+    expired boolean default false not null
 );
 
 insert into session select * from session_backup;

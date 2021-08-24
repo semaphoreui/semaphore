@@ -54,6 +54,8 @@ func main() {
 		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	case util.Config.BoltDb.IsPresent():
 		fmt.Printf("BoltDB %v\n", util.Config.BoltDb.Hostname)
+	case util.Config.Postgres.IsPresent():
+		fmt.Printf("Postgres %v@%v %v\n", util.Config.Postgres.Username, util.Config.Postgres.Hostname, util.Config.Postgres.DbName)
 	default:
 		panic(fmt.Errorf("database configuration not found"))
 	}

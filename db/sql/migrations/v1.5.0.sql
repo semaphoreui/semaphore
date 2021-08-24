@@ -5,7 +5,7 @@ CREATE TABLE `session` (
   `last_active` datetime NOT NULL,
   `ip` varchar(15) NOT NULL DEFAULT '',
   `user_agent` text NOT NULL,
-  `expired` tinyint NOT NULL DEFAULT '0'
+  `expired` boolean NOT NULL DEFAULT false
 );
 
 CREATE INDEX `user_id` ON `session`(`user_id`);

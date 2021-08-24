@@ -68,6 +68,7 @@ type ldapMappings struct {
 type ConfigType struct {
 	MySQL  DbConfig `json:"mysql"`
 	BoltDb DbConfig `json:"bolt"`
+	Postgres DbConfig `json:"pgsql"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -278,8 +279,14 @@ func decodeConfig(file io.Reader) {
 	}
 }
 
+// String returns dialect name for GORP.
+// TODO: It should be moved to sql package.
 func (d DbDriver) String() string {
-	return [...]string{"mysql"}[d]
+	return [...]string{
+		"mysql",
+		"", // didn't support by BoltDB
+		"postgres",
+	}[d]
 }
 
 func (d *DbConfig) IsPresent() bool {
@@ -309,6 +316,21 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				d.Password,
 				d.Hostname)
 		}
+	case DbDriverPostgres:
+		if includeDbName {
+			connectionString = fmt.Sprintf(
+				"postgres://%s:%s@%s/%s",
+				d.Username,
+				d.Password,
+				d.Hostname,
+				d.DbName)
+		} else {
+			connectionString = fmt.Sprintf(
+				"postgres://%s:%s@%s/",
+				d.Username,
+				d.Password,
+				d.Hostname)
+		}
 	default:
 		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
 	}
@@ -323,6 +345,9 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	case conf.BoltDb.IsPresent():
 		dbConfig = conf.BoltDb
 		dbConfig.Dialect = DbDriverBolt
+	case conf.Postgres.IsPresent():
+		dbConfig = conf.Postgres
+		dbConfig.Dialect = DbDriverPostgres
 	default:
 		err = errors.New("database configuration not found")
 	}

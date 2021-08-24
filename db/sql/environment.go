@@ -15,7 +15,7 @@ func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([
 }
 
 func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
-	_, err := d.sql.Exec(
+	_, err := d.exec(
 		"update project__environment set name=?, json=? where id=?",
 		env.Name,
 		env.JSON,
@@ -24,7 +24,7 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 }
 
 func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
-	res, err := d.sql.Exec(
+	res, err := d.exec(
 		"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
 		env.ProjectID,
 		env.Name,

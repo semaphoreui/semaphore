@@ -1,1 +1,1 @@
-alter table `event` add `user_id` int null references user(`id`);
+alter table `event` add `user_id` int null references `user`(`id`);

@@ -9,8 +9,11 @@ import (
 	"github.com/go-gorp/gorp/v3"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	"github.com/gobuffalo/packr"
+	_ "github.com/lib/pq"
 	"github.com/masterminds/squirrel"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -44,6 +47,11 @@ func handleRollbackError(err error) {
 
 var (
 	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
+	serialRE = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	identifierQuoteRE = regexp.MustCompile("`")
+	dateTimeTypeRE = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE = regexp.MustCompile(`(?i)\blongtext\b`)
 )
 
 // validateMutationResult checks the success of the update query
@@ -65,23 +73,63 @@ func validateMutationResult(res sql.Result, err error) error {
 	return nil
 }
 
+func (d *SqlDb) prepareQueryWithDialect(query string, dialect gorp.Dialect) string {
+	switch dialect.(type) {
+	case gorp.PostgresDialect:
+		var queryBuilder strings.Builder
+		argNum := 1
+		for _, r := range []rune(query) {
+			switch r {
+			case '?':
+				queryBuilder.WriteString("$" + strconv.Itoa(argNum))
+				argNum++
+			case '`':
+				queryBuilder.WriteRune('"')
+			default:
+				queryBuilder.WriteRune(r)
+			}
+		}
+		query = queryBuilder.String()
+	}
+	return query
+}
+
+func (d *SqlDb) prepareQuery(query string) string {
+	return d.prepareQueryWithDialect(query, d.sql.Dialect)
+}
+
+func (d *SqlDb) exec(query string, args ...interface{}) (sql.Result, error) {
+	return d.sql.Exec(d.prepareQuery(query), args...)
+}
+
+func (d *SqlDb) selectOne(holder interface{}, query string, args ...interface{}) error {
+	return d.sql.SelectOne(holder, d.prepareQuery(query), args...)
+}
+
+// prepareMigration converts migration SQLite-query to current dialect.
+// Supported MySQL and Postgres dialects.
 func (d *SqlDb) prepareMigration(query string) string {
 	switch d.sql.Dialect.(type) {
 	case gorp.MySQLDialect:
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
 	case gorp.PostgresDialect:
-
+		query = serialRE.ReplaceAllString(query, "serial primary key")
+		query = identifierQuoteRE.ReplaceAllString(query, "\"")
+		query = dateTimeTypeRE.ReplaceAllString(query, "timestamp")
+		query = tinyintRE.ReplaceAllString(query, "smallint")
+		query = longtextRE.ReplaceAllString(query, "text")
 	}
 	return query
 }
 
 // isMigrationApplied queries the database to see if a migration table with this version id exists already
 func (d *SqlDb) isMigrationApplied(version *Version) (bool, error) {
-	exists, err := d.sql.SelectInt("select count(1) as ex from migrations where version=?", version.VersionString())
+	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) as ex from migrations where version=?"), version.VersionString())
 
 	if err != nil {
 		fmt.Println("Creating migrations table")
-		if _, err = d.sql.Exec(d.prepareMigration(initialSQL)); err != nil {
+		query := d.prepareMigration(initialSQL)
+		if _, err = d.exec(query); err != nil {
 			panic(err)
 		}
 
@@ -108,14 +156,15 @@ func (d *SqlDb) applyMigration(version *Version) error {
 			continue
 		}
 
-		if _, err := tx.Exec(d.prepareMigration(query)); err != nil {
+		q := d.prepareMigration(query)
+		if _, err := tx.Exec(q); err != nil {
 			handleRollbackError(tx.Rollback())
-			log.Warnf("\n ERR! Query: %v\n\n", query)
+			log.Warnf("\n ERR! Query: %v\n\n", q)
 			return err
 		}
 	}
 
-	if _, err := tx.Exec("insert into migrations(version, upgraded_date) values (?, ?)", version.VersionString(), time.Now()); err != nil {
+	if _, err := tx.Exec(d.prepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), version.VersionString(), time.Now()); err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
 	}
@@ -140,7 +189,7 @@ func (d *SqlDb) tryRollbackMigration(version *Version) {
 	for _, query := range query {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 
-		if _, err := d.sql.Exec(d.prepareMigration(query)); err != nil {
+		if _, err := d.exec(d.prepareMigration(query)); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}
@@ -158,7 +207,8 @@ func connect() (*sql.DB, error) {
 		return nil, err
 	}
 
-	return sql.Open(cfg.Dialect.String(), connectionString)
+	dialect := cfg.Dialect.String()
+	return sql.Open(dialect, connectionString)
 }
 
 func createDb() error {
@@ -207,7 +257,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProperties, objectID int
 		return
 	}
 
-	err = d.sql.SelectOne(object, query, args...)
+	err = d.selectOne(object, query, args...)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -269,7 +319,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID 
 	}
 
 	return validateMutationResult(
-		d.sql.Exec(
+		d.exec(
 			"delete from " + props.TableName + " where project_id=? and id=?",
 			projectID,
 			objectID))
@@ -277,7 +327,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID 
 
 func (d *SqlDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
 	return validateMutationResult(
-		d.sql.Exec(
+		d.exec(
 			"update " + props.TableName + " set removed=1 where project_id=? and id=?",
 			projectID,
 			objectID))
@@ -347,6 +397,8 @@ func (d *SqlDb) Connect() error {
 	switch cfg.Dialect {
 	case util.DbDriverMySQL:
 		dialect = gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}
+	case util.DbDriverPostgres:
+		dialect = gorp.PostgresDialect{}
 	}
 
 	d.sql = &gorp.DbMap{Db: sqlDb, Dialect: dialect}

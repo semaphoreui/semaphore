@@ -52,7 +52,7 @@ func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (r
 }
 
 func (d *SqlDb) UpdateRepository(repository db.Repository) error {
-	_, err := d.sql.Exec(
+	_, err := d.exec(
 		"update project__repository set name=?, git_url=?, ssh_key_id=? where id=?",
 		repository.Name,
 		repository.GitURL,
@@ -63,7 +63,7 @@ func (d *SqlDb) UpdateRepository(repository db.Repository) error {
 }
 
 func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repository, err error) {
-	res, err := d.sql.Exec(
+	res, err := d.exec(
 		"insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)",
 		repository.ProjectID,
 		repository.GitURL,

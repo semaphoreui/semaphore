@@ -7,7 +7,7 @@ import (
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
-	res, err := d.sql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
+	res, err := d.exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
 		template.SSHKeyID,
 		template.ProjectID,
 		template.InventoryID,
@@ -33,7 +33,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	_, err := d.sql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
+	_, err := d.exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
 		template.SSHKeyID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -103,7 +103,7 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) {
 	var template db.Template
 
-	err := d.sql.SelectOne(
+	err := d.selectOne(
 		&template,
 		"select * from project__template where project_id=? and id=?",
 		projectID,
@@ -117,7 +117,7 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) 
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	res, err := d.sql.Exec(
+	res, err := d.exec(
 		"delete from project__template where project_id=? and id=?",
 		projectID,
 		templateID)
