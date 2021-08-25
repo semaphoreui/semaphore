@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"net/url"
 	"os"
@@ -14,29 +13,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/securecookie"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Cookie is a runtime generated secure cookie used for authentication
 var Cookie *securecookie.SecureCookie
-
-// Migration indicates that the user wishes to run database migrations, deprecated
-var Migration bool
-
-// InteractiveSetup indicates that the cli should perform interactive setup mode
-var InteractiveSetup bool
-
-// Upgrade indicates that we should perform an upgrade action
-var Upgrade bool
-
-type UserAddArgs struct {
-	Username string
-	Name     string
-	Email    string
-	Password string
-}
-
-var UserAdd *UserAddArgs
 
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
@@ -123,81 +103,12 @@ type ConfigType struct {
 var Config *ConfigType
 
 // ToJSON returns a JSON string of the config
-func (config *ConfigType) ToJSON() ([]byte, error) {
-	return json.MarshalIndent(&config, " ", "\t")
+func (conf *ConfigType) ToJSON() ([]byte, error) {
+	return json.MarshalIndent(&conf, " ", "\t")
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit() {
-	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
-	flag.BoolVar(&Migration, "migrate", false, "execute migrations")
-	flag.BoolVar(&Upgrade, "upgrade", false, "upgrade semaphore")
-	configPath := flag.String("config", "", "config path")
-
-	var unhashedPwd string
-	flag.StringVar(&unhashedPwd, "hash", "", "generate hash of given password")
-
-	var printConfig bool
-	flag.BoolVar(&printConfig, "printConfig", false, "print example configuration")
-
-	var printVersion bool
-	flag.BoolVar(&printVersion, "version", false, "print the semaphore version")
-
-	var userAdd bool
-	flag.BoolVar(&userAdd, "useradd", false, "add new user")
-
-	var userAddArgs UserAddArgs
-
-	flag.StringVar(&userAddArgs.Username, "login", "", "new user login")
-	flag.StringVar(&userAddArgs.Password, "password", "", "new user password")
-	flag.StringVar(&userAddArgs.Name, "name", "", "new user name")
-	flag.StringVar(&userAddArgs.Email, "email", "", "new user email")
-
-	flag.Parse()
-
-	if userAdd {
-		if userAddArgs.Username == "" || userAddArgs.Password == "" || userAddArgs.Name == "" || userAddArgs.Email == "" {
-			fmt.Println("Required options:\n  -login\n  -name\n  -email\n  -password")
-			os.Exit(0)
-		}
-
-		UserAdd = &userAddArgs
-	}
-
-	if InteractiveSetup {
-		return
-	}
-
-	if printVersion {
-		fmt.Println(Version)
-		os.Exit(0)
-	}
-
-	if printConfig {
-		config := &ConfigType{
-			MySQL: DbConfig{
-				Hostname: "127.0.0.1:3306",
-				Username: "root",
-				DbName:   "semaphore",
-			},
-			Port:    ":3000",
-			TmpPath: "/tmp/semaphore",
-		}
-		config.GenerateCookieSecrets()
-
-		bytes, _ := config.ToJSON()
-		fmt.Println(string(bytes))
-
-		os.Exit(0)
-	}
-
-	if len(unhashedPwd) > 0 {
-		password, _ := bcrypt.GenerateFromPassword([]byte(unhashedPwd), 11)
-		fmt.Println("Generated password: ", string(password))
-
-		os.Exit(0)
-	}
-
+func ConfigInit(configPath string) {
 	loadConfig(configPath)
 	validateConfig()
 
@@ -215,11 +126,11 @@ func ConfigInit() {
 	}
 }
 
-func loadConfig(configPath *string) {
+func loadConfig(configPath string) {
 	//If the configPath option has been set try to load and decode it
 	var usedPath string
-	if configPath != nil && len(*configPath) > 0 {
-		path := *configPath
+	if len(configPath) > 0 {
+		path := configPath
 		file, err := os.Open(path)
 		exitOnConfigError(err)
 		decodeConfig(file)

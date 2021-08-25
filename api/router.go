@@ -14,7 +14,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
-	"github.com/russross/blackfriday"
 )
 
 var publicAssets2 = packr.NewBox("../web2/dist")
@@ -79,8 +78,6 @@ func Route() *mux.Router {
 
 	authenticatedAPI.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
-	authenticatedAPI.Path("/upgrade").HandlerFunc(checkUpgrade).Methods("GET", "HEAD")
-	authenticatedAPI.Path("/upgrade").HandlerFunc(doUpgrade).Methods("POST")
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.AddProject).Methods("POST")
@@ -320,37 +317,19 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 
 	body := map[string]interface{}{
 		"version": util.Version,
-		"update":  util.UpdateAvailable,
+		//"update":  util.UpdateAvailable,
 		"config": map[string]string{
 			"dbHost":  dbConfig.Hostname,
 			"dbName":  dbConfig.DbName,
 			"dbUser":  dbConfig.Username,
 			"path":    util.Config.TmpPath,
-			"cmdPath": util.FindSemaphore(),
+			//"cmdPath": util.FindSemaphore(),
 		},
 	}
 
-	if util.UpdateAvailable != nil {
-		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
-	}
+	//if util.UpdateAvailable != nil {
+	//	body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
+	//}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
-}
-
-func checkUpgrade(w http.ResponseWriter, r *http.Request) {
-	if err := util.CheckUpdate(util.Version); err != nil {
-		helpers.WriteJSON(w, 500, err)
-		return
-	}
-
-	if util.UpdateAvailable != nil {
-		getSystemInfo(w, r)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func doUpgrade(w http.ResponseWriter, r *http.Request) {
-	util.LogError(util.DoUpgrade(util.Version))
 }

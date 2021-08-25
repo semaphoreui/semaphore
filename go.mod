@@ -8,6 +8,8 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Sirupsen/logrus v1.0.4
 	github.com/cespare/reflex v0.3.0 // indirect
+	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
+	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2
 	github.com/go-openapi/loads v0.19.4 // indirect
 	github.com/go-openapi/spec v0.19.6 // indirect
@@ -33,6 +35,7 @@ require (
 	github.com/masterminds/squirrel v0.0.0-20170825200431-a6b93000bd21
 	github.com/mattn/go-zglob v0.0.1 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/ogier/pflag v0.0.1 // indirect
 	github.com/onsi/ginkgo v1.12.0 // indirect
@@ -41,12 +44,11 @@ require (
 	github.com/russross/blackfriday v1.5.2
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
-	github.com/spf13/cobra v0.0.5 // indirect
+	github.com/spf13/cobra v1.2.1
+	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.etcd.io/bbolt v1.3.2
-	golang.org/x/crypto v0.0.0-20200208060501-ecb85df21340
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
