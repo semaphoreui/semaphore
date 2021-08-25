@@ -2,10 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api"
+	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/gorilla/context"
+	"github.com/gorilla/handlers"
 	"github.com/spf13/cobra"
+	"net/http"
 	"os"
 )
 
@@ -28,10 +35,51 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	args := os.Args[1:]
+	if len(args) == 2 && args[0] == "-config" {
+		configPath = args[1]
+		runService()
+		return
+	}
+
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+func runService() {
+	store := createStore()
+	defer store.Close()
+
+	fmt.Printf("Semaphore %v\n", util.Version)
+	fmt.Printf("Interface %v\n", util.Config.Interface)
+	fmt.Printf("Port %v\n", util.Config.Port)
+
+	go sockets.StartWS()
+	go tasks.StartRunner()
+
+	route := api.Route()
+
+	route.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			context.Set(r, "store", store)
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	var router http.Handler = route
+
+	router = handlers.ProxyHeaders(router)
+	http.Handle("/", router)
+
+	fmt.Println("Server is running")
+
+	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
+
+	if err != nil {
+		log.Panic(err)
 	}
 }
 

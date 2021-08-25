@@ -50,8 +50,8 @@ echo "create database semaphore;" | mysql -uroot -p
 
 ```
 task compile
-go run cli/main.go -setup
-go run cli/main.go -config ./config.json
+go run cli/main.go setup
+go run cli/main.go --config ./config.json
 ```
 
 Open [localhost:3000](http://localhost:3000)
