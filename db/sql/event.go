@@ -1,48 +1,10 @@
 package sql
 
 import (
-	"database/sql"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/masterminds/squirrel"
 	"time"
 )
-
-func (d *SqlDb) getEventObjectName(evt db.Event) (string, error) {
-	if evt.ObjectID == nil || evt.ObjectType == nil {
-		return "", nil
-	}
-
-	var q squirrel.SelectBuilder
-
-	switch *evt.ObjectType {
-	case "task":
-		q = squirrel.Select("case when length(task.playbook) > 0 then task.playbook else tpl.playbook end").
-			From("task").
-			Join("project__template as tpl on task.template_id=tpl.id").
-			Where("task.id=?", evt.ObjectID)
-	default:
-		return "", nil
-	}
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return "", err
-	}
-
-	var name sql.NullString
-	name, err = d.selectNullStr(query, args...)
-
-	if err != nil {
-		return "", err
-	}
-
-	if name.Valid {
-		return name.String, nil
-	} else {
-		return "", nil
-	}
-}
 
 func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParams) (events []db.Event, err error) {
 
@@ -62,19 +24,7 @@ func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParam
 		return
 	}
 
-	for i, evt := range events {
-		var objName string
-		objName, err = d.getEventObjectName(evt)
-		if objName == "" {
-			continue
-		}
-
-		if err != nil {
-			return
-		}
-
-		events[i].ObjectName = objName
-	}
+	err = db.FillEvents(d, events)
 
 	return
 }

@@ -7,21 +7,21 @@ import (
 	"time"
 )
 
-func (d *BoltDb) getEventObjectName(evt db.Event) (string, error) {
-	if evt.ObjectID == nil || evt.ObjectType == nil {
-		return "", nil
-	}
-	switch *evt.ObjectType {
-	case "task":
-		task, err := d.GetTask(*evt.ProjectID, *evt.ObjectID)
-		if err != nil {
-			return "", err
-		}
-		return task.Playbook, nil
-	default:
-		return "", nil
-	}
-}
+//func (d *BoltDb) getEventObjectName(evt db.Event) (string, error) {
+//	if evt.ObjectID == nil || evt.ObjectType == nil {
+//		return "", nil
+//	}
+//	switch *evt.ObjectType {
+//	case "task":
+//		task, err := d.GetTask(*evt.ProjectID, *evt.ObjectID)
+//		if err != nil {
+//			return "", err
+//		}
+//		return task.Playbook, nil
+//	default:
+//		return "", nil
+//	}
+//}
 
 // getEvents filter and sort enumerable object passed via parameter.
 func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter func (db.Event) bool) (events []db.Event, err error) {
@@ -64,19 +64,7 @@ func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter f
 		}
 	}
 
-	for i, evt := range events {
-		var objName string
-		objName, err = d.getEventObjectName(evt)
-		if objName == "" {
-			continue
-		}
-
-		if err != nil {
-			return
-		}
-
-		events[i].ObjectName = objName
-	}
+	err = db.FillEvents(d, events)
 
 	return
 }

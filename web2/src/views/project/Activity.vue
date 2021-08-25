@@ -41,10 +41,16 @@ export default {
           width: '20%',
         },
         {
+          text: 'User',
+          value: 'username',
+          sortable: false,
+          width: '10%',
+        },
+        {
           text: 'Description',
           value: 'description',
           sortable: false,
-          width: '80%',
+          width: '70%',
         },
       ];
     },

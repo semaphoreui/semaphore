@@ -137,10 +137,6 @@ func (d *SqlDb) selectOne(holder interface{}, query string, args ...interface{})
 	return d.sql.SelectOne(holder, d.prepareQuery(query), args...)
 }
 
-func (d *SqlDb) selectNullStr(query string, args ...interface{}) (sql.NullString, error) {
-	return d.sql.SelectNullStr(d.prepareQuery(query), args...)
-}
-
 func (d *SqlDb) selectAll(i interface{}, query string, args ...interface{}) ([]interface{}, error) {
 	q := d.prepareQuery(query)
 	return d.sql.Select(i, q, args...)

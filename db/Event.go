@@ -15,4 +15,5 @@ type Event struct {
 
 	ObjectName  string  `db:"-" json:"object_name"`
 	ProjectName *string `db:"project_name" json:"project_name"`
+	Username    *string `db:"-" json:"username"`
 }
