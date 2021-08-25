@@ -40,27 +40,6 @@ func (t *task) log(msg string) {
 	}()
 }
 
-func (t *task) updateStatus() {
-	for _, user := range t.users {
-		b, err := json.Marshal(&map[string]interface{}{
-			"type":       "update",
-			"start":      t.task.Start,
-			"end":        t.task.End,
-			"status":     t.task.Status,
-			"task_id":    t.task.ID,
-			"project_id": t.projectID,
-		})
-
-		util.LogPanic(err)
-
-		sockets.Message(user, b)
-	}
-
-	if err := t.store.UpdateTask(t.task); err != nil {
-		t.panicOnError(err, "Failed to update task status")
-	}
-}
-
 // Readln reads from the pipe
 func Readln(r *bufio.Reader) (string, error) {
 	var (

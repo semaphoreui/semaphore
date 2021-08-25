@@ -199,6 +199,7 @@ func Route() *mux.Router {
 	projectTaskManagement.HandleFunc("/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
+	projectTaskManagement.HandleFunc("/{task_id}/stop", tasks.StopTask).Methods("POST")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

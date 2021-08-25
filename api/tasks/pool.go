@@ -9,24 +9,26 @@ import (
 )
 
 type taskPool struct {
-	queue       []*task
-	register    chan *task
-	activeProj  map[int]*task
-	activeNodes map[string]*task
-	running     int
-}
-
-var pool = taskPool{
-	queue:       make([]*task, 0),
-	register:    make(chan *task),
-	activeProj:  make(map[int]*task),
-	activeNodes: make(map[string]*task),
-	running:     0,
+	queue        []*task
+	register     chan *task
+	activeProj   map[int]*task
+	activeNodes  map[string]*task
+	running      int
+	runningTasks map[int]*task
 }
 
 type resourceLock struct {
 	lock   bool
 	holder *task
+}
+
+var pool = taskPool{
+	queue:        make([]*task, 0),
+	register:     make(chan *task),
+	activeProj:   make(map[int]*task),
+	activeNodes:  make(map[string]*task),
+	running:      0,
+	runningTasks: make(map[int]*task),
 }
 
 var resourceLocker = make(chan *resourceLock)
@@ -57,6 +59,7 @@ func (p *taskPool) run() {
 				}
 
 				p.running++
+				p.runningTasks[t.task.ID] = t
 				continue
 			}
 
@@ -69,6 +72,7 @@ func (p *taskPool) run() {
 			}
 
 			p.running--
+			delete(p.runningTasks, t.task.ID)
 		}
 	}(resourceLocker)
 

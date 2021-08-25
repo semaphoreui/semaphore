@@ -55,6 +55,15 @@
         <div class="task-log-view__output">{{ record.output }}</div>
       </div>
     </div>
+
+    <v-btn
+        color="error"
+        style="position: absolute; bottom: 10px; right: 10px;"
+        v-if="item.status === 'running' || item.status === 'waiting'"
+        @click="stopTask()"
+    >
+      Stop
+    </v-btn>
   </div>
 </template>
 <style lang="scss">
@@ -64,7 +73,7 @@
     height: calc(100vh - 300px);
     overflow: auto;
     font-family: monospace;
-    margin: 0 -24px -20px;
+    margin: 0 -24px;
     padding: 5px 10px;
   }
 
@@ -118,6 +127,14 @@ export default {
   },
 
   methods: {
+    async stopTask() {
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/tasks/${this.itemId}/stop`,
+        responseType: 'json',
+      });
+    },
+
     reset() {
       this.item = {};
       this.output = [];

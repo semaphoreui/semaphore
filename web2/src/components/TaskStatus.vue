@@ -13,6 +13,8 @@ const TaskStatus = Object.freeze({
   RUNNING: 'running',
   SUCCESS: 'success',
   ERROR: 'error',
+  STOPPING: 'stopping',
+  STOPPED: 'stopped',
 });
 
 export default {
@@ -32,6 +34,10 @@ export default {
           return 'mdi-check-circle';
         case TaskStatus.ERROR:
           return 'mdi-information';
+        case TaskStatus.STOPPING:
+          return 'mdi-stop-circle';
+        case TaskStatus.STOPPED:
+          return 'mdi-stop-circle';
         default:
           throw new Error(`Unknown task status ${status}`);
       }
@@ -47,6 +53,10 @@ export default {
           return 'Success';
         case TaskStatus.ERROR:
           return 'Failed';
+        case TaskStatus.STOPPING:
+          return 'Stopping...';
+        case TaskStatus.STOPPED:
+          return 'Stopped';
         default:
           throw new Error(`Unknown task status ${status}`);
       }
@@ -62,6 +72,10 @@ export default {
           return 'success';
         case TaskStatus.ERROR:
           return 'error';
+        case TaskStatus.STOPPING:
+          return '';
+        case TaskStatus.STOPPED:
+          return '';
         default:
           throw new Error(`Unknown task status ${status}`);
       }

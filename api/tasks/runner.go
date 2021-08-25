@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -23,29 +24,69 @@ import (
 )
 
 const (
-	taskFailStatus = "error"
-	taskTypeID     = "task"
+	taskRunningStatus  = "running"
+	taskWaitingStatus  = "waiting"
+	taskStoppingStatus = "stopping"
+	taskStoppedStatus  = "stopped"
+	taskSuccessStatus  = "success"
+	taskFailStatus     = "error"
+	taskTypeID         = "task"
 )
 
 type task struct {
-	store       db.Store
-	task        db.Task
-	template    db.Template
-	sshKey      db.AccessKey
-	inventory   db.Inventory
-	repository  db.Repository
-	environment db.Environment
-	users       []int
-	projectID   int
-	hosts       []string
-	alertChat   string
-	alert       bool
-	prepared    bool
+	store         db.Store
+	task          db.Task
+	template      db.Template
+	sshKey        db.AccessKey
+	inventory     db.Inventory
+	repository    db.Repository
+	environment   db.Environment
+	users         []int
+	projectID     int
+	hosts         []string
+	alertChat     string
+	alert         bool
+	prepared      bool
+	process       *os.Process
+}
+
+func (t *task) setStatus(status string) {
+	if t.task.Status == taskStoppingStatus {
+		switch status {
+		case taskFailStatus:
+			status = taskStoppedStatus
+		case taskStoppedStatus:
+		default:
+			panic("stopping task cannot be " + status)
+		}
+	}
+	t.task.Status = status
+	t.updateStatus()
+}
+
+func (t *task) updateStatus() {
+	for _, user := range t.users {
+		b, err := json.Marshal(&map[string]interface{}{
+			"type":       "update",
+			"start":      t.task.Start,
+			"end":        t.task.End,
+			"status":     t.task.Status,
+			"task_id":    t.task.ID,
+			"project_id": t.projectID,
+		})
+
+		util.LogPanic(err)
+
+		sockets.Message(user, b)
+	}
+
+	if err := t.store.UpdateTask(t.task); err != nil {
+		t.panicOnError(err, "Failed to update task status")
+	}
 }
 
 func (t *task) fail() {
-	t.task.Status = taskFailStatus
-	t.updateStatus()
+	t.setStatus(taskFailStatus)
 	t.sendMailAlert()
 	t.sendTelegramAlert()
 }
@@ -62,7 +103,7 @@ func (t *task) prepareRun() {
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 		_, err := t.store.CreateEvent(db.Event{
-			UserID:	     t.task.UserID,
+			UserID:      t.task.UserID,
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -92,7 +133,7 @@ func (t *task) prepareRun() {
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	_, err = t.store.CreateEvent(db.Event{
-		UserID:	     t.task.UserID,
+		UserID:      t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -155,7 +196,7 @@ func (t *task) run() {
 		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 		_, err := t.store.CreateEvent(db.Event{
-			UserID:	     t.task.UserID,
+			UserID:      t.task.UserID,
 			ProjectID:   &t.projectID,
 			ObjectType:  &objType,
 			ObjectID:    &t.task.ID,
@@ -168,20 +209,22 @@ func (t *task) run() {
 		}
 	}()
 
+	if t.task.Status == taskStoppingStatus {
+		t.setStatus(taskStoppedStatus)
+		return
+	}
+
 	{
 		now := time.Now()
-		t.task.Status = "running"
 		t.task.Start = &now
-
-		t.updateStatus()
+		t.setStatus(taskRunningStatus)
 	}
 
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
-
 	_, err := t.store.CreateEvent(db.Event{
-		UserID:	     t.task.UserID,
+		UserID:      t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
@@ -196,14 +239,18 @@ func (t *task) run() {
 	t.log("Started: " + strconv.Itoa(t.task.ID))
 	t.log("Run task with template: " + t.template.Alias + "\n")
 
+	if t.task.Status == taskStoppingStatus {
+		t.setStatus(taskStoppedStatus)
+		return
+	}
+
 	if err := t.runPlaybook(); err != nil {
 		t.log("Running playbook failed: " + err.Error())
 		t.fail()
 		return
 	}
 
-	t.task.Status = "success"
-	t.updateStatus()
+	t.setStatus(taskSuccessStatus)
 }
 
 func (t *task) prepareError(err error, errMsg string) error {
@@ -405,10 +452,10 @@ func (t *task) listPlaybookHosts() (string, error) {
 	return errb.String(), err
 }
 
-func (t *task) runPlaybook() error {
+func (t *task) runPlaybook() (err error) {
 	args, err := t.getPlaybookArgs()
 	if err != nil {
-		return err
+		return
 	}
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
@@ -416,7 +463,13 @@ func (t *task) runPlaybook() error {
 
 	t.logCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
-	return cmd.Run()
+	err = cmd.Start()
+	if err != nil {
+		return
+	}
+	t.process = cmd.Process
+	err = cmd.Wait()
+	return
 }
 
 //nolint: gocyclo

@@ -24,7 +24,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	taskObj.Created = time.Now()
-	taskObj.Status = "waiting"
+	taskObj.Status = taskWaitingStatus
 	taskObj.UserID = &user.ID
 	taskObj.ProjectID = project.ID
 
@@ -142,6 +142,47 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, output)
+}
+
+func StopTask(w http.ResponseWriter, r *http.Request) {
+	targetTask := context.Get(r, taskTypeID).(db.Task)
+
+	var activeTask *task
+
+	for _, t := range pool.queue {
+		if t.task.ID == targetTask.ID {
+			activeTask = t
+			break
+		}
+	}
+
+	if activeTask == nil {
+		for _, t := range pool.runningTasks {
+			if t.task.ID == targetTask.ID {
+				activeTask = t
+				break
+			}
+		}
+	}
+
+	if activeTask == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if activeTask.task.Status == taskRunningStatus {
+		if activeTask.process == nil {
+			panic("running process can not be nil")
+		}
+
+		if err := activeTask.process.Kill(); err != nil {
+			helpers.WriteError(w, err)
+		}
+	}
+
+	activeTask.setStatus(taskStoppingStatus)
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // RemoveTask removes a task from the database
