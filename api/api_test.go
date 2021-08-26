@@ -1,11 +1,11 @@
 package api
 
 import (
+	//_ "github.com/snikch/goodman/hooks"
+	//_ "github.com/snikch/goodman/transaction"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	_ "github.com/snikch/goodman/transaction"
-	_ "github.com/snikch/goodman/hooks"
 )
 
 func TestApiPing(t *testing.T) {
