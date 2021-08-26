@@ -488,21 +488,21 @@ paths:
           schema:
             $ref: "#/definitions/InfoType"
 
-  /upgrade:
-    get:
-      summary: Check if new updates available and fetch /info
-      responses:
-        204:
-          description: no update
-        200:
-          description: ok
-          schema:
-            $ref: "#/definitions/InfoType"
-    post:
-      summary: Upgrade the server
-      responses:
-        200:
-          description: Server binary was replaced by new version, server has shut down.
+#  /upgrade:
+#    get:
+#      summary: Check if new updates available and fetch /info
+#      responses:
+#        204:
+#          description: no update
+#        200:
+#          description: ok
+#          schema:
+#            $ref: "#/definitions/InfoType"
+#    post:
+#      summary: Upgrade the server
+#      responses:
+#        200:
+#          description: Server binary was replaced by new version, server has shut down.
 
   # Authentication
   /auth/login:
