@@ -39,6 +39,6 @@ command:
     exit-status: 1
     stdout:
     - Cannot Find configuration! Use --config parameter to point to a JSON file generated
-      by -setup.
-    - 'Hint: have you run `-setup` ?'
+      by setup.
+    - 'Hint: have you run `semaphore setup` ?'
     timeout: 10000
