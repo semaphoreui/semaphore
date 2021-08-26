@@ -1,4 +1,4 @@
-FROM golang:1.13-alpine as golang
+FROM golang:1.16.3-alpine3.13 as golang
 
 RUN apk add --no-cache curl git
 
