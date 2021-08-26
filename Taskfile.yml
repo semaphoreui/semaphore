@@ -54,7 +54,7 @@ tasks:
       GOLINTER_VERSION: "1.31.0"
     cmds:
       - '{{ if ne OS "windows" }} go install github.com/cespare/reflex {{ else }} {{ end }}'
-      - go install github.com/gobuffalo/packr/...
+      - go install github.com/gobuffalo/packr/packr
       - go install github.com/haya14busa/goverage
       - go install github.com/snikch/goodman/cmd/goodman
       - go install github.com/go-swagger/go-swagger/cmd/swagger
