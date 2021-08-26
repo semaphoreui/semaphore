@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	_ "github.com/snikch/goodman/transaction"
+	_ "github.com/snikch/goodman/hooks"
 )
 
 func TestApiPing(t *testing.T) {
