@@ -53,7 +53,6 @@ tasks:
       GORELEASER_VERSION: "0.159.0"
       GOLINTER_VERSION: "1.31.0"
     cmds:
-      - '{{ if ne OS "windows" }} go install github.com/cespare/reflex@v0.3.0 {{ else }} {{ end }}'
       - go install github.com/gobuffalo/packr/...@v1.10.4
       - go install github.com/haya14busa/goverage@latest
       - go install github.com/snikch/goodman/cmd/goodman@latest

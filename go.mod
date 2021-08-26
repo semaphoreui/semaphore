@@ -7,7 +7,6 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Sirupsen/logrus v1.0.4
-	github.com/cespare/reflex v0.3.0 // indirect
 	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2
@@ -17,7 +16,7 @@ require (
 	github.com/go-swagger/go-swagger v0.22.0 // indirect
 	github.com/go-task/task v2.2.0+incompatible // indirect
 	github.com/gobuffalo/packr v1.10.4
-	github.com/google/go-github v15.0.0+incompatible
+	github.com/google/go-github v15.0.0+incompatible // indirect
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f
 	github.com/gorilla/handlers v1.4.2
@@ -41,9 +40,9 @@ require (
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/radovskyb/watcher v1.0.7 // indirect
-	github.com/russross/blackfriday v1.5.2
+	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa // indirect
+	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
 	github.com/spf13/cobra v1.2.1
 	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
