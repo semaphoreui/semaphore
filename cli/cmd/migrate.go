@@ -12,8 +12,6 @@ func init() {
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Execute migrations",
-	// Long:  `All software has versions. This is Hugo's`,
-
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore()
 		defer store.Close()

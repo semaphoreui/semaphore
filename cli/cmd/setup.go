@@ -19,7 +19,6 @@ func init() {
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Perform interactive setup",
-	// Long:  `All software has versions. This is Hugo's`,
 	Run: func(cmd *cobra.Command, args []string) {
 		doSetup()
 	},

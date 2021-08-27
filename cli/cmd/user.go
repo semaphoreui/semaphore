@@ -5,14 +5,12 @@ import (
 	"os"
 )
 
-type UserAddArgs struct {
-	Username string
-	Name     string
-	Email    string
-	Password string
+type userArgs struct {
+	login    string
+	name     string
+	email    string
+	password string
 }
-
-var UserAdd *UserAddArgs
 
 func init() {
 	rootCmd.AddCommand(userCmd)
@@ -21,7 +19,6 @@ func init() {
 var userCmd = &cobra.Command{
 	Use:   "user",
 	Short: "Manage users",
-	// Long:  `All software has versions. This is Hugo's`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			_ = cmd.Help()

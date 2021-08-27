@@ -12,9 +12,7 @@ func init() {
 
 var serviceCmd = &cobra.Command{
 	Use:   "service",
-	Short: "Run Ansible Semaphore service",
-	// Long:  `All software has versions. This is Hugo's`,
-
+	Short: "Run Semaphore service",
 	Run: func(cmd *cobra.Command, args []string) {
 		runService()
 	},

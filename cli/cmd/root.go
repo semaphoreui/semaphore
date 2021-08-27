@@ -21,9 +21,9 @@ var configPath string
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Ansible Semaphore is a beautiful web UI for Ansible",
-	Long: `A Fast and Flexible Static Site Generator built with
-                love by spf13 and friends in Go.
-                Complete documentation is available at https://ansible-semaphore.com`,
+	Long: 	`Ansible Semaphore is a beautiful web UI for Ansible.
+Source code is available at https://github.com/ansible-semaphore/semaphore.
+Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 && configPath == "" {
 			_ = cmd.Help()
