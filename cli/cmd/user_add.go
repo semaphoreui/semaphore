@@ -4,27 +4,16 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var newUserArgs userArgs
 
 func init() {
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.login, "login", "", "New user login")
-	if err := userAddCmd.MarkFlagRequired("login"); err != nil {
-		panic(err)
-	}
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.name, "name", "", "New user name")
-	if err := userAddCmd.MarkFlagRequired("name"); err != nil {
-		panic(err)
-	}
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.email, "email", "", "New user email")
-	if err := userAddCmd.MarkFlagRequired("email"); err != nil {
-		panic(err)
-	}
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.password, "password", "", "New user password")
-	if err := userAddCmd.MarkFlagRequired("password"); err != nil {
-		panic(err)
-	}
 	userCmd.AddCommand(userAddCmd)
 }
 
@@ -32,6 +21,32 @@ var userAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add new user",
 	Run: func(cmd *cobra.Command, args []string) {
+
+		ok := true
+		if newUserArgs.name == "" {
+			fmt.Println("Argument --name requied")
+			ok = false
+		}
+		if newUserArgs.login == "" {
+			fmt.Println("Argument --login requied")
+			ok = false
+		}
+
+		if newUserArgs.email == "" {
+			fmt.Println("Argument --email requied")
+			ok = false
+		}
+
+		if newUserArgs.password == "" {
+			fmt.Println("Argument --password requied")
+			ok = false
+		}
+
+		if !ok {
+			fmt.Println("Use command `semaphore user add --help` for details.")
+			os.Exit(1)
+		}
+
 		store := createStore()
 		defer store.Close()
 

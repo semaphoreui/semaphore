@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path"
-
-	"io"
 	"strings"
 
 	"github.com/gorilla/securecookie"
@@ -127,15 +126,14 @@ func ConfigInit(configPath string) {
 }
 
 func loadConfig(configPath string) {
+	if configPath == "" {
+		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
+	}
+
 	//If the configPath option has been set try to load and decode it
 	var usedPath string
-	if len(configPath) > 0 {
-		path := configPath
-		file, err := os.Open(path)
-		exitOnConfigError(err)
-		decodeConfig(file)
-		usedPath = path
-	} else {
+
+	if configPath == "" {
 		// if no configPath look in the cwd
 		cwd, err := os.Getwd()
 		exitOnConfigError(err)
@@ -144,6 +142,12 @@ func loadConfig(configPath string) {
 		exitOnConfigError(err)
 		decodeConfig(file)
 		usedPath = defaultPath
+	} else {
+		path := configPath
+		file, err := os.Open(path)
+		exitOnConfigError(err)
+		decodeConfig(file)
+		usedPath = path
 	}
 
 	fmt.Println("Using config file: " + usedPath)
