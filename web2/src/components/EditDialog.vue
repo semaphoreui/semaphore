@@ -10,6 +10,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     persistent
     :transition="false"
     :content-class="'item-dialog item-dialog--' + position"
+    @keydown.esc="close()"
   >
     <v-card>
       <v-card-title class="headline">
