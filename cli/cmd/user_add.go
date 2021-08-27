@@ -10,9 +10,21 @@ var newUserArgs userArgs
 
 func init() {
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.login, "login", "", "New user login")
+	if err := userAddCmd.MarkFlagRequired("login"); err != nil {
+		panic(err)
+	}
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.name, "name", "", "New user name")
+	if err := userAddCmd.MarkFlagRequired("name"); err != nil {
+		panic(err)
+	}
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.email, "email", "", "New user email")
+	if err := userAddCmd.MarkFlagRequired("email"); err != nil {
+		panic(err)
+	}
 	userAddCmd.PersistentFlags().StringVar(&newUserArgs.password, "password", "", "New user password")
+	if err := userAddCmd.MarkFlagRequired("password"); err != nil {
+		panic(err)
+	}
 	userCmd.AddCommand(userAddCmd)
 }
 
@@ -29,6 +41,7 @@ var userAddCmd = &cobra.Command{
 				Name: newUserArgs.name,
 				Username: newUserArgs.login,
 				Email: newUserArgs.email,
+				Admin: true,
 			},
 		}); err != nil {
 			panic(err)
