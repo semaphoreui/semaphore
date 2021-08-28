@@ -17,7 +17,8 @@ type User struct {
 	Alert    bool      `db:"alert" json:"alert"`
 }
 
+// UserWithPwd extends User structure with field for unhashed password received from JSON.
 type UserWithPwd struct {
-	Pwd string    `db:"-" json:"password"` // raw password from JSON
+	Pwd string    `db:"-" json:"password"` // unhashed password from JSON
 	User
 }

@@ -7,13 +7,12 @@ import (
 	"os"
 )
 
-var newUserArgs userArgs
-
 func init() {
-	userAddCmd.PersistentFlags().StringVar(&newUserArgs.login, "login", "", "New user login")
-	userAddCmd.PersistentFlags().StringVar(&newUserArgs.name, "name", "", "New user name")
-	userAddCmd.PersistentFlags().StringVar(&newUserArgs.email, "email", "", "New user email")
-	userAddCmd.PersistentFlags().StringVar(&newUserArgs.password, "password", "", "New user password")
+	userAddCmd.PersistentFlags().StringVar(&targetUserArgs.login, "login", "", "New user login")
+	userAddCmd.PersistentFlags().StringVar(&targetUserArgs.name, "name", "", "New user name")
+	userAddCmd.PersistentFlags().StringVar(&targetUserArgs.email, "email", "", "New user email")
+	userAddCmd.PersistentFlags().StringVar(&targetUserArgs.password, "password", "", "New user password")
+	userAddCmd.PersistentFlags().BoolVar(&targetUserArgs.admin, "admin", false, "Mark new user as admin")
 	userCmd.AddCommand(userAddCmd)
 }
 
@@ -23,22 +22,22 @@ var userAddCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		ok := true
-		if newUserArgs.name == "" {
-			fmt.Println("Argument --name requied")
+		if targetUserArgs.name == "" {
+			fmt.Println("Argument --name required")
 			ok = false
 		}
-		if newUserArgs.login == "" {
-			fmt.Println("Argument --login requied")
-			ok = false
-		}
-
-		if newUserArgs.email == "" {
-			fmt.Println("Argument --email requied")
+		if targetUserArgs.login == "" {
+			fmt.Println("Argument --login required")
 			ok = false
 		}
 
-		if newUserArgs.password == "" {
-			fmt.Println("Argument --password requied")
+		if targetUserArgs.email == "" {
+			fmt.Println("Argument --email required")
+			ok = false
+		}
+
+		if targetUserArgs.password == "" {
+			fmt.Println("Argument --password required")
 			ok = false
 		}
 
@@ -51,17 +50,17 @@ var userAddCmd = &cobra.Command{
 		defer store.Close()
 
 		if _, err := store.CreateUser(db.UserWithPwd{
-			Pwd: newUserArgs.password,
+			Pwd: targetUserArgs.password,
 			User: db.User{
-				Name: newUserArgs.name,
-				Username: newUserArgs.login,
-				Email: newUserArgs.email,
-				Admin: true,
+				Name:     targetUserArgs.name,
+				Username: targetUserArgs.login,
+				Email:    targetUserArgs.email,
+				Admin:    targetUserArgs.admin,
 			},
 		}); err != nil {
 			panic(err)
 		}
 
-		fmt.Printf("User %s <%s> added!", newUserArgs.login, newUserArgs.email)
+		fmt.Printf("User %s <%s> added!\n", targetUserArgs.login, targetUserArgs.email)
 	},
 }

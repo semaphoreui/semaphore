@@ -87,6 +87,9 @@ type Store interface {
 	CreateUserWithoutPassword(user User) (User, error)
 	CreateUser(user UserWithPwd) (User, error)
 	DeleteUser(userID int) error
+
+	// UpdateUser updates all fields of the entity except Pwd.
+	// Pwd should be present of you want update user password. Empty Pwd ignored.
 	UpdateUser(user UserWithPwd) error
 	SetUserPassword(userID int, password string) error
 	GetUser(userID int) (User, error)

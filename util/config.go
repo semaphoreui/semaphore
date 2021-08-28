@@ -131,7 +131,7 @@ func loadConfig(configPath string) {
 	}
 
 	//If the configPath option has been set try to load and decode it
-	var usedPath string
+	//var usedPath string
 
 	if configPath == "" {
 		// if no configPath look in the cwd
@@ -141,16 +141,15 @@ func loadConfig(configPath string) {
 		file, err := os.Open(defaultPath)
 		exitOnConfigError(err)
 		decodeConfig(file)
-		usedPath = defaultPath
+		//usedPath = defaultPath
 	} else {
 		path := configPath
 		file, err := os.Open(path)
 		exitOnConfigError(err)
 		decodeConfig(file)
-		usedPath = path
+		//usedPath = path
 	}
-
-	fmt.Println("Using config file: " + usedPath)
+	//fmt.Println("Using config file: " + usedPath)
 }
 
 func validateConfig() {
