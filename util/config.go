@@ -20,16 +20,17 @@ var Cookie *securecookie.SecureCookie
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
 
-type DbDriver int
+type DbDriver string
 
 const (
-	DbDriverMySQL DbDriver = iota
-	DbDriverBolt
-	DbDriverPostgres
+	DbDriverMySQL DbDriver = "mysql"
+	DbDriverBolt DbDriver = "bolt"
+	DbDriverPostgres DbDriver = "postgres"
 )
 
 type DbConfig struct {
 	Dialect  DbDriver `json:"-"`
+
 	Hostname string   `json:"host"`
 	Username string   `json:"user"`
 	Password string   `json:"pass"`
@@ -48,6 +49,8 @@ type ConfigType struct {
 	MySQL  DbConfig `json:"mysql"`
 	BoltDb DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"pgsql"`
+
+	Dialect DbDriver `json:"dialect"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -194,13 +197,8 @@ func decodeConfig(file io.Reader) {
 }
 
 // String returns dialect name for GORP.
-// TODO: It should be moved to sql package.
 func (d DbDriver) String() string {
-	return [...]string{
-		"mysql",
-		"", // didn't support by BoltDB
-		"postgres",
-	}[d]
+	return string(d)
 }
 
 func (d *DbConfig) IsPresent() bool {
@@ -251,17 +249,42 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	return
 }
 
+func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
+	if conf.Dialect == "" {
+		switch {
+		case conf.MySQL.IsPresent():
+			dialect = DbDriverMySQL
+		case conf.BoltDb.IsPresent():
+			dialect = DbDriverBolt
+		case conf.Postgres.IsPresent():
+			dialect = DbDriverPostgres
+		default:
+			err = errors.New("database configuration not found")
+		}
+		return
+	}
+
+	dialect = conf.Dialect
+	return
+}
+
 func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
-	switch {
-	case conf.MySQL.IsPresent():
-		dbConfig = conf.MySQL
-		dbConfig.Dialect = DbDriverMySQL
-	case conf.BoltDb.IsPresent():
+	var dialect DbDriver
+	dialect, err = conf.GetDialect()
+
+	if err != nil {
+		return
+	}
+
+	dbConfig.Dialect = dialect
+
+	switch dialect {
+	case DbDriverBolt:
 		dbConfig = conf.BoltDb
-		dbConfig.Dialect = DbDriverBolt
-	case conf.Postgres.IsPresent():
+	case DbDriverPostgres:
 		dbConfig = conf.Postgres
-		dbConfig.Dialect = DbDriverPostgres
+	case DbDriverMySQL:
+		dbConfig = conf.MySQL
 	default:
 		err = errors.New("database configuration not found")
 	}
