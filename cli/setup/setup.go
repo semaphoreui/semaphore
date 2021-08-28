@@ -36,10 +36,13 @@ func InteractiveSetup(conf *util.ConfigType) {
 
 	switch db {
 	case 1:
+		conf.Dialect = util.DbDriverMySQL
 		scanMySQL(conf)
 	case 2:
+		conf.Dialect = util.DbDriverBolt
 		scanBoltDb(conf)
 	case 3:
+		conf.Dialect = util.DbDriverPostgres
 		scanPostgres(conf)
 	}
 
