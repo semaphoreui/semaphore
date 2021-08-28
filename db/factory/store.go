@@ -20,6 +20,6 @@ func CreateStore() db.Store {
 	case util.DbDriverPostgres:
 		return &sql.SqlDb{}
 	default:
-		panic("Unsupported database dialect")
+		panic("Unsupported database dialect: " + config.Dialect)
 	}
 }

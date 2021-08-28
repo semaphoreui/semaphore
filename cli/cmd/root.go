@@ -50,22 +50,24 @@ func Execute() {
 }
 
 func runService() {
-	switch {
-	case util.Config.MySQL.IsPresent():
+	store := createStore()
+	defer store.Close()
+
+	dialect, err := util.Config.GetDialect()
+	if err != nil {
+		panic(err)
+	}
+	switch dialect  {
+	case util.DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
-	case util.Config.BoltDb.IsPresent():
+	case util.DbDriverBolt:
 		fmt.Printf("BoltDB %v\n", util.Config.BoltDb.Hostname)
-	case util.Config.Postgres.IsPresent():
+	case util.DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", util.Config.Postgres.Username, util.Config.Postgres.Hostname, util.Config.Postgres.DbName)
 	default:
 		panic(fmt.Errorf("database configuration not found"))
 	}
-
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
-
-	store := createStore()
-	defer store.Close()
-
 	fmt.Printf("Semaphore %v\n", util.Version)
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
@@ -89,7 +91,7 @@ func runService() {
 
 	fmt.Println("Server is running")
 
-	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
+	err = http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
 
 	if err != nil {
 		log.Panic(err)

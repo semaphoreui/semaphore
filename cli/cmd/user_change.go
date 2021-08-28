@@ -35,7 +35,7 @@ func applyChangeUserArgsForUser(user db.User, store db.Store) {
 		user.Name = targetUserArgs.name
 	}
 
-	if targetUserArgs.admin == true {
+	if targetUserArgs.admin {
 		user.Admin = true
 	}
 

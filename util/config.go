@@ -276,8 +276,6 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 		return
 	}
 
-	dbConfig.Dialect = dialect
-
 	switch dialect {
 	case DbDriverBolt:
 		dbConfig = conf.BoltDb
@@ -288,6 +286,9 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	default:
 		err = errors.New("database configuration not found")
 	}
+
+	dbConfig.Dialect = dialect
+
 	return
 }
 
