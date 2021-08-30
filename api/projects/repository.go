@@ -6,20 +6,36 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 )
 
-func clearRepositoryCache(repository db.Repository) error {
-	repoName := "repository_" + strconv.Itoa(repository.ID)
-	repoPath := util.Config.TmpPath + "/" + repoName
-	_, err := os.Stat(repoPath)
-	if err == nil {
-		return os.RemoveAll(repoPath)
+func removeAllByPattern(path string, filenamePattern string) error {
+	d, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		if matched, _ := filepath.Match(filenamePattern, name); !matched {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(path, name)); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func clearRepositoryCache(repository db.Repository) error {
+	return removeAllByPattern(util.Config.TmpPath, "repository_" + strconv.Itoa(repository.ID) + "_*")
 }
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
