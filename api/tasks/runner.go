@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,7 +36,6 @@ type task struct {
 	store         db.Store
 	task          db.Task
 	template      db.Template
-	//sshKey        db.AccessKey
 	inventory     db.Inventory
 	repository    db.Repository
 	environment   db.Environment
@@ -254,7 +252,7 @@ func (t *task) run() {
 }
 
 func (t *task) prepareError(err error, errMsg string) error {
-	if err == sql.ErrNoRows {
+	if err == db.ErrNotFound {
 		t.log(errMsg)
 		return err
 	}
@@ -296,17 +294,6 @@ func (t *task) populateDetails() error {
 	for _, user := range users {
 		t.users = append(t.users, user.ID)
 	}
-
-	// get access key
-	//t.sshKey, err = t.store.GetAccessKey(t.template.ProjectID, t.template.SSHKeyID)
-	//if err != nil {
-	//	return t.prepareError(err, "Template AccessKey not found!")
-	//}
-	//
-	//if t.sshKey.Type != "ssh" {
-	//	t.log("Non ssh-type keys are currently not supported: " + t.sshKey.Type)
-	//	return errors.New("unsupported SSH Key")
-	//}
 
 	// get inventory
 	t.inventory, err = t.store.GetInventory(t.template.ProjectID, t.template.InventoryID)

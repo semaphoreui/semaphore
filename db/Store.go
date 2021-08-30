@@ -214,7 +214,6 @@ func getEventUsername(d Store, evt Event) (username string, err error) {
 var AccessKeyProps = ObjectProperties{
 	TableName:         "access_key",
 	SortableColumns:   []string{"name", "type"},
-	ForeignColumnName: "ssh_key_id",
 	PrimaryColumnName: "id",
 }
 

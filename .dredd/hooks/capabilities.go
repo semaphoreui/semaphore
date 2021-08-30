@@ -80,8 +80,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			repoID, _ = pRepo.LastInsertId()
 		case "inventory":
 			res, err := store.Sql().Exec(
-				"insert into project__inventory (project_id, name, type, key_id, ssh_key_id, inventory) values (?, ?, ?, ?, ?, ?)",
-				userProject.ID, "ITI-"+uid, "static", userKey.ID, userKey.ID, "Test Inventory")
+				"insert into project__inventory (project_id, name, type, ssh_key_id, inventory) values (?, ?, ?, ?, ?)",
+				userProject.ID, "ITI-"+uid, "static", userKey.ID, "Test Inventory")
 			printError(err)
 			inventoryID, _ = res.LastInsertId()
 		case "environment":
@@ -93,9 +93,9 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "template":
 			res, err := store.Sql().Exec(
 				"insert into project__template " +
-					"(ssh_key_id, project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args) " +
-					"value (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				userKey.ID, userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
+					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args) " +
+					"value (?, ?, ?, ?, ?, ?, ?, ?)",
+				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
 			printError(err)
 			templateID, _ = res.LastInsertId()
 		case "task":
@@ -149,7 +149,6 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("json", "{}", &request)
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
-		bodyFieldProcessor("key_id", userKey.ID, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
