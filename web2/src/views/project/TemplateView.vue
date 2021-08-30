@@ -135,21 +135,6 @@
           <v-list two-line subheader>
             <v-list-item>
               <v-list-item-icon>
-                <v-icon>mdi-key</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>SSH Key</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ keys.find((x) => x.id === item.ssh_key_id).name }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-col>
-        <v-col>
-          <v-list two-line subheader>
-            <v-list-item>
-              <v-list-item-icon>
                 <v-icon>mdi-git</v-icon>
               </v-list-item-icon>
               <v-list-item-content>
@@ -240,7 +225,6 @@ export default {
       ],
       tasks: null,
       item: null,
-      keys: null,
       inventory: null,
       environment: null,
       repositories: null,
@@ -262,7 +246,6 @@ export default {
     isLoaded() {
       return this.item
         && this.tasks
-        && this.keys
         && this.inventory
         && this.environment
         && this.repositories;
@@ -350,12 +333,6 @@ export default {
       this.environment = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      this.keys = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
 

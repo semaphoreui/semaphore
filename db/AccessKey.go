@@ -6,11 +6,17 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+const (
+	AccessKeySSH = "ssh"
+	AccessKeyNone = "none"
+)
+
+
 // AccessKey represents a key used to access a machine with ansible from semaphore
 type AccessKey struct {
 	ID   int    `db:"id" json:"id"`
 	Name string `db:"name" json:"name" binding:"required"`
-	// 'aws/do/gcloud/ssh'
+	// 'ssh/none'
 	Type string `db:"type" json:"type" binding:"required"`
 
 	ProjectID *int    `db:"project_id" json:"project_id"`

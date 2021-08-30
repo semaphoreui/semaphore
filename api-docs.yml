@@ -145,7 +145,7 @@ definitions:
         type: string
       type:
         type: string
-        enum: [ssh, aws, gcloud, do]
+        enum: [ssh,none]
       project_id:
         type: integer
         minimum: 1
@@ -164,7 +164,7 @@ definitions:
         type: string
       type:
         type: string
-        enum: [ssh, aws, gcloud, do]
+        enum: [ssh]
       project_id:
         type: integer
       key:
@@ -872,7 +872,7 @@ paths:
           in: query
           required: false
           type: string
-          enum: [ssh, aws, gcloud, do]
+          enum: [ssh]
           description: Filter by key type
           x-example: ssh
         - name: sort

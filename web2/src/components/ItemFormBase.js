@@ -126,7 +126,7 @@ export default {
 
       try {
         item = (await axios({
-          getRequestOptions: this.isNew ? 'post' : 'put',
+          method: this.isNew ? 'post' : 'put',
           url: this.isNew
             ? this.getItemsUrl()
             : this.getSingleItemUrl(),

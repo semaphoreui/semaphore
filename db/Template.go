@@ -4,7 +4,6 @@ package db
 type Template struct {
 	ID int `db:"id" json:"id"`
 
-	SSHKeyID      int  `db:"ssh_key_id" json:"ssh_key_id"`
 	ProjectID     int  `db:"project_id" json:"project_id"`
 	InventoryID   int  `db:"inventory_id" json:"inventory_id"`
 	RepositoryID  int  `db:"repository_id" json:"repository_id"`

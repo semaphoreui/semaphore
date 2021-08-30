@@ -8,13 +8,6 @@ func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inven
 		return
 	}
 
-	if inventory.KeyID != nil {
-		inventory.Key, err = d.GetAccessKey(projectID, *inventory.KeyID)
-		if err != nil {
-			return
-		}
-	}
-
 	if inventory.SSHKeyID != nil {
 		inventory.SSHKey, err = d.GetAccessKey(projectID, *inventory.SSHKeyID)
 	}
@@ -38,10 +31,9 @@ func (d *SqlDb) DeleteInventorySoft(projectID int, inventoryID int) error {
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 	_, err := d.exec(
-		"update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?",
+		"update project__inventory set name=?, type=?, ssh_key_id=?, inventory=? where id=?",
 		inventory.Name,
 		inventory.Type,
-		inventory.KeyID,
 		inventory.SSHKeyID,
 		inventory.Inventory,
 		inventory.ID)
@@ -52,11 +44,10 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?",
+		"insert into project__inventory (project_id, name, type, ssh_key_id, inventory) values (?, ?, ?, ?, ?)",
 		inventory.ProjectID,
 		inventory.Name,
 		inventory.Type,
-		inventory.KeyID,
 		inventory.SSHKeyID,
 		inventory.Inventory)
 

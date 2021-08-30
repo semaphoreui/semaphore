@@ -37,7 +37,7 @@ type task struct {
 	store         db.Store
 	task          db.Task
 	template      db.Template
-	sshKey        db.AccessKey
+	//sshKey        db.AccessKey
 	inventory     db.Inventory
 	repository    db.Repository
 	environment   db.Environment
@@ -298,15 +298,15 @@ func (t *task) populateDetails() error {
 	}
 
 	// get access key
-	t.sshKey, err = t.store.GetAccessKey(t.template.ProjectID, t.template.SSHKeyID)
-	if err != nil {
-		return t.prepareError(err, "Template AccessKey not found!")
-	}
-
-	if t.sshKey.Type != "ssh" {
-		t.log("Non ssh-type keys are currently not supported: " + t.sshKey.Type)
-		return errors.New("unsupported SSH Key")
-	}
+	//t.sshKey, err = t.store.GetAccessKey(t.template.ProjectID, t.template.SSHKeyID)
+	//if err != nil {
+	//	return t.prepareError(err, "Template AccessKey not found!")
+	//}
+	//
+	//if t.sshKey.Type != "ssh" {
+	//	t.log("Non ssh-type keys are currently not supported: " + t.sshKey.Type)
+	//	return errors.New("unsupported SSH Key")
+	//}
 
 	// get inventory
 	t.inventory, err = t.store.GetInventory(t.template.ProjectID, t.template.InventoryID)
@@ -321,7 +321,7 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	if t.repository.SSHKey.Type != "ssh" {
+	if t.repository.SSHKey.Type != db.AccessKeySSH {
 		t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
 		return errors.New("unsupported SSH Key")
 	}
@@ -491,7 +491,7 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		"-i", inventory,
 	}
 
-	if t.inventory.SSHKeyID != nil {
+	if t.inventory.SSHKeyID != nil && t.inventory.SSHKey.Type == db.AccessKeySSH {
 		args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
 	}
 

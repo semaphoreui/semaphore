@@ -9,8 +9,8 @@ import (
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=?",
-		template.SSHKeyID,
+		"insert into project__template (project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args)" +
+			"value (?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -30,8 +30,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	_, err := d.exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
-		template.SSHKeyID,
+	_, err := d.exec("update project__template set inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
@@ -46,7 +45,6 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 
 func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	q := squirrel.Select("pt.id",
-		"pt.ssh_key_id",
 		"pt.project_id",
 		"pt.inventory_id",
 		"pt.repository_id",
@@ -66,10 +64,6 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 	case "alias", "playbook":
 		q = q.Where("pt.project_id=?", projectID).
 			OrderBy("pt." + params.SortBy + " " + order)
-	case "ssh_key":
-		q = q.LeftJoin("access_key ak ON (pt.ssh_key_id = ak.id)").
-			Where("pt.project_id=?", projectID).
-			OrderBy("ak.name " + order)
 	case "inventory":
 		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
 			Where("pt.project_id=?", projectID).

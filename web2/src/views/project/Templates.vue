@@ -76,10 +76,6 @@
         </router-link>
       </template>
 
-      <template v-slot:item.ssh_key_id="{ item }">
-        {{ keys.find((x) => x.id === item.ssh_key_id).name }}
-      </template>
-
       <template v-slot:item.inventory_id="{ item }">
         {{ inventory.find((x) => x.id === item.inventory_id).name }}
       </template>
@@ -125,7 +121,6 @@ export default {
   },
   data() {
     return {
-      keys: null,
       inventory: null,
       environment: null,
       repositories: null,
@@ -146,7 +141,6 @@ export default {
 
     isLoaded() {
       return this.items
-        && this.keys
         && this.inventory
         && this.environment
         && this.repositories;
@@ -174,11 +168,6 @@ export default {
         {
           text: 'Playbook',
           value: 'playbook',
-          sortable: false,
-        },
-        {
-          text: 'SSH key',
-          value: 'ssh_key_id',
           sortable: false,
         },
         {
@@ -219,12 +208,6 @@ export default {
       this.environment = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      this.keys = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
 

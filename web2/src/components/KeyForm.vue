@@ -52,19 +52,12 @@ export default {
   mixins: [ItemFormBase],
   data() {
     return {
-      keys: null,
       inventoryTypes: [{
         id: 'ssh',
         name: 'SSH Key',
       }, {
-        id: 'aws',
-        name: 'AWS IAM credentials',
-      }, {
-        id: 'gcloud',
-        name: 'Google Cloud API Key',
-      }, {
-        id: 'do',
-        name: 'DigitalOcean API Key',
+        id: 'none',
+        name: 'None',
       }],
     };
   },

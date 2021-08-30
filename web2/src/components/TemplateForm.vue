@@ -24,17 +24,6 @@
     ></v-text-field>
 
     <v-select
-      v-model="item.ssh_key_id"
-      label="SSH Key"
-      :items="keys"
-      item-value="id"
-      item-text="name"
-      :rules="[v => !!v || 'SSH Key is required']"
-      required
-      :disabled="formSaving"
-    ></v-select>
-
-    <v-select
       v-model="item.inventory_id"
       label="Inventory"
       :items="inventory"

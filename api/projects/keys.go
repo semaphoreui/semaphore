@@ -72,9 +72,9 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch key.Type {
-	case "aws", "gcloud", "do":
+	case db.AccessKeyNone:
 		break
-	case "ssh":
+	case db.AccessKeySSH:
 		if key.Secret == nil || len(*key.Secret) == 0 {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",
@@ -88,7 +88,9 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	*key.Secret += "\n"
+	if key.Secret != nil {
+		*key.Secret += "\n"
+	}
 
 	newKey, err := helpers.Store(r).CreateAccessKey(key)
 
@@ -128,9 +130,9 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch key.Type {
-	case "aws", "gcloud", "do":
+	case db.AccessKeyNone:
 		break
-	case "ssh":
+	case db.AccessKeySSH:
 		if key.Secret == nil || len(*key.Secret) == 0 {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "SSH Secret empty",

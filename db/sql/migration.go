@@ -14,7 +14,6 @@ var (
 	dateTimeTypeRE = regexp.MustCompile(`(?i)\bdatetime\b`)
 	tinyintRE = regexp.MustCompile(`(?i)\btinyint\b`)
 	longtextRE = regexp.MustCompile(`(?i)\blongtext\b`)
-	columnModifyRE = regexp.MustCompile(`(?i)\bmodify\b`)
 )
 
 // prepareMigration converts migration SQLite-query to current dialect.
@@ -29,7 +28,6 @@ func (d *SqlDb) prepareMigration(query string) string {
 		query = dateTimeTypeRE.ReplaceAllString(query, "timestamp")
 		query = tinyintRE.ReplaceAllString(query, "smallint")
 		query = longtextRE.ReplaceAllString(query, "text")
-		query = columnModifyRE.ReplaceAllString(query, "alter column")
 	}
 	return query
 }
