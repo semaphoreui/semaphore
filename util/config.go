@@ -66,6 +66,7 @@ type ConfigType struct {
 	// cookie hashing & encryption
 	CookieHash       string `json:"cookie_hash"`
 	CookieEncryption string `json:"cookie_encryption"`
+	AccessKeyEncryption	  string `json:"access_key_encryption"`
 
 	// email alerting
 	EmailSender string `json:"email_sender"`
@@ -292,11 +293,13 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	return
 }
 
-//GenerateCookieSecrets generates cookie secret during setup
-func (conf *ConfigType) GenerateCookieSecrets() {
+//GenerateSecrets generates cookie secret during setup
+func (conf *ConfigType) GenerateSecrets() {
 	hash := securecookie.GenerateRandomKey(32)
 	encryption := securecookie.GenerateRandomKey(32)
+	accessKeyEncryption := securecookie.GenerateRandomKey(32)
 
 	conf.CookieHash = base64.StdEncoding.EncodeToString(hash)
 	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
+	conf.AccessKeyEncryption = base64.StdEncoding.EncodeToString(accessKeyEncryption)
 }

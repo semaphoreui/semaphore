@@ -29,7 +29,7 @@ func doSetup() int {
 	var config *util.ConfigType
 	for {
 		config = &util.ConfigType{}
-		config.GenerateCookieSecrets()
+		config.GenerateSecrets()
 		setup.InteractiveSetup(config)
 
 		if setup.AskConfigConfirmation(config) {

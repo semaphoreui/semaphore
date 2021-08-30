@@ -345,7 +345,13 @@ func (t *task) installKey(key db.AccessKey) error {
 		}
 	}
 
-	return ioutil.WriteFile(path, []byte(*key.Secret), 0600)
+	secret, err := key.DecryptSecret()
+
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path, []byte(secret), 0600)
 }
 
 func (t *task) updateRepository() error {
