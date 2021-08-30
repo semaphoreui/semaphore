@@ -87,7 +87,7 @@ export default {
 
   async created() {
     if (this.isAuthenticated()) {
-      document.location = '/';
+      document.location = document.baseURI;
     }
   },
 
@@ -115,7 +115,7 @@ export default {
           },
         });
 
-        document.location = '/';
+        document.location = document.baseURI;
       } catch (err) {
         console.log(err);
         if (err.response.status === 401) {
