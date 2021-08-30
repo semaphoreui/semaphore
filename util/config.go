@@ -48,7 +48,7 @@ type ldapMappings struct {
 type ConfigType struct {
 	MySQL  DbConfig `json:"mysql"`
 	BoltDb DbConfig `json:"bolt"`
-	Postgres DbConfig `json:"pgsql"`
+	Postgres DbConfig `json:"postgres"`
 
 	Dialect DbDriver `json:"dialect"`
 
@@ -238,7 +238,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				d.DbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"postgres://%s:%s@%s/",
+				"postgres://%s:%s@%s",
 				d.Username,
 				d.Password,
 				d.Hostname)

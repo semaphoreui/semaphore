@@ -14,6 +14,8 @@ var (
 	dateTimeTypeRE = regexp.MustCompile(`(?i)\bdatetime\b`)
 	tinyintRE = regexp.MustCompile(`(?i)\btinyint\b`)
 	longtextRE = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE = regexp.MustCompile(`(?i)\bif exists\b`)
+	dropForeignKey = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // prepareMigration converts migration SQLite-query to current dialect.
@@ -22,12 +24,14 @@ func (d *SqlDb) prepareMigration(query string) string {
 	switch d.sql.Dialect.(type) {
 	case gorp.MySQLDialect:
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
+		query = ifExistsRE.ReplaceAllString(query, "")
 	case gorp.PostgresDialect:
 		query = serialRE.ReplaceAllString(query, "serial primary key")
 		query = identifierQuoteRE.ReplaceAllString(query, "\"")
 		query = dateTimeTypeRE.ReplaceAllString(query, "timestamp")
 		query = tinyintRE.ReplaceAllString(query, "smallint")
 		query = longtextRE.ReplaceAllString(query, "text")
+		query = dropForeignKey.ReplaceAllString(query, "drop constraint")
 	}
 	return query
 }
