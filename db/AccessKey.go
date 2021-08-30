@@ -69,7 +69,7 @@ func (key *AccessKey) EncryptSecret() error {
 		return err
 	}
 
-	secret := string(gcm.Seal(nonce, nonce, plaintext, nil))
+	secret := base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, plaintext, nil))
 
 	key.Secret = &secret
 
@@ -83,12 +83,17 @@ func (key AccessKey) DecryptSecret() (string, error) {
 
 	ciphertext := []byte(*key.Secret)
 
-	if ciphertext[len(ciphertext) - 1] == '\n' { // not encrypted string
+	if ciphertext[len(*key.Secret) - 1] == '\n' { // not encrypted string
 		return *key.Secret, nil
 	}
 
 	if util.Config.AccessKeyEncryption == "" { // do not decrypt if secret key not specified
 		return *key.Secret, nil
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(*key.Secret)
+	if err != nil {
+		return "", err
 	}
 
 	encryption, err := base64.StdEncoding.DecodeString(util.Config.CookieEncryption)
