@@ -131,8 +131,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err == db.ErrNotFound {
 		if ldapUser != nil {
 			// create new LDAP user
-			user = *ldapUser
-			_, err = helpers.Store(r).CreateUserWithoutPassword(user)
+			user, err = helpers.Store(r).CreateUserWithoutPassword(*ldapUser)
 			if err != nil {
 				panic(err)
 			}
