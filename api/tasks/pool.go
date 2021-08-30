@@ -88,12 +88,15 @@ func (p *taskPool) run() {
 	for {
 		select {
 		case record := <-p.logger:
-			err, _ := record.task.store.CreateTaskOutput(db.TaskOutput{
+			_, err := record.task.store.CreateTaskOutput(db.TaskOutput{
 				TaskID: record.task.task.ID,
 				Output: record.output,
 				Time: record.time,
 			})
-			log.Error(err)
+
+			if err != nil {
+				log.Error(err)
+			}
 		case task := <-p.register:
 			p.queue = append(p.queue, task)
 			log.Debug(task)
