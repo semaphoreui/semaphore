@@ -3,7 +3,6 @@ package tasks
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/db"
 	"os/exec"
 	"time"
 
@@ -29,15 +28,11 @@ func (t *task) log(msg string) {
 		sockets.Message(user, b)
 	}
 
-	go func() {
-		_, err := t.store.CreateTaskOutput(db.TaskOutput{
-			TaskID: t.task.ID,
-			Output: msg,
-			Time: now,
-		})
-
-		util.LogPanicWithFields(err, log.Fields{"error": "Failed to insert task output"})
-	}()
+	pool.logger <- logRecord{
+		task: t,
+		output: msg,
+		time: now,
+	}
 }
 
 // Readln reads from the pipe

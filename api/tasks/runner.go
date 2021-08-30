@@ -89,6 +89,17 @@ func (t *task) fail() {
 	t.sendTelegramAlert()
 }
 
+func (t *task) destroyKeys() {
+	err := t.destroyKey(t.repository.SSHKey)
+	if err != nil {
+		t.log("Can't destroy repository SSH key, error: " + err.Error())
+	}
+	err = t.destroyKey(t.inventory.SSHKey)
+	if err != nil {
+		t.log("Can't destroy inventory SSH key, error: " + err.Error())
+	}
+}
+
 func (t *task) createTaskEvent() {
 	objType := taskTypeID
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
@@ -193,22 +204,8 @@ func (t *task) run() {
 		now := time.Now()
 		t.task.End = &now
 		t.updateStatus()
-
-		objType := taskTypeID
-		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
-
-		_, err := t.store.CreateEvent(db.Event{
-			UserID:      t.task.UserID,
-			ProjectID:   &t.projectID,
-			ObjectType:  &objType,
-			ObjectID:    &t.task.ID,
-			Description: &desc,
-		})
-
-		if err != nil {
-			t.log("Fatal error inserting an event")
-			panic(err)
-		}
+		t.createTaskEvent()
+		t.destroyKeys()
 	}()
 
 	if t.task.Status == taskStoppingStatus {
@@ -328,6 +325,14 @@ func (t *task) populateDetails() error {
 	}
 
 	return nil
+}
+
+func (t *task) destroyKey(key db.AccessKey) error {
+	path := key.GetPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+	return os.Remove(path)
 }
 
 func (t *task) installKey(key db.AccessKey) error {

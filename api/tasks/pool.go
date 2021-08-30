@@ -1,12 +1,19 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/db"
 	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 )
+
+type logRecord struct {
+	task *task
+	output string
+	time time.Time
+}
 
 type taskPool struct {
 	queue        []*task
@@ -15,6 +22,7 @@ type taskPool struct {
 	activeNodes  map[string]*task
 	running      int
 	runningTasks map[int]*task
+	logger	     chan logRecord
 }
 
 type resourceLock struct {
@@ -23,12 +31,13 @@ type resourceLock struct {
 }
 
 var pool = taskPool{
-	queue:        make([]*task, 0),
-	register:     make(chan *task),
+	queue:        make([]*task, 0), // queue of waiting tasks
+	register:     make(chan *task), // add task to queue
 	activeProj:   make(map[int]*task),
 	activeNodes:  make(map[string]*task),
-	running:      0,
-	runningTasks: make(map[int]*task),
+	running:      0, // number of running tasks
+	runningTasks: make(map[int]*task), // working tasks
+	logger:       make(chan logRecord, 1000), // store log records to database
 }
 
 var resourceLocker = make(chan *resourceLock)
@@ -78,12 +87,20 @@ func (p *taskPool) run() {
 
 	for {
 		select {
+		case record := <-p.logger:
+			err, _ := record.task.store.CreateTaskOutput(db.TaskOutput{
+				TaskID: record.task.task.ID,
+				Output: record.output,
+				Time: record.time,
+			})
+			log.Error(err)
 		case task := <-p.register:
 			p.queue = append(p.queue, task)
 			log.Debug(task)
 			msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
 			task.log(msg)
 			log.Info(msg)
+
 		case <-ticker.C:
 			if len(p.queue) == 0 {
 				continue
