@@ -10,7 +10,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args)" +
-			"value (?, ?, ?, ?, ?, ?, ?, ?)",
+			"values (?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -30,7 +30,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	_, err := d.exec("update project__template set inventory_id=?, repository_id=?, environment_id=?, alias=?, playbook=?, arguments=?, override_args=? where id=?",
+	_, err := d.exec("update project__template set inventory_id=?, repository_id=?, environment_id=?, alias=?, " +
+		"playbook=?, arguments=?, override_args=? where removed = false and id=?",
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
@@ -53,7 +54,8 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 		"pt.playbook",
 		"pt.arguments",
 		"pt.override_args").
-		From("project__template pt")
+		From("project__template pt").
+		Where("pt.removed = false")
 
 	order := "ASC"
 	if params.SortInverted {
@@ -96,7 +98,7 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) 
 
 	err := d.selectOne(
 		&template,
-		"select * from project__template where project_id=? and id=?",
+		"select * from project__template where project_id=? and id=? and removed = false",
 		projectID,
 		templateID)
 
@@ -108,10 +110,14 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) 
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	res, err := d.exec(
-		"delete from project__template where project_id=? and id=?",
-		projectID,
-		templateID)
+	_, err := d.exec("update project__template set removed=true where project_id=? and id=?", projectID, templateID)
 
-	return validateMutationResult(res, err)
+	return err
+
+	//res, err := d.exec(
+	//	"delete from project__template where project_id=? and id=?",
+	//	projectID,
+	//	templateID)
+
+	//return validateMutationResult(res, err)
 }

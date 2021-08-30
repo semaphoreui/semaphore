@@ -89,6 +89,23 @@ func (t *task) fail() {
 	t.sendTelegramAlert()
 }
 
+func (t *task) createTaskEvent() {
+	objType := taskTypeID
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
+
+	_, err := t.store.CreateEvent(db.Event{
+		UserID:      t.task.UserID,
+		ProjectID:   &t.projectID,
+		ObjectType:  &objType,
+		ObjectID:    &t.task.ID,
+		Description: &desc,
+	})
+
+	if err != nil {
+		t.panicOnError(err, "Fatal error inserting an event")
+	}
+}
+
 func (t *task) prepareRun() {
 	t.prepared = false
 
@@ -97,20 +114,7 @@ func (t *task) prepareRun() {
 		log.Info("Release resource locker with task " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
-		objType := taskTypeID
-		desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
-
-		_, err := t.store.CreateEvent(db.Event{
-			UserID:      t.task.UserID,
-			ProjectID:   &t.projectID,
-			ObjectType:  &objType,
-			ObjectID:    &t.task.ID,
-			Description: &desc,
-		})
-
-		if err != nil {
-			t.panicOnError(err, "Fatal error inserting an event")
-		}
+		t.createTaskEvent()
 	}()
 
 	t.log("Preparing: " + strconv.Itoa(t.task.ID))

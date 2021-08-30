@@ -94,7 +94,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			res, err := store.Sql().Exec(
 				"insert into project__template " +
 					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args) " +
-					"value (?, ?, ?, ?, ?, ?, ?, ?)",
+					"values (?, ?, ?, ?, ?, ?, ?, ?)",
 				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
 			printError(err)
 			templateID, _ = res.LastInsertId()

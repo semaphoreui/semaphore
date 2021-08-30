@@ -145,7 +145,8 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 }
 
 func StopTask(w http.ResponseWriter, r *http.Request) {
-	targetTask := context.Get(r, taskTypeID).(db.Task)
+	targetTask := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
 
 	var activeTask *task
 
@@ -165,22 +166,33 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if activeTask == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	if activeTask.task.Status == taskRunningStatus {
-		if activeTask.process == nil {
-			panic("running process can not be nil")
+	if activeTask == nil { // task not active, but exists in database
+		activeTask = &task{
+			store:     helpers.Store(r),
+			task:      targetTask,
+			projectID: project.ID,
 		}
-
-		if err := activeTask.process.Kill(); err != nil {
+		err := activeTask.populateDetails()
+		if err != nil {
 			helpers.WriteError(w, err)
+			return
 		}
-	}
 
-	activeTask.setStatus(taskStoppingStatus)
+		activeTask.setStatus(taskStoppedStatus)
+
+		activeTask.createTaskEvent()
+	} else {
+		if activeTask.task.Status == taskRunningStatus {
+			if activeTask.process == nil {
+				panic("running process can not be nil")
+			}
+
+			if err := activeTask.process.Kill(); err != nil {
+				helpers.WriteError(w, err)
+			}
+		}
+		activeTask.setStatus(taskStoppingStatus)
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
