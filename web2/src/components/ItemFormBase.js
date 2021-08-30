@@ -2,9 +2,25 @@ import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 
 /**
- * Most of Semaphore entities (keys, environments, etc) has similar REST API for access and
- * manipulation. This class presents this entity. Something like CRUD. It should be used as mixin
- * in vue.js template. Example: KeyForm.vue.
+ * Most of Semaphore entities (keys, environments, etc) have similar REST API for
+ * access and manipulation.
+ * This class presents mixin for creating editing form for such entities.
+ * This class should be used as mixin in Vue-template.
+ *
+ * Simplest example: KeyForm.vue. It demonstrate all you need to understand how it works.
+ *
+ * You must provide next required properties to use this mixin:
+ *
+ * * itemId
+ * * projectId
+ *
+ * Your template must have <v-form ref="form">...</v-form>.
+ *
+ * You must provide next methods in your template:
+ *
+ * * getItemsUrl() - returns URL for retrieving collection of entities (GET-method).
+ * * getSingleItemUrl() - returns URL for retrieving and manipulation of single entity
+ *                        (GET, POST, PUT, DELETE methods).
  */
 export default {
   props: {
@@ -56,11 +72,11 @@ export default {
     },
 
     getItemsUrl() {
-      throw new Error('Not implemented');
+      throw new Error('Not implemented'); // must me implemented in template
     },
 
     getSingleItemUrl() {
-      throw new Error('Not implemented');
+      throw new Error('Not implemented'); // must me implemented in template
     },
 
     async loadData() {
@@ -75,6 +91,20 @@ export default {
       }
     },
 
+    /**
+     * You add add/override some PUT/POST request options with using this method.
+     * For example, you want to change response type, just override this method:
+     * ```
+     * getRequestOptions() {
+     *   return {
+     *     responseType: 'text'
+     *   }
+     * }
+     * ```
+     *
+     * This method works only for create (POST) and update (PUT) requests.
+     * @returns {Object}
+     */
     getRequestOptions() {
       return {};
     },
@@ -96,7 +126,7 @@ export default {
 
       try {
         item = (await axios({
-          method: this.isNew ? 'post' : 'put',
+          getRequestOptions: this.isNew ? 'post' : 'put',
           url: this.isNew
             ? this.getItemsUrl()
             : this.getSingleItemUrl(),
