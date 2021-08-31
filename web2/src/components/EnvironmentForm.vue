@@ -20,18 +20,11 @@
       class="mb-4"
     ></v-text-field>
 
-<!--    <v-textarea-->
-<!--      v-model="item.json"-->
-<!--      label="Environment (This has to be a JSON object)"-->
-<!--      :disabled="formSaving"-->
-<!--      solo-->
-<!--    ></v-textarea>-->
-
     <codemirror
-        label="Environment (This has to be a JSON object)"
         :style="{ border: '1px solid lightgray' }"
         v-model="item.json"
         :options="cmOptions"
+        placeholder="Enter environment JSON..."
     />
 
     <v-alert
@@ -60,7 +53,8 @@ import ItemFormBase from '@/components/ItemFormBase';
 import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/lint/json-lint.js';
+// import 'codemirror/addon/lint/json-lint.js';
+import 'codemirror/addon/display/placeholder.js';
 
 export default {
   mixins: [ItemFormBase],

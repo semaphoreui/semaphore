@@ -7,79 +7,95 @@
   >
       <v-row>
         <v-col cols="12" md="6" class="pb-0">
-    <v-text-field
-      v-model="item.alias"
-      label="Playbook Alias"
-      :rules="[v => !!v || 'Playbook Alias is required']"
-      required
-      :disabled="formSaving"
-    ></v-text-field>
+          <v-text-field
+            v-model="item.alias"
+            label="Playbook Alias"
+            :rules="[v => !!v || 'Playbook Alias is required']"
+            required
+            :disabled="formSaving"
+          ></v-text-field>
 
-    <v-text-field
-      v-model="item.playbook"
-      label="Playbook Filename"
-      :rules="[v => !!v || 'Playbook Filename is required']"
-      required
-      :disabled="formSaving"
-      placeholder="Example: site.yml"
-    ></v-text-field>
+          <v-text-field
+            v-model="item.playbook"
+            label="Playbook Filename"
+            :rules="[v => !!v || 'Playbook Filename is required']"
+            required
+            :disabled="formSaving"
+            placeholder="Example: site.yml"
+          ></v-text-field>
 
-    <v-select
-      v-model="item.inventory_id"
-      label="Inventory"
-      :items="inventory"
-      item-value="id"
-      item-text="name"
-      :rules="[v => !!v || 'Inventory is required']"
-      required
-      :disabled="formSaving"
-    ></v-select>
+          <v-select
+            v-model="item.inventory_id"
+            label="Inventory"
+            :items="inventory"
+            item-value="id"
+            item-text="name"
+            :rules="[v => !!v || 'Inventory is required']"
+            required
+            :disabled="formSaving"
+          ></v-select>
         </v-col>
 
         <v-col cols="12" md="6" class="pb-0">
-    <v-select
-      v-model="item.repository_id"
-      label="Playbook Repository"
-      :items="repositories"
-      item-value="id"
-      item-text="name"
-      :rules="[v => !!v || 'Playbook Repository is required']"
-      required
-      :disabled="formSaving"
-    ></v-select>
+          <v-select
+            v-model="item.repository_id"
+            label="Playbook Repository"
+            :items="repositories"
+            item-value="id"
+            item-text="name"
+            :rules="[v => !!v || 'Playbook Repository is required']"
+            required
+            :disabled="formSaving"
+          ></v-select>
 
-    <v-select
-      v-model="item.environment_id"
-      label="Environment"
-      :items="environment"
-      item-value="id"
-      item-text="name"
-      :rules="[v => !!v || 'Environment is required']"
-      required
-      :disabled="formSaving"
-    ></v-select>
+          <v-select
+            v-model="item.environment_id"
+            label="Environment"
+            :items="environment"
+            item-value="id"
+            item-text="name"
+            :rules="[v => !!v || 'Environment is required']"
+            required
+            :disabled="formSaving"
+          ></v-select>
 
-    <v-textarea
-      outlined
-      class="mt-4"
-      v-model="item.arguments"
-      label="Extra CLI Arguments"
-      :disabled="formSaving"
-      placeholder='*MUST* be a JSON array!
-Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
-      rows="4"
-    ></v-textarea>
-
+          <codemirror
+            class="mt-4"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="item.arguments"
+            :options="cmOptions"
+            :disabled="formSaving"
+            placeholder='Extra CLI Arguments...
+Example:
+[
+  "-i",
+  "@myinventory.sh",
+  "--private-key=/there/id_rsa",
+  "-vvvv"
+]'
+          />
         </v-col>
       </v-row>
   </v-form>
 </template>
 <script>
+/* eslint-disable import/no-extraneous-dependencies,import/extensions */
+
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
+import { codemirror } from 'vue-codemirror';
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/mode/vue/vue.js';
+// import 'codemirror/addon/lint/json-lint.js';
+import 'codemirror/addon/display/placeholder.js';
+
 export default {
   mixins: [ItemFormBase],
+
+  components: {
+    codemirror,
+  },
 
   props: {
     sourceItemId: String,
@@ -87,6 +103,14 @@ export default {
 
   data() {
     return {
+      cmOptions: {
+        tabSize: 2,
+        mode: 'application/json',
+        lineNumbers: true,
+        line: true,
+        lint: true,
+        indentWithTabs: false,
+      },
       item: null,
       keys: null,
       inventory: null,
