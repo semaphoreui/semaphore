@@ -27,10 +27,21 @@
       solo
     ></v-textarea>
 
-    <div>
-      Must be valid JSON. You may use the key ENV to pass a json object which sets environmental
-      variables for the ansible command execution environment
-    </div>
+    <v-alert
+        dense
+        type="info"
+    >
+      Must be valid JSON. You may use the key <code>ENV</code> to pass environment variables
+      to ansible-playbook.
+      Example:
+      <pre style="font-size: 14px;">{
+  "var_available_in_playbook_1": 1245,
+  "var_available_in_playbook_2": "test",
+  "ENV": {
+    "VAR1": "Read by lookup('env', 'VAR1')"
+  }
+}</pre>
+    </v-alert>
   </v-form>
 </template>
 <script>

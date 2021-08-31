@@ -565,7 +565,6 @@ func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string 
 	env = append(env, fmt.Sprintf("PWD=%s", pwd))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	//env = append(env, fmt.Sprintln("GIT_FLUSH=1"))
-
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
 	if gitSSHCommand != nil {
