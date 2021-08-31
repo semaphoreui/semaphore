@@ -31,13 +31,6 @@
     ></v-select>
 
     <v-textarea
-      v-model="item.key"
-      label="Public Key"
-      :disabled="formSaving"
-      v-if="item.type === 'ssh'"
-    ></v-textarea>
-
-    <v-textarea
       v-model="item.secret"
       label="Private Key"
       :disabled="formSaving"

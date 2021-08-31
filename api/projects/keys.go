@@ -98,6 +98,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		*key.Secret += "\n"
 	}
 
+	err := key.EncryptSecret()
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newKey, err := helpers.Store(r).CreateAccessKey(key)
 
 	if err != nil {
@@ -146,7 +153,6 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if key.Type == db.AccessKeyNone {
-		key.Key = nil
 		key.Secret = nil
 	} else if key.Secret == nil || len(*key.Secret) == 0 {
 		// override secret

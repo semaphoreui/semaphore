@@ -339,11 +339,6 @@ func (t *task) installKey(key db.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 
 	path := key.GetPath()
-	if key.Key != nil {
-		if err := ioutil.WriteFile(path+"-cert.pub", []byte(*key.Key), 0600); err != nil {
-			return err
-		}
-	}
 
 	secret, err := key.DecryptSecret()
 

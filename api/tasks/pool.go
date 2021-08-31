@@ -37,7 +37,7 @@ var pool = taskPool{
 	activeNodes:  make(map[string]*task),
 	running:      0, // number of running tasks
 	runningTasks: make(map[int]*task), // working tasks
-	logger:       make(chan logRecord, 1000), // store log records to database
+	logger:       make(chan logRecord, 10000), // store log records to database
 }
 
 var resourceLocker = make(chan *resourceLock)

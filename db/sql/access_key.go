@@ -16,10 +16,9 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]d
 
 func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	res, err := d.exec(
-		"update access_key set name=?, type=?, `key`=?, secret=? where project_id=? and id=?",
+		"update access_key set name=?, type=?, secret=? where project_id=? and id=?",
 		key.Name,
 		key.Type,
-		key.Key,
 		key.Secret,
 		key.ProjectID,
 		key.ID)
@@ -30,11 +29,10 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into access_key (name, type, project_id, `key`, secret) values (?, ?, ?, ?, ?)",
+		"insert into access_key (name, type, project_id, secret) values (?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
-		key.Key,
 		key.Secret)
 
 	if err != nil {
@@ -54,7 +52,6 @@ func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
 	return d.deleteObjectSoft(projectID, db.AccessKeyProps, accessKeyID)
 }
 
-
 func (d *SqlDb) GetGlobalAccessKey(accessKeyID int) (db.AccessKey, error) {
 	var key db.AccessKey
 	err := d.getObject(0, db.GlobalAccessKeyProps, accessKeyID, &key)
@@ -69,10 +66,9 @@ func (d *SqlDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) ([]db.AccessK
 
 func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
 	res, err := d.exec(
-		"update access_key set name=?, type=?, `key`=?, secret=? where id=?",
+		"update access_key set name=?, type=?, secret=? where id=?",
 		key.Name,
 		key.Type,
-		key.Key,
 		key.Secret,
 		key.ID)
 
@@ -82,10 +78,9 @@ func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
 func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into access_key (name, type, `key`, secret) values (?, ?, ?, ?)",
+		"insert into access_key (name, type, secret) values (?, ?, ?)",
 		key.Name,
 		key.Type,
-		key.Key,
 		key.Secret)
 
 	if err != nil {
