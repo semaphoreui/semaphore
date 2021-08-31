@@ -42,6 +42,27 @@ var pool = taskPool{
 
 var resourceLocker = make(chan *resourceLock)
 
+func (p *taskPool) getTask(id int) (task *task){
+
+	for _, t := range p.queue {
+		if t.task.ID == id {
+			task = t
+			break
+		}
+	}
+
+	if task == nil {
+		for _, t := range p.runningTasks {
+			if t.task.ID == id {
+				task = t
+				break
+			}
+		}
+	}
+
+	return
+}
+
 //nolint: gocyclo
 func (p *taskPool) run() {
 	ticker := time.NewTicker(5 * time.Second)

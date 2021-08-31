@@ -31,11 +31,21 @@
     ></v-select>
 
     <v-textarea
+      outlined
       v-model="item.secret"
       label="Private Key"
       :disabled="formSaving"
       v-if="item.type === 'ssh'"
     ></v-textarea>
+
+    <v-alert
+        dense
+        type="info"
+        v-if="item.type === 'none'"
+    >
+      Use this type of key for HTTPS repositories and for
+      playbooks which use non-SSH connections.
+    </v-alert>
   </v-form>
 </template>
 <script>

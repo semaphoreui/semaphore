@@ -148,23 +148,7 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 	targetTask := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
-	var activeTask *task
-
-	for _, t := range pool.queue {
-		if t.task.ID == targetTask.ID {
-			activeTask = t
-			break
-		}
-	}
-
-	if activeTask == nil {
-		for _, t := range pool.runningTasks {
-			if t.task.ID == targetTask.ID {
-				activeTask = t
-				break
-			}
-		}
-	}
+	activeTask := pool.getTask(targetTask.ID)
 
 	if activeTask == nil { // task not active, but exists in database
 		activeTask = &task{
@@ -199,9 +183,18 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTask removes a task from the database
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	targetTask := context.Get(r, taskTypeID).(db.Task)
 	editor := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
+
+	activeTask := pool.getTask(targetTask.ID)
+
+	if activeTask != nil {
+		// can't delete task in queue or running
+		// task must be stopped firstly
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to delete task logs")
@@ -209,7 +202,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).DeleteTaskWithOutputs(project.ID, task.ID)
+	err := helpers.Store(r).DeleteTaskWithOutputs(project.ID, targetTask.ID)
 	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 		w.WriteHeader(http.StatusBadRequest)

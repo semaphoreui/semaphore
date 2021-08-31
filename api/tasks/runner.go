@@ -3,7 +3,6 @@ package tasks
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"io/ioutil"
@@ -46,6 +45,14 @@ type task struct {
 	alert         bool
 	prepared      bool
 	process       *os.Process
+}
+
+func (t *task) getRepoName() string {
+	return "repository_" + strconv.Itoa(t.repository.ID) + "_" + strconv.Itoa(t.template.ID)
+}
+
+func (t *task) getRepoPath() string {
+	return util.Config.TmpPath + "/" + t.getRepoName()
 }
 
 func (t *task) setStatus(status string) {
@@ -309,10 +316,10 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	if t.repository.SSHKey.Type != db.AccessKeySSH {
-		t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
-		return errors.New("unsupported SSH Key")
-	}
+	//if t.repository.SSHKey.Type != db.AccessKeySSH {
+	//	t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
+	//	return errors.New("unsupported SSH Key")
+	//}
 
 	// get environment
 	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
@@ -350,14 +357,22 @@ func (t *task) installKey(key db.AccessKey) error {
 }
 
 func (t *task) updateRepository() error {
-	repoName := "repository_" + strconv.Itoa(t.repository.ID) + "_" + strconv.Itoa(t.template.ID)
-	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
+	t.getRepoPath()
+	repoName := t.getRepoName()
+	_, err := os.Stat(t.getRepoPath())
 
 	cmd := exec.Command("git") //nolint: gas
 	cmd.Dir = util.Config.TmpPath
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
+	switch t.repository.SSHKey.Type {
+	case db.AccessKeySSH:
+		gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
+		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
+	case db.AccessKeyNone:
+		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, nil)
+	default:
+		return fmt.Errorf("unsupported access key type: " + t.repository.SSHKey.Type)
+	}
 
 	repoURL, repoTag := t.repository.GitURL, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
@@ -409,7 +424,7 @@ func (t *task) installRequirements() error {
 
 func (t *task) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
-	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Dir = t.getRepoPath()
 
 	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
@@ -431,7 +446,7 @@ func (t *task) listPlaybookHosts() (string, error) {
 	args = append(args, "--list-hosts")
 
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
-	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Dir = t.getRepoPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	var errb bytes.Buffer
@@ -455,7 +470,7 @@ func (t *task) runPlaybook() (err error) {
 		return
 	}
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
-	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Dir = t.getRepoPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
 
 	t.logCmd(cmd)

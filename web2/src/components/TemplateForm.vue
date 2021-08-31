@@ -17,10 +17,11 @@
 
     <v-text-field
       v-model="item.playbook"
-      label="Playbook Name"
-      :rules="[v => !!v || 'Playbook Name is required']"
+      label="Playbook Filename"
+      :rules="[v => !!v || 'Playbook Filename is required']"
       required
       :disabled="formSaving"
+      placeholder="Example: site.yml"
     ></v-text-field>
 
     <v-select

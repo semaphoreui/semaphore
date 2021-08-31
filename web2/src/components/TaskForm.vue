@@ -11,23 +11,22 @@
       class="pb-2"
     >{{ formError }}</v-alert>
 
-    <v-text-field
-      v-model="item.playbook"
-      label="Playbook Override"
-      :disabled="formSaving"
-    ></v-text-field>
-
     <v-textarea
+      outlined
+      class="mt-4"
       v-model="item.environment"
-      label="Environment Override (*MUST* be valid JSON)"
+      label="Environment Override"
+      placeholder='Example: {"version": 10, "author": "John"}'
       :disabled="formSaving"
       rows="4"
     ></v-textarea>
 
     <v-textarea
+      outlined
       v-model="item.arguments"
       label="Extra CLI Arguments"
       :disabled="formSaving"
+      placeholder='Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
       rows="4"
     ></v-textarea>
   </v-form>

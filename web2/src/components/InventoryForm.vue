@@ -21,11 +21,11 @@
 
     <v-select
       v-model="item.ssh_key_id"
-      label="SSH Key"
+      label="Access Key"
       :items="keys"
       item-value="id"
       item-text="name"
-      :rules="[v => !!v || 'SSH Key is required']"
+      :rules="[v => !!v || 'Access Key is required']"
       required
       :disabled="formSaving"
     ></v-select>
@@ -43,8 +43,8 @@
 
     <v-text-field
       v-model="item.inventory"
-      label="Path to inventory file"
-      :rules="[v => !!v || 'Path to inventory file is required']"
+      label="Path to Inventory file"
+      :rules="[v => !!v || 'Path to Inventory file is required']"
       required
       :disabled="formSaving"
       v-if="item.type === 'file'"
@@ -59,6 +59,14 @@
       v-if="item.type === 'static'"
       solo
     ></v-textarea>
+    <div v-if="item.type === 'static'">
+      Static inventory example:
+      <pre>
+    [website]
+    172.18.8.40
+    172.18.8.41
+      </pre>
+    </div>
   </v-form>
 </template>
 <script>

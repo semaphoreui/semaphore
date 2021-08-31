@@ -71,9 +71,10 @@ func (t *task) sendTelegramAlert() {
 	alert := Alert{
 		TaskID:  strconv.Itoa(t.task.ID),
 		Alias:   t.template.Alias,
-		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
+		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
 		ChatID:  chatID,
 	}
+
 	tpl := template.New("telegram body template")
 	tpl, err := tpl.Parse(telegramTemplate)
 	util.LogError(err)

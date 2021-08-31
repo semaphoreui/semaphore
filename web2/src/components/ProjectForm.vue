@@ -26,7 +26,7 @@
 
     <v-text-field
       v-model="item.alert_chat"
-      label="Chat ID"
+      label="Telegram Chat ID"
       :disabled="formSaving"
     ></v-text-field>
   </v-form>
