@@ -20,16 +20,24 @@
       class="mb-4"
     ></v-text-field>
 
-    <v-textarea
-      v-model="item.json"
-      label="Environment (This has to be a JSON object)"
-      :disabled="formSaving"
-      solo
-    ></v-textarea>
+<!--    <v-textarea-->
+<!--      v-model="item.json"-->
+<!--      label="Environment (This has to be a JSON object)"-->
+<!--      :disabled="formSaving"-->
+<!--      solo-->
+<!--    ></v-textarea>-->
+
+    <codemirror
+        label="Environment (This has to be a JSON object)"
+        :style="{ border: '1px solid lightgray' }"
+        v-model="item.json"
+        :options="cmOptions"
+    />
 
     <v-alert
         dense
         type="info"
+        class="mt-4"
     >
       Must be valid JSON. You may use the key <code>ENV</code> to pass environment variables
       to ansible-playbook.
@@ -45,10 +53,34 @@
   </v-form>
 </template>
 <script>
+/* eslint-disable import/no-extraneous-dependencies,import/extensions */
+
 import ItemFormBase from '@/components/ItemFormBase';
+
+import { codemirror } from 'vue-codemirror';
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/mode/vue/vue.js';
+import 'codemirror/addon/lint/json-lint.js';
 
 export default {
   mixins: [ItemFormBase],
+  components: {
+    codemirror,
+  },
+
+  data() {
+    return {
+      cmOptions: {
+        tabSize: 2,
+        mode: 'application/json',
+        lineNumbers: true,
+        line: true,
+        lint: true,
+        indentWithTabs: false,
+      },
+    };
+  },
+
   methods: {
     getItemsUrl() {
       return `/api/project/${this.projectId}/environment`;

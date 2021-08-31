@@ -50,33 +50,57 @@
       v-if="item.type === 'file'"
     ></v-text-field>
 
-    <v-textarea
-      v-model="item.inventory"
-      label="Inventory"
-      :rules="[v => !!v || 'Inventory is required']"
-      required
-      :disabled="formSaving"
-      v-if="item.type === 'static'"
-      solo
-    ></v-textarea>
-    <div v-if="item.type === 'static'">
+    <codemirror
+        :style="{ border: '1px solid lightgray' }"
+        v-model="item.inventory"
+        :options="cmOptions"
+        v-if="item.type === 'static'"
+    />
+
+    <v-alert
+        dense
+        class="mt-4"
+        type="info"
+        v-if="item.type === 'static'"
+    >
       Static inventory example:
-      <pre>
-    [website]
-    172.18.8.40
-    172.18.8.41
-      </pre>
-    </div>
+      <pre style="font-size: 14px;">[website]
+172.18.8.40
+172.18.8.41</pre>
+    </v-alert>
   </v-form>
 </template>
+<style>
+.CodeMirror {
+  height: 200px !important;
+}
+</style>
 <script>
+/* eslint-disable import/no-extraneous-dependencies,import/extensions */
+
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
+import { codemirror } from 'vue-codemirror';
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/mode/vue/vue.js';
+import 'codemirror/addon/lint/json-lint.js';
+
 export default {
   mixins: [ItemFormBase],
+  components: {
+    codemirror,
+  },
   data() {
     return {
+      cmOptions: {
+        tabSize: 2,
+        mode: 'text/x-ini',
+        lineNumbers: true,
+        line: true,
+        lint: true,
+        indentWithTabs: false,
+      },
       keys: null,
       inventoryTypes: [{
         id: 'static',
