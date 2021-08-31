@@ -65,7 +65,7 @@
             v-model="item.arguments"
             :options="cmOptions"
             :disabled="formSaving"
-            placeholder='Extra CLI Arguments...
+            placeholder='Enter extra CLI Arguments...
 Example:
 [
   "-i",
