@@ -8,10 +8,7 @@ func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inven
 		return
 	}
 
-	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(projectID, *inventory.SSHKeyID)
-	}
-
+	err = db.FillInventory(d, &inventory)
 	return
 }
 

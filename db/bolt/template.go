@@ -4,9 +4,14 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *BoltDb) CreateTemplate(template db.Template) (db.Template, error) {
-	newTemplate, err := d.createObject(template.ProjectID, db.TemplateProps, template)
-	return newTemplate.(db.Template), err
+func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
+	newTpl, err := d.createObject(template.ProjectID, db.TemplateProps, template)
+	if err != nil {
+		return
+	}
+	newTemplate = newTpl.(db.Template)
+	err = db.FillTemplate(d, &newTemplate)
+	return
 }
 
 func (d *BoltDb) UpdateTemplate(template db.Template) error {
@@ -20,6 +25,10 @@ func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (tem
 
 func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
+	if err != nil {
+		return
+	}
+	err = db.FillTemplate(d, &template)
 	return
 }
 

@@ -11,6 +11,9 @@ type Inventory struct {
 	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id"`
 	SSHKey   AccessKey `db:"-" json:"-"`
 
+	BecomeKeyID *int      `db:"become_key_id" json:"become_key_id"`
+	BecomeKey   AccessKey `db:"-" json:"-"`
+
 	// static/file
 	Type string `db:"type" json:"type"`
 

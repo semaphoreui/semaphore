@@ -6,11 +6,9 @@ import (
 
 func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
 	err = d.getObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), &key)
-
 	if err != nil {
 		return
 	}
-
 	err = key.DeserializeSecret()
 	return
 }
@@ -30,6 +28,10 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey,  error) {
+	err := key.SerializeSecret()
+	if err != nil {
+		return db.AccessKey{}, err
+	}
 	newKey, err := d.createObject(*key.ProjectID, db.AccessKeyProps, key)
 	return newKey.(db.AccessKey), err
 }
@@ -44,6 +46,10 @@ func (d *BoltDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
 
 func (d *BoltDb) GetGlobalAccessKey(accessKeyID int) (key db.AccessKey, err error) {
 	err = d.getObject(0, db.GlobalAccessKeyProps, intObjectID(accessKeyID), &key)
+	if err != nil {
+		return
+	}
+	err = key.DeserializeSecret()
 	return
 }
 
@@ -53,10 +59,18 @@ func (d *BoltDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) (keys []db.A
 }
 
 func (d *BoltDb) UpdateGlobalAccessKey(key db.AccessKey) error {
+	err := key.SerializeSecret()
+	if err != nil {
+		return err
+	}
 	return d.updateObject(0, db.GlobalAccessKeyProps, key)
 }
 
 func (d *BoltDb) CreateGlobalAccessKey(key db.AccessKey) (db.AccessKey, error) {
+	err := key.SerializeSecret()
+	if err != nil {
+		return db.AccessKey{}, err
+	}
 	newKey, err := d.createObject(0, db.GlobalAccessKeyProps, key)
 	return newKey.(db.AccessKey), err
 }

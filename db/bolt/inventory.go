@@ -12,10 +12,7 @@ func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inve
 		return
 	}
 
-	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(projectID, *inventory.SSHKeyID)
-	}
-
+	err = db.FillInventory(d, &inventory)
 	return
 }
 

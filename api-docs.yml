@@ -207,6 +207,9 @@ definitions:
         ssh_key_id:
           type: integer
           minimum: 1
+        become_key_id:
+          type: integer
+          minimum: 1
         type:
           type: string
           enum: [static, file]
@@ -222,6 +225,8 @@ definitions:
       inventory:
         type: string
       ssh_key_id:
+        type: integer
+      become_key_id:
         type: integer
       type:
         type: string
@@ -297,6 +302,9 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      vault_pass_id:
+        type: integer
+        minimum: 1
       alias:
         type: string
       playbook:
@@ -322,6 +330,8 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      vault_pass_id:
+        type: integer
       alias:
         type: string
       playbook:
@@ -335,6 +345,8 @@ definitions:
     type: object
     properties:
       project_id:
+        type: integer
+      user_id:
         type: integer
       object_id:
         type:

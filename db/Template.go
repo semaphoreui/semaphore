@@ -19,5 +19,9 @@ type Template struct {
 	OverrideArguments bool `db:"override_args" json:"override_args"`
 
 	Removed bool `db:"removed" json:"-"`
+
 	Description *string `db:"description" json:"description"`
+
+	VaultPassID *int      `db:"vault_pass_id" json:"vault_pass_id"`
+	VaultPass   AccessKey `db:"-" json:"-"`
 }

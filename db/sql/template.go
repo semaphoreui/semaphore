@@ -26,6 +26,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 	newTemplate = template
 	newTemplate.ID = insertID
+	err = db.FillTemplate(d, &newTemplate)
 	return
 }
 
@@ -93,10 +94,8 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 	return
 }
 
-func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) {
-	var template db.Template
-
-	err := d.selectOne(
+func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
+	err = d.selectOne(
 		&template,
 		"select * from project__template where project_id=? and id=? and removed = false",
 		projectID,
@@ -106,7 +105,12 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (db.Template, error) 
 		err = db.ErrNotFound
 	}
 
-	return template, err
+	if err != nil {
+		return
+	}
+
+	err = db.FillTemplate(d, &template)
+	return
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {

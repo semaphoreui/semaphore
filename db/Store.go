@@ -138,6 +138,29 @@ type Store interface {
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
 }
 
+func FillTemplate(d Store, template *Template) (err error) {
+	if template.VaultPassID != nil {
+		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID)
+	}
+	return
+}
+
+func FillInventory(d Store, inventory *Inventory) (err error) {
+	if inventory.SSHKeyID != nil {
+		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.BecomeKeyID != nil {
+		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	return
+}
+
 func FillEvents(d Store, events []Event) (err error) {
 	usernames := make(map[int]string)
 
