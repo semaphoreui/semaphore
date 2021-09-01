@@ -526,9 +526,7 @@ func (t *task) getExtraVars() (string, error) {
 		}
 	}
 
-	if _, ok := extraVars["ENV"]; ok {
-		delete(extraVars, "ENV")
-	}
+	delete(extraVars, "ENV")
 
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
