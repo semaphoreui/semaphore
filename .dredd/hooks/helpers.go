@@ -100,7 +100,7 @@ func deleteUserProjectRelation(pid int, user int) {
 
 func addAccessKey(pid *int) *db.AccessKey {
 	uid := getUUID()
-	secret := "5up3r53cr3t"
+	secret := "5up3r53cr3t\n"
 	key := db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",

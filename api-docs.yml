@@ -152,9 +152,9 @@ definitions:
         x-example: 2
       key:
         type: string
-      secret:
-        type: string
-        example: test
+#      secret:
+#        type: string
+#        example: test
   AccessKey:
     type: object
     properties:

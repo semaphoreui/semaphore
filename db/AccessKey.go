@@ -55,24 +55,24 @@ func (key AccessKey) GetPath() string {
 }
 
 func (key AccessKey) Validate(validateSecretFields bool) error {
-	if key.Name == "" {
-		return fmt.Errorf("name can not be empty")
-	}
+	//if key.Name == "" {
+	//	return fmt.Errorf("name can not be empty")
+	//}
 
-	if !validateSecretFields {
-		return nil
-	}
-
-	switch key.Type {
-	case AccessKeySSH:
-		if key.SshKey.PrivateKey == "" {
-			return fmt.Errorf("private key can not be empty")
-		}
-	case AccessKeyLoginPassword:
-		if key.SshKey.PrivateKey == "" {
-			return fmt.Errorf("password can not be empty")
-		}
-	}
+	//if !validateSecretFields {
+	//	return nil
+	//}
+	//
+	//switch key.Type {
+	//case AccessKeySSH:
+	//	if key.SshKey.PrivateKey == "" {
+	//		return fmt.Errorf("private key can not be empty")
+	//	}
+	//case AccessKeyLoginPassword:
+	//	if key.SshKey.PrivateKey == "" {
+	//		return fmt.Errorf("password can not be empty")
+	//	}
+	//}
 
 	return nil
 }
