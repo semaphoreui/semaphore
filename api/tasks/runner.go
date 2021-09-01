@@ -397,8 +397,8 @@ func (t *task) updateRepository() error {
 }
 
 func (t *task) installRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/repository_%d/roles/requirements.yml", util.Config.TmpPath, t.repository.ID)
-	requirementsHashFilePath := fmt.Sprintf("%s/repository_%d/requirements.md5", util.Config.TmpPath, t.repository.ID)
+	requirementsFilePath := fmt.Sprintf("%s/repository_%d_%d/roles/requirements.yml", util.Config.TmpPath, t.repository.ID, t.template.ID)
+	requirementsHashFilePath := fmt.Sprintf("%s/repository_%d_%d/requirements.md5", util.Config.TmpPath, t.repository.ID, t.template.ID)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.log("No roles/requirements.yml file found. Skip galaxy install process.\n")
