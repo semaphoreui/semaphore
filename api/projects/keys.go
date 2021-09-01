@@ -81,6 +81,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
+		return
 	}
 
 	newKey, err := helpers.Store(r).CreateAccessKey(key)
@@ -122,6 +123,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 
 	if err := key.Validate(oldKey.OverrideSecret); err != nil {
 		helpers.WriteError(w, err)
+		return
 	}
 
 	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {

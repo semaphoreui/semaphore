@@ -21,13 +21,23 @@
 
     <v-select
       v-model="item.ssh_key_id"
-      label="Access Key"
+      label="User Access Key"
       :items="keys"
       item-value="id"
       item-text="name"
       :rules="[v => !!v || 'Access Key is required']"
       required
       :disabled="formSaving"
+    ></v-select>
+
+    <v-select
+        v-model="item.become_key_id"
+        label="Become User Access Key"
+        clearable
+        :items="loginPasswordKeys"
+        item-value="id"
+        item-text="name"
+        :disabled="formSaving"
     ></v-select>
 
     <v-select
@@ -113,6 +123,15 @@ export default {
         name: 'File',
       }],
     };
+  },
+
+  computed: {
+    loginPasswordKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => key.type === 'login_password');
+    },
   },
 
   async created() {

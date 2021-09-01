@@ -69,7 +69,7 @@ func (key AccessKey) Validate(validateSecretFields bool) error {
 			return fmt.Errorf("private key can not be empty")
 		}
 	case AccessKeyLoginPassword:
-		if key.SshKey.PrivateKey == "" {
+		if key.LoginPassword.Password == "" {
 			return fmt.Errorf("password can not be empty")
 		}
 	}

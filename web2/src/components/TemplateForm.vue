@@ -34,33 +34,51 @@
             required
             :disabled="formSaving"
           ></v-select>
+
+          <v-select
+              v-model="item.repository_id"
+              label="Playbook Repository"
+              :items="repositories"
+              item-value="id"
+              item-text="name"
+              :rules="[v => !!v || 'Playbook Repository is required']"
+              required
+              :disabled="formSaving"
+          ></v-select>
+
+          <v-select
+              v-model="item.environment_id"
+              label="Environment"
+              :items="environment"
+              item-value="id"
+              item-text="name"
+              :rules="[v => !!v || 'Environment is required']"
+              required
+              :disabled="formSaving"
+          ></v-select>
+
+          <v-select
+              v-model="item.vault_pass_id"
+              label="Vault Password"
+              clearable
+              :items="loginPasswordKeys"
+              item-value="id"
+              item-text="name"
+              :disabled="formSaving"
+          ></v-select>
+
         </v-col>
 
         <v-col cols="12" md="6" class="pb-0">
-          <v-select
-            v-model="item.repository_id"
-            label="Playbook Repository"
-            :items="repositories"
-            item-value="id"
-            item-text="name"
-            :rules="[v => !!v || 'Playbook Repository is required']"
-            required
-            :disabled="formSaving"
-          ></v-select>
-
-          <v-select
-            v-model="item.environment_id"
-            label="Environment"
-            :items="environment"
-            item-value="id"
-            item-text="name"
-            :rules="[v => !!v || 'Environment is required']"
-            required
-            :disabled="formSaving"
-          ></v-select>
+          <v-textarea
+              outlined
+              v-model="item.description"
+              label="Description"
+              :disabled="formSaving"
+              rows="5"
+          ></v-textarea>
 
           <codemirror
-            class="mt-4"
             :style="{ border: '1px solid lightgray' }"
             v-model="item.arguments"
             :options="cmOptions"
@@ -172,6 +190,13 @@ export default {
         && this.inventory != null
         && this.environment != null
         && this.item != null;
+    },
+
+    loginPasswordKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => key.type === 'login_password');
     },
   },
 

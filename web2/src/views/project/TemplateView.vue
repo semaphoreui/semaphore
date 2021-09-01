@@ -61,6 +61,7 @@
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.alias }}</span>
       </v-toolbar-title>
+
       <v-spacer></v-spacer>
 
       <v-btn
@@ -89,6 +90,16 @@
     </v-toolbar>
 
     <v-container class="pa-0">
+
+      <v-alert
+          border="top"
+          colored-border
+          type="info"
+          elevation="2"
+          class="mb-0 ml-4 mr-4 mb-2"
+          v-if="item.description"
+      >{{ item.description }}</v-alert>
+
       <v-row>
         <v-col>
           <v-list two-line subheader>

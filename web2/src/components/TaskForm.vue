@@ -29,6 +29,22 @@
       placeholder='Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
       rows="4"
     ></v-textarea>
+
+    <v-row no-gutters>
+      <v-col>
+        <v-checkbox
+            v-model="item.debug"
+            label="Debug"
+        ></v-checkbox>
+      </v-col>
+      <v-col>
+        <v-checkbox
+            v-model="item.dry_run"
+            label="Dry Run"
+        ></v-checkbox>
+      </v-col>
+    </v-row>
+
   </v-form>
 </template>
 <script>

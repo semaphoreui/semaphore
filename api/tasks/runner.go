@@ -191,6 +191,12 @@ func (t *task) prepareRun() {
 		return
 	}
 
+	if err := t.installVaultPassFile(); err != nil {
+		t.log("Failed to install vault password file: " + err.Error())
+		t.fail()
+		return
+	}
+
 	// todo: write environment
 
 	if stderr, err := t.listPlaybookHosts(); err != nil {
@@ -342,6 +348,16 @@ func (t *task) destroyKey(key db.AccessKey) error {
 	return os.Remove(path)
 }
 
+func (t *task) installVaultPassFile() error {
+	if t.template.VaultPassID == nil {
+		return nil
+	}
+
+	path := t.template.VaultPass.GetPath()
+
+	return ioutil.WriteFile(path, []byte(t.template.VaultPass.LoginPassword.Password), 0600)
+}
+
 func (t *task) installKey(key db.AccessKey) error {
 	if key.Type != db.AccessKeySSH {
 		return nil
@@ -486,6 +502,42 @@ func (t *task) runPlaybook() (err error) {
 	return
 }
 
+func (t *task) getExtraVars() (string, error) {
+	extraVars := make(map[string]interface{})
+
+	if t.inventory.SSHKey.Type == db.AccessKeyLoginPassword {
+		if t.inventory.SSHKey.LoginPassword.Login != "" {
+			extraVars["ansible_user"] = t.inventory.SSHKey.LoginPassword.Login
+		}
+		extraVars["ansible_password"] = t.inventory.SSHKey.LoginPassword.Password
+	}
+
+	if t.inventory.BecomeKey.Type == db.AccessKeyLoginPassword {
+		if t.inventory.SSHKey.LoginPassword.Login != "" {
+			extraVars["ansible_become_user"] = t.inventory.SSHKey.LoginPassword.Login
+		}
+		extraVars["ansible_become_password"] = t.inventory.SSHKey.LoginPassword.Password
+	}
+
+	if t.environment.JSON != "" {
+		err := json.Unmarshal([]byte(t.environment.JSON), &extraVars)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if _, ok := extraVars["ENV"]; ok {
+		delete(extraVars, "ENV")
+	}
+
+	ev, err := json.Marshal(extraVars)
+	if err != nil {
+		return "", err
+	}
+
+	return string(ev), nil
+}
+
 //nolint: gocyclo
 func (t *task) getPlaybookArgs() ([]string, error) {
 	playbookName := t.task.Playbook
@@ -517,20 +569,16 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		args = append(args, "--check")
 	}
 
-	if len(t.environment.JSON) > 0 {
-		var js map[string]interface{}
-		err := json.Unmarshal([]byte(t.environment.JSON), &js)
-		if err != nil {
-			t.log("JSON is not valid")
-			return nil, err
-		}
+	if t.template.VaultPassID != nil {
+		args = append(args, "--vault-password-file", t.template.VaultPass.GetPath())
+	}
 
-		extraVar, err := removeCommandEnvironment(t.environment.JSON, js)
-		if err != nil {
-			t.log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
-		}
-
-		args = append(args, "--extra-vars", extraVar)
+	extraVars, err := t.getExtraVars()
+	if err != nil {
+		t.log(err.Error())
+		t.log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+	} else if extraVars != "" {
+		args = append(args, "--extra-vars", extraVars)
 	}
 
 	var templateExtraArgs []string
@@ -616,22 +664,6 @@ func extractCommandEnvironment(envJSON string) []string {
 		}
 	}
 	return env
-}
-
-// removeCommandEnvironment removes the ENV key from task environments and returns the resultant json encoded string
-// which can be passed as the --extra-vars flag values
-func removeCommandEnvironment(envJSON string, envJs map[string]interface{}) (string, error) {
-	if _, ok := envJs["ENV"]; ok {
-		delete(envJs, "ENV")
-		ev, err := json.Marshal(envJs)
-		if err != nil {
-			return envJSON, err
-		}
-		envJSON = string(ev)
-	}
-
-	return envJSON, nil
-
 }
 
 // checkTmpDir checks to see if the temporary directory exists
