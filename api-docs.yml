@@ -143,18 +143,16 @@ definitions:
     properties:
       name:
         type: string
+        x-example: None
+        example: None
       type:
         type: string
-        enum: [ssh,none]
+        enum: [none,ssh,login_password]
+        x-example: none
       project_id:
         type: integer
         minimum: 1
         x-example: 2
-      key:
-        type: string
-#      secret:
-#        type: string
-#        example: test
   AccessKey:
     type: object
     properties:
@@ -164,13 +162,9 @@ definitions:
         type: string
       type:
         type: string
-        enum: [ssh]
+        enum: [none,ssh,login_password]
       project_id:
         type: integer
-      key:
-        type: string
-      secret:
-        type: string
 
   EnvironmentRequest:
     type: object
@@ -861,9 +855,9 @@ paths:
           in: query
           required: false
           type: string
-          enum: [ssh]
+          enum: [none,ssh,login_password]
           description: Filter by key type
-          x-example: ssh
+          x-example: none
         - name: sort
           in: query
           required: true
