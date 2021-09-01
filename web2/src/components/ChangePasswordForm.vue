@@ -13,7 +13,10 @@
     <v-text-field
       v-model="item.password"
       label="Password"
-      :rules="[v => !!v || 'Email is required']"
+      :type="showPassword ? 'text' : 'password'"
+      :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+      @click:append="showPassword = !showPassword"
+      :rules="[v => !!v || 'Password is required']"
       required
       :disabled="formSaving"
     ></v-text-field>
@@ -24,6 +27,12 @@ import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
+
+  data() {
+    return {
+      showPassword: false,
+    };
+  },
 
   methods: {
     async loadData() {
