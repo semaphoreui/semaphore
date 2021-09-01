@@ -347,13 +347,15 @@ func (t *task) installKey(key db.AccessKey) error {
 
 	path := key.GetPath()
 
-	secret, err := key.DecryptSecret()
-
-	if err != nil {
-		return err
+	if key.Type != db.AccessKeySSH {
+		return fmt.Errorf("access key must be ssh key")
 	}
 
-	return ioutil.WriteFile(path, []byte(secret), 0600)
+	if key.SshKey.Passphrase != "" {
+		return fmt.Errorf("ssh key with passphrase not supported")
+	}
+
+	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey), 0600)
 }
 
 func (t *task) updateRepository() error {

@@ -2,10 +2,16 @@ package sql
 
 import "github.com/ansible-semaphore/semaphore/db"
 
-func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error) {
-	var key db.AccessKey
-	err := d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
-	return key, err
+func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
+	err = d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
+
+	if err != nil {
+		return
+	}
+
+	err = key.DeserializeSecret()
+
+	return
 }
 
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
@@ -15,6 +21,11 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]d
 }
 
 func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
+	err := key.SerializeSecret()
+	if err != nil {
+		return err
+	}
+
 	res, err := d.exec(
 		"update access_key set name=?, type=?, secret=? where project_id=? and id=?",
 		key.Name,
@@ -27,6 +38,11 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
+	err = key.SerializeSecret()
+	if err != nil {
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into access_key (name, type, project_id, secret) values (?, ?, ?, ?)",
@@ -65,6 +81,11 @@ func (d *SqlDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) ([]db.AccessK
 }
 
 func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
+	err := key.SerializeSecret()
+	if err != nil {
+		return err
+	}
+
 	res, err := d.exec(
 		"update access_key set name=?, type=?, secret=? where id=?",
 		key.Name,
@@ -76,6 +97,11 @@ func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
+	err = key.SerializeSecret()
+	if err != nil {
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into access_key (name, type, secret) values (?, ?, ?)",

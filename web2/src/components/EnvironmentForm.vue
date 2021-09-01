@@ -53,7 +53,6 @@ import ItemFormBase from '@/components/ItemFormBase';
 import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
-// import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 
 export default {

@@ -34,7 +34,7 @@ func KeyMiddleware(next http.Handler) http.Handler {
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	if key := context.Get(r, "accessKey"); key != nil {
 		k := key.(db.AccessKey)
-		k.Secret = nil
+		k.ResetSecret()
 		helpers.WriteJSON(w, http.StatusOK, k)
 		return
 	}
@@ -50,7 +50,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	keys, err := helpers.Store(r).GetAccessKeys(project.ID, params)
 
 	for _, k := range keys {
-		k.Secret = nil
+		k.ResetSecret()
 	}
 
 	if err != nil {
@@ -77,32 +77,8 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch key.Type {
-	case db.AccessKeyNone:
-		break
-	case db.AccessKeySSH:
-		if key.Secret == nil || len(*key.Secret) == 0 {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "SSH Secret empty",
-			})
-			return
-		}
-	default:
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid key type",
-		})
-		return
-	}
-
-	if key.Secret != nil {
-		*key.Secret += "\n"
-	}
-
-	err := key.EncryptSecret()
-
-	if err != nil {
+	if err := key.Validate(true); err != nil {
 		helpers.WriteError(w, err)
-		return
 	}
 
 	newKey, err := helpers.Store(r).CreateAccessKey(key)
@@ -142,30 +118,8 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch key.Type {
-	case db.AccessKeyNone:
-	case db.AccessKeySSH:
-	default:
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid key type",
-		})
-		return
-	}
-
-	if key.Type == db.AccessKeyNone {
-		key.Secret = nil
-	} else if key.Secret == nil || len(*key.Secret) == 0 {
-		// override secret
-		key.Secret = oldKey.Secret
-	} else {
-		*key.Secret += "\n"
-
-		err := key.EncryptSecret()
-
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
+	if err := key.Validate(oldKey.OverrideSecret); err != nil {
+		helpers.WriteError(w, err)
 	}
 
 	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {

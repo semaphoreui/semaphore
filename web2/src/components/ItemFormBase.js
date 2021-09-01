@@ -79,9 +79,13 @@ export default {
       throw new Error('Not implemented'); // must me implemented in template
     },
 
+    getNewItem() {
+      return {};
+    },
+
     async loadData() {
       if (this.isNew) {
-        this.item = {};
+        this.item = this.getNewItem();
       } else {
         this.item = (await axios({
           method: 'get',

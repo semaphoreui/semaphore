@@ -4,10 +4,15 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error) {
-	var key db.AccessKey
-	err := d.getObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), &key)
-	return key, err
+func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
+	err = d.getObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), &key)
+
+	if err != nil {
+		return
+	}
+
+	err = key.DeserializeSecret()
+	return
 }
 
 func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
@@ -17,6 +22,10 @@ func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]
 }
 
 func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
+	err := key.SerializeSecret()
+	if err != nil {
+		return err
+	}
 	return d.updateObject(*key.ProjectID, db.AccessKeyProps, key)
 }
 
