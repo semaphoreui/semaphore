@@ -302,9 +302,8 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
-      vault_pass_id:
-        type: integer
-        minimum: 1
+#      vault_pass_id:
+#        type: integer
       alias:
         type: string
       playbook:
@@ -330,8 +329,8 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
-      vault_pass_id:
-        type: integer
+#      vault_pass_id:
+#        type: integer
       alias:
         type: string
       playbook:
