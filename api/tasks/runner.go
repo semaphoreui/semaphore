@@ -343,13 +343,13 @@ func (t *task) destroyKey(key db.AccessKey) error {
 }
 
 func (t *task) installKey(key db.AccessKey) error {
+	if key.Type != db.AccessKeySSH {
+		return nil
+	}
+
 	t.log("access key " + key.Name + " installed")
 
 	path := key.GetPath()
-
-	if key.Type != db.AccessKeySSH {
-		return fmt.Errorf("access key must be ssh key")
-	}
 
 	if key.SshKey.Passphrase != "" {
 		return fmt.Errorf("ssh key with passphrase not supported")
