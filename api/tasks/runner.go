@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/api/sockets"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -29,22 +30,23 @@ const (
 	taskSuccessStatus  = "success"
 	taskFailStatus     = "error"
 	taskTypeID         = "task"
+	gitURLFilePrefix   = "file://"
 )
 
 type task struct {
-	store         db.Store
-	task          db.Task
-	template      db.Template
-	inventory     db.Inventory
-	repository    db.Repository
-	environment   db.Environment
-	users         []int
-	projectID     int
-	hosts         []string
-	alertChat     string
-	alert         bool
-	prepared      bool
-	process       *os.Process
+	store       db.Store
+	task        db.Task
+	template    db.Template
+	inventory   db.Inventory
+	repository  db.Repository
+	environment db.Environment
+	users       []int
+	projectID   int
+	hosts       []string
+	alertChat   string
+	alert       bool
+	prepared    bool
+	process     *os.Process
 }
 
 func (t *task) getRepoName() string {
@@ -173,10 +175,17 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.updateRepository(); err != nil {
-		t.log("Failed updating repository: " + err.Error())
-		t.fail()
-		return
+	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
+		repositoryPath := strings.TrimPrefix(gitURLFilePrefix, t.repository.GitURL)
+		if _, err := os.Stat(repositoryPath); err != nil {
+			t.log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
+		}
+	} else {
+		if err := t.updateRepository(); err != nil {
+			t.log("Failed updating repository: " + err.Error())
+			t.fail()
+			return
+		}
 	}
 
 	if err := t.installInventory(); err != nil {
