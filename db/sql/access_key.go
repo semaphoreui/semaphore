@@ -1,6 +1,9 @@
 package sql
 
-import "github.com/ansible-semaphore/semaphore/db"
+import (
+	"database/sql"
+	"github.com/ansible-semaphore/semaphore/db"
+)
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
 	err = d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
@@ -20,21 +23,46 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]d
 	return keys, err
 }
 
-func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
-	err := key.SerializeSecret()
+func (d *SqlDb) updateAccessKey(key db.AccessKey, isGlobal bool) error {
+	err := key.Validate(key.OverrideSecret)
+
 	if err != nil {
 		return err
 	}
 
-	res, err := d.exec(
-		"update access_key set name=?, type=?, secret=? where project_id=? and id=?",
-		key.Name,
-		key.Type,
-		key.Secret,
-		key.ProjectID,
-		key.ID)
+	err = key.SerializeSecret()
+
+	if err != nil {
+		return err
+	}
+
+	var res sql.Result
+
+	var args []interface{}
+	query := "update access_key set name=?"
+	args = append(args, key.Name)
+
+	if key.OverrideSecret {
+		query += ", type=?, secret=?"
+		args = append(args, key.Type)
+		args = append(args, key.Secret)
+	}
+
+	query += " where id=?"
+	args = append(args, key.ID)
+
+	if !isGlobal {
+		query += " and project_id=?"
+		args = append(args, key.ProjectID)
+	}
+
+	res, err = d.exec(query, args...)
 
 	return validateMutationResult(res, err)
+}
+
+func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
+	return d.updateAccessKey(key, false)
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
@@ -81,19 +109,7 @@ func (d *SqlDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) ([]db.AccessK
 }
 
 func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
-	err := key.SerializeSecret()
-	if err != nil {
-		return err
-	}
-
-	res, err := d.exec(
-		"update access_key set name=?, type=?, secret=? where id=?",
-		key.Name,
-		key.Type,
-		key.Secret,
-		key.ID)
-
-	return validateMutationResult(res, err)
+	return d.updateAccessKey(key, true)
 }
 
 func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {

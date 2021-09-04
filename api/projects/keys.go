@@ -121,11 +121,6 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := key.Validate(oldKey.OverrideSecret); err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
 	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {
 		helpers.WriteError(w, err)
 		return
