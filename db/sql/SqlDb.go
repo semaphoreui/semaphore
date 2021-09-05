@@ -166,12 +166,12 @@ func createDb() error {
 		return err
 	}
 
-	db, err := sql.Open(cfg.Dialect.String(), connectionString)
+	conn, err := sql.Open(cfg.Dialect.String(), connectionString)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("create database " + cfg.DbName)
+	_, err = conn.Exec("create database " + cfg.DbName)
 
 	if err != nil {
 		log.Warn(err.Error())
