@@ -340,6 +340,31 @@ definitions:
       override_args:
         type: boolean
 
+
+  ScheduleRequest:
+    type: object
+    properties:
+      id:
+        type: integer
+      cron_format:
+        type: string
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
+  Schedule:
+    type: object
+    properties:
+      id:
+        type: integer
+      cron_format:
+        type: string
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
   Event:
     type: object
     properties:
@@ -1198,6 +1223,28 @@ paths:
       responses:
         204:
           description: template removed
+
+
+  # project schedules
+  /project/{project_id}/schedules:
+    parameters:
+    - $ref: "#/parameters/project_id"
+    post:
+      tags:
+      - schedule
+      summary: create schedule
+      parameters:
+      - name: schedule
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/ScheduleRequest"
+      responses:
+        201:
+          description: schedule created
+          schema:
+            $ref: "#/definitions/Schedule"
+
 
   # tasks
   /project/{project_id}/tasks:

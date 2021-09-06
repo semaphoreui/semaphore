@@ -138,6 +138,21 @@ func addUser() *db.User {
 	return &user
 }
 
+func addSchedule() *db.Schedule {
+	schedule, err := store.CreateSchedule(db.Schedule{
+		TemplateID: int(templateID),
+		CronFormat: "* * * 1 *",
+		ProjectID: userProject.ID,
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return &schedule
+}
+
+
 func addTask() *db.Task {
 	t := db.Task{
 		TemplateID: int(templateID),

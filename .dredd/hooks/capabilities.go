@@ -16,6 +16,7 @@ var userPathTestUser *db.User
 var userProject *db.Project
 var userKey *db.AccessKey
 var task *db.Task
+var schedule *db.Schedule
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int64
@@ -26,12 +27,12 @@ var templateID int64
 var capabilities = map[string][]string{
 	"user":        {},
 	"project":     {"user"},
-	//"access_key":  {"project"},
 	"repository":  {"access_key"},
 	"inventory":   {"repository"},
 	"environment": {"repository"},
 	"template":    {"repository", "inventory", "environment"},
 	"task":		   {"template"},
+	"schedule":	   {"template"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -63,6 +64,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 
 		//Add dep specific stuff
 		switch v {
+		case "schedule":
+			schedule = addSchedule()
 		case "user":
 			userPathTestUser = addUser()
 		case "project":
@@ -122,6 +125,7 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(int(environmentID)) },
 	func() string { return strconv.Itoa(int(templateID)) },
 	func() string { return strconv.Itoa(task.ID) },
+	func() string { return strconv.Itoa(schedule.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -156,6 +160,9 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("template_id", templateID, &request)
 	if task != nil {
 		bodyFieldProcessor("task_id", task.ID, &request)
+	}
+	if schedule != nil {
+		bodyFieldProcessor("schedule_id", schedule.ID, &request)
 	}
 
 	// Inject object ID to body for PUT requests
