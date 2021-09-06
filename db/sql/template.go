@@ -55,20 +55,20 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	//
 	//if template.CronFormat == "" {
 	//	_, err = d.exec(
-	//		"delete from project__template_schedule where project_id =? and template_id=?",
+	//		"delete from project__schedule where project_id =? and template_id=?",
 	//		template.ProjectID,
 	//		template.ID)
 	//} else {
 	//	_, err = d.GetTemplateSchedules(template.ProjectID, template.ID)
 	//	if err == nil {
 	//		_, err = d.exec(
-	//			"update project__template_schedule set cron_format=? where project_id =? and template_id=?",
+	//			"update project__schedule set cron_format=? where project_id =? and template_id=?",
 	//			template.CronFormat,
 	//			template.ProjectID,
 	//			template.ID)
 	//	} else if err == db.ErrNotFound {
 	//		_, err = d.exec(
-	//			"insert into project__template_schedule (template_id, cron_format) values (?, ?)",
+	//			"insert into project__schedule (template_id, cron_format) values (?, ?)",
 	//			template.ID,
 	//			template.CronFormat)
 	//	}

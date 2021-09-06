@@ -53,13 +53,13 @@ func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) error {
 }
 
 func (d *SqlDb) GetSchedules() (schedules []db.Schedule, err error) {
-	_, err = d.selectAll(&schedules, "select * from project__template_schedule where cron_format != ''")
+	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != ''")
 	return
 }
 
 func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	_, err = d.selectAll(&schedules,
-		"select * from project__template_schedule where project_id=? and template_id=?",
+		"select * from project__schedule where project_id=? and template_id=?",
 		projectID,
 		templateID)
 	return

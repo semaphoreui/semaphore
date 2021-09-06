@@ -25,7 +25,7 @@ var tablesShouldBeTruncated = [...]string {
 	"project__inventory",
 	"project__repository",
 	"project__template",
-	"project__template_schedule",
+	"project__schedule",
 	"project__user",
 	"user",
 }
