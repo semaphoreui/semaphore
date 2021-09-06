@@ -29,7 +29,7 @@ func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, er
 }
 
 
-func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedule db.Schedule, err error) {
+func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	projSchedules, err := d.GetProjectSchedules(projectID)
 	if err != nil {
 		return
@@ -37,7 +37,7 @@ func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedule d
 
 	for _, s := range projSchedules {
 		if s.TemplateID == templateID {
-			schedule = s
+			schedules = append(schedules, s)
 			return
 		}
 	}
@@ -46,3 +46,24 @@ func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedule d
 	return
 }
 
+func (d *BoltDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
+	newTpl, err := d.createObject(schedule.ProjectID, db.ScheduleProps, schedule)
+	if err != nil {
+		return
+	}
+	newSchedule = newTpl.(db.Schedule)
+	return
+}
+
+func (d *BoltDb) UpdateSchedule(schedule db.Schedule) error {
+	return d.updateObject(schedule.ProjectID, db.ScheduleProps, schedule)
+}
+
+func (d *BoltDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule, err error) {
+	err = d.getObject(projectID, db.ScheduleProps, intObjectID(scheduleID), &schedule)
+	return
+}
+
+func (d *BoltDb) DeleteSchedule(projectID int, scheduleID int) error {
+	return d.deleteObject(projectID, db.ScheduleProps, intObjectID(scheduleID))
+}

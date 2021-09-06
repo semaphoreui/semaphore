@@ -49,7 +49,6 @@ func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (template db.Schedule
 
 func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) error {
 	_, err := d.exec("delete project__schedule where project_id=? and id=?", projectID, scheduleID)
-
 	return err
 }
 
