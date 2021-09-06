@@ -12,6 +12,36 @@ import (
 	"github.com/gorilla/context"
 )
 
+func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.Task, error) {
+	taskObj.Created = time.Now()
+	taskObj.Status = taskWaitingStatus
+	taskObj.UserID = userID
+	taskObj.ProjectID = projectID
+
+	newTask, err := d.CreateTask(taskObj)
+	if err != nil {
+		return db.Task{}, err
+	}
+
+	pool.register <- &task{
+		store:     d,
+		task:      newTask,
+		projectID: projectID,
+	}
+
+	objType := taskTypeID
+	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
+	_, err = d.CreateEvent(db.Event{
+		UserID:      userID,
+		ProjectID:   &projectID,
+		ObjectType:  &objType,
+		ObjectID:    &newTask.ID,
+		Description: &desc,
+	})
+
+	return newTask, err
+}
+
 // AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
@@ -23,33 +53,35 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskObj.Created = time.Now()
-	taskObj.Status = taskWaitingStatus
-	taskObj.UserID = &user.ID
-	taskObj.ProjectID = project.ID
+	newTask, err := AddTaskToPool(helpers.Store(r), taskObj, &user.ID, project.ID)
 
-	newTask, err := helpers.Store(r).CreateTask(taskObj)
-	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	//taskObj.Created = time.Now()
+	//taskObj.Status = taskWaitingStatus
+	//taskObj.UserID = &user.ID
+	//taskObj.ProjectID = project.ID
+	//
+	//newTask, err := helpers.Store(r).CreateTask(taskObj)
+	//if err != nil {
+	//	util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	return
+	//}
 
-	pool.register <- &task{
-		store:     helpers.Store(r),
-		task:      newTask,
-		projectID: project.ID,
-	}
-
-	objType := taskTypeID
-	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newTask.ID,
-		Description: &desc,
-	})
+	//pool.register <- &task{
+	//	store:     helpers.Store(r),
+	//	task:      newTask,
+	//	projectID: project.ID,
+	//}
+	//
+	//objType := taskTypeID
+	//desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
+	//_, err = helpers.Store(r).CreateEvent(db.Event{
+	//	UserID:      &user.ID,
+	//	ProjectID:   &project.ID,
+	//	ObjectType:  &objType,
+	//	ObjectID:    &newTask.ID,
+	//	Description: &desc,
+	//})
 
 	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})

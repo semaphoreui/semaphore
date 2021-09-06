@@ -52,7 +52,10 @@ func Execute() {
 
 func runService() {
 	store := createStore()
+	schedulePool := schedules.CreateSchedulePool(store)
+
 	defer store.Close()
+	defer schedulePool.Destroy()
 
 	dialect, err := util.Config.GetDialect()
 	if err != nil {
@@ -75,7 +78,7 @@ func runService() {
 
 	go sockets.StartWS()
 	go tasks.StartRunner()
-	go schedules.StartRunner(store)
+	go schedulePool.Run()
 
 	route := api.Route()
 

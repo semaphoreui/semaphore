@@ -1,63 +1,71 @@
 package schedules
 
 import (
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/robfig/cron/v3"
 )
 
-type templateRunner struct {
-	schedule db.Schedule
+type ScheduleRunner struct {
+	Store    db.Store
+	Schedule db.Schedule
 }
 
-func (r templateRunner) Run() {
-	// TODO: add task to tasks pool
+func (r ScheduleRunner) Run() {
+	_, err := tasks.AddTaskToPool(r.Store, db.Task{}, nil, r.Schedule.ProjectID)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
-type schedulePool struct {
+type SchedulePool struct {
 	cron *cron.Cron
-	jobs []cron.EntryID
 }
 
-func (p *schedulePool) init() {
+func (p *SchedulePool) init(d db.Store) {
 	p.cron = cron.New()
-}
 
-func (p *schedulePool) loadData(d db.Store) {
 	schedules, err := d.GetSchedules()
 
 	if err != nil {
-		// TODO: log error
+		log.Error(err)
 		return
 	}
 
 	for _, schedule := range schedules {
-		err := p.addSchedule(schedule)
+		err := p.AddRunner(ScheduleRunner{
+			Store:    d,
+			Schedule: schedule,
+		})
 		if err != nil {
-			// TODO: log error
+			log.Error(err)
 		}
 	}
 }
 
-func (p *schedulePool) addSchedule(schedule db.Schedule) error {
-	id, err := p.cron.AddJob(schedule.CronFormat, templateRunner{
-		schedule: schedule,
-	})
+func (p *SchedulePool) AddRunner(runner ScheduleRunner) error {
+	_, err := p.cron.AddJob(runner.Schedule.CronFormat, runner)
 	if err != nil {
 		return err
 	}
-	p.jobs = append(p.jobs, id)
 	return nil
 }
 
-func (p *schedulePool) run() {
+func (p *SchedulePool) Run() {
 	p.cron.Run()
 }
 
-var pool = schedulePool{}
+func (p *SchedulePool) Destroy() {
+	p.cron.Stop()
+	runners := p.cron.Entries()
+	for _, r := range runners {
+		p.cron.Remove(r.ID)
+	}
+	p.cron = nil
+}
 
-// StartRunner begins the schedule pool, used as a goroutine
-func StartRunner(d db.Store) {
-	pool.init()
-	pool.loadData(d)
-	pool.run()
+func CreateSchedulePool(d db.Store) (pool SchedulePool) {
+	pool.init(d)
+	return
 }
