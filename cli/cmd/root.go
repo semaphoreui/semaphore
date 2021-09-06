@@ -85,6 +85,7 @@ func runService() {
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			context.Set(r, "store", store)
+			context.Set(r, "schedule_pool", schedulePool)
 			next.ServeHTTP(w, r)
 		})
 	})

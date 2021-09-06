@@ -3,6 +3,7 @@ package projects
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/api/schedules"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	"net/http"
@@ -30,6 +31,11 @@ func SchedulesMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func refreshSchedulePool(r *http.Request) {
+	pool := context.Get(r, "schedule_pool").(schedules.SchedulePool)
+	pool.Refresh(helpers.Store(r))
+}
+
 // GetSchedule returns single template by ID
 func GetSchedule(w http.ResponseWriter, r *http.Request) {
 	schedule := context.Get(r, "schedule").(db.Schedule)
@@ -46,13 +52,13 @@ func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schedules, err := helpers.Store(r).GetTemplateSchedules(project.ID, templateID)
+	tplSchedules, err := helpers.Store(r).GetTemplateSchedules(project.ID, templateID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, schedules)
+	helpers.WriteJSON(w, http.StatusOK, tplSchedules)
 }
 
 
@@ -65,9 +71,16 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schedule.ProjectID = project.ID
-	schedule, err := helpers.Store(r).CreateSchedule(schedule)
+	err := schedules.ValidateCronFormat(schedule.CronFormat)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
 
+	schedule.ProjectID = project.ID
+	schedule, err = helpers.Store(r).CreateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -76,7 +89,6 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 	objType := "schedule"
 	desc := "Schedule ID " + strconv.Itoa(schedule.ID) + " created"
-
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &project.ID,
@@ -84,10 +96,11 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    &schedule.ID,
 		Description: &desc,
 	})
-
 	if err != nil {
 		log.Error(err)
 	}
+
+	refreshSchedulePool(r)
 
 	helpers.WriteJSON(w, http.StatusCreated, schedule)
 }
@@ -117,7 +130,15 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateSchedule(schedule)
+	err := schedules.ValidateCronFormat(schedule.CronFormat)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	err = helpers.Store(r).UpdateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -139,6 +160,8 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 	}
+
+	refreshSchedulePool(r)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -164,6 +187,8 @@ func RemoveSchedule(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 	}
+
+	refreshSchedulePool(r)
 
 	w.WriteHeader(http.StatusNoContent)
 }

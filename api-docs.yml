@@ -340,7 +340,6 @@ definitions:
       override_args:
         type: boolean
 
-
   ScheduleRequest:
     type: object
     properties:
@@ -348,6 +347,8 @@ definitions:
         type: integer
       cron_format:
         type: string
+        x-example: "* * * 1 *"
+        example: "* * * 1 *"
       project_id:
         type: integer
       template_id:
@@ -467,7 +468,6 @@ parameters:
     type: integer
     required: true
     x-example: 8
-
 paths:
   /ping:
     get:

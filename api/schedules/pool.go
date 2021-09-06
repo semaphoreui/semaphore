@@ -5,6 +5,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/robfig/cron/v3"
+	"sync"
 )
 
 type ScheduleRunner struct {
@@ -20,12 +21,16 @@ func (r ScheduleRunner) Run() {
 }
 
 type SchedulePool struct {
-	cron *cron.Cron
+	cron   *cron.Cron
+	locker sync.Locker
 }
 
-func (p *SchedulePool) init(d db.Store) {
+func (p *SchedulePool) init() {
 	p.cron = cron.New()
+	p.locker = &sync.Mutex{}
+}
 
+func (p *SchedulePool) Refresh(d db.Store) {
 	schedules, err := d.GetSchedules()
 
 	if err != nil {
@@ -33,8 +38,10 @@ func (p *SchedulePool) init(d db.Store) {
 		return
 	}
 
+	p.locker.Lock()
+	p.clear()
 	for _, schedule := range schedules {
-		err := p.AddRunner(ScheduleRunner{
+		_, err := p.addRunner(ScheduleRunner{
 			Store:    d,
 			Schedule: schedule,
 		})
@@ -42,30 +49,45 @@ func (p *SchedulePool) init(d db.Store) {
 			log.Error(err)
 		}
 	}
+	p.locker.Unlock()
 }
 
-func (p *SchedulePool) AddRunner(runner ScheduleRunner) error {
-	_, err := p.cron.AddJob(runner.Schedule.CronFormat, runner)
+func (p *SchedulePool) addRunner(runner ScheduleRunner) (int, error) {
+	id, err := p.cron.AddJob(runner.Schedule.CronFormat, runner)
+
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+
+	return int(id), nil
 }
 
 func (p *SchedulePool) Run() {
 	p.cron.Run()
 }
 
-func (p *SchedulePool) Destroy() {
-	p.cron.Stop()
+func (p *SchedulePool) clear() {
 	runners := p.cron.Entries()
 	for _, r := range runners {
 		p.cron.Remove(r.ID)
 	}
+}
+
+func (p *SchedulePool) Destroy() {
+	p.locker.Lock()
+	p.cron.Stop()
+	p.clear()
 	p.cron = nil
+	p.locker.Unlock()
 }
 
 func CreateSchedulePool(d db.Store) (pool SchedulePool) {
-	pool.init(d)
+	pool.init()
+	pool.Refresh(d)
 	return
+}
+
+func ValidateCronFormat(cronFormat string) error {
+	_, err := cron.ParseStandard(cronFormat)
+	return err
 }
