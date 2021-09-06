@@ -65,6 +65,7 @@ export default {
   methods: {
     async reset() {
       this.item = null;
+      this.formError = null;
       if (this.$refs.form) {
         this.$refs.form.resetValidation();
       }
@@ -77,6 +78,10 @@ export default {
 
     getSingleItemUrl() {
       throw new Error('Not implemented'); // must me implemented in template
+    },
+
+    beforeSave() {
+
     },
 
     afterSave() {
@@ -139,6 +144,8 @@ export default {
       let item;
 
       try {
+        await this.beforeSave();
+
         item = (await axios({
           method: this.isNew ? 'post' : 'put',
           url: this.isNew

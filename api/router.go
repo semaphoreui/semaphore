@@ -137,6 +137,7 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
+	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
 
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)

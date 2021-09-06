@@ -235,6 +235,21 @@ export default {
       return `/api/project/${this.projectId}/templates/${this.itemId}`;
     },
 
+    async beforeSave() {
+      if (this.cronFormat === '') {
+        return;
+      }
+
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/schedules/validate`,
+        responseType: 'json',
+        data: {
+          cron_format: this.cronFormat,
+        },
+      });
+    },
+
     async afterSave(newItem) {
       if (newItem || this.schedules.length === 0) {
         if (this.cronFormat != null && this.cronFormat !== '') {

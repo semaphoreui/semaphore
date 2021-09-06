@@ -61,6 +61,25 @@ func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, tplSchedules)
 }
 
+func validateCronFormat(cronFormat string, w http.ResponseWriter) bool {
+	err := schedules.ValidateCronFormat(cronFormat)
+	if err == nil {
+		return true
+	}
+	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		"error": "Cron: " + err.Error(),
+	})
+	return false
+}
+
+func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
+	var schedule db.Schedule
+	if !helpers.Bind(w, r, &schedule) {
+		return
+	}
+
+	_ = validateCronFormat(schedule.CronFormat, w)
+}
 
 // AddSchedule adds a template to the database
 func AddSchedule(w http.ResponseWriter, r *http.Request) {
@@ -71,16 +90,12 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := schedules.ValidateCronFormat(schedule.CronFormat)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Cron: " + err.Error(),
-		})
+	if !validateCronFormat(schedule.CronFormat, w) {
 		return
 	}
 
 	schedule.ProjectID = project.ID
-	schedule, err = helpers.Store(r).CreateSchedule(schedule)
+	schedule, err := helpers.Store(r).CreateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -130,15 +145,11 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := schedules.ValidateCronFormat(schedule.CronFormat)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Cron: " + err.Error(),
-		})
+	if !validateCronFormat(schedule.CronFormat, w) {
 		return
 	}
 
-	err = helpers.Store(r).UpdateSchedule(schedule)
+	err := helpers.Store(r).UpdateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
