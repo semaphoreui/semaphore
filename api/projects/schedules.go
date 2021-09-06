@@ -14,7 +14,7 @@ func SchedulesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := context.Get(r, "project").(db.Project)
 		scheduleID, err := helpers.GetIntParam("schedule_id", w, r)
-		if err != nil {
+		if err != nil { // not specified schedule_id
 			return
 		}
 
@@ -35,6 +35,26 @@ func GetSchedule(w http.ResponseWriter, r *http.Request) {
 	schedule := context.Get(r, "schedule").(db.Schedule)
 	helpers.WriteJSON(w, http.StatusOK, schedule)
 }
+
+func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	templateID, err := helpers.GetIntParam("template_id", w, r)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "template_id must be provided",
+		})
+		return
+	}
+
+	schedules, err := helpers.Store(r).GetTemplateSchedules(project.ID, templateID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, schedules)
+}
+
 
 // AddSchedule adds a template to the database
 func AddSchedule(w http.ResponseWriter, r *http.Request) {

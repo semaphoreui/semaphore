@@ -83,6 +83,10 @@ export default {
 
     },
 
+    afterLoadData() {
+
+    },
+
     getNewItem() {
       return {};
     },
@@ -97,6 +101,8 @@ export default {
           responseType: 'json',
         })).data;
       }
+
+      await this.afterLoadData();
     },
 
     /**

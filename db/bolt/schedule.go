@@ -30,6 +30,8 @@ func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, er
 
 
 func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
+	schedules = make([]db.Schedule, 0)
+
 	projSchedules, err := d.GetProjectSchedules(projectID)
 	if err != nil {
 		return
@@ -38,11 +40,9 @@ func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules 
 	for _, s := range projSchedules {
 		if s.TemplateID == templateID {
 			schedules = append(schedules, s)
-			return
 		}
 	}
 
-	err = db.ErrNotFound
 	return
 }
 

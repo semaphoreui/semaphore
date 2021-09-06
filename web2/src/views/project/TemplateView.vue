@@ -7,7 +7,7 @@
   </div>
   <div v-else>
     <EditDialog
-      max-width="700"
+      :max-width="700"
       v-model="editDialog"
       save-button-text="Save"
       title="Edit Template"
@@ -249,6 +249,9 @@ export default {
 
   computed: {
     itemId() {
+      if (/^-?\d+$/.test(this.$route.params.templateId)) {
+        return parseInt(this.$route.params.templateId, 10);
+      }
       return this.$route.params.templateId;
     },
     isNew() {

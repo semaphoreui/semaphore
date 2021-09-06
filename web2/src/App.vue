@@ -762,11 +762,11 @@ export default {
       if (!this.isAuthenticated) {
         return;
       }
-        this.user = (await axios({
-          method: 'get',
-          url: '/api/user',
-          responseType: 'json',
-        })).data;
+      this.user = (await axios({
+        method: 'get',
+        url: '/api/user',
+        responseType: 'json',
+      })).data;
     },
 
     getProjectColor(projectData) {

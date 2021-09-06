@@ -136,6 +136,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
+	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
+
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
@@ -189,7 +191,7 @@ func Route() *mux.Router {
 	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/tasks", tasks.GetAllTasks).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", tasks.GetLastTasks).Methods("GET")
-	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetSchedule).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetTemplateSchedules).Methods("GET")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(tasks.GetTaskMiddleware)
