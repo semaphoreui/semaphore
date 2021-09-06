@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
+	"github.com/ansible-semaphore/semaphore/api/schedules"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -74,6 +75,7 @@ func runService() {
 
 	go sockets.StartWS()
 	go tasks.StartRunner()
+	go schedules.StartRunner(store)
 
 	route := api.Route()
 

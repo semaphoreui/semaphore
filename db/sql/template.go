@@ -24,15 +24,21 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	err = db.FillTemplate(d, &newTemplate)
+
+	if err != nil {
+		return
+	}
+
 	newTemplate = template
 	newTemplate.ID = insertID
-	err = db.FillTemplate(d, &newTemplate)
+
 	return
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	_, err := d.exec("update project__template set inventory_id=?, repository_id=?, environment_id=?, alias=?, " +
-		"playbook=?, arguments=?, override_args=? where removed = false and id=?",
+		"playbook=?, arguments=?, override_args=? where removed = false and id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
@@ -40,8 +46,33 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.Playbook,
 		template.Arguments,
 		template.OverrideArguments,
-		template.ID)
-
+		template.ID,
+		template.ProjectID)
+	
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if template.CronFormat == "" {
+	//	_, err = d.exec(
+	//		"delete from project__template_schedule where project_id =? and template_id=?",
+	//		template.ProjectID,
+	//		template.ID)
+	//} else {
+	//	_, err = d.GetTemplateSchedules(template.ProjectID, template.ID)
+	//	if err == nil {
+	//		_, err = d.exec(
+	//			"update project__template_schedule set cron_format=? where project_id =? and template_id=?",
+	//			template.CronFormat,
+	//			template.ProjectID,
+	//			template.ID)
+	//	} else if err == db.ErrNotFound {
+	//		_, err = d.exec(
+	//			"insert into project__template_schedule (template_id, cron_format) values (?, ?)",
+	//			template.ID,
+	//			template.CronFormat)
+	//	}
+	//}
 	return err
 }
 
@@ -117,11 +148,4 @@ func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
 	_, err := d.exec("update project__template set removed=true where project_id=? and id=?", projectID, templateID)
 
 	return err
-
-	//res, err := d.exec(
-	//	"delete from project__template where project_id=? and id=?",
-	//	projectID,
-	//	templateID)
-
-	//return validateMutationResult(res, err)
 }

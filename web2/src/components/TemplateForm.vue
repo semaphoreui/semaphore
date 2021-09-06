@@ -67,6 +67,13 @@
               :disabled="formSaving"
           ></v-select>
 
+          <v-text-field
+              v-model="cronFormat"
+              label="Cron"
+              :disabled="formSaving"
+              placeholder="Example: * 1 * * * *"
+              v-if="schedules == null || schedules.length === 1"
+          ></v-text-field>
         </v-col>
 
         <v-col cols="12" md="6" class="pb-0">
@@ -134,6 +141,8 @@ export default {
       inventory: null,
       repositories: null,
       environment: null,
+      schedules: null,
+      cronFormat: null,
     };
   },
 
@@ -177,6 +186,14 @@ export default {
       url: `/api/project/${this.projectId}/environment`,
       responseType: 'json',
     })).data;
+    this.schedules = (await axios({
+      keys: 'get',
+      url: `/api/project/${this.projectId}/templates/${this.sourceItemId}/schedules`,
+      responseType: 'json',
+    })).data;
+    if (this.schedules.length === 1) {
+      this.cronFormat = this.schedules[0].cron_format;
+    }
   },
 
   computed: {
@@ -189,7 +206,8 @@ export default {
         && this.repositories != null
         && this.inventory != null
         && this.environment != null
-        && this.item != null;
+        && this.item != null
+        && this.schedules != null;
     },
 
     loginPasswordKeys() {
@@ -207,6 +225,45 @@ export default {
 
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/templates/${this.itemId}`;
+    },
+
+    async afterSave(newItem) {
+      if (newItem || this.schedules.length === 0) {
+        if (this.cronFormat !== '') {
+          // new schedule
+          await axios({
+            method: 'post',
+            url: `/api/project/${this.projectId}/schedules`,
+            responseType: 'json',
+            data: {
+              project_id: this.projectId,
+              template_id: newItem ? newItem.id : this.itemId,
+              cron_format: this.cronFormat,
+            },
+          });
+        }
+      } else if (this.schedules.length > 1) {
+        // do nothing
+      } else if (this.schedules === '') {
+        // drop schedule
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/schedules/${this.schedules[0].id}`,
+          responseType: 'json',
+        });
+      } else {
+        // update schedule
+        await axios({
+          method: 'put',
+          url: `/api/project/${this.projectId}/schedules/${this.schedules[0].id}`,
+          responseType: 'json',
+          data: {
+            project_id: this.projectId,
+            template_id: this.itemId,
+            cron_format: this.cronFormat,
+          },
+        });
+      }
     },
   },
 };

@@ -40,6 +40,7 @@ require (
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/radovskyb/watcher v1.0.7 // indirect
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa

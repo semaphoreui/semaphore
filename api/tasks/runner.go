@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,13 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-
-	log "github.com/Sirupsen/logrus"
-
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const (
@@ -32,19 +29,19 @@ const (
 )
 
 type task struct {
-	store         db.Store
-	task          db.Task
-	template      db.Template
-	inventory     db.Inventory
-	repository    db.Repository
-	environment   db.Environment
-	users         []int
-	projectID     int
-	hosts         []string
-	alertChat     string
-	alert         bool
-	prepared      bool
-	process       *os.Process
+	store       db.Store
+	task        db.Task
+	template    db.Template
+	inventory   db.Inventory
+	repository  db.Repository
+	environment db.Environment
+	users       []int
+	projectID   int
+	hosts       []string
+	alertChat   string
+	alert       bool
+	prepared    bool
+	process     *os.Process
 }
 
 func (t *task) getRepoName() string {

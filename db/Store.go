@@ -43,6 +43,8 @@ func ValidateUsername(login string) error {
 	return nil
 }
 
+type Transaction interface {}
+
 type Store interface {
 	Connect() error
 	Close() error
@@ -106,6 +108,13 @@ type Store interface {
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
+
+	GetSchedules() ([]Schedule, error)
+	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
+	CreateSchedule(schedule Schedule) (Schedule, error)
+	UpdateSchedule(schedule Schedule) error
+	GetSchedule(projectID int, scheduleID int) (Schedule, error)
+	DeleteSchedule(projectID int, scheduleID int) error
 
 	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]User, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
@@ -274,6 +283,11 @@ var TemplateProps = ObjectProperties{
 	PrimaryColumnName: "id",
 }
 
+var ScheduleProps = ObjectProperties{
+	TableName:         "project__schedule",
+	PrimaryColumnName: "id",
+}
+
 var ProjectUserProps = ObjectProperties{
 	TableName:         "project__user",
 	PrimaryColumnName: "user_id",
@@ -310,5 +324,4 @@ var TaskProps = ObjectProperties{
 
 var TaskOutputProps = ObjectProperties{
 	TableName:         "task__output",
-	PrimaryColumnName: "",
 }

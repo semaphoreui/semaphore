@@ -79,6 +79,10 @@ export default {
       throw new Error('Not implemented'); // must me implemented in template
     },
 
+    afterSave() {
+
+    },
+
     getNewItem() {
       return {};
     },
@@ -141,6 +145,8 @@ export default {
           },
           ...(this.getRequestOptions()),
         })).data;
+
+        await this.afterSave();
 
         this.$emit('save', {
           item: item || this.item,
