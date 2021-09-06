@@ -5,6 +5,12 @@
       v-model="formValid"
       v-if="isLoaded"
   >
+    <v-alert
+        :value="formError"
+        color="error"
+        class="pb-2"
+    >{{ formError }}</v-alert>
+
     <v-row>
       <v-col cols="12" md="6" class="pb-0">
         <v-text-field

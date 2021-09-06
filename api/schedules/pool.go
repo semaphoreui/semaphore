@@ -14,7 +14,10 @@ type ScheduleRunner struct {
 }
 
 func (r ScheduleRunner) Run() {
-	_, err := tasks.AddTaskToPool(r.Store, db.Task{}, nil, r.Schedule.ProjectID)
+	_, err := tasks.AddTaskToPool(r.Store, db.Task{
+		TemplateID: r.Schedule.TemplateID,
+		ProjectID: r.Schedule.ProjectID,
+	}, nil, r.Schedule.ProjectID)
 	if err != nil {
 		log.Error(err)
 	}

@@ -74,7 +74,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 	err := schedules.ValidateCronFormat(schedule.CronFormat)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
+			"error": "Cron: " + err.Error(),
 		})
 		return
 	}
@@ -133,7 +133,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	err := schedules.ValidateCronFormat(schedule.CronFormat)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
+			"error": "Cron: " + err.Error(),
 		})
 		return
 	}

@@ -7,7 +7,7 @@
   </div>
   <div v-else>
     <EditDialog
-      max-width="700"
+      :max-width="700"
       v-model="editDialog"
       save-button-text="Create"
       title="New template"
