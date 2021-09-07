@@ -159,7 +159,7 @@ export default {
           ...(this.getRequestOptions()),
         })).data;
 
-        await this.afterSave();
+        await this.afterSave(item);
 
         this.$emit('save', {
           item: item || this.item,
