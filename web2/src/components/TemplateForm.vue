@@ -236,7 +236,7 @@ export default {
     },
 
     async beforeSave() {
-      if (this.cronFormat === '') {
+      if (this.cronFormat == null || this.cronFormat === '') {
         return;
       }
 

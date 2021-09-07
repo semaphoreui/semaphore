@@ -34,6 +34,8 @@ func (p *SchedulePool) init() {
 }
 
 func (p *SchedulePool) Refresh(d db.Store) {
+	defer p.locker.Unlock()
+
 	schedules, err := d.GetSchedules()
 
 	if err != nil {
@@ -52,7 +54,6 @@ func (p *SchedulePool) Refresh(d db.Store) {
 			log.Error(err)
 		}
 	}
-	p.locker.Unlock()
 }
 
 func (p *SchedulePool) addRunner(runner ScheduleRunner) (int, error) {
@@ -77,11 +78,11 @@ func (p *SchedulePool) clear() {
 }
 
 func (p *SchedulePool) Destroy() {
+	defer p.locker.Unlock()
 	p.locker.Lock()
 	p.cron.Stop()
 	p.clear()
 	p.cron = nil
-	p.locker.Unlock()
 }
 
 func CreateSchedulePool(d db.Store) (pool SchedulePool) {
