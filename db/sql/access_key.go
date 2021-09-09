@@ -5,15 +5,11 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int, deserializeSecret bool) (key db.AccessKey, err error) {
+func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
 	err = d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
 
 	if err != nil {
 		return
-	}
-
-	if deserializeSecret {
-		err = key.DeserializeSecret()
 	}
 
 	return

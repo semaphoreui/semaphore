@@ -9,7 +9,7 @@ func (d *BoltDb) GetRepository(projectID int, repositoryID int) (repository db.R
 	if err != nil {
 		return
 	}
-	repository.SSHKey, err = d.GetAccessKey(projectID, repository.SSHKeyID, true)
+	repository.SSHKey, err = d.GetAccessKey(projectID, repository.SSHKeyID)
 	return
 }
 

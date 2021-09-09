@@ -71,7 +71,7 @@ type Store interface {
 	DeleteRepository(projectID int, repositoryID int) error
 	DeleteRepositorySoft(projectID int, repositoryID int) error
 
-	GetAccessKey(projectID int, accessKeyID int, deserializeSecret bool) (AccessKey, error)
+	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
@@ -143,14 +143,14 @@ type Store interface {
 
 func FillTemplate(d Store, template *Template) (err error) {
 	if template.VaultPassID != nil {
-		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID, true)
+		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID)
 	}
 	return
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
 	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID, true)
+		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
 	}
 
 	if err != nil {
@@ -158,7 +158,7 @@ func FillInventory(d Store, inventory *Inventory) (err error) {
 	}
 
 	if inventory.BecomeKeyID != nil {
-		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID, true)
+		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
 	}
 
 	return

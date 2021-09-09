@@ -4,14 +4,10 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int, deserializeSecret bool) (key db.AccessKey, err error) {
+func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
 	err = d.getObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), &key)
 	if err != nil {
 		return
-	}
-
-	if deserializeSecret {
-		err = key.DeserializeSecret()
 	}
 
 	return
@@ -36,7 +32,7 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 			return err
 		}
 	} else { // accept only new name, ignore other changes
-		oldKey, err2 := d.GetAccessKey(*key.ProjectID, key.ID, false)
+		oldKey, err2 := d.GetAccessKey(*key.ProjectID, key.ID)
 		if err2 != nil {
 			return err2
 		}

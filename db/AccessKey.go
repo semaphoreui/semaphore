@@ -177,7 +177,11 @@ func (key *AccessKey) DeserializeSecret() error {
 	}
 
 	if util.Config.AccessKeyEncryption == "" {
-		return key.unmarshalAppropriateField(ciphertext)
+		err = key.unmarshalAppropriateField(ciphertext)
+		if _, ok := err.(*json.SyntaxError); ok {
+			err = fmt.Errorf("[ERR_INVALID_ENCRYPTION_KEY] Cannot decrypt access key, perhaps encryption key was changed")
+		}
+		return err
 	}
 
 	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
@@ -205,6 +209,9 @@ func (key *AccessKey) DeserializeSecret() error {
 	ciphertext, err = gcm.Open(nil, nonce, ciphertext, nil)
 
 	if err != nil {
+		if err.Error() == "cipher: message authentication failed" {
+			err = fmt.Errorf("[ERR_INVALID_ENCRYPTION_KEY] Cannot decrypt access key, perhaps encryption key was changed")
+		}
 		return err
 	}
 

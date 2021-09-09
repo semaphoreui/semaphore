@@ -352,6 +352,12 @@ func (t *task) installVaultPassFile() error {
 
 	path := t.template.VaultPass.GetPath()
 
+	err := t.template.VaultPass.DeserializeSecret()
+
+	if err != nil {
+		return err
+	}
+
 	return ioutil.WriteFile(path, []byte(t.template.VaultPass.LoginPassword.Password), 0600)
 }
 
@@ -363,6 +369,12 @@ func (t *task) installKey(key db.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
 
 	path := key.GetPath()
+
+	err := key.DeserializeSecret()
+
+	if err != nil {
+		return err
+	}
 
 	if key.SshKey.Passphrase != "" {
 		return fmt.Errorf("ssh key with passphrase not supported")

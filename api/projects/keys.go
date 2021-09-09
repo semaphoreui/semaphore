@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -19,14 +18,12 @@ func KeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		key, err := helpers.Store(r).GetAccessKey(project.ID, keyID, false)
+		key, err := helpers.Store(r).GetAccessKey(project.ID, keyID)
 
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
-
-		fmt.Println(key.SshKey.PrivateKey)
 
 		context.Set(r, "accessKey", key)
 		next.ServeHTTP(w, r)
