@@ -9,8 +9,9 @@ import (
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template (project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args)" +
-			"values (?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
+			"alias, playbook, arguments, override_args, description)" +
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -18,7 +19,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.Alias,
 		template.Playbook,
 		template.Arguments,
-		template.OverrideArguments)
+		template.OverrideArguments,
+		template.Description)
 
 	if err != nil {
 		return
@@ -38,7 +40,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	_, err := d.exec("update project__template set inventory_id=?, repository_id=?, environment_id=?, alias=?, " +
-		"playbook=?, arguments=?, override_args=? where removed = false and id=? and project_id=?",
+		"playbook=?, arguments=?, override_args=?, description=? " +
+		"where removed = false and id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
@@ -46,33 +49,9 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.Playbook,
 		template.Arguments,
 		template.OverrideArguments,
+		template.Description,
 		template.ID,
 		template.ProjectID)
-	
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if template.CronFormat == "" {
-	//	_, err = d.exec(
-	//		"delete from project__schedule where project_id =? and template_id=?",
-	//		template.ProjectID,
-	//		template.ID)
-	//} else {
-	//	_, err = d.GetTemplateSchedules(template.ProjectID, template.ID)
-	//	if err == nil {
-	//		_, err = d.exec(
-	//			"update project__schedule set cron_format=? where project_id =? and template_id=?",
-	//			template.CronFormat,
-	//			template.ProjectID,
-	//			template.ID)
-	//	} else if err == db.ErrNotFound {
-	//		_, err = d.exec(
-	//			"insert into project__schedule (template_id, cron_format) values (?, ?)",
-	//			template.ID,
-	//			template.CronFormat)
-	//	}
-	//}
 	return err
 }
 

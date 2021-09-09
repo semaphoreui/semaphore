@@ -302,14 +302,15 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
-#      vault_pass_id:
-#        type: integer
       alias:
         type: string
       playbook:
         type: string
       arguments:
         type: string
+      description:
+        type: string
+        example: Hello, World!
       override_args:
         type: boolean
   Template:
@@ -329,14 +330,15 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
-#      vault_pass_id:
-#        type: integer
       alias:
         type: string
       playbook:
         type: string
       arguments:
         type: string
+      description:
+        type: string
+        example: Hello, World!
       override_args:
         type: boolean
 
