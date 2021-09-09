@@ -97,13 +97,13 @@ func (key *AccessKey) SerializeSecret() error {
 		return nil
 	}
 
-	if util.Config.CookieEncryption == "" {
+	if util.Config.AccessKeyEncryption == "" {
 		secret := base64.StdEncoding.EncodeToString(plaintext)
 		key.Secret = &secret
 		return nil
 	}
 
-	encryption, err := base64.StdEncoding.DecodeString(util.Config.CookieEncryption)
+	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
 
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 }
 
 func (key *AccessKey) ResetSecret() {
-	key.Secret = nil
+	//key.Secret = nil
 	key.LoginPassword = LoginPassword{}
 	key.SshKey = SshKey{}
 }
@@ -180,7 +180,7 @@ func (key *AccessKey) DeserializeSecret() error {
 		return key.unmarshalAppropriateField(ciphertext)
 	}
 
-	encryption, err := base64.StdEncoding.DecodeString(util.Config.CookieEncryption)
+	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
 	if err != nil {
 		return err
 	}

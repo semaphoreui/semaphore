@@ -71,19 +71,13 @@ type Store interface {
 	DeleteRepository(projectID int, repositoryID int) error
 	DeleteRepositorySoft(projectID int, repositoryID int) error
 
-	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
+	GetAccessKey(projectID int, accessKeyID int, deserializeSecret bool) (AccessKey, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
+
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
 	DeleteAccessKeySoft(projectID int, accessKeyID int) error
-
-	GetGlobalAccessKey(accessKeyID int) (AccessKey, error)
-	GetGlobalAccessKeys(params RetrieveQueryParams) ([]AccessKey, error)
-	UpdateGlobalAccessKey(accessKey AccessKey) error
-	CreateGlobalAccessKey(accessKey AccessKey) (AccessKey, error)
-	DeleteGlobalAccessKey(accessKeyID int) error
-	DeleteGlobalAccessKeySoft(accessKeyID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
@@ -149,14 +143,14 @@ type Store interface {
 
 func FillTemplate(d Store, template *Template) (err error) {
 	if template.VaultPassID != nil {
-		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID)
+		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID, true)
 	}
 	return
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
 	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID, true)
 	}
 
 	if err != nil {
@@ -164,7 +158,7 @@ func FillInventory(d Store, inventory *Inventory) (err error) {
 	}
 
 	if inventory.BecomeKeyID != nil {
-		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID, true)
 	}
 
 	return

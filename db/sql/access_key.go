@@ -5,14 +5,16 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
+func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int, deserializeSecret bool) (key db.AccessKey, err error) {
 	err = d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
 
 	if err != nil {
 		return
 	}
 
-	err = key.DeserializeSecret()
+	if deserializeSecret {
+		err = key.DeserializeSecret()
+	}
 
 	return
 }
@@ -23,7 +25,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]d
 	return keys, err
 }
 
-func (d *SqlDb) updateAccessKey(key db.AccessKey, isGlobal bool) error {
+func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	err := key.Validate(key.OverrideSecret)
 
 	if err != nil {
@@ -51,18 +53,12 @@ func (d *SqlDb) updateAccessKey(key db.AccessKey, isGlobal bool) error {
 	query += " where id=?"
 	args = append(args, key.ID)
 
-	if !isGlobal {
-		query += " and project_id=?"
-		args = append(args, key.ProjectID)
-	}
+	query += " and project_id=?"
+	args = append(args, key.ProjectID)
 
 	res, err = d.exec(query, args...)
 
 	return validateMutationResult(res, err)
-}
-
-func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
-	return d.updateAccessKey(key, false)
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
@@ -94,50 +90,4 @@ func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 
 func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
 	return d.deleteObjectSoft(projectID, db.AccessKeyProps, accessKeyID)
-}
-
-func (d *SqlDb) GetGlobalAccessKey(accessKeyID int) (db.AccessKey, error) {
-	var key db.AccessKey
-	err := d.getObject(0, db.GlobalAccessKeyProps, accessKeyID, &key)
-	return key, err
-}
-
-func (d *SqlDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-	var keys []db.AccessKey
-	err := d.getObjects(0, db.GlobalAccessKeyProps, params, &keys)
-	return keys, err
-}
-
-func (d *SqlDb) UpdateGlobalAccessKey(key db.AccessKey) error {
-	return d.updateAccessKey(key, true)
-}
-
-func (d *SqlDb) CreateGlobalAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	err = key.SerializeSecret()
-	if err != nil {
-		return
-	}
-
-	insertID, err := d.insert(
-		"id",
-		"insert into access_key (name, type, secret) values (?, ?, ?)",
-		key.Name,
-		key.Type,
-		key.Secret)
-
-	if err != nil {
-		return
-	}
-
-	newKey = key
-	newKey.ID = insertID
-	return
-}
-
-func (d *SqlDb) DeleteGlobalAccessKey(accessKeyID int) error {
-	return d.deleteObject(0, db.GlobalAccessKeyProps, accessKeyID)
-}
-
-func (d *SqlDb) DeleteGlobalAccessKeySoft(accessKeyID int) error {
-	return d.deleteObjectSoft(0, db.GlobalAccessKeyProps, accessKeyID)
 }

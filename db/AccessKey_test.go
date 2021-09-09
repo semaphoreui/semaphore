@@ -6,6 +6,32 @@ import (
 	"testing"
 )
 
+func TestSetSecret(t *testing.T) {
+	accessKey := AccessKey{
+		Type: AccessKeySSH,
+		SshKey: SshKey{
+			PrivateKey: "qerphqeruqoweurqwerqqeuiqwpavqr",
+		},
+	}
+
+	util.Config = &util.ConfigType{}
+	err := accessKey.SerializeSecret()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	secret, err := base64.StdEncoding.DecodeString(*accessKey.Secret)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if string(secret) != "{\"passphrase\":\"\",\"private_key\":\"qerphqeruqoweurqwerqqeuiqwpavqr\"}" {
+		t.Error("invalid secret")
+	}
+}
+
 func TestGetSecret(t *testing.T) {
 	secret := base64.StdEncoding.EncodeToString([]byte(`{
 	"passphrase": "123456",
@@ -15,7 +41,7 @@ func TestGetSecret(t *testing.T) {
 
 	accessKey := AccessKey{
 		Secret: &secret,
-		Type: AccessKeySSH,
+		Type:   AccessKeySSH,
 	}
 
 	err := accessKey.DeserializeSecret()
@@ -30,5 +56,36 @@ func TestGetSecret(t *testing.T) {
 
 	if accessKey.SshKey.PrivateKey != "qerphqeruqoweurqwerqqeuiqwpavqr" {
 		t.Errorf("")
+	}
+}
+
+func TestSetGetSecretWithEncryption(t *testing.T) {
+	accessKey := AccessKey{
+		Type: AccessKeySSH,
+		SshKey: SshKey{
+			PrivateKey: "qerphqeruqoweurqwerqqeuiqwpavqr",
+		},
+	}
+
+	util.Config = &util.ConfigType{
+		AccessKeyEncryption: "hHYgPrhQTZYm7UFTvcdNfKJMB3wtAXtJENUButH+DmM=",
+	}
+
+	err := accessKey.SerializeSecret()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	accessKey.ResetSecret()
+
+	err = accessKey.DeserializeSecret()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if accessKey.SshKey.PrivateKey != "qerphqeruqoweurqwerqqeuiqwpavqr" {
+		t.Error("invalid secret")
 	}
 }
