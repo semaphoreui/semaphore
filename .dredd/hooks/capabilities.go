@@ -10,7 +10,7 @@ import (
 )
 
 // STATE
-// Runtime created objects we needs to reference in test setups
+// Runtime created objects we need to reference in test setups
 var testRunnerUser *db.User
 var userPathTestUser *db.User
 var userProject *db.Project

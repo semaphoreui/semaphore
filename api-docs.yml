@@ -470,6 +470,13 @@ parameters:
     type: integer
     required: true
     x-example: 8
+  schedule_id:
+    name: schedule_id
+    description: schedule ID
+    in: path
+    type: integer
+    required: true
+    x-example: 9
 paths:
   /ping:
     get:
@@ -508,22 +515,6 @@ paths:
           description: ok
           schema:
             $ref: "#/definitions/InfoType"
-
-#  /upgrade:
-#    get:
-#      summary: Check if new updates available and fetch /info
-#      responses:
-#        204:
-#          description: no update
-#        200:
-#          description: ok
-#          schema:
-#            $ref: "#/definitions/InfoType"
-#    post:
-#      summary: Upgrade the server
-#      responses:
-#        200:
-#          description: Server binary was replaced by new version, server has shut down.
 
   # Authentication
   /auth/login:
@@ -1228,6 +1219,40 @@ paths:
 
 
   # project schedules
+  /project/{project_id}/schedules/{schedule_id}:
+    parameters:
+    - $ref: "#/parameters/project_id"
+    - $ref: "#/parameters/schedule_id"
+    get:
+      tags:
+      - schedule
+      summary: Get schedule
+      responses:
+        200:
+          description: Schedule
+          schema:
+            $ref: "#/definitions/Schedule"
+    delete:
+      tags:
+      - schedule
+      summary: Deletes schedule
+      responses:
+        204:
+          description: schedule deleted
+    put:
+      tags:
+      - schedule
+      summary: Updates schedule
+      parameters:
+      - name: schedule
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/ScheduleRequest"
+      responses:
+        204:
+          description: schedule updated
+
   /project/{project_id}/schedules:
     parameters:
     - $ref: "#/parameters/project_id"
