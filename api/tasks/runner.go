@@ -393,7 +393,7 @@ func (t *task) updateRepository() error {
 
 	switch t.repository.SSHKey.Type {
 	case db.AccessKeySSH:
-		gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
+		gitSSHCommand := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + t.repository.SSHKey.GetPath()
 		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
 	case db.AccessKeyNone:
 		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, nil)
@@ -453,7 +453,7 @@ func (t *task) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
+	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + t.repository.SSHKey.GetPath()
 	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
 
 	t.logCmd(cmd)
