@@ -1,5 +1,9 @@
 package db
 
+const (
+	InventoryStatic = "static"
+	InventoryFile = "file"
+)
 // Inventory is the model of an ansible inventory file
 type Inventory struct {
 	ID        int    `db:"id" json:"id"`

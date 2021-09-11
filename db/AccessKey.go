@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -36,7 +37,7 @@ type AccessKey struct {
 
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
-	OverrideSecret bool           `db:"-" json:"override_secret"`
+	OverrideSecret bool          `db:"-" json:"override_secret"`
 }
 
 type LoginPassword struct {
@@ -45,13 +46,85 @@ type LoginPassword struct {
 }
 
 type SshKey struct {
+	Login      string `json:"login"`
 	Passphrase string `json:"passphrase"`
 	PrivateKey string `json:"private_key"`
+}
+
+type AccessKeyUsage int
+
+const (
+	AccessKeyUsageAnsibleUser = iota
+	AccessKeyUsageAnsibleBecomeUser
+	AccessKeyUsagePrivateKey
+	AccessKeyUsageVault
+)
+
+func (key AccessKey) Install(usage AccessKeyUsage) error {
+	if key.Type == AccessKeyNone {
+		return nil
+	}
+
+	path := key.GetPath()
+
+	err := key.DeserializeSecret()
+
+	if err != nil {
+		return err
+	}
+
+	switch usage {
+	case AccessKeyUsagePrivateKey:
+		if key.SshKey.Passphrase != "" {
+			return fmt.Errorf("ssh key with passphrase not supported")
+		}
+		return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+	case AccessKeyUsageVault:
+		switch key.Type {
+		case AccessKeyLoginPassword:
+			return ioutil.WriteFile(path, []byte(key.LoginPassword.Password), 0600)
+		}
+	case AccessKeyUsageAnsibleBecomeUser:
+		switch key.Type {
+		case AccessKeyLoginPassword:
+			return ioutil.WriteFile(path, []byte("ansible_become_user=" + key.LoginPassword.Login + "\n" +
+				"ansible_become_password=" + key.LoginPassword.Password + "\n"), 0600)
+		default:
+			return fmt.Errorf("access key type not supported for ansible user")
+		}
+	case AccessKeyUsageAnsibleUser:
+		switch key.Type {
+		case AccessKeySSH:
+			if key.SshKey.Passphrase != "" {
+				return fmt.Errorf("ssh key with passphrase not supported")
+			}
+			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+		case AccessKeyLoginPassword:
+			return ioutil.WriteFile(path, []byte("ansible_user=" + key.LoginPassword.Login + "\n" +
+				"ansible_password=" + key.LoginPassword.Password + "\n"), 0600)
+		default:
+			return fmt.Errorf("access key type not supported for ansible user")
+		}
+	}
+
+	return nil
 }
 
 // GetPath returns the location of the access key once written to disk
 func (key AccessKey) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.Itoa(key.ID)
+}
+
+func (key AccessKey) GetSshCommand() string {
+	if key.Type != AccessKeySSH {
+		panic("type must be ssh")
+	}
+
+	args := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + key.GetPath()
+	if util.Config.SshConfigPath != "" {
+		args += " -F " + util.Config.SshConfigPath
+	}
+	return args
 }
 
 func (key AccessKey) Validate(validateSecretFields bool) error {

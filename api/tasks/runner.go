@@ -96,11 +96,22 @@ func (t *task) fail() {
 func (t *task) destroyKeys() {
 	err := t.destroyKey(t.repository.SSHKey)
 	if err != nil {
-		t.log("Can't destroy repository SSH key, error: " + err.Error())
+		t.log("Can't destroy repository key, error: " + err.Error())
 	}
+
 	err = t.destroyKey(t.inventory.SSHKey)
 	if err != nil {
-		t.log("Can't destroy inventory SSH key, error: " + err.Error())
+		t.log("Can't destroy inventory user key, error: " + err.Error())
+	}
+
+	err = t.destroyKey(t.inventory.BecomeKey)
+	if err != nil {
+		t.log("Can't destroy inventory become user key, error: " + err.Error())
+	}
+
+	err = t.destroyKey(t.template.VaultPass)
+	if err != nil {
+		t.log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
 }
 
@@ -164,7 +175,7 @@ func (t *task) prepareRun() {
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
 
-	if err := t.installKey(t.repository.SSHKey); err != nil {
+	if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
@@ -350,18 +361,10 @@ func (t *task) installVaultPassFile() error {
 		return nil
 	}
 
-	path := t.template.VaultPass.GetPath()
-
-	err := t.template.VaultPass.DeserializeSecret()
-
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(path, []byte(t.template.VaultPass.LoginPassword.Password), 0600)
+	return t.template.VaultPass.Install(db.AccessKeyUsageVault)
 }
 
-func (t *task) installKey(key db.AccessKey) error {
+func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 	if key.Type != db.AccessKeySSH {
 		return nil
 	}
@@ -388,18 +391,14 @@ func (t *task) updateRepository() error {
 	repoName := t.getRepoName()
 	_, err := os.Stat(t.getRepoPath())
 
+	var gitSSHCommand string
+	if t.repository.SSHKey.Type == db.AccessKeySSH {
+		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
+	}
+
 	cmd := exec.Command("git") //nolint: gas
 	cmd.Dir = util.Config.TmpPath
-
-	switch t.repository.SSHKey.Type {
-	case db.AccessKeySSH:
-		gitSSHCommand := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + t.repository.SSHKey.GetPath()
-		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
-	case db.AccessKeyNone:
-		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, nil)
-	default:
-		return fmt.Errorf("unsupported access key type: " + t.repository.SSHKey.Type)
-	}
+	t.setCmdEnvironment(cmd, gitSSHCommand)
 
 	repoURL, repoTag := t.repository.GitURL, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
@@ -453,8 +452,7 @@ func (t *task) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + t.repository.SSHKey.GetPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
+	t.setCmdEnvironment(cmd, t.repository.SSHKey.GetSshCommand())
 
 	t.logCmd(cmd)
 	return cmd.Run()
@@ -474,7 +472,7 @@ func (t *task) listPlaybookHosts() (string, error) {
 
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
+	t.setCmdEnvironment(cmd, "")
 
 	var errb bytes.Buffer
 	cmd.Stderr = &errb
@@ -498,7 +496,7 @@ func (t *task) runPlaybook() (err error) {
 	}
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
+	t.setCmdEnvironment(cmd, "")
 
 	t.logCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
@@ -511,27 +509,13 @@ func (t *task) runPlaybook() (err error) {
 	return
 }
 
-func (t *task) getExtraVars() (string, error) {
+func (t *task) getExtraVars() (str string, err error) {
 	extraVars := make(map[string]interface{})
 
-	if t.inventory.SSHKey.Type == db.AccessKeyLoginPassword {
-		if t.inventory.SSHKey.LoginPassword.Login != "" {
-			extraVars["ansible_user"] = t.inventory.SSHKey.LoginPassword.Login
-		}
-		extraVars["ansible_password"] = t.inventory.SSHKey.LoginPassword.Password
-	}
-
-	if t.inventory.BecomeKey.Type == db.AccessKeyLoginPassword {
-		if t.inventory.SSHKey.LoginPassword.Login != "" {
-			extraVars["ansible_become_user"] = t.inventory.SSHKey.LoginPassword.Login
-		}
-		extraVars["ansible_become_password"] = t.inventory.SSHKey.LoginPassword.Password
-	}
-
 	if t.environment.JSON != "" {
-		err := json.Unmarshal([]byte(t.environment.JSON), &extraVars)
+		err = json.Unmarshal([]byte(t.environment.JSON), &extraVars)
 		if err != nil {
-			return "", err
+			return
 		}
 	}
 
@@ -539,14 +523,16 @@ func (t *task) getExtraVars() (string, error) {
 
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
-		return "", err
+		return
 	}
 
-	return string(ev), nil
+	str = string(ev)
+
+	return
 }
 
 //nolint: gocyclo
-func (t *task) getPlaybookArgs() ([]string, error) {
+func (t *task) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
 	if len(playbookName) == 0 {
 		playbookName = t.template.Playbook
@@ -554,18 +540,38 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 
 	var inventory string
 	switch t.inventory.Type {
-	case "file":
+	case db.InventoryFile:
 		inventory = t.inventory.Inventory
 	default:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
 	}
 
-	args := []string{
+	args = []string{
 		"-i", inventory,
 	}
 
-	if t.inventory.SSHKeyID != nil && t.inventory.SSHKey.Type == db.AccessKeySSH {
-		args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
+	if t.inventory.SSHKeyID != nil {
+		switch t.inventory.SSHKey.Type {
+		case db.AccessKeySSH:
+			args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
+		case db.AccessKeyLoginPassword:
+			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
+		case db.AccessKeyNone:
+		default:
+			err = fmt.Errorf("[ERR_INVALID_ACCESS_KEY]")
+			return
+		}
+	}
+
+	if t.inventory.BecomeKeyID	 != nil {
+		switch t.inventory.SSHKey.Type {
+		case db.AccessKeyLoginPassword:
+			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
+		case db.AccessKeyNone:
+		default:
+			err = fmt.Errorf("[ERR_INVALID_ACCESS_KEY]")
+			return
+		}
 	}
 
 	if t.task.Debug {
@@ -590,19 +596,19 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 
 	var templateExtraArgs []string
 	if t.template.Arguments != nil {
-		err := json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
+		err = json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
 		if err != nil {
 			t.log("Could not unmarshal arguments to []string")
-			return nil, err
+			return
 		}
 	}
 
 	var taskExtraArgs []string
 	if t.task.Arguments != nil {
-		err := json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
+		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
 		if err != nil {
 			t.log("Could not unmarshal arguments to []string")
-			return nil, err
+			return
 		}
 	}
 
@@ -613,22 +619,20 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		args = append(args, taskExtraArgs...)
 		args = append(args, playbookName)
 	}
-	return args, nil
+
+	return
 }
 
-func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string {
+func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("HOME=%s", home))
-	env = append(env, fmt.Sprintf("PWD=%s", pwd))
+	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
+	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
-	//env = append(env, fmt.Sprintln("GIT_FLUSH=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
-
-	if gitSSHCommand != nil {
-		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", *gitSSHCommand))
+	if gitSSHCommand != "" {
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
 	}
-
-	return env
+	cmd.Env = env
 }
 
 func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
