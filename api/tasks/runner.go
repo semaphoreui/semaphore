@@ -534,7 +534,7 @@ func (t *task) getExtraVars() (str string, err error) {
 //nolint: gocyclo
 func (t *task) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
-	if len(playbookName) == 0 {
+	if playbookName == "" {
 		playbookName = t.template.Playbook
 	}
 
@@ -558,18 +558,18 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
 		case db.AccessKeyNone:
 		default:
-			err = fmt.Errorf("[ERR_INVALID_ACCESS_KEY]")
+			err = fmt.Errorf("access key does not suite for inventory's User Access Key")
 			return
 		}
 	}
 
-	if t.inventory.BecomeKeyID	 != nil {
-		switch t.inventory.SSHKey.Type {
+	if t.inventory.BecomeKeyID != nil {
+		switch t.inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
+			args = append(args, "--extra-vars=@"+t.inventory.BecomeKey.GetPath())
 		case db.AccessKeyNone:
 		default:
-			err = fmt.Errorf("[ERR_INVALID_ACCESS_KEY]")
+			err = fmt.Errorf("access key does not suite for inventory's Become User Access Key")
 			return
 		}
 	}
