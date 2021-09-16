@@ -190,7 +190,7 @@ func TestSortObjects(t *testing.T) {
 }
 
 func TestGetFieldNameByTag(t *testing.T) {
-	f, err := getFieldNameByTag(reflect.TypeOf(test1{}), "db", "first_name")
+	f, err := getFieldNameByTagSuffix(reflect.TypeOf(test1{}), "db", "first_name")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -201,7 +201,7 @@ func TestGetFieldNameByTag(t *testing.T) {
 }
 
 func TestGetFieldNameByTag2(t *testing.T) {
-	f, err := getFieldNameByTag(reflect.TypeOf(db.UserWithPwd{}), "db", "id")
+	f, err := getFieldNameByTagSuffix(reflect.TypeOf(db.UserWithPwd{}), "db", "id")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
