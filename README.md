@@ -4,6 +4,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&utm_medium=referral&utm_content=ansible-semaphore/semaphore&utm_campaign=Badge_Coverage)
 [![semaphore on discord](https://img.shields.io/badge/discord-semaphore%20community-738bd7.svg)](https://discord.gg/GXXTBVz)
+[![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://badges.gitter.im/AnsibleSemaphore/semaphore.svg)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
 - [Docker Hub](https://hub.docker.com/r/ansiblesemaphore/semaphore/)
@@ -22,7 +23,7 @@ All releases after 2.5.1 are signed with the gpg public key
 
 https://github.com/ansible-semaphore/semaphore/wiki/Installation
 
-[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore) [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://badges.gitter.im/AnsibleSemaphore/semaphore.svg)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
 
 ## Demo
 
