@@ -109,7 +109,7 @@ func (t *task) destroyKeys() {
 		t.log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.template.VaultPass)
+	err = t.destroyKey(t.template.VaultKey)
 	if err != nil {
 		t.log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
@@ -199,7 +199,7 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.installVaultPassFile(); err != nil {
+	if err := t.installVaultKeyFile(); err != nil {
 		t.log("Failed to install vault password file: " + err.Error())
 		t.fail()
 		return
@@ -356,12 +356,12 @@ func (t *task) destroyKey(key db.AccessKey) error {
 	return os.Remove(path)
 }
 
-func (t *task) installVaultPassFile() error {
-	if t.template.VaultPassID == nil {
+func (t *task) installVaultKeyFile() error {
+	if t.template.VaultKeyID == nil {
 		return nil
 	}
 
-	return t.template.VaultPass.Install(db.AccessKeyUsageVault)
+	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
 }
 
 func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
@@ -582,8 +582,8 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "--check")
 	}
 
-	if t.template.VaultPassID != nil {
-		args = append(args, "--vault-password-file", t.template.VaultPass.GetPath())
+	if t.template.VaultKeyID != nil {
+		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
 	}
 
 	extraVars, err := t.getExtraVars()

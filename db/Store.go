@@ -144,8 +144,8 @@ type Store interface {
 }
 
 func FillTemplate(d Store, template *Template) (err error) {
-	if template.VaultPassID != nil {
-		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID)
+	if template.VaultKeyID != nil {
+		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
 	}
 	return
 }

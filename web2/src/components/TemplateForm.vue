@@ -64,7 +64,7 @@
         ></v-select>
 
         <v-select
-            v-model="item.vault_pass_id"
+            v-model="item.vault_key_id"
             label="Vault Password"
             clearable
             :items="loginPasswordKeys"
