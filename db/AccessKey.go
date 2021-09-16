@@ -87,8 +87,15 @@ func (key AccessKey) Install(usage AccessKeyUsage) error {
 	case AccessKeyUsageAnsibleBecomeUser:
 		switch key.Type {
 		case AccessKeyLoginPassword:
-			return ioutil.WriteFile(path, []byte("ansible_become_user=" + key.LoginPassword.Login + "\n" +
-				"ansible_become_password=" + key.LoginPassword.Password + "\n"), 0600)
+			content := make(map[string]string)
+			content["ansible_become_user"] = key.LoginPassword.Login
+			content["ansible_become_password"] = key.LoginPassword.Password
+			var bytes []byte
+			bytes, err = json.Marshal(content)
+			if err != nil {
+				return err
+			}
+			return ioutil.WriteFile(path, bytes, 0600)
 		default:
 			return fmt.Errorf("access key type not supported for ansible user")
 		}
@@ -100,8 +107,16 @@ func (key AccessKey) Install(usage AccessKeyUsage) error {
 			}
 			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
 		case AccessKeyLoginPassword:
-			return ioutil.WriteFile(path, []byte("ansible_user=" + key.LoginPassword.Login + "\n" +
-				"ansible_password=" + key.LoginPassword.Password + "\n"), 0600)
+			content := make(map[string]string)
+			content["ansible_user"] = key.LoginPassword.Login
+			content["ansible_password"] = key.LoginPassword.Password
+			var bytes []byte
+			bytes, err = json.Marshal(content)
+			if err != nil {
+				return err
+			}
+			return ioutil.WriteFile(path, bytes, 0600)
+
 		default:
 			return fmt.Errorf("access key type not supported for ansible user")
 		}
