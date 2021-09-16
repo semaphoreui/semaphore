@@ -234,34 +234,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 	return
 }
 
-func (d *SqlDb) isObjectInUse(projectID int, props db.ObjectProperties, objectID int) (bool, error) {
-	if props.ForeignColumnSuffix == "" {
-		return false, nil
-	}
-
-	templatesC, err := d.sql.SelectInt(
-		"select count(1) from project__template where project_id=? and " + props.ForeignColumnSuffix+ "=?",
-		projectID,
-		objectID)
-
-	if err != nil {
-		return false, err
-	}
-
-	return templatesC > 0, nil
-}
-
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID int) error {
-	inUse, err := d.isObjectInUse(projectID, props, objectID)
-
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return db.ErrInvalidOperation
-	}
-
 	return validateMutationResult(
 		d.exec(
 			"delete from " + props.TableName + " where project_id=? and id=?",
