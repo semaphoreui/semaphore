@@ -9,6 +9,7 @@ import (
 	"go.etcd.io/bbolt"
 	"reflect"
 	"sort"
+	"time"
 )
 
 const MaxID = 2147483647
@@ -79,7 +80,10 @@ func (d *BoltDb) Connect() error {
 	}
 
 	var err error
-	d.db, err = bbolt.Open(filename, 0666, nil)
+	d.db, err = bbolt.Open(filename, 0666, &bbolt.Options{
+		Timeout: 5 * time.Second,
+	})
+
 	if err != nil {
 		return err
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/cobra"
+	"go.etcd.io/bbolt"
 	"net/http"
 	"os"
 )
@@ -110,7 +111,12 @@ func createStore() db.Store {
 	store := factory.CreateStore()
 
 	if err := store.Connect(); err != nil {
-		fmt.Println("\n Have you run `semaphore setup`?")
+		switch err {
+		case bbolt.ErrTimeout:
+			fmt.Println("\n [ERR_BOLTDB_TIMEOUT] BoltDB supports only one connection at a time. You should stop service when using CLI.")
+		default:
+			fmt.Println("\n Have you run `semaphore setup`?")
+		}
 		panic(err)
 	}
 
