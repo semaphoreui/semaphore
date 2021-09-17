@@ -100,6 +100,8 @@ type ConfigType struct {
 	TelegramAlert bool `json:"telegram_alert"`
 	LdapEnable    bool `json:"ldap_enable"`
 	LdapNeedTLS   bool `json:"ldap_needtls"`
+
+	SshConfigPath string `json:"ssh_config_path"`
 }
 
 //Config exposes the application configuration storage for use in the application

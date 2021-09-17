@@ -81,7 +81,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "file":
+	case db.InventoryStatic, db.InventoryFile:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -163,9 +163,9 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static":
+	case db.InventoryStatic:
 		break
-	case "file":
+	case db.InventoryFile:
 		if !IsValidInventoryPath(inventory.Inventory) {
 			w.WriteHeader(http.StatusBadRequest)
 			return

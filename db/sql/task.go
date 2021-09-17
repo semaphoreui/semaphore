@@ -13,7 +13,7 @@ func (d *SqlDb) CreateTask(task db.Task) (db.Task, error) {
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
 	_, err := d.exec(
-		"update task set status=?, start=?, end=? where id=?",
+		"update task set status=?, start=?, `end`=? where id=?",
 		task.Status,
 		task.Start,
 		task.End,

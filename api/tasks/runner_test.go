@@ -1,11 +1,121 @@
 package tasks
 
 import (
-	"testing"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 	"math/rand"
-	"time"
 	"os"
+	"strings"
+	"testing"
+	"time"
 )
+
+func TestTaskGetPlaybookArgs(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	inventoryID := 1
+
+	tsk := task{
+		task: db.Task{},
+		inventory: db.Inventory{
+			SSHKeyID: &inventoryID,
+			SSHKey: db.AccessKey{
+				ID: 12345,
+				Type: db.AccessKeySSH,
+			},
+		},
+		template: db.Template{
+			Playbook: "test.yml",
+		},
+	}
+
+	args, err := tsk.getPlaybookArgs()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res := strings.Join(args, " ")
+	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_12345 --extra-vars {} test.yml" {
+		t.Fatal("incorrect result")
+	}
+}
+
+func TestTaskGetPlaybookArgs2(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	inventoryID := 1
+
+	tsk := task{
+		task: db.Task{},
+		inventory: db.Inventory{
+			SSHKeyID: &inventoryID,
+			SSHKey: db.AccessKey{
+				ID: 12345,
+				Type: db.AccessKeyLoginPassword,
+				LoginPassword: db.LoginPassword{
+					Password: "123456",
+					Login: "root",
+				},
+			},
+		},
+		template: db.Template{
+			Playbook: "test.yml",
+		},
+	}
+
+	args, err := tsk.getPlaybookArgs()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res := strings.Join(args, " ")
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_12345 --extra-vars {} test.yml" {
+		t.Fatal("incorrect result")
+	}
+}
+
+func TestTaskGetPlaybookArgs3(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	inventoryID := 1
+
+	tsk := task{
+		task: db.Task{},
+		inventory: db.Inventory{
+			BecomeKeyID: &inventoryID,
+			BecomeKey: db.AccessKey{
+				ID: 12345,
+				Type: db.AccessKeyLoginPassword,
+				LoginPassword: db.LoginPassword{
+					Password: "123456",
+					Login: "root",
+				},
+			},
+		},
+		template: db.Template{
+			Playbook: "test.yml",
+		},
+	}
+
+	args, err := tsk.getPlaybookArgs()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res := strings.Join(args, " ")
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_12345 --extra-vars {} test.yml" {
+		t.Fatal("incorrect result")
+	}
+}
 
 
 func TestCheckTmpDir(t *testing.T) {

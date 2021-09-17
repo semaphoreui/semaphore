@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
+	"reflect"
 	"time"
 )
 
@@ -28,12 +29,13 @@ type RetrieveQueryParams struct {
 type ObjectScope int
 
 type ObjectProperties struct {
-	TableName         string
-	IsGlobal          bool // doesn't belong to other table, for example to project or user.
-	ForeignColumnName string
-	PrimaryColumnName string
-	SortableColumns   []string
-	SortInverted      bool
+	TableName           string
+	IsGlobal            bool // doesn't belong to other table, for example to project or user.
+	ForeignColumnSuffix string
+	PrimaryColumnName   string
+	SortableColumns     []string
+	SortInverted        bool
+	Type                reflect.Type
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -43,7 +45,7 @@ func ValidateUsername(login string) error {
 	return nil
 }
 
-type Transaction interface {}
+type Transaction interface{}
 
 type Store interface {
 	Connect() error
@@ -142,8 +144,8 @@ type Store interface {
 }
 
 func FillTemplate(d Store, template *Template) (err error) {
-	if template.VaultPassID != nil {
-		template.VaultPass, err = d.GetAccessKey(template.ProjectID, *template.VaultPassID)
+	if template.VaultKeyID != nil {
+		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
 	}
 	return
 }
@@ -238,70 +240,73 @@ func getEventUsername(d Store, evt Event) (username string, err error) {
 }
 
 var AccessKeyProps = ObjectProperties{
-	TableName:         "access_key",
-	SortableColumns:   []string{"name", "type"},
-	PrimaryColumnName: "id",
-}
-
-var GlobalAccessKeyProps = ObjectProperties{
-	IsGlobal:          true,
-	TableName:         "access_key",
-	SortableColumns:   []string{"name", "type"},
-	ForeignColumnName: "ssh_key_id",
-	PrimaryColumnName: "id",
+	TableName:           "access_key",
+	SortableColumns:     []string{"name", "type"},
+	ForeignColumnSuffix: "key_id",
+	PrimaryColumnName:   "id",
+	Type:                reflect.TypeOf(AccessKey{}),
 }
 
 var EnvironmentProps = ObjectProperties{
-	TableName:         "project__environment",
-	SortableColumns:   []string{"name"},
-	ForeignColumnName: "environment_id",
-	PrimaryColumnName: "id",
+	TableName:           "project__environment",
+	SortableColumns:     []string{"name"},
+	ForeignColumnSuffix: "environment_id",
+	PrimaryColumnName:   "id",
+	Type:                reflect.TypeOf(Environment{}),
 }
 
 var InventoryProps = ObjectProperties{
-	TableName:         "project__inventory",
-	SortableColumns:   []string{"name"},
-	ForeignColumnName: "inventory_id",
-	PrimaryColumnName: "id",
+	TableName:           "project__inventory",
+	SortableColumns:     []string{"name"},
+	ForeignColumnSuffix: "inventory_id",
+	PrimaryColumnName:   "id",
+	Type:                reflect.TypeOf(Inventory{}),
 }
 
 var RepositoryProps = ObjectProperties{
-	TableName:         "project__repository",
-	ForeignColumnName: "repository_id",
-	PrimaryColumnName: "id",
+	TableName:           "project__repository",
+	ForeignColumnSuffix: "repository_id",
+	PrimaryColumnName:   "id",
+	Type:                reflect.TypeOf(Repository{}),
 }
 
 var TemplateProps = ObjectProperties{
 	TableName:         "project__template",
 	SortableColumns:   []string{"name"},
 	PrimaryColumnName: "id",
+	Type:                reflect.TypeOf(Template{}),
 }
 
 var ScheduleProps = ObjectProperties{
 	TableName:         "project__schedule",
 	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(Schedule{}),
 }
 
 var ProjectUserProps = ObjectProperties{
 	TableName:         "project__user",
 	PrimaryColumnName: "user_id",
+	Type:              reflect.TypeOf(ProjectUser{}),
 }
 
 var ProjectProps = ObjectProperties{
 	TableName:         "project",
 	IsGlobal:          true,
 	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(Project{}),
 }
 
 var UserProps = ObjectProperties{
 	TableName:         "user",
 	IsGlobal:          true,
 	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(User{}),
 }
 
 var SessionProps = ObjectProperties{
 	TableName:         "session",
 	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(Session{}),
 }
 
 var TokenProps = ObjectProperties{
@@ -314,8 +319,10 @@ var TaskProps = ObjectProperties{
 	IsGlobal:          true,
 	PrimaryColumnName: "id",
 	SortInverted:      true,
+	Type:              reflect.TypeOf(Task{}),
 }
 
 var TaskOutputProps = ObjectProperties{
-	TableName:         "task__output",
+	TableName: "task__output",
+	Type:      reflect.TypeOf(TaskOutput{}),
 }

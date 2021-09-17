@@ -27,7 +27,7 @@ func TestSetSecret(t *testing.T) {
 		t.Error(err)
 	}
 
-	if string(secret) != "{\"passphrase\":\"\",\"private_key\":\"qerphqeruqoweurqwerqqeuiqwpavqr\"}" {
+	if string(secret) != "{\"login\":\"\",\"passphrase\":\"\",\"private_key\":\"qerphqeruqoweurqwerqqeuiqwpavqr\"}" {
 		t.Error("invalid secret")
 	}
 }
