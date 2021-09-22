@@ -59,9 +59,9 @@ func SendSecureMail(emailHost, emailPort, mailSender, mailUsername, mailPassword
 	auth := smtp.PlainAuth("", mailUsername, mailPassword, emailHost)
 
 	// Sending email.
-	err := smtp.SendMail(emailHost+":"+emailPort, auth, mailSender, to, mail)
+	err := smtp.SendMail(emailHost+":"+emailPort, auth, mailSender, to, mail.Bytes())
 	if err != nil {
-		fmt.Println(err)
-		return err
+		log.Error(err)
 	}
+	return err
 }

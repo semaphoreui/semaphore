@@ -53,7 +53,7 @@ func (t *task) sendMailAlert() {
 
 		t.log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
 		if util.Config.EmailSecure {
-			err = util.SendMail(util.Config.EmailHost, util.Config.EmailPort, util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword, userObj.Email, mailBuffer)
+			err = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort, util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword, userObj.Email, mailBuffer)
 		} else {
 			err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
 		}
