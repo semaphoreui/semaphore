@@ -35,6 +35,7 @@ type DbConfig struct {
 	Username string `json:"user"`
 	Password string `json:"pass"`
 	DbName   string `json:"name"`
+	Options map[string]string `json:"options"`
 }
 
 type ldapMappings struct {
@@ -202,6 +203,19 @@ func decodeConfig(file io.Reader) {
 	}
 }
 
+func mapToQueryString(m map[string]string) (str string) {
+	for option, value := range m {
+		if str != "" {
+			str += "&"
+		}
+		str += option + "=" + value
+	}
+	if str != "" {
+		str = "?" + str
+	}
+	return
+}
+
 // String returns dialect name for GORP.
 func (d DbDriver) String() string {
 	return string(d)
@@ -215,6 +229,7 @@ func (d *DbConfig) HasSupportMultipleDatabases() bool {
 	return true
 }
 
+
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	switch d.Dialect {
 	case DbDriverBolt:
@@ -222,18 +237,26 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/%s?parseTime=true&interpolateParams=true",
+				"%s:%s@tcp(%s)/%s",
 				d.Username,
 				d.Password,
 				d.Hostname,
 				d.DbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/?parseTime=true&interpolateParams=true",
+				"%s:%s@tcp(%s)/",
 				d.Username,
 				d.Password,
 				d.Hostname)
 		}
+		options := map[string]string {
+			"parseTime": "true",
+			"interpolateParams": "true",
+		}
+		for v, k := range d.Options {
+			options[v] = k
+		}
+		connectionString += mapToQueryString(options)
 	case DbDriverPostgres:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
@@ -249,6 +272,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				d.Password,
 				d.Hostname)
 		}
+		connectionString += mapToQueryString(d.Options)
 	default:
 		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
 	}
