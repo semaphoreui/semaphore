@@ -2,9 +2,9 @@ package util
 
 import (
 	"bytes"
-	"net/smtp"
 	log "github.com/Sirupsen/logrus"
 	"io"
+	"net/smtp"
 )
 
 // SendMail dispatches a mail using smtp
@@ -14,7 +14,7 @@ func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) er
 		return err
 	}
 
-	defer func (c *smtp.Client) {
+	defer func(c *smtp.Client) {
 		err = c.Close()
 		if err != nil {
 			log.Error(err)
@@ -37,7 +37,7 @@ func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) er
 		return err
 	}
 
-	defer func (wc io.WriteCloser) {
+	defer func(wc io.WriteCloser) {
 		err = wc.Close()
 		if err != nil {
 			log.Error(err)
@@ -45,4 +45,23 @@ func SendMail(emailHost, mailSender, mailRecipient string, mail bytes.Buffer) er
 	}(wc)
 	_, err = mail.WriteTo(wc)
 	return err
+}
+
+// SendSecureMail dispatches a mail using smtp with authentication and StartTLS
+func SendSecureMail(emailHost, emailPort, mailSender, mailUsername, mailPassword, mailRecipient string, mail bytes.Buffer) error {
+
+	// Receiver email address.
+	to := []string{
+		mailRecipient,
+	}
+
+	// Authentication.
+	auth := smtp.PlainAuth("", mailUsername, mailPassword, emailHost)
+
+	// Sending email.
+	err := smtp.SendMail(emailHost+":"+emailPort, auth, mailSender, to, mail)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 }

@@ -52,7 +52,11 @@ func (t *task) sendMailAlert() {
 		t.panicOnError(err,"Can't find user Email!")
 
 		t.log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
-		err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
+		if util.Config.EmailSecure {
+			err = util.SendMail(util.Config.EmailHost, util.Config.EmailPort, util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword, userObj.Email, mailBuffer)
+		} else {
+			err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
+		}
 		t.panicOnError(err, "Can't send email!")
 	}
 }
