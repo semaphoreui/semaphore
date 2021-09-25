@@ -11,8 +11,11 @@ Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible pla
 
 If your project has grown and deploying from the terminal is no longer for you then Ansible Semaphore is what you need.
 
-![image](https://user-images.githubusercontent.com/914224/134411082-48235676-06d2-4d4b-b674-4ffe1e8d0d0d.png)
+![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
+
 <!--
+![image](https://user-images.githubusercontent.com/914224/134411082-48235676-06d2-4d4b-b674-4ffe1e8d0d0d.png)
+
 ![semaphore](https://user-images.githubusercontent.com/914224/125253358-c214ed80-e312-11eb-952e-d96a1eba93f6.png)
 -->
 
