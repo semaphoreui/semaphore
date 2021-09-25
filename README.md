@@ -50,6 +50,12 @@ PR's & UX reviews are welcome!
 
 Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
 
+## Docs
+
+Admin and user docs: https://docs.ansible-semaphore.com
+
+API docs: https://ansible-semaphore.github.io/semaphore
+
 ## License
 
 MIT License
