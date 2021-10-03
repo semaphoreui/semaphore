@@ -80,6 +80,7 @@ func (t *task) updateStatus() {
 		util.LogPanic(err)
 
 		sockets.Message(user, b)
+		t.sendAuditLog()
 	}
 
 	if err := t.store.UpdateTask(t.task); err != nil {
@@ -383,7 +384,7 @@ func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 		return fmt.Errorf("ssh key with passphrase not supported")
 	}
 
-	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 }
 
 func (t *task) updateRepository() error {

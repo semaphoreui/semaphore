@@ -78,6 +78,12 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
 		askValue("LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
 	}
+
+	askConfirmation("Enable audit logs?", false, &conf.AuditLog)
+	if conf.AuditLog {
+		askValue("URL to send POST audit logs to(it should start with http:// or https://)", "http://127.0.0.1:6666/", &conf.AuditLogURL)
+	}
+
 }
 
 func scanBoltDb(conf *util.ConfigType) {
