@@ -16,12 +16,15 @@ func (t *task) sendAuditLog() {
 	url := util.Config.AuditLogURL
 	method := "POST"
 	payload, err := json.Marshal(map[string]interface{}{
-		"start":      t.task.Start,
-		"end":        t.task.End,
-		"status":     t.task.Status,
-		"task_id":    t.task.ID,
-		"project_id": t.projectID,
-		"task_url":   util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
+		"project_id":  t.projectID,
+		"template_id": t.task.TemplateID,
+		"task_id":     t.task.ID,
+		"playbook":    t.task.Playbook,
+		"environment": t.task.Environment,
+		"start":       t.task.Start,
+		"end":         t.task.End,
+		"status":      t.task.Status,
+		"task_url":    util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/history/?t=" + strconv.Itoa(t.task.ID),
 	})
 	requestBody := bytes.NewBuffer(payload)
 	if err != nil {
