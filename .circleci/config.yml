@@ -22,7 +22,7 @@ aliases:
     run:
       name: install task binary
       # subshell prevents potentially unwanted cwd change
-      command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | sh /dev/stdin v.3.7.3))
+      command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | sh /dev/stdin v3.7.3))
 
   - &persist-from-build
     persist_to_workspace:
