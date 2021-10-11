@@ -22,7 +22,7 @@ aliases:
     run:
       name: install task binary
       # subshell prevents potentially unwanted cwd change
-      command: go install github.com/go-task/task/v3/cmd/task@latest
+      command: go get github.com/go-task/task/v3/cmd/task
       # command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | ~))
 
   - &persist-from-build
