@@ -22,7 +22,7 @@ aliases:
     run:
       name: install task binary
       # subshell prevents potentially unwanted cwd change
-      command: lsb_release -a && go get github.com/go-task/task/v3/cmd/task
+      command: go get github.com/go-task/task/v3/cmd/task
       # command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | ~))
 
   - &persist-from-build
@@ -162,7 +162,8 @@ jobs:
           path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
 
   test:integration:
-    machine: true
+    machine:
+      image: ubuntu-2004:202107-02
     steps:
       - checkout
       - *install-task-binary
