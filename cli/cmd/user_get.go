@@ -7,8 +7,8 @@ import (
 )
 
 func init() {
-	userGetCmd.PersistentFlags().StringVar(&targetUserArgs.login, "login", "", "Login of the user you want to delete")
-	userGetCmd.PersistentFlags().StringVar(&targetUserArgs.email, "email", "", "Email of the user you want to delete")
+	userGetCmd.PersistentFlags().StringVar(&targetUserArgs.login, "login", "", "Login of the user you want to see")
+	userGetCmd.PersistentFlags().StringVar(&targetUserArgs.email, "email", "", "Email of the user you want to see")
 	userCmd.AddCommand(userGetCmd)
 }
 
