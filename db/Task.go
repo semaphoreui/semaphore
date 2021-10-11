@@ -24,6 +24,8 @@ type Task struct {
 	Created time.Time  `db:"created" json:"created"`
 	Start   *time.Time `db:"start" json:"start"`
 	End     *time.Time `db:"end" json:"end"`
+
+	Version *string `db:"version" json:"version"`
 }
 
 // TaskWithTpl is the task data with additional fields

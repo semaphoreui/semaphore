@@ -26,8 +26,6 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
-type ObjectScope int
-
 type ObjectProperties struct {
 	TableName           string
 	IsGlobal            bool // doesn't belong to other table, for example to project or user.
