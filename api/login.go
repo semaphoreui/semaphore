@@ -21,11 +21,21 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
 
-	l, err := ldap.Dial("tcp", util.Config.LdapServer)
+	var l *ldap.Conn
+	var err error
+	if util.Config.LdapNeedTLS {
+		l, err = ldap.DialTLS("tcp", util.Config.LdapServer, &tls.Config{
+			InsecureSkipVerify: true,
+		})
+	} else {
+		l, err = ldap.Dial("tcp", util.Config.LdapServer)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 	defer l.Close()
+
 
 	// Reconnect with TLS if needed
 	if util.Config.LdapNeedTLS {
