@@ -162,7 +162,8 @@ jobs:
           path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
 
   test:integration:
-    machine: true
+    machine:
+      image: ubuntu-1604:202007-01
     steps:
       - checkout
       - *install-task-binary
