@@ -23,18 +23,19 @@ var WebHostURL *url.URL
 type DbDriver string
 
 const (
-	DbDriverMySQL DbDriver = "mysql"
-	DbDriverBolt DbDriver = "bolt"
+	DbDriverMySQL    DbDriver = "mysql"
+	DbDriverBolt     DbDriver = "bolt"
 	DbDriverPostgres DbDriver = "postgres"
 )
 
 type DbConfig struct {
-	Dialect  DbDriver `json:"-"`
+	Dialect DbDriver `json:"-"`
 
-	Hostname string   `json:"host"`
-	Username string   `json:"user"`
-	Password string   `json:"pass"`
-	DbName   string   `json:"name"`
+	Hostname string `json:"host"`
+	Username string `json:"user"`
+	Password string `json:"pass"`
+	DbName   string `json:"name"`
+	Options map[string]string `json:"options"`
 }
 
 type ldapMappings struct {
@@ -46,8 +47,8 @@ type ldapMappings struct {
 
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
-	MySQL  DbConfig `json:"mysql"`
-	BoltDb DbConfig `json:"bolt"`
+	MySQL    DbConfig `json:"mysql"`
+	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
 
 	Dialect DbDriver `json:"dialect"`
@@ -64,14 +65,16 @@ type ConfigType struct {
 	TmpPath string `json:"tmp_path"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash"`
-	CookieEncryption string `json:"cookie_encryption"`
-	AccessKeyEncryption	  string `json:"access_key_encryption"`
+	CookieHash          string `json:"cookie_hash"`
+	CookieEncryption    string `json:"cookie_encryption"`
+	AccessKeyEncryption string `json:"access_key_encryption"`
 
 	// email alerting
-	EmailSender string `json:"email_sender"`
-	EmailHost   string `json:"email_host"`
-	EmailPort   string `json:"email_port"`
+	EmailSender   string `json:"email_sender"`
+	EmailHost     string `json:"email_host"`
+	EmailPort     string `json:"email_port"`
+	EmailUsername string `json:"email_username"`
+	EmailPassword string `json:"email_password"`
 
 	// web host
 	WebHost string `json:"web_host"`
@@ -97,6 +100,7 @@ type ConfigType struct {
 
 	// feature switches
 	EmailAlert    bool `json:"email_alert"`
+	EmailSecure   bool `json:"email_secure"`
 	TelegramAlert bool `json:"telegram_alert"`
 	LdapEnable    bool `json:"ldap_enable"`
 	LdapNeedTLS   bool `json:"ldap_needtls"`
@@ -199,6 +203,19 @@ func decodeConfig(file io.Reader) {
 	}
 }
 
+func mapToQueryString(m map[string]string) (str string) {
+	for option, value := range m {
+		if str != "" {
+			str += "&"
+		}
+		str += option + "=" + value
+	}
+	if str != "" {
+		str = "?" + str
+	}
+	return
+}
+
 // String returns dialect name for GORP.
 func (d DbDriver) String() string {
 	return string(d)
@@ -212,6 +229,7 @@ func (d *DbConfig) HasSupportMultipleDatabases() bool {
 	return true
 }
 
+
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	switch d.Dialect {
 	case DbDriverBolt:
@@ -219,18 +237,26 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/%s?parseTime=true&interpolateParams=true",
+				"%s:%s@tcp(%s)/%s",
 				d.Username,
 				d.Password,
 				d.Hostname,
 				d.DbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/?parseTime=true&interpolateParams=true",
+				"%s:%s@tcp(%s)/",
 				d.Username,
 				d.Password,
 				d.Hostname)
 		}
+		options := map[string]string {
+			"parseTime": "true",
+			"interpolateParams": "true",
+		}
+		for v, k := range d.Options {
+			options[v] = k
+		}
+		connectionString += mapToQueryString(options)
 	case DbDriverPostgres:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
@@ -246,6 +272,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				d.Password,
 				d.Hostname)
 		}
+		connectionString += mapToQueryString(d.Options)
 	default:
 		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
 	}
