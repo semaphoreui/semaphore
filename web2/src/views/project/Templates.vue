@@ -74,9 +74,31 @@
         :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.alias="{ item }">
-        <router-link :to="`/project/${projectId}/templates/${item.id}`">
-          {{ item.alias }}
-        </router-link>
+        <v-icon class="mr-3" small>
+          {{ getTemplateActionIcon(item) }}
+        </v-icon>
+        <router-link
+            :to="`/project/${projectId}/templates/${item.id}`">{{ item.alias }}</router-link>
+      </template>
+
+      <template v-slot:item.last_task="{ item }">
+        <div class="mt-3 mb-2" v-if="item.last_task != null">
+          <div style="display: flex; justify-content: left; align-items: center;">
+            <a class="mr-2" @click="showTaskLog(item.last_task.id)">#{{ item.last_task.id }}</a>
+            <TaskStatus :status="item.last_task.status"/>
+            <span v-if="item.last_task.version != null" class="ml-2">
+              v{{ item.last_task.version }}
+            </span>
+          </div>
+          <div style="color: gray; font-size: 14px;">
+            by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
+          </div>
+        </div>
+        <div
+            v-else class="mt-3 mb-2"
+            style="height: 53px; display: flex; align-items: center; color: gray;"
+        >Not launched
+        </div>
       </template>
 
       <template v-slot:item.inventory_id="{ item }">
@@ -93,7 +115,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn text color="black" class="pl-1 pr-2" @click="createTask(item.id)">
-          <v-icon class="pr-1">{{ getTemplateActionIcon(item) }}</v-icon>
+          <v-icon class="pr-1">mdi-replay</v-icon>
           {{ getTemplateActionTitle(item) }}
         </v-btn>
       </template>
@@ -107,7 +129,9 @@
     />
   </div>
 </template>
+<style>
 
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TemplateForm from '@/components/TemplateForm.vue';
@@ -115,9 +139,12 @@ import axios from 'axios';
 import TaskForm from '@/components/TaskForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import EventBus from '@/event-bus';
+import TaskStatus from '@/components/TaskStatus.vue';
 
 export default {
-  components: { TemplateForm, TaskForm, TableSettingsSheet },
+  components: {
+    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus,
+  },
   mixins: [ItemListPageBase],
   async created() {
     await this.loadData();
@@ -157,14 +184,20 @@ export default {
       });
     },
 
+    showTaskLog(taskId) {
+      EventBus.$emit('i-show-task', {
+        taskId,
+      });
+    },
+
     getTemplateActionIcon(item) {
       switch (item.type) {
         case 'task':
-          return 'mdi-play';
+          return 'mdi-cog';
         case 'build':
           return 'mdi-wrench';
         case 'deploy':
-          return 'mdi-package-up';
+          return 'mdi-rocket-launch';
         default:
           throw new Error();
       }
@@ -193,6 +226,11 @@ export default {
         {
           text: 'Alias',
           value: 'alias',
+        },
+        {
+          text: 'Status',
+          value: 'last_task',
+          sortable: false,
         },
         {
           text: 'Playbook',
