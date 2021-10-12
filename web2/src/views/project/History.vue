@@ -19,8 +19,15 @@
       class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">
-        <a @click="showTaskLog(item.id)">{{ item.tpl_alias }}</a>
-        <span style="color: gray; margin-left: 10px;">#{{ item.id }}</span>
+        <v-icon class="mr-3" small>
+          {{ getTemplateActionIcon(item) }}
+        </v-icon>
+        <a :href="
+          '/project/' + item.project_id +
+          '/templates/' + item.template_id"
+        >{{ item.tpl_alias }}</a>
+        <v-icon small class="ml-1 mr-1">mdi-arrow-right</v-icon>
+        <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -60,6 +67,19 @@ export default {
   },
 
   methods: {
+    getTemplateActionIcon(item) {
+      switch (item.tpl_type) {
+        case 'task':
+          return 'mdi-cog';
+        case 'build':
+          return 'mdi-wrench';
+        case 'deploy':
+          return 'mdi-rocket-launch';
+        default:
+          throw new Error();
+      }
+    },
+
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,

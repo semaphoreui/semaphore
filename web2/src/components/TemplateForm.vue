@@ -95,9 +95,6 @@
             required
             :disabled="formSaving"
         ></v-select>
-      </v-col>
-
-      <v-col cols="12" md="6" class="pb-0">
         <v-select
             v-model="item.vault_key_id"
             label="Vault Password"
@@ -107,7 +104,9 @@
             item-text="name"
             :disabled="formSaving"
         ></v-select>
+      </v-col>
 
+      <v-col cols="12" md="6" class="pb-0">
         <v-textarea
             outlined
             v-model="item.description"

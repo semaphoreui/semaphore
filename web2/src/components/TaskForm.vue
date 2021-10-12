@@ -1,33 +1,52 @@
 <template>
   <v-form
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-    v-if="item != null"
+      ref="form"
+      lazy-validation
+      v-model="formValid"
+      v-if="isLoaded()"
   >
     <v-alert
-      :value="formError"
-      color="error"
-      class="pb-2"
-    >{{ formError }}</v-alert>
+        :value="formError"
+        color="error"
+        class="pb-2"
+    >{{ formError }}
+    </v-alert>
+
+    <v-text-field
+        v-model="item.message"
+        label="Message (Optional)"
+        :disabled="formSaving"
+    />
+
+    <v-select
+        v-if="template.type === 'deploy'"
+        v-model="item.version"
+        label="Build Version"
+        :items="buildTasks"
+        item-value="version"
+        item-text="version"
+        :rules="[v => !!v || 'Build Version is required']"
+        required
+        :disabled="formSaving"
+    />
 
     <v-textarea
-      outlined
-      class="mt-4"
-      v-model="item.environment"
-      label="Environment Override"
-      placeholder='Example: {"version": 10, "author": "John"}'
-      :disabled="formSaving"
-      rows="4"
+        outlined
+        class="mt-4"
+        v-model="item.environment"
+        label="Environment Override"
+        placeholder='Example: {"version": 10, "author": "John"}'
+        :disabled="formSaving"
+        rows="4"
     ></v-textarea>
 
     <v-textarea
-      outlined
-      v-model="item.arguments"
-      label="Extra CLI Arguments"
-      :disabled="formSaving"
-      placeholder='Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
-      rows="4"
+        outlined
+        v-model="item.arguments"
+        label="Extra CLI Arguments"
+        :disabled="formSaving"
+        placeholder='Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
+        rows="4"
     ></v-textarea>
 
     <v-row no-gutters>
@@ -49,11 +68,18 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import axios from 'axios';
 
 export default {
   mixins: [ItemFormBase],
   props: {
     templateId: Number,
+  },
+  data() {
+    return {
+      template: null,
+      buildTasks: null,
+    };
   },
   watch: {
     needReset(val) {
@@ -66,10 +92,34 @@ export default {
       this.item.template_id = val;
     },
   },
-  created() {
-    this.item.template_id = this.templateId;
-  },
+
   methods: {
+    isLoaded() {
+      return this.item != null
+          && this.template != null
+          && this.buildTasks != null;
+    },
+
+    async afterLoadData() {
+      this.item.template_id = this.templateId;
+
+      this.template = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.templateId}`,
+        responseType: 'json',
+      })).data;
+
+      this.buildTasks = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.templateId}/tasks`,
+        responseType: 'json',
+      })).data.filter((task) => task.version != null);
+
+      if (this.buildTasks.length > 0) {
+        this.item.version = this.buildTasks[this.buildTasks.length - 1];
+      }
+    },
+
     getItemsUrl() {
       return `/api/project/${this.projectId}/tasks`;
     },

@@ -629,6 +629,10 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
+	env = append(env, "SEMAPHORE_TASK_TYPE=" + t.template.Type)
+	if t.task.Version != nil {
+		env = append(env, "SEMAPHORE_TASK_VERSION=" + *t.task.Version)
+	}
 	if gitSSHCommand != "" {
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
 	}

@@ -104,9 +104,27 @@
         <v-col>
           <v-list two-line subheader>
             <v-list-item>
+              <v-list-item-icon>
+                <v-icon>mdi-book-play</v-icon>
+              </v-list-item-icon>
+
               <v-list-item-content>
                 <v-list-item-title>Playbook</v-list-item-title>
                 <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-col>
+        <v-col>
+          <v-list two-line subheader>
+            <v-list-item>
+              <v-list-item-icon>
+                <v-icon>{{ getTypeIcon() }}</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                <v-list-item-title>Type</v-list-item-title>
+                <v-list-item-subtitle>{{ item.type }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -283,6 +301,19 @@ export default {
   },
 
   methods: {
+    getTypeIcon() {
+      switch (this.item.type) {
+        case 'task':
+          return 'mdi-cog';
+        case 'build':
+          return 'mdi-wrench';
+        case 'deploy':
+          return 'mdi-rocket-launch';
+        default:
+          throw new Error();
+      }
+    },
+
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,

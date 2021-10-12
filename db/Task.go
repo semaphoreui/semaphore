@@ -25,7 +25,9 @@ type Task struct {
 	Start   *time.Time `db:"start" json:"start"`
 	End     *time.Time `db:"end" json:"end"`
 
-	Version *string `db:"version" json:"version"`
+	Version    *string `db:"version" json:"version"`
+	CommitHash *string `db:"commit_hash" json:"commit_hash"`
+	Message    *string `db:"message" json:"message"`
 }
 
 // TaskWithTpl is the task data with additional fields
@@ -33,6 +35,7 @@ type TaskWithTpl struct {
 	Task
 	TemplatePlaybook string  `db:"tpl_playbook" json:"tpl_playbook"`
 	TemplateAlias    string  `db:"tpl_alias" json:"tpl_alias"`
+	TemplateType     string  `db:"tpl_type" json:"tpl_type"`
 	UserName         *string `db:"user_name" json:"user_name"`
 }
 
