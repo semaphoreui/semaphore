@@ -41,7 +41,6 @@ func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQuery
 			"`user`.name as user_name, " +
 			"tpl.alias as tpl_alias, " +
 			"tpl.type as tpl_type"
-		break
 	}
 
 	q := squirrel.Select(fields).

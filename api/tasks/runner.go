@@ -187,6 +187,12 @@ func (t *task) prepareRun() {
 		return
 	}
 
+	if err := t.checkoutRepository(); err != nil {
+		t.log("Failed to checkout repository to required commit: " + err.Error())
+		t.fail()
+		return
+	}
+
 	if err := t.installInventory(); err != nil {
 		t.log("Failed to install inventory: " + err.Error())
 		t.fail()
@@ -330,11 +336,6 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	//if t.repository.SSHKey.Type != db.AccessKeySSH {
-	//	t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
-	//	return errors.New("unsupported SSH Key")
-	//}
-
 	// get environment
 	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
 		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
@@ -384,6 +385,67 @@ func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 	}
 
 	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+}
+
+func (t *task) checkoutRepository() error {
+	repoName := "repository_" + strconv.Itoa(t.repository.ID)
+	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
+
+	if err != nil {
+		return err
+	}
+
+	if t.task.CommitHash != nil {
+		cmd := exec.Command("git")
+		cmd.Dir = util.Config.TmpPath + "/" + repoName
+
+		gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
+		t.setCmdEnvironment(cmd, gitSSHCommand)
+
+		t.log("Checkout repository to commit " + *t.task.CommitHash)
+		cmd.Args = append(cmd.Args, "checkout", *t.task.CommitHash)
+
+		t.logCmd(cmd)
+		return cmd.Run()
+	}
+
+	commit, err := t.getCommitHash()
+	if err != nil {
+		return err
+	}
+
+	// TODO: update task commit hash
+	//if _, err := db.Mysql.Exec("update task set commit=? where id=?", commit, t.task.ID); err != nil {
+	//	fmt.Printf("Failed to update task status: %s\n", err.Error())
+	//	return err
+	//}
+
+	t.task.CommitHash = &commit
+	return nil
+}
+
+func (t *task) getCommitHash() (string, error) {
+	repoName := "repository_" + strconv.Itoa(t.repository.ID)
+	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
+
+	if err != nil {
+		return "", err
+	}
+
+	cmd := exec.Command("git")
+	cmd.Dir = util.Config.TmpPath + "/" + repoName
+
+	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
+	t.setCmdEnvironment(cmd, gitSSHCommand)
+
+	t.log("Get latest commit hash")
+	cmd.Args = append(cmd.Args, "rev-parse", "HEAD")
+
+	out, err := cmd.Output();
+	if err != nil {
+		return "", err
+	}
+	return strings.Trim(string(out), " \n"), nil
 }
 
 func (t *task) updateRepository() error {
