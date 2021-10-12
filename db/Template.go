@@ -28,3 +28,11 @@ type Template struct {
 	StartVersion *string `db:"start_version" json:"start_version"`
 	Type         string  `db:"type" json:"type"`
 }
+
+func FillTemplate(d Store, template *Template) (err error) {
+	if template.VaultKeyID != nil {
+		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
+	}
+	return
+}
+

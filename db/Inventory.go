@@ -23,3 +23,19 @@ type Inventory struct {
 
 	Removed bool `db:"removed" json:"removed"`
 }
+
+func FillInventory(d Store, inventory *Inventory) (err error) {
+	if inventory.SSHKeyID != nil {
+		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.BecomeKeyID != nil {
+		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	return
+}

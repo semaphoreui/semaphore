@@ -17,3 +17,76 @@ type Event struct {
 	ProjectName *string `db:"project_name" json:"project_name"`
 	Username    *string `db:"-" json:"username"`
 }
+
+func FillEvents(d Store, events []Event) (err error) {
+	usernames := make(map[int]string)
+
+	for i, evt := range events {
+		var objName string
+		objName, err = getEventObjectName(d, evt)
+
+		if err != nil {
+			return
+		}
+
+		if objName != "" {
+			events[i].ObjectName = objName
+		}
+
+		if evt.UserID == nil {
+			continue
+		}
+
+		var username string
+
+		username, ok := usernames[*evt.UserID]
+
+		if !ok {
+			username, err = getEventUsername(d, evt)
+
+			if err != nil {
+				return
+			}
+
+			if username == "" {
+				continue
+			}
+
+			usernames[*evt.UserID] = username
+		}
+
+		events[i].Username = &username
+	}
+
+	return
+}
+
+func getEventObjectName(d Store, evt Event) (string, error) {
+	if evt.ObjectID == nil || evt.ObjectType == nil {
+		return "", nil
+	}
+	switch *evt.ObjectType {
+	case "task":
+		task, err := d.GetTask(*evt.ProjectID, *evt.ObjectID)
+		if err != nil {
+			return "", err
+		}
+		return task.Playbook, nil
+	default:
+		return "", nil
+	}
+}
+
+func getEventUsername(d Store, evt Event) (username string, err error) {
+	if evt.UserID == nil {
+		return "", nil
+	}
+
+	user, err := d.GetUser(*evt.UserID)
+
+	if err != nil {
+		return "", err
+	}
+
+	return user.Username, nil
+}
