@@ -52,6 +52,12 @@ func (t *task) getRepoPath() string {
 	return util.Config.TmpPath + "/" + t.getRepoName()
 }
 
+func (t *task) validateRepo() error {
+	path := t.getRepoPath()
+	_, err := os.Stat(path)
+	return err
+}
+
 func (t *task) setStatus(status string) {
 	if t.task.Status == taskStoppingStatus {
 		switch status {
@@ -388,23 +394,16 @@ func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 }
 
 func (t *task) checkoutRepository() error {
-	repoName := t.getRepoName()
-	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
-
-	if err != nil {
-		return err
-	}
-
 	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
+		err := t.validateRepo()
+		if err != nil {
+			return err
+		}
+
 		cmd := exec.Command("git")
-		cmd.Dir = util.Config.TmpPath + "/" + repoName
-
-		//gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
-		//t.setCmdEnvironment(cmd, gitSSHCommand)
-
+		cmd.Dir = t.getRepoPath()
 		t.log("Checkout repository to commit " + *t.task.CommitHash)
 		cmd.Args = append(cmd.Args, "checkout", *t.task.CommitHash)
-
 		t.logCmd(cmd)
 		return cmd.Run()
 	}
@@ -420,32 +419,25 @@ func (t *task) checkoutRepository() error {
 }
 
 // getCommitHash retrieves current commit hash from task repository
-func (t *task) getCommitHash() (string, error) {
-	path := t.getRepoPath()
-	_, err := os.Stat(path)
+func (t *task) getCommitHash() (commitHash string, err error) {
+	err = t.validateRepo()
 	if err != nil {
-		return "", err
+		return
 	}
+
 	cmd := exec.Command("git")
-	cmd.Dir = path
-
-	//gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
-	//t.setCmdEnvironment(cmd, gitSSHCommand)
-
+	cmd.Dir = t.getRepoPath()
 	t.log("Get latest commit hash")
 	cmd.Args = append(cmd.Args, "rev-parse", "HEAD")
-
 	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return
 	}
-	return strings.Trim(string(out), " \n"), nil
+	commitHash = strings.Trim(string(out), " \n")
+	return
 }
 
 func (t *task) updateRepository() error {
-	repoName := t.getRepoName()
-	_, err := os.Stat(t.getRepoPath())
-
 	var gitSSHCommand string
 	if t.repository.SSHKey.Type == db.AccessKeySSH {
 		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
@@ -460,14 +452,18 @@ func (t *task) updateRepository() error {
 		repoURL, repoTag = split[0], split[1]
 	}
 
-	if err != nil && os.IsNotExist(err) {
+	err := t.validateRepo()
+
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
 		t.log("Cloning repository " + repoURL)
-		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, repoName)
-	} else if err != nil {
-		return err
+		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, t.getRepoName())
 	} else {
 		t.log("Updating repository " + repoURL)
-		cmd.Dir += "/" + repoName
+		cmd.Dir += t.getRepoPath()
 		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
 	}
 
