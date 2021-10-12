@@ -31,6 +31,39 @@
         ></v-text-field>
 
         <v-select
+            v-model="item.type"
+            label="Type"
+            :items="types"
+            item-value="id"
+            item-text="name"
+            :rules="[v => !!v || 'Type is required']"
+            required
+            :disabled="formSaving"
+        ></v-select>
+
+        <v-text-field
+            v-if="item.type === 'build'"
+            v-model="item.start_version"
+            label="Start Version"
+            :rules="[v => !!v || 'Start Version is required']"
+            required
+            :disabled="formSaving"
+            placeholder="Example: 0.0.0"
+        ></v-text-field>
+
+        <v-select
+            v-if="item.type === 'deploy'"
+            v-model="item.build_template_id"
+            label="Build Template"
+            :items="buildTemplates"
+            item-value="id"
+            item-text="alias"
+            :rules="[v => !!v || 'Build Template is required']"
+            required
+            :disabled="formSaving"
+        ></v-select>
+
+        <v-select
             v-model="item.inventory_id"
             label="Inventory"
             :items="inventory"
@@ -62,7 +95,9 @@
             required
             :disabled="formSaving"
         ></v-select>
+      </v-col>
 
+      <v-col cols="12" md="6" class="pb-0">
         <v-select
             v-model="item.vault_key_id"
             label="Vault Password"
@@ -73,16 +108,6 @@
             :disabled="formSaving"
         ></v-select>
 
-        <v-text-field
-            v-model="cronFormat"
-            label="Cron"
-            :disabled="formSaving"
-            placeholder="Example: * 1 * * * *"
-            v-if="schedules.length <= 1"
-        ></v-text-field>
-      </v-col>
-
-      <v-col cols="12" md="6" class="pb-0">
         <v-textarea
             outlined
             v-model="item.description"
@@ -105,6 +130,15 @@ Example:
   "-vvvv"
 ]'
         />
+
+        <v-text-field
+            class="mt-6"
+            v-model="cronFormat"
+            label="Cron"
+            :disabled="formSaving"
+            placeholder="Example: * 1 * * * *"
+            v-if="schedules.length <= 1"
+        ></v-text-field>
       </v-col>
     </v-row>
   </v-form>
@@ -149,6 +183,16 @@ export default {
       environment: null,
       schedules: null,
       cronFormat: null,
+      types: [{
+        id: 'task',
+        name: 'Task',
+      }, {
+        id: 'build',
+        name: 'Build',
+      }, {
+        id: 'deploy',
+        name: 'Deploy',
+      }],
     };
   },
 
@@ -217,6 +261,13 @@ export default {
         url: `/api/project/${this.projectId}/environment`,
         responseType: 'json',
       })).data;
+
+      this.buildTemplates = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates?type=build`,
+        responseType: 'json',
+      })).data.filter((template) => template.type === 'build');
+
       this.schedules = this.isNew ? [] : (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}/schedules`,

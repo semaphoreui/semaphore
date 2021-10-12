@@ -10,8 +10,9 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
-			"alias, playbook, arguments, override_args, description, vault_key_id)" +
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version," +
+			"build_template_id)" +
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -21,7 +22,10 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.Arguments,
 		template.OverrideArguments,
 		template.Description,
-		template.VaultKeyID)
+		template.VaultKeyID,
+		template.Type,
+		template.StartVersion,
+		template.BuildTemplateID)
 
 	if err != nil {
 		return
@@ -40,8 +44,19 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	_, err := d.exec("update project__template set inventory_id=?, repository_id=?, environment_id=?, alias=?, " +
-		"playbook=?, arguments=?, override_args=?, description=?, vault_key_id=? " +
+	_, err := d.exec("update project__template set " +
+		"inventory_id=?, " +
+		"repository_id=?, " +
+		"environment_id=?, " +
+		"alias=?, " +
+		"playbook=?, " +
+		"arguments=?, " +
+		"override_args=?, " +
+		"description=?, " +
+		"vault_key_id=?, " +
+		"`type`=?, " +
+		"start_version=?," +
+		"build_template_id=? " +
 		"where removed = false and id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -52,8 +67,12 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.OverrideArguments,
 		template.Description,
 		template.VaultKeyID,
+		template.Type,
+		template.StartVersion,
+		template.BuildTemplateID,
 		template.ID,
-		template.ProjectID)
+		template.ProjectID,
+	)
 	return err
 }
 
@@ -67,7 +86,8 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 		"pt.playbook",
 		"pt.arguments",
 		"pt.override_args",
-		"pt.vault_key_id").
+		"pt.vault_key_id",
+		"pt.`type`").
 		From("project__template pt").
 		Where("pt.removed = false")
 

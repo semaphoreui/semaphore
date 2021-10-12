@@ -26,24 +26,21 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
+// ObjectProperties describe database entities.
+// It mainly used for NoSQL implementations (currently BoltDB) to preserve same
+// data structure of different implementations and easy change it if required.
 type ObjectProperties struct {
 	TableName           string
 	IsGlobal            bool // doesn't belong to other table, for example to project or user.
 	ForeignColumnSuffix string
 	PrimaryColumnName   string
 	SortableColumns     []string
-	SortInverted        bool
-	Type                reflect.Type
+	SortInverted        bool // sort from high to low object ID by default. It is useful for some NoSQL implementations.
+	Type                reflect.Type // to which type the table bust be mapped.
 }
 
 var ErrNotFound = errors.New("no rows in result set")
 var ErrInvalidOperation = errors.New("invalid operation")
-
-func ValidateUsername(login string) error {
-	return nil
-}
-
-type Transaction interface{}
 
 type Store interface {
 	Connect() error

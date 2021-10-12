@@ -25,8 +25,9 @@ type Template struct {
 	VaultKeyID *int      `db:"vault_key_id" json:"vault_key_id"`
 	VaultKey   AccessKey `db:"-" json:"-"`
 
-	StartVersion *string `db:"start_version" json:"start_version"`
-	Type         string  `db:"type" json:"type"`
+	Type            string  `db:"type" json:"type"`
+	StartVersion    *string `db:"start_version" json:"start_version"`
+	BuildTemplateID *int    `db:"build_template_id" json:"build_template_id"`
 }
 
 func FillTemplate(d Store, template *Template) (err error) {
@@ -35,4 +36,3 @@ func FillTemplate(d Store, template *Template) (err error) {
 	}
 	return
 }
-
