@@ -78,20 +78,43 @@
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
         <router-link
-            :to="`/project/${projectId}/templates/${item.id}`">{{ item.alias }}</router-link>
+            :to="`/project/${projectId}/templates/${item.id}`">{{ item.alias }}
+        </router-link>
       </template>
 
-      <template v-slot:item.last_task="{ item }">
-        <div class="mt-3 mb-2" v-if="item.last_task != null">
+      <template v-slot:item.version="{ item }">
+        <div v-if="item.last_task != null && item.last_task.version != null">
+          <v-icon
+              v-if="item.last_task.status === 'success'"
+              small
+              color="success"
+          >mdi-check
+          </v-icon>
+
+          <v-icon
+              v-else
+              small
+              color="red"
+          >mdi-close</v-icon>
+
+          <span class="ml-1">{{ item.last_task.version }}</span>
+        </div>
+        <div v-else>&mdash;</div>
+      </template>
+
+      <template v-slot:item.status="{ item }">
+        <div class="mt-2 mb-2" v-if="item.last_task != null">
           <div style="display: flex; justify-content: left; align-items: center;">
-            <a class="mr-2" @click="showTaskLog(item.last_task.id)">#{{ item.last_task.id }}</a>
             <TaskStatus :status="item.last_task.status"/>
-            <span v-if="item.last_task.version != null" class="ml-2">
-              v{{ item.last_task.version }}
-            </span>
-          </div>
-          <div style="color: gray; font-size: 14px;">
-            by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
+            <div class="ml-3" style="line-height: 1">
+              <a
+                  style="display: block;"
+                  @click="showTaskLog(item.last_task.id)"
+              >#{{ item.last_task.id }}</a>
+              <div style="color: gray; font-size: 14px;">
+                by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
+              </div>
+            </div>
           </div>
         </div>
         <div
@@ -205,8 +228,13 @@ export default {
           value: 'alias',
         },
         {
+          text: 'Version',
+          value: 'version',
+          sortable: false,
+        },
+        {
           text: 'Status',
-          value: 'last_task',
+          value: 'status',
           sortable: false,
         },
         {

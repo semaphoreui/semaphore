@@ -125,6 +125,10 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 
 	_, err = d.selectAll(&templates, query, args...)
 
+	if err != nil {
+		return
+	}
+
 	err = db.FillTemplates(d, templates)
 
 	return

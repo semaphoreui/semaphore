@@ -462,7 +462,7 @@ func (t *task) updateRepository() error {
 		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, t.getRepoName())
 	} else {
 		t.log("Updating repository " + repoURL)
-		cmd.Dir += t.getRepoPath()
+		cmd.Dir = t.getRepoPath()
 		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
 	}
 

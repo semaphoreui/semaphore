@@ -95,7 +95,7 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 }
 
 func (d *BoltDb) GetTemplateTasks(template db.Template, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
-	return d.getTasks(template.ID, &template, params)
+	return d.getTasks(template.ProjectID, &template, params)
 }
 
 func (d *BoltDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {

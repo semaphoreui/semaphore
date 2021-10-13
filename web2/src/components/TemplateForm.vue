@@ -36,8 +36,6 @@
             :items="types"
             item-value="id"
             item-text="name"
-            :rules="[v => !!v || 'Type is required']"
-            required
             :disabled="formSaving"
         ></v-select>
 
@@ -183,7 +181,7 @@ export default {
       schedules: null,
       cronFormat: null,
       types: [{
-        id: 'task',
+        id: '',
         name: 'Task',
       }, {
         id: 'build',

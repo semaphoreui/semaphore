@@ -116,7 +116,7 @@ export default {
       })).data.filter((task) => task.version != null);
 
       if (this.buildTasks.length > 0) {
-        this.item.version = this.buildTasks[this.buildTasks.length - 1];
+        this.item.version = this.buildTasks[this.buildTasks.length - 1].version;
       }
     },
 

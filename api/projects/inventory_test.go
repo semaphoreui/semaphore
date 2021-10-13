@@ -1,8 +1,8 @@
 package projects
 
 import (
-	"testing"
 	"runtime"
+	"testing"
 )
 
 func TestIsValidInventoryPath(t *testing.T) {

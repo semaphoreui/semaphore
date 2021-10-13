@@ -68,7 +68,7 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	}
 
 	if len(sr.Entries) != 1 {
-		return nil, fmt.Errorf("User does not exist or too many entries returned")
+		return nil, fmt.Errorf("user does not exist or too many entries returned")
 	}
 
 	// Bind as the user to verify their password
