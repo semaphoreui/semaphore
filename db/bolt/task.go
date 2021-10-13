@@ -28,7 +28,7 @@ func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return newOutput.(db.TaskOutput), nil
 }
 
-func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
+func (d *BoltDb) getTasks(projectID int, template *db.Template, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
 	var tasks []db.Task
 
 	err = d.getObjects(0, db.TaskProps, params, func(tsk interface{}) bool {
@@ -38,7 +38,7 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 			return false
 		}
 
-		if templateID != nil && task.TemplateID != *templateID {
+		if template != nil && task.TemplateID != template.ID {
 			return false
 		}
 
@@ -52,9 +52,13 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 	for i, task := range tasks {
 		tpl, ok := templates[task.TemplateID]
 		if !ok {
-			tpl, err = d.GetTemplate(task.ProjectID, task.TemplateID)
-			if err != nil {
-				return
+			if template == nil {
+				tpl, err = d.GetTemplate(task.ProjectID, task.TemplateID)
+				if err != nil {
+					return
+				}
+			} else {
+				tpl = *template
 			}
 			templates[task.TemplateID] = tpl
 		}
@@ -89,8 +93,8 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *BoltDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
-	return d.getTasks(projectID, &templateID, params)
+func (d *BoltDb) GetTemplateTasks(template db.Template, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
+	return d.getTasks(template.ID, &template, params)
 }
 
 func (d *BoltDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {

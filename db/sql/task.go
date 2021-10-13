@@ -88,8 +88,8 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getTasks(projectID, &templateID, params, &tasks)
+func (d *SqlDb) GetTemplateTasks(template db.Template, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	err = d.getTasks(template.ProjectID, &template.ID, params, &tasks)
 	return
 }
 

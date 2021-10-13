@@ -125,17 +125,7 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 
 	_, err = d.selectAll(&templates, query, args...)
 
-	for i := range templates {
-		tpl := &templates[i]
-		var tasks []db.TaskWithTpl
-		err = d.getTasks(projectID, &tpl.ID, db.RetrieveQueryParams{Count: 1}, &tasks)
-		if err != nil {
-			return
-		}
-		if len(tasks) > 0 {
-			tpl.LastTask = &tasks[0]
-		}
-	}
+	err = db.FillTemplates(d, templates)
 
 	return
 }

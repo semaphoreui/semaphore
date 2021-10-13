@@ -80,7 +80,7 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.
 	}
 	if tpl.Type == "build" {
 		var builds []db.TaskWithTpl
-		builds, err = d.GetTemplateTasks(projectID, tpl.ID, db.RetrieveQueryParams{Count: 1})
+		builds, err = d.GetTemplateTasks(tpl, db.RetrieveQueryParams{Count: 1})
 		if err != nil {
 			return db.Task{}, err
 		}
@@ -103,7 +103,7 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.
 		projectID: projectID,
 	}
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
 	_, err = d.CreateEvent(db.Event{
 		UserID:      userID,
@@ -147,7 +147,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	var tasks []db.TaskWithTpl
 
 	if tpl != nil {
-		tasks, err = helpers.Store(r).GetTemplateTasks(project.ID, tpl.(db.Template).ID, db.RetrieveQueryParams{
+		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template), db.RetrieveQueryParams{
 			Count: int(limit),
 		})
 	} else {
@@ -177,7 +177,7 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	task := context.Get(r, "task").(db.Task)
 	helpers.WriteJSON(w, http.StatusOK, task)
 }
 
@@ -200,14 +200,14 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, taskTypeID, task)
+		context.Set(r, "task", task)
 		next.ServeHTTP(w, r)
 	})
 }
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
@@ -261,7 +261,7 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTask removes a task from the database
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	targetTask := context.Get(r, taskTypeID).(db.Task)
+	targetTask := context.Get(r, "task").(db.Task)
 	editor := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
 

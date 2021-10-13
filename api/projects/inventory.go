@@ -99,7 +99,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "inventory"
+	objType := db.EventInventory
 	desc := "Inventory " + inventory.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

@@ -25,7 +25,6 @@ const (
 	taskStoppedStatus  = "stopped"
 	taskSuccessStatus  = "success"
 	taskFailStatus     = "error"
-	taskTypeID         = "task"
 )
 
 type task struct {
@@ -122,7 +121,7 @@ func (t *task) destroyKeys() {
 }
 
 func (t *task) createTaskEvent() {
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 	_, err := t.store.CreateEvent(db.Event{
@@ -164,7 +163,7 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	_, err = t.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
@@ -252,7 +251,7 @@ func (t *task) run() {
 		t.setStatus(taskRunningStatus)
 	}
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
 	_, err := t.store.CreateEvent(db.Event{

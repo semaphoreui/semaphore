@@ -83,7 +83,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "user"
+	objType := db.EventUser
 	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -114,7 +114,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "user"
+	objType := db.EventUser
 	desc := "User ID " + strconv.Itoa(projectUser.ID) + " removed from team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{

@@ -88,7 +88,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "key"
+	objType := db.EventKey
 
 	desc := "Access Key " + key.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -124,7 +124,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Access Key " + key.Name + " updated"
-	objType := "key"
+	objType := db.EventKey
 
 	_, err := helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

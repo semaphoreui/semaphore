@@ -73,7 +73,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "template"
+	objType := db.EventTemplate
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -129,7 +129,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
-	objType := "template"
+	objType := db.EventTemplate
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

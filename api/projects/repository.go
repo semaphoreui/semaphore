@@ -108,7 +108,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "repository"
+	objType := db.EventRepository
 
 	desc := "Repository (" + repository.GitURL + ") created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -163,7 +163,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Repository (" + repository.GitURL + ") updated"
-	objType := "repository"
+	objType := db.EventRepository
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:	     &user.ID,

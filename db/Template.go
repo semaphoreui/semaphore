@@ -31,9 +31,32 @@ type Template struct {
 	LastTask        *TaskWithTpl `db:"-" json:"last_task"`
 }
 
+func FillTemplates(d Store, templates []Template) (err error) {
+	for i := range templates {
+		tpl := &templates[i]
+		var tasks []TaskWithTpl
+		tasks, err = d.GetTemplateTasks(*tpl, RetrieveQueryParams{Count: 1})
+		if err != nil {
+			return
+		}
+		if len(tasks) > 0 {
+			tpl.LastTask = &tasks[0]
+		}
+	}
+
+	return
+}
+
 func FillTemplate(d Store, template *Template) (err error) {
 	if template.VaultKeyID != nil {
 		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
 	}
+
+	if err != nil {
+		return
+	}
+
+	err = FillTemplates(d, []Template{*template})
+
 	return
 }
