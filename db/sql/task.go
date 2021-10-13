@@ -37,10 +37,10 @@ func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQuery
 
 	switch tasks.(type) {
 	case *[]db.TaskWithTpl:
-		fields += ", tpl.playbook as tpl_playbook, " +
-			"`user`.name as user_name, " +
-			"tpl.alias as tpl_alias, " +
-			"tpl.type as tpl_type"
+		fields += ", tpl.playbook as tpl_playbook" +
+			", `user`.name as user_name" +
+			", tpl.alias as tpl_alias" +
+			", tpl.type as tpl_type"
 	}
 
 	q := squirrel.Select(fields).

@@ -6,6 +6,7 @@
     ></v-progress-linear>
   </div>
   <div v-else>
+
     <EditDialog
         :max-width="700"
         v-model="editDialog"
@@ -50,6 +51,32 @@
         v-model="deleteDialog"
         @yes="remove()"
     />
+
+    <EditDialog
+        v-model="newTaskDialog"
+        save-button-text="Run"
+        title="New Task"
+        @save="onTaskCreated"
+    >
+      <template v-slot:title={}>
+        <span class="breadcrumbs__item">{{ item.alias }}</span>
+        <v-icon>mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item">New Task</span>
+      </template>
+
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TaskForm
+            :project-id="projectId"
+            item-id="new"
+            :template-id="itemId"
+            @save="onSave"
+            @error="onError"
+            :need-save="needSave"
+            :need-reset="needReset"
+            :commit-hash="sourceTask == null ? null : sourceTask.commit_hash"
+        />
+      </template>
+    </EditDialog>
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
@@ -219,10 +246,10 @@
         {{ [item.start, item.end] | formatMilliseconds }}
       </template>
 
-      <template v-slot:item.actions="{ itm }">
-        <v-btn text color="black" class="pl-1 pr-2" @click="createTask(itm.id)">
+      <template v-slot:item.actions="{ item }">
+        <v-btn text color="black" class="pl-1 pr-2" @click="createTask(item)">
           <v-icon class="pr-1">mdi-replay</v-icon>
-          Re{{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
+          Re{{ getActionButtonTitle() }}
         </v-btn>
       </template>
     </v-data-table>
@@ -238,12 +265,13 @@ import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
+import TaskForm from '@/components/TaskForm.vue';
 import TaskStatus from '@/components/TaskStatus.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../../lib/constants';
 
 export default {
   components: {
-    YesNoDialog, EditDialog, TemplateForm, TaskStatus,
+    YesNoDialog, EditDialog, TemplateForm, TaskStatus, TaskForm,
   },
 
   props: {
@@ -303,6 +331,8 @@ export default {
       copyDialog: null,
       taskLogDialog: null,
       taskId: null,
+      newTaskDialog: null,
+      sourceTask: null,
     };
   },
 
@@ -342,6 +372,20 @@ export default {
   },
 
   methods: {
+    getActionButtonTitle() {
+      return TEMPLATE_TYPE_ACTION_TITLES[this.item.type];
+    },
+
+    onTaskCreated(e) {
+      EventBus.$emit('i-show-task', {
+        taskId: e.item.id,
+      });
+    },
+
+    createTask(task) {
+      this.sourceTask = task;
+      this.newTaskDialog = true;
+    },
 
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
