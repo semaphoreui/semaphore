@@ -19,32 +19,30 @@
         class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">
-        <v-icon class="mr-3" small>
-          {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}
-        </v-icon>
-        <a :href="
+        <div style="display: flex; justify-content: left; align-items: center;">
+          <v-icon class="mr-3" small>
+            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}
+          </v-icon>
+          <a :href="
           '/project/' + item.project_id +
           '/templates/' + item.template_id"
-        >{{ item.tpl_alias }}</a>
-        <v-icon small class="ml-1 mr-1">mdi-arrow-right</v-icon>
-        <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
-      </template>
-
-      <template v-slot:item.version="{ item }">
-        <div v-if="item.version != null">
-          <v-icon
-              v-if="item.status === 'success'"
-              small
-              color="success"
-          >mdi-check</v-icon>
-          <v-icon
-              v-else
-              small
-              color="red"
-          >mdi-close</v-icon>
-          <span class="ml-1">{{ item.version }}</span>
+          >{{ item.tpl_alias }}</a>
+          <v-icon small class="ml-1 mr-1">mdi-arrow-right</v-icon>
+          <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
+          <div class="ml-2" v-if="item.version != null">
+            <v-icon
+                v-if="item.status === 'success'"
+                small
+                color="success"
+            >mdi-check</v-icon>
+            <v-icon
+                v-else
+                small
+                color="red"
+            >mdi-close</v-icon>
+            <span class="ml-1">{{ item.version }}</span>
+          </div>
         </div>
-        <div v-else>&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -117,11 +115,6 @@ export default {
         {
           text: 'Task',
           value: 'tpl_alias',
-          sortable: false,
-        },
-        {
-          text: 'Version',
-          value: 'version',
           sortable: false,
         },
         {
