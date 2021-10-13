@@ -1,63 +1,64 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="!isLoaded">
     <v-progress-linear
-      indeterminate
-      color="primary darken-2"
+        indeterminate
+        color="primary darken-2"
     ></v-progress-linear>
   </div>
   <div v-else>
     <EditDialog
-      :max-width="700"
-      v-model="editDialog"
-      save-button-text="Save"
-      title="Edit Template"
-      @save="loadData()"
+        :max-width="700"
+        v-model="editDialog"
+        save-button-text="Save"
+        title="Edit Template"
+        @save="loadData()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
+            :project-id="projectId"
+            :item-id="itemId"
+            @save="onSave"
+            @error="onError"
+            :need-save="needSave"
+            :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <EditDialog
-      v-model="copyDialog"
-      save-button-text="Create"
-      title="New Template"
-      @save="onTemplateCopied"
+        v-model="copyDialog"
+        save-button-text="Create"
+        title="New Template"
+        @save="onTemplateCopied"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
-          :project-id="projectId"
-          item-id="new"
-          :source-item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
+            :project-id="projectId"
+            item-id="new"
+            :source-item-id="itemId"
+            @save="onSave"
+            @error="onError"
+            :need-save="needSave"
+            :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <YesNoDialog
-      title="Delete template"
-      text="Are you really want to delete this template?"
-      v-model="deleteDialog"
-      @yes="remove()"
+        title="Delete template"
+        text="Are you really want to delete this template?"
+        v-model="deleteDialog"
+        @yes="remove()"
     />
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
         <router-link
-          class="breadcrumbs__item breadcrumbs__item--link"
-          :to="`/project/${projectId}/templates/`"
-        >Task Templates</router-link>
+            class="breadcrumbs__item breadcrumbs__item--link"
+            :to="`/project/${projectId}/templates/`"
+        >Task Templates
+        </router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.alias }}</span>
       </v-toolbar-title>
@@ -65,25 +66,25 @@
       <v-spacer></v-spacer>
 
       <v-btn
-        icon
-        color="error"
-        @click="deleteDialog = true"
+          icon
+          color="error"
+          @click="deleteDialog = true"
       >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
       <v-btn
-        icon
-        color="black"
-        @click="copyDialog = true"
+          icon
+          color="black"
+          @click="copyDialog = true"
       >
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
       <v-btn
-        icon
-        color="black"
-        @click="editDialog = true"
+          icon
+          color="black"
+          @click="editDialog = true"
       >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
@@ -98,7 +99,8 @@
           elevation="2"
           class="mb-0 ml-4 mr-4 mb-2"
           v-if="item.description"
-      >{{ item.description }}</v-alert>
+      >{{ item.description }}
+      </v-alert>
 
       <v-row>
         <v-col>
@@ -119,12 +121,12 @@
           <v-list two-line subheader>
             <v-list-item>
               <v-list-item-icon>
-                <v-icon>{{ getTypeIcon() }}</v-icon>
+                <v-icon>{{ TEMPLATE_TYPE_ICONS[item.type] }}</v-icon>
               </v-list-item-icon>
 
               <v-list-item-content>
                 <v-list-item-title>Type</v-list-item-title>
-                <v-list-item-subtitle>{{ item.type }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ TEMPLATE_TYPE_TITLES[item.type] }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -179,21 +181,21 @@
     </v-container>
 
     <v-data-table
-      :headers="headers"
-      :items="tasks"
-      :footer-props="{ itemsPerPageOptions: [20] }"
-      class="mt-0"
+        :headers="headers"
+        :items="tasks"
+        :footer-props="{ itemsPerPageOptions: [20] }"
+        class="mt-0"
     >
       <template v-slot:item.id="{ item }">
         <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
       </template>
 
       <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status" />
+        <TaskStatus :status="item.status"/>
       </template>
 
       <template v-slot:item.start="{ item }">
-          {{ item.start | formatDate }}
+        {{ item.start | formatDate }}
       </template>
 
       <template v-slot:item.end="{ item }">
@@ -213,6 +215,7 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
 import TaskStatus from '@/components/TaskStatus.vue';
+import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../../lib/constants';
 
 export default {
   components: {
@@ -225,6 +228,8 @@ export default {
 
   data() {
     return {
+      TEMPLATE_TYPE_ICONS,
+      TEMPLATE_TYPE_TITLES,
       headers: [
         {
           text: 'Task ID',
@@ -277,10 +282,10 @@ export default {
     },
     isLoaded() {
       return this.item
-        && this.tasks
-        && this.inventory
-        && this.environment
-        && this.repositories;
+          && this.tasks
+          && this.inventory
+          && this.environment
+          && this.repositories;
     },
   },
 
@@ -301,18 +306,6 @@ export default {
   },
 
   methods: {
-    getTypeIcon() {
-      switch (this.item.type) {
-        case 'task':
-          return 'mdi-cog';
-        case 'build':
-          return 'mdi-wrench';
-        case 'deploy':
-          return 'mdi-rocket-launch';
-        default:
-          throw new Error();
-      }
-    },
 
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {

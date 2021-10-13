@@ -75,7 +75,7 @@
     >
       <template v-slot:item.alias="{ item }">
         <v-icon class="mr-3" small>
-          {{ getTemplateActionIcon(item) }}
+          {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
         <router-link
             :to="`/project/${projectId}/templates/${item.id}`">{{ item.alias }}</router-link>
@@ -116,7 +116,7 @@
       <template v-slot:item.actions="{ item }">
         <v-btn text color="black" class="pl-1 pr-2" @click="createTask(item.id)">
           <v-icon class="pr-1">mdi-replay</v-icon>
-          {{ getTemplateActionTitle(item) }}
+          {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
         </v-btn>
       </template>
     </v-data-table>
@@ -140,6 +140,7 @@ import TaskForm from '@/components/TaskForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
+import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
 
 export default {
   components: {
@@ -151,6 +152,8 @@ export default {
   },
   data() {
     return {
+      TEMPLATE_TYPE_ICONS,
+      TEMPLATE_TYPE_ACTION_TITLES,
       inventory: null,
       environment: null,
       repositories: null,
@@ -188,32 +191,6 @@ export default {
       EventBus.$emit('i-show-task', {
         taskId,
       });
-    },
-
-    getTemplateActionIcon(item) {
-      switch (item.type) {
-        case 'task':
-          return 'mdi-cog';
-        case 'build':
-          return 'mdi-wrench';
-        case 'deploy':
-          return 'mdi-rocket-launch';
-        default:
-          throw new Error();
-      }
-    },
-
-    getTemplateActionTitle(item) {
-      switch (item.type) {
-        case 'task':
-          return 'Run';
-        case 'build':
-          return 'Build';
-        case 'deploy':
-          return 'Deploy';
-        default:
-          throw new Error();
-      }
     },
 
     createTask(itemId) {

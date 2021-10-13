@@ -13,14 +13,14 @@
       </div>
     </v-toolbar>
     <v-data-table
-      :headers="headers"
-      :items="items"
-      :footer-props="{ itemsPerPageOptions: [20] }"
-      class="mt-4"
+        :headers="headers"
+        :items="items"
+        :footer-props="{ itemsPerPageOptions: [20] }"
+        class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">
         <v-icon class="mr-3" small>
-          {{ getTemplateActionIcon(item) }}
+          {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
         <a :href="
           '/project/' + item.project_id +
@@ -31,7 +31,7 @@
       </template>
 
       <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status" />
+        <TaskStatus :status="item.status"/>
       </template>
 
       <template v-slot:item.start="{ item }">
@@ -50,9 +50,14 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
+import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 
 export default {
   mixins: [ItemListPageBase],
+
+  data() {
+    return { TEMPLATE_TYPE_ICONS };
+  },
 
   components: { TaskStatus },
 
@@ -67,19 +72,6 @@ export default {
   },
 
   methods: {
-    getTemplateActionIcon(item) {
-      switch (item.tpl_type) {
-        case 'task':
-          return 'mdi-cog';
-        case 'build':
-          return 'mdi-wrench';
-        case 'deploy':
-          return 'mdi-rocket-launch';
-        default:
-          throw new Error();
-      }
-    },
-
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,

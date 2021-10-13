@@ -45,6 +45,10 @@ func (d *BoltDb) getTasks(projectID int, template *db.Template, params db.Retrie
 		return true
 	}, &tasks)
 
+	if err != nil {
+		return
+	}
+
 	var templates = make(map[int]db.Template)
 	var users = make(map[int]db.User)
 
@@ -53,10 +57,7 @@ func (d *BoltDb) getTasks(projectID int, template *db.Template, params db.Retrie
 		tpl, ok := templates[task.TemplateID]
 		if !ok {
 			if template == nil {
-				tpl, err = d.GetTemplate(task.ProjectID, task.TemplateID)
-				if err != nil {
-					return
-				}
+				tpl, _ = d.GetTemplate(task.ProjectID, task.TemplateID)
 			} else {
 				tpl = *template
 			}
