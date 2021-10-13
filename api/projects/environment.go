@@ -43,12 +43,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	env, err := helpers.Store(r).GetEnvironments(project.ID, params)
+	env, err := helpers.Store(r).GetEnvironments(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)

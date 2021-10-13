@@ -68,12 +68,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	repos, err := helpers.Store(r).GetRepositories(project.ID, params)
+	repos, err := helpers.Store(r).GetRepositories(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)

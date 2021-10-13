@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime/debug"
 	"strconv"
@@ -97,5 +98,12 @@ func GetMD5Hash(filepath string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func QueryParams(url *url.URL) db.RetrieveQueryParams {
+	return db.RetrieveQueryParams{
+		SortBy: url.Query().Get("sort"),
+		SortInverted: url.Query().Get("order") == "desc",
+	}
 }
 
