@@ -9,10 +9,53 @@
         :value="formError"
         color="error"
         class="pb-2"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
 
     <v-row>
       <v-col cols="12" md="6" class="pb-0">
+        <v-card class="mb-6">
+          <v-tabs
+              fixed-tabs
+              v-model="itemTypeIndex"
+          >
+            <v-tab
+                style="padding: 0"
+                v-for="(key) in Object.keys(TEMPLATE_TYPE_ICONS)"
+                :key="key"
+            >
+              <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
+              {{ TEMPLATE_TYPE_TITLES[key] }}
+            </v-tab>
+          </v-tabs>
+
+          <div class="ml-4 mr-4 mt-6" v-if="item.type">
+            <v-text-field
+                v-if="item.type === 'build'"
+                v-model="item.start_version"
+                label="Start Version"
+                :rules="[v => !!v || 'Start Version is required']"
+                required
+                :disabled="formSaving"
+                placeholder="Example: 0.0.0"
+            ></v-text-field>
+
+            <v-select
+                v-if="item.type === 'deploy'"
+                v-model="item.build_template_id"
+                label="Build Template"
+                :items="buildTemplates"
+                item-value="id"
+                item-text="alias"
+                :rules="[v => !!v || 'Build Template is required']"
+                required
+                :disabled="formSaving"
+            ></v-select>
+
+          </div>
+
+        </v-card>
+
         <v-text-field
             v-model="item.alias"
             label="Playbook Alias"
@@ -29,37 +72,6 @@
             :disabled="formSaving"
             placeholder="Example: site.yml"
         ></v-text-field>
-
-        <v-select
-            v-model="item.type"
-            label="Type"
-            :items="types"
-            item-value="id"
-            item-text="name"
-            :disabled="formSaving"
-        ></v-select>
-
-        <v-text-field
-            v-if="item.type === 'build'"
-            v-model="item.start_version"
-            label="Start Version"
-            :rules="[v => !!v || 'Start Version is required']"
-            required
-            :disabled="formSaving"
-            placeholder="Example: 0.0.0"
-        ></v-text-field>
-
-        <v-select
-            v-if="item.type === 'deploy'"
-            v-model="item.build_template_id"
-            label="Build Template"
-            :items="buildTemplates"
-            item-value="id"
-            item-text="alias"
-            :rules="[v => !!v || 'Build Template is required']"
-            required
-            :disabled="formSaving"
-        ></v-select>
 
         <v-select
             v-model="item.inventory_id"
@@ -134,7 +146,7 @@ Example:
             label="Cron"
             :disabled="formSaving"
             placeholder="Example: * 1 * * * *"
-            v-if="schedules.length <= 1"
+            v-if="schedules == null || schedules.length <= 1"
         ></v-text-field>
       </v-col>
     </v-row>
@@ -151,6 +163,7 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 // import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
+import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
 
 export default {
   mixins: [ItemFormBase],
@@ -165,6 +178,9 @@ export default {
 
   data() {
     return {
+      itemTypeIndex: 0,
+      TEMPLATE_TYPE_ICONS,
+      TEMPLATE_TYPE_TITLES,
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',
@@ -180,16 +196,6 @@ export default {
       environment: null,
       schedules: null,
       cronFormat: null,
-      types: [{
-        id: '',
-        name: 'Task',
-      }, {
-        id: 'build',
-        name: 'Build',
-      }, {
-        id: 'deploy',
-        name: 'Deploy',
-      }],
     };
   },
 
@@ -204,6 +210,10 @@ export default {
 
     sourceItemId(val) {
       this.item.template_id = val;
+    },
+
+    itemTypeIndex(val) {
+      this.item.type = Object.keys(TEMPLATE_TYPE_ICONS)[val];
     },
   },
 
@@ -273,6 +283,7 @@ export default {
       if (this.schedules.length === 1) {
         this.cronFormat = this.schedules[0].cron_format;
       }
+      this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
     },
 
     getItemsUrl() {
