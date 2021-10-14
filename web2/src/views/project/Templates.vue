@@ -27,11 +27,12 @@
 
     <EditDialog
         v-model="newTaskDialog"
-        save-button-text="Run"
+        :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
         title="New Task"
         @save="onTaskCreated"
     >
       <template v-slot:title={}>
+        <v-icon class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
         <span class="breadcrumbs__item">{{ templateAlias }}</span>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">New Task</span>
@@ -188,6 +189,12 @@ export default {
   },
 
   computed: {
+    templateType() {
+      if (this.itemId == null || this.itemId === 'new') {
+        return '';
+      }
+      return this.items.find((x) => x.id === this.itemId).type;
+    },
     templateAlias() {
       if (this.itemId == null || this.itemId === 'new') {
         return '';

@@ -27,8 +27,13 @@ type Task struct {
 
 	Version       *string `db:"version" json:"version"`
 	CommitHash    *string `db:"commit_hash" json:"commit_hash"`
-	CommitMessage *string `db:"commit_message" json:"commit_message"`
-	Message       *string `db:"message" json:"message"`
+
+	// CommitMessage can not be provided via REST API, it is load from
+	// git repository.
+	// Value passed from Rest API must be ignored.
+	CommitMessage string `db:"commit_message" json:"commit_message"`
+
+	Message       string `db:"message" json:"message"`
 }
 
 // TaskWithTpl is the task data with additional fields

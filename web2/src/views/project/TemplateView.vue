@@ -54,11 +54,11 @@
 
     <EditDialog
         v-model="newTaskDialog"
-        save-button-text="Run"
-        title="New Task"
+        :save-button-text="'Re' + getActionButtonTitle()"
         @save="onTaskCreated"
     >
       <template v-slot:title={}>
+        <v-icon class="mr-4">{{ TEMPLATE_TYPE_ICONS[item.type] }}</v-icon>
         <span class="breadcrumbs__item">{{ item.alias }}</span>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">New Task</span>
@@ -74,6 +74,8 @@
             :need-save="needSave"
             :need-reset="needReset"
             :commit-hash="sourceTask == null ? null : sourceTask.commit_hash"
+            :commit-message="sourceTask == null ? null : sourceTask.commit_message"
+            :version="sourceTask == null ? null : sourceTask.version"
         />
       </template>
     </EditDialog>

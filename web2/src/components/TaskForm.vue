@@ -13,15 +13,18 @@
     </v-alert>
 
     <v-alert
-       v-if="commitHash"
-    >{{ commitHash.substr(0, 6) }}
+        color="blue"
+        dark
+        icon="mdi-source-fork"
+        dismissible
+        v-model="commitAvailable"
+        prominent
+    >
+      <div
+          style="font-weight: bold;"
+      >{{ commitHash ? commitHash.substr(0, 10) : '' }}</div>
+      <div v-if="commitMessage">{{ commitMessage }}</div>
     </v-alert>
-
-    <v-text-field
-        v-model="item.message"
-        label="Message (Optional)"
-        :disabled="formSaving"
-    />
 
     <v-select
         v-if="template.type === 'deploy'"
@@ -32,6 +35,12 @@
         item-text="version"
         :rules="[v => !!v || 'Build Version is required']"
         required
+        :disabled="formSaving"
+    />
+
+    <v-text-field
+        v-model="item.message"
+        label="Message (Optional)"
         :disabled="formSaving"
     />
 
@@ -61,12 +70,14 @@ export default {
   props: {
     templateId: Number,
     commitHash: String,
+    commitMessage: String,
     version: String,
   },
   data() {
     return {
       template: null,
       buildTasks: null,
+      commitAvailable: null,
     };
   },
   watch: {
@@ -80,8 +91,17 @@ export default {
       this.item.template_id = val;
     },
 
+    commitHash(val) {
+      this.item.commit_hash = val;
+      this.commitAvailable = this.item.commit_hash != null;
+    },
+
     version(val) {
       this.item.version = val;
+    },
+
+    commitAvailable(val) {
+      this.item.commit_hash = val ? this.commitHash : null;
     },
   },
 
@@ -101,15 +121,17 @@ export default {
         responseType: 'json',
       })).data;
 
-      this.buildTasks = (await axios({
+      this.buildTasks = this.template.type === 'deploy' ? (await axios({
         keys: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.templateId}/tasks`,
+        url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks`,
         responseType: 'json',
-      })).data.filter((task) => task.version != null);
+      })).data.filter((task) => task.version != null) : [];
 
       if (this.buildTasks.length > 0) {
-        this.item.version = this.buildTasks[this.buildTasks.length - 1].version;
+        this.item.version = this.version != null ? this.version : this.buildTasks[0].version;
       }
+
+      this.commitAvailable = this.commitHash != null;
     },
 
     getItemsUrl() {

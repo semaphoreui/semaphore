@@ -415,7 +415,7 @@ func (t *task) checkoutRepository() error {
 	}
 	commitMessage, _ := t.getCommitMessage()
 	t.task.CommitHash = &commitHash
-	t.task.CommitMessage = &commitMessage
+	t.task.CommitMessage = commitMessage
 
 	return t.store.UpdateTask(t.task)
 }
