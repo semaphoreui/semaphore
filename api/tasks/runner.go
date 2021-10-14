@@ -598,12 +598,11 @@ func (t *task) getExtraVars() (str string, err error) {
 
 	delete(extraVars, "ENV")
 
-	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-		util.Config.VariablesPassingMethod == util.VariablesPassingExtra {
+	if t.template.Type != db.TemplateTask &&
+		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+			util.Config.VariablesPassingMethod == util.VariablesPassingExtra) {
 		extraVars["semaphore_task_type"] = t.template.Type
-		if t.task.Version != nil {
-			extraVars["semaphore_task_version"] = t.task.Version
-		}
+		extraVars["semaphore_task_version"] = t.task.Version
 	}
 
 	ev, err := json.Marshal(extraVars)
@@ -715,12 +714,11 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
-	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-		util.Config.VariablesPassingMethod == util.VariablesPassingEnv {
-		env = append(env, "SEMAPHORE_TASK_TYPE="+t.template.Type)
-		if t.task.Version != nil {
-			env = append(env, "SEMAPHORE_TASK_VERSION="+*t.task.Version)
-		}
+	if t.template.Type != db.TemplateTask &&
+		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
+		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
+		env = append(env, "SEMAPHORE_TASK_VERSION="+*t.task.Version)
 	}
 
 	if gitSSHCommand != "" {
