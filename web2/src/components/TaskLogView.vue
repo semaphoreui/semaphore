@@ -1,5 +1,11 @@
 <template>
   <div>
+    <v-alert
+        type="info"
+        text
+        v-if="item.message"
+    >{{ item.message }}</v-alert>
+
     <v-container class="pa-0 mb-2">
       <v-row no-gutters>
         <v-col>

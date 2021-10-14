@@ -122,10 +122,8 @@
     <v-container class="pa-0">
 
       <v-alert
-          border="top"
-          colored-border
+          text
           type="info"
-          elevation="2"
           class="mb-0 ml-4 mr-4 mb-2"
           v-if="item.description"
       >{{ item.description }}
