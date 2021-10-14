@@ -25,9 +25,10 @@ type Task struct {
 	Start   *time.Time `db:"start" json:"start"`
 	End     *time.Time `db:"end" json:"end"`
 
-	Version    *string `db:"version" json:"version"`
-	CommitHash *string `db:"commit_hash" json:"commit_hash"`
-	Message    *string `db:"message" json:"message"`
+	Version       *string `db:"version" json:"version"`
+	CommitHash    *string `db:"commit_hash" json:"commit_hash"`
+	CommitMessage *string `db:"commit_message" json:"commit_message"`
+	Message       *string `db:"message" json:"message"`
 }
 
 // TaskWithTpl is the task data with additional fields

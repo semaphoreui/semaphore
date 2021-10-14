@@ -12,6 +12,11 @@
     >{{ formError }}
     </v-alert>
 
+    <v-alert
+       v-if="commitHash"
+    >{{ commitHash.substr(0, 6) }}
+    </v-alert>
+
     <v-text-field
         v-model="item.message"
         label="Message (Optional)"
@@ -29,25 +34,6 @@
         required
         :disabled="formSaving"
     />
-
-    <v-textarea
-        outlined
-        class="mt-4"
-        v-model="item.environment"
-        label="Environment Override"
-        placeholder='Example: {"version": 10, "author": "John"}'
-        :disabled="formSaving"
-        rows="4"
-    ></v-textarea>
-
-    <v-textarea
-        outlined
-        v-model="item.arguments"
-        label="Extra CLI Arguments"
-        :disabled="formSaving"
-        placeholder='Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
-        rows="4"
-    ></v-textarea>
 
     <v-row no-gutters>
       <v-col>
@@ -74,6 +60,8 @@ export default {
   mixins: [ItemFormBase],
   props: {
     templateId: Number,
+    commitHash: String,
+    version: String,
   },
   data() {
     return {
@@ -90,6 +78,10 @@ export default {
 
     templateId(val) {
       this.item.template_id = val;
+    },
+
+    version(val) {
+      this.item.version = val;
     },
   },
 

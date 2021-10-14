@@ -413,12 +413,15 @@ func (t *task) checkoutRepository() error {
 	if err != nil {
 		return err
 	}
+	commitMessage, _ := t.getCommitMessage()
 	t.task.CommitHash = &commitHash
+	t.task.CommitMessage = &commitMessage
+
 	return t.store.UpdateTask(t.task)
 }
 
 // getCommitHash retrieves current commit hash from task repository
-func (t *task) getCommitHash() (commitHash string, err error) {
+func (t *task) getCommitHash() (res string, err error) {
 	err = t.validateRepo()
 	if err != nil {
 		return
@@ -426,13 +429,37 @@ func (t *task) getCommitHash() (commitHash string, err error) {
 
 	cmd := exec.Command("git")
 	cmd.Dir = t.getRepoPath()
-	t.log("Get latest commit hash")
+	t.log("Get current commit hash")
 	cmd.Args = append(cmd.Args, "rev-parse", "HEAD")
 	out, err := cmd.Output()
 	if err != nil {
 		return
 	}
-	commitHash = strings.Trim(string(out), " \n")
+	res = strings.Trim(string(out), " \n")
+	return
+}
+
+// getCommitMessage retrieves current commit message from task repository
+func (t *task) getCommitMessage() (res string, err error) {
+	err = t.validateRepo()
+	if err != nil {
+		return
+	}
+
+	cmd := exec.Command("git")
+	cmd.Dir = t.getRepoPath()
+	t.log("Get current commit message")
+	cmd.Args = append(cmd.Args, "show-branch", "--no-name", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	res = strings.Trim(string(out), " \n")
+
+	if len(res) > 100 {
+		res = res[0:100]
+	}
+
 	return
 }
 
