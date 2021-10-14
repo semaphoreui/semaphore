@@ -389,7 +389,7 @@ func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 		return fmt.Errorf("ssh key with passphrase not supported")
 	}
 
-	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 }
 
 func (t *task) checkoutRepository() error {
@@ -598,6 +598,14 @@ func (t *task) getExtraVars() (str string, err error) {
 
 	delete(extraVars, "ENV")
 
+	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+		util.Config.VariablesPassingMethod == util.VariablesPassingExtra {
+		extraVars["semaphore_task_type"] = t.template.Type
+		if t.task.Version != nil {
+			extraVars["semaphore_task_version"] = t.task.Version
+		}
+	}
+
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
 		return
@@ -706,10 +714,15 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
-	env = append(env, "SEMAPHORE_TASK_TYPE=" + t.template.Type)
-	if t.task.Version != nil {
-		env = append(env, "SEMAPHORE_TASK_VERSION=" + *t.task.Version)
+
+	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+		util.Config.VariablesPassingMethod == util.VariablesPassingEnv {
+		env = append(env, "SEMAPHORE_TASK_TYPE="+t.template.Type)
+		if t.task.Version != nil {
+			env = append(env, "SEMAPHORE_TASK_VERSION="+*t.task.Version)
+		}
 	}
+
 	if gitSSHCommand != "" {
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
 	}

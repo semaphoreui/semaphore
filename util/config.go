@@ -31,11 +31,11 @@ const (
 type DbConfig struct {
 	Dialect DbDriver `json:"-"`
 
-	Hostname string `json:"host"`
-	Username string `json:"user"`
-	Password string `json:"pass"`
-	DbName   string `json:"name"`
-	Options map[string]string `json:"options"`
+	Hostname string            `json:"host"`
+	Username string            `json:"user"`
+	Password string            `json:"pass"`
+	DbName   string            `json:"name"`
+	Options  map[string]string `json:"options"`
 }
 
 type ldapMappings struct {
@@ -44,6 +44,15 @@ type ldapMappings struct {
 	UID  string `json:"uid"`
 	CN   string `json:"cn"`
 }
+
+type VariablesPassingMethod string
+
+const (
+	VariablesPassingNone  VariablesPassingMethod = "none"
+	VariablesPassingEnv   VariablesPassingMethod = "env_vars"
+	VariablesPassingExtra VariablesPassingMethod = "extra_vars"
+	VariablesPassingBoth  VariablesPassingMethod = ""
+)
 
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
@@ -106,6 +115,10 @@ type ConfigType struct {
 	LdapNeedTLS   bool `json:"ldap_needtls"`
 
 	SshConfigPath string `json:"ssh_config_path"`
+
+	// VariablesPassingMethod defines how Semaphore will pass variables to Ansible.
+	// Default both via environment variables and via extra vars.
+	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
 }
 
 //Config exposes the application configuration storage for use in the application
@@ -229,7 +242,6 @@ func (d *DbConfig) HasSupportMultipleDatabases() bool {
 	return true
 }
 
-
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	switch d.Dialect {
 	case DbDriverBolt:
@@ -249,8 +261,8 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				d.Password,
 				d.Hostname)
 		}
-		options := map[string]string {
-			"parseTime": "true",
+		options := map[string]string{
+			"parseTime":         "true",
 			"interpolateParams": "true",
 		}
 		for v, k := range d.Options {
