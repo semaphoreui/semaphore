@@ -5,6 +5,56 @@
       v-model="formValid"
       v-if="isLoaded"
   >
+    <v-dialog
+        v-model="helpDialog"
+        hide-overlay
+        width="300"
+    >
+      <v-alert
+          border="top"
+          colored-border
+          type="info"
+          elevation="2"
+          class="mb-0 pb-0"
+      >
+        <div v-if="helpKey === 'build_version'">
+          <p>
+            Defines start version of your
+            <a target="_black" href="https://en.wikipedia.org/wiki/Software_build">artifact</a>.
+            Each run increments the artifact version.
+          </p>
+          <p>
+            For more information about building, see the
+            <a href="https://docs.ansible-semaphore.com/user-guide/task-templates#build"
+               target="_blank"
+            >Task Template reference</a>.
+          </p>
+        </div>
+        <div v-else-if="helpKey === 'build'">
+          <p>
+            Defines what
+            <a target="_black" href="https://en.wikipedia.org/wiki/Software_build">artifact</a>
+            should be deployed when the task run.
+          </p>
+          <p>
+            For more information about deploying, see the
+            <a href="https://docs.ansible-semaphore.com/user-guide/task-templates#build"
+               target="_blank"
+            >Task Template reference</a>.
+          </p>
+        </div>
+        <div v-if="helpKey === 'cron'">
+          <p>Defines autorun schedule.</p>
+          <p>
+            For more information about cron, see the
+            <a href="https://pkg.go.dev/github.com/robfig/cron#hdr-CRON_Expression_Format"
+               target="_blank"
+            >Cron expression format reference</a>.
+          </p>
+        </div>
+      </v-alert>
+    </v-dialog>
+
     <v-alert
         :value="formError"
         color="error"
@@ -38,6 +88,8 @@
                 required
                 :disabled="formSaving"
                 placeholder="Example: 0.0.0"
+                append-outer-icon="mdi-help-circle"
+                @click:append-outer="showHelpDialog('build_version')"
             ></v-text-field>
 
             <v-select
@@ -50,6 +102,8 @@
                 :rules="[v => !!v || 'Build Template is required']"
                 required
                 :disabled="formSaving"
+                append-outer-icon="mdi-help-circle"
+                @click:append-outer="showHelpDialog('build')"
             ></v-select>
 
           </div>
@@ -147,6 +201,8 @@ Example:
             :disabled="formSaving"
             placeholder="Example: * 1 * * * *"
             v-if="schedules == null || schedules.length <= 1"
+            append-outer-icon="mdi-help-circle"
+            @click:append-outer="showHelpDialog('cron')"
         ></v-text-field>
       </v-col>
     </v-row>
@@ -196,6 +252,8 @@ export default {
       environment: null,
       schedules: null,
       cronFormat: null,
+      helpDialog: null,
+      helpKey: null,
     };
   },
 
@@ -240,6 +298,11 @@ export default {
   },
 
   methods: {
+    showHelpDialog(key) {
+      this.helpKey = key;
+      this.helpDialog = true;
+    },
+
     async afterLoadData() {
       if (this.sourceItemId) {
         this.item = (await axios({

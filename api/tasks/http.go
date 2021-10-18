@@ -48,7 +48,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 		return startVersion
 	}
 
-	curr, err := strconv.Atoi(currentVersion[len(prefix):len(currentVersion) - len(suffix)])
+	curr, err := strconv.Atoi(currentVersion[len(prefix) : len(currentVersion)-len(suffix)])
 	if err != nil {
 		return startVersion
 	}
@@ -78,7 +78,7 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.
 	if err != nil {
 		return db.Task{}, err
 	}
-	if tpl.Type == "build" {
+	if tpl.Type == db.TemplateBuild { // get next version for task if it is a Build
 		var builds []db.TaskWithTpl
 		builds, err = d.GetTemplateTasks(tpl, db.RetrieveQueryParams{Count: 1})
 		if err != nil {

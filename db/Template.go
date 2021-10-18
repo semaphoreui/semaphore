@@ -37,6 +37,7 @@ type Template struct {
 	StartVersion    *string      `db:"start_version" json:"start_version"`
 	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id"`
 	LastTask        *TaskWithTpl `db:"-" json:"last_task"`
+	LastSuccessTask *TaskWithTpl `db:"-" json:"last_success_task"`
 }
 
 func FillTemplates(d Store, templates []Template) (err error) {

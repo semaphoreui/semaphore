@@ -23,11 +23,11 @@
     <v-text-field
         v-model="item.git_url"
         label="Git URL"
-        append-outer-icon="mdi-help-circle"
         :rules="[v => !!v || 'Repository is required']"
         required
         :disabled="formSaving"
-        @click:append-outer="showGitUrlHelp()"
+        append-outer-icon="mdi-help-circle"
+        @click:append-outer="showHelpDialog('url')"
     ></v-text-field>
 
     <v-select
@@ -40,11 +40,11 @@
         :rules="[v => !!v || 'Key is required']"
         required
         :disabled="formSaving"
-        @click:append-outer="showKeyHelp()"
+        @click:append-outer="showHelpDialog('key')"
     ></v-select>
 
     <v-dialog
-        v-model="gitUrlHelpDialog"
+        v-model="helpDialog"
         hide-overlay
         width="300"
     >
@@ -55,10 +55,15 @@
           elevation="2"
           class="mb-0"
       >
-        <p><b>Git URL</b> can be SSH (git@***) or HTTPS (https://***) URL.</p>
-        <p>If you use SSH URL you should specify <b>Access Key</b> with type <code>SSH</code>.</p>
-        <p>If you use HTTPS URL you should specify <b>Access Key</b> with type
-          <code>None</code>.</p>
+        <p v-if="helpKey === 'url'">Git or SSH URL of the repository
+          with your Ansible playbooks.</p>
+        <div v-else-if="helpKey === 'key'">
+          <p>Credentials to access to the Git repository. It should be:</p>
+          <ul>
+            <li><code>SSH</code> if you use SSH URL.</li>
+            <li><code>None</code> if you use HTTPS URL without authentication.</li>
+          </ul>
+        </div>
       </v-alert>
     </v-dialog>
   </v-form>
@@ -71,8 +76,8 @@ export default {
   mixins: [ItemFormBase],
   data() {
     return {
-      gitUrlHelpDialog: false,
-      keyHelpDialog: false,
+      helpDialog: null,
+      helpKey: null,
 
       keys: null,
       inventoryTypes: [{
@@ -92,12 +97,9 @@ export default {
     })).data;
   },
   methods: {
-    showGitUrlHelp() {
-      this.gitUrlHelpDialog = true;
-    },
-
-    showKeyHelp() {
-      this.gitUrlHelpDialog = true;
+    showHelpDialog(key) {
+      this.helpKey = key;
+      this.helpDialog = true;
     },
 
     getItemsUrl() {

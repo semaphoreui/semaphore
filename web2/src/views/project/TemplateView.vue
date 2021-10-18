@@ -214,7 +214,21 @@
         class="mt-0"
     >
       <template v-slot:item.id="{ item }">
-        <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
+        <div style="display: flex; justify-content: left; align-items: center;">
+          <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
+          <v-tooltip color="info" right max-width="350">
+            <template v-slot:activator="{ on, attrs }">
+              <v-icon
+                  v-bind="attrs"
+                  v-on="on"
+                  v-if="item.message"
+                  class="ml-2"
+                  color="blue"
+              >mdi-information</v-icon>
+            </template>
+            <span>{{ item.message }}</span>
+          </v-tooltip>
+        </div>
       </template>
 
       <template v-slot:item.version="{ item }">
@@ -223,12 +237,14 @@
               v-if="item.status === 'success'"
               small
               color="success"
-          >mdi-check</v-icon>
+          >mdi-check
+          </v-icon>
           <v-icon
               v-else
               small
               color="red"
-          >mdi-close</v-icon>
+          >mdi-close
+          </v-icon>
           <span class="ml-1">{{ item.version }}</span>
         </div>
         <div v-else>&mdash;</div>

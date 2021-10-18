@@ -119,6 +119,8 @@ type ConfigType struct {
 	// VariablesPassingMethod defines how Semaphore will pass variables to Ansible.
 	// Default both via environment variables and via extra vars.
 	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
+
+
 }
 
 //Config exposes the application configuration storage for use in the application
