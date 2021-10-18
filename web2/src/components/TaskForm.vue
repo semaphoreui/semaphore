@@ -32,7 +32,7 @@
         label="Build Version"
         :items="buildTasks"
         item-value="version"
-        item-text="version"
+        :item-text="(itm) => itm.version + (itm.message ? ' — ' + itm.message : '')"
         :rules="[v => !!v || 'Build Version is required']"
         required
         :disabled="formSaving"
