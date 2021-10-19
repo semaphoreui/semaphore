@@ -31,8 +31,19 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
-func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	q := squirrel.Select("task.*, tpl.playbook as tpl_playbook, `user`.name as user_name, tpl.alias as tpl_alias").
+
+func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams, tasks interface{}) (err error) {
+	fields := "task.*"
+
+	switch tasks.(type) {
+	case *[]db.TaskWithTpl:
+		fields += ", tpl.playbook as tpl_playbook" +
+			", `user`.name as user_name" +
+			", tpl.alias as tpl_alias" +
+			", tpl.type as tpl_type"
+	}
+
+	q := squirrel.Select(fields).
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
@@ -50,10 +61,11 @@ func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQuery
 
 	query, args, _ := q.ToSql()
 
-	_, err = d.selectAll(&tasks, query, args...)
+	_, err = d.selectAll(tasks, query, args...)
 
 	return
 }
+
 
 func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	q := squirrel.Select("task.*").
@@ -76,12 +88,14 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
-	return d.getTasks(projectID, &templateID, params)
+func (d *SqlDb) GetTemplateTasks(template db.Template, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	err = d.getTasks(template.ProjectID, &template.ID, params, &tasks)
+	return
 }
 
-func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
-	return d.getTasks(projectID, nil, params)
+func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	err = d.getTasks(projectID, nil, params, &tasks)
+	return
 }
 
 func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {

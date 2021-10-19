@@ -72,6 +72,7 @@
 
     <v-alert
         dense
+        text
         type="info"
         v-if="item.type === 'none'"
     >

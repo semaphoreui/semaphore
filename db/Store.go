@@ -26,26 +26,21 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
-type ObjectScope int
-
+// ObjectProperties describe database entities.
+// It mainly used for NoSQL implementations (currently BoltDB) to preserve same
+// data structure of different implementations and easy change it if required.
 type ObjectProperties struct {
 	TableName           string
 	IsGlobal            bool // doesn't belong to other table, for example to project or user.
 	ForeignColumnSuffix string
 	PrimaryColumnName   string
 	SortableColumns     []string
-	SortInverted        bool
-	Type                reflect.Type
+	SortInverted        bool // sort from high to low object ID by default. It is useful for some NoSQL implementations.
+	Type                reflect.Type // to which type the table bust be mapped.
 }
 
 var ErrNotFound = errors.New("no rows in result set")
 var ErrInvalidOperation = errors.New("invalid operation")
-
-func ValidateUsername(login string) error {
-	return nil
-}
-
-type Transaction interface{}
 
 type Store interface {
 	Connect() error
@@ -135,108 +130,12 @@ type Store interface {
 	CreateTask(task Task) (Task, error)
 	UpdateTask(task Task) error
 
-	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetTemplateTasks(template Template, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
-}
-
-func FillTemplate(d Store, template *Template) (err error) {
-	if template.VaultKeyID != nil {
-		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
-	}
-	return
-}
-
-func FillInventory(d Store, inventory *Inventory) (err error) {
-	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
-	}
-
-	if err != nil {
-		return
-	}
-
-	if inventory.BecomeKeyID != nil {
-		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
-	}
-
-	return
-}
-
-func FillEvents(d Store, events []Event) (err error) {
-	usernames := make(map[int]string)
-
-	for i, evt := range events {
-		var objName string
-		objName, err = getEventObjectName(d, evt)
-
-		if err != nil {
-			return
-		}
-
-		if objName != "" {
-			events[i].ObjectName = objName
-		}
-
-		if evt.UserID == nil {
-			continue
-		}
-
-		var username string
-
-		username, ok := usernames[*evt.UserID]
-
-		if !ok {
-			username, err = getEventUsername(d, evt)
-
-			if err != nil {
-				return
-			}
-
-			if username == "" {
-				continue
-			}
-
-			usernames[*evt.UserID] = username
-		}
-
-		events[i].Username = &username
-	}
-
-	return
-}
-
-func getEventObjectName(d Store, evt Event) (string, error) {
-	if evt.ObjectID == nil || evt.ObjectType == nil {
-		return "", nil
-	}
-	switch *evt.ObjectType {
-	case "task":
-		task, err := d.GetTask(*evt.ProjectID, *evt.ObjectID)
-		if err != nil {
-			return "", err
-		}
-		return task.Playbook, nil
-	default:
-		return "", nil
-	}
-}
-
-func getEventUsername(d Store, evt Event) (username string, err error) {
-	if evt.UserID == nil {
-		return "", nil
-	}
-
-	user, err := d.GetUser(*evt.UserID)
-
-	if err != nil {
-		return "", err
-	}
-
-	return user.Username, nil
 }
 
 var AccessKeyProps = ObjectProperties{

@@ -68,12 +68,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	repos, err := helpers.Store(r).GetRepositories(project.ID, params)
+	repos, err := helpers.Store(r).GetRepositories(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -108,7 +103,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "repository"
+	objType := db.EventRepository
 
 	desc := "Repository (" + repository.GitURL + ") created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -163,7 +158,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Repository (" + repository.GitURL + ") updated"
-	objType := "repository"
+	objType := db.EventRepository
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:	     &user.ID,

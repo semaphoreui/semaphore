@@ -1,5 +1,13 @@
 package db
 
+type TemplateType string
+
+const (
+	TemplateTask   TemplateType = ""
+	TemplateBuild  TemplateType = "build"
+	TemplateDeploy TemplateType = "deploy"
+)
+
 // Template is a user defined model that is used to run a task
 type Template struct {
 	ID int `db:"id" json:"id"`
@@ -24,4 +32,40 @@ type Template struct {
 
 	VaultKeyID *int      `db:"vault_key_id" json:"vault_key_id"`
 	VaultKey   AccessKey `db:"-" json:"-"`
+
+	Type            TemplateType `db:"type" json:"type"`
+	StartVersion    *string      `db:"start_version" json:"start_version"`
+	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id"`
+	LastTask        *TaskWithTpl `db:"-" json:"last_task"`
+	LastSuccessTask *TaskWithTpl `db:"-" json:"last_success_task"`
+}
+
+func FillTemplates(d Store, templates []Template) (err error) {
+	for i := range templates {
+		tpl := &templates[i]
+		var tasks []TaskWithTpl
+		tasks, err = d.GetTemplateTasks(*tpl, RetrieveQueryParams{Count: 1})
+		if err != nil {
+			return
+		}
+		if len(tasks) > 0 {
+			tpl.LastTask = &tasks[0]
+		}
+	}
+
+	return
+}
+
+func FillTemplate(d Store, template *Template) (err error) {
+	if template.VaultKeyID != nil {
+		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	err = FillTemplates(d, []Template{*template})
+
+	return
 }

@@ -40,12 +40,7 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
-	params := db.RetrieveQueryParams{
-		SortBy:       r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	templates, err := helpers.Store(r).GetTemplates(project.ID, params)
+	templates, err := helpers.Store(r).GetTemplates(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -73,7 +68,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "template"
+	objType := db.EventTemplate
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -129,7 +124,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
-	objType := "template"
+	objType := db.EventTemplate
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

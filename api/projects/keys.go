@@ -41,12 +41,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	keys, err := helpers.Store(r).GetAccessKeys(project.ID, params)
+	keys, err := helpers.Store(r).GetAccessKeys(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -88,7 +83,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "key"
+	objType := db.EventKey
 
 	desc := "Access Key " + key.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -124,7 +119,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Access Key " + key.Name + " updated"
-	objType := "key"
+	objType := db.EventKey
 
 	_, err := helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

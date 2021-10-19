@@ -25,7 +25,6 @@ const (
 	taskStoppedStatus  = "stopped"
 	taskSuccessStatus  = "success"
 	taskFailStatus     = "error"
-	taskTypeID         = "task"
 )
 
 type task struct {
@@ -50,6 +49,12 @@ func (t *task) getRepoName() string {
 
 func (t *task) getRepoPath() string {
 	return util.Config.TmpPath + "/" + t.getRepoName()
+}
+
+func (t *task) validateRepo() error {
+	path := t.getRepoPath()
+	_, err := os.Stat(path)
+	return err
 }
 
 func (t *task) setStatus(status string) {
@@ -116,7 +121,7 @@ func (t *task) destroyKeys() {
 }
 
 func (t *task) createTaskEvent() {
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 	_, err := t.store.CreateEvent(db.Event{
@@ -158,7 +163,7 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	_, err = t.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
@@ -183,6 +188,12 @@ func (t *task) prepareRun() {
 
 	if err := t.updateRepository(); err != nil {
 		t.log("Failed updating repository: " + err.Error())
+		t.fail()
+		return
+	}
+
+	if err := t.checkoutRepository(); err != nil {
+		t.log("Failed to checkout repository to required commit: " + err.Error())
 		t.fail()
 		return
 	}
@@ -240,7 +251,7 @@ func (t *task) run() {
 		t.setStatus(taskRunningStatus)
 	}
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
 	_, err := t.store.CreateEvent(db.Event{
@@ -330,11 +341,6 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	//if t.repository.SSHKey.Type != db.AccessKeySSH {
-	//	t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
-	//	return errors.New("unsupported SSH Key")
-	//}
-
 	// get environment
 	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
 		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
@@ -386,11 +392,78 @@ func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 }
 
-func (t *task) updateRepository() error {
-	t.getRepoPath()
-	repoName := t.getRepoName()
-	_, err := os.Stat(t.getRepoPath())
+func (t *task) checkoutRepository() error {
+	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
+		err := t.validateRepo()
+		if err != nil {
+			return err
+		}
 
+		cmd := exec.Command("git")
+		cmd.Dir = t.getRepoPath()
+		t.log("Checkout repository to commit " + *t.task.CommitHash)
+		cmd.Args = append(cmd.Args, "checkout", *t.task.CommitHash)
+		t.logCmd(cmd)
+		return cmd.Run()
+	}
+
+	// store commit to task table
+
+	commitHash, err := t.getCommitHash()
+	if err != nil {
+		return err
+	}
+	commitMessage, _ := t.getCommitMessage()
+	t.task.CommitHash = &commitHash
+	t.task.CommitMessage = commitMessage
+
+	return t.store.UpdateTask(t.task)
+}
+
+// getCommitHash retrieves current commit hash from task repository
+func (t *task) getCommitHash() (res string, err error) {
+	err = t.validateRepo()
+	if err != nil {
+		return
+	}
+
+	cmd := exec.Command("git")
+	cmd.Dir = t.getRepoPath()
+	t.log("Get current commit hash")
+	cmd.Args = append(cmd.Args, "rev-parse", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	res = strings.Trim(string(out), " \n")
+	return
+}
+
+// getCommitMessage retrieves current commit message from task repository
+func (t *task) getCommitMessage() (res string, err error) {
+	err = t.validateRepo()
+	if err != nil {
+		return
+	}
+
+	cmd := exec.Command("git")
+	cmd.Dir = t.getRepoPath()
+	t.log("Get current commit message")
+	cmd.Args = append(cmd.Args, "show-branch", "--no-name", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	res = strings.Trim(string(out), " \n")
+
+	if len(res) > 100 {
+		res = res[0:100]
+	}
+
+	return
+}
+
+func (t *task) updateRepository() error {
 	var gitSSHCommand string
 	if t.repository.SSHKey.Type == db.AccessKeySSH {
 		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
@@ -405,14 +478,18 @@ func (t *task) updateRepository() error {
 		repoURL, repoTag = split[0], split[1]
 	}
 
-	if err != nil && os.IsNotExist(err) {
+	err := t.validateRepo()
+
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
 		t.log("Cloning repository " + repoURL)
-		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, repoName)
-	} else if err != nil {
-		return err
+		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, t.getRepoName())
 	} else {
 		t.log("Updating repository " + repoURL)
-		cmd.Dir += "/" + repoName
+		cmd.Dir = t.getRepoPath()
 		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
 	}
 
@@ -520,6 +597,13 @@ func (t *task) getExtraVars() (str string, err error) {
 	}
 
 	delete(extraVars, "ENV")
+
+	if t.template.Type != db.TemplateTask &&
+		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+			util.Config.VariablesPassingMethod == util.VariablesPassingExtra) {
+		extraVars["semaphore_task_type"] = t.template.Type
+		extraVars["semaphore_task_version"] = t.task.Version
+	}
 
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
@@ -629,6 +713,14 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
+
+	if t.template.Type != db.TemplateTask &&
+		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
+		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
+		env = append(env, "SEMAPHORE_TASK_VERSION="+*t.task.Version)
+	}
+
 	if gitSSHCommand != "" {
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
 	}

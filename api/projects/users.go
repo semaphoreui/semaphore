@@ -48,12 +48,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	project := context.Get(r, "project").(db.Project)
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	users, err := helpers.Store(r).GetProjectUsers(project.ID, params)
+	users, err := helpers.Store(r).GetProjectUsers(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -83,7 +78,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "user"
+	objType := db.EventUser
 	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -114,7 +109,7 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "user"
+	objType := db.EventUser
 	desc := "User ID " + strconv.Itoa(projectUser.ID) + " removed from team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{

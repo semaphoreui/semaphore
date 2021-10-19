@@ -102,7 +102,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "schedule"
+	objType := db.EventSchedule
 	desc := "Schedule ID " + strconv.Itoa(schedule.ID) + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
@@ -158,7 +158,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Schedule ID " + strconv.Itoa(schedule.ID) + " updated"
-	objType := "schedule"
+	objType := db.EventSchedule
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

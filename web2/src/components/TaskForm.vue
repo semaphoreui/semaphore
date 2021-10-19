@@ -1,34 +1,48 @@
 <template>
   <v-form
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-    v-if="item != null"
+      ref="form"
+      lazy-validation
+      v-model="formValid"
+      v-if="isLoaded()"
   >
     <v-alert
-      :value="formError"
-      color="error"
-      class="pb-2"
-    >{{ formError }}</v-alert>
+        :value="formError"
+        color="error"
+        class="pb-2"
+    >{{ formError }}
+    </v-alert>
 
-    <v-textarea
-      outlined
-      class="mt-4"
-      v-model="item.environment"
-      label="Environment Override"
-      placeholder='Example: {"version": 10, "author": "John"}'
-      :disabled="formSaving"
-      rows="4"
-    ></v-textarea>
+    <v-alert
+        color="blue"
+        dark
+        icon="mdi-source-fork"
+        dismissible
+        v-model="commitAvailable"
+        prominent
+    >
+      <div
+          style="font-weight: bold;"
+      >{{ commitHash ? commitHash.substr(0, 10) : '' }}</div>
+      <div v-if="commitMessage">{{ commitMessage }}</div>
+    </v-alert>
 
-    <v-textarea
-      outlined
-      v-model="item.arguments"
-      label="Extra CLI Arguments"
-      :disabled="formSaving"
-      placeholder='Example: ["-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv"]'
-      rows="4"
-    ></v-textarea>
+    <v-select
+        v-if="template.type === 'deploy'"
+        v-model="item.version"
+        label="Build Version"
+        :items="buildTasks"
+        item-value="version"
+        item-text="version"
+        :rules="[v => !!v || 'Build Version is required']"
+        required
+        :disabled="formSaving"
+    />
+
+    <v-text-field
+        v-model="item.message"
+        label="Message (Optional)"
+        :disabled="formSaving"
+    />
 
     <v-row no-gutters>
       <v-col>
@@ -49,11 +63,22 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import axios from 'axios';
 
 export default {
   mixins: [ItemFormBase],
   props: {
     templateId: Number,
+    commitHash: String,
+    commitMessage: String,
+    version: String,
+  },
+  data() {
+    return {
+      template: null,
+      buildTasks: null,
+      commitAvailable: null,
+    };
   },
   watch: {
     needReset(val) {
@@ -65,11 +90,50 @@ export default {
     templateId(val) {
       this.item.template_id = val;
     },
+
+    commitHash(val) {
+      this.item.commit_hash = val;
+      this.commitAvailable = this.item.commit_hash != null;
+    },
+
+    version(val) {
+      this.item.version = val;
+    },
+
+    commitAvailable(val) {
+      this.item.commit_hash = val ? this.commitHash : null;
+    },
   },
-  created() {
-    this.item.template_id = this.templateId;
-  },
+
   methods: {
+    isLoaded() {
+      return this.item != null
+          && this.template != null
+          && this.buildTasks != null;
+    },
+
+    async afterLoadData() {
+      this.item.template_id = this.templateId;
+
+      this.template = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.templateId}`,
+        responseType: 'json',
+      })).data;
+
+      this.buildTasks = this.template.type === 'deploy' ? (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks`,
+        responseType: 'json',
+      })).data.filter((task) => task.version != null) : [];
+
+      if (this.buildTasks.length > 0) {
+        this.item.version = this.version != null ? this.version : this.buildTasks[0].version;
+      }
+
+      this.commitAvailable = this.commitHash != null;
+    },
+
     getItemsUrl() {
       return `/api/project/${this.projectId}/tasks`;
     },

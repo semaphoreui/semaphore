@@ -5,14 +5,111 @@
       v-model="formValid"
       v-if="isLoaded"
   >
+    <v-dialog
+        v-model="helpDialog"
+        hide-overlay
+        width="300"
+    >
+      <v-alert
+          border="top"
+          colored-border
+          type="info"
+          elevation="2"
+          class="mb-0 pb-0"
+      >
+        <div v-if="helpKey === 'build_version'">
+          <p>
+            Defines start version of your
+            <a target="_black" href="https://en.wikipedia.org/wiki/Software_build">artifact</a>.
+            Each run increments the artifact version.
+          </p>
+          <p>
+            For more information about building, see the
+            <a href="https://docs.ansible-semaphore.com/user-guide/task-templates#build"
+               target="_blank"
+            >Task Template reference</a>.
+          </p>
+        </div>
+        <div v-else-if="helpKey === 'build'">
+          <p>
+            Defines what
+            <a target="_black" href="https://en.wikipedia.org/wiki/Software_build">artifact</a>
+            should be deployed when the task run.
+          </p>
+          <p>
+            For more information about deploying, see the
+            <a href="https://docs.ansible-semaphore.com/user-guide/task-templates#build"
+               target="_blank"
+            >Task Template reference</a>.
+          </p>
+        </div>
+        <div v-if="helpKey === 'cron'">
+          <p>Defines autorun schedule.</p>
+          <p>
+            For more information about cron, see the
+            <a href="https://pkg.go.dev/github.com/robfig/cron#hdr-CRON_Expression_Format"
+               target="_blank"
+            >Cron expression format reference</a>.
+          </p>
+        </div>
+      </v-alert>
+    </v-dialog>
+
     <v-alert
         :value="formError"
         color="error"
         class="pb-2"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
 
     <v-row>
       <v-col cols="12" md="6" class="pb-0">
+        <v-card class="mb-6">
+          <v-tabs
+              fixed-tabs
+              v-model="itemTypeIndex"
+          >
+            <v-tab
+                style="padding: 0"
+                v-for="(key) in Object.keys(TEMPLATE_TYPE_ICONS)"
+                :key="key"
+            >
+              <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
+              {{ TEMPLATE_TYPE_TITLES[key] }}
+            </v-tab>
+          </v-tabs>
+
+          <div class="ml-4 mr-4 mt-6" v-if="item.type">
+            <v-text-field
+                v-if="item.type === 'build'"
+                v-model="item.start_version"
+                label="Start Version"
+                :rules="[v => !!v || 'Start Version is required']"
+                required
+                :disabled="formSaving"
+                placeholder="Example: 0.0.0"
+                append-outer-icon="mdi-help-circle"
+                @click:append-outer="showHelpDialog('build_version')"
+            ></v-text-field>
+
+            <v-select
+                v-if="item.type === 'deploy'"
+                v-model="item.build_template_id"
+                label="Build Template"
+                :items="buildTemplates"
+                item-value="id"
+                item-text="alias"
+                :rules="[v => !!v || 'Build Template is required']"
+                required
+                :disabled="formSaving"
+                append-outer-icon="mdi-help-circle"
+                @click:append-outer="showHelpDialog('build')"
+            ></v-select>
+
+          </div>
+
+        </v-card>
+
         <v-text-field
             v-model="item.alias"
             label="Playbook Alias"
@@ -62,7 +159,6 @@
             required
             :disabled="formSaving"
         ></v-select>
-
         <v-select
             v-model="item.vault_key_id"
             label="Vault Password"
@@ -72,14 +168,6 @@
             item-text="name"
             :disabled="formSaving"
         ></v-select>
-
-        <v-text-field
-            v-model="cronFormat"
-            label="Cron"
-            :disabled="formSaving"
-            placeholder="Example: * 1 * * * *"
-            v-if="schedules.length <= 1"
-        ></v-text-field>
       </v-col>
 
       <v-col cols="12" md="6" class="pb-0">
@@ -105,6 +193,17 @@ Example:
   "-vvvv"
 ]'
         />
+
+        <v-text-field
+            class="mt-6"
+            v-model="cronFormat"
+            label="Cron"
+            :disabled="formSaving"
+            placeholder="Example: * 1 * * * *"
+            v-if="schedules == null || schedules.length <= 1"
+            append-outer-icon="mdi-help-circle"
+            @click:append-outer="showHelpDialog('cron')"
+        ></v-text-field>
       </v-col>
     </v-row>
   </v-form>
@@ -120,6 +219,7 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 // import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
+import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
 
 export default {
   mixins: [ItemFormBase],
@@ -134,6 +234,9 @@ export default {
 
   data() {
     return {
+      itemTypeIndex: 0,
+      TEMPLATE_TYPE_ICONS,
+      TEMPLATE_TYPE_TITLES,
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',
@@ -149,6 +252,8 @@ export default {
       environment: null,
       schedules: null,
       cronFormat: null,
+      helpDialog: null,
+      helpKey: null,
     };
   },
 
@@ -163,6 +268,10 @@ export default {
 
     sourceItemId(val) {
       this.item.template_id = val;
+    },
+
+    itemTypeIndex(val) {
+      this.item.type = Object.keys(TEMPLATE_TYPE_ICONS)[val];
     },
   },
 
@@ -189,6 +298,11 @@ export default {
   },
 
   methods: {
+    showHelpDialog(key) {
+      this.helpKey = key;
+      this.helpDialog = true;
+    },
+
     async afterLoadData() {
       if (this.sourceItemId) {
         this.item = (await axios({
@@ -217,6 +331,13 @@ export default {
         url: `/api/project/${this.projectId}/environment`,
         responseType: 'json',
       })).data;
+
+      this.buildTemplates = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/templates?type=build`,
+        responseType: 'json',
+      })).data.filter((template) => template.type === 'build');
+
       this.schedules = this.isNew ? [] : (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}/schedules`,
@@ -225,6 +346,7 @@ export default {
       if (this.schedules.length === 1) {
         this.cronFormat = this.schedules[0].cron_format;
       }
+      this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
     },
 
     getItemsUrl() {
