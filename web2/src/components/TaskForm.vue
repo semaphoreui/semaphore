@@ -22,16 +22,17 @@
     >
       <div
           style="font-weight: bold;"
-      >{{ commitHash ? commitHash.substr(0, 10) : '' }}</div>
+      >{{ commitHash ? commitHash.substr(0, 10) : '' }}
+      </div>
       <div v-if="commitMessage">{{ commitMessage }}</div>
     </v-alert>
 
     <v-select
         v-if="template.type === 'deploy'"
-        v-model="item.version"
+        v-model="item.build_task_id"
         label="Build Version"
         :items="buildTasks"
-        item-value="version"
+        item-value="id"
         :item-text="(itm) => itm.version + (itm.message ? ' — ' + itm.message : '')"
         :rules="[v => !!v || 'Build Version is required']"
         required
@@ -71,7 +72,7 @@ export default {
     templateId: Number,
     commitHash: String,
     commitMessage: String,
-    version: String,
+    buildTask: Object,
   },
   data() {
     return {
@@ -128,7 +129,7 @@ export default {
       })).data.filter((task) => task.version != null) : [];
 
       if (this.buildTasks.length > 0) {
-        this.item.version = this.version != null ? this.version : this.buildTasks[0].version;
+        this.item.build_task_id = this.build_task ? this.build_task.id : this.buildTasks[0].id;
       }
 
       this.commitAvailable = this.commitHash != null;

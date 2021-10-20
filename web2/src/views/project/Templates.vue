@@ -84,7 +84,10 @@
       </template>
 
       <template v-slot:item.version="{ item }">
-        <div v-if="item.last_task != null && item.last_task.version != null">
+        <div
+            v-if="item.last_task != null &&
+              (item.last_task.version != null || item.last_task.build_task != null)"
+        >
           <v-icon
               v-if="item.last_task.status === 'success'"
               small
@@ -96,9 +99,12 @@
               v-else
               small
               color="red"
-          >mdi-close</v-icon>
+          >mdi-close
+          </v-icon>
 
-          <span class="ml-1">{{ item.last_task.version }}</span>
+          <a class="ml-1" @click="showTaskLog(item.last_task.build_task.id)">
+            {{ item.last_task.version || item.last_task.build_task.version }}
+          </a>
         </div>
         <div v-else>&mdash;</div>
       </template>

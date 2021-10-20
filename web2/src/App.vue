@@ -372,6 +372,12 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+.v-data-table a {
+  text-decoration-line: none;
+  &:hover {
+    text-decoration-line: underline;
+  }
+}
 
 .breadcrumbs {
 
@@ -427,12 +433,6 @@
   }
   & > td:first-child {
     //font-weight: bold !important;
-    a {
-      text-decoration-line: none;
-      &:hover {
-        text-decoration-line: underline;
-      }
-    }
   }
 }
 

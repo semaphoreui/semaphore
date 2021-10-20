@@ -718,7 +718,13 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
 			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
 		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
-		env = append(env, "SEMAPHORE_TASK_VERSION="+*t.task.Version)
+		var version string
+		if t.task.Version != nil {
+			version = *t.task.Version
+		} else if t.task.BuildTask != nil {
+			version = *t.task.BuildTask.Version
+		}
+		env = append(env, "SEMAPHORE_TASK_VERSION="+version)
 	}
 
 	if gitSSHCommand != "" {

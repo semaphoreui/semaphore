@@ -75,7 +75,7 @@
             :need-reset="needReset"
             :commit-hash="sourceTask == null ? null : sourceTask.commit_hash"
             :commit-message="sourceTask == null ? null : sourceTask.commit_message"
-            :version="sourceTask == null ? null : sourceTask.version"
+            :build_task="sourceTask == null ? null : sourceTask.build_task"
         />
       </template>
     </EditDialog>
@@ -216,15 +216,17 @@
       <template v-slot:item.id="{ item }">
         <div style="display: flex; justify-content: left; align-items: center;">
           <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
-          <v-tooltip color="info" right max-width="350">
+          <v-tooltip color="black" right max-width="350" transition="fade-transition">
             <template v-slot:activator="{ on, attrs }">
               <v-icon
                   v-bind="attrs"
                   v-on="on"
                   v-if="item.message"
-                  class="ml-2"
-                  color="blue"
-              >mdi-information</v-icon>
+                  class="ml-1"
+                  color="gray"
+                  small
+              >mdi-information
+              </v-icon>
             </template>
             <span>{{ item.message }}</span>
           </v-tooltip>
@@ -232,20 +234,34 @@
       </template>
 
       <template v-slot:item.version="{ item }">
-        <div v-if="item.version != null">
+        <div v-if="item.version != null || item.build_task != null">
           <v-icon
-              v-if="item.status === 'success'"
               small
-              color="success"
-          >mdi-check
+              class="mr-2"
+              :color="item.status === 'success' ? 'success' : 'red'"
+          >mdi-{{ item.status === 'success' ? 'check' : 'close' }}
           </v-icon>
-          <v-icon
+
+          <span v-if="item.version">{{ item.version }}</span>
+
+          <v-tooltip
               v-else
-              small
-              color="red"
-          >mdi-close
-          </v-icon>
-          <span class="ml-1">{{ item.version }}</span>
+              color="black"
+              right
+              max-width="350"
+              transition="fade-transition"
+          >
+            <template v-slot:activator="{ on, attrs }">
+              <a
+                  @click="showTaskLog(item.build_task_id)"
+                  v-bind="attrs"
+                  v-on="on"
+                  style="border-bottom: 1px dashed gray; text-decoration: none !important;"
+              >{{ item.build_task.version }}</a>
+            </template>
+            <span>{{ item.build_task.message }}</span>
+          </v-tooltip>
+
         </div>
         <div v-else>&mdash;</div>
       </template>

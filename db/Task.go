@@ -1,6 +1,8 @@
 package db
 
-import "time"
+import (
+	"time"
+)
 
 //Task is a model of a task which will be executed by the runner
 type Task struct {
@@ -25,15 +27,36 @@ type Task struct {
 	Start   *time.Time `db:"start" json:"start"`
 	End     *time.Time `db:"end" json:"end"`
 
-	Version    *string `db:"version" json:"version"`
-	CommitHash *string `db:"commit_hash" json:"commit_hash"`
+	Message string `db:"message" json:"message"`
 
-	// CommitMessage can not be provided via REST API, it is load from
-	// git repository.
-	// Value passed from Rest API must be ignored.
+	CommitHash *string `db:"commit_hash" json:"commit_hash"`
+	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
+	// It is readonly by API.
 	CommitMessage string `db:"commit_message" json:"commit_message"`
 
-	Message string `db:"message" json:"message"`
+	BuildTaskID *int    `db:"build_task_id" json:"build_task_id"`
+	BuildTask   *Task   `db:"-" json:"build_task"`
+	Version     *string `db:"version" json:"version"`
+}
+
+func (task *Task) ValidateNewTask(template Template) error {
+	switch template.Type {
+	case TemplateBuild:
+	case TemplateDeploy:
+	case TemplateTask:
+	}
+	return nil
+}
+
+func (task *Task) Fill(d Store) error {
+	if task.BuildTaskID != nil {
+		build, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
+		if err != nil {
+			return err
+		}
+		task.BuildTask = &build
+	}
+	return nil
 }
 
 // TaskWithTpl is the task data with additional fields

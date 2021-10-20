@@ -1,0 +1,1 @@
+alter table `task` add build_task_id int references `task`(id);
