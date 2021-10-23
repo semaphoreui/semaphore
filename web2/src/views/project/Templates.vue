@@ -84,28 +84,22 @@
       </template>
 
       <template v-slot:item.version="{ item }">
-        <div
-            v-if="item.last_task != null &&
-              (item.last_task.version != null || item.last_task.build_task != null)"
-        >
-          <v-icon
-              v-if="item.last_task.status === 'success'"
-              small
-              color="success"
-          >mdi-check
-          </v-icon>
+        <TaskLink
+            v-if="item.last_task && item.last_task.tpl_type !== ''"
+            :status="item.last_task.status"
 
-          <v-icon
-              v-else
-              small
-              color="red"
-          >mdi-close
-          </v-icon>
+            :task-id="item.last_task.tpl_type === 'build'
+              ? item.last_task.id
+              : item.last_task.build_task.id"
 
-          <a class="ml-1" @click="showTaskLog(item.last_task.build_task.id)">
-            {{ item.last_task.version || item.last_task.build_task.version }}
-          </a>
-        </div>
+            :label="item.last_task.tpl_type === 'build'
+              ? item.last_task.version
+              : item.last_task.build_task.version"
+
+            :tooltip="item.last_task.tpl_type === 'build'
+              ? item.last_task.message
+              : item.last_task.build_task.message"
+        />
         <div v-else>&mdash;</div>
       </template>
 
@@ -114,10 +108,11 @@
           <div style="display: flex; justify-content: left; align-items: center;">
             <TaskStatus :status="item.last_task.status"/>
             <div class="ml-3" style="line-height: 1">
-              <a
-                  style="display: block;"
-                  @click="showTaskLog(item.last_task.id)"
-              >#{{ item.last_task.id }}</a>
+              <TaskLink
+                  :task-id="item.last_task.id"
+                  :label="'#' + item.last_task.id"
+                  :tooltip="item.last_task.message"
+              />
               <div style="color: gray; font-size: 14px;">
                 by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
               </div>
@@ -165,6 +160,7 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TemplateForm from '@/components/TemplateForm.vue';
+import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
 import TaskForm from '@/components/TaskForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
@@ -174,7 +170,7 @@ import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/cons
 
 export default {
   components: {
-    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus,
+    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus, TaskLink,
   },
   mixins: [ItemListPageBase],
   async created() {

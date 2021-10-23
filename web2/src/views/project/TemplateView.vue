@@ -214,54 +214,22 @@
         class="mt-0"
     >
       <template v-slot:item.id="{ item }">
-        <div style="display: flex; justify-content: left; align-items: center;">
-          <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
-          <v-tooltip color="black" right max-width="350" transition="fade-transition">
-            <template v-slot:activator="{ on, attrs }">
-              <v-icon
-                  v-bind="attrs"
-                  v-on="on"
-                  v-if="item.message"
-                  class="ml-1"
-                  color="gray"
-                  small
-              >mdi-information
-              </v-icon>
-            </template>
-            <span>{{ item.message }}</span>
-          </v-tooltip>
-        </div>
+        <TaskLink
+            :task-id="item.id"
+            :tooltip="item.message"
+            :label="'#' + item.id"
+        />
       </template>
 
       <template v-slot:item.version="{ item }">
         <div v-if="item.version != null || item.build_task != null">
-          <v-icon
-              small
-              class="mr-2"
-              :color="item.status === 'success' ? 'success' : 'red'"
-          >mdi-{{ item.status === 'success' ? 'check' : 'close' }}
-          </v-icon>
-
-          <span v-if="item.version">{{ item.version }}</span>
-
-          <v-tooltip
-              v-else
-              color="black"
-              right
-              max-width="350"
-              transition="fade-transition"
-          >
-            <template v-slot:activator="{ on, attrs }">
-              <a
-                  @click="showTaskLog(item.build_task_id)"
-                  v-bind="attrs"
-                  v-on="on"
-                  style="border-bottom: 1px dashed gray; text-decoration: none !important;"
-              >{{ item.build_task.version }}</a>
-            </template>
-            <span>{{ item.build_task.message }}</span>
-          </v-tooltip>
-
+          <TaskLink
+              :disabled="item.tpl_type === 'build'"
+              :task-id="item.build_task_id"
+              :tooltip="item.build_task ? item.build_task.message : null"
+              :label="item.tpl_type === 'build' ? item.version : item.build_task.version"
+              :status="item.status"
+          />
         </div>
         <div v-else>&mdash;</div>
       </template>
@@ -299,11 +267,12 @@ import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
 import TaskForm from '@/components/TaskForm.vue';
 import TaskStatus from '@/components/TaskStatus.vue';
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../../lib/constants';
+import TaskLink from '@/components/TaskLink.vue';
+import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 
 export default {
   components: {
-    YesNoDialog, EditDialog, TemplateForm, TaskStatus, TaskForm,
+    YesNoDialog, EditDialog, TemplateForm, TaskStatus, TaskForm, TaskLink,
   },
 
   props: {
@@ -417,12 +386,6 @@ export default {
     createTask(task) {
       this.sourceTask = task;
       this.newTaskDialog = true;
-    },
-
-    showTaskLog(taskId) {
-      EventBus.$emit('i-show-task', {
-        taskId,
-      });
     },
 
     showDrawer() {

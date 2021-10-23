@@ -372,18 +372,12 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+
 .v-data-table a {
   text-decoration-line: none;
   &:hover {
     text-decoration-line: underline;
   }
-}
-
-.breadcrumbs {
-
-}
-
-.breadcrumbs__item {
 }
 
 .breadcrumbs__item--link {

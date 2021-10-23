@@ -28,20 +28,29 @@
           '/templates/' + item.template_id"
           >{{ item.tpl_alias }}</a>
           <v-icon small class="ml-1 mr-1">mdi-arrow-right</v-icon>
-          <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
-          <div class="ml-2" v-if="item.version != null">
-            <v-icon
-                v-if="item.status === 'success'"
-                small
-                color="success"
-            >mdi-check</v-icon>
-            <v-icon
-                v-else
-                small
-                color="red"
-            >mdi-close</v-icon>
-            <span class="ml-1">{{ item.version }}</span>
-          </div>
+          <TaskLink
+              :task-id="item.id"
+              :tooltip="item.message"
+              :label="'#' + item.id"
+          />
+          <TaskLink
+              :disabled="item.tpl_type === 'build'"
+              class="ml-2"
+              v-if="item.tpl_type !== ''"
+              :status="item.status"
+
+              :task-id="item.tpl_type === 'build'
+              ? item.id
+              : item.build_task.id"
+
+              :label="item.tpl_type === 'build'
+              ? item.version
+              : item.build_task.version"
+
+              :tooltip="item.tpl_type === 'build'
+              ? item.message
+              : item.build_task.message"
+          />
         </div>
       </template>
 
@@ -64,6 +73,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
+import TaskLink from '@/components/TaskLink.vue';
 import socket from '@/socket';
 import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 
@@ -74,7 +84,7 @@ export default {
     return { TEMPLATE_TYPE_ICONS };
   },
 
-  components: { TaskStatus },
+  components: { TaskStatus, TaskLink },
 
   watch: {
     async projectId() {
