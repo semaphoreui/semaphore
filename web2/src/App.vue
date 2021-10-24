@@ -59,8 +59,9 @@
         <v-spacer></v-spacer>
         <v-btn
           icon
+          @click="taskLogDialog = false; onTaskLogDialogClosed()"
         >
-          <v-icon @click="taskLogDialog = false; onTaskLogDialogClosed()">mdi-close</v-icon>
+          <v-icon>mdi-close</v-icon>
         </v-btn>
       </template>
       <template v-slot:form="{}">

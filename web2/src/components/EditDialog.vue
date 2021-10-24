@@ -14,9 +14,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   >
     <v-card>
       <v-card-title class="headline">
-        <slot
-          name="title"
-        >{{ title }}</slot>
+        <slot name="title">{{ title }}</slot>
       </v-card-title>
 
       <v-card-text class="pb-0">
