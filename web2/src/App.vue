@@ -46,13 +46,16 @@
       @close="onTaskLogDialogClosed()"
     >
       <template v-slot:title={}>
-        <router-link
-          class="breadcrumbs__item breadcrumbs__item--link"
-          :to="`/project/${projectId}/templates/${template ? template.id : null}`"
-          @click="taskLogDialog = false"
-        >{{ template ? template.alias : null }}</router-link>
-        <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
+        <div class="text-truncate" style="max-width: calc(100% - 36px);">
+          <router-link
+              class="breadcrumbs__item breadcrumbs__item--link"
+              :to="`/project/${projectId}/templates/${template ? template.id : null}`"
+              @click="taskLogDialog = false"
+          >{{ template ? template.alias : null }}</router-link>
+          <v-icon>mdi-chevron-right</v-icon>
+          <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
+        </div>
+
         <v-spacer></v-spacer>
         <v-btn
           icon
