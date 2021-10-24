@@ -126,7 +126,7 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks`,
         responseType: 'json',
-      })).data.filter((task) => task.version != null) : [];
+      })).data.filter((task) => task.version != null && task.status === 'success') : [];
 
       if (this.buildTasks.length > 0) {
         this.item.build_task_id = this.build_task ? this.build_task.id : this.buildTasks[0].id;
