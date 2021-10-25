@@ -13,7 +13,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     @keydown.esc="close()"
   >
     <v-card>
-      <v-card-title class="headline">
+      <v-card-title>
         <slot name="title">{{ title }}</slot>
       </v-card-title>
 
