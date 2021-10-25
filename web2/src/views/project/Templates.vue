@@ -69,7 +69,7 @@
 
     <v-data-table
         hide-default-footer
-        class="mt-4"
+        class="mt-4 templates-table"
         single-expand
         show-expand
         :headers="filteredHeaders"
@@ -147,11 +147,14 @@
       <template v-slot:expanded-item="{ headers, item }">
         <td
             :colspan="headers.length"
-            v-if="openedItemTasks[item.id] != null"
+            v-if="openedItems.some((template) => template.id === item.id)"
         >
-          <div v-for="(task) in openedItemTasks[item.id]" :key="task.id">
-            {{ task.id }}
-          </div>
+          <TaskList
+              style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
+              :template="item"
+              :limit="5"
+              :hide-footer="true"
+          />
         </td>
       </template>
     </v-data-table>
@@ -165,7 +168,9 @@
   </div>
 </template>
 <style>
-
+.templates-table .text-start:first-child {
+  padding-right: 0 !important;
+}
 </style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
@@ -174,6 +179,7 @@ import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
 import TaskForm from '@/components/TaskForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
+import TaskList from '@/components/TaskList.vue';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
@@ -181,7 +187,7 @@ import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/cons
 
 export default {
   components: {
-    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus, TaskLink,
+    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus, TaskLink, TaskList,
   },
   mixins: [ItemListPageBase],
   async created() {
@@ -199,25 +205,7 @@ export default {
       settingsSheet: null,
       filteredHeaders: [],
       openedItems: [],
-      openedItemTasks: {},
     };
-  },
-  watch: {
-    async openedItems(val) {
-      if (val == null || val.length === 0) {
-        this.openedItemTasks = {};
-        return;
-      }
-
-      this.openedItemTasks = (await Promise.all(val.map(async (template) => (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${template.id}/tasks/last?limit=10`,
-        responseType: 'json',
-      })).data))).reduce((prev, curr, index) => ({
-        ...prev,
-        [val[index].id]: curr,
-      }), {});
-    },
   },
   computed: {
     templateType() {
