@@ -178,7 +178,12 @@ func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 
 // GetLastTasks returns the hundred most recent tasks
 func GetLastTasks(w http.ResponseWriter, r *http.Request) {
-	GetTasksList(w, r, 200)
+	str := r.URL.Query().Get("limit")
+	limit, err := strconv.Atoi(str)
+	if  err != nil || limit <= 0 || limit > 200 {
+		limit = 200
+	}
+	GetTasksList(w, r, uint64(limit))
 }
 
 // GetTask returns a task based on its id

@@ -68,14 +68,14 @@
     </v-toolbar>
 
     <v-data-table
-        :headers="filteredHeaders"
-        :items="items"
         hide-default-footer
         class="mt-4"
-        :items-per-page="Number.MAX_VALUE"
         single-expand
         show-expand
-        @item-expanded="onTemplateTasksToggled"
+        :headers="filteredHeaders"
+        :items="items"
+        :items-per-page="Number.MAX_VALUE"
+        :expanded.sync="openedItems"
     >
       <template v-slot:item.alias="{ item }">
         <v-icon class="mr-3" small>
@@ -145,8 +145,13 @@
       </template>
 
       <template v-slot:expanded-item="{ headers, item }">
-        <td :colspan="headers.length">
-          More info about {{ item.alias }}
+        <td
+            :colspan="headers.length"
+            v-if="openedItemTasks[item.id] != null"
+        >
+          <div v-for="(task) in openedItemTasks[item.id]" :key="task.id">
+            {{ task.id }}
+          </div>
         </td>
       </template>
     </v-data-table>
@@ -193,10 +198,27 @@ export default {
       newTaskDialog: null,
       settingsSheet: null,
       filteredHeaders: [],
-      openedTemplateTasks: [],
+      openedItems: [],
+      openedItemTasks: {},
     };
   },
+  watch: {
+    async openedItems(val) {
+      if (val == null || val.length === 0) {
+        this.openedItemTasks = {};
+        return;
+      }
 
+      this.openedItemTasks = (await Promise.all(val.map(async (template) => (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/templates/${template.id}/tasks/last?limit=10`,
+        responseType: 'json',
+      })).data))).reduce((prev, curr, index) => ({
+        ...prev,
+        [val[index].id]: curr,
+      }), {});
+    },
+  },
   computed: {
     templateType() {
       if (this.itemId == null || this.itemId === 'new') {
@@ -218,16 +240,7 @@ export default {
           && this.repositories;
     },
   },
-
   methods: {
-    async onTemplateTasksToggled(template, state) {
-      if (!state) {
-        this.openedTemplateTasks = null;
-        return;
-      }
-      this.openedTemplateTasks = (await axios()).data;
-    },
-
     async onWebsocketDataReceived(data) {
       if (data.project_id !== this.projectId || data.type !== 'update') {
         return;
