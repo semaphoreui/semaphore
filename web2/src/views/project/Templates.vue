@@ -73,6 +73,9 @@
         hide-default-footer
         class="mt-4"
         :items-per-page="Number.MAX_VALUE"
+        single-expand
+        show-expand
+        @item-expanded="onTemplateTasksToggled"
     >
       <template v-slot:item.alias="{ item }">
         <v-icon class="mr-3" small>
@@ -119,11 +122,7 @@
             </div>
           </div>
         </div>
-        <div
-            v-else class="mt-3 mb-2"
-            style="height: 53px; display: flex; align-items: center; color: gray;"
-        >Not launched
-        </div>
+        <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">Not launched</div>
       </template>
 
       <template v-slot:item.inventory_id="{ item }">
@@ -143,6 +142,12 @@
           <v-icon class="pr-1">mdi-replay</v-icon>
           {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
         </v-btn>
+      </template>
+
+      <template v-slot:expanded-item="{ headers, item }">
+        <td :colspan="headers.length">
+          More info about {{ item.alias }}
+        </td>
       </template>
     </v-data-table>
 
@@ -186,9 +191,9 @@ export default {
       environment: null,
       repositories: null,
       newTaskDialog: null,
-      taskId: null,
       settingsSheet: null,
       filteredHeaders: [],
+      openedTemplateTasks: [],
     };
   },
 
@@ -215,6 +220,14 @@ export default {
   },
 
   methods: {
+    async onTemplateTasksToggled(template, state) {
+      if (!state) {
+        this.openedTemplateTasks = null;
+        return;
+      }
+      this.openedTemplateTasks = (await axios()).data;
+    },
+
     async onWebsocketDataReceived(data) {
       if (data.project_id !== this.projectId || data.type !== 'update') {
         return;

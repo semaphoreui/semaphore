@@ -100,11 +100,6 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 		return
 	}
 
-	err = task.Fill(d)
-	if err != nil {
-		return
-	}
-
 	return
 }
 

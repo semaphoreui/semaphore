@@ -376,7 +376,9 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
-
+.v-data-table tbody tr.v-data-table__expanded__content {
+  box-shadow: none !important;
+}
 .v-data-table a {
   text-decoration-line: none;
   &:hover {

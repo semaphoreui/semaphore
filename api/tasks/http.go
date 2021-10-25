@@ -84,11 +84,6 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (new
 		return
 	}
 
-	err = taskObj.Fill(d)
-	if err != nil {
-		return
-	}
-
 	if tpl.Type == db.TemplateBuild { // get next version for task if it is a Build
 		var builds []db.TaskWithTpl
 		builds, err = d.GetTemplateTasks(tpl, db.RetrieveQueryParams{Count: 1})

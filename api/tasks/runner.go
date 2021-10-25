@@ -721,10 +721,15 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
 		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
 		var version string
-		if t.task.Version != nil {
+		switch t.template.Type {
+		case db.TemplateBuild:
 			version = *t.task.Version
-		} else if t.task.BuildTask != nil {
-			version = *t.task.BuildTask.Version
+		case db.TemplateDeploy:
+			buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+			if err != nil {
+				panic("Deploy task has no build task")
+			}
+			version = *buildTask.Version
 		}
 		env = append(env, "SEMAPHORE_TASK_VERSION="+version)
 	}

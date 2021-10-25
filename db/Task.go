@@ -35,7 +35,6 @@ type Task struct {
 	CommitMessage string `db:"commit_message" json:"commit_message"`
 
 	BuildTaskID *int    `db:"build_task_id" json:"build_task_id"`
-	BuildTask   *Task   `db:"-" json:"build_task"`
 	Version     *string `db:"version" json:"version"`
 }
 
@@ -48,7 +47,7 @@ func (task *Task) ValidateNewTask(template Template) error {
 	return nil
 }
 
-func (task *Task) Fill(d Store) error {
+func (task *TaskWithTpl) Fill(d Store) error {
 	if task.BuildTaskID != nil {
 		build, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
 		if err != nil {
@@ -66,6 +65,7 @@ type TaskWithTpl struct {
 	TemplateAlias    string       `db:"tpl_alias" json:"tpl_alias"`
 	TemplateType     TemplateType `db:"tpl_type" json:"tpl_type"`
 	UserName         *string      `db:"user_name" json:"user_name"`
+	BuildTask        *Task        `db:"-" json:"build_task"`
 }
 
 // TaskOutput is the ansible log output from the task
