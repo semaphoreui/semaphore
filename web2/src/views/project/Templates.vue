@@ -108,22 +108,23 @@
       </template>
 
       <template v-slot:item.status="{ item }">
-        <div class="mt-2 mb-2" v-if="item.last_task != null">
-          <div class="d-flex">
-            <TaskStatus :status="item.last_task.status"/>
-<!--            <div class="ml-3" style="line-height: 1">-->
-<!--              <TaskLink-->
-<!--                  :task-id="item.last_task.id"-->
-<!--                  :label="'#' + item.last_task.id"-->
-<!--                  :tooltip="item.last_task.message"-->
-<!--              />-->
-<!--              <div style="color: gray; font-size: 14px;">-->
-<!--                by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}-->
-<!--              </div>-->
-<!--            </div>-->
-          </div>
+        <div class="mt-2 mb-2 d-flex" v-if="item.last_task != null">
+          <TaskStatus :status="item.last_task.status"/>
         </div>
         <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">Not launched</div>
+      </template>
+
+      <template v-slot:item.last_task="{ item }">
+        <div class="mt-2 mb-2" v-if="item.last_task != null" style="line-height: 1">
+          <TaskLink
+              :task-id="item.last_task.id"
+              :label="'#' + item.last_task.id"
+              :tooltip="item.last_task.message"
+          />
+          <div style="color: gray; font-size: 14px;">
+            by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
+          </div>
+        </div>
       </template>
 
       <template v-slot:item.inventory_id="{ item }">
@@ -287,6 +288,11 @@ export default {
         {
           text: 'Status',
           value: 'status',
+          sortable: false,
+        },
+        {
+          text: 'Last task',
+          value: 'last_task',
           sortable: false,
         },
         {
