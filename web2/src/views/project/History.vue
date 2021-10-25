@@ -19,39 +19,44 @@
         class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">
-        <div style="display: flex; justify-content: left; align-items: center;">
+        <div class="d-flex">
           <v-icon class="mr-3" small>
             {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}
           </v-icon>
-          <a :href="
-          '/project/' + item.project_id +
-          '/templates/' + item.template_id"
-          >{{ item.tpl_alias }}</a>
-          <v-icon small class="ml-1 mr-1">mdi-arrow-right</v-icon>
+
           <TaskLink
               :task-id="item.id"
               :tooltip="item.message"
               :label="'#' + item.id"
           />
-          <TaskLink
-              :disabled="item.tpl_type === 'build'"
-              class="ml-2"
-              v-if="item.tpl_type !== ''"
-              :status="item.status"
 
-              :task-id="item.tpl_type === 'build'
+          <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
+
+          <a :href="
+          '/project/' + item.project_id +
+          '/templates/' + item.template_id"
+          >{{ item.tpl_alias }}</a>
+        </div>
+      </template>
+      <template v-slot:item.version="{ item }">
+        <TaskLink
+            :disabled="item.tpl_type === 'build'"
+            class="ml-2"
+            v-if="item.tpl_type !== ''"
+            :status="item.status"
+
+            :task-id="item.tpl_type === 'build'
               ? item.id
               : item.build_task.id"
 
-              :label="item.tpl_type === 'build'
+            :label="item.tpl_type === 'build'
               ? item.version
               : item.build_task.version"
 
-              :tooltip="item.tpl_type === 'build'
+            :tooltip="item.tpl_type === 'build'
               ? item.message
               : item.build_task.message"
-          />
-        </div>
+        />
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -123,8 +128,13 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Task',
+          text: 'Template',
           value: 'tpl_alias',
+          sortable: false,
+        },
+        {
+          text: 'Version',
+          value: 'version',
           sortable: false,
         },
         {

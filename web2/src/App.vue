@@ -376,6 +376,10 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+.v-dialog > .v-card > .v-card__title {
+  flex-wrap: nowrap;
+}
+
 .v-data-table tbody tr.v-data-table__expanded__content {
   box-shadow: none !important;
 }
