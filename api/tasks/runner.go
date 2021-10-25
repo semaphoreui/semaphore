@@ -74,12 +74,14 @@ func (t *task) setStatus(status string) {
 func (t *task) updateStatus() {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
-			"type":       "update",
-			"start":      t.task.Start,
-			"end":        t.task.End,
-			"status":     t.task.Status,
-			"task_id":    t.task.ID,
-			"project_id": t.projectID,
+			"type":        "update",
+			"start":       t.task.Start,
+			"end":         t.task.End,
+			"status":      t.task.Status,
+			"task_id":     t.task.ID,
+			"template_id": t.task.TemplateID,
+			"project_id":  t.projectID,
+			"version":	   t.task.Version,
 		})
 
 		util.LogPanic(err)
@@ -179,6 +181,8 @@ func (t *task) prepareRun() {
 	}
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
+	
+	t.updateStatus()
 
 	if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
@@ -245,11 +249,9 @@ func (t *task) run() {
 		return
 	}
 
-	{
-		now := time.Now()
-		t.task.Start = &now
-		t.setStatus(taskRunningStatus)
-	}
+	now := time.Now()
+	t.task.Start = &now
+	t.setStatus(taskRunningStatus)
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"

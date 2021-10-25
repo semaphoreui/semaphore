@@ -105,7 +105,7 @@
 
       <template v-slot:item.status="{ item }">
         <div class="mt-2 mb-2" v-if="item.last_task != null">
-          <div style="display: flex; justify-content: left; align-items: center;">
+          <div class="d-flex">
             <TaskStatus :status="item.last_task.status"/>
             <div class="ml-3" style="line-height: 1">
               <TaskLink
@@ -166,6 +166,7 @@ import TaskForm from '@/components/TaskForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
+import socket from '@/socket';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
 
 export default {
@@ -174,6 +175,7 @@ export default {
   },
   mixins: [ItemListPageBase],
   async created() {
+    socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
   },
   data() {
@@ -213,6 +215,32 @@ export default {
   },
 
   methods: {
+    async onWebsocketDataReceived(data) {
+      if (data.project_id !== this.projectId || data.type !== 'update') {
+        return;
+      }
+
+      const template = this.items.find((item) => item.id === data.template_id);
+
+      if (template == null) {
+        return;
+      }
+
+      if (data.task_id !== template.last_task_id) {
+        Object.assign(template.last_task, (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/tasks/${data.task_id}`,
+          responseType: 'json',
+        })).data);
+        template.last_task_id = data.task_id;
+      }
+
+      Object.assign(template.last_task, {
+        ...data,
+        type: undefined,
+      });
+    },
+
     onTaskCreated(e) {
       EventBus.$emit('i-show-task', {
         taskId: e.item.id,

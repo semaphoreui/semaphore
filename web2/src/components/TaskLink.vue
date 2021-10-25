@@ -4,8 +4,8 @@
         v-if="status != null"
         small
         class="mr-1"
-        :color="status === 'success' ? 'success' : 'red'"
-    >mdi-{{ status === 'success' ? 'check' : 'close' }}
+        :color="statusColor"
+    >mdi-{{ statusIcon }}
     </v-icon>
     <span v-if="disabled">{{ label }}</span>
     <v-tooltip
@@ -56,6 +56,28 @@ export default {
     taskId: Number,
     disabled: Boolean,
     status: String,
+  },
+  computed: {
+    statusColor() {
+      switch (this.status) {
+        case 'success':
+          return 'success';
+        case 'error':
+          return 'red';
+        default:
+          return 'gray';
+      }
+    },
+    statusIcon() {
+      switch (this.status) {
+        case 'success':
+          return 'check';
+        case 'error':
+          return 'close';
+        default:
+          return 'clock-time-three-outline';
+      }
+    },
   },
   methods: {
     showTaskLog() {
