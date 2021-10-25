@@ -142,14 +142,23 @@ export default {
       TEMPLATE_TYPE_ICONS,
     };
   },
+  watch: {
+    async template() {
+      await this.loadData();
+    },
+  },
   async created() {
-    this.tasks = (await axios({
-      method: 'get',
-      url: `/api/project/${this.template.project_id}/templates/${this.template.id}/tasks/last?limit=${this.limit || 200}`,
-      responseType: 'json',
-    })).data;
+    await this.loadData();
   },
   methods: {
+    async loadData() {
+      this.tasks = null;
+      this.tasks = (await axios({
+        method: 'get',
+        url: `/api/project/${this.template.project_id}/templates/${this.template.id}/tasks/last?limit=${this.limit || 200}`,
+        responseType: 'json',
+      })).data;
+    },
     getActionButtonTitle() {
       return TEMPLATE_TYPE_ACTION_TITLES[this.template.type];
     },
