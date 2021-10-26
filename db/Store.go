@@ -136,6 +136,12 @@ type Store interface {
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+
+	GetView(projectID int, viewID int) (View, error)
+	GetViews(projectID int) ([]View, error)
+	UpdateView(view View) error
+	CreateView(view View) (View, error)
+	DeleteView(projectID int, viewID int) error
 }
 
 var AccessKeyProps = ObjectProperties{

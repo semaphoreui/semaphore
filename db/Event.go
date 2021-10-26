@@ -30,6 +30,7 @@ const (
 	EventSchedule    EventObjectType = "schedule"
 	EventTemplate    EventObjectType = "template"
 	EventUser        EventObjectType = "user"
+	EventView        EventObjectType = "view"
 )
 
 func FillEvents(d Store, events []Event) (err error) {

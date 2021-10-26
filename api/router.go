@@ -139,6 +139,9 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
 
+	projectUserAPI.Path("/view").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
+	projectUserAPI.Path("/view").HandlerFunc(projects.AddView).Methods("POST")
+
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
@@ -208,6 +211,13 @@ func Route() *mux.Router {
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
+
+
+	projectViewManagement := projectAdminUsersAPI.PathPrefix("/views").Subrouter()
+	projectViewManagement.Use(projects.ViewMiddleware)
+	projectViewManagement.HandleFunc("/{view_id}", projects.GetViews).Methods("GET", "HEAD")
+	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
+	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)
