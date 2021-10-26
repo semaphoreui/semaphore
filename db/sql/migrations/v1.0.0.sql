@@ -7,12 +7,12 @@ alter table `project__inventory` add `ssh_key_id` int null references access_key
 alter table `task__output` rename to `task__output_backup`;
 create table `task__output`
 (
-    task_id int not null
-        references task
-            on delete cascade,
+    task_id int not null,
     task varchar(255) not null,
     time datetime not null,
-    output longtext not null
+    output longtext not null,
+
+    foreign key (`task_id`) references task(`id`) on delete cascade
 );
 insert into `task__output` select * from `task__output_backup`;
 drop table `task__output_backup`;
