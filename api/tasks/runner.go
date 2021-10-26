@@ -72,8 +72,11 @@ func (t *task) setStatus(status string) {
 
 	t.updateStatus()
 
-	if status == taskSuccessStatus || status == taskFailStatus {
+	if status == taskFailStatus {
 		t.sendMailAlert()
+	}
+
+	if status == taskSuccessStatus || status == taskFailStatus {
 		t.sendTelegramAlert()
 	}
 }
