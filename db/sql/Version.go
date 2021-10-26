@@ -47,12 +47,13 @@ func (version *Version) GetErrPath() string {
 }
 
 // GetSQL takes a path to an SQL file and returns it from packr as a slice of strings separated by newlines
-func (version *Version) GetSQL(path string) []string {
+func (version *Version) GetSQL(path string) (queries []string) {
 	sql, err := dbAssets.MustString(path)
 	if err != nil {
 		panic(err)
 	}
-	return strings.Split(sql, ";\n")
+	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
+	return
 }
 
 func init() {
@@ -82,8 +83,8 @@ func init() {
 		{Major: 2, Minor: 7, Patch: 10},
 		{Major: 2, Minor: 7, Patch: 12},
 		{Major: 2, Minor: 7, Patch: 13},
-		{Major: 2, Minor: 7, Patch: 17},
 		{Major: 2, Minor: 8, Patch: 0},
 		{Major: 2, Minor: 8, Patch: 1},
+		{Major: 2, Minor: 8, Patch: 7},
 	}
 }

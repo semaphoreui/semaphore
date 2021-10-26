@@ -67,8 +67,15 @@ func (t *task) setStatus(status string) {
 			panic("stopping task cannot be " + status)
 		}
 	}
+
 	t.task.Status = status
+
 	t.updateStatus()
+
+	if status == taskSuccessStatus || status == taskFailStatus {
+		t.sendMailAlert()
+		t.sendTelegramAlert()
+	}
 }
 
 func (t *task) updateStatus() {
@@ -96,8 +103,6 @@ func (t *task) updateStatus() {
 
 func (t *task) fail() {
 	t.setStatus(taskFailStatus)
-	t.sendMailAlert()
-	t.sendTelegramAlert()
 }
 
 func (t *task) destroyKeys() {
