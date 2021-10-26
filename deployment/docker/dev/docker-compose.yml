@@ -22,7 +22,7 @@ services:
     volumes:
       - "./../../../:/go/src/github.com/ansible-semaphore/semaphore:rw"
     environment:
-      SEMAPHORE_DB_DIALECT_ID: 1
+      SEMAPHORE_DB_DIALECT: 1
       SEMAPHORE_DB_USER: semaphore
       SEMAPHORE_DB_PASS: semaphore
       SEMAPHORE_DB_HOST: mysql
