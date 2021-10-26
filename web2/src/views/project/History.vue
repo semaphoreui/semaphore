@@ -57,6 +57,7 @@
               ? item.message
               : item.build_task.message"
         />
+        <div class="text-center" v-else>&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -128,7 +129,7 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Template',
+          text: 'Task',
           value: 'tpl_alias',
           sortable: false,
         },
