@@ -242,6 +242,7 @@ export default {
   mixins: [ItemListPageBase],
   async created() {
     socket.addListener((data) => this.onWebsocketDataReceived(data));
+
     await this.loadData();
   },
   data() {
@@ -295,6 +296,11 @@ export default {
       this.viewItemsLoading = true;
       try {
         await this.loadItems();
+        if (this.viewId) {
+          localStorage.setItem(`project${this.projectId}__lastVisitedViewId`, this.viewId);
+        } else {
+          localStorage.removeItem(`project${this.projectId}__lastVisitedViewId`);
+        }
       } finally {
         this.viewItemsLoading = false;
       }
