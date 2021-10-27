@@ -11,8 +11,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
 			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version," +
-			"build_template_id)" +
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"build_template_id, view_id)" +
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -25,7 +25,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.VaultKeyID,
 		template.Type,
 		template.StartVersion,
-		template.BuildTemplateID)
+		template.BuildTemplateID,
+		template.ViewID)
 
 	if err != nil {
 		return
@@ -57,6 +58,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"`type`=?, " +
 		"start_version=?," +
 		"build_template_id=? " +
+		"view_id=? " +
 		"where removed = false and id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -70,6 +72,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.Type,
 		template.StartVersion,
 		template.BuildTemplateID,
+		template.ViewID,
 		template.ID,
 		template.ProjectID,
 	)

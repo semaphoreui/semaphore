@@ -111,8 +111,8 @@ func TestSetViewPositions(t *testing.T) {
 	}
 
 	err = store.SetViewPositions(proj1.ID, map[int]int{
-		v1.ID: 1,
-		v2.ID: 2,
+		v1.ID: 3,
+		v2.ID: 6,
 	})
 
 	if err != nil {
@@ -133,7 +133,7 @@ func TestSetViewPositions(t *testing.T) {
 		return found[i].Position < found[j].Position
 	})
 
-	if found[0].Position != 1 || found[1].Position != 2 {
+	if found[0].Position != 3 || found[1].Position != 6 {
 		t.Fatal()
 	}
 }
