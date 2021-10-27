@@ -302,6 +302,9 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      view_id:
+        type: integer
+        minimum: 1
       alias:
         type: string
       playbook:
@@ -328,6 +331,9 @@ definitions:
       repository_id:
         type: integer
       environment_id:
+        type: integer
+        minimum: 1
+      view_id:
         type: integer
         minimum: 1
       alias:
@@ -369,44 +375,28 @@ definitions:
         type: integer
 
 
-  InventoryRequest:
+  ViewRequest:
       type: object
       properties:
-        name:
+        title:
           type: string
         project_id:
           type: integer
           minimum: 1
-        inventory:
-          type: string
-        ssh_key_id:
+        position:
           type: integer
           minimum: 1
-        become_key_id:
-          type: integer
-          minimum: 1
-        type:
-          type: string
-          enum: [static, file]
-  Inventory:
+  View:
     type: object
     properties:
       id:
         type: integer
-      name:
+      title:
         type: string
       project_id:
         type: integer
-      inventory:
-        type: string
-      ssh_key_id:
+      position:
         type: integer
-      become_key_id:
-        type: integer
-      type:
-        type: string
-        enum: [static, file]
-
 
 
   Event:
@@ -563,8 +553,7 @@ paths:
       tags:
         - authentication
       summary: Performs Login
-      description: |
-        Upon success you will be logged in
+      description: Upon success you will be logged in
       security: []   # No security
       parameters:
         - name: Login Body
@@ -1312,6 +1301,71 @@ paths:
           description: schedule created
           schema:
             $ref: "#/definitions/Schedule"
+
+  # project views
+  /project/{project_id}/views:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get view
+      responses:
+        200:
+          description: view
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/View"
+    post:
+      tags:
+        - project
+      summary: create view
+      parameters:
+        - name: view
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ViewRequest"
+      responses:
+        201:
+          description: view created
+          schema:
+            $ref: "#/definitions/View"
+  /project/{project_id}/views/{view_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/view_id"
+    get:
+      tags:
+        - project
+      summary: Get view
+      responses:
+        200:
+          description: view object
+          schema:
+            $ref: "#/definitions/View"
+    put:
+      tags:
+        - project
+      summary: Updates view
+      parameters:
+        - name: view
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ViewRequest"
+      responses:
+        204:
+          description: view updated
+    delete:
+      tags:
+        - project
+      summary: Removes view
+      responses:
+        204:
+          description: view removed
+
 
 
   # tasks

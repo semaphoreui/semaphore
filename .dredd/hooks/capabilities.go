@@ -17,6 +17,7 @@ var userProject *db.Project
 var userKey *db.AccessKey
 var task *db.Task
 var schedule *db.Schedule
+var view *db.View
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int64
@@ -30,9 +31,10 @@ var capabilities = map[string][]string{
 	"repository":  {"access_key"},
 	"inventory":   {"repository"},
 	"environment": {"repository"},
-	"template":    {"repository", "inventory", "environment"},
-	"task":		   {"template"},
-	"schedule":	   {"template"},
+	"template":    {"repository", "inventory", "environment", "view"},
+	"task":        {"template"},
+	"schedule":    {"template"},
+	"view":        {"repository"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -66,6 +68,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		switch v {
 		case "schedule":
 			schedule = addSchedule()
+		case "view":
+			view = addView()
 		case "user":
 			userPathTestUser = addUser()
 		case "project":
@@ -95,8 +99,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			environmentID, _ = res.LastInsertId()
 		case "template":
 			res, err := store.Sql().Exec(
-				"insert into project__template " +
-					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args, description) " +
+				"insert into project__template "+
+					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args, description) "+
 					"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!")
 			printError(err)
@@ -126,6 +130,7 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(int(templateID)) },
 	func() string { return strconv.Itoa(task.ID) },
 	func() string { return strconv.Itoa(schedule.ID) },
+	func() string { return strconv.Itoa(view.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -164,7 +169,9 @@ func alterRequestBody(t *trans.Transaction) {
 	if schedule != nil {
 		bodyFieldProcessor("schedule_id", schedule.ID, &request)
 	}
-
+	if view != nil {
+		bodyFieldProcessor("view_id", view.ID, &request)
+	}
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?$`)

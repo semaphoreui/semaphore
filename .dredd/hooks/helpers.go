@@ -138,6 +138,21 @@ func addUser() *db.User {
 	return &user
 }
 
+
+func addView() *db.View {
+	view, err := store.CreateView(db.View{
+		ProjectID: userProject.ID,
+		Title: "Test",
+		Position: 1,
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return &view
+}
+
 func addSchedule() *db.Schedule {
 	schedule, err := store.CreateSchedule(db.Schedule{
 		TemplateID: int(templateID),
