@@ -368,6 +368,47 @@ definitions:
       template_id:
         type: integer
 
+
+  InventoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        project_id:
+          type: integer
+          minimum: 1
+        inventory:
+          type: string
+        ssh_key_id:
+          type: integer
+          minimum: 1
+        become_key_id:
+          type: integer
+          minimum: 1
+        type:
+          type: string
+          enum: [static, file]
+  Inventory:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      inventory:
+        type: string
+      ssh_key_id:
+        type: integer
+      become_key_id:
+        type: integer
+      type:
+        type: string
+        enum: [static, file]
+
+
+
   Event:
     type: object
     properties:

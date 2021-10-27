@@ -218,7 +218,7 @@ func Route() *mux.Router {
 	projectViewManagement.HandleFunc("/{view_id}", projects.GetViews).Methods("GET", "HEAD")
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
-	projectViewManagement.HandleFunc("/{view_id}/position", projects.SetViewPosition).Methods("POST", "PUT")
+	projectViewManagement.HandleFunc("/{view_id}/positions", projects.SetViewPositions).Methods("POST", "PUT")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)
