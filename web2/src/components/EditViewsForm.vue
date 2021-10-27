@@ -14,16 +14,18 @@
             hide-details
             dense
             solo
-            :flat="!view.edit"
+            :flat="!view.active"
             v-model="view.title"
             @focus="editView(view.id)"
+            :disabled="view.disabled"
         />
         <v-btn
             class="mt-1"
             small
             icon
             @click="saveView(view.id)"
-            v-if="view.edit"
+            v-if="view.active"
+            :disabled="view.disabled"
         >
           <v-icon small color="green">mdi-check</v-icon>
         </v-btn>
@@ -32,20 +34,17 @@
             small
             icon
             @click="resetView(view.id)"
-            v-if="view.edit && view.id > 0"
+            v-if="view.active && view.id > 0"
+            :disabled="view.disabled"
         >
           <v-icon small color="red">mdi-close</v-icon>
         </v-btn>
+
         <v-btn class="ml-4" icon @click="removeView(view.id)">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </div>
     </draggable>
-    <v-alert
-        v-else
-        type="info"
-    >No views
-    </v-alert>
     <v-btn @click="addView()">Add view</v-btn>
   </div>
 </template>
@@ -58,16 +57,24 @@ export default {
   props: {
     projectId: Number,
   },
+
   components: {
     draggable,
   },
+
   async created() {
     this.views = (await axios({
       method: 'get',
       url: `/api/project/${this.projectId}/views`,
       responseType: 'json',
-    })).data;
+    })).data.map((view) => ({
+      ...view,
+      active: false,
+      disabled: false,
+    }));
+    this.views.sort((v1, v2) => v1.position - v2.position);
   },
+
   data() {
     return {
       views: null,
@@ -85,18 +92,17 @@ export default {
         };
       }, {});
 
-      await Promise.all(viewPositions.map(async (view) => {
-        await axios({
-          method: 'put',
-          url: `/api/project/${this.projectId}/views/${view.id}/positions`,
-          responseType: 'json',
-          data: {
-            id: view.id,
-            project_id: this.projectId,
-            position: view.position,
-          },
-        });
-      }));
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/views/positions`,
+        responseType: 'json',
+        data: viewPositions,
+      });
+
+      Object.keys(viewPositions).map((id) => parseInt(id, 10)).forEach((id) => {
+        const view = this.views.find((v) => v.id === id);
+        view.position = viewPositions[id];
+      });
     },
 
     async saveView(viewId) {
@@ -111,33 +117,37 @@ export default {
         return;
       }
 
-      if (view.id < 0) {
-        const newView = (await axios({
-          method: 'post',
-          url: `/api/project/${this.projectId}/views`,
-          responseType: 'json',
-          data: {
-            project_id: this.projectId,
-            title: view.title,
-            position: i,
-          },
-        })).data;
-        view.id = newView.id;
-      } else {
-        await axios({
-          method: 'put',
-          url: `/api/project/${this.projectId}/views/${view.id}`,
-          responseType: 'json',
-          data: {
-            id: view.id,
-            project_id: this.projectId,
-            title: view.title,
-            position: i,
-          },
-        });
+      view.disabled = true;
+      try {
+        if (view.id < 0) {
+          const newView = (await axios({
+            method: 'post',
+            url: `/api/project/${this.projectId}/views`,
+            responseType: 'json',
+            data: {
+              project_id: this.projectId,
+              title: view.title,
+              position: i,
+            },
+          })).data;
+          view.id = newView.id;
+        } else {
+          await axios({
+            method: 'put',
+            url: `/api/project/${this.projectId}/views/${view.id}`,
+            responseType: 'json',
+            data: {
+              id: view.id,
+              project_id: this.projectId,
+              title: view.title,
+              position: i,
+            },
+          });
+        }
+      } finally {
+        view.disabled = false;
       }
-
-      view.edit = false;
+      view.active = false;
     },
 
     async resetView(viewId) {
@@ -145,13 +155,20 @@ export default {
       if (view == null) {
         return;
       }
-      const oldView = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/views/${view.id}`,
-        responseType: 'json',
-      })).data;
-      view.title = oldView.title;
-      view.edit = false;
+
+      view.disabled = true;
+      try {
+        const oldView = (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/views/${view.id}`,
+          responseType: 'json',
+        })).data;
+        view.title = oldView.title;
+      } finally {
+        view.disabled = false;
+      }
+
+      view.active = false;
     },
 
     editView(viewId) {
@@ -159,7 +176,7 @@ export default {
       if (view == null) {
         return;
       }
-      view.edit = true;
+      view.active = true;
     },
 
     async removeView(viewId) {
@@ -184,7 +201,7 @@ export default {
       this.views.push({
         id: -Math.round(Math.random() * 10000000),
         title: '',
-        edit: true,
+        active: true,
       });
     },
   },
