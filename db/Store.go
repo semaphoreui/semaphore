@@ -30,13 +30,14 @@ type RetrieveQueryParams struct {
 // It mainly used for NoSQL implementations (currently BoltDB) to preserve same
 // data structure of different implementations and easy change it if required.
 type ObjectProperties struct {
-	TableName           string
-	IsGlobal            bool // doesn't belong to other table, for example to project or user.
-	ForeignColumnSuffix string
-	PrimaryColumnName   string
-	SortableColumns     []string
-	SortInverted        bool // sort from high to low object ID by default. It is useful for some NoSQL implementations.
-	Type                reflect.Type // to which type the table bust be mapped.
+	TableName            string
+	IsGlobal             bool // doesn't belong to other table, for example to project or user.
+	ForeignColumnSuffix  string
+	PrimaryColumnName    string
+	SortableColumns      []string
+	DefaultSortingColumn string
+	SortInverted         bool         // sort from high to low object ID by default. It is useful for some NoSQL implementations.
+	Type                 reflect.Type // to which type the table bust be mapped.
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -146,41 +147,46 @@ type Store interface {
 }
 
 var AccessKeyProps = ObjectProperties{
-	TableName:           "access_key",
-	SortableColumns:     []string{"name", "type"},
-	ForeignColumnSuffix: "key_id",
-	PrimaryColumnName:   "id",
-	Type:                reflect.TypeOf(AccessKey{}),
+	TableName:            "access_key",
+	SortableColumns:      []string{"name", "type"},
+	ForeignColumnSuffix:  "key_id",
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(AccessKey{}),
+	DefaultSortingColumn: "name",
 }
 
 var EnvironmentProps = ObjectProperties{
-	TableName:           "project__environment",
-	SortableColumns:     []string{"name"},
-	ForeignColumnSuffix: "environment_id",
-	PrimaryColumnName:   "id",
-	Type:                reflect.TypeOf(Environment{}),
+	TableName:            "project__environment",
+	SortableColumns:      []string{"name"},
+	ForeignColumnSuffix:  "environment_id",
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(Environment{}),
+	DefaultSortingColumn: "name",
 }
 
 var InventoryProps = ObjectProperties{
-	TableName:           "project__inventory",
-	SortableColumns:     []string{"name"},
-	ForeignColumnSuffix: "inventory_id",
-	PrimaryColumnName:   "id",
-	Type:                reflect.TypeOf(Inventory{}),
+	TableName:            "project__inventory",
+	SortableColumns:      []string{"name"},
+	ForeignColumnSuffix:  "inventory_id",
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(Inventory{}),
+	DefaultSortingColumn: "name",
 }
 
 var RepositoryProps = ObjectProperties{
-	TableName:           "project__repository",
-	ForeignColumnSuffix: "repository_id",
-	PrimaryColumnName:   "id",
-	Type:                reflect.TypeOf(Repository{}),
+	TableName:            "project__repository",
+	ForeignColumnSuffix:  "repository_id",
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(Repository{}),
+	DefaultSortingColumn: "name",
 }
 
 var TemplateProps = ObjectProperties{
-	TableName:         "project__template",
-	SortableColumns:   []string{"name"},
-	PrimaryColumnName: "id",
-	Type:                reflect.TypeOf(Template{}),
+	TableName:            "project__template",
+	SortableColumns:      []string{"name"},
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(Template{}),
+	DefaultSortingColumn: "alias",
 }
 
 var ScheduleProps = ObjectProperties{
@@ -196,10 +202,11 @@ var ProjectUserProps = ObjectProperties{
 }
 
 var ProjectProps = ObjectProperties{
-	TableName:         "project",
-	IsGlobal:          true,
-	PrimaryColumnName: "id",
-	Type:              reflect.TypeOf(Project{}),
+	TableName:            "project",
+	IsGlobal:             true,
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(Project{}),
+	DefaultSortingColumn: "name",
 }
 
 var UserProps = ObjectProperties{
@@ -234,8 +241,8 @@ var TaskOutputProps = ObjectProperties{
 }
 
 var ViewProps = ObjectProperties{
-	TableName:         "project__view",
-	PrimaryColumnName: "id",
-	Type:              reflect.TypeOf(View{}),
-	SortableColumns:     []string{"position"},
+	TableName:            "project__view",
+	PrimaryColumnName:    "id",
+	Type:                 reflect.TypeOf(View{}),
+	DefaultSortingColumn: "position",
 }

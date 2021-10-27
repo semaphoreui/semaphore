@@ -34,7 +34,7 @@ var capabilities = map[string][]string{
 	"template":    {"repository", "inventory", "environment", "view"},
 	"task":        {"template"},
 	"schedule":    {"template"},
-	"view":        {"repository"},
+	"view":        {},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -100,9 +100,9 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "template":
 			res, err := store.Sql().Exec(
 				"insert into project__template "+
-					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args, description) "+
-					"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!")
+					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args, description, view_id) "+
+					"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!", view.ID)
 			printError(err)
 			templateID, _ = res.LastInsertId()
 		case "task":

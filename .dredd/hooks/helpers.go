@@ -28,6 +28,7 @@ var tablesShouldBeTruncated = [...]string {
 	"project__schedule",
 	"project__user",
 	"user",
+	"project__view",
 }
 // Test Runner User
 func addTestRunnerUser() {

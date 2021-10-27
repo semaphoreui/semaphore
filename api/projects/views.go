@@ -98,7 +98,7 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusCreated, newView)
 }
 
 func SetViewPositions(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +158,6 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

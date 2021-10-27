@@ -57,7 +57,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"vault_key_id=?, " +
 		"`type`=?, " +
 		"start_version=?," +
-		"build_template_id=? " +
+		"build_template_id=?, " +
 		"view_id=? " +
 		"where removed = false and id=? and project_id=?",
 		template.InventoryID,

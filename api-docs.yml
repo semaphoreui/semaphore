@@ -380,6 +380,7 @@ definitions:
       properties:
         title:
           type: string
+          example: Test
         project_id:
           type: integer
           minimum: 1
@@ -508,6 +509,13 @@ parameters:
     type: integer
     required: true
     x-example: 9
+  view_id:
+    name: view_id
+    description: view ID
+    in: path
+    type: integer
+    required: true
+    x-example: 10
 paths:
   /ping:
     get:
