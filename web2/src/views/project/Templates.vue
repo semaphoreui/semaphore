@@ -290,7 +290,11 @@ export default {
     },
 
     async onViewTabSelected(tabIndex) {
-      this.viewId = tabIndex >= this.views.length ? null : this.views[tabIndex].id;
+      const newViewId = tabIndex >= this.views.length ? null : this.views[tabIndex].id;
+      if (this.viewId === newViewId) {
+        return;
+      }
+      this.viewId = newViewId;
       this.viewItemsLoading = true;
       try {
         await this.loadItems();
