@@ -39,3 +39,8 @@ func (d *BoltDb) SetViewPositions(projectID int, positions map[int]int) error {
 	}
 	return nil
 }
+
+
+func (d *BoltDb) GetViewTemplates(projectID int, viewID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
+	return d.getTemplates(projectID, &viewID, params)
+}

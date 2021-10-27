@@ -18,8 +18,16 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	return d.updateObject(template.ProjectID, db.TemplateProps, template)
 }
 
-func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	err = d.getObjects(projectID, db.TemplateProps, params, nil, &templates)
+func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+	var filter func(interface{}) bool
+	if viewID != nil {
+		filter = func (tpl interface{}) bool {
+			template := tpl.(db.Template)
+			return template.ViewID != nil && *template.ViewID == *viewID
+		}
+	}
+
+	err = d.getObjects(projectID, db.TemplateProps, params, filter, &templates)
 
 	if err != nil {
 		return
@@ -28,6 +36,10 @@ func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (tem
 	err = db.FillTemplates(d, templates)
 
 	return
+}
+
+func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
+	return d.getTemplates(projectID, nil, params)
 }
 
 func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {

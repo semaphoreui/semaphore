@@ -30,6 +30,20 @@ func ViewMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	view := context.Get(r, "view").(db.View)
+
+	templates, err := helpers.Store(r).GetViewTemplates(project.ID, view.ID, helpers.QueryParams(r.URL))
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, templates)
+}
+
 // GetViews retrieves sorted keys from the database
 func GetViews(w http.ResponseWriter, r *http.Request) {
 	if view := context.Get(r, "view"); view != nil {

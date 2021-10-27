@@ -194,6 +194,16 @@ Example:
 ]'
         />
 
+        <v-select
+            v-model="item.view_id"
+            label="View"
+            clearable
+            :items="views"
+            item-value="id"
+            item-text="title"
+            :disabled="formSaving"
+        ></v-select>
+
         <v-text-field
             class="mt-6"
             v-model="cronFormat"
@@ -251,6 +261,7 @@ export default {
       repositories: null,
       environment: null,
       schedules: null,
+      views: null,
       cronFormat: null,
       helpDialog: null,
       helpKey: null,
@@ -286,7 +297,8 @@ export default {
           && this.inventory != null
           && this.environment != null
           && this.item != null
-          && this.schedules != null;
+          && this.schedules != null
+          && this.views != null;
     },
 
     loginPasswordKeys() {
@@ -311,21 +323,25 @@ export default {
           responseType: 'json',
         })).data;
       }
+
       this.keys = (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
+
       this.repositories = (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/repositories`,
         responseType: 'json',
       })).data;
+
       this.inventory = (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/inventory`,
         responseType: 'json',
       })).data;
+
       this.environment = (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/environment`,
@@ -343,9 +359,17 @@ export default {
         url: `/api/project/${this.projectId}/templates/${this.itemId}/schedules`,
         responseType: 'json',
       })).data;
+
+      this.views = (await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/views`,
+        responseType: 'json',
+      })).data;
+
       if (this.schedules.length === 1) {
         this.cronFormat = this.schedules[0].cron_format;
       }
+
       this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
     },
 

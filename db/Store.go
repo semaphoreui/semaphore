@@ -140,6 +140,7 @@ type Store interface {
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
+	GetViewTemplates(projectID int, viewID int, params RetrieveQueryParams) ([]Template, error)
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error

@@ -88,9 +88,9 @@
     </v-toolbar>
 
     <v-tabs show-arrows class="pl-4" @change="onViewTabSelected">
-      <v-tab>
-        All
-      </v-tab>
+      <v-tab v-for="(view) in views" :key="view.id">{{ view.title }}</v-tab>
+
+      <v-tab>All</v-tab>
 
       <v-btn icon class="mt-2 ml-4" @click="editViewsDialog = true">
         <v-icon>mdi-pencil</v-icon>
@@ -106,6 +106,9 @@
         :items="items"
         :items-per-page="Number.MAX_VALUE"
         :expanded.sync="openedItems"
+        :style="{
+          opacity: viewItemsLoading ? 0.3 : 1,
+        }"
     >
       <template v-slot:item.alias="{ item }">
         <v-icon class="mr-3" small>
@@ -249,6 +252,8 @@ export default {
       openedItems: [],
       views: null,
       editViewsDialog: null,
+      viewId: null,
+      viewItemsLoading: null,
     };
   },
   computed: {
@@ -274,8 +279,24 @@ export default {
     },
   },
   methods: {
-    onViewTabSelected(tabIndex) {
-      console.log(tabIndex);
+    async beforeLoadItems() {
+      this.views = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/views`,
+        responseType: 'json',
+      })).data;
+      this.views.sort((v1, v2) => v1.position - v2.position);
+      this.viewId = this.views.length > 0 ? this.views[0].id : null;
+    },
+
+    async onViewTabSelected(tabIndex) {
+      this.viewId = tabIndex >= this.views.length ? null : this.views[tabIndex].id;
+      this.viewItemsLoading = true;
+      try {
+        await this.loadItems();
+      } finally {
+        this.viewItemsLoading = false;
+      }
     },
 
     async onWebsocketDataReceived(data) {
@@ -372,7 +393,9 @@ export default {
     },
 
     getItemsUrl() {
-      return `/api/project/${this.projectId}/templates`;
+      return this.viewId == null
+        ? `/api/project/${this.projectId}/templates`
+        : `/api/project/${this.projectId}/views/${this.viewId}/templates`;
     },
 
     async loadData() {
@@ -391,12 +414,6 @@ export default {
       this.repositories = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
-
-      this.views = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/views`,
         responseType: 'json',
       })).data;
     },
