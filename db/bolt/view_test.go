@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"sort"
 	"testing"
 	"time"
 )
@@ -16,7 +17,7 @@ func TestGetViews(t *testing.T) {
 
 	proj1, err := store.CreateProject(db.Project{
 		Created: time.Now(),
-		Name: "Test1",
+		Name:    "Test1",
 	})
 
 	if err != nil {
@@ -25,8 +26,8 @@ func TestGetViews(t *testing.T) {
 
 	_, err = store.CreateView(db.View{
 		ProjectID: proj1.ID,
-		Title: "Test",
-		Position: 1,
+		Title:     "Test",
+		Position:  1,
 	})
 
 	if err != nil {
@@ -50,6 +51,89 @@ func TestGetViews(t *testing.T) {
 	}
 
 	if view.ID != found[0].ID || view.Title != found[0].Title || view.Position != found[0].Position {
+		t.Fatal()
+	}
+}
+
+func TestSetViewPositions(t *testing.T) {
+	store := createStore()
+	err := store.Connect()
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	proj1, err := store.CreateProject(db.Project{
+		Created: time.Now(),
+		Name:    "Test1",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	v1, err := store.CreateView(db.View{
+		ProjectID: proj1.ID,
+		Title:     "Test",
+		Position:  4,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	v2, err := store.CreateView(db.View{
+		ProjectID: proj1.ID,
+		Title:     "Test",
+		Position:  2,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	found, err := store.GetViews(proj1.ID)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if len(found) != 2 {
+		t.Fatal()
+	}
+
+	sort.Slice(found, func(i, j int) bool {
+		return found[i].Position < found[j].Position
+	})
+
+	if found[0].Position != v2.Position || found[1].Position != v1.Position {
+		t.Fatal()
+	}
+
+	err = store.SetViewPositions(proj1.ID, map[int]int{
+		v1.ID: 1,
+		v2.ID: 2,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	found, err = store.GetViews(proj1.ID)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if len(found) != 2 {
+		t.Fatal()
+	}
+
+	sort.Slice(found, func(i, j int) bool {
+		return found[i].Position < found[j].Position
+	})
+
+	if found[0].Position != 1 || found[1].Position != 2 {
 		t.Fatal()
 	}
 }

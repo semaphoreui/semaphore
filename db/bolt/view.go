@@ -26,5 +26,16 @@ func (d *BoltDb) DeleteView(projectID int, viewID int) error {
 }
 
 func (d *BoltDb) SetViewPositions(projectID int, positions map[int]int) error {
+	for position, id := range positions {
+		view, err := d.GetView(projectID, id)
+		if err != nil {
+			return err
+		}
+		view.Position = position
+		err = d.UpdateView(view)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
