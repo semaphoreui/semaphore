@@ -45,7 +45,11 @@
         </v-btn>
       </div>
     </draggable>
-    <v-btn @click="addView()">Add view</v-btn>
+    <v-alert
+        v-else
+        type="info"
+    >No views</v-alert>
+    <v-btn @click="addView()" color="primary">Add view</v-btn>
   </div>
 </template>
 
@@ -188,11 +192,16 @@ export default {
       const view = this.views[i];
 
       if (view.id >= 0) {
-        await axios({
-          method: 'delete',
-          url: `/api/project/${this.projectId}/views/${view.id}`,
-          responseType: 'json',
-        });
+        view.disabled = true;
+        try {
+          await axios({
+            method: 'delete',
+            url: `/api/project/${this.projectId}/views/${view.id}`,
+            responseType: 'json',
+          });
+        } finally {
+          view.disabled = false;
+        }
       }
 
       this.views.splice(i, 1);
@@ -202,6 +211,7 @@ export default {
         id: -Math.round(Math.random() * 10000000),
         title: '',
         active: true,
+        disabled: false,
       });
     },
   },

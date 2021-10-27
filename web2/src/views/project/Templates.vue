@@ -16,7 +16,7 @@
         <v-card-title>
           Edit Views
           <v-spacer></v-spacer>
-          <v-btn icon @click="editViewsDialog = false">
+          <v-btn icon @click="closeEditViewDialog()">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
@@ -87,10 +87,15 @@
       </v-btn>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4" @change="onViewTabSelected">
-      <v-tab v-for="(view) in views" :key="view.id">{{ view.title }}</v-tab>
+    <v-tabs show-arrows class="pl-4" v-model="viewTab">
+      <v-tab :to="getViewUrl(null)">All</v-tab>
 
-      <v-tab>All</v-tab>
+      <v-tab
+          v-for="(view) in views"
+          :key="view.id"
+          :to="getViewUrl(view.id)"
+      >{{ view.title }}
+      </v-tab>
 
       <v-btn icon class="mt-2 ml-4" @click="editViewsDialog = true">
         <v-icon>mdi-pencil</v-icon>
@@ -252,11 +257,18 @@ export default {
       openedItems: [],
       views: null,
       editViewsDialog: null,
-      viewId: null,
       viewItemsLoading: null,
+      viewTab: null,
     };
   },
   computed: {
+    viewId() {
+      if (/^-?\d+$/.test(this.$route.params.viewId)) {
+        return parseInt(this.$route.params.viewId, 10);
+      }
+      return this.$route.params.viewId;
+    },
+
     templateType() {
       if (this.itemId == null || this.itemId === 'new') {
         return '';
@@ -278,29 +290,44 @@ export default {
           && this.views;
     },
   },
-  methods: {
-    async beforeLoadItems() {
-      this.views = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/views`,
-        responseType: 'json',
-      })).data;
-      this.views.sort((v1, v2) => v1.position - v2.position);
-      this.viewId = this.views.length > 0 ? this.views[0].id : null;
-    },
-
-    async onViewTabSelected(tabIndex) {
-      const newViewId = tabIndex >= this.views.length ? null : this.views[tabIndex].id;
-      if (this.viewId === newViewId) {
-        return;
-      }
-      this.viewId = newViewId;
+  watch: {
+    async viewId() {
       this.viewItemsLoading = true;
       try {
         await this.loadItems();
       } finally {
         this.viewItemsLoading = false;
       }
+    },
+  },
+  methods: {
+    async beforeLoadItems() {
+      await this.loadViews();
+    },
+
+    getViewUrl(viewId) {
+      if (viewId == null) {
+        return `/project/${this.projectId}/templates`;
+      }
+      return `/project/${this.projectId}/views/${viewId}/templates`;
+    },
+
+    async loadViews() {
+      this.views = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/views`,
+        responseType: 'json',
+      })).data;
+      this.views.sort((v1, v2) => v1.position - v2.position);
+
+      if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
+        await this.$router.push({ path: `/project/${this.projectId}/templates` });
+      }
+    },
+
+    async closeEditViewDialog() {
+      this.editViewsDialog = false;
+      await this.loadViews();
     },
 
     async onWebsocketDataReceived(data) {
