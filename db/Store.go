@@ -142,6 +142,7 @@ type Store interface {
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
+	SetViewPositions(projectID int, viewPositions map[int]int) error
 }
 
 var AccessKeyProps = ObjectProperties{
@@ -230,4 +231,11 @@ var TaskProps = ObjectProperties{
 var TaskOutputProps = ObjectProperties{
 	TableName: "task__output",
 	Type:      reflect.TypeOf(TaskOutput{}),
+}
+
+var ViewProps = ObjectProperties{
+	TableName:         "project__view",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(View{}),
+	SortableColumns:     []string{"position"},
 }

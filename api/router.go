@@ -139,8 +139,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
 
-	projectUserAPI.Path("/view").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
-	projectUserAPI.Path("/view").HandlerFunc(projects.AddView).Methods("POST")
+	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
+	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
@@ -218,6 +218,7 @@ func Route() *mux.Router {
 	projectViewManagement.HandleFunc("/{view_id}", projects.GetViews).Methods("GET", "HEAD")
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
+	projectViewManagement.HandleFunc("/{view_id}/position", projects.SetViewPosition).Methods("POST", "PUT")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

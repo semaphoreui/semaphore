@@ -6,6 +6,26 @@
     ></v-progress-linear>
   </div>
   <div v-else>
+    <v-dialog
+        v-model="editViewsDialog"
+        :max-width="maxWidth || 400"
+        persistent
+        :transition="false"
+    >
+      <v-card>
+        <v-card-title>
+          Edit Views
+          <v-spacer></v-spacer>
+          <v-btn icon @click="editViewsDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <EditViewsForm :project-id="projectId"/>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
     <EditDialog
         :max-width="700"
         v-model="editDialog"
@@ -66,6 +86,16 @@
         <v-icon>mdi-cog</v-icon>
       </v-btn>
     </v-toolbar>
+
+    <v-tabs show-arrows class="pl-4" @change="onViewTabSelected">
+      <v-tab>
+        All
+      </v-tab>
+
+      <v-btn icon class="mt-2 ml-4" @click="editViewsDialog = true">
+        <v-icon>mdi-pencil</v-icon>
+      </v-btn>
+    </v-tabs>
 
     <v-data-table
         hide-default-footer
@@ -188,16 +218,18 @@ import TemplateForm from '@/components/TemplateForm.vue';
 import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
 import TaskForm from '@/components/TaskForm.vue';
+import EditViewsForm from '@/components/EditViewsForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import TaskList from '@/components/TaskList.vue';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
+
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
 
 export default {
   components: {
-    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus, TaskLink, TaskList,
+    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus, TaskLink, TaskList, EditViewsForm,
   },
   mixins: [ItemListPageBase],
   async created() {
@@ -215,6 +247,8 @@ export default {
       settingsSheet: null,
       filteredHeaders: [],
       openedItems: [],
+      views: null,
+      editViewsDialog: null,
     };
   },
   computed: {
@@ -235,10 +269,15 @@ export default {
       return this.items
           && this.inventory
           && this.environment
-          && this.repositories;
+          && this.repositories
+          && this.views;
     },
   },
   methods: {
+    onViewTabSelected(tabIndex) {
+      console.log(tabIndex);
+    },
+
     async onWebsocketDataReceived(data) {
       if (data.project_id !== this.projectId || data.type !== 'update') {
         return;
@@ -352,6 +391,12 @@ export default {
       this.repositories = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/repositories`,
+        responseType: 'json',
+      })).data;
+
+      this.views = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/views`,
         responseType: 'json',
       })).data;
     },

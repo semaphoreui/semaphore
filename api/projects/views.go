@@ -67,6 +67,13 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := view.Validate(); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	newView, err := helpers.Store(r).CreateView(view)
 
 	if err != nil {
@@ -94,6 +101,26 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func SetViewPositions(w http.ResponseWriter, r *http.Request) {
+	var positions map[int]int
+
+	project := context.Get(r, "project").(db.Project)
+
+	if !helpers.Bind(w, r, &positions) {
+		return
+	}
+
+	err := helpers.Store(r).SetViewPositions(project.ID, positions)
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+
 // UpdateView updates key in database
 // nolint: gocyclo
 func UpdateView(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +128,13 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 	oldView := context.Get(r, "view").(db.View)
 
 	if !helpers.Bind(w, r, &view) {
+		return
+	}
+
+	if err := view.Validate(); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
 		return
 	}
 
