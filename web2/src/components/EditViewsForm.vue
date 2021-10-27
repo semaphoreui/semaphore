@@ -129,6 +129,7 @@ export default {
           url: `/api/project/${this.projectId}/views/${view.id}`,
           responseType: 'json',
           data: {
+            id: view.id,
             project_id: this.projectId,
             title: view.title,
             position: i,

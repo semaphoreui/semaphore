@@ -8,7 +8,7 @@
   <div v-else>
     <v-dialog
         v-model="editViewsDialog"
-        :max-width="maxWidth || 400"
+        :max-width="400"
         persistent
         :transition="false"
     >

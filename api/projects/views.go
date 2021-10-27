@@ -131,6 +131,13 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if view.ID != oldView.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "View ID in URL and in body must be the same",
+		})
+		return
+	}
+
 	if err := view.Validate(); err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
