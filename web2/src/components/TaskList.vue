@@ -48,7 +48,7 @@
           <TaskLink
               :disabled="item.tpl_type === 'build'"
               :task-id="item.build_task_id"
-              :tooltip="item.build_task ? item.build_task.message : null"
+              :tooltip="item.tpl_type === 'build' ? item.message : item.build_task.message"
               :label="item.tpl_type === 'build' ? item.version : item.build_task.version"
               :status="item.status"
           />
