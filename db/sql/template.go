@@ -95,7 +95,7 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 		Where("pt.removed = false")
 
 	if viewID != nil {
-		q.Where("pt.view_id", *viewID)
+		q = q.Where("pt.view_id=?", *viewID)
 	}
 
 	order := "ASC"
