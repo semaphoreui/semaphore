@@ -44,7 +44,7 @@
       </template>
 
       <template v-slot:item.version="{ item }">
-        <div v-if="item.version != null || item.build_task != null">
+        <div v-if="item.tpl_type !== ''">
           <TaskLink
               :disabled="item.tpl_type === 'build'"
               :task-id="item.build_task_id"
