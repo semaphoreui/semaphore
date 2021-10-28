@@ -379,10 +379,15 @@
 <style lang="scss">
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
+  overflow: hidden;
+  & * {
+    white-space: nowrap;
+  }
 }
 
 .v-data-table tbody tr.v-data-table__expanded__content {
   box-shadow: none !important;
+
 }
 
 .v-data-table a {

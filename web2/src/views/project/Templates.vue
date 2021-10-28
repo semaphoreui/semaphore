@@ -52,7 +52,7 @@
         @save="onTaskCreated"
     >
       <template v-slot:title={}>
-        <v-icon class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
+        <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
         <span class="breadcrumbs__item">{{ templateAlias }}</span>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">New Task</span>
