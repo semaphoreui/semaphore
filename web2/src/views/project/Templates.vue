@@ -88,12 +88,13 @@
     </v-toolbar>
 
     <v-tabs show-arrows class="pl-4" v-model="viewTab">
-      <v-tab :to="getViewUrl(null)">All</v-tab>
+      <v-tab :to="getViewUrl(null)" :disabled="viewItemsLoading">All</v-tab>
 
       <v-tab
           v-for="(view) in views"
           :key="view.id"
           :to="getViewUrl(view.id)"
+          :disabled="viewItemsLoading"
       >{{ view.title }}
       </v-tab>
 
