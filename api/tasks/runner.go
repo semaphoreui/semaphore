@@ -25,6 +25,7 @@ const (
 	taskStoppedStatus  = "stopped"
 	taskSuccessStatus  = "success"
 	taskFailStatus     = "error"
+	gitURLFilePrefix   = "file://"
 )
 
 type task struct {
@@ -198,10 +199,17 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.updateRepository(); err != nil {
-		t.log("Failed updating repository: " + err.Error())
-		t.fail()
-		return
+	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
+		repositoryPath := strings.TrimPrefix(gitURLFilePrefix, t.repository.GitURL)
+		if _, err := os.Stat(repositoryPath); err != nil {
+			t.log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
+		}
+	} else {
+		if err := t.updateRepository(); err != nil {
+			t.log("Failed updating repository: " + err.Error())
+			t.fail()
+			return
+		}
 	}
 
 	if err := t.checkoutRepository(); err != nil {
