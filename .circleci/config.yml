@@ -22,7 +22,8 @@ aliases:
     run:
       name: install task binary
       # subshell prevents potentially unwanted cwd change
-      command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | sh))
+      command: go get github.com/go-task/task/v3/cmd/task
+      # command: (cd $HOME && (curl -sL https://taskfile.dev/install.sh | ~))
 
   - &persist-from-build
     persist_to_workspace:
@@ -55,8 +56,7 @@ aliases:
     run:
       name: test that compile did not create/modify untracked files
       command: |
-        cat web2/package.json
-        git diff --exit-code --stat -- . ':(exclude)web2/package-lock.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
+        git diff --exit-code --stat -- . ':(exclude)web2/package.json' ':(exclude)web2/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
 
   - &save-npm-cache
     save_cache:
@@ -161,7 +161,8 @@ jobs:
           path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
 
   test:integration:
-    machine: true
+    machine:
+      image: ubuntu-2004:202107-02
     steps:
       - checkout
       - *install-task-binary

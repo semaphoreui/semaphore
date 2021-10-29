@@ -34,7 +34,6 @@ func KeyMiddleware(next http.Handler) http.Handler {
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	if key := context.Get(r, "accessKey"); key != nil {
 		k := key.(db.AccessKey)
-		k.ResetSecret()
 		helpers.WriteJSON(w, http.StatusOK, k)
 		return
 	}
@@ -42,16 +41,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	keys, err := helpers.Store(r).GetAccessKeys(project.ID, params)
-
-	for _, k := range keys {
-		k.ResetSecret()
-	}
+	keys, err := helpers.Store(r).GetAccessKeys(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -93,7 +83,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "key"
+	objType := db.EventKey
 
 	desc := "Access Key " + key.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -121,11 +111,6 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := key.Validate(oldKey.OverrideSecret); err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
 	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -134,7 +119,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Access Key " + key.Name + " updated"
-	objType := "key"
+	objType := db.EventKey
 
 	_, err := helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
@@ -166,7 +151,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
 		if err == db.ErrInvalidOperation {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Inventory is in use by one or more templates",
+				"error": "Access Key is in use by one or more templates",
 				"inUse": true,
 			})
 			return

@@ -13,11 +13,6 @@ import (
 	"github.com/gorilla/context"
 )
 
-const (
-	//asc  = "asc"
-	desc = "desc"
-)
-
 // InventoryMiddleware ensures an inventory exists and loads it to the context
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,12 +43,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	inventories, err := helpers.Store(r).GetInventories(project.ID, params)
+	inventories, err := helpers.Store(r).GetInventories(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -81,7 +71,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static", "file":
+	case db.InventoryStatic, db.InventoryFile:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -99,7 +89,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	objType := "inventory"
+	objType := db.EventInventory
 	desc := "Inventory " + inventory.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
@@ -163,9 +153,9 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case "static":
+	case db.InventoryStatic:
 		break
-	case "file":
+	case db.InventoryFile:
 		if !IsValidInventoryPath(inventory.Inventory) {
 			w.WriteHeader(http.StatusBadRequest)
 			return

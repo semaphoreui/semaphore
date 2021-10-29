@@ -4,10 +4,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/gorilla/context"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/context"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -41,12 +40,7 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
-	params := db.RetrieveQueryParams{
-		SortBy: r.URL.Query().Get("sort"),
-		SortInverted: r.URL.Query().Get("order") == desc,
-	}
-
-	templates, err := helpers.Store(r).GetTemplates(project.ID, params)
+	templates, err := helpers.Store(r).GetTemplates(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -74,7 +68,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	objType := "template"
+	objType := db.EventTemplate
 	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
@@ -102,9 +96,17 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// project ID and template ID in the body and the path must be the same
-	if template.ID != oldTemplate.ID || template.ProjectID != oldTemplate.ProjectID {
+
+	if template.ID != oldTemplate.ID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "You can not move ",
+			"error": "template id in URL and in body must be the same",
+		})
+		return
+	}
+
+	if template.ProjectID != oldTemplate.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "You can not move template to other project",
 		})
 		return
 	}
@@ -122,10 +124,10 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
-	objType := "template"
+	objType := db.EventTemplate
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:		 &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &template.ProjectID,
 		Description: &desc,
 		ObjectID:    &template.ID,

@@ -51,6 +51,9 @@ var (
 // validateMutationResult checks the success of the update query
 func validateMutationResult(res sql.Result, err error) error {
 	if err != nil {
+		if strings.Contains(err.Error(), "foreign key") {
+			err = db.ErrInvalidOperation
+		}
 		return err
 	}
 
@@ -166,12 +169,12 @@ func createDb() error {
 		return err
 	}
 
-	db, err := sql.Open(cfg.Dialect.String(), connectionString)
+	conn, err := sql.Open(cfg.Dialect.String(), connectionString)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("create database " + cfg.DbName)
+	_, err = conn.Exec("create database " + cfg.DbName)
 
 	if err != nil {
 		log.Warn(err.Error())
@@ -216,12 +219,14 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 		orderDirection = "DESC"
 	}
 
-	orderColumn := "name"
+	orderColumn := props.DefaultSortingColumn
 	if containsStr(props.SortableColumns, params.SortBy) {
 		orderColumn = params.SortBy
 	}
 
-	q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
+	if orderColumn != "" {
+		q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
+	}
 
 	query, args, err := q.ToSql()
 
@@ -234,34 +239,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 	return
 }
 
-func (d *SqlDb) isObjectInUse(projectID int, props db.ObjectProperties, objectID int) (bool, error) {
-	if props.ForeignColumnName == "" {
-		return false, nil
-	}
-
-	templatesC, err := d.sql.SelectInt(
-		"select count(1) from project__template where project_id=? and " + props.ForeignColumnName+ "=?",
-		projectID,
-		objectID)
-
-	if err != nil {
-		return false, err
-	}
-
-	return templatesC > 0, nil
-}
-
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID int) error {
-	inUse, err := d.isObjectInUse(projectID, props, objectID)
-
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return db.ErrInvalidOperation
-	}
-
 	return validateMutationResult(
 		d.exec(
 			"delete from " + props.TableName + " where project_id=? and id=?",

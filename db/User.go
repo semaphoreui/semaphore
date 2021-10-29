@@ -22,3 +22,8 @@ type UserWithPwd struct {
 	Pwd string    `db:"-" json:"password"` // unhashed password from JSON
 	User
 }
+
+func ValidateUsername(login string) error {
+	return nil
+}
+

@@ -65,6 +65,7 @@ export default {
   methods: {
     async reset() {
       this.item = null;
+      this.formError = null;
       if (this.$refs.form) {
         this.$refs.form.resetValidation();
       }
@@ -77,6 +78,18 @@ export default {
 
     getSingleItemUrl() {
       throw new Error('Not implemented'); // must me implemented in template
+    },
+
+    beforeSave() {
+
+    },
+
+    afterSave() {
+
+    },
+
+    afterLoadData() {
+
     },
 
     getNewItem() {
@@ -93,6 +106,8 @@ export default {
           responseType: 'json',
         })).data;
       }
+
+      await this.afterLoadData();
     },
 
     /**
@@ -129,6 +144,8 @@ export default {
       let item;
 
       try {
+        await this.beforeSave();
+
         item = (await axios({
           method: this.isNew ? 'post' : 'put',
           url: this.isNew
@@ -141,6 +158,8 @@ export default {
           },
           ...(this.getRequestOptions()),
         })).data;
+
+        await this.afterSave(item);
 
         this.$emit('save', {
           item: item || this.item,

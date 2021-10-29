@@ -18,25 +18,25 @@
         :rules="[v => !!v || 'Name is required']"
         required
         :disabled="formSaving"
-    ></v-text-field>
+    />
 
     <v-select
         v-model="item.type"
         label="Type"
-        :rules="[v => !!v || 'Type is required']"
+        :rules="[v => (!!v || !canEditSecrets) || 'Type is required']"
         :items="inventoryTypes"
         item-value="id"
         item-text="name"
-        required
+        :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
-    ></v-select>
+    />
 
     <v-text-field
         v-model="item.login_password.passphrase"
         label="Passphrase (Optional)"
         v-if="item.type === 'ssh'"
         :disabled="formSaving || !canEditSecrets"
-    ></v-text-field>
+    />
 
     <v-textarea
         outlined
@@ -45,33 +45,34 @@
         :disabled="formSaving || !canEditSecrets"
         :rules="[v => !!v || 'Private Key is required']"
         v-if="item.type === 'ssh'"
-    ></v-textarea>
+    />
 
     <v-text-field
         v-model="item.login_password.login"
         label="Login (Optional)"
         v-if="item.type === 'login_password'"
         :disabled="formSaving || !canEditSecrets"
-    ></v-text-field>
+    />
 
     <v-text-field
         v-model="item.login_password.password"
         label="Password"
-        :rules="[v => !!v || 'Password is required']"
+        :rules="[v => (!!v || !canEditSecrets) || 'Password is required']"
         v-if="item.type === 'login_password'"
-        required
+        :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
-    ></v-text-field>
+    />
 
     <v-checkbox
         v-model="item.override_secret"
         label="Override"
         v-if="!isNew"
-    ></v-checkbox>
+    />
 
     <v-alert
         dense
+        text
         type="info"
         v-if="item.type === 'none'"
     >

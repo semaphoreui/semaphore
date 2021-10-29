@@ -9,6 +9,8 @@ import (
 	"go.etcd.io/bbolt"
 	"reflect"
 	"sort"
+	"strings"
+	"time"
 )
 
 const MaxID = 2147483647
@@ -79,7 +81,10 @@ func (d *BoltDb) Connect() error {
 	}
 
 	var err error
-	d.db, err = bbolt.Open(filename, 0666, nil)
+	d.db, err = bbolt.Open(filename, 0666, &bbolt.Options{
+		Timeout: 5 * time.Second,
+	})
+
 	if err != nil {
 		return err
 	}
@@ -109,12 +114,12 @@ func (d *BoltDb) getObject(bucketID int, props db.ObjectProperties, objectID obj
 	return
 }
 
-// getFieldNameByTag tries to find field by tag name and value in provided type.
+// getFieldNameByTagSuffix tries to find field by tag name and value in provided type.
 // It returns error if field not found.
-func getFieldNameByTag(t reflect.Type, tagName string, tagValue string) (string, error) {
+func getFieldNameByTagSuffix(t reflect.Type, tagName string, tagValueSuffix string) (string, error) {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
-		if t.Field(i).Tag.Get(tagName) == tagValue {
+		if strings.HasSuffix(t.Field(i).Tag.Get(tagName), tagValueSuffix) {
 			return t.Field(i).Name, nil
 		}
 	}
@@ -122,7 +127,7 @@ func getFieldNameByTag(t reflect.Type, tagName string, tagValue string) (string,
 		if t.Field(i).Tag != "" || t.Field(i).Type.Kind() != reflect.Struct {
 			continue
 		}
-		str, err := getFieldNameByTag(t.Field(i).Type, tagName, tagValue)
+		str, err := getFieldNameByTagSuffix(t.Field(i).Type, tagName, tagValueSuffix)
 		if err == nil {
 			return str, nil
 		}
@@ -134,7 +139,7 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
-	fieldName, err := getFieldNameByTag(objType, "db", sortBy)
+	fieldName, err := getFieldNameByTagSuffix(objType, "db", sortBy)
 	if err != nil {
 		return err
 	}
@@ -315,63 +320,68 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 	})
 }
 
-func (d *BoltDb) isObjectInUse(bucketID int, props db.ObjectProperties, objID objectID, userProps db.ObjectProperties) (inUse bool, err error) {
-	var templates []db.Template
+func isObjectBelongTo(props db.ObjectProperties, objID objectID, tpl interface{}) bool {
+	if props.ForeignColumnSuffix == "" {
+		return false
+	}
 
-	err = d.getObjects(bucketID, userProps, db.RetrieveQueryParams{}, func (tpl interface{}) bool {
-		if props.ForeignColumnName == "" {
+	fieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(tpl), "db", props.ForeignColumnSuffix)
+
+	if err != nil {
+		return false
+	}
+
+	f := reflect.ValueOf(tpl).FieldByName(fieldName)
+
+	if f.IsZero() {
+		return false
+	}
+
+	if f.Kind() == reflect.Ptr {
+		if f.IsNil() {
 			return false
 		}
 
-		fieldName, err := getFieldNameByTag(reflect.TypeOf(tpl), "db", props.ForeignColumnName)
+		f = f.Elem()
+	}
 
-		if err != nil {
-			return false
-		}
+	var fVal objectID
+	switch f.Kind() {
+	case reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64:
+		fVal = intObjectID(f.Int())
+	case reflect.String:
+		fVal = strObjectID(f.String())
+	}
 
-		f := reflect.ValueOf(tpl).FieldByName(fieldName)
+	if fVal == nil {
+		return false
+	}
 
-		if f.IsZero() {
-			return false
-		}
+	return bytes.Equal(fVal.ToBytes(), objID.ToBytes())
+}
 
-		if f.Kind() == reflect.Ptr {
-			if f.IsNil() {
-				return false
-			}
+// isObjectInUse checks if objID associated with any object in foreignTableProps.
+func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProperties, objID objectID, foreignTableProps db.ObjectProperties) (inUse bool, err error) {
+	templates := reflect.New(reflect.SliceOf(foreignTableProps.Type))
 
-			f = f.Elem()
-		}
-
-		var fVal objectID
-		switch f.Kind() {
-		case reflect.Int,
-			reflect.Int8,
-			reflect.Int16,
-			reflect.Int32,
-			reflect.Int64,
-			reflect.Uint,
-			reflect.Uint8,
-			reflect.Uint16,
-			reflect.Uint32,
-			reflect.Uint64:
-			fVal = intObjectID(f.Int())
-		case reflect.String:
-			fVal = strObjectID(f.String())
-		}
-
-		if fVal == nil {
-			return false
-		}
-
-		return bytes.Equal(fVal.ToBytes(), objID.ToBytes())
-	}, &templates)
+	err = d.getObjects(bucketID, foreignTableProps, db.RetrieveQueryParams{}, func (foreignObj interface{}) bool {
+		return isObjectBelongTo(objProps, objID, foreignObj)
+	}, templates.Interface())
 
 	if err != nil {
 		return
 	}
 
-	inUse = len(templates) > 0
+	inUse = templates.Elem().Len() > 0
 
 	return
 }
@@ -451,7 +461,7 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			return db.ErrNotFound
 		}
 
-		idFieldName, err := getFieldNameByTag(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+		idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
 
 		if err != nil {
 			return err
@@ -510,7 +520,7 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 		var objectID objectID
 
 		if props.PrimaryColumnName != "" {
-			idFieldName, err := getFieldNameByTag(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+			idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
 
 			if err != nil {
 				return err

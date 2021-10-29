@@ -9,7 +9,7 @@ func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey,
 	if err != nil {
 		return
 	}
-	err = key.DeserializeSecret()
+
 	return
 }
 
@@ -20,10 +20,26 @@ func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]
 }
 
 func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
-	err := key.SerializeSecret()
+	err := key.Validate(key.OverrideSecret)
+
 	if err != nil {
 		return err
 	}
+
+	if key.OverrideSecret {
+		err = key.SerializeSecret()
+		if err != nil {
+			return err
+		}
+	} else { // accept only new name, ignore other changes
+		oldKey, err2 := d.GetAccessKey(*key.ProjectID, key.ID)
+		if err2 != nil {
+			return err2
+		}
+		oldKey.Name = key.Name
+		key = oldKey
+	}
+
 	return d.updateObject(*key.ProjectID, db.AccessKeyProps, key)
 }
 
@@ -42,43 +58,4 @@ func (d *BoltDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 
 func (d *BoltDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
 	return d.deleteObjectSoft(projectID, db.AccessKeyProps, intObjectID(accessKeyID))
-}
-
-func (d *BoltDb) GetGlobalAccessKey(accessKeyID int) (key db.AccessKey, err error) {
-	err = d.getObject(0, db.GlobalAccessKeyProps, intObjectID(accessKeyID), &key)
-	if err != nil {
-		return
-	}
-	err = key.DeserializeSecret()
-	return
-}
-
-func (d *BoltDb) GetGlobalAccessKeys(params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
-	err = d.getObjects(0, db.GlobalAccessKeyProps, params, nil, &keys)
-	return
-}
-
-func (d *BoltDb) UpdateGlobalAccessKey(key db.AccessKey) error {
-	err := key.SerializeSecret()
-	if err != nil {
-		return err
-	}
-	return d.updateObject(0, db.GlobalAccessKeyProps, key)
-}
-
-func (d *BoltDb) CreateGlobalAccessKey(key db.AccessKey) (db.AccessKey, error) {
-	err := key.SerializeSecret()
-	if err != nil {
-		return db.AccessKey{}, err
-	}
-	newKey, err := d.createObject(0, db.GlobalAccessKeyProps, key)
-	return newKey.(db.AccessKey), err
-}
-
-func (d *BoltDb) DeleteGlobalAccessKey(accessKeyID int) error {
-	return d.deleteObject(0, db.GlobalAccessKeyProps, intObjectID(accessKeyID))
-}
-
-func (d *BoltDb) DeleteGlobalAccessKeySoft(accessKeyID int) error {
-	return d.deleteObjectSoft(0, db.GlobalAccessKeyProps, intObjectID(accessKeyID))
 }

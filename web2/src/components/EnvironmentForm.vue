@@ -29,11 +29,12 @@
 
     <v-alert
         dense
+        text
         type="info"
         class="mt-4"
     >
-      Must be valid JSON. You may use the key <code>ENV</code> to pass environment variables
-      to ansible-playbook.
+      Environment must be valid JSON. You may use the key <code>ENV</code> to pass
+      environment variables to ansible-playbook.
       Example:
       <pre style="font-size: 14px;">{
   "var_available_in_playbook_1": 1245,

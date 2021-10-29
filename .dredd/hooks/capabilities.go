@@ -10,12 +10,14 @@ import (
 )
 
 // STATE
-// Runtime created objects we needs to reference in test setups
+// Runtime created objects we need to reference in test setups
 var testRunnerUser *db.User
 var userPathTestUser *db.User
 var userProject *db.Project
 var userKey *db.AccessKey
 var task *db.Task
+var schedule *db.Schedule
+var view *db.View
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int64
@@ -26,12 +28,13 @@ var templateID int64
 var capabilities = map[string][]string{
 	"user":        {},
 	"project":     {"user"},
-	//"access_key":  {"project"},
 	"repository":  {"access_key"},
 	"inventory":   {"repository"},
 	"environment": {"repository"},
-	"template":    {"repository", "inventory", "environment"},
-	"task":		   {"template"},
+	"template":    {"repository", "inventory", "environment", "view"},
+	"task":        {"template"},
+	"schedule":    {"template"},
+	"view":        {},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -63,6 +66,10 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 
 		//Add dep specific stuff
 		switch v {
+		case "schedule":
+			schedule = addSchedule()
+		case "view":
+			view = addView()
 		case "user":
 			userPathTestUser = addUser()
 		case "project":
@@ -92,10 +99,10 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			environmentID, _ = res.LastInsertId()
 		case "template":
 			res, err := store.Sql().Exec(
-				"insert into project__template " +
-					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args) " +
-					"values (?, ?, ?, ?, ?, ?, ?, ?)",
-				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false)
+				"insert into project__template "+
+					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args, description, view_id) "+
+					"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!", view.ID)
 			printError(err)
 			templateID, _ = res.LastInsertId()
 		case "task":
@@ -122,6 +129,8 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(int(environmentID)) },
 	func() string { return strconv.Itoa(int(templateID)) },
 	func() string { return strconv.Itoa(task.ID) },
+	func() string { return strconv.Itoa(schedule.ID) },
+	func() string { return strconv.Itoa(view.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -157,7 +166,12 @@ func alterRequestBody(t *trans.Transaction) {
 	if task != nil {
 		bodyFieldProcessor("task_id", task.ID, &request)
 	}
-
+	if schedule != nil {
+		bodyFieldProcessor("schedule_id", schedule.ID, &request)
+	}
+	if view != nil {
+		bodyFieldProcessor("view_id", view.ID, &request)
+	}
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?$`)

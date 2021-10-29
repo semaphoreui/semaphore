@@ -1,27 +1,33 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/db"
 	"io/ioutil"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-func (t *task) installInventory() error {
+func (t *task) installInventory() (err error) {
 	if t.inventory.SSHKeyID != nil {
-		// write inventory key
-		err := t.installKey(t.inventory.SSHKey)
+		err = t.inventory.SSHKey.Install(db.AccessKeyUsageAnsibleUser)
 		if err != nil {
-			return err
+			return
 		}
 	}
 
-	switch t.inventory.Type {
-	case "static":
-		return t.installStaticInventory()
+	if t.inventory.BecomeKeyID != nil {
+		err = t.inventory.BecomeKey.Install(db.AccessKeyUsageAnsibleBecomeUser)
+		if err != nil {
+			return
+		}
 	}
 
-	return nil
+	if t.inventory.Type == db.InventoryStatic {
+		err = t.installStaticInventory()
+	}
+
+	return
 }
 
 func (t *task) installStaticInventory() error {

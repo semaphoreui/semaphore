@@ -4,13 +4,123 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 )
+
+func getNextBuildVersion(startVersion string, currentVersion string) string {
+	re := regexp.MustCompile(`^(.*[^\d])?(\d+)([^\d].*)?$`)
+	m := re.FindStringSubmatch(startVersion)
+
+	if m == nil {
+		return startVersion
+	}
+
+	var prefix, suffix, body string
+
+	switch len(m) - 1 {
+	case 3:
+		prefix = m[1]
+		body = m[2]
+		suffix = m[3]
+	case 2:
+		if _, err := strconv.Atoi(m[1]); err == nil {
+			body = m[1]
+			suffix = m[2]
+		} else {
+			prefix = m[1]
+			body = m[2]
+		}
+	case 1:
+		body = m[1]
+	default:
+		return startVersion
+	}
+
+	if !strings.HasPrefix(currentVersion, prefix) ||
+		!strings.HasSuffix(currentVersion, suffix) {
+		return startVersion
+	}
+
+	curr, err := strconv.Atoi(currentVersion[len(prefix) : len(currentVersion)-len(suffix)])
+	if err != nil {
+		return startVersion
+	}
+
+	start, err := strconv.Atoi(body)
+	if err != nil {
+		panic(err)
+	}
+
+	var newVer int
+	if start > curr {
+		newVer = start
+	} else {
+		newVer = curr + 1
+	}
+
+	return prefix + strconv.Itoa(newVer) + suffix
+}
+
+func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (newTask db.Task, err error) {
+	taskObj.Created = time.Now()
+	taskObj.Status = taskWaitingStatus
+	taskObj.UserID = userID
+	taskObj.ProjectID = projectID
+
+	tpl, err := d.GetTemplate(projectID, taskObj.TemplateID)
+	if err != nil {
+		return
+	}
+
+	err = taskObj.ValidateNewTask(tpl)
+	if err != nil {
+		return
+	}
+
+	if tpl.Type == db.TemplateBuild { // get next version for task if it is a Build
+		var builds []db.TaskWithTpl
+		builds, err = d.GetTemplateTasks(tpl, db.RetrieveQueryParams{Count: 1})
+		if err != nil {
+			return
+		}
+		if len(builds) == 0 {
+			taskObj.Version = tpl.StartVersion
+		} else {
+			v := getNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
+			taskObj.Version = &v
+		}
+	}
+
+	newTask, err = d.CreateTask(taskObj)
+	if err != nil {
+		return
+	}
+
+	pool.register <- &task{
+		store:     d,
+		task:      newTask,
+		projectID: projectID,
+	}
+
+	objType := db.EventTask
+	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
+	_, err = d.CreateEvent(db.Event{
+		UserID:      userID,
+		ProjectID:   &projectID,
+		ObjectType:  &objType,
+		ObjectID:    &newTask.ID,
+		Description: &desc,
+	})
+
+	return
+}
 
 // AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
@@ -23,33 +133,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskObj.Created = time.Now()
-	taskObj.Status = taskWaitingStatus
-	taskObj.UserID = &user.ID
-	taskObj.ProjectID = project.ID
-
-	newTask, err := helpers.Store(r).CreateTask(taskObj)
-	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot create new task"})
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	pool.register <- &task{
-		store:     helpers.Store(r),
-		task:      newTask,
-		projectID: project.ID,
-	}
-
-	objType := taskTypeID
-	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newTask.ID,
-		Description: &desc,
-	})
+	newTask, err := AddTaskToPool(helpers.Store(r), taskObj, &user.ID, project.ID)
 
 	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
@@ -69,7 +153,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	var tasks []db.TaskWithTpl
 
 	if tpl != nil {
-		tasks, err = helpers.Store(r).GetTemplateTasks(project.ID, tpl.(db.Template).ID, db.RetrieveQueryParams{
+		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template), db.RetrieveQueryParams{
 			Count: int(limit),
 		})
 	} else {
@@ -94,12 +178,17 @@ func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 
 // GetLastTasks returns the hundred most recent tasks
 func GetLastTasks(w http.ResponseWriter, r *http.Request) {
-	GetTasksList(w, r, 200)
+	str := r.URL.Query().Get("limit")
+	limit, err := strconv.Atoi(str)
+	if  err != nil || limit <= 0 || limit > 200 {
+		limit = 200
+	}
+	GetTasksList(w, r, uint64(limit))
 }
 
 // GetTask returns a task based on its id
 func GetTask(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	task := context.Get(r, "task").(db.Task)
 	helpers.WriteJSON(w, http.StatusOK, task)
 }
 
@@ -122,14 +211,14 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, taskTypeID, task)
+		context.Set(r, "task", task)
 		next.ServeHTTP(w, r)
 	})
 }
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
-	task := context.Get(r, taskTypeID).(db.Task)
+	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
@@ -183,7 +272,7 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTask removes a task from the database
 func RemoveTask(w http.ResponseWriter, r *http.Request) {
-	targetTask := context.Get(r, taskTypeID).(db.Task)
+	targetTask := context.Get(r, "task").(db.Task)
 	editor := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
 

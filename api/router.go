@@ -136,6 +136,13 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
+	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
+	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
+
+	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
+	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
+	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
+
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
@@ -189,6 +196,7 @@ func Route() *mux.Router {
 	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/tasks", tasks.GetAllTasks).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", tasks.GetLastTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetTemplateSchedules).Methods("GET")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(tasks.GetTaskMiddleware)
@@ -197,6 +205,21 @@ func Route() *mux.Router {
 	projectTaskManagement.HandleFunc("/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
 	projectTaskManagement.HandleFunc("/{task_id}/stop", tasks.StopTask).Methods("POST")
+
+
+	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
+	projectScheduleManagement.Use(projects.SchedulesMiddleware)
+	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
+	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
+	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
+
+
+	projectViewManagement := projectUserAPI.PathPrefix("/views").Subrouter()
+	projectViewManagement.Use(projects.ViewMiddleware)
+	projectViewManagement.HandleFunc("/{view_id}", projects.GetViews).Methods("GET", "HEAD")
+	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
+	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
+	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

@@ -22,7 +22,6 @@ func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams) (i
 }
 
 func (d *BoltDb) DeleteInventory(projectID int, inventoryID int) error {
-
 	return d.deleteObject(projectID, db.InventoryProps, intObjectID(inventoryID))
 }
 

@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -11,15 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-
-	log "github.com/Sirupsen/logrus"
-
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const (
@@ -29,7 +25,6 @@ const (
 	taskStoppedStatus  = "stopped"
 	taskSuccessStatus  = "success"
 	taskFailStatus     = "error"
-	taskTypeID         = "task"
 	gitURLFilePrefix   = "file://"
 )
 
@@ -57,6 +52,12 @@ func (t *task) getRepoPath() string {
 	return util.Config.TmpPath + "/" + t.getRepoName()
 }
 
+func (t *task) validateRepo() error {
+	path := t.getRepoPath()
+	_, err := os.Stat(path)
+	return err
+}
+
 func (t *task) setStatus(status string) {
 	if t.task.Status == taskStoppingStatus {
 		switch status {
@@ -67,19 +68,31 @@ func (t *task) setStatus(status string) {
 			panic("stopping task cannot be " + status)
 		}
 	}
+
 	t.task.Status = status
+
 	t.updateStatus()
+
+	if status == taskFailStatus {
+		t.sendMailAlert()
+	}
+
+	if status == taskSuccessStatus || status == taskFailStatus {
+		t.sendTelegramAlert()
+	}
 }
 
 func (t *task) updateStatus() {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
-			"type":       "update",
-			"start":      t.task.Start,
-			"end":        t.task.End,
-			"status":     t.task.Status,
-			"task_id":    t.task.ID,
-			"project_id": t.projectID,
+			"type":        "update",
+			"start":       t.task.Start,
+			"end":         t.task.End,
+			"status":      t.task.Status,
+			"task_id":     t.task.ID,
+			"template_id": t.task.TemplateID,
+			"project_id":  t.projectID,
+			"version":	   t.task.Version,
 		})
 
 		util.LogPanic(err)
@@ -94,23 +107,32 @@ func (t *task) updateStatus() {
 
 func (t *task) fail() {
 	t.setStatus(taskFailStatus)
-	t.sendMailAlert()
-	t.sendTelegramAlert()
 }
 
 func (t *task) destroyKeys() {
 	err := t.destroyKey(t.repository.SSHKey)
 	if err != nil {
-		t.log("Can't destroy repository SSH key, error: " + err.Error())
+		t.log("Can't destroy repository key, error: " + err.Error())
 	}
+
 	err = t.destroyKey(t.inventory.SSHKey)
 	if err != nil {
-		t.log("Can't destroy inventory SSH key, error: " + err.Error())
+		t.log("Can't destroy inventory user key, error: " + err.Error())
+	}
+
+	err = t.destroyKey(t.inventory.BecomeKey)
+	if err != nil {
+		t.log("Can't destroy inventory become user key, error: " + err.Error())
+	}
+
+	err = t.destroyKey(t.template.VaultKey)
+	if err != nil {
+		t.log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
 }
 
 func (t *task) createTaskEvent() {
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 	_, err := t.store.CreateEvent(db.Event{
@@ -152,7 +174,7 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	_, err = t.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
@@ -168,8 +190,10 @@ func (t *task) prepareRun() {
 	}
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
+	
+	t.updateStatus()
 
-	if err := t.installKey(t.repository.SSHKey); err != nil {
+	if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
@@ -188,6 +212,12 @@ func (t *task) prepareRun() {
 		}
 	}
 
+	if err := t.checkoutRepository(); err != nil {
+		t.log("Failed to checkout repository to required commit: " + err.Error())
+		t.fail()
+		return
+	}
+
 	if err := t.installInventory(); err != nil {
 		t.log("Failed to install inventory: " + err.Error())
 		t.fail()
@@ -200,7 +230,7 @@ func (t *task) prepareRun() {
 		return
 	}
 
-	if err := t.installVaultPassFile(); err != nil {
+	if err := t.installVaultKeyFile(); err != nil {
 		t.log("Failed to install vault password file: " + err.Error())
 		t.fail()
 		return
@@ -235,13 +265,11 @@ func (t *task) run() {
 		return
 	}
 
-	{
-		now := time.Now()
-		t.task.Start = &now
-		t.setStatus(taskRunningStatus)
-	}
+	now := time.Now()
+	t.task.Start = &now
+	t.setStatus(taskRunningStatus)
 
-	objType := taskTypeID
+	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
 	_, err := t.store.CreateEvent(db.Event{
@@ -331,11 +359,6 @@ func (t *task) populateDetails() error {
 		return err
 	}
 
-	//if t.repository.SSHKey.Type != db.AccessKeySSH {
-	//	t.log("Repository Access Key is not 'SSH': " + t.repository.SSHKey.Type)
-	//	return errors.New("unsupported SSH Key")
-	//}
-
 	// get environment
 	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
 		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
@@ -357,17 +380,15 @@ func (t *task) destroyKey(key db.AccessKey) error {
 	return os.Remove(path)
 }
 
-func (t *task) installVaultPassFile() error {
-	if t.template.VaultPassID == nil {
+func (t *task) installVaultKeyFile() error {
+	if t.template.VaultKeyID == nil {
 		return nil
 	}
 
-	path := t.template.VaultPass.GetPath()
-
-	return ioutil.WriteFile(path, []byte(t.template.VaultPass.LoginPassword.Password), 0600)
+	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
 }
 
-func (t *task) installKey(key db.AccessKey) error {
+func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
 	if key.Type != db.AccessKeySSH {
 		return nil
 	}
@@ -376,44 +397,117 @@ func (t *task) installKey(key db.AccessKey) error {
 
 	path := key.GetPath()
 
+	err := key.DeserializeSecret()
+
+	if err != nil {
+		return err
+	}
+
 	if key.SshKey.Passphrase != "" {
 		return fmt.Errorf("ssh key with passphrase not supported")
 	}
 
-	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey), 0600)
+	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+}
+
+func (t *task) checkoutRepository() error {
+	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
+		err := t.validateRepo()
+		if err != nil {
+			return err
+		}
+
+		cmd := exec.Command("git")
+		cmd.Dir = t.getRepoPath()
+		t.log("Checkout repository to commit " + *t.task.CommitHash)
+		cmd.Args = append(cmd.Args, "checkout", *t.task.CommitHash)
+		t.logCmd(cmd)
+		return cmd.Run()
+	}
+
+	// store commit to task table
+
+	commitHash, err := t.getCommitHash()
+	if err != nil {
+		return err
+	}
+	commitMessage, _ := t.getCommitMessage()
+	t.task.CommitHash = &commitHash
+	t.task.CommitMessage = commitMessage
+
+	return t.store.UpdateTask(t.task)
+}
+
+// getCommitHash retrieves current commit hash from task repository
+func (t *task) getCommitHash() (res string, err error) {
+	err = t.validateRepo()
+	if err != nil {
+		return
+	}
+
+	cmd := exec.Command("git")
+	cmd.Dir = t.getRepoPath()
+	t.log("Get current commit hash")
+	cmd.Args = append(cmd.Args, "rev-parse", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	res = strings.Trim(string(out), " \n")
+	return
+}
+
+// getCommitMessage retrieves current commit message from task repository
+func (t *task) getCommitMessage() (res string, err error) {
+	err = t.validateRepo()
+	if err != nil {
+		return
+	}
+
+	cmd := exec.Command("git")
+	cmd.Dir = t.getRepoPath()
+	t.log("Get current commit message")
+	cmd.Args = append(cmd.Args, "show-branch", "--no-name", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	res = strings.Trim(string(out), " \n")
+
+	if len(res) > 100 {
+		res = res[0:100]
+	}
+
+	return
 }
 
 func (t *task) updateRepository() error {
-	t.getRepoPath()
-	repoName := t.getRepoName()
-	_, err := os.Stat(t.getRepoPath())
+	var gitSSHCommand string
+	if t.repository.SSHKey.Type == db.AccessKeySSH {
+		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
+	}
 
 	cmd := exec.Command("git") //nolint: gas
 	cmd.Dir = util.Config.TmpPath
-
-	switch t.repository.SSHKey.Type {
-	case db.AccessKeySSH:
-		gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
-		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, &gitSSHCommand)
-	case db.AccessKeyNone:
-		cmd.Env = t.envVars(util.Config.TmpPath, util.Config.TmpPath, nil)
-	default:
-		return fmt.Errorf("unsupported access key type: " + t.repository.SSHKey.Type)
-	}
+	t.setCmdEnvironment(cmd, gitSSHCommand)
 
 	repoURL, repoTag := t.repository.GitURL, "master"
 	if split := strings.Split(repoURL, "#"); len(split) > 1 {
 		repoURL, repoTag = split[0], split[1]
 	}
 
-	if err != nil && os.IsNotExist(err) {
+	err := t.validateRepo()
+
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
 		t.log("Cloning repository " + repoURL)
-		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, repoName)
-	} else if err != nil {
-		return err
+		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, t.getRepoName())
 	} else {
 		t.log("Updating repository " + repoURL)
-		cmd.Dir += "/" + repoName
+		cmd.Dir = t.getRepoPath()
 		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
 	}
 
@@ -453,8 +547,7 @@ func (t *task) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
 
-	gitSSHCommand := "ssh -o StrictHostKeyChecking=no -i " + t.repository.SSHKey.GetPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, &gitSSHCommand)
+	t.setCmdEnvironment(cmd, t.repository.SSHKey.GetSshCommand())
 
 	t.logCmd(cmd)
 	return cmd.Run()
@@ -474,7 +567,7 @@ func (t *task) listPlaybookHosts() (string, error) {
 
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
+	t.setCmdEnvironment(cmd, "")
 
 	var errb bytes.Buffer
 	cmd.Stderr = &errb
@@ -498,7 +591,7 @@ func (t *task) runPlaybook() (err error) {
 	}
 	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
-	cmd.Env = t.envVars(util.Config.TmpPath, cmd.Dir, nil)
+	t.setCmdEnvironment(cmd, "")
 
 	t.logCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
@@ -511,61 +604,76 @@ func (t *task) runPlaybook() (err error) {
 	return
 }
 
-func (t *task) getExtraVars() (string, error) {
+func (t *task) getExtraVars() (str string, err error) {
 	extraVars := make(map[string]interface{})
 
-	if t.inventory.SSHKey.Type == db.AccessKeyLoginPassword {
-		if t.inventory.SSHKey.LoginPassword.Login != "" {
-			extraVars["ansible_user"] = t.inventory.SSHKey.LoginPassword.Login
-		}
-		extraVars["ansible_password"] = t.inventory.SSHKey.LoginPassword.Password
-	}
-
-	if t.inventory.BecomeKey.Type == db.AccessKeyLoginPassword {
-		if t.inventory.SSHKey.LoginPassword.Login != "" {
-			extraVars["ansible_become_user"] = t.inventory.SSHKey.LoginPassword.Login
-		}
-		extraVars["ansible_become_password"] = t.inventory.SSHKey.LoginPassword.Password
-	}
-
 	if t.environment.JSON != "" {
-		err := json.Unmarshal([]byte(t.environment.JSON), &extraVars)
+		err = json.Unmarshal([]byte(t.environment.JSON), &extraVars)
 		if err != nil {
-			return "", err
+			return
 		}
 	}
 
 	delete(extraVars, "ENV")
 
-	ev, err := json.Marshal(extraVars)
-	if err != nil {
-		return "", err
+	if t.template.Type != db.TemplateTask &&
+		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+			util.Config.VariablesPassingMethod == util.VariablesPassingExtra) {
+		extraVars["semaphore_task_type"] = t.template.Type
+		extraVars["semaphore_task_version"] = t.task.Version
 	}
 
-	return string(ev), nil
+	ev, err := json.Marshal(extraVars)
+	if err != nil {
+		return
+	}
+
+	str = string(ev)
+
+	return
 }
 
 //nolint: gocyclo
-func (t *task) getPlaybookArgs() ([]string, error) {
+func (t *task) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
-	if len(playbookName) == 0 {
+	if playbookName == "" {
 		playbookName = t.template.Playbook
 	}
 
 	var inventory string
 	switch t.inventory.Type {
-	case "file":
+	case db.InventoryFile:
 		inventory = t.inventory.Inventory
 	default:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
 	}
 
-	args := []string{
+	args = []string{
 		"-i", inventory,
 	}
 
-	if t.inventory.SSHKeyID != nil && t.inventory.SSHKey.Type == db.AccessKeySSH {
-		args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
+	if t.inventory.SSHKeyID != nil {
+		switch t.inventory.SSHKey.Type {
+		case db.AccessKeySSH:
+			args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
+		case db.AccessKeyLoginPassword:
+			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
+		case db.AccessKeyNone:
+		default:
+			err = fmt.Errorf("access key does not suite for inventory's User Access Key")
+			return
+		}
+	}
+
+	if t.inventory.BecomeKeyID != nil {
+		switch t.inventory.BecomeKey.Type {
+		case db.AccessKeyLoginPassword:
+			args = append(args, "--extra-vars=@"+t.inventory.BecomeKey.GetPath())
+		case db.AccessKeyNone:
+		default:
+			err = fmt.Errorf("access key does not suite for inventory's Become User Access Key")
+			return
+		}
 	}
 
 	if t.task.Debug {
@@ -576,8 +684,8 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		args = append(args, "--check")
 	}
 
-	if t.template.VaultPassID != nil {
-		args = append(args, "--vault-password-file", t.template.VaultPass.GetPath())
+	if t.template.VaultKeyID != nil {
+		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
 	}
 
 	extraVars, err := t.getExtraVars()
@@ -590,19 +698,10 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 
 	var templateExtraArgs []string
 	if t.template.Arguments != nil {
-		err := json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
+		err = json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
 		if err != nil {
 			t.log("Could not unmarshal arguments to []string")
-			return nil, err
-		}
-	}
-
-	var taskExtraArgs []string
-	if t.task.Arguments != nil {
-		err := json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.log("Could not unmarshal arguments to []string")
-			return nil, err
+			return
 		}
 	}
 
@@ -610,25 +709,41 @@ func (t *task) getPlaybookArgs() ([]string, error) {
 		args = templateExtraArgs
 	} else {
 		args = append(args, templateExtraArgs...)
-		args = append(args, taskExtraArgs...)
 		args = append(args, playbookName)
 	}
-	return args, nil
+
+	return
 }
 
-func (t *task) envVars(home string, pwd string, gitSSHCommand *string) []string {
+func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("HOME=%s", home))
-	env = append(env, fmt.Sprintf("PWD=%s", pwd))
+	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
+	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
-	//env = append(env, fmt.Sprintln("GIT_FLUSH=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
-	if gitSSHCommand != nil {
-		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", *gitSSHCommand))
+	if t.template.Type != db.TemplateTask &&
+		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
+		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
+		var version string
+		switch t.template.Type {
+		case db.TemplateBuild:
+			version = *t.task.Version
+		case db.TemplateDeploy:
+			buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+			if err != nil {
+				panic("Deploy task has no build task")
+			}
+			version = *buildTask.Version
+		}
+		env = append(env, "SEMAPHORE_TASK_VERSION="+version)
 	}
 
-	return env
+	if gitSSHCommand != "" {
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
+	}
+	cmd.Env = env
 }
 
 func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {

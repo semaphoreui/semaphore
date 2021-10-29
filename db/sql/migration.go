@@ -71,9 +71,11 @@ func (d *SqlDb) applyMigration(version *Version) error {
 		}
 
 		q := d.prepareMigration(query)
-		if _, err := tx.Exec(q); err != nil {
+		_, err = tx.Exec(q)
+		if err != nil {
 			handleRollbackError(tx.Rollback())
-			log.Warnf("\n ERR! Query: %v\n\n", q)
+			log.Warnf("\n ERR! Query: %s\n\n", q)
+			log.Fatalf(err.Error())
 			return err
 		}
 	}

@@ -1,5 +1,9 @@
 package db
 
+const (
+	InventoryStatic = "static"
+	InventoryFile = "file"
+)
 // Inventory is the model of an ansible inventory file
 type Inventory struct {
 	ID        int    `db:"id" json:"id"`
@@ -18,4 +22,20 @@ type Inventory struct {
 	Type string `db:"type" json:"type"`
 
 	Removed bool `db:"removed" json:"removed"`
+}
+
+func FillInventory(d Store, inventory *Inventory) (err error) {
+	if inventory.SSHKeyID != nil {
+		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.BecomeKeyID != nil {
+		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	return
 }

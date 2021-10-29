@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
+	"github.com/ansible-semaphore/semaphore/api/schedules"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/cobra"
+	"go.etcd.io/bbolt"
 	"net/http"
 	"os"
 )
@@ -51,7 +53,10 @@ func Execute() {
 
 func runService() {
 	store := createStore()
+	schedulePool := schedules.CreateSchedulePool(store)
+
 	defer store.Close()
+	defer schedulePool.Destroy()
 
 	dialect, err := util.Config.GetDialect()
 	if err != nil {
@@ -74,12 +79,14 @@ func runService() {
 
 	go sockets.StartWS()
 	go tasks.StartRunner()
+	go schedulePool.Run()
 
 	route := api.Route()
 
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			context.Set(r, "store", store)
+			context.Set(r, "schedule_pool", schedulePool)
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -104,7 +111,12 @@ func createStore() db.Store {
 	store := factory.CreateStore()
 
 	if err := store.Connect(); err != nil {
-		fmt.Println("\n Have you run `semaphore setup`?")
+		switch err {
+		case bbolt.ErrTimeout:
+			fmt.Println("\n [ERR_BOLTDB_TIMEOUT] BoltDB supports only one connection at a time. You should stop service when using CLI.")
+		default:
+			fmt.Println("\n Have you run `semaphore setup`?")
+		}
 		panic(err)
 	}
 

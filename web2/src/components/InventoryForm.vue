@@ -21,18 +21,18 @@
 
     <v-select
       v-model="item.ssh_key_id"
-      label="User Access Key"
+      label="User Credentials"
       :items="keys"
       item-value="id"
       item-text="name"
-      :rules="[v => !!v || 'Access Key is required']"
+      :rules="[v => !!v || 'User Credentials is required']"
       required
       :disabled="formSaving"
     ></v-select>
 
     <v-select
         v-model="item.become_key_id"
-        label="Become User Access Key"
+        label="Sudo Credentials (Optional)"
         clearable
         :items="loginPasswordKeys"
         item-value="id"
@@ -70,6 +70,7 @@
 
     <v-alert
         dense
+        text
         class="mt-4"
         type="info"
         v-if="item.type === 'static'"

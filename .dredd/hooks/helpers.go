@@ -25,9 +25,10 @@ var tablesShouldBeTruncated = [...]string {
 	"project__inventory",
 	"project__repository",
 	"project__template",
-	"project__template_schedule",
+	"project__schedule",
 	"project__user",
 	"user",
+	"project__view",
 }
 // Test Runner User
 func addTestRunnerUser() {
@@ -137,6 +138,36 @@ func addUser() *db.User {
 	}
 	return &user
 }
+
+
+func addView() *db.View {
+	view, err := store.CreateView(db.View{
+		ProjectID: userProject.ID,
+		Title: "Test",
+		Position: 1,
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return &view
+}
+
+func addSchedule() *db.Schedule {
+	schedule, err := store.CreateSchedule(db.Schedule{
+		TemplateID: int(templateID),
+		CronFormat: "* * * 1 *",
+		ProjectID: userProject.ID,
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return &schedule
+}
+
 
 func addTask() *db.Task {
 	t := db.Task{

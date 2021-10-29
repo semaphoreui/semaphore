@@ -302,14 +302,18 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
-#      vault_pass_id:
-#        type: integer
+      view_id:
+        type: integer
+        minimum: 1
       alias:
         type: string
       playbook:
         type: string
       arguments:
         type: string
+      description:
+        type: string
+        example: Hello, World!
       override_args:
         type: boolean
   Template:
@@ -329,16 +333,72 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
-#      vault_pass_id:
-#        type: integer
+      view_id:
+        type: integer
+        minimum: 1
       alias:
         type: string
       playbook:
         type: string
       arguments:
         type: string
+      description:
+        type: string
+        example: Hello, World!
       override_args:
         type: boolean
+
+  ScheduleRequest:
+    type: object
+    properties:
+      id:
+        type: integer
+      cron_format:
+        type: string
+        x-example: "* * * 1 *"
+        example: "* * * 1 *"
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
+  Schedule:
+    type: object
+    properties:
+      id:
+        type: integer
+      cron_format:
+        type: string
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
+
+  ViewRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Test
+        project_id:
+          type: integer
+          minimum: 1
+        position:
+          type: integer
+          minimum: 1
+  View:
+    type: object
+    properties:
+      id:
+        type: integer
+      title:
+        type: string
+      project_id:
+        type: integer
+      position:
+        type: integer
+
 
   Event:
     type: object
@@ -442,7 +502,20 @@ parameters:
     type: integer
     required: true
     x-example: 8
-
+  schedule_id:
+    name: schedule_id
+    description: schedule ID
+    in: path
+    type: integer
+    required: true
+    x-example: 9
+  view_id:
+    name: view_id
+    description: view ID
+    in: path
+    type: integer
+    required: true
+    x-example: 10
 paths:
   /ping:
     get:
@@ -482,30 +555,13 @@ paths:
           schema:
             $ref: "#/definitions/InfoType"
 
-#  /upgrade:
-#    get:
-#      summary: Check if new updates available and fetch /info
-#      responses:
-#        204:
-#          description: no update
-#        200:
-#          description: ok
-#          schema:
-#            $ref: "#/definitions/InfoType"
-#    post:
-#      summary: Upgrade the server
-#      responses:
-#        200:
-#          description: Server binary was replaced by new version, server has shut down.
-
   # Authentication
   /auth/login:
     post:
       tags:
         - authentication
       summary: Performs Login
-      description: |
-        Upon success you will be logged in
+      description: Upon success you will be logged in
       security: []   # No security
       parameters:
         - name: Login Body
@@ -1198,6 +1254,127 @@ paths:
       responses:
         204:
           description: template removed
+
+
+  # project schedules
+  /project/{project_id}/schedules/{schedule_id}:
+    parameters:
+    - $ref: "#/parameters/project_id"
+    - $ref: "#/parameters/schedule_id"
+    get:
+      tags:
+      - schedule
+      summary: Get schedule
+      responses:
+        200:
+          description: Schedule
+          schema:
+            $ref: "#/definitions/Schedule"
+    delete:
+      tags:
+      - schedule
+      summary: Deletes schedule
+      responses:
+        204:
+          description: schedule deleted
+    put:
+      tags:
+      - schedule
+      summary: Updates schedule
+      parameters:
+      - name: schedule
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/ScheduleRequest"
+      responses:
+        204:
+          description: schedule updated
+
+  /project/{project_id}/schedules:
+    parameters:
+    - $ref: "#/parameters/project_id"
+    post:
+      tags:
+      - schedule
+      summary: create schedule
+      parameters:
+      - name: schedule
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/ScheduleRequest"
+      responses:
+        201:
+          description: schedule created
+          schema:
+            $ref: "#/definitions/Schedule"
+
+  # project views
+  /project/{project_id}/views:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get view
+      responses:
+        200:
+          description: view
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/View"
+    post:
+      tags:
+        - project
+      summary: create view
+      parameters:
+        - name: view
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ViewRequest"
+      responses:
+        201:
+          description: view created
+          schema:
+            $ref: "#/definitions/View"
+  /project/{project_id}/views/{view_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/view_id"
+    get:
+      tags:
+        - project
+      summary: Get view
+      responses:
+        200:
+          description: view object
+          schema:
+            $ref: "#/definitions/View"
+    put:
+      tags:
+        - project
+      summary: Updates view
+      parameters:
+        - name: view
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ViewRequest"
+      responses:
+        204:
+          description: view updated
+    delete:
+      tags:
+        - project
+      summary: Removes view
+      responses:
+        204:
+          description: view removed
+
+
 
   # tasks
   /project/{project_id}/tasks:
