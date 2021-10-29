@@ -10,7 +10,6 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     persistent
     :transition="false"
     :content-class="'item-dialog item-dialog--' + position"
-    @keydown.esc="close()"
   >
     <v-card>
       <v-card-title>
@@ -83,6 +82,11 @@ export default {
     async dialog(val) {
       this.$emit('input', val);
       this.needReset = val;
+      if (val) {
+        window.addEventListener('keydown', this.handleEscape);
+      } else {
+        window.removeEventListener('keydown', this.handleEscape);
+      }
     },
 
     async value(val) {
@@ -106,6 +110,12 @@ export default {
     clearFlags() {
       this.needSave = false;
       this.needReset = false;
+    },
+
+    handleEscape(ev) {
+      if (ev.key === 'Escape' && this.dialog !== false) {
+        this.close();
+      }
     },
   },
 };
