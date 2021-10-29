@@ -43,6 +43,9 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.type="{ item }">
+        <code>{{ item.type }}</code>
+      </template>
       <template v-slot:item.inventory="{ item }">
         {{ item.type === 'file' ? item.inventory : '&mdash;' }}
       </template>
