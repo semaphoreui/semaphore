@@ -13,7 +13,7 @@ RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
 # and when deploying in openshift
 FROM frolvlad/alpine-glibc:alpine-3.13 as runner
 
-RUN apk add --no-cache git curl ansible mysql-client openssh-client tini && \
+RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client tini && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
