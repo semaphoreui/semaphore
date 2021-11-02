@@ -52,6 +52,7 @@ func TestPopulateDetails(t *testing.T) {
 
 	env, err := store.CreateEnvironment(db.Environment{
 		ProjectID: proj.ID,
+		Name: "test",
 		JSON: `{"author": "Denis", "comment": "Hello, World!"}`,
 	})
 	if err != nil {
@@ -59,6 +60,8 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
+		Alias: "Test",
+		Playbook: "test.yml",
 		ProjectID: proj.ID,
 		RepositoryID: repo.ID,
 		InventoryID: inv.ID,

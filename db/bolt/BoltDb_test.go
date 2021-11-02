@@ -228,6 +228,7 @@ func TestIsObjectInUse(t *testing.T) {
 
 	_, err = store.CreateTemplate(db.Template{
 		Alias: "Test",
+		Playbook: "test.yml",
 		ProjectID: proj.ID,
 		InventoryID: 10,
 	})
@@ -268,6 +269,7 @@ func TestIsObjectInUse_Environment(t *testing.T) {
 
 	_, err = store.CreateTemplate(db.Template{
 		Alias: "Test",
+		Playbook: "test.yml",
 		ProjectID: proj.ID,
 		EnvironmentID: &envID,
 	})
@@ -306,6 +308,7 @@ func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
 
 	_, err = store.CreateTemplate(db.Template{
 		Alias: "Test",
+		Playbook: "test.yml",
 		ProjectID: proj.ID,
 		EnvironmentID: nil,
 	})
