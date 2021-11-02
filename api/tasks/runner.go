@@ -645,7 +645,9 @@ func (t *task) getExtraVars() (str string, err error) {
 	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
 		util.Config.VariablesPassingMethod == util.VariablesPassingExtra {
 
-		extraVars["semaphore_task_message"] = t.task.Message
+		if t.task.Message != "" {
+			extraVars["semaphore_task_message"] = t.task.Message
+		}
 
 		if t.task.UserID != nil {
 			var user db.User
@@ -775,7 +777,9 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
 		util.Config.VariablesPassingMethod == util.VariablesPassingEnv {
 
-		env = append(env, "SEMAPHORE_TASK_MESSAGE="+t.task.Message)
+		if t.task.Message != "" {
+			env = append(env, "SEMAPHORE_TASK_MESSAGE="+t.task.Message)
+		}
 
 		if t.task.UserID != nil {
 			user, err := t.store.GetUser(*t.task.UserID)
