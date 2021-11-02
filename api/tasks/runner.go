@@ -642,23 +642,35 @@ func (t *task) getExtraVars() (str string, err error) {
 
 	delete(extraVars, "ENV")
 
-	if t.template.Type != db.TemplateTask &&
-		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-			util.Config.VariablesPassingMethod == util.VariablesPassingExtra) {
-		extraVars["semaphore_task_type"] = t.template.Type
+	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+		util.Config.VariablesPassingMethod == util.VariablesPassingExtra {
 
-		var version string
-		switch t.template.Type {
-		case db.TemplateBuild:
-			version = *t.task.Version
-		case db.TemplateDeploy:
-			buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+		extraVars["semaphore_task_message"] = t.task.Message
+
+		if t.task.UserID != nil {
+			var user db.User
+			user, err = t.store.GetUser(*t.task.UserID)
 			if err != nil {
-				panic("Deploy task has no build task")
+				return
 			}
-			version = *buildTask.Version
+			extraVars["semaphore_task_username"] = user.Username
 		}
-		extraVars["semaphore_task_version"] = version
+
+		if t.template.Type != db.TemplateTask {
+			extraVars["semaphore_task_type"] = t.template.Type
+			var version string
+			switch t.template.Type {
+			case db.TemplateBuild:
+				version = *t.task.Version
+			case db.TemplateDeploy:
+				buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+				if err != nil {
+					panic("Deploy task has no build task")
+				}
+				version = *buildTask.Version
+			}
+			extraVars["semaphore_task_version"] = version
+		}
 	}
 
 	ev, err := json.Marshal(extraVars)
@@ -760,22 +772,34 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
-	if t.template.Type != db.TemplateTask &&
-		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
-		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
-		var version string
-		switch t.template.Type {
-		case db.TemplateBuild:
-			version = *t.task.Version
-		case db.TemplateDeploy:
-			buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+		util.Config.VariablesPassingMethod == util.VariablesPassingEnv {
+
+		env = append(env, "SEMAPHORE_TASK_MESSAGE="+t.task.Message)
+
+		if t.task.UserID != nil {
+			user, err := t.store.GetUser(*t.task.UserID)
 			if err != nil {
-				panic("Deploy task has no build task")
+				panic("Deploy task can't find user")
 			}
-			version = *buildTask.Version
+			env = append(env, "SEMAPHORE_TASK_USERNAME="+user.Username)
 		}
-		env = append(env, "SEMAPHORE_TASK_VERSION="+version)
+
+		if t.template.Type != db.TemplateTask  {
+			env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
+			var version string
+			switch t.template.Type {
+			case db.TemplateBuild:
+				version = *t.task.Version
+			case db.TemplateDeploy:
+				buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+				if err != nil {
+					panic("Deploy task has no build task")
+				}
+				version = *buildTask.Version
+			}
+			env = append(env, "SEMAPHORE_TASK_VERSION="+version)
+		}
 	}
 
 	if gitSSHCommand != "" {
