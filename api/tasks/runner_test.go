@@ -47,10 +47,19 @@ func TestPopulateDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	env, err := store.CreateEnvironment(db.Environment{
+		ProjectID: proj.ID,
+		JSON: `{"author": "Denis", "comment": "Hello, World!"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tpl, err := store.CreateTemplate(db.Template{
 		ProjectID: proj.ID,
 		RepositoryID: repo.ID,
 		InventoryID: inv.ID,
+		EnvironmentID: &env.ID,
 	})
 
 	if err != nil {
@@ -62,11 +71,15 @@ func TestPopulateDetails(t *testing.T) {
 		projectID: proj.ID,
 		task: db.Task{
 			TemplateID: tpl.ID,
+			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
 
 	err = tsk.populateDetails()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if tsk.environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
 		t.Fatal(err)
 	}
 }
