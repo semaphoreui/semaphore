@@ -2,13 +2,74 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/util"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestPopulateDetails(t *testing.T) {
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
+	store := bolt.BoltDb{
+		Filename: fn,
+	}
+	err := store.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proj, err := store.CreateProject(db.Project{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+	})
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID: key.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inv, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl, err := store.CreateTemplate(db.Template{
+		ProjectID: proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID: inv.ID,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tsk := task{
+		store: &store,
+		projectID: proj.ID,
+		task: db.Task{
+			TemplateID: tpl.ID,
+		},
+	}
+
+	err = tsk.populateDetails()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestTaskGetPlaybookArgs(t *testing.T) {
 	util.Config = &util.ConfigType{

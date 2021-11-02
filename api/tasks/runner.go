@@ -360,13 +360,39 @@ func (t *task) populateDetails() error {
 	}
 
 	// get environment
-	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
+	if t.template.EnvironmentID != nil {
 		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
 		if err != nil {
 			return err
 		}
-	} else if len(t.task.Environment) > 0 {
-		t.environment.JSON = t.task.Environment
+	}
+
+	if t.task.Environment != "" {
+		environment := make(map[string]interface{})
+		if t.environment.JSON != "" {
+			err = json.Unmarshal([]byte(t.task.Environment), &environment)
+			if err != nil {
+				return err
+			}
+		}
+
+		taskEnvironment := make(map[string]interface{})
+		err = json.Unmarshal([]byte(t.environment.JSON), &taskEnvironment)
+		if err != nil {
+			return err
+		}
+
+		for k, v := range taskEnvironment {
+			environment[k] = v
+		}
+
+		var ev []byte
+		ev, err = json.Marshal(environment)
+		if err != nil {
+			return err
+		}
+
+		t.environment.JSON = string(ev)
 	}
 
 	return nil
