@@ -276,14 +276,14 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s/%s",
 				d.Username,
-				d.Password,
+				url.QueryEscape(d.Password),
 				d.Hostname,
 				d.DbName)
 		} else {
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s",
 				d.Username,
-				d.Password,
+				url.QueryEscape(d.Password),
 				d.Hostname)
 		}
 		connectionString += mapToQueryString(d.Options)
