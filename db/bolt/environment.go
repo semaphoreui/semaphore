@@ -13,10 +13,22 @@ func (d *BoltDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (
 }
 
 func (d *BoltDb) UpdateEnvironment(env db.Environment) error {
+	err := env.Validate()
+
+	if err != nil {
+		return err
+	}
+
 	return d.updateObject(env.ProjectID, db.EnvironmentProps, env)
 }
 
 func (d *BoltDb) CreateEnvironment(env db.Environment) (db.Environment, error) {
+	err := env.Validate()
+
+	if err != nil {
+		return db.Environment{}, err
+	}
+
 	newEnv, err := d.createObject(env.ProjectID, db.EnvironmentProps, env)
 	return newEnv.(db.Environment), err
 }

@@ -43,6 +43,14 @@ type ObjectProperties struct {
 var ErrNotFound = errors.New("no rows in result set")
 var ErrInvalidOperation = errors.New("invalid operation")
 
+type ValidationError struct {
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	return e.Message
+}
+
 type Store interface {
 	Connect() error
 	Close() error

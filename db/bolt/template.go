@@ -5,6 +5,12 @@ import (
 )
 
 func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
+	err = template.Validate()
+
+	if err != nil {
+		return
+	}
+
 	newTpl, err := d.createObject(template.ProjectID, db.TemplateProps, template)
 	if err != nil {
 		return
@@ -15,6 +21,12 @@ func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, 
 }
 
 func (d *BoltDb) UpdateTemplate(template db.Template) error {
+	err := template.Validate()
+
+	if err != nil {
+		return err
+	}
+
 	return d.updateObject(template.ProjectID, db.TemplateProps, template)
 }
 

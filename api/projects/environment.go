@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -75,14 +74,6 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var js map[string]interface{}
-	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "JSON is not valid",
-		})
-		return
-	}
-
 	if err := helpers.Store(r).UpdateEnvironment(env); err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -104,14 +95,6 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
-	}
-
-	var js map[string]interface{}
-	if json.Unmarshal([]byte(env.JSON), &js) != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "JSON is not valid",
-		})
-		return
 	}
 
 	newEnv, err := helpers.Store(r).CreateEnvironment(env)

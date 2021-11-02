@@ -1,7 +1,5 @@
 package db
 
-import "fmt"
-
 type View struct {
 	ID        int    `db:"id" json:"id"`
 	ProjectID int    `db:"project_id" json:"project_id"`
@@ -11,7 +9,7 @@ type View struct {
 
 func (view *View) Validate() error {
 	if view.Title == "" {
-		return fmt.Errorf("title can not be empty")
+		return &ValidationError{"title can not be empty"}
 	}
 	return nil
 }

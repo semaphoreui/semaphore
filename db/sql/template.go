@@ -7,6 +7,12 @@ import (
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
+	err = template.Validate()
+
+	if err != nil {
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
@@ -45,7 +51,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	_, err := d.exec("update project__template set " +
+	err := template.Validate()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec("update project__template set " +
 		"inventory_id=?, " +
 		"repository_id=?, " +
 		"environment_id=?, " +
