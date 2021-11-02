@@ -50,6 +50,7 @@
         :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
         title="New Task"
         @save="onTaskCreated"
+        @close="this.itemId = null"
     >
       <template v-slot:title={}>
         <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
@@ -277,6 +278,7 @@ export default {
       }
       return this.items.find((x) => x.id === this.itemId).type;
     },
+
     templateAlias() {
       if (this.itemId == null || this.itemId === 'new') {
         return '';
@@ -294,8 +296,8 @@ export default {
   },
   watch: {
     async viewId() {
-      this.viewItemsLoading = true;
       try {
+        this.viewItemsLoading = true;
         await this.loadItems();
         if (this.viewId) {
           localStorage.setItem(`project${this.projectId}__lastVisitedViewId`, this.viewId);
@@ -367,6 +369,7 @@ export default {
       EventBus.$emit('i-show-task', {
         taskId: e.item.id,
       });
+      this.itemId = null;
     },
 
     showTaskLog(taskId) {

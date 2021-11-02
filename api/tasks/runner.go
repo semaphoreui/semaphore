@@ -620,7 +620,19 @@ func (t *task) getExtraVars() (str string, err error) {
 		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
 			util.Config.VariablesPassingMethod == util.VariablesPassingExtra) {
 		extraVars["semaphore_task_type"] = t.template.Type
-		extraVars["semaphore_task_version"] = t.task.Version
+
+		var version string
+		switch t.template.Type {
+		case db.TemplateBuild:
+			version = *t.task.Version
+		case db.TemplateDeploy:
+			buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+			if err != nil {
+				panic("Deploy task has no build task")
+			}
+			version = *buildTask.Version
+		}
+		extraVars["semaphore_task_version"] = version
 	}
 
 	ev, err := json.Marshal(extraVars)
