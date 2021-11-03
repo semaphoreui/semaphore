@@ -57,9 +57,10 @@
       <v-toolbar-title class="breadcrumbs">
         <router-link
             class="breadcrumbs__item breadcrumbs__item--link"
-            :to="`/project/${projectId}/templates/`"
-        >Task Templates
-        </router-link>
+            :to="viewId
+              ? `/project/${projectId}/views/${viewId}/templates/`
+              : `/project/${projectId}/templates/`"
+        >Task Templates</router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.alias }}</span>
       </v-toolbar-title>
@@ -220,6 +221,13 @@ export default {
   },
 
   computed: {
+    viewId() {
+      if (/^-?\d+$/.test(this.$route.params.viewId)) {
+        return parseInt(this.$route.params.viewId, 10);
+      }
+      return this.$route.params.viewId;
+    },
+
     itemId() {
       if (/^-?\d+$/.test(this.$route.params.templateId)) {
         return parseInt(this.$route.params.templateId, 10);

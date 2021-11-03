@@ -50,6 +50,10 @@ const routes = [
     component: TemplateView,
   },
   {
+    path: '/project/:projectId/views/:viewId/templates/:templateId',
+    component: TemplateView,
+  },
+  {
     path: '/project/:projectId/environment',
     component: Environment,
   },

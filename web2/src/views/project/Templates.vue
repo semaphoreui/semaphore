@@ -122,8 +122,10 @@
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
         <router-link
-            :to="`/project/${projectId}/templates/${item.id}`">{{ item.alias }}
-        </router-link>
+            :to="viewId
+              ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
+              : `/project/${projectId}/templates/${item.id}`"
+        >{{ item.alias }}</router-link>
       </template>
 
       <template v-slot:item.version="{ item }">

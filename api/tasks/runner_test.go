@@ -118,7 +118,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_12345 --extra-vars {} test.yml" {
+	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_0 --extra-vars {} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -155,7 +155,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_12345 --extra-vars {} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -192,7 +192,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_12345 --extra-vars {} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
