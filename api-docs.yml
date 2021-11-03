@@ -326,6 +326,7 @@ definitions:
         example: test.yml
       arguments:
         type: string
+        example: '[]'
       description:
         type: string
         example: Hello, World!
@@ -359,6 +360,7 @@ definitions:
         example: test.yml
       arguments:
         type: string
+        example: '[]'
       description:
         type: string
         example: Hello, World!
