@@ -113,7 +113,7 @@ func createStore() db.Store {
 	if err := store.Connect(); err != nil {
 		switch err {
 		case bbolt.ErrTimeout:
-			fmt.Println("\n [ERR_BOLTDB_TIMEOUT] BoltDB supports only one connection at a time. You should stop service when using CLI.")
+			fmt.Println("\n BoltDB supports only one connection at a time. You should stop service when using CLI.")
 		default:
 			fmt.Println("\n Have you run `semaphore setup`?")
 		}

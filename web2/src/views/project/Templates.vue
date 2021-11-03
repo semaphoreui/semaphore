@@ -50,7 +50,7 @@
         :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
         title="New Task"
         @save="onTaskCreated"
-        @close="this.itemId = null"
+        @close="itemId = null"
     >
       <template v-slot:title={}>
         <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>

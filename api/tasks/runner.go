@@ -110,22 +110,22 @@ func (t *task) fail() {
 }
 
 func (t *task) destroyKeys() {
-	err := t.destroyKey(t.repository.SSHKey)
+	err := t.repository.SSHKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy repository key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.inventory.SSHKey)
+	err = t.inventory.SSHKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy inventory user key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.inventory.BecomeKey)
+	err = t.inventory.BecomeKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.template.VaultKey)
+	err = t.template.VaultKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
@@ -193,7 +193,8 @@ func (t *task) prepareRun() {
 	
 	t.updateStatus()
 
-	if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
+	//if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
+	if err := t.repository.SSHKey.Install(db.AccessKeyUsagePrivateKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
@@ -398,14 +399,6 @@ func (t *task) populateDetails() error {
 	return nil
 }
 
-func (t *task) destroyKey(key db.AccessKey) error {
-	path := key.GetPath()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
-	}
-	return os.Remove(path)
-}
-
 func (t *task) installVaultKeyFile() error {
 	if t.template.VaultKeyID == nil {
 		return nil
@@ -414,27 +407,27 @@ func (t *task) installVaultKeyFile() error {
 	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
 }
 
-func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
-	if key.Type != db.AccessKeySSH {
-		return nil
-	}
-
-	t.log("access key " + key.Name + " installed")
-
-	path := key.GetPath()
-
-	err := key.DeserializeSecret()
-
-	if err != nil {
-		return err
-	}
-
-	if key.SshKey.Passphrase != "" {
-		return fmt.Errorf("ssh key with passphrase not supported")
-	}
-
-	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
-}
+//func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
+//	if key.Type != db.AccessKeySSH {
+//		return nil
+//	}
+//
+//	t.log("access key " + key.Name + " installed")
+//
+//	path := key.GetPath()
+//
+//	err := key.DeserializeSecret()
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	if key.SshKey.Passphrase != "" {
+//		return fmt.Errorf("ssh key with passphrase not supported")
+//	}
+//
+//	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+//}
 
 func (t *task) checkoutRepository() error {
 	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
