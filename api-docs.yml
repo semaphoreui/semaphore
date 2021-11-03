@@ -307,8 +307,10 @@ definitions:
         minimum: 1
       alias:
         type: string
+        example: Test
       playbook:
         type: string
+        example: test.yml
       arguments:
         type: string
       description:
@@ -338,8 +340,10 @@ definitions:
         minimum: 1
       alias:
         type: string
+        example: Test
       playbook:
         type: string
+        example: test.yml
       arguments:
         type: string
       description:
