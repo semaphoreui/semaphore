@@ -527,7 +527,7 @@ func (t *task) updateRepository() error {
 	} else {
 		t.log("Updating repository " + repoURL)
 		cmd.Dir = t.getRepoPath()
-		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
+		cmd.Args = append(cmd.Args, "pull", "--recurse-submodules", "origin", repoTag)
 	}
 
 	t.logCmd(cmd)
