@@ -3,14 +3,9 @@ CREATE TABLE `event` (
   `object_id` int DEFAULT NULL,
   `object_type` varchar(20) DEFAULT '',
   `description` text,
-  `created` datetime NOT NULL
+  `created` datetime NOT NULL,
+  unique (`project_id`, `object_id`, `created`)
 );
-
-CREATE INDEX `project_id` ON `event`(`project_id`);
-
-CREATE INDEX `object_id` ON `event`(`object_id`);
-
-CREATE INDEX `created` ON `event`(`created`);
 
 alter table `task` add `created` datetime null;
 alter table `task` add `start` datetime null;
