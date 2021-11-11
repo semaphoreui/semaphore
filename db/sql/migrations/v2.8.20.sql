@@ -12,5 +12,5 @@ create table `event`
     foreign key (`user_id`) references `user`(`id`) on delete set null
 );
 
-insert into `event`(project_id, object_id, description, created, user_id) select project_id, object_id, description, created, user_id from `event_backup_7534878`;
+insert into `event`(project_id, object_id, object_type, description, created, user_id) select project_id, object_id, object_type, description, created, user_id from `event_backup_7534878`;
 drop table `event_backup_7534878`;
