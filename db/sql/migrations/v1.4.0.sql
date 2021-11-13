@@ -3,8 +3,7 @@ CREATE TABLE `event` (
   `object_id` int DEFAULT NULL,
   `object_type` varchar(20) DEFAULT '',
   `description` text,
-  `created` datetime NOT NULL,
-  unique (`project_id`, `object_id`, `created`)
+  `created` datetime NOT NULL
 );
 
 alter table `task` add `created` datetime null;
