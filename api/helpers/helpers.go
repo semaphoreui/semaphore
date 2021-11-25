@@ -81,9 +81,16 @@ func WriteError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	log.Error(err)
-	debug.PrintStack()
-	w.WriteHeader(http.StatusInternalServerError)
+	switch e := err.(type) {
+	case *db.ValidationError:
+		WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": e.Error(),
+		})
+	default:
+		log.Error(err)
+		debug.PrintStack()
+		w.WriteHeader(http.StatusBadRequest)
+	}
 }
 
 func GetMD5Hash(filepath string) (string, error) {

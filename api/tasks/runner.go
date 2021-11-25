@@ -25,6 +25,7 @@ const (
 	taskStoppedStatus  = "stopped"
 	taskSuccessStatus  = "success"
 	taskFailStatus     = "error"
+	gitURLFilePrefix   = "file://"
 )
 
 type task struct {
@@ -67,19 +68,31 @@ func (t *task) setStatus(status string) {
 			panic("stopping task cannot be " + status)
 		}
 	}
+
 	t.task.Status = status
+
 	t.updateStatus()
+
+	if status == taskFailStatus {
+		t.sendMailAlert()
+	}
+
+	if status == taskSuccessStatus || status == taskFailStatus {
+		t.sendTelegramAlert()
+	}
 }
 
 func (t *task) updateStatus() {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
-			"type":       "update",
-			"start":      t.task.Start,
-			"end":        t.task.End,
-			"status":     t.task.Status,
-			"task_id":    t.task.ID,
-			"project_id": t.projectID,
+			"type":        "update",
+			"start":       t.task.Start,
+			"end":         t.task.End,
+			"status":      t.task.Status,
+			"task_id":     t.task.ID,
+			"template_id": t.task.TemplateID,
+			"project_id":  t.projectID,
+			"version":	   t.task.Version,
 		})
 
 		util.LogPanic(err)
@@ -94,27 +107,25 @@ func (t *task) updateStatus() {
 
 func (t *task) fail() {
 	t.setStatus(taskFailStatus)
-	t.sendMailAlert()
-	t.sendTelegramAlert()
 }
 
 func (t *task) destroyKeys() {
-	err := t.destroyKey(t.repository.SSHKey)
+	err := t.repository.SSHKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy repository key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.inventory.SSHKey)
+	err = t.inventory.SSHKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy inventory user key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.inventory.BecomeKey)
+	err = t.inventory.BecomeKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
-	err = t.destroyKey(t.template.VaultKey)
+	err = t.template.VaultKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
@@ -179,17 +190,27 @@ func (t *task) prepareRun() {
 	}
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
+	
+	t.updateStatus()
 
-	if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
+	//if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
+	if err := t.repository.SSHKey.Install(db.AccessKeyUsagePrivateKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
 	}
 
-	if err := t.updateRepository(); err != nil {
-		t.log("Failed updating repository: " + err.Error())
-		t.fail()
-		return
+	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
+		repositoryPath := strings.TrimPrefix(gitURLFilePrefix, t.repository.GitURL)
+		if _, err := os.Stat(repositoryPath); err != nil {
+			t.log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
+		}
+	} else {
+		if err := t.updateRepository(); err != nil {
+			t.log("Failed updating repository: " + err.Error())
+			t.fail()
+			return
+		}
 	}
 
 	if err := t.checkoutRepository(); err != nil {
@@ -245,11 +266,9 @@ func (t *task) run() {
 		return
 	}
 
-	{
-		now := time.Now()
-		t.task.Start = &now
-		t.setStatus(taskRunningStatus)
-	}
+	now := time.Now()
+	t.task.Start = &now
+	t.setStatus(taskRunningStatus)
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
@@ -342,24 +361,42 @@ func (t *task) populateDetails() error {
 	}
 
 	// get environment
-	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
+	if t.template.EnvironmentID != nil {
 		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
 		if err != nil {
 			return err
 		}
-	} else if len(t.task.Environment) > 0 {
-		t.environment.JSON = t.task.Environment
+	}
+
+	if t.task.Environment != "" {
+		environment := make(map[string]interface{})
+		if t.environment.JSON != "" {
+			err = json.Unmarshal([]byte(t.task.Environment), &environment)
+			if err != nil {
+				return err
+			}
+		}
+
+		taskEnvironment := make(map[string]interface{})
+		err = json.Unmarshal([]byte(t.environment.JSON), &taskEnvironment)
+		if err != nil {
+			return err
+		}
+
+		for k, v := range taskEnvironment {
+			environment[k] = v
+		}
+
+		var ev []byte
+		ev, err = json.Marshal(environment)
+		if err != nil {
+			return err
+		}
+
+		t.environment.JSON = string(ev)
 	}
 
 	return nil
-}
-
-func (t *task) destroyKey(key db.AccessKey) error {
-	path := key.GetPath()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
-	}
-	return os.Remove(path)
 }
 
 func (t *task) installVaultKeyFile() error {
@@ -370,27 +407,27 @@ func (t *task) installVaultKeyFile() error {
 	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
 }
 
-func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
-	if key.Type != db.AccessKeySSH {
-		return nil
-	}
-
-	t.log("access key " + key.Name + " installed")
-
-	path := key.GetPath()
-
-	err := key.DeserializeSecret()
-
-	if err != nil {
-		return err
-	}
-
-	if key.SshKey.Passphrase != "" {
-		return fmt.Errorf("ssh key with passphrase not supported")
-	}
-
-	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
-}
+//func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
+//	if key.Type != db.AccessKeySSH {
+//		return nil
+//	}
+//
+//	t.log("access key " + key.Name + " installed")
+//
+//	path := key.GetPath()
+//
+//	err := key.DeserializeSecret()
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	if key.SshKey.Passphrase != "" {
+//		return fmt.Errorf("ssh key with passphrase not supported")
+//	}
+//
+//	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+//}
 
 func (t *task) checkoutRepository() error {
 	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
@@ -598,11 +635,37 @@ func (t *task) getExtraVars() (str string, err error) {
 
 	delete(extraVars, "ENV")
 
-	if t.template.Type != db.TemplateTask &&
-		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-			util.Config.VariablesPassingMethod == util.VariablesPassingExtra) {
-		extraVars["semaphore_task_type"] = t.template.Type
-		extraVars["semaphore_task_version"] = t.task.Version
+	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+		util.Config.VariablesPassingMethod == util.VariablesPassingExtra {
+
+		if t.task.Message != "" {
+			extraVars["semaphore_task_message"] = t.task.Message
+		}
+
+		if t.task.UserID != nil {
+			var user db.User
+			user, err = t.store.GetUser(*t.task.UserID)
+			if err != nil {
+				return
+			}
+			extraVars["semaphore_task_username"] = user.Username
+		}
+
+		if t.template.Type != db.TemplateTask {
+			extraVars["semaphore_task_type"] = t.template.Type
+			var version string
+			switch t.template.Type {
+			case db.TemplateBuild:
+				version = *t.task.Version
+			case db.TemplateDeploy:
+				buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+				if err != nil {
+					panic("Deploy task has no build task")
+				}
+				version = *buildTask.Version
+			}
+			extraVars["semaphore_task_version"] = version
+		}
 	}
 
 	ev, err := json.Marshal(extraVars)
@@ -687,20 +750,10 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 		}
 	}
 
-	var taskExtraArgs []string
-	if t.task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.log("Could not unmarshal arguments to []string")
-			return
-		}
-	}
-
 	if t.template.OverrideArguments {
 		args = templateExtraArgs
 	} else {
 		args = append(args, templateExtraArgs...)
-		args = append(args, taskExtraArgs...)
 		args = append(args, playbookName)
 	}
 
@@ -714,11 +767,36 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
-	if t.template.Type != db.TemplateTask &&
-		(util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-			util.Config.VariablesPassingMethod == util.VariablesPassingEnv) {
-		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
-		env = append(env, "SEMAPHORE_TASK_VERSION="+*t.task.Version)
+	if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
+		util.Config.VariablesPassingMethod == util.VariablesPassingEnv {
+
+		if t.task.Message != "" {
+			env = append(env, "SEMAPHORE_TASK_MESSAGE="+t.task.Message)
+		}
+
+		if t.task.UserID != nil {
+			user, err := t.store.GetUser(*t.task.UserID)
+			if err != nil {
+				panic("Deploy task can't find user")
+			}
+			env = append(env, "SEMAPHORE_TASK_USERNAME="+user.Username)
+		}
+
+		if t.template.Type != db.TemplateTask  {
+			env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
+			var version string
+			switch t.template.Type {
+			case db.TemplateBuild:
+				version = *t.task.Version
+			case db.TemplateDeploy:
+				buildTask, err := t.store.GetTask(t.task.ProjectID, *t.task.BuildTaskID)
+				if err != nil {
+					panic("Deploy task has no build task")
+				}
+				version = *buildTask.Version
+			}
+			env = append(env, "SEMAPHORE_TASK_VERSION="+version)
+		}
 	}
 
 	if gitSSHCommand != "" {

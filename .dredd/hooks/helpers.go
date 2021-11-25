@@ -28,6 +28,7 @@ var tablesShouldBeTruncated = [...]string {
 	"project__schedule",
 	"project__user",
 	"user",
+	"project__view",
 }
 // Test Runner User
 func addTestRunnerUser() {
@@ -136,6 +137,21 @@ func addUser() *db.User {
 		fmt.Println(err)
 	}
 	return &user
+}
+
+
+func addView() *db.View {
+	view, err := store.CreateView(db.View{
+		ProjectID: userProject.ID,
+		Title: "Test",
+		Position: 1,
+	})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return &view
 }
 
 func addSchedule() *db.Schedule {

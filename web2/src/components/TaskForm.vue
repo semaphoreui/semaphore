@@ -22,17 +22,18 @@
     >
       <div
           style="font-weight: bold;"
-      >{{ commitHash ? commitHash.substr(0, 10) : '' }}</div>
+      >{{ commitHash ? commitHash.substr(0, 10) : '' }}
+      </div>
       <div v-if="commitMessage">{{ commitMessage }}</div>
     </v-alert>
 
     <v-select
         v-if="template.type === 'deploy'"
-        v-model="item.version"
+        v-model="item.build_task_id"
         label="Build Version"
         :items="buildTasks"
-        item-value="version"
-        item-text="version"
+        item-value="id"
+        :item-text="(itm) => itm.version + (itm.message ? ' — ' + itm.message : '')"
         :rules="[v => !!v || 'Build Version is required']"
         required
         :disabled="formSaving"
@@ -71,7 +72,7 @@ export default {
     templateId: Number,
     commitHash: String,
     commitMessage: String,
-    version: String,
+    buildTask: Object,
   },
   data() {
     return {
@@ -125,10 +126,10 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks`,
         responseType: 'json',
-      })).data.filter((task) => task.version != null) : [];
+      })).data.filter((task) => task.version != null && task.status === 'success') : [];
 
       if (this.buildTasks.length > 0) {
-        this.item.version = this.version != null ? this.version : this.buildTasks[0].version;
+        this.item.build_task_id = this.build_task ? this.build_task.id : this.buildTasks[0].id;
       }
 
       this.commitAvailable = this.commitHash != null;

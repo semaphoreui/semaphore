@@ -42,7 +42,15 @@ const routes = [
     component: Templates,
   },
   {
+    path: '/project/:projectId/views/:viewId/templates',
+    component: Templates,
+  },
+  {
     path: '/project/:projectId/templates/:templateId',
+    component: TemplateView,
+  },
+  {
+    path: '/project/:projectId/views/:viewId/templates/:templateId',
     component: TemplateView,
   },
   {

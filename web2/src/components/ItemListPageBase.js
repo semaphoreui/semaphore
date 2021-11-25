@@ -26,10 +26,14 @@ export default {
   },
 
   async created() {
+    await this.beforeLoadItems();
     await this.loadItems();
   },
 
   methods: {
+    // eslint-disable-next-line no-empty-function
+    async beforeLoadItems() { },
+
     getSingleItemUrl() {
       throw new Error('Not implemented');
     },

@@ -117,7 +117,7 @@ tasks:
   compile:api:hooks:
     dir: ./.dredd/hooks
     cmds:
-      - go build -o ../compiled_hooks
+      - go build -o ../compiled_hooks{{ if eq OS "windows" }}.exe{{ end }}
 
   build:
     desc: Build a full set of release binaries and packages

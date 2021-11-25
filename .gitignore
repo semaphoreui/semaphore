@@ -24,6 +24,7 @@ util/version.go
 !.gitkeep
 
 .dredd/compiled_hooks
+.dredd/compiled_hooks.exe
 
 .vscode
 __debug_bin*

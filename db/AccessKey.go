@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
+	"os"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -38,6 +40,8 @@ type AccessKey struct {
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
+
+	InstallationKey int64 `db:"-" json:"-"`
 }
 
 type LoginPassword struct {
@@ -60,14 +64,21 @@ const (
 	AccessKeyUsageVault
 )
 
-func (key AccessKey) Install(usage AccessKeyUsage) error {
+func (key *AccessKey) Install(usage AccessKeyUsage) error {
+	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
+	if err != nil {
+		return err
+	}
+
+	key.InstallationKey = rnd.Int64()
+
 	if key.Type == AccessKeyNone {
 		return nil
 	}
 
 	path := key.GetPath()
 
-	err := key.DeserializeSecret()
+	err = key.DeserializeSecret()
 
 	if err != nil {
 		return err
@@ -125,9 +136,17 @@ func (key AccessKey) Install(usage AccessKeyUsage) error {
 	return nil
 }
 
+func (key *AccessKey) Destroy() error {
+	path := key.GetPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+	return os.Remove(path)
+}
+
 // GetPath returns the location of the access key once written to disk
 func (key AccessKey) GetPath() string {
-	return util.Config.TmpPath + "/access_key_" + strconv.Itoa(key.ID)
+	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
 }
 
 func (key AccessKey) GetSshCommand() string {
@@ -267,7 +286,7 @@ func (key *AccessKey) DeserializeSecret() error {
 	if util.Config.AccessKeyEncryption == "" {
 		err = key.unmarshalAppropriateField(ciphertext)
 		if _, ok := err.(*json.SyntaxError); ok {
-			err = fmt.Errorf("[ERR_INVALID_ENCRYPTION_KEY] Cannot decrypt access key, perhaps encryption key was changed")
+			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
 		}
 		return err
 	}
@@ -298,7 +317,7 @@ func (key *AccessKey) DeserializeSecret() error {
 
 	if err != nil {
 		if err.Error() == "cipher: message authentication failed" {
-			err = fmt.Errorf("[ERR_INVALID_ENCRYPTION_KEY] Cannot decrypt access key, perhaps encryption key was changed")
+			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
 		}
 		return err
 	}

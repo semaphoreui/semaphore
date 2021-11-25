@@ -128,7 +128,13 @@ func SaveConfig(config *util.ConfigType) (configPath string) {
 	askValue("Config output directory", configDirectory, &configDirectory)
 
 	fmt.Printf("Running: mkdir -p %v..\n", configDirectory)
-	err = os.MkdirAll(configDirectory, 0755)
+
+	if _, err = os.Stat(configDirectory); err != nil {
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(configDirectory, 0755)
+		}
+	}
+
 	if err != nil {
 		log.Panic("Could not create config directory: " + err.Error())
 	}

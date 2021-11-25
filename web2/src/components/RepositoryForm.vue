@@ -22,7 +22,7 @@
 
     <v-text-field
         v-model="item.git_url"
-        label="Git URL"
+        label="Repository URL"
         :rules="[v => !!v || 'Repository is required']"
         required
         :disabled="formSaving"
@@ -55,13 +55,22 @@
           elevation="2"
           class="mb-0"
       >
-        <p v-if="helpKey === 'url'">Git or SSH URL of the repository
-          with your Ansible playbooks.</p>
+        <div v-if="helpKey === 'url'">
+          <p>
+            Address of the repository with your Ansible playbooks. It can be:
+          </p>
+          <ul>
+            <li>Git URL <code>git://</code></li>
+            <li>SSH URL <code>ssh://</code></li>
+            <li>HTTPS URL <code>https://</code></li>
+            <li>file URL <code>file://</code></li>
+          </ul>
+        </div>
         <div v-else-if="helpKey === 'key'">
           <p>Credentials to access to the Git repository. It should be:</p>
           <ul>
-            <li><code>SSH</code> if you use SSH URL.</li>
-            <li><code>None</code> if you use HTTPS URL without authentication.</li>
+            <li><code>SSH</code> if you use Git or SSH URL.</li>
+            <li><code>None</code> if you use HTTPS or file URL.</li>
           </ul>
         </div>
       </v-alert>

@@ -68,7 +68,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 	return prefix + strconv.Itoa(newVer) + suffix
 }
 
-func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.Task, error) {
+func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (newTask db.Task, err error) {
 	taskObj.Created = time.Now()
 	taskObj.Status = taskWaitingStatus
 	taskObj.UserID = userID
@@ -76,13 +76,19 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.
 
 	tpl, err := d.GetTemplate(projectID, taskObj.TemplateID)
 	if err != nil {
-		return db.Task{}, err
+		return
 	}
+
+	err = taskObj.ValidateNewTask(tpl)
+	if err != nil {
+		return
+	}
+
 	if tpl.Type == db.TemplateBuild { // get next version for task if it is a Build
 		var builds []db.TaskWithTpl
 		builds, err = d.GetTemplateTasks(tpl, db.RetrieveQueryParams{Count: 1})
 		if err != nil {
-			return db.Task{}, err
+			return
 		}
 		if len(builds) == 0 {
 			taskObj.Version = tpl.StartVersion
@@ -92,9 +98,9 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.
 		}
 	}
 
-	newTask, err := d.CreateTask(taskObj)
+	newTask, err = d.CreateTask(taskObj)
 	if err != nil {
-		return db.Task{}, err
+		return
 	}
 
 	pool.register <- &task{
@@ -113,7 +119,7 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (db.
 		Description: &desc,
 	})
 
-	return newTask, err
+	return
 }
 
 // AddTask inserts a task into the database and returns a header or returns error
@@ -172,7 +178,12 @@ func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 
 // GetLastTasks returns the hundred most recent tasks
 func GetLastTasks(w http.ResponseWriter, r *http.Request) {
-	GetTasksList(w, r, 200)
+	str := r.URL.Query().Get("limit")
+	limit, err := strconv.Atoi(str)
+	if  err != nil || limit <= 0 || limit > 200 {
+		limit = 200
+	}
+	GetTasksList(w, r, uint64(limit))
 }
 
 // GetTask returns a task based on its id

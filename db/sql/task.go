@@ -32,16 +32,12 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 }
 
 
-func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams, tasks interface{}) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
-
-	switch tasks.(type) {
-	case *[]db.TaskWithTpl:
-		fields += ", tpl.playbook as tpl_playbook" +
-			", `user`.name as user_name" +
-			", tpl.alias as tpl_alias" +
-			", tpl.type as tpl_type"
-	}
+	fields += ", tpl.playbook as tpl_playbook" +
+		", `user`.name as user_name" +
+		", tpl.alias as tpl_alias" +
+		", tpl.type as tpl_type"
 
 	q := squirrel.Select(fields).
 		From("task").
@@ -63,6 +59,13 @@ func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQuery
 
 	_, err = d.selectAll(tasks, query, args...)
 
+	for i := range *tasks {
+		err = (*tasks)[i].Fill(d)
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -83,6 +86,11 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
+		return
+	}
+
+	if err != nil {
+		return
 	}
 
 	return

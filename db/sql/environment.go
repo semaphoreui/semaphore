@@ -15,7 +15,13 @@ func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([
 }
 
 func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
-	_, err := d.exec(
+	err := env.Validate()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(
 		"update project__environment set name=?, json=? where id=?",
 		env.Name,
 		env.JSON,
@@ -24,6 +30,12 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 }
 
 func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
+	err = env.Validate()
+
+	if err != nil {
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",

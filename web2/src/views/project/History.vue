@@ -19,30 +19,45 @@
         class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">
-        <div style="display: flex; justify-content: left; align-items: center;">
+        <div class="d-flex">
           <v-icon class="mr-3" small>
             {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}
           </v-icon>
+
+          <TaskLink
+              :task-id="item.id"
+              :tooltip="item.message"
+              :label="'#' + item.id"
+          />
+
+          <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
+
           <a :href="
           '/project/' + item.project_id +
           '/templates/' + item.template_id"
           >{{ item.tpl_alias }}</a>
-          <v-icon small class="ml-1 mr-1">mdi-arrow-right</v-icon>
-          <a @click="showTaskLog(item.id)">#{{ item.id }}</a>
-          <div class="ml-2" v-if="item.version != null">
-            <v-icon
-                v-if="item.status === 'success'"
-                small
-                color="success"
-            >mdi-check</v-icon>
-            <v-icon
-                v-else
-                small
-                color="red"
-            >mdi-close</v-icon>
-            <span class="ml-1">{{ item.version }}</span>
-          </div>
         </div>
+      </template>
+      <template v-slot:item.version="{ item }">
+        <TaskLink
+            :disabled="item.tpl_type === 'build'"
+            class="ml-2"
+            v-if="item.tpl_type !== ''"
+            :status="item.status"
+
+            :task-id="item.tpl_type === 'build'
+              ? item.id
+              : item.build_task.id"
+
+            :label="item.tpl_type === 'build'
+              ? item.version
+              : item.build_task.version"
+
+            :tooltip="item.tpl_type === 'build'
+              ? item.message
+              : item.build_task.message"
+        />
+        <div class="text-center" v-else>&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -64,6 +79,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
+import TaskLink from '@/components/TaskLink.vue';
 import socket from '@/socket';
 import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 
@@ -74,7 +90,7 @@ export default {
     return { TEMPLATE_TYPE_ICONS };
   },
 
-  components: { TaskStatus },
+  components: { TaskStatus, TaskLink },
 
   watch: {
     async projectId() {
@@ -115,6 +131,11 @@ export default {
         {
           text: 'Task',
           value: 'tpl_alias',
+          sortable: false,
+        },
+        {
+          text: 'Version',
+          value: 'version',
           sortable: false,
         },
         {

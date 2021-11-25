@@ -1,5 +1,9 @@
 package db
 
+import (
+	"encoding/json"
+)
+
 type TemplateType string
 
 const (
@@ -36,8 +40,28 @@ type Template struct {
 	Type            TemplateType `db:"type" json:"type"`
 	StartVersion    *string      `db:"start_version" json:"start_version"`
 	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id"`
-	LastTask        *TaskWithTpl `db:"-" json:"last_task"`
-	LastSuccessTask *TaskWithTpl `db:"-" json:"last_success_task"`
+
+	ViewID *int `db:"view_id" json:"view_id"`
+
+	LastTask *TaskWithTpl `db:"-" json:"last_task"`
+}
+
+func (tpl *Template) Validate() error {
+	if tpl.Alias == "" {
+		return &ValidationError{"template alias can not be empty"}
+	}
+
+	if tpl.Playbook == "" {
+		return &ValidationError{"template playbook can not be empty"}
+	}
+
+	if tpl.Arguments != nil {
+		if !json.Valid([]byte(*tpl.Arguments)) {
+			return &ValidationError{"template arguments must be valid JSON"}
+		}
+	}
+
+	return nil
 }
 
 func FillTemplates(d Store, templates []Template) (err error) {

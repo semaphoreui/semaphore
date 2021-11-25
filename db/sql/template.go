@@ -7,12 +7,18 @@ import (
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
+	err = template.Validate()
+
+	if err != nil {
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
 			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version," +
-			"build_template_id)" +
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"build_template_id, view_id)" +
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -25,7 +31,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.VaultKeyID,
 		template.Type,
 		template.StartVersion,
-		template.BuildTemplateID)
+		template.BuildTemplateID,
+		template.ViewID)
 
 	if err != nil {
 		return
@@ -44,7 +51,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 }
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
-	_, err := d.exec("update project__template set " +
+	err := template.Validate()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec("update project__template set " +
 		"inventory_id=?, " +
 		"repository_id=?, " +
 		"environment_id=?, " +
@@ -56,7 +69,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"vault_key_id=?, " +
 		"`type`=?, " +
 		"start_version=?," +
-		"build_template_id=? " +
+		"build_template_id=?, " +
+		"view_id=? " +
 		"where removed = false and id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -70,13 +84,13 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.Type,
 		template.StartVersion,
 		template.BuildTemplateID,
+		template.ViewID,
 		template.ID,
 		template.ProjectID,
 	)
 	return err
 }
-
-func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	q := squirrel.Select("pt.id",
 		"pt.project_id",
 		"pt.inventory_id",
@@ -87,9 +101,14 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 		"pt.arguments",
 		"pt.override_args",
 		"pt.vault_key_id",
+		"pt.view_id",
 		"pt.`type`").
 		From("project__template pt").
 		Where("pt.removed = false")
+
+	if viewID != nil {
+		q = q.Where("pt.view_id=?", *viewID)
+	}
 
 	order := "ASC"
 	if params.SortInverted {
@@ -132,6 +151,10 @@ func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) (temp
 	err = db.FillTemplates(d, templates)
 
 	return
+}
+
+func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
+	return d.getTemplates(projectID, nil, params)
 }
 
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {

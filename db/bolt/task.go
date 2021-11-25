@@ -78,6 +78,11 @@ func (d *BoltDb) getTasks(projectID int, template *db.Template, params db.Retrie
 			}
 			tasksWithTpl[i].UserName = &usr.Name
 		}
+
+		err = tasksWithTpl[i].Fill(d)
+		if err != nil {
+			return
+		}
 	}
 
 	return
@@ -88,10 +93,13 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	if err != nil {
 		return
 	}
+
 	if task.ProjectID != projectID {
 		task = db.Task{}
 		err = db.ErrNotFound
+		return
 	}
+
 	return
 }
 
