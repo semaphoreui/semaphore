@@ -9,7 +9,7 @@ require (
 	github.com/gobuffalo/packr v1.10.4
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f
 	github.com/gorilla/handlers v1.5.1
-	github.com/gorilla/mux v1.7.3
+	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/websocket v1.4.1
 	github.com/lann/builder v0.0.0-20180216234317-1b87b36280d0 // indirect
