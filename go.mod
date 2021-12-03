@@ -14,7 +14,7 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/lann/builder v0.0.0-20180216234317-1b87b36280d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	github.com/lib/pq v1.2.0
+	github.com/lib/pq v1.10.4
 	github.com/masterminds/squirrel v0.0.0-20170825200431-a6b93000bd21
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1
