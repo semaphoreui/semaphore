@@ -10,12 +10,12 @@ import (
 
 var (
 	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE = regexp.MustCompile(`(?i)\bif exists\b`)
-	dropForeignKey = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
+	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
+	dropForeignKey  = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // prepareMigration converts migration SQLite-query to current dialect.
@@ -94,11 +94,14 @@ func (d *SqlDb) applyMigration(version *Version) error {
 func (d *SqlDb) tryRollbackMigration(version *Version) {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
 
-	data := dbAssets.Bytes(version.GetErrPath())
-	if len(data) == 0 {
-		fmt.Println("Rollback SQL does not exist.")
-		fmt.Println()
-		return
+	// TODO - do something with err
+	data, err := dbAssets.Find(version.GetErrPath())
+	if err != nil {
+		if len(data) == 0 {
+			fmt.Println("Rollback SQL does not exist.")
+			fmt.Println()
+			return
+		}
 	}
 
 	query := version.GetSQL(version.GetErrPath())

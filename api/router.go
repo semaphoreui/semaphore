@@ -11,9 +11,9 @@ import (
 	"github.com/neo1908/semaphore/api/sockets"
 	"github.com/neo1908/semaphore/api/tasks"
 
-	"github.com/neo1908/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
+	"github.com/neo1908/semaphore/util"
 )
 
 var publicAssets2 = packr.NewBox("../web2/dist")
@@ -282,7 +282,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 	var res []byte
 	var err error
 
-	res, err = publicAssets2.MustBytes(path)
+	res, err = publicAssets2.Find(path)
 
 	if err != nil {
 		notFoundHandler(w, r)
