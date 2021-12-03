@@ -208,7 +208,7 @@ jobs:
       - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
       - run: context=prod tag=latest task docker:build
       - run: tag=latest task docker:push
-      - run: docker tag ansiblesemaphore/semaphore:latest ansiblesemaphore/semaphore:$CIRCLE_TAG
+      - run: docker tag 106401f4/semaphore:latest 106401f4/semaphore:$CIRCLE_TAG
       - run: tag=$CIRCLE_TAG task docker:push
 
   # For releases to work in the ci you will need to have the following env vars set

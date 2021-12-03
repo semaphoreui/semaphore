@@ -147,7 +147,7 @@ parameters:
   - name: SEMAPHORE_IMAGE_SOURCE
     displayName: Semaphore image
     description: The id of the repository from which to pull the semaphore image
-    value: docker.io/ansiblesemaphore/semaphore
+    value: docker.io/106401f4/semaphore
     required: true
   - name: SEMAPHORE_IMAGE_TAG
     displayName: Semaphore image

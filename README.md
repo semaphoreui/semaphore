@@ -24,7 +24,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 <!--
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
 - [Installation](https://docs.ansible-semaphore.com/administration-guide/installation)
-- [Docker Hub](https://hub.docker.com/r/ansiblesemaphore/semaphore/)
+- [Docker Hub](https://hub.docker.com/r/106401f4/semaphore/)
 - [Contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md)
 - [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
 - [Roadmap](https://github.com/ansible-semaphore/semaphore/projects)
