@@ -35,12 +35,6 @@ archives:
     files:
       - LICENSE
 
-signs:
-  -
-    artifacts: checksum
-    # gpg --sign -u "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82" --pinentry-mode loopback --yes --batch --passphrase "${GPG_PASS}" --output ${signature} --detach-sign "${artifact}"
-    args: ["-u", "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
-
 # Start the snapshot name with a numerical value
 # so it does not need to be force installed
 snapshot:

@@ -15,7 +15,7 @@ services:
       - "3306:3306"
 
   semaphore_ci:
-    image: ansiblesemaphore/semaphore:ci-compose
+    image: 106401f4/semaphore:ci-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/ci/Dockerfile

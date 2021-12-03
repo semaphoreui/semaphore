@@ -16,7 +16,7 @@
     "moment": "^2.29.1",
     "vue": "^2.6.11",
     "vue-codemirror": "^4.0.6",
-    "vue-router": "^3.2.0",
+    "vue-router": "^3.5.3",
     "vuedraggable": "^2.24.3",
     "vuetify": "^2.2.11"
   },

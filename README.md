@@ -1,6 +1,6 @@
 # Ansible Semaphore
 
-[![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
+[![CircleCI](https://circleci.com/gh/neo1908/semaphore/tree/develop.svg?style=svg)](https://circleci.com/gh/neo1908/semaphore/tree/develop)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&utm_medium=referral&utm_content=ansible-semaphore/semaphore&utm_campaign=Badge_Coverage)
 [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://badges.gitter.im/AnsibleSemaphore/semaphore.svg)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -24,7 +24,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 <!--
 - [Releases](https://github.com/ansible-semaphore/semaphore/releases)
 - [Installation](https://docs.ansible-semaphore.com/administration-guide/installation)
-- [Docker Hub](https://hub.docker.com/r/ansiblesemaphore/semaphore/)
+- [Docker Hub](https://hub.docker.com/r/106401f4/semaphore/)
 - [Contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md)
 - [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
 - [Roadmap](https://github.com/ansible-semaphore/semaphore/projects)
