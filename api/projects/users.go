@@ -1,8 +1,8 @@
 package projects
 
 import (
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 	"strconv"
 
@@ -82,7 +82,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:		 &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &projectUser.UserID,

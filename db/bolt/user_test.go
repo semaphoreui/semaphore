@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"testing"
 	"time"
 )
@@ -14,12 +14,11 @@ func TestBoltDb_UpdateProjectUser(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-
 	usr, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "123456",
 		User: db.User{
-			Email: "denguk@example.com",
-			Name: "Denis Gukov",
+			Email:    "denguk@example.com",
+			Name:     "Denis Gukov",
 			Username: "fiftin",
 		},
 	})
@@ -30,7 +29,7 @@ func TestBoltDb_UpdateProjectUser(t *testing.T) {
 
 	proj1, err := store.CreateProject(db.Project{
 		Created: time.Now(),
-		Name: "Test1",
+		Name:    "Test1",
 	})
 
 	if err != nil {
@@ -39,8 +38,8 @@ func TestBoltDb_UpdateProjectUser(t *testing.T) {
 
 	projUser, err := store.CreateProjectUser(db.ProjectUser{
 		ProjectID: proj1.ID,
-		UserID: usr.ID,
-		Admin: true,
+		UserID:    usr.ID,
+		Admin:     true,
 	})
 
 	if err != nil {
@@ -66,8 +65,8 @@ func TestGetUsers(t *testing.T) {
 	_, err = store.CreateUser(db.UserWithPwd{
 		Pwd: "123456",
 		User: db.User{
-			Email: "denguk@example.com",
-			Name: "Denis Gukov",
+			Email:    "denguk@example.com",
+			Name:     "Denis Gukov",
 			Username: "fiftin",
 		},
 	})
@@ -99,8 +98,8 @@ func TestGetUser(t *testing.T) {
 	usr, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "123456",
 		User: db.User{
-			Email: "denguk@example.com",
-			Name: "Denis Gukov",
+			Email:    "denguk@example.com",
+			Name:     "Denis Gukov",
 			Username: "fiftin",
 		},
 	})

@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"testing"
 	"time"
 )
@@ -17,8 +17,8 @@ func TestGetProjects(t *testing.T) {
 	usr, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "123456",
 		User: db.User{
-			Email: "denguk@example.com",
-			Name: "Denis Gukov",
+			Email:    "denguk@example.com",
+			Name:     "Denis Gukov",
 			Username: "fiftin",
 		},
 	})
@@ -29,7 +29,7 @@ func TestGetProjects(t *testing.T) {
 
 	proj1, err := store.CreateProject(db.Project{
 		Created: time.Now(),
-		Name: "Test1",
+		Name:    "Test1",
 	})
 
 	if err != nil {
@@ -38,8 +38,8 @@ func TestGetProjects(t *testing.T) {
 
 	_, err = store.CreateProjectUser(db.ProjectUser{
 		ProjectID: proj1.ID,
-		UserID: usr.ID,
-		Admin: true,
+		UserID:    usr.ID,
+		Admin:     true,
 	})
 
 	if err != nil {
@@ -68,9 +68,8 @@ func TestGetProject(t *testing.T) {
 
 	proj, err := store.CreateProject(db.Project{
 		Created: time.Now(),
-		Name: "Test1",
+		Name:    "Test1",
 	})
-
 
 	if err != nil {
 		t.Fatal(err.Error())

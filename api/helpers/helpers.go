@@ -15,7 +15,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/context"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 
 	"github.com/gorilla/mux"
 )
@@ -109,7 +109,7 @@ func GetMD5Hash(filepath string) (string, error) {
 
 func QueryParams(url *url.URL) db.RetrieveQueryParams {
 	return db.RetrieveQueryParams{
-		SortBy: url.Query().Get("sort"),
+		SortBy:       url.Query().Get("sort"),
 		SortInverted: url.Query().Get("order") == "desc",
 	}
 }

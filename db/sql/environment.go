@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/neo1908/semaphore/db"
 
 func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
 	var environment db.Environment

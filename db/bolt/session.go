@@ -1,20 +1,18 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"time"
 )
 
-
 var globalTokenObject = db.ObjectProperties{
-	TableName:          "token",
+	TableName: "token",
 }
 
 type globalToken struct {
-	ID      string    `db:"id" json:"id"`
-	UserID  int       `db:"user_id" json:"user_id"`
+	ID     string `db:"id" json:"id"`
+	UserID int    `db:"user_id" json:"user_id"`
 }
-
 
 func (d *BoltDb) CreateSession(session db.Session) (db.Session, error) {
 	newSession, err := d.createObject(session.UserID, db.SessionProps, session)

@@ -2,13 +2,13 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format)" +
+		"insert into project__schedule (project_id, template_id, cron_format)"+
 			"values (?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,

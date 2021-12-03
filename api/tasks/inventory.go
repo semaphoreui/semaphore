@@ -1,11 +1,11 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"io/ioutil"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 )
 
 func (t *task) installInventory() (err error) {

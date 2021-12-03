@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 )
 
 func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
@@ -43,7 +43,7 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 	return d.updateObject(*key.ProjectID, db.AccessKeyProps, key)
 }
 
-func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey,  error) {
+func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey, error) {
 	err := key.SerializeSecret()
 	if err != nil {
 		return db.AccessKey{}, err

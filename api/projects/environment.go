@@ -2,8 +2,8 @@ package projects
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -61,9 +61,9 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if env.ID != oldEnv.ID {
-				helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-					"error": "Environment ID in body and URL must be the same",
-				})
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Environment ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -109,7 +109,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Environment " + newEnv.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID: 	 &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &newEnv.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newEnv.ID,

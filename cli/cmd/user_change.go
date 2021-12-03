@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -41,7 +41,7 @@ func applyChangeUserArgsForUser(user db.User, store db.Store) {
 
 	if err := store.UpdateUser(db.UserWithPwd{
 		User: user,
-		Pwd: targetUserArgs.password,
+		Pwd:  targetUserArgs.password,
 	}); err != nil {
 		panic(err)
 	}

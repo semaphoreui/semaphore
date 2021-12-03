@@ -1,10 +1,10 @@
 package factory
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt"
-	"github.com/ansible-semaphore/semaphore/db/sql"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/db"
+	"github.com/neo1908/semaphore/db/bolt"
+	"github.com/neo1908/semaphore/db/sql"
+	"github.com/neo1908/semaphore/util"
 )
 
 func CreateStore() db.Store {

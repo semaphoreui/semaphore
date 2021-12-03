@@ -1,9 +1,9 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/db"
+	"github.com/neo1908/semaphore/db/bolt"
+	"github.com/neo1908/semaphore/util"
 	"math/rand"
 	"os"
 	"strconv"
@@ -37,7 +37,7 @@ func TestPopulateDetails(t *testing.T) {
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
-		SSHKeyID: key.ID,
+		SSHKeyID:  key.ID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -52,19 +52,19 @@ func TestPopulateDetails(t *testing.T) {
 
 	env, err := store.CreateEnvironment(db.Environment{
 		ProjectID: proj.ID,
-		Name: "test",
-		JSON: `{"author": "Denis", "comment": "Hello, World!"}`,
+		Name:      "test",
+		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Alias: "Test",
-		Playbook: "test.yml",
-		ProjectID: proj.ID,
-		RepositoryID: repo.ID,
-		InventoryID: inv.ID,
+		Alias:         "Test",
+		Playbook:      "test.yml",
+		ProjectID:     proj.ID,
+		RepositoryID:  repo.ID,
+		InventoryID:   inv.ID,
 		EnvironmentID: &env.ID,
 	})
 
@@ -73,10 +73,10 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	tsk := task{
-		store: &store,
+		store:     &store,
 		projectID: proj.ID,
 		task: db.Task{
-			TemplateID: tpl.ID,
+			TemplateID:  tpl.ID,
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
@@ -102,7 +102,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
-				ID: 12345,
+				ID:   12345,
 				Type: db.AccessKeySSH,
 			},
 		},
@@ -135,11 +135,11 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
-				ID: 12345,
+				ID:   12345,
 				Type: db.AccessKeyLoginPassword,
 				LoginPassword: db.LoginPassword{
 					Password: "123456",
-					Login: "root",
+					Login:    "root",
 				},
 			},
 		},
@@ -172,11 +172,11 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		inventory: db.Inventory{
 			BecomeKeyID: &inventoryID,
 			BecomeKey: db.AccessKey{
-				ID: 12345,
+				ID:   12345,
 				Type: db.AccessKeyLoginPassword,
 				LoginPassword: db.LoginPassword{
 					Password: "123456",
-					Login: "root",
+					Login:    "root",
 				},
 			},
 		},
@@ -197,10 +197,9 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 }
 
-
 func TestCheckTmpDir(t *testing.T) {
 	//It should be able to create a random dir in /tmp
-	dirName := os.TempDir()+ "/" + randString(rand.Intn(10 - 4) + 4)
+	dirName := os.TempDir() + "/" + randString(rand.Intn(10-4)+4)
 	err := checkTmpDir(dirName)
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +211,7 @@ func TestCheckTmpDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.Chmod(dirName,os.FileMode(int(0550)))
+	err = os.Chmod(dirName, os.FileMode(int(0550)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +224,7 @@ func TestCheckTmpDir(t *testing.T) {
 		return
 	}
 
-	err = checkTmpDir(dirName+"/noway")
+	err = checkTmpDir(dirName + "/noway")
 	if err == nil {
 		t.Fatal("You should not be able to write in this folder, causing an error")
 	}
@@ -235,17 +234,18 @@ func TestCheckTmpDir(t *testing.T) {
 	}
 }
 
-
 //HELPERS
 
 //https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
 var src = rand.NewSource(time.Now().UnixNano())
+
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
+
 func randString(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!

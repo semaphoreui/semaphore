@@ -22,7 +22,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 
 
 <!--
-- [Releases](https://github.com/ansible-semaphore/semaphore/releases)
+- [Releases](https://github.com/neo1908/semaphore/releases)
 - [Installation](https://docs.ansible-semaphore.com/administration-guide/installation)
 - [Docker Hub](https://hub.docker.com/r/106401f4/semaphore/)
 - [Contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md)

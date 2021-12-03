@@ -2,14 +2,14 @@ package projects
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 	"github.com/gorilla/context"
 )
 
@@ -35,7 +35,7 @@ func removeAllByPattern(path string, filenamePattern string) error {
 }
 
 func clearRepositoryCache(repository db.Repository) error {
-	return removeAllByPattern(util.Config.TmpPath, "repository_" + strconv.Itoa(repository.ID) + "_*")
+	return removeAllByPattern(util.Config.TmpPath, "repository_"+strconv.Itoa(repository.ID)+"_*")
 }
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -161,7 +161,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	objType := db.EventRepository
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:	     &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
 		ObjectID:    &repository.ID,

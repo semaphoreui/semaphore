@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"sort"
 	"testing"
 	"time"
