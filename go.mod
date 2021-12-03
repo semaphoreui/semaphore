@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/securecookie v1.1.1
-	github.com/gorilla/websocket v1.4.1
+	github.com/gorilla/websocket v1.4.2
 	github.com/lann/builder v0.0.0-20180216234317-1b87b36280d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lib/pq v1.10.4
