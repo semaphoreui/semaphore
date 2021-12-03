@@ -35,10 +35,6 @@ archives:
     files:
       - LICENSE
 
-signs:
-  -
-    artifacts: checksum
-
 # Start the snapshot name with a numerical value
 # so it does not need to be force installed
 snapshot:
