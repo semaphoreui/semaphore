@@ -6,7 +6,7 @@
 version: '2'
 
 vars:
-  docker_namespace: ansiblesemaphore
+  docker_namespace: 106401f4
   docker_image: semaphore
 
 
