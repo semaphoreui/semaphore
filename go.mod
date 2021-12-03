@@ -6,7 +6,7 @@ require (
 	github.com/Sirupsen/logrus v1.0.4
 	github.com/go-gorp/gorp/v3 v3.0.2
 	github.com/go-sql-driver/mysql v1.4.1
-	github.com/gobuffalo/packr v1.10.4
+	github.com/gobuffalo/packr v1.30.1
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -16,9 +16,7 @@ require (
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lib/pq v1.10.4
 	github.com/masterminds/squirrel v0.0.0-20170825200431-a6b93000bd21
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
 	github.com/spf13/cobra v1.2.1
 	go.etcd.io/bbolt v1.3.2
