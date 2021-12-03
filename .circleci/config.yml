@@ -44,14 +44,6 @@ aliases:
         echo 'export NVM_DIR="$HOME/.nvm"' >> $BASH_ENV
         echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV
 
-  - &unlock-gpg
-    run:
-      name: unlock gpg key, trying to do this in the goreleaser step with env vars does not seem to work
-      command: |
-        echo $GPG_KEY | tr " " "\n" | base64 -d | gpg --import --batch
-        gpg --sign -u "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82" --pinentry-mode loopback --yes --batch --passphrase "${GPG_PASS}" --output unlock.sig --detach-sign README.md
-        rm -f unlock.sig
-
   - &test-compile-changes
     run:
       name: test that compile did not create/modify untracked files
@@ -118,7 +110,6 @@ jobs:
       - run: task deps
       - run: task compile
       - *test-compile-changes
-      - *unlock-gpg
       - run: task build
       - *store-bin-artifacts
 
