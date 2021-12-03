@@ -23,7 +23,7 @@ export GOPATH=`pwd`
 export GOBIN=$GOPATH/bin
 export PATH=$PATH:$GOBIN
 
-mkdir -p $GOPATH/src/github.com/ansible-semaphore && cd $GOPATH/src/github.com/ansible-semaphore
+mkdir -p $GOPATH/src/github.com/neo1908 && cd $GOPATH/src/github.com/neo1908
 ```
 
 2) Clone semaphore (with submodules)

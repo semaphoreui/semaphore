@@ -2,8 +2,8 @@ package projects
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -133,7 +133,6 @@ func SetViewPositions(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
 
 // UpdateView updates key in database
 // nolint: gocyclo

@@ -3,14 +3,14 @@ package api
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/ldap.v2"
@@ -35,7 +35,6 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 	defer l.Close()
-
 
 	// Reconnect with TLS if needed
 	if util.Config.LdapNeedTLS {
@@ -134,7 +133,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 			log.Info(err.Error())
 		}
 	}
-
 
 	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
 

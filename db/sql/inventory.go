@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/neo1908/semaphore/db"
 
 func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
 	err = d.getObject(projectID, db.InventoryProps, inventoryID, &inventory)
@@ -23,7 +23,7 @@ func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
 }
 
 func (d *SqlDb) DeleteInventorySoft(projectID int, inventoryID int) error {
-	return d.deleteObjectSoft(projectID, db.InventoryProps,  inventoryID)
+	return d.deleteObjectSoft(projectID, db.InventoryProps, inventoryID)
 }
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {

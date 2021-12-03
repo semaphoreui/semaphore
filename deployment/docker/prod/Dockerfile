@@ -3,8 +3,8 @@ FROM golang:1.16.3-alpine3.13 as builder
 
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
-COPY ./ /go/src/github.com/ansible-semaphore/semaphore
-WORKDIR /go/src/github.com/ansible-semaphore/semaphore
+COPY ./ /go/src/github.com/neo1908/semaphore
+WORKDIR /go/src/github.com/neo1908/semaphore
 
 RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
   ./deployment/docker/prod/bin/install

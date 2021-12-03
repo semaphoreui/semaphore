@@ -2,16 +2,16 @@ package api
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/api/helpers"
 	"net/http"
 	"os"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/api/projects"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
+	"github.com/neo1908/semaphore/api/projects"
+	"github.com/neo1908/semaphore/api/sockets"
+	"github.com/neo1908/semaphore/api/tasks"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 )
@@ -206,13 +206,11 @@ func Route() *mux.Router {
 	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
 	projectTaskManagement.HandleFunc("/{task_id}/stop", tasks.StopTask).Methods("POST")
 
-
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
-
 
 	projectViewManagement := projectUserAPI.PathPrefix("/views").Subrouter()
 	projectViewManagement.Use(projects.ViewMiddleware)
@@ -268,7 +266,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 
-	if path == webPath + "api" || strings.HasPrefix(path, webPath + "api/") {
+	if path == webPath+"api" || strings.HasPrefix(path, webPath+"api/") {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -342,10 +340,10 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"version": util.Version,
 		//"update":  util.UpdateAvailable,
 		"config": map[string]string{
-			"dbHost":  dbConfig.Hostname,
-			"dbName":  dbConfig.DbName,
-			"dbUser":  dbConfig.Username,
-			"path":    util.Config.TmpPath,
+			"dbHost": dbConfig.Hostname,
+			"dbName": dbConfig.DbName,
+			"dbUser": dbConfig.Username,
+			"path":   util.Config.TmpPath,
 			//"cmdPath": util.FindSemaphore(),
 		},
 	}

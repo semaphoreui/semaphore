@@ -2,7 +2,7 @@ package db
 
 import (
 	"encoding/base64"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 	"testing"
 )
 

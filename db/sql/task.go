@@ -2,7 +2,7 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"github.com/masterminds/squirrel"
 )
 
@@ -31,8 +31,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
-
-func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -68,7 +67,6 @@ func (d *SqlDb) getTasks(projectID int, templateID* int, params db.RetrieveQuery
 
 	return
 }
-
 
 func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	q := squirrel.Select("task.*").

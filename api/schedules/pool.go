@@ -2,8 +2,8 @@ package schedules
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/tasks"
+	"github.com/neo1908/semaphore/db"
 	"github.com/robfig/cron/v3"
 	"sync"
 )
@@ -16,7 +16,7 @@ type ScheduleRunner struct {
 func (r ScheduleRunner) Run() {
 	_, err := tasks.AddTaskToPool(r.Store, db.Task{
 		TemplateID: r.Schedule.TemplateID,
-		ProjectID: r.Schedule.ProjectID,
+		ProjectID:  r.Schedule.ProjectID,
 	}, nil, r.Schedule.ProjectID)
 	if err != nil {
 		log.Error(err)

@@ -1,8 +1,8 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 	"github.com/gorilla/context"
 )
 
@@ -180,7 +180,7 @@ func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 	str := r.URL.Query().Get("limit")
 	limit, err := strconv.Atoi(str)
-	if  err != nil || limit <= 0 || limit > 200 {
+	if err != nil || limit <= 0 || limit > 200 {
 		limit = 200
 	}
 	GetTasksList(w, r, uint64(limit))

@@ -2,11 +2,10 @@ package bolt
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
-
 
 func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
 
@@ -141,7 +140,6 @@ func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err
 	err = d.getObject(projectID, db.ProjectUserProps, intObjectID(userID), &user)
 	return
 }
-
 
 func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
 	var projectUsers []db.ProjectUser

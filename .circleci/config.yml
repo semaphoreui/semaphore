@@ -6,17 +6,17 @@ aliases:
 #    run:
 #      name: Get code
 #      command: |
-#        git clone -b $CIRCLE_BRANCH https://github.com/ansible-semaphore/semaphore.git ./
+#        git clone -b $CIRCLE_BRANCH https://github.com/neo1908/semaphore.git ./
 
   - &golang-image
     image: circleci/golang:1.16
 
   - &working-dir
-    /go/src/github.com/ansible-semaphore/semaphore
+    /go/src/github.com/neo1908/semaphore
 
   - &store-bin-artifacts
     store_artifacts:
-      path: /go/src/github.com/ansible-semaphore/semaphore/bin
+      path: /go/src/github.com/neo1908/semaphore/bin
 
   - &install-task-binary
     run:
@@ -127,7 +127,7 @@ jobs:
       - run: task compile:be
       - run: task compile:api:hooks
       - store_artifacts:
-          path: /go/src/github.com/ansible-semaphore/semaphore/.dredd/compiled_hooks
+          path: /go/src/github.com/neo1908/semaphore/.dredd/compiled_hooks
 
   # Run goverage and post results
   test:golang:
@@ -147,9 +147,9 @@ jobs:
       - run: task test
       - run: godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
       - store_test_results:
-          path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
+          path: /go/src/github.com/neo1908/semaphore/coverage.out
       - store_artifacts:
-          path: /go/src/github.com/ansible-semaphore/semaphore/coverage.out
+          path: /go/src/github.com/neo1908/semaphore/coverage.out
 
   test:integration:
     machine:

@@ -2,12 +2,11 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
-
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
 

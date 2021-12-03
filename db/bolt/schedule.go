@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/neo1908/semaphore/db"
 
 func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 	var allProjects []db.Project
@@ -27,7 +27,6 @@ func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, er
 	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, nil, &schedules)
 	return
 }
-
 
 func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	schedules = make([]db.Schedule, 0)

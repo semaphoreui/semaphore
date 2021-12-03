@@ -2,7 +2,7 @@ FROM golang:1.16.3-alpine3.13
 
 ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}" \
-    APP_ROOT="/go/src/github.com/ansible-semaphore/semaphore/"
+    APP_ROOT="/go/src/github.com/neo1908/semaphore/"
 
 # hadolint ignore=DL3013
 RUN apk add --no-cache sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client tini nodejs nodejs-npm bash rsync && \
@@ -14,7 +14,7 @@ RUN pip3 install --upgrade pip cffi   && \
     apk del build-dependencies
 
 RUN adduser -D -u 1002 -g 0 semaphore && \
-    mkdir -p /go/src/github.com/ansible-semaphore/semaphore && \
+    mkdir -p /go/src/github.com/neo1908/semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     chown -R semaphore:0 /go && \

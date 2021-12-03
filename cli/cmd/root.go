@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api"
-	"github.com/ansible-semaphore/semaphore/api/schedules"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/api"
+	"github.com/neo1908/semaphore/api/schedules"
+	"github.com/neo1908/semaphore/api/sockets"
+	"github.com/neo1908/semaphore/api/tasks"
+	"github.com/neo1908/semaphore/db"
+	"github.com/neo1908/semaphore/db/factory"
+	"github.com/neo1908/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/cobra"
@@ -23,8 +23,8 @@ var configPath string
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Ansible Semaphore is a beautiful web UI for Ansible",
-	Long: 	`Ansible Semaphore is a beautiful web UI for Ansible.
-Source code is available at https://github.com/ansible-semaphore/semaphore.
+	Long: `Ansible Semaphore is a beautiful web UI for Ansible.
+Source code is available at https://github.com/neo1908/semaphore.
 Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 && configPath == "" {
@@ -62,7 +62,7 @@ func runService() {
 	if err != nil {
 		panic(err)
 	}
-	switch dialect  {
+	switch dialect {
 	case util.DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	case util.DbDriverBolt:

@@ -2,7 +2,7 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"github.com/masterminds/squirrel"
 )
 
@@ -15,9 +15,9 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
-			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version," +
-			"build_template_id, view_id)" +
+		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
+			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version,"+
+			"build_template_id, view_id)"+
 			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
@@ -57,20 +57,20 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
-	_, err = d.exec("update project__template set " +
-		"inventory_id=?, " +
-		"repository_id=?, " +
-		"environment_id=?, " +
-		"alias=?, " +
-		"playbook=?, " +
-		"arguments=?, " +
-		"override_args=?, " +
-		"description=?, " +
-		"vault_key_id=?, " +
-		"`type`=?, " +
-		"start_version=?," +
-		"build_template_id=?, " +
-		"view_id=? " +
+	_, err = d.exec("update project__template set "+
+		"inventory_id=?, "+
+		"repository_id=?, "+
+		"environment_id=?, "+
+		"alias=?, "+
+		"playbook=?, "+
+		"arguments=?, "+
+		"override_args=?, "+
+		"description=?, "+
+		"vault_key_id=?, "+
+		"`type`=?, "+
+		"start_version=?,"+
+		"build_template_id=?, "+
+		"view_id=? "+
 		"where removed = false and id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -153,7 +153,7 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 	return
 }
 
-func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
+func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ([]db.Template, error) {
 	return d.getTemplates(projectID, nil, params)
 }
 

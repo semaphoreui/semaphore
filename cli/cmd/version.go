@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

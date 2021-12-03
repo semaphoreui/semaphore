@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"github.com/masterminds/squirrel"
 )
 
@@ -87,4 +87,3 @@ func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
 func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
 	return d.deleteObjectSoft(projectID, db.RepositoryProps, repositoryId)
 }
-

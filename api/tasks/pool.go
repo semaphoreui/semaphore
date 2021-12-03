@@ -1,18 +1,18 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/db"
 	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/util"
 )
 
 type logRecord struct {
-	task *task
+	task   *task
 	output string
-	time time.Time
+	time   time.Time
 }
 
 type taskPool struct {
@@ -22,7 +22,7 @@ type taskPool struct {
 	activeNodes  map[string]*task
 	running      int
 	runningTasks map[int]*task
-	logger	     chan logRecord
+	logger       chan logRecord
 }
 
 type resourceLock struct {
@@ -35,14 +35,14 @@ var pool = taskPool{
 	register:     make(chan *task), // add task to queue
 	activeProj:   make(map[int]*task),
 	activeNodes:  make(map[string]*task),
-	running:      0, // number of running tasks
-	runningTasks: make(map[int]*task), // working tasks
+	running:      0,                           // number of running tasks
+	runningTasks: make(map[int]*task),         // working tasks
 	logger:       make(chan logRecord, 10000), // store log records to database
 }
 
 var resourceLocker = make(chan *resourceLock)
 
-func (p *taskPool) getTask(id int) (task *task){
+func (p *taskPool) getTask(id int) (task *task) {
 
 	for _, t := range p.queue {
 		if t.task.ID == id {
@@ -112,7 +112,7 @@ func (p *taskPool) run() {
 			_, err := record.task.store.CreateTaskOutput(db.TaskOutput{
 				TaskID: record.task.task.ID,
 				Output: record.output,
-				Time: record.time,
+				Time:   record.time,
 			})
 
 			if err != nil {

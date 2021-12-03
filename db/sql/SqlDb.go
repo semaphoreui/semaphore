@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/db"
+	"github.com/neo1908/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	"github.com/gobuffalo/packr"
@@ -94,7 +94,6 @@ func (d *SqlDb) prepareQueryWithDialect(query string, dialect gorp.Dialect) stri
 func (d *SqlDb) prepareQuery(query string) string {
 	return d.prepareQueryWithDialect(query, d.sql.Dialect)
 }
-
 
 func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...interface{}) (int, error) {
 	var insertId int64
@@ -211,7 +210,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProperties, objectID int
 
 func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
-		From(props.TableName + " pe").
+		From(props.TableName+" pe").
 		Where("pe.project_id=?", projectID)
 
 	orderDirection := "ASC"
@@ -242,7 +241,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID int) error {
 	return validateMutationResult(
 		d.exec(
-			"delete from " + props.TableName + " where project_id=? and id=?",
+			"delete from "+props.TableName+" where project_id=? and id=?",
 			projectID,
 			objectID))
 }
@@ -250,7 +249,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID 
 func (d *SqlDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
 	return validateMutationResult(
 		d.exec(
-			"update " + props.TableName + " set removed=1 where project_id=? and id=?",
+			"update "+props.TableName+" set removed=1 where project_id=? and id=?",
 			projectID,
 			objectID))
 }
@@ -338,7 +337,6 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 
 	return q.ToSql()
 }
-
 
 func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.sql

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/api/sockets"
+	"github.com/neo1908/semaphore/db"
+	"github.com/neo1908/semaphore/util"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -92,7 +92,7 @@ func (t *task) updateStatus() {
 			"task_id":     t.task.ID,
 			"template_id": t.task.TemplateID,
 			"project_id":  t.projectID,
-			"version":	   t.task.Version,
+			"version":     t.task.Version,
 		})
 
 		util.LogPanic(err)
@@ -190,7 +190,7 @@ func (t *task) prepareRun() {
 	}
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
-	
+
 	t.updateStatus()
 
 	//if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
@@ -782,7 +782,7 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 			env = append(env, "SEMAPHORE_TASK_USERNAME="+user.Username)
 		}
 
-		if t.template.Type != db.TemplateTask  {
+		if t.template.Type != db.TemplateTask {
 			env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
 			var version string
 			switch t.template.Type {

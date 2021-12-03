@@ -7,8 +7,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/api/sockets"
+	"github.com/neo1908/semaphore/util"
 )
 
 func (t *task) log(msg string) {
@@ -29,9 +29,9 @@ func (t *task) log(msg string) {
 	}
 
 	pool.logger <- logRecord{
-		task: t,
+		task:   t,
 		output: msg,
-		time: now,
+		time:   now,
 	}
 }
 

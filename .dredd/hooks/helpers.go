@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/sql"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/neo1908/semaphore/db"
+	"github.com/neo1908/semaphore/db/sql"
+	"github.com/neo1908/semaphore/util"
 	"github.com/snikch/goodman/transaction"
 	"math/rand"
 	"os"
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var tablesShouldBeTruncated = [...]string {
+var tablesShouldBeTruncated = [...]string{
 	"access_key",
 	"event",
 	"user__token",
@@ -30,6 +30,7 @@ var tablesShouldBeTruncated = [...]string {
 	"user",
 	"project__view",
 }
+
 // Test Runner User
 func addTestRunnerUser() {
 	uid := getUUID()
@@ -105,7 +106,7 @@ func addAccessKey(pid *int) *db.AccessKey {
 	key := db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",
-		Secret:	   &secret,
+		Secret:    &secret,
 		ProjectID: pid,
 	}
 	if err := store.Sql().Insert(&key); err != nil {
@@ -139,12 +140,11 @@ func addUser() *db.User {
 	return &user
 }
 
-
 func addView() *db.View {
 	view, err := store.CreateView(db.View{
 		ProjectID: userProject.ID,
-		Title: "Test",
-		Position: 1,
+		Title:     "Test",
+		Position:  1,
 	})
 
 	if err != nil {
@@ -158,7 +158,7 @@ func addSchedule() *db.Schedule {
 	schedule, err := store.CreateSchedule(db.Schedule{
 		TemplateID: int(templateID),
 		CronFormat: "* * * 1 *",
-		ProjectID: userProject.ID,
+		ProjectID:  userProject.ID,
 	})
 
 	if err != nil {
@@ -168,13 +168,12 @@ func addSchedule() *db.Schedule {
 	return &schedule
 }
 
-
 func addTask() *db.Task {
 	t := db.Task{
 		TemplateID: int(templateID),
-		Status: "testing",
-		UserID: &userPathTestUser.ID,
-		Created: db.GetParsedTime(time.Now()),
+		Status:     "testing",
+		UserID:     &userPathTestUser.ID,
+		Created:    db.GetParsedTime(time.Now()),
 	}
 	if err := store.Sql().Insert(&t); err != nil {
 		fmt.Println(err)

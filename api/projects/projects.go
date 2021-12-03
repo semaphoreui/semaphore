@@ -2,8 +2,8 @@ package projects
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/neo1908/semaphore/api/helpers"
+	"github.com/neo1908/semaphore/db"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -28,7 +28,6 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	var body db.Project
 
 	user := context.Get(r, "user").(*db.User)
-
 
 	if !helpers.Bind(w, r, &body) {
 		return

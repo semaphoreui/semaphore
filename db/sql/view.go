@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/neo1908/semaphore/db"
 
 func (d *SqlDb) GetView(projectID int, viewID int) (view db.View, err error) {
 	err = d.getObject(projectID, db.ViewProps, viewID, &view)
@@ -57,6 +57,6 @@ func (d *SqlDb) SetViewPositions(projectID int, positions map[int]int) error {
 	return nil
 }
 
-func (d *SqlDb) GetViewTemplates(projectID int, viewID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
+func (d *SqlDb) GetViewTemplates(projectID int, viewID int, params db.RetrieveQueryParams) ([]db.Template, error) {
 	return d.getTemplates(projectID, &viewID, params)
 }
