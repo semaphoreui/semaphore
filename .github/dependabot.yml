@@ -6,16 +6,16 @@
 version: 2
 updates:
  - package-ecosystem: "npm"
-    directory: "/web2/"
-    schedule:
-      interval: "daily"
-    assignees:
-      - "neo1908"
-    target-branch: "develop"
-  - package-ecosystem: "gomod" # See documentation for possible values
-    directory: "" # Location of package manifests
-    schedule:
-      interval: "daily"
-    assignees:
-      - "neo1908"
-    target-branch: "develop"
+   directory: "/web2/"
+   schedule:
+    interval: "daily"
+   assignees:
+    - "neo1908"
+   target-branch: "develop"
+ - package-ecosystem: "gomod" # See documentation for possible values
+   directory: "/" # Location of package manifests
+   schedule:
+    interval: "daily"
+   assignees:
+    - "neo1908"
+   target-branch: "develop"
