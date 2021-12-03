@@ -227,7 +227,6 @@ jobs:
       - *load-go-cache
       - *load-npm-cache
       - run: task deps
-      - *unlock-gpg
       - run:
           name: reset repo as npm install may have changed lock file
           command: git reset --hard
