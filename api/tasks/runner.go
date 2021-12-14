@@ -205,6 +205,8 @@ func (t *task) prepareRun() {
 		repositoryPath := strings.TrimPrefix(t.repository.GitURL, gitURLFilePrefix)
 		if _, err := os.Stat(repositoryPath); err != nil {
 			t.log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
+			t.fail()
+			return
 		}
 	} else {
 		if err := t.updateRepository(); err != nil {
