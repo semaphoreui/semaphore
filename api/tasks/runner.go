@@ -4,11 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -16,6 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const (
@@ -92,7 +93,7 @@ func (t *task) updateStatus() {
 			"task_id":     t.task.ID,
 			"template_id": t.task.TemplateID,
 			"project_id":  t.projectID,
-			"version":	   t.task.Version,
+			"version":     t.task.Version,
 		})
 
 		util.LogPanic(err)
@@ -190,7 +191,7 @@ func (t *task) prepareRun() {
 	}
 
 	t.log("Prepare task with template: " + t.template.Alias + "\n")
-	
+
 	t.updateStatus()
 
 	//if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
@@ -201,7 +202,7 @@ func (t *task) prepareRun() {
 	}
 
 	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
-		repositoryPath := strings.TrimPrefix(gitURLFilePrefix, t.repository.GitURL)
+		repositoryPath := strings.TrimPrefix(t.repository.GitURL, gitURLFilePrefix)
 		if _, err := os.Stat(repositoryPath); err != nil {
 			t.log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
 		}
@@ -782,7 +783,7 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 			env = append(env, "SEMAPHORE_TASK_USERNAME="+user.Username)
 		}
 
-		if t.template.Type != db.TemplateTask  {
+		if t.template.Type != db.TemplateTask {
 			env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
 			var version string
 			switch t.template.Type {
