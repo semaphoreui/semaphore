@@ -27,6 +27,7 @@
     </EditDialog>
 
     <EditDialog
+        :max-width="700"
         v-model="copyDialog"
         save-button-text="Create"
         title="New Template"
