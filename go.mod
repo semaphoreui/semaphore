@@ -7,6 +7,8 @@ require (
 	github.com/go-gorp/gorp/v3 v3.0.2
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gobuffalo/packr v1.10.4
+	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
