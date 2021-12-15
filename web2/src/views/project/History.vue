@@ -13,10 +13,10 @@
       </div>
     </v-toolbar>
     <v-data-table
-        :headers="headers"
-        :items="items"
-        :footer-props="{ itemsPerPageOptions: [20] }"
-        class="mt-4"
+      :headers="headers"
+      :items="items"
+      :footer-props="{ itemsPerPageOptions: [20] }"
+      class="mt-4"
     >
       <template v-slot:item.tpl_alias="{ item }">
         <div class="d-flex">
@@ -25,37 +25,38 @@
           </v-icon>
 
           <TaskLink
-              :task-id="item.id"
-              :tooltip="item.message"
-              :label="'#' + item.id"
+            :task-id="item.id"
+            :tooltip="item.message"
+            :label="'#' + item.id"
           />
 
           <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
-          <a :href="
-          '/project/' + item.project_id +
-          '/templates/' + item.template_id"
-          >{{ item.tpl_alias }}</a>
+          <router-link :to="
+            '/project/' + item.project_id +
+            '/templates/' + item.template_id"
+          >{{ item.tpl_alias }}
+          </router-link>
         </div>
       </template>
       <template v-slot:item.version="{ item }">
         <TaskLink
-            :disabled="item.tpl_type === 'build'"
-            class="ml-2"
-            v-if="item.tpl_type !== ''"
-            :status="item.status"
+          :disabled="item.tpl_type === 'build'"
+          class="ml-2"
+          v-if="item.tpl_type !== ''"
+          :status="item.status"
 
-            :task-id="item.tpl_type === 'build'
+          :task-id="item.tpl_type === 'build'
               ? item.id
-              : item.build_task.id"
+              : (item.build_task || {}).id"
 
-            :label="item.tpl_type === 'build'
+          :label="item.tpl_type === 'build'
               ? item.version
-              : item.build_task.version"
+              : (item.build_task || {}).version"
 
-            :tooltip="item.tpl_type === 'build'
+          :tooltip="item.tpl_type === 'build'
               ? item.message
-              : item.build_task.message"
+              : (item.build_task || {}).message"
         />
         <div class="text-center" v-else>&mdash;</div>
       </template>
