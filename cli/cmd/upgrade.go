@@ -93,7 +93,7 @@ func findSemaphore() string {
 func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 	for _, asset := range release.Assets {
 		if *asset.Name == fmt.Sprintf("semaphore_%s_%s", runtime.GOOS, runtime.GOARCH) {
-			return asset
+			return &asset
 		}
 	}
 
