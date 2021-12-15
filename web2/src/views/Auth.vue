@@ -1,5 +1,5 @@
 <template>
-  <div class="auth">
+  <div class="auth" v-if="newUser != null">
     <v-container
       fluid
       fill-height
@@ -24,8 +24,26 @@
         <v-text-field
           v-model="username"
           label="Username"
-          :rules="usernameRules"
+          :rules="[v => !!v || 'Username is required']"
           autofocus
+          required
+          :disabled="signInProcess"
+        ></v-text-field>
+
+        <v-text-field
+          v-if="newUser"
+          v-model="name"
+          label="Name"
+          :rules="[v => !!v || 'Name is required']"
+          required
+          :disabled="signInProcess"
+        ></v-text-field>
+
+        <v-text-field
+          v-if="newUser"
+          v-model="email"
+          label="Email"
+          :rules="[v => !!v || 'Email is required']"
           required
           :disabled="signInProcess"
         ></v-text-field>
@@ -40,13 +58,14 @@
           @keyup.enter.native="signIn"
           style="margin-bottom: 20px;"
         ></v-text-field>
+
         <v-btn
           color="primary"
           @click="signIn"
           :disabled="signInProcess"
           block
         >
-          Sign In
+          {{ newUser ? 'Create Admin User' : 'Sign In' }}
         </v-btn>
       </v-form>
     </v-container>
@@ -68,27 +87,33 @@ export default {
       signInError: null,
       signInProcess: false,
 
-      password: '',
-      username: '',
-      email: '',
+      password: null,
+      username: null,
+      email: null,
+      name: null,
 
-      emailRules: [
-        (v) => !!v || 'Email is required',
-      ],
       passwordRules: [
         (v) => !!v || 'Password is required',
         (v) => v.length >= 6 || 'Password too short. Min 6 characters',
       ],
-      usernameRules: [
-        (v) => !!v || 'Username is required',
-      ],
+
+      newUser: null,
     };
   },
 
   async created() {
     if (this.isAuthenticated()) {
       document.location = document.baseURI;
+      return;
     }
+
+    const info = (await axios({
+      method: 'get',
+      url: '/api/auth/info',
+      responseType: 'json',
+    })).data;
+
+    this.newUser = !info.hasUsers;
   },
 
   methods: {
@@ -105,19 +130,32 @@ export default {
 
       this.signInProcess = true;
       try {
-        await axios({
-          method: 'post',
-          url: '/api/auth/login',
-          responseType: 'json',
-          data: {
-            auth: this.username,
-            password: this.password,
-          },
-        });
-
+        if (this.newUser) {
+          await axios({
+            method: 'post',
+            url: '/api/auth/register',
+            responseType: 'json',
+            data: {
+              username: this.username,
+              name: this.name,
+              email: this.email,
+              password: this.password,
+              admin: true,
+            },
+          });
+        } else {
+          await axios({
+            method: 'post',
+            url: '/api/auth/login',
+            responseType: 'json',
+            data: {
+              auth: this.username,
+              password: this.password,
+            },
+          });
+        }
         document.location = document.baseURI;
       } catch (err) {
-        console.log(err);
         if (err.response.status === 401) {
           this.signInError = 'Incorrect login or password';
         } else {

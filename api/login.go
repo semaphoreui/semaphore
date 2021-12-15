@@ -36,7 +36,6 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	}
 	defer l.Close()
 
-
 	// Reconnect with TLS if needed
 	if util.Config.LdapNeedTLS {
 		// TODO: InsecureSkipVerify should be configurable
@@ -104,6 +103,70 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	return &ldapUser, nil
 }
 
+func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
+	newSession, err := helpers.Store(r).CreateSession(db.Session{
+		UserID:     user.ID,
+		Created:    time.Now(),
+		LastActive: time.Now(),
+		IP:         r.Header.Get("X-Real-IP"),
+		UserAgent:  r.Header.Get("user-agent"),
+		Expired:    false,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
+		"user":    user.ID,
+		"session": newSession.ID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  "semaphore",
+		Value: encoded,
+		Path:  "/",
+	})
+}
+
+func info(w http.ResponseWriter, r *http.Request) {
+	var info struct {
+		HasUsers bool `json:"hasUsers"`
+	}
+
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{Count: 1, Offset: 0})
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	info.HasUsers = len(users) > 0
+
+	helpers.WriteJSON(w, http.StatusOK, info)
+}
+
+func register(w http.ResponseWriter, r *http.Request) {
+	var user db.UserWithPwd
+	if !helpers.Bind(w, r, &user) {
+		return
+	}
+
+	newUser, err := helpers.Store(r).CreateUser(user)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	createSession(w, r, newUser)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 //nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
@@ -134,7 +197,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 			log.Info(err.Error())
 		}
 	}
-
 
 	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
 
@@ -169,32 +231,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		// authenticated.
 	}
 
-	newSession, err := helpers.Store(r).CreateSession(db.Session{
-		UserID:     user.ID,
-		Created:    time.Now(),
-		LastActive: time.Now(),
-		IP:         r.Header.Get("X-Real-IP"),
-		UserAgent:  r.Header.Get("user-agent"),
-		Expired:    false,
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
-		"user":    user.ID,
-		"session": newSession.ID,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:  "semaphore",
-		Value: encoded,
-		Path:  "/",
-	})
+	createSession(w, r, user)
 
 	w.WriteHeader(http.StatusNoContent)
 }

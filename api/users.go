@@ -38,6 +38,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newUser)

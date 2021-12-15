@@ -70,6 +70,8 @@ func Route() *mux.Router {
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicAPIRouter.Use(JSONMiddleware)
 
+	publicAPIRouter.HandleFunc("/auth/info", info).Methods("GET")
+	publicAPIRouter.HandleFunc("/auth/register", register).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 
@@ -206,13 +208,11 @@ func Route() *mux.Router {
 	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
 	projectTaskManagement.HandleFunc("/{task_id}/stop", tasks.StopTask).Methods("POST")
 
-
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
-
 
 	projectViewManagement := projectUserAPI.PathPrefix("/views").Subrouter()
 	projectViewManagement.Use(projects.ViewMiddleware)
@@ -268,7 +268,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 
-	if path == webPath + "api" || strings.HasPrefix(path, webPath + "api/") {
+	if path == webPath+"api" || strings.HasPrefix(path, webPath+"api/") {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -342,10 +342,10 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"version": util.Version,
 		//"update":  util.UpdateAvailable,
 		"config": map[string]string{
-			"dbHost":  dbConfig.Hostname,
-			"dbName":  dbConfig.DbName,
-			"dbUser":  dbConfig.Username,
-			"path":    util.Config.TmpPath,
+			"dbHost": dbConfig.Hostname,
+			"dbName": dbConfig.DbName,
+			"dbUser": dbConfig.Username,
+			"path":   util.Config.TmpPath,
 			//"cmdPath": util.FindSemaphore(),
 		},
 	}
