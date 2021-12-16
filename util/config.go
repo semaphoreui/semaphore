@@ -120,7 +120,7 @@ type ConfigType struct {
 	// Default both via environment variables and via extra vars.
 	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
 
-
+	RegisterFirstUser bool `json:"register_first_user"`
 }
 
 //Config exposes the application configuration storage for use in the application

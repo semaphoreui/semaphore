@@ -134,7 +134,12 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 
 func info(w http.ResponseWriter, r *http.Request) {
 	var info struct {
-		HasUsers bool `json:"hasUsers"`
+		NewUserRequired bool `json:"newUserRequired"`
+	}
+
+	if !util.Config.RegisterFirstUser {
+		helpers.WriteJSON(w, http.StatusOK, info)
+		return
 	}
 
 	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{Count: 1, Offset: 0})
@@ -144,7 +149,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info.HasUsers = len(users) > 0
+	info.NewUserRequired = len(users) == 0
 
 	helpers.WriteJSON(w, http.StatusOK, info)
 }
@@ -152,6 +157,23 @@ func info(w http.ResponseWriter, r *http.Request) {
 func register(w http.ResponseWriter, r *http.Request) {
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
+		return
+	}
+
+	if !util.Config.RegisterFirstUser {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{Count: 1, Offset: 0})
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if len(users) > 0 {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
