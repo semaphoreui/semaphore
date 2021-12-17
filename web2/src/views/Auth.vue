@@ -113,7 +113,7 @@ export default {
       responseType: 'json',
     })).data;
 
-    this.newUser = !info.newUserRequired;
+    this.newUser = info.newUserRequired;
   },
 
   methods: {
