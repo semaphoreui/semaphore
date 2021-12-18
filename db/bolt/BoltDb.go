@@ -20,7 +20,7 @@ type enumerable interface {
 	Next() (key []byte, value []byte)
 }
 
-type emptyEnumerable struct {}
+type emptyEnumerable struct{}
 
 func (d emptyEnumerable) First() (key []byte, value []byte) {
 	return nil, nil
@@ -32,7 +32,7 @@ func (d emptyEnumerable) Next() (key []byte, value []byte) {
 
 type BoltDb struct {
 	Filename string
-	db *bbolt.DB
+	db       *bbolt.DB
 }
 
 type objectID interface {
@@ -96,6 +96,15 @@ func (d *BoltDb) Close() error {
 	return d.db.Close()
 }
 
+func (d *BoltDb) IsInitialized() (initialized bool, err error) {
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		k, _ := tx.Cursor().First()
+		initialized = k != nil
+		return nil
+	})
+	return
+}
+
 func (d *BoltDb) getObject(bucketID int, props db.ObjectProperties, objectID objectID, object interface{}) (err error) {
 	err = d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
@@ -144,7 +153,7 @@ func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
 		return err
 	}
 
-	sort.SliceStable(objectsValue.Interface(), func (i, j int) bool {
+	sort.SliceStable(objectsValue.Interface(), func(i, j int) bool {
 		valueI := objectsValue.Index(i).FieldByName(fieldName)
 		valueJ := objectsValue.Index(j).FieldByName(fieldName)
 
@@ -303,7 +312,6 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 		err = sortObjects(objects, params.SortBy, params.SortInverted)
 	}
 
-
 	return
 }
 
@@ -373,7 +381,7 @@ func isObjectBelongTo(props db.ObjectProperties, objID objectID, tpl interface{}
 func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProperties, objID objectID, foreignTableProps db.ObjectProperties) (inUse bool, err error) {
 	templates := reflect.New(reflect.SliceOf(foreignTableProps.Type))
 
-	err = d.getObjects(bucketID, foreignTableProps, db.RetrieveQueryParams{}, func (foreignObj interface{}) bool {
+	err = d.getObjects(bucketID, foreignTableProps, db.RetrieveQueryParams{}, func(foreignObj interface{}) bool {
 		return isObjectBelongTo(objProps, objID, foreignObj)
 	}, templates.Interface())
 
@@ -387,7 +395,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProperties, objID
 }
 
 func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	for _, u := range []db.ObjectProperties{ db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps } {
+	for _, u := range []db.ObjectProperties{db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps} {
 		inUse, err := d.isObjectInUse(bucketID, props, objectID, u)
 		if err != nil {
 			return err
@@ -397,7 +405,7 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 		}
 	}
 
-	return d.db.Update(func (tx *bbolt.Tx) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
 			return db.ErrNotFound

@@ -7,10 +7,9 @@ import (
 	"time"
 )
 
-
 func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
 
-	err = db.ValidateUsername(user.Username)
+	err = db.ValidateUser(user)
 	if err != nil {
 		return
 	}
@@ -41,7 +40,7 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 
 func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 
-	err = db.ValidateUsername(user.Username)
+	err = db.ValidateUser(user.User)
 	if err != nil {
 		return
 	}
@@ -142,7 +141,6 @@ func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err
 	return
 }
 
-
 func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
 	var projectUsers []db.ProjectUser
 	err = d.getObjects(projectID, db.ProjectUserProps, params, nil, &projectUsers)
@@ -197,3 +195,59 @@ func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser
 	err = db.ErrNotFound
 	return
 }
+
+func (d *BoltDb) CreatePlaceholderUser() (err error) {
+	user := db.User{
+		Created: db.GetParsedTime(time.Now()),
+	}
+
+	_, err = d.createObject(0, db.UserProps, user)
+
+	return
+}
+
+func (d *BoltDb) GetPlaceholderUser() (placeholderUser db.User, err error) {
+	var users []db.User
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, nil, &users)
+	if err != nil {
+		return
+	}
+
+	for _, usr := range users {
+		if usr.Username == "" {
+			placeholderUser = usr
+			return
+		}
+	}
+
+	err = db.ErrNotFound
+	return
+}
+
+//func (d *BoltDb) HasPlaceholderUser() (bool, error) {
+//	_, err := d.getPlaceholderUser()
+//
+//	if err == nil {
+//		return true, nil
+//	}
+//
+//	if err == db.ErrNotFound {
+//		return false, nil
+//	}
+//
+//	return false, err
+//}
+//
+//func (d *BoltDb) ReplacePlaceholderUser(user db.UserWithPwd) (newUser db.User, err error) {
+//	placeholder, err := d.getPlaceholderUser()
+//	if err != nil {
+//		return
+//	}
+//	user.ID = placeholder.ID
+//	err = d.UpdateUser(user)
+//	if err != nil {
+//		return
+//	}
+//	newUser = user.User
+//	return
+//}

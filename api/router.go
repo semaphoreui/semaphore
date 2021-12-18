@@ -338,21 +338,25 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := map[string]interface{}{
-		"version": util.Version,
-		//"update":  util.UpdateAvailable,
-		"config": map[string]string{
-			"dbHost": dbConfig.Hostname,
-			"dbName": dbConfig.DbName,
-			"dbUser": dbConfig.Username,
-			"path":   util.Config.TmpPath,
-			//"cmdPath": util.FindSemaphore(),
-		},
+	updateAvailable, err := util.CheckUpdate()
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
-	//if util.UpdateAvailable != nil {
-	//	body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
-	//}
+	body := map[string]interface{}{
+		"version": util.Version,
+		"update":  updateAvailable,
+		"config": map[string]string{
+			"dbHost":  dbConfig.Hostname,
+			"dbName":  dbConfig.DbName,
+			"dbUser":  dbConfig.Username,
+			"path":    util.Config.TmpPath,
+			"cmdPath": util.FindSemaphore(),
+		},
+		"ansible": util.AnsibleVersion(),
+	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
 }

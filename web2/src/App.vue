@@ -301,13 +301,33 @@
 
             <v-list-item key="password" @click="passwordDialog = true">
               <v-list-item-icon>
-                <v-icon>mdi-lock</v-icon>
+                <v-icon>mdi-information</v-icon>
               </v-list-item-icon>
 
               <v-list-item-content>
-                Change Password
+                System Information
               </v-list-item-content>
             </v-list-item>
+
+            <v-list-item key="password" @click="passwordDialog = true">
+              <v-list-item-icon>
+                <v-icon>mdi-tune</v-icon>
+              </v-list-item-icon>
+
+              <v-list-item-content>
+                System Settings
+              </v-list-item-content>
+            </v-list-item>
+
+            <!--            <v-list-item key="password" @click="passwordDialog = true">-->
+<!--              <v-list-item-icon>-->
+<!--                <v-icon>mdi-lock</v-icon>-->
+<!--              </v-list-item-icon>-->
+
+<!--              <v-list-item-content>-->
+<!--                Change Password-->
+<!--              </v-list-item-content>-->
+<!--            </v-list-item>-->
 
             <v-list-item key="sign_out" @click="signOut()">
               <v-list-item-icon>

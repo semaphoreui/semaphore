@@ -54,6 +54,7 @@ func (e *ValidationError) Error() string {
 type Store interface {
 	Connect() error
 	Close() error
+	IsInitialized() (bool, error)
 	Migrate() error
 
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
@@ -96,6 +97,9 @@ type Store interface {
 	SetUserPassword(userID int, password string) error
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
+
+	CreatePlaceholderUser() error
+	GetPlaceholderUser() (User, error)
 
 	GetProject(projectID int) (Project, error)
 	GetProjects(userID int) ([]Project, error)
@@ -153,6 +157,34 @@ type Store interface {
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
 	SetViewPositions(projectID int, viewPositions map[int]int) error
+}
+
+func HasPlaceholderUser(d Store) (bool, error) {
+	_, err := d.GetPlaceholderUser()
+
+	if err == nil {
+		return true, nil
+	}
+
+	if err == ErrNotFound {
+		return false, nil
+	}
+
+	return false, err
+}
+
+func ReplacePlaceholderUser(d Store, user UserWithPwd) (newUser User, err error) {
+	placeholder, err := d.GetPlaceholderUser()
+	if err != nil {
+		return
+	}
+	user.ID = placeholder.ID
+	err = d.UpdateUser(user)
+	if err != nil {
+		return
+	}
+	newUser = user.User
+	return
 }
 
 var AccessKeyProps = ObjectProperties{

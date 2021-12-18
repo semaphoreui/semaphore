@@ -8,10 +8,9 @@ import (
 	"time"
 )
 
-
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
 
-	err = db.ValidateUsername(user.Username)
+	err = db.ValidateUser(user)
 	if err != nil {
 		return
 	}
@@ -31,7 +30,7 @@ func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err er
 
 func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 
-	err = db.ValidateUsername(user.Username)
+	err = db.ValidateUser(user.User)
 	if err != nil {
 		return
 	}
@@ -216,3 +215,49 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser 
 
 	return
 }
+
+func (d *SqlDb) CreatePlaceholderUser() error {
+	user := db.User{
+		Created: db.GetParsedTime(time.Now()),
+	}
+	return d.sql.Insert(&user)
+}
+
+func (d *SqlDb) GetPlaceholderUser() (user db.User, err error) {
+	err = d.selectOne(&user, d.prepareQuery("select id from `user` where username=''"))
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+//
+//func (d *SqlDb) HasPlaceholderUser() (bool, error) {
+//	_, err := d.getPlaceholderUser()
+//
+//	if err == nil {
+//		return true, nil
+//	}
+//
+//	if err == db.ErrNotFound {
+//		return false, nil
+//	}
+//
+//	return false, err
+//}
+//
+//func (d *SqlDb) ReplacePlaceholderUser(user db.UserWithPwd) (newUser db.User, err error) {
+//	placeholder, err := d.getPlaceholderUser()
+//	if err != nil {
+//		return
+//	}
+//	user.ID = placeholder.ID
+//	err = d.UpdateUser(user)
+//	if err != nil {
+//		return
+//	}
+//	newUser = user.User
+//	return
+//}

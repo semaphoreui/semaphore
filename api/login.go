@@ -137,19 +137,15 @@ func info(w http.ResponseWriter, r *http.Request) {
 		NewUserRequired bool `json:"newUserRequired"`
 	}
 
-	if !util.Config.RegisterFirstUser {
-		helpers.WriteJSON(w, http.StatusOK, info)
-		return
+	if util.Config.RegisterFirstUser {
+		hasPlaceholderUser, err := db.HasPlaceholderUser(helpers.Store(r))
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		info.NewUserRequired = hasPlaceholderUser
 	}
-
-	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{Count: 1, Offset: 0})
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	info.NewUserRequired = len(users) == 0
 
 	helpers.WriteJSON(w, http.StatusOK, info)
 }
@@ -165,19 +161,19 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{Count: 1, Offset: 0})
+	hasPlaceholderUser, err := db.HasPlaceholderUser(helpers.Store(r))
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if len(users) > 0 {
+	if !hasPlaceholderUser {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	newUser, err := helpers.Store(r).CreateUser(user)
+	newUser, err := db.ReplacePlaceholderUser(helpers.Store(r), user)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)

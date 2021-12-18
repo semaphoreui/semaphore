@@ -1,14 +1,18 @@
 package util
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/go-github/github"
 	"io"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/securecookie"
@@ -229,6 +233,44 @@ func mapToQueryString(m map[string]string) (str string) {
 	if str != "" {
 		str = "?" + str
 	}
+	return
+}
+
+// FindSemaphore looks in the PATH for the semaphore variable
+// if not found it will attempt to find the absolute path of the first
+// os argument, the semaphore command, and return it
+func FindSemaphore() string {
+	cmdPath, _ := exec.LookPath("semaphore") //nolint: gas
+
+	if len(cmdPath) == 0 {
+		cmdPath, _ = filepath.Abs(os.Args[0]) // nolint: gas
+	}
+
+	return cmdPath
+}
+
+func AnsibleVersion() string {
+	bytes, err := exec.Command("ansible", "--version").Output()
+	if err != nil {
+		return ""
+	}
+	return string(bytes)
+}
+
+// CheckUpdate uses the GitHub client to check for new tags in the semaphore repo
+func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
+	// fetch releases
+	gh := github.NewClient(nil)
+	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "ansible-semaphore", "semaphore", nil)
+	if err != nil {
+		return
+	}
+
+	updateAvailable = nil
+	if (*releases[0].TagName)[1:] != Version {
+		updateAvailable = releases[0]
+	}
+
 	return
 }
 

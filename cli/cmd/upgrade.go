@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -10,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -19,10 +17,8 @@ import (
 // Adapted from github.com/apex/apex
 
 // doUpgrade checks for an update, and if available downloads the binary and installs it
-func doUpgrade(currentVersion string) error {
-	fmt.Printf("current release is v%s\n", currentVersion)
-
-	updateAvailable, err := checkUpdate(currentVersion)
+func doUpgrade() error {
+	updateAvailable, err := util.CheckUpdate()
 
 	if err != nil || updateAvailable == nil {
 		return err
@@ -56,7 +52,7 @@ func doUpgrade(currentVersion string) error {
 	}
 
 	// replace it
-	cmdPath := findSemaphore()
+	cmdPath := util.FindSemaphore()
 	if len(cmdPath) == 0 {
 		return errors.New("cannot find semaphore binary")
 	}
@@ -76,19 +72,6 @@ func doUpgrade(currentVersion string) error {
 	return nil
 }
 
-// findSemaphore looks in the PATH for the semaphore variable
-// if not found it will attempt to find the absolute path of the first
-// os argument, the semaphore command, and return it
-func findSemaphore() string {
-	cmdPath, _ := exec.LookPath("semaphore") //nolint: gas
-
-	if len(cmdPath) == 0 {
-		cmdPath, _ = filepath.Abs(os.Args[0]) // nolint: gas
-	}
-
-	return cmdPath
-}
-
 // findAsset returns the binary for this platform.
 func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 	for _, asset := range release.Assets {
@@ -100,23 +83,6 @@ func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 	return nil
 }
 
-// checkUpdate uses the GitHub client to check for new tags in the semaphore repo
-func checkUpdate(currentVersion string) (updateAvailable *github.RepositoryRelease, err error) {
-	// fetch releases
-	gh := github.NewClient(nil)
-	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "ansible-semaphore", "semaphore", nil)
-	if err != nil {
-		return
-	}
-
-	updateAvailable = nil
-	if (*releases[0].TagName)[1:] != currentVersion {
-		updateAvailable = releases[0]
-	}
-
-	return
-}
-
 func init() {
 	rootCmd.AddCommand(upgradeCmd)
 }
@@ -125,7 +91,7 @@ var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "Upgrade to latest stable version",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := doUpgrade(util.Version)
+		err := doUpgrade()
 		if err != nil {
 			panic(err)
 		}

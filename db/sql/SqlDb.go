@@ -341,3 +341,11 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.sql
 }
+
+func (d *SqlDb) IsInitialized() (bool, error) {
+	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) from migrations"))
+	if err != nil {
+		return false, nil
+	}
+	return exists > 0, nil
+}

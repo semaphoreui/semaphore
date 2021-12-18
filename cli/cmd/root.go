@@ -23,7 +23,7 @@ var configPath string
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Ansible Semaphore is a beautiful web UI for Ansible",
-	Long: 	`Ansible Semaphore is a beautiful web UI for Ansible.
+	Long: `Ansible Semaphore is a beautiful web UI for Ansible.
 Source code is available at https://github.com/ansible-semaphore/semaphore.
 Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -62,7 +62,7 @@ func runService() {
 	if err != nil {
 		panic(err)
 	}
-	switch dialect  {
+	switch dialect {
 	case util.DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
 	case util.DbDriverBolt:
@@ -120,8 +120,24 @@ func createStore() db.Store {
 		panic(err)
 	}
 
-	if err := store.Migrate(); err != nil {
+	initialized, err := store.IsInitialized()
+
+	if err != nil {
 		panic(err)
+	}
+
+	err = store.Migrate()
+
+	if err != nil {
+		panic(err)
+	}
+
+	if !initialized && util.Config.RegisterFirstUser {
+		err = store.CreatePlaceholderUser()
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return store
