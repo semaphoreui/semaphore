@@ -54,6 +54,8 @@ func (e *ValidationError) Error() string {
 type Store interface {
 	Connect() error
 	Close() error
+	// IsInitialized indicates is database already initialized, or it is empty.
+	// The method is useful for creating required entities in database during first run.
 	IsInitialized() (bool, error)
 	Migrate() error
 
