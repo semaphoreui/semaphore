@@ -136,15 +136,15 @@
 
             :task-id="item.last_task.tpl_type === 'build'
               ? item.last_task.id
-              : item.last_task.build_task.id"
+              : (item.last_task.build_task || {}).id"
 
             :label="item.last_task.tpl_type === 'build'
               ? item.last_task.version
-              : item.last_task.build_task.version"
+              : (item.last_task.build_task || {}).version"
 
             :tooltip="item.last_task.tpl_type === 'build'
               ? item.last_task.message
-              : item.last_task.build_task.message"
+              : (item.last_task.build_task || {}).message"
         />
         <div v-else>&mdash;</div>
       </template>
