@@ -44,6 +44,8 @@ type Template struct {
 	ViewID *int `db:"view_id" json:"view_id"`
 
 	LastTask *TaskWithTpl `db:"-" json:"last_task"`
+
+	Autorun bool `db:"autorun" json:"-"`
 }
 
 func (tpl *Template) Validate() error {

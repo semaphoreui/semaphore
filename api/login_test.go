@@ -86,13 +86,21 @@ func TestAuthRegister2(t *testing.T) {
 		t.Fail()
 	}
 
+	store := createStore()
+
+	err = store.CreatePlaceholderUser()
+
+	if err != nil {
+		t.Fail()
+	}
+
 	req, _ := http.NewRequest("POST", "/api/auth/register", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	r := Route()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			context.Set(r, "store", createStore())
+			context.Set(r, "store", store)
 			next.ServeHTTP(w, r)
 		})
 	})
