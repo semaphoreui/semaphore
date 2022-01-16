@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -50,7 +51,7 @@ func (t *task) getRepoName() string {
 }
 
 func (t *task) getRepoPath() string {
-	return util.Config.TmpPath + "/" + t.getRepoName()
+	return path.Join(util.Config.TmpPath, t.getRepoName())
 }
 
 func (t *task) validateRepo() error {
