@@ -70,8 +70,6 @@ func Route() *mux.Router {
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicAPIRouter.Use(JSONMiddleware)
 
-	publicAPIRouter.HandleFunc("/auth/info", info).Methods("GET")
-	publicAPIRouter.HandleFunc("/auth/register", register).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 

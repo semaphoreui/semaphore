@@ -123,10 +123,6 @@ type ConfigType struct {
 	// VariablesPassingMethod defines how Semaphore will pass variables to Ansible.
 	// Default both via environment variables and via extra vars.
 	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
-
-	// RegisterFirstUser allows register new user from web interface
-	// in 10 minutes after installation.
-	RegisterFirstUser bool `json:"register_first_user"`
 }
 
 //Config exposes the application configuration storage for use in the application

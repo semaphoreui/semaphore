@@ -195,31 +195,3 @@ func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser
 	err = db.ErrNotFound
 	return
 }
-
-func (d *BoltDb) CreatePlaceholderUser() (err error) {
-	user := db.User{
-		Created: db.GetParsedTime(time.Now()),
-	}
-
-	_, err = d.createObject(0, db.UserProps, user)
-
-	return
-}
-
-func (d *BoltDb) GetPlaceholderUser() (placeholderUser db.User, err error) {
-	var users []db.User
-	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, nil, &users)
-	if err != nil {
-		return
-	}
-
-	for _, usr := range users {
-		if usr.Username == "" {
-			placeholderUser = usr
-			return
-		}
-	}
-
-	err = db.ErrNotFound
-	return
-}

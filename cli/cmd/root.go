@@ -120,24 +120,10 @@ func createStore() db.Store {
 		panic(err)
 	}
 
-	initialized, err := store.IsInitialized()
+	err := store.Migrate()
 
 	if err != nil {
 		panic(err)
-	}
-
-	err = store.Migrate()
-
-	if err != nil {
-		panic(err)
-	}
-
-	if !initialized && util.Config.RegisterFirstUser {
-		err = store.CreatePlaceholderUser()
-
-		if err != nil {
-			panic(err)
-		}
 	}
 
 	return store

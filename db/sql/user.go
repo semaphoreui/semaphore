@@ -215,18 +215,3 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser 
 
 	return
 }
-
-func (d *SqlDb) CreatePlaceholderUser() error {
-	user := db.User{
-		Created: db.GetParsedTime(time.Now()),
-	}
-	return d.sql.Insert(&user)
-}
-
-func (d *SqlDb) GetPlaceholderUser() (user db.User, err error) {
-	err = d.selectOne(&user, d.prepareQuery("select id from `user` where username=''"))
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-	return
-}

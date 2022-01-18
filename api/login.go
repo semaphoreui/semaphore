@@ -134,65 +134,6 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 }
 
-// info returns information available for unauthorized user.
-// Currently, this information includes field only one
-// field NewUserRequired.
-// Field NewUserRequired useful for creating first admin user
-// just after system installation.
-func info(w http.ResponseWriter, r *http.Request) {
-	var info struct {
-		NewUserRequired bool `json:"newUserRequired"`
-	}
-
-	if util.Config.RegisterFirstUser {
-		hasPlaceholderUser, err := db.HasPlaceholderUser(helpers.Store(r))
-		if err != nil {
-			log.Error(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		info.NewUserRequired = hasPlaceholderUser
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, info)
-}
-
-// register replaces placeholder user with received user details.
-func register(w http.ResponseWriter, r *http.Request) {
-	var user db.UserWithPwd
-	if !helpers.Bind(w, r, &user) {
-		return
-	}
-
-	if !util.Config.RegisterFirstUser {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	hasPlaceholderUser, err := db.HasPlaceholderUser(helpers.Store(r))
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if !hasPlaceholderUser {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	newUser, err := db.ReplacePlaceholderUser(helpers.Store(r), user)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	createSession(w, r, newUser)
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
 //nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {

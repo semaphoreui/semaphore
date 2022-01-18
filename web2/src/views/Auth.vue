@@ -1,5 +1,5 @@
 <template>
-  <div class="auth" v-if="newUser != null">
+  <div class="auth">
     <v-container
       fluid
       fill-height
@@ -31,24 +31,6 @@
         ></v-text-field>
 
         <v-text-field
-          v-if="newUser"
-          v-model="name"
-          label="Name"
-          :rules="[v => !!v || 'Name is required']"
-          required
-          :disabled="signInProcess"
-        ></v-text-field>
-
-        <v-text-field
-          v-if="newUser"
-          v-model="email"
-          label="Email"
-          :rules="[v => !!v || 'Email is required']"
-          required
-          :disabled="signInProcess"
-        ></v-text-field>
-
-        <v-text-field
           v-model="password"
           label="Password"
           :rules="[v => !!v || 'Password is required']"
@@ -65,7 +47,7 @@
           :disabled="signInProcess"
           block
         >
-          {{ newUser ? 'Create Admin User' : 'Sign In' }}
+          Sign In
         </v-btn>
       </v-form>
     </v-container>
@@ -89,31 +71,13 @@ export default {
 
       password: null,
       username: null,
-      email: null,
-      name: null,
-
-      passwordRules: [
-        (v) => !!v || 'Password is required',
-        (v) => v.length >= 6 || 'Password too short. Min 6 characters',
-      ],
-
-      newUser: null,
     };
   },
 
   async created() {
     if (this.isAuthenticated()) {
       document.location = document.baseURI;
-      return;
     }
-
-    const info = (await axios({
-      method: 'get',
-      url: '/api/auth/info',
-      responseType: 'json',
-    })).data;
-
-    this.newUser = info.newUserRequired;
   },
 
   methods: {
@@ -130,30 +94,15 @@ export default {
 
       this.signInProcess = true;
       try {
-        if (this.newUser) {
-          await axios({
-            method: 'post',
-            url: '/api/auth/register',
-            responseType: 'json',
-            data: {
-              username: this.username,
-              name: this.name,
-              email: this.email,
-              password: this.password,
-              admin: true,
-            },
-          });
-        } else {
-          await axios({
-            method: 'post',
-            url: '/api/auth/login',
-            responseType: 'json',
-            data: {
-              auth: this.username,
-              password: this.password,
-            },
-          });
-        }
+        await axios({
+          method: 'post',
+          url: '/api/auth/login',
+          responseType: 'json',
+          data: {
+            auth: this.username,
+            password: this.password,
+          },
+        });
         document.location = document.baseURI;
       } catch (err) {
         if (err.response.status === 401) {
