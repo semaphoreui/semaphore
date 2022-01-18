@@ -159,7 +159,7 @@ func Route() *mux.Router {
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
 
-	projectKeyManagement := projectAdminUsersAPI.PathPrefix("/keys").Subrouter()
+	projectKeyManagement := projectUserAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
 	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
