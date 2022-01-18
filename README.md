@@ -3,9 +3,8 @@
 [![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/AnsibleSem.svg?style=social&label=Follow%20%40AnsibleSem)](https://twitter.com/AnsibleSem)
 [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://badges.gitter.im/AnsibleSemaphore/semaphore.svg)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Godoc Reference](https://pkg.go.dev/badge/github.com/ansible-semaphore/semaphore?utm_source=godoc)](https://godoc.org/github.com/ansible-semaphore/semaphore)
-
-
+[![Snap](https://img.shields.io/badge/snap-semaphore-blue)](https://snapcraft.io/semahore)
+<!-- [![Godoc Reference](https://pkg.go.dev/badge/github.com/ansible-semaphore/semaphore?utm_source=godoc)](https://godoc.org/github.com/ansible-semaphore/semaphore) -->
 <!-- [![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&utm_medium=referral&utm_content=ansible-semaphore/semaphore&utm_campaign=Badge_Coverage) -->
 Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and StackShare ([ansible-semaphore](https://stackshare.io/ansible-semaphore)).
