@@ -180,7 +180,7 @@
         <v-textarea
           outlined
           v-model="item.description"
-          label="Description"
+          label="Description (Optional)"
           :disabled="formSaving"
           rows="5"
         ></v-textarea>
@@ -205,7 +205,7 @@
         -->
         <v-select
           v-model="item.view_id"
-          label="View"
+          label="View (Optional)"
           clearable
           :items="views"
           item-value="id"
@@ -216,7 +216,7 @@
         <v-text-field
           class="mt-6"
           v-model="cronFormat"
-          label="Cron"
+          label="Cron (Optional)"
           :disabled="formSaving"
           placeholder="Example: * 1 * * * *"
           v-if="schedules == null || schedules.length <= 1"
@@ -226,7 +226,7 @@
 
         <v-select
           v-model="cronRepositoryId"
-          label="Cron Condition Repository"
+          label="Cron Condition Repository (Optional)"
           placeholder="Cron checks new commit before run"
           :items="repositories"
           item-value="id"

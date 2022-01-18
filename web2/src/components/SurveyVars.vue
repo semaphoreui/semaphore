@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="pb-6">
     <v-dialog
       v-model="editDialog"
       hide-overlay
@@ -12,10 +12,12 @@
             <v-text-field
               label="Name"
               v-model="editedVar.name"
+              required
             />
             <v-text-field
               label="Title"
               v-model="editedVar.title"
+              required
             />
           </v-form>
         </v-card-text>

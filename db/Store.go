@@ -100,6 +100,8 @@ type Store interface {
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 
+	// CreatePlaceholderUser creates placeholder user which can be used
+	// for register first admin user.
 	CreatePlaceholderUser() error
 	GetPlaceholderUser() (User, error)
 

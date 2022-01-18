@@ -124,7 +124,8 @@ type ConfigType struct {
 	// Default both via environment variables and via extra vars.
 	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
 
-	// RegisterFirstUser allows register new user from web interface if no user exists in database.
+	// RegisterFirstUser allows register new user from web interface
+	// in 10 minutes after installation.
 	RegisterFirstUser bool `json:"register_first_user"`
 }
 

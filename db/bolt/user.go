@@ -223,31 +223,3 @@ func (d *BoltDb) GetPlaceholderUser() (placeholderUser db.User, err error) {
 	err = db.ErrNotFound
 	return
 }
-
-//func (d *BoltDb) HasPlaceholderUser() (bool, error) {
-//	_, err := d.getPlaceholderUser()
-//
-//	if err == nil {
-//		return true, nil
-//	}
-//
-//	if err == db.ErrNotFound {
-//		return false, nil
-//	}
-//
-//	return false, err
-//}
-//
-//func (d *BoltDb) ReplacePlaceholderUser(user db.UserWithPwd) (newUser db.User, err error) {
-//	placeholder, err := d.getPlaceholderUser()
-//	if err != nil {
-//		return
-//	}
-//	user.ID = placeholder.ID
-//	err = d.UpdateUser(user)
-//	if err != nil {
-//		return
-//	}
-//	newUser = user.User
-//	return
-//}
