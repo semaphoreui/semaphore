@@ -74,7 +74,20 @@
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Task Templates</v-toolbar-title>
+      <v-toolbar-title>
+        Task Templates
+        <v-btn-toggle class="ml-4" rounded>
+          <v-btn small>
+            <v-icon left>mdi-table</v-icon>
+            <span class="hidden-sm-and-down">Table</span>
+          </v-btn>
+
+          <v-btn small>
+            <v-icon left>mdi-pipe</v-icon>
+            <span class="hidden-sm-and-down">Pipelines</span>
+          </v-btn>
+        </v-btn-toggle>
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
           color="primary"

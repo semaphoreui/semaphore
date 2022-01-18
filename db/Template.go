@@ -46,6 +46,9 @@ type Template struct {
 	LastTask *TaskWithTpl `db:"-" json:"last_task"`
 
 	Autorun bool `db:"autorun" json:"-"`
+
+	// SurveyVariables must be valid JSON array.
+	SurveyVariables *string `db:"survey_vars" json:"survey_vars"`
 }
 
 func (tpl *Template) Validate() error {

@@ -103,6 +103,8 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	return &ldapUser, nil
 }
 
+// createSession creates session for passed user and stores session details
+// in cookies.
 func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	newSession, err := helpers.Store(r).CreateSession(db.Session{
 		UserID:     user.ID,
@@ -132,6 +134,11 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 }
 
+// info returns information available for unauthorized user.
+// Currently, this information includes field only one
+// field NewUserRequired.
+// Field NewUserRequired useful for creating first admin user
+// just after system installation.
 func info(w http.ResponseWriter, r *http.Request) {
 	var info struct {
 		NewUserRequired bool `json:"newUserRequired"`
@@ -150,6 +157,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, info)
 }
 
+// register replaces placeholder user with received user details.
 func register(w http.ResponseWriter, r *http.Request) {
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {

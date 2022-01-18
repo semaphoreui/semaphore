@@ -32,8 +32,11 @@ type Task struct {
 	// It is readonly by API.
 	CommitMessage string `db:"commit_message" json:"commit_message"`
 
-	BuildTaskID *int    `db:"build_task_id" json:"build_task_id"`
-	Version     *string `db:"version" json:"version"`
+	BuildTaskID *int `db:"build_task_id" json:"build_task_id"`
+
+	// Version is a build version.
+	// This field available only for Build tasks.
+	Version *string `db:"version" json:"version"`
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
