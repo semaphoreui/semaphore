@@ -187,6 +187,18 @@
       </v-list>
 
       <v-list class="pt-0" v-if="project">
+        <v-list-item v-if="systemInfo && systemInfo.demo">
+          <v-list-item-content>
+            <v-alert class="ma-0 pa-2" color="red">
+              <div class="mb-1 font-weight-bold">Demo mode</div>
+              <ul style="padding-left: 14px; font-size: 14px; line-height: 1.3;">
+                <li>You can run any tasks</li>
+                <li>You have full read-only access</li>
+              </ul>
+            </v-alert>
+          </v-list-item-content>
+        </v-list-item>
+
         <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
@@ -540,6 +552,7 @@ export default {
     return {
       drawer: null,
       user: null,
+      systemInfo: null,
       state: 'loading',
       snackbar: false,
       snackbarText: '',
@@ -810,9 +823,16 @@ export default {
       if (!this.isAuthenticated) {
         return;
       }
+
       this.user = (await axios({
         method: 'get',
         url: '/api/user',
+        responseType: 'json',
+      })).data;
+
+      this.systemInfo = (await axios({
+        method: 'get',
+        url: '/api/info',
         responseType: 'json',
       })).data;
     },

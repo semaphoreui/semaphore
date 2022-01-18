@@ -353,6 +353,7 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 			"cmdPath": util.FindSemaphore(),
 		},
 		"ansible": util.AnsibleVersion(),
+		"demo":    util.Config.DemoMode,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
