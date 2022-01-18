@@ -86,7 +86,6 @@ func Route() *mux.Router {
 
 	authenticatedAPI.Path("/users").HandlerFunc(getUsers).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
-
 	authenticatedAPI.Path("/user").HandlerFunc(getUser).Methods("GET", "HEAD")
 
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
