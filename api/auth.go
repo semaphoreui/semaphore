@@ -92,6 +92,13 @@ func authentication(next http.Handler) http.Handler {
 			return
 		}
 
+		if util.Config.DemoMode {
+			if !user.Admin && r.Method != "GET" && !strings.HasPrefix("/tasks", r.URL.Path) {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
+
 		context.Set(r, "user", &user)
 
 		next.ServeHTTP(w, r)
