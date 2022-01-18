@@ -299,27 +299,28 @@
               </v-list-item-content>
             </v-list-item>
 
-            <v-list-item key="password" @click="passwordDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-information</v-icon>
-              </v-list-item-icon>
+            <!--
+                        <v-list-item key="password" @click="passwordDialog = true">
+                          <v-list-item-icon>
+                            <v-icon>mdi-information</v-icon>
+                          </v-list-item-icon>
 
-              <v-list-item-content>
-                System Information
-              </v-list-item-content>
-            </v-list-item>
+                          <v-list-item-content>
+                            System Information
+                          </v-list-item-content>
+                        </v-list-item>
 
-            <v-list-item key="password" @click="passwordDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-tune</v-icon>
-              </v-list-item-icon>
+                        <v-list-item key="password" @click="passwordDialog = true">
+                          <v-list-item-icon>
+                            <v-icon>mdi-tune</v-icon>
+                          </v-list-item-icon>
 
-              <v-list-item-content>
-                System Settings
-              </v-list-item-content>
-            </v-list-item>
+                          <v-list-item-content>
+                            System Settings
+                          </v-list-item-content>
+                        </v-list-item>
 
-            <!--            <v-list-item key="password" @click="passwordDialog = true">-->
+                                    <v-list-item key="password" @click="passwordDialog = true">-->
 <!--              <v-list-item-icon>-->
 <!--                <v-icon>mdi-lock</v-icon>-->
 <!--              </v-list-item-icon>-->
