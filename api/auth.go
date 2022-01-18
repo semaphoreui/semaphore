@@ -93,7 +93,9 @@ func authentication(next http.Handler) http.Handler {
 		}
 
 		if util.Config.DemoMode {
-			if !user.Admin && r.Method != "GET" && !strings.HasPrefix("/tasks", r.URL.Path) {
+			if !user.Admin && r.Method != "GET" &&
+				!strings.HasSuffix(r.URL.Path, "/tasks") &&
+				!strings.HasSuffix(r.URL.Path, "/stop") {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
