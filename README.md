@@ -4,10 +4,8 @@
 [![Twitter](https://img.shields.io/twitter/follow/AnsibleSem?style=social&logo=twitter)](https://twitter.com/AnsibleSem)
 [![Snap](https://img.shields.io/badge/snap-semaphore-005c63)](https://snapcraft.io/semaphore)
 [![StackShare](https://img.shields.io/badge/tech-stack-008ff9)](https://stackshare.io/ansible-semaphore)
+[![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://img.shields.io/gitter/room/AnsibleSemaphore/semaphore?logo=gitter)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-
-
-<!-- [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://badges.gitter.im/AnsibleSemaphore/semaphore.svg)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) -->
 <!-- [![Release](https://img.shields.io/github/v/release/ansible-semaphore/semaphore.svg)](https://stackshare.io/ansible-semaphore) -->
 <!-- [![Godoc Reference](https://pkg.go.dev/badge/github.com/ansible-semaphore/semaphore?utm_source=godoc)](https://godoc.org/github.com/ansible-semaphore/semaphore) -->
 <!-- [![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
