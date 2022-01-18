@@ -3,7 +3,7 @@
 [![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/AnsibleSem.svg?style=social&label=Follow%20%40AnsibleSem)](https://twitter.com/AnsibleSem)
 [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://badges.gitter.im/AnsibleSemaphore/semaphore.svg)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Snap](https://img.shields.io/badge/snap-semaphore-blue)](https://snapcraft.io/semaphore)
+[![Snap](https://img.shields.io/badge/snap-semaphore-005c63)](https://snapcraft.io/semaphore)
 [![Snap](https://img.shields.io/badge/tech-stack-008ff9)](https://stackshare.io/ansible-semaphore)
 
 
