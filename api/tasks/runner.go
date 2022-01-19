@@ -647,10 +647,9 @@ func (t *task) getExtraVars() (str string, err error) {
 	if t.task.UserID != nil {
 		var user db.User
 		user, err = t.store.GetUser(*t.task.UserID)
-		if err != nil {
-			return
+		if err == nil {
+			taskDetails["username"] = user.Username
 		}
-		taskDetails["username"] = user.Username
 	}
 
 	if t.template.Type != db.TemplateTask {
