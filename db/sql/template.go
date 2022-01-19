@@ -72,8 +72,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"`type`=?, "+
 		"start_version=?,"+
 		"build_template_id=?, "+
-		"view_id=? "+
-		"autorun=? "+
+		"view_id=?, "+
+		"autorun=?, "+
 		"survey_vars=? "+
 		"where removed = false and id=? and project_id=?",
 		template.InventoryID,
