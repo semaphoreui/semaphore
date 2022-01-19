@@ -12,9 +12,19 @@ const (
 	TemplateDeploy TemplateType = "deploy"
 )
 
+type SurveyVarType string
+
+const (
+	SurveyVarStr TemplateType = ""
+	SurveyVarInt TemplateType = "int"
+)
+
 type SurveyVar struct {
-	Name  string `json:"name"`
-	Title string `json:"title"`
+	Name        string        `json:"name"`
+	Title       string        `json:"title"`
+	Required    bool          `json:"required"`
+	Type        SurveyVarType `json:"type"`
+	Description string        `json:"description"`
 }
 
 // Template is a user defined model that is used to run a task

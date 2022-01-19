@@ -19,6 +19,22 @@
               v-model="editedVar.title"
               required
             />
+            <v-text-field
+              label="Description (Optional)"
+              v-model="editedVar.description"
+              required
+            />
+            <v-select
+              v-model="editedVar.type"
+              label="Type (Optional)"
+              :items="varTypes"
+              item-value="id"
+              item-text="name"
+            ></v-select>
+            <v-checkbox
+              label="Required"
+              v-model="editedVar.required"
+            />
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -52,6 +68,7 @@
           @click:close="deleteVar(i)"
           :key="v.name"
           @click="editVar(i)"
+          :color="v.type === 'int' ? '#61e2ff' : 'gray'"
         >
           {{ v.title }}
         </v-chip>
@@ -82,6 +99,13 @@ export default {
       editedVar: null,
       editedVarIndex: null,
       modifiedVars: null,
+      varTypes: [{
+        id: '',
+        name: 'String',
+      }, {
+        id: 'int',
+        name: 'Integer',
+      }],
     };
   },
   methods: {
