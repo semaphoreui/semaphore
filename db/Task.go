@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -40,30 +39,27 @@ type Task struct {
 	Version *string `db:"version" json:"version"`
 }
 
-func (task *Task) GetVersion(d Store) (string, error) {
-	tpl, err := d.GetTemplate(task.ProjectID, task.TemplateID)
-	if err != nil {
-		return "", err
+func (task *Task) GetIncomingVersion(d Store) *string {
+	if task.BuildTaskID == nil {
+		return nil
 	}
 
-	switch tpl.Type {
-	case TemplateTask:
-		return "", fmt.Errorf("only build and deploy tasks has versions")
-	case TemplateBuild:
-		if task.Version == nil {
-			return "", fmt.Errorf("build task must have version")
-		}
-		return *task.Version, nil
-	case TemplateDeploy:
-		var buildTask Task
-		buildTask, err = d.GetTask(task.ProjectID, *task.BuildTaskID)
-		if err != nil {
-			return "", err
-		}
-		return buildTask.GetVersion(d)
-	default:
-		return "", fmt.Errorf("unknown task type")
+	buildTask, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
+
+	if err != nil {
+		return nil
 	}
+
+	tpl, err := d.GetTemplate(task.ProjectID, buildTask.TemplateID)
+	if err != nil {
+		return nil
+	}
+
+	if tpl.Type == TemplateBuild {
+		return buildTask.Version
+	}
+
+	return buildTask.GetIncomingVersion(d)
 }
 
 func (task *Task) ValidateNewTask(template Template) error {

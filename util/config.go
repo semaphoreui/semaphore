@@ -49,15 +49,6 @@ type ldapMappings struct {
 	CN   string `json:"cn"`
 }
 
-type VariablesPassingMethod string
-
-const (
-	VariablesPassingNone  VariablesPassingMethod = "none"
-	VariablesPassingEnv   VariablesPassingMethod = "env_vars"
-	VariablesPassingExtra VariablesPassingMethod = "extra_vars"
-	VariablesPassingBoth  VariablesPassingMethod = ""
-)
-
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
@@ -119,10 +110,6 @@ type ConfigType struct {
 	LdapNeedTLS   bool `json:"ldap_needtls"`
 
 	SshConfigPath string `json:"ssh_config_path"`
-
-	// VariablesPassingMethod defines how Semaphore will pass variables to Ansible.
-	// Default both via environment variables and via extra vars.
-	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
 
 	DemoMode bool `json:"demo_mode"`
 }

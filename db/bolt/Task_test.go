@@ -89,19 +89,23 @@ func TestTask_GetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	version, err := deployTask.GetVersion(store)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if version != VERSION {
+	version := deployTask.GetIncomingVersion(store)
+	if version == nil {
 		t.Fatal()
+		return
+	}
+	if *version != VERSION {
+		t.Fatal()
+		return
 	}
 
-	version, err = deploy2Task.GetVersion(store)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if version != VERSION {
+	version = deploy2Task.GetIncomingVersion(store)
+	if version == nil {
 		t.Fatal()
+		return
+	}
+	if *version != VERSION {
+		t.Fatal()
+		return
 	}
 }

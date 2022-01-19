@@ -73,7 +73,7 @@
               ? item.message
               : (item.build_task || {}).message"
         />
-        <div class="text-center" v-else>&mdash;</div>
+        <div class="ml-2" v-else>&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
