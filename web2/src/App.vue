@@ -190,7 +190,7 @@
         <v-list-item v-if="systemInfo && systemInfo.demo">
           <v-list-item-content>
             <v-alert class="ma-0 pa-2" color="red">
-              <div class="mb-1 font-weight-bold">Demo mode</div>
+              <div class="mb-1 font-weight-bold">DEMO MODE</div>
               <ul style="padding-left: 14px; font-size: 14px; line-height: 1.3;">
                 <li>You can run any tasks</li>
                 <li>You have full read-only access</li>
