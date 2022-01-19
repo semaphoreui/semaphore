@@ -37,8 +37,8 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) error {
 	_, err := d.exec("update project__schedule set "+
-		"cron_format=? "+
-		"repository_id=?, "+
+		"cron_format=?, "+
+		"repository_id=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
