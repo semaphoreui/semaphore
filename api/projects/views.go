@@ -34,7 +34,7 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	view := context.Get(r, "view").(db.View)
 
-	templates, err := helpers.Store(r).GetViewTemplates(project.ID, view.ID, helpers.QueryParams(r.URL))
+	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{ViewID: &view.ID}, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -133,7 +133,6 @@ func SetViewPositions(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
 
 // UpdateView updates key in database
 // nolint: gocyclo

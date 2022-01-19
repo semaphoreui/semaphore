@@ -27,6 +27,12 @@ type SurveyVar struct {
 	Description string        `json:"description"`
 }
 
+type TemplateFilter struct {
+	ViewID          *int
+	BuildTemplateID *int
+	AutorunOnly     bool
+}
+
 // Template is a user defined model that is used to run a task
 type Template struct {
 	ID int `db:"id" json:"id"`
@@ -60,7 +66,7 @@ type Template struct {
 
 	LastTask *TaskWithTpl `db:"-" json:"last_task"`
 
-	Autorun bool `db:"autorun" json:"-"`
+	Autorun bool `db:"autorun" json:"autorun"`
 
 	// SurveyVarsJSON used internally for read from database.
 	// It is not used for store survey vars to database.

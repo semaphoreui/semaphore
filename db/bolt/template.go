@@ -32,16 +32,23 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	return d.updateObject(template.ProjectID, db.TemplateProps, template)
 }
 
-func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	var filter func(interface{}) bool
-	if viewID != nil {
-		filter = func(tpl interface{}) bool {
-			template := tpl.(db.Template)
-			return template.ViewID != nil && *template.ViewID == *viewID
+func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+	var ftr = func(tpl interface{}) bool {
+		template := tpl.(db.Template)
+		var res = true
+		if filter.ViewID != nil {
+			res = res && template.ViewID != nil && *template.ViewID == *filter.ViewID
 		}
+		if filter.BuildTemplateID != nil {
+			res = res && template.BuildTemplateID != nil && *template.BuildTemplateID == *filter.BuildTemplateID
+			if filter.AutorunOnly {
+				res = res && template.Autorun
+			}
+		}
+		return res
 	}
 
-	err = d.getObjects(projectID, db.TemplateProps, params, filter, &templates)
+	err = d.getObjects(projectID, db.TemplateProps, params, ftr, &templates)
 
 	if err != nil {
 		return
@@ -50,10 +57,6 @@ func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuer
 	err = db.FillTemplates(d, templates)
 
 	return
-}
-
-func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ([]db.Template, error) {
-	return d.getTemplates(projectID, nil, params)
 }
 
 func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {

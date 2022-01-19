@@ -119,7 +119,7 @@ type Store interface {
 	DeleteProject(projectID int) error
 	UpdateProject(project Project) error
 
-	GetTemplates(projectID int, params RetrieveQueryParams) ([]Template, error)
+	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
@@ -164,7 +164,6 @@ type Store interface {
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
-	GetViewTemplates(projectID int, viewID int, params RetrieveQueryParams) ([]Template, error)
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error

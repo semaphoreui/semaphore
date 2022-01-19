@@ -40,7 +40,7 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
-	templates, err := helpers.Store(r).GetTemplates(project.ID, helpers.QueryParams(r.URL))
+	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{}, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)

@@ -96,7 +96,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	)
 	return err
 }
-func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+
+func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	q := squirrel.Select("pt.id",
 		"pt.project_id",
 		"pt.inventory_id",
@@ -112,8 +113,15 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 		From("project__template pt").
 		Where("pt.removed = false")
 
-	if viewID != nil {
-		q = q.Where("pt.view_id=?", *viewID)
+	if filter.ViewID != nil {
+		q = q.Where("pt.view_id=?", *filter.ViewID)
+	}
+
+	if filter.BuildTemplateID != nil {
+		q = q.Where("pt.build_template_id=?", *filter.BuildTemplateID)
+		if filter.AutorunOnly {
+			q = q.Where("pt.autorun=true")
+		}
 	}
 
 	order := "ASC"
@@ -157,10 +165,6 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 	err = db.FillTemplates(d, templates)
 
 	return
-}
-
-func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ([]db.Template, error) {
-	return d.getTemplates(projectID, nil, params)
 }
 
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {

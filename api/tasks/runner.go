@@ -298,13 +298,34 @@ func (t *task) run() {
 		return
 	}
 
-	if err := t.runPlaybook(); err != nil {
+	err = t.runPlaybook()
+	if err != nil {
 		t.log("Running playbook failed: " + err.Error())
 		t.fail()
 		return
 	}
 
 	t.setStatus(taskSuccessStatus)
+
+	templates, err := t.store.GetTemplates(t.task.ProjectID, db.TemplateFilter{
+		BuildTemplateID: &t.task.TemplateID,
+		AutorunOnly:     true,
+	}, db.RetrieveQueryParams{})
+	if err != nil {
+		t.log("Running playbook failed: " + err.Error())
+		return
+	}
+
+	for _, tpl := range templates {
+		_, err = AddTaskToPool(t.store, db.Task{
+			TemplateID:  tpl.ID,
+			ProjectID:   tpl.ProjectID,
+			BuildTaskID: &t.task.ID,
+		}, nil, tpl.ProjectID)
+		if err != nil {
+			t.log("Running playbook failed: " + err.Error())
+		}
+	}
 }
 
 func (t *task) prepareError(err error, errMsg string) error {
@@ -410,28 +431,6 @@ func (t *task) installVaultKeyFile() error {
 
 	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
 }
-
-//func (t *task) installKey(key db.AccessKey, accessKeyUsage int) error {
-//	if key.Type != db.AccessKeySSH {
-//		return nil
-//	}
-//
-//	t.log("access key " + key.Name + " installed")
-//
-//	path := key.GetPath()
-//
-//	err := key.DeserializeSecret()
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	if key.SshKey.Passphrase != "" {
-//		return fmt.Errorf("ssh key with passphrase not supported")
-//	}
-//
-//	return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
-//}
 
 func (t *task) checkoutRepository() error {
 	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
