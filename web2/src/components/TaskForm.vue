@@ -45,6 +45,13 @@
         :disabled="formSaving"
     />
 
+    <v-text-field
+      v-for="(v) in template.survey_vars || []"
+      :key="v.name"
+      :label="v.title"
+      v-model="environment[v.name]"
+    />
+
     <v-row no-gutters>
       <v-col>
         <v-checkbox
@@ -79,6 +86,7 @@ export default {
       template: null,
       buildTasks: null,
       commitAvailable: null,
+      environment: {},
     };
   },
   watch: {
@@ -105,12 +113,15 @@ export default {
       this.item.commit_hash = val ? this.commitHash : null;
     },
   },
-
   methods: {
     isLoaded() {
       return this.item != null
           && this.template != null
           && this.buildTasks != null;
+    },
+
+    beforeSave() {
+      this.item.environment = JSON.stringify(this.environment);
     },
 
     async afterLoadData() {

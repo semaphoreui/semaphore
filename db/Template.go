@@ -12,6 +12,11 @@ const (
 	TemplateDeploy TemplateType = "deploy"
 )
 
+type SurveyVar struct {
+	Name  string `json:"name"`
+	Title string `json:"title"`
+}
+
 // Template is a user defined model that is used to run a task
 type Template struct {
 	ID int `db:"id" json:"id"`
@@ -47,8 +52,11 @@ type Template struct {
 
 	Autorun bool `db:"autorun" json:"-"`
 
-	// SurveyVariables must be valid JSON array.
-	SurveyVariables *string `db:"survey_vars" json:"survey_vars"`
+	// SurveyVarsJSON used internally for read from database.
+	// It is not used for store survey vars to database.
+	// Do not use it in your code. Use SurveyVars instead.
+	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars"`
 }
 
 func (tpl *Template) Validate() error {
@@ -95,6 +103,14 @@ func FillTemplate(d Store, template *Template) (err error) {
 	}
 
 	err = FillTemplates(d, []Template{*template})
+
+	if err != nil {
+		return
+	}
+
+	if template.SurveyVarsJSON != nil {
+		err = json.Unmarshal([]byte(*template.SurveyVarsJSON), &template.SurveyVars)
+	}
 
 	return
 }

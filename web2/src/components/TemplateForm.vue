@@ -185,7 +185,7 @@
           rows="5"
         ></v-textarea>
 
-        <SurveyVars :json="item.survey_vars" @change="setSurveyVars"/>
+        <SurveyVars :vars="item.survey_vars" @change="setSurveyVars"/>
 
         <!--
                 <codemirror

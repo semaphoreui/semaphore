@@ -34,7 +34,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.BuildTemplateID,
 		template.ViewID,
 		template.Autorun,
-		template.SurveyVariables)
+		db.ObjectToJSON(template.SurveyVars))
 
 	if err != nil {
 		return
@@ -90,7 +90,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.BuildTemplateID,
 		template.ViewID,
 		template.Autorun,
-		template.SurveyVariables,
+		db.ObjectToJSON(template.SurveyVars),
 		template.ID,
 		template.ProjectID,
 	)

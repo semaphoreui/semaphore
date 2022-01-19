@@ -11,6 +11,7 @@ func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, 
 		return
 	}
 
+	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
 	newTpl, err := d.createObject(template.ProjectID, db.TemplateProps, template)
 	if err != nil {
 		return
@@ -27,13 +28,14 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
+	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
 	return d.updateObject(template.ProjectID, db.TemplateProps, template)
 }
 
 func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	var filter func(interface{}) bool
 	if viewID != nil {
-		filter = func (tpl interface{}) bool {
+		filter = func(tpl interface{}) bool {
 			template := tpl.(db.Template)
 			return template.ViewID != nil && *template.ViewID == *viewID
 		}
@@ -50,7 +52,7 @@ func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuer
 	return
 }
 
-func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
+func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ([]db.Template, error) {
 	return d.getTemplates(projectID, nil, params)
 }
 

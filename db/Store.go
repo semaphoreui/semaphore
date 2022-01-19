@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"reflect"
@@ -17,6 +18,18 @@ func GetParsedTime(t time.Time) time.Time {
 		log.Error(err)
 	}
 	return parsedTime
+}
+
+func ObjectToJSON(obj interface{}) *string {
+	if obj == nil || (reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) {
+		return nil
+	}
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil
+	}
+	str := string(bytes)
+	return &str
 }
 
 type RetrieveQueryParams struct {

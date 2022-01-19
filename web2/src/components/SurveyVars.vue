@@ -47,7 +47,7 @@
       <legend style="padding: 0 3px;">Survey Variables</legend>
       <v-chip-group column>
         <v-chip
-          v-for="(v, i) in vars"
+          v-for="(v, i) in modifiedVars"
           close
           @click:close="deleteVar(i)"
           :key="v.name"
@@ -66,46 +66,46 @@
 <script>
 export default {
   props: {
-    json: String,
+    vars: Array,
   },
   watch: {
-    json(val) {
-      this.var = JSON.parse(val || '[]');
+    vars(val) {
+      this.var = val || [];
     },
   },
   created() {
-    this.vars = JSON.parse(this.json || '[]');
+    this.modifiedVars = (this.vars || []).map((v) => ({ ...v }));
   },
   data() {
     return {
       editDialog: null,
       editedVar: null,
       editedVarIndex: null,
-      vars: null,
+      modifiedVars: null,
     };
   },
   methods: {
     editVar(index) {
-      this.editedVar = index != null ? { ...this.vars[index] } : {};
+      this.editedVar = index != null ? { ...this.modifiedVars[index] } : {};
       this.editedVarIndex = index;
       this.editDialog = true;
     },
 
     saveVar() {
       if (this.editedVarIndex != null) {
-        this.vars[this.editedVarIndex] = this.editedVar;
+        this.modifiedVars[this.editedVarIndex] = this.editedVar;
       } else {
-        this.vars.push(this.editedVar);
+        this.modifiedVars.push(this.editedVar);
       }
       this.editDialog = false;
       this.editVarIndex = null;
       this.editedVar = null;
-      this.$emit('change', JSON.stringify(this.vars));
+      this.$emit('change', this.modifiedVars);
     },
 
     deleteVar(index) {
-      this.vars.splice(index, 1);
-      this.$emit('change', JSON.stringify(this.vars));
+      this.modifiedVars.splice(index, 1);
+      this.$emit('change', this.modifiedVars);
     },
   },
 };
