@@ -1,5 +1,63 @@
 <template>
   <div class="auth">
+    <v-dialog v-model="loginHelpDialog" max-width="600">
+      <v-card>
+        <v-card-title>
+          How to fix sign-in issues
+          <v-spacer></v-spacer>
+          <v-btn icon @click="loginHelpDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <p class="text-body-1">
+            Firstly, you need access to the server where Semaphore running.
+          </p>
+          <p class="text-body-1">
+            Execute the following command on the server to see existing users:
+          </p>
+          <v-alert
+            dense
+            text
+            color="info"
+          >
+            semaphore user list
+          </v-alert>
+          <p class="text-body-1">
+            You can change password of existing user:
+          </p>
+          <v-alert
+            dense
+            text
+            color="info"
+          >
+            semaphore user change-by-login --login user123 --password {{ makePasswordExample() }}
+          </v-alert>
+          <p class="text-body-1">
+            Or create new admin user:
+          </p>
+          <v-alert
+            dense
+            text
+            color="info"
+          >
+            semaphore user add --admin --login user123 --name User123
+            --email user123@example.com --password {{ makePasswordExample() }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer/>
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="loginHelpDialog = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-container
       fluid
       fill-height
@@ -19,7 +77,8 @@
           :value="signInError != null"
           color="error"
           style="margin-bottom: 20px;"
-        >{{ signInError }}</v-alert>
+        >{{ signInError }}
+        </v-alert>
 
         <v-text-field
           v-model="username"
@@ -49,6 +108,10 @@
         >
           Sign In
         </v-btn>
+
+        <div class="text-center mt-6">
+          <a @click="loginHelpDialog = true">Don't have account or can't sign in?</a>
+        </div>
       </v-form>
     </v-container>
   </div>
@@ -71,6 +134,8 @@ export default {
 
       password: null,
       username: null,
+
+      loginHelpDialog: null,
     };
   },
 
@@ -81,6 +146,16 @@ export default {
   },
 
   methods: {
+    makePasswordExample() {
+      let pwd = '';
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const charactersLength = characters.length;
+      for (let i = 0; i < 10; i += 1) {
+        pwd += characters.charAt(Math.floor(Math.random() * charactersLength));
+      }
+      return pwd;
+    },
+
     isAuthenticated() {
       return document.cookie.includes('semaphore=');
     },
