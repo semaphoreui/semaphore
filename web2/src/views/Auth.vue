@@ -20,6 +20,7 @@
             dense
             text
             color="info"
+            style="font-family: monospace;"
           >
             semaphore user list
           </v-alert>
@@ -30,6 +31,7 @@
             dense
             text
             color="info"
+            style="font-family: monospace;"
           >
             semaphore user change-by-login --login user123 --password {{ makePasswordExample() }}
           </v-alert>
@@ -40,6 +42,7 @@
             dense
             text
             color="info"
+            style="font-family: monospace;"
           >
             semaphore user add --admin --login user123 --name User123
             --email user123@example.com --password {{ makePasswordExample() }}
