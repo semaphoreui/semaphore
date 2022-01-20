@@ -55,8 +55,7 @@ func (t *task) getRepoPath() string {
 }
 
 func (t *task) validateRepo() error {
-	path := t.getRepoPath()
-	_, err := os.Stat(path)
+	_, err := os.Stat(t.getRepoPath())
 	return err
 }
 
@@ -503,7 +502,7 @@ func (t *task) getCommitMessage() (res string, err error) {
 	return
 }
 
-func (t *task) updateRepository() error {
+func (t *task) makeGitCommand() *exec.Cmd {
 	var gitSSHCommand string
 	if t.repository.SSHKey.Type == db.AccessKeySSH {
 		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
@@ -513,28 +512,68 @@ func (t *task) updateRepository() error {
 	cmd.Dir = util.Config.TmpPath
 	t.setCmdEnvironment(cmd, gitSSHCommand)
 
-	repoURL, repoTag := t.repository.GitURL, "master"
-	if split := strings.Split(repoURL, "#"); len(split) > 1 {
-		repoURL, repoTag = split[0], split[1]
+	return cmd
+}
+
+func (t *task) canRepositoryBePulled() bool {
+	fetchCmd := t.makeGitCommand()
+	fetchCmd.Args = append(fetchCmd.Args, "fetch")
+	t.logCmd(fetchCmd)
+	err := fetchCmd.Run()
+	if err != nil {
+		return false
 	}
 
+	checkCmd := t.makeGitCommand()
+	checkCmd.Args = append(checkCmd.Args, "merge-base", "--is-ancestor", "HEAD", "origin/"+t.repository.GitBranch)
+	t.logCmd(checkCmd)
+	err = checkCmd.Run()
+	return err != nil
+}
+
+func (t *task) cloneRepository() error {
+	cmd := t.makeGitCommand()
+	t.log("Cloning repository " + t.repository.GitURL)
+	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitURL, t.repository.GitBranch, t.getRepoName())
+	t.logCmd(cmd)
+	return cmd.Run()
+}
+
+func (t *task) pullRepository() error {
+	cmd := t.makeGitCommand()
+	t.log("Updating repository " + t.repository.GitURL)
+	cmd.Dir = t.getRepoPath()
+	cmd.Args = append(cmd.Args, "pull", "origin", t.repository.GitBranch)
+	t.logCmd(cmd)
+	return cmd.Run()
+}
+
+func (t *task) updateRepository() error {
 	err := t.validateRepo()
 
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return err
+			err = os.RemoveAll(t.getRepoPath())
+			if err != nil {
+				return err
+			}
 		}
-
-		t.log("Cloning repository " + repoURL)
-		cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", repoTag, repoURL, t.getRepoName())
-	} else {
-		t.log("Updating repository " + repoURL)
-		cmd.Dir = t.getRepoPath()
-		cmd.Args = append(cmd.Args, "pull", "origin", repoTag)
+		return t.cloneRepository()
 	}
 
-	t.logCmd(cmd)
-	return cmd.Run()
+	if t.canRepositoryBePulled() {
+		err = t.pullRepository()
+		if err == nil {
+			return nil
+		}
+	}
+
+	err = os.RemoveAll(t.getRepoPath())
+	if err != nil {
+		return err
+	}
+
+	return t.cloneRepository()
 }
 
 func (t *task) installRequirements() error {

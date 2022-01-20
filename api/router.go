@@ -335,16 +335,16 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updateAvailable, err := util.CheckUpdate()
+	//updateAvailable, err := util.CheckUpdate()
 
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
+	//if err != nil {
+	//	helpers.WriteError(w, err)
+	//	return
+	//}
 
 	body := map[string]interface{}{
 		"version": util.Version,
-		"update":  updateAvailable,
+		//"update":  updateAvailable,
 		"config": map[string]string{
 			"dbHost":  dbConfig.Hostname,
 			"dbName":  dbConfig.DbName,

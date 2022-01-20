@@ -5,17 +5,18 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-gorp/gorp/v3"
 	"regexp"
+	"strings"
 	"time"
 )
 
 var (
 	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE = regexp.MustCompile(`(?i)\bif exists\b`)
-	dropForeignKey = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
+	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
+	dropForeignKey  = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // prepareMigration converts migration SQLite-query to current dialect.
@@ -83,6 +84,26 @@ func (d *SqlDb) applyMigration(version *Version) error {
 	if _, err := tx.Exec(d.prepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), version.VersionString(), time.Now()); err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
+	}
+
+	switch version.VersionString() {
+	case "2.8.26":
+		rows, err2 := d.sql.Query("SELECT id, git_url FROM project__repositories")
+		if err2 == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id, url string
+				if err3 := rows.Scan(&id, &url); err3 != nil {
+					branch := "master"
+					if parts := strings.Split(url, "#"); len(parts) > 1 {
+						url, branch = parts[0], parts[1]
+					}
+					_, _ = d.sql.Exec("UPDATE project__repositories "+
+						"SET git_url = ?, git_branch = ? "+
+						"WHERE id = ?", url, branch, id)
+				}
+			}
+		}
 	}
 
 	fmt.Println()
