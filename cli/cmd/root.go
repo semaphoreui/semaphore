@@ -27,24 +27,13 @@ var rootCmd = &cobra.Command{
 Source code is available at https://github.com/ansible-semaphore/semaphore.
 Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 && configPath == "" {
-			_ = cmd.Help()
-			os.Exit(0)
-		} else {
-			serviceCmd.Run(cmd, args)
-		}
+		_ = cmd.Help()
+		os.Exit(0)
 	},
 }
 
 func Execute() {
-	args := os.Args[1:]
-	if len(args) == 2 && args[0] == "-config" {
-		configPath = args[1]
-		runService()
-		return
-	}
-
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", "/usr/local/etc/semaphore/config.json", "Configuration file path")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
