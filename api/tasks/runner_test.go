@@ -38,6 +38,9 @@ func TestPopulateDetails(t *testing.T) {
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
 		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
 	})
 	if err != nil {
 		t.Fatal(err)
