@@ -42,6 +42,11 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.git_url="{ item }">
+        {{ item.git_url }}
+        <code>{{ item.git_branch }}</code>
+      </template>
+
       <template v-slot:item.ssh_key_id="{ item }">
         {{ keys.find((k) => k.id === item.ssh_key_id).name }}
       </template>
