@@ -88,20 +88,25 @@ func (d *SqlDb) applyMigration(version *Version) error {
 
 	switch version.VersionString() {
 	case "2.8.26":
-		rows, err2 := d.sql.Query("SELECT id, git_url FROM project__repositories")
+		rows, err2 := d.sql.Query("SELECT id, git_url FROM project__repository")
 		if err2 == nil {
 			defer rows.Close()
 			for rows.Next() {
 				var id, url string
-				if err3 := rows.Scan(&id, &url); err3 != nil {
-					branch := "master"
-					if parts := strings.Split(url, "#"); len(parts) > 1 {
-						url, branch = parts[0], parts[1]
-					}
-					_, _ = d.sql.Exec("UPDATE project__repositories "+
-						"SET git_url = ?, git_branch = ? "+
-						"WHERE id = ?", url, branch, id)
+
+				err3 := rows.Scan(&id, &url)
+				if err3 != nil {
+					continue
 				}
+
+				branch := "master"
+				parts := strings.Split(url, "#")
+				if len(parts) > 1 {
+					url, branch = parts[0], parts[1]
+				}
+				_, _ = d.sql.Exec("UPDATE project__repository "+
+					"SET git_url = ?, git_branch = ? "+
+					"WHERE id = ?", url, branch, id)
 			}
 		}
 	}

@@ -267,6 +267,9 @@ definitions:
         type: integer
       git_url:
         type: string
+      git_branch:
+        type: string
+        example: master
       ssh_key_id:
         type: integer
 

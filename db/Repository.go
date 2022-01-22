@@ -12,3 +12,19 @@ type Repository struct {
 
 	SSHKey AccessKey `db:"-" json:"-"`
 }
+
+func (r Repository) Validate() error {
+	if r.Name == "" {
+		return &ValidationError{"repository name can't be empty"}
+	}
+
+	if r.GitURL == "" {
+		return &ValidationError{"repository url can't be empty"}
+	}
+
+	if r.GitBranch == "" {
+		return &ValidationError{"repository branch can't be empty"}
+	}
+
+	return nil
+}

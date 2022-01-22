@@ -19,10 +19,18 @@ func (d *BoltDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (
 }
 
 func (d *BoltDb) UpdateRepository(repository db.Repository) error {
+	err := repository.Validate()
+	if err != nil {
+		return err
+	}
 	return d.updateObject(repository.ProjectID, db.RepositoryProps, repository)
 }
 
 func (d *BoltDb) CreateRepository(repository db.Repository) (db.Repository, error) {
+	err := repository.Validate()
+	if err != nil {
+		return db.Repository{}, err
+	}
 	newRepo, err := d.createObject(repository.ProjectID, db.RepositoryProps, repository)
 	return newRepo.(db.Repository), err
 }
@@ -34,4 +42,3 @@ func (d *BoltDb) DeleteRepository(projectID int, repositoryId int) error {
 func (d *BoltDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
 	return d.deleteObjectSoft(projectID, db.RepositoryProps, intObjectID(repositoryId))
 }
-
