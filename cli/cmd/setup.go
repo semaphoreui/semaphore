@@ -51,7 +51,7 @@ func doSetup() int {
 	}
 
 	fmt.Println("Running db Migrations..")
-	if err := store.Migrate(); err != nil {
+	if err := db.Migrate(store); err != nil {
 		fmt.Printf("Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}

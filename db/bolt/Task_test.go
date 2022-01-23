@@ -2,33 +2,13 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
-	"math/rand"
-	"strconv"
 	"testing"
-	"time"
 )
-
-func createTestBoltDb() BoltDb {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
-	return BoltDb{
-		Filename: fn,
-	}
-}
-
-func createTestStore() db.Store {
-	store := createTestBoltDb()
-	err := store.Connect()
-	if err != nil {
-		panic(err)
-	}
-	return &store
-}
 
 func TestTask_GetVersion(t *testing.T) {
 	VERSION := "1.54.48"
 
-	store := createTestStore()
+	store := CreateTestStore()
 
 	build, err := store.CreateTemplate(db.Template{
 		ProjectID: 0,
@@ -89,7 +69,7 @@ func TestTask_GetVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	version := deployTask.GetIncomingVersion(store)
+	version := deployTask.GetIncomingVersion(&store)
 	if version == nil {
 		t.Fatal()
 		return
@@ -99,7 +79,7 @@ func TestTask_GetVersion(t *testing.T) {
 		return
 	}
 
-	version = deploy2Task.GetIncomingVersion(store)
+	version = deploy2Task.GetIncomingVersion(&store)
 	if version == nil {
 		t.Fatal()
 		return

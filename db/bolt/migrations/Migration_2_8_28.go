@@ -10,7 +10,7 @@ type Migration_2_8_28 struct {
 	DB *bbolt.DB
 }
 
-func (d Migration_2_8_28) getProjectRepositories_2_8_26(projectID string) (repos map[string]map[string]interface{}, err error) {
+func (d Migration_2_8_28) getProjectRepositories(projectID string) (repos map[string]map[string]interface{}, err error) {
 	err = d.DB.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__repository_" + projectID))
 		return b.ForEach(func(id, body []byte) error {
@@ -22,7 +22,7 @@ func (d Migration_2_8_28) getProjectRepositories_2_8_26(projectID string) (repos
 	return
 }
 
-func (d Migration_2_8_28) setProjectRepository_2_8_26(projectID string, repoID string, repo map[string]interface{}) error {
+func (d Migration_2_8_28) setProjectRepository(projectID string, repoID string, repo map[string]interface{}) error {
 	return d.DB.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__repository_" + projectID))
 		j, err := json.Marshal(repo)
@@ -51,7 +51,7 @@ func (d Migration_2_8_28) Apply() (err error) {
 
 	for _, projectID := range projectIDs {
 		var err2 error
-		projectsRepositories[projectID], err2 = d.getProjectRepositories_2_8_26(projectID)
+		projectsRepositories[projectID], err2 = d.getProjectRepositories(projectID)
 		if err2 != nil {
 			return err2
 		}
@@ -67,7 +67,7 @@ func (d Migration_2_8_28) Apply() (err error) {
 			}
 			repo["git_url"] = url
 			repo["git_branch"] = branch
-			err = d.setProjectRepository_2_8_26(projectID, repoID, repo)
+			err = d.setProjectRepository(projectID, repoID, repo)
 			if err != nil {
 				return err
 			}

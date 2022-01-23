@@ -109,7 +109,7 @@ func createStore() db.Store {
 		panic(err)
 	}
 
-	err := store.Migrate()
+	err := db.Migrate(store)
 
 	if err != nil {
 		panic(err)

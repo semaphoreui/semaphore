@@ -8,12 +8,7 @@ import (
 )
 
 func TestGetViews(t *testing.T) {
-	store := createStore()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
 		Created: time.Now(),
@@ -56,12 +51,7 @@ func TestGetViews(t *testing.T) {
 }
 
 func TestSetViewPositions(t *testing.T) {
-	store := createStore()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
 		Created: time.Now(),

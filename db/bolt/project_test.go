@@ -7,18 +7,13 @@ import (
 )
 
 func TestGetProjects(t *testing.T) {
-	store := createStore()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	usr, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "123456",
 		User: db.User{
-			Email: "denguk@example.com",
-			Name: "Denis Gukov",
+			Email:    "denguk@example.com",
+			Name:     "Denis Gukov",
 			Username: "fiftin",
 		},
 	})
@@ -29,7 +24,7 @@ func TestGetProjects(t *testing.T) {
 
 	proj1, err := store.CreateProject(db.Project{
 		Created: time.Now(),
-		Name: "Test1",
+		Name:    "Test1",
 	})
 
 	if err != nil {
@@ -38,8 +33,8 @@ func TestGetProjects(t *testing.T) {
 
 	_, err = store.CreateProjectUser(db.ProjectUser{
 		ProjectID: proj1.ID,
-		UserID: usr.ID,
-		Admin: true,
+		UserID:    usr.ID,
+		Admin:     true,
 	})
 
 	if err != nil {
@@ -59,18 +54,12 @@ func TestGetProjects(t *testing.T) {
 }
 
 func TestGetProject(t *testing.T) {
-	store := createStore()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Created: time.Now(),
-		Name: "Test1",
+		Name:    "Test1",
 	})
-
 
 	if err != nil {
 		t.Fatal(err.Error())
