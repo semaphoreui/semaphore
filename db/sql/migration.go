@@ -21,12 +21,12 @@ var (
 )
 
 // getVersionPath is the humanoid version with the file format appended
-func getVersionPath(version db.Version) string {
+func getVersionPath(version db.Migration) string {
 	return version.HumanoidVersion() + ".sql"
 }
 
 // getVersionErrPath is the humanoid version with '.err' and file format appended
-func getVersionErrPath(version db.Version) string {
+func getVersionErrPath(version db.Migration) string {
 	return version.HumanoidVersion() + ".err.sql"
 }
 
@@ -59,9 +59,9 @@ func (d *SqlDb) prepareMigration(query string) string {
 	return query
 }
 
-// isMigrationApplied queries the database to see if a migration table with this version id exists already
-func (d *SqlDb) isMigrationApplied(version db.Version) (bool, error) {
-	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) as ex from migrations where version=?"), version.VersionString())
+// IsMigrationApplied queries the database to see if a migration table with this version id exists already
+func (d *SqlDb) IsMigrationApplied(migration db.Migration) (bool, error) {
+	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) as ex from migrations where migration=?"), migration.Version)
 
 	if err != nil {
 		fmt.Println("Creating migrations table")
@@ -70,22 +70,20 @@ func (d *SqlDb) isMigrationApplied(version db.Version) (bool, error) {
 			panic(err)
 		}
 
-		return d.isMigrationApplied(version)
+		return d.IsMigrationApplied(migration)
 	}
 
 	return exists > 0, nil
 }
 
-// Run executes a database migration
-func (d *SqlDb) applyMigration(version db.Version) error {
-	fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
-
+// ApplyMigration runs executes a database migration
+func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return err
 	}
 
-	query := getVersionSQL(getVersionPath(version))
+	query := getVersionSQL(getVersionPath(migration))
 	for i, query := range query {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
@@ -103,12 +101,12 @@ func (d *SqlDb) applyMigration(version db.Version) error {
 		}
 	}
 
-	if _, err := tx.Exec(d.prepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), version.VersionString(), time.Now()); err != nil {
+	if _, err := tx.Exec(d.prepareQuery("insert into migrations(migration, upgraded_date) values (?, ?)"), migration.Version, time.Now()); err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
 	}
 
-	switch version.VersionString() {
+	switch migration.Version {
 	case "2.8.26":
 		rows, err2 := d.sql.Query("SELECT id, git_url FROM project__repository")
 		if err2 == nil {
@@ -138,10 +136,8 @@ func (d *SqlDb) applyMigration(version db.Version) error {
 	return tx.Commit()
 }
 
-// TryRollback attempts to rollback the database to an earlier version if a rollback exists
-func (d *SqlDb) tryRollbackMigration(version db.Version) {
-	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
-
+// TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
+func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 	data := dbAssets.Bytes(getVersionErrPath(version))
 	if len(data) == 0 {
 		fmt.Println("Rollback SQL does not exist.")
@@ -158,33 +154,4 @@ func (d *SqlDb) tryRollbackMigration(version db.Version) {
 			return
 		}
 	}
-}
-
-func (d *SqlDb) Migrate() error {
-	fmt.Println("Checking DB migrations")
-	didRun := false
-
-	// go from beginning to the end
-	for _, version := range db.GetVersions() {
-		if exists, err := d.isMigrationApplied(version); err != nil || exists {
-			if exists {
-				continue
-			}
-
-			return err
-		}
-
-		didRun = true
-		if err := d.applyMigration(version); err != nil {
-			d.tryRollbackMigration(version)
-
-			return err
-		}
-	}
-
-	if didRun {
-		fmt.Println("Migrations Finished")
-	}
-
-	return nil
 }

@@ -86,21 +86,21 @@ func scanBoltDb(conf *util.ConfigType) {
 		workingDirectory = os.TempDir()
 	}
 	defaultBoltDBPath := filepath.Join(workingDirectory, "database.boltdb")
-	askValue("DB filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
+	askValue("db filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
 }
 
 func scanMySQL(conf *util.ConfigType) {
-	askValue("DB Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
-	askValue("DB User", "root", &conf.MySQL.Username)
-	askValue("DB Password", "", &conf.MySQL.Password)
-	askValue("DB Name", "semaphore", &conf.MySQL.DbName)
+	askValue("db Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
+	askValue("db User", "root", &conf.MySQL.Username)
+	askValue("db Password", "", &conf.MySQL.Password)
+	askValue("db Name", "semaphore", &conf.MySQL.DbName)
 }
 
 func scanPostgres(conf *util.ConfigType) {
-	askValue("DB Hostname", "127.0.0.1:5432", &conf.Postgres.Hostname)
-	askValue("DB User", "root", &conf.Postgres.Username)
-	askValue("DB Password", "", &conf.Postgres.Password)
-	askValue("DB Name", "semaphore", &conf.Postgres.DbName)
+	askValue("db Hostname", "127.0.0.1:5432", &conf.Postgres.Hostname)
+	askValue("db User", "root", &conf.Postgres.Username)
+	askValue("db Password", "", &conf.Postgres.Password)
+	askValue("db Name", "semaphore", &conf.Postgres.DbName)
 }
 
 func scanErrorChecker(n int, err error) {

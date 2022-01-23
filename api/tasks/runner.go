@@ -828,7 +828,7 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	//		}
 	//		env = append(env, "SEMAPHORE_INCOMING_VERSION="+incomingVersion)
 	//		if t.template.Type == db.TemplateBuild {
-	//			env = append(env, "SEMAPHORE_TARGET_VERSION="+*t.task.Version)
+	//			env = append(env, "SEMAPHORE_TARGET_VERSION="+*t.task.Migration)
 	//		}
 	//	}
 	//}

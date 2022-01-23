@@ -15,6 +15,6 @@ var migrateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore()
 		defer store.Close()
-		fmt.Println("\n DB migrations run on startup automatically")
+		fmt.Println("\n db migrations run on startup automatically")
 	},
 }

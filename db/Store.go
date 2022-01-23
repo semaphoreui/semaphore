@@ -67,10 +67,18 @@ func (e *ValidationError) Error() string {
 type Store interface {
 	Connect() error
 	Close() error
+
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
 	IsInitialized() (bool, error)
-	Migrate() error
+	// IsMigrationApplied queries the database to see if a migration table with
+	// this version id exists already
+	IsMigrationApplied(version Migration) (bool, error)
+	// ApplyMigration runs executes a database migration
+	ApplyMigration(version Migration) error
+	// TryRollbackMigration attempts to rollback the database to an earlier version
+	// if a rollback exists
+	TryRollbackMigration(version Migration)
 
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
