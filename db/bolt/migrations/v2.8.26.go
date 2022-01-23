@@ -38,7 +38,11 @@ func (d Migration_2_8_28) Apply() (err error) {
 	var projectIDs []string
 
 	err = d.DB.View(func(tx *bbolt.Tx) error {
-		return tx.Bucket([]byte("project")).ForEach(func(id, _ []byte) error {
+		b := tx.Bucket([]byte("project"))
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(id, _ []byte) error {
 			projectIDs = append(projectIDs, string(id))
 			return nil
 		})
