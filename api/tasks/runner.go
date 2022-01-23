@@ -502,21 +502,21 @@ func (t *task) getCommitMessage() (res string, err error) {
 	return
 }
 
-func (t *task) makeGitCommand() *exec.Cmd {
+func (t *task) makeGitCommand(dir string) *exec.Cmd {
 	var gitSSHCommand string
 	if t.repository.SSHKey.Type == db.AccessKeySSH {
 		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
 	}
 
 	cmd := exec.Command("git") //nolint: gas
-	cmd.Dir = util.Config.TmpPath
+	cmd.Dir = dir
 	t.setCmdEnvironment(cmd, gitSSHCommand)
 
 	return cmd
 }
 
 func (t *task) canRepositoryBePulled() bool {
-	fetchCmd := t.makeGitCommand()
+	fetchCmd := t.makeGitCommand(t.getRepoPath())
 	fetchCmd.Args = append(fetchCmd.Args, "fetch")
 	t.logCmd(fetchCmd)
 	err := fetchCmd.Run()
@@ -524,15 +524,15 @@ func (t *task) canRepositoryBePulled() bool {
 		return false
 	}
 
-	checkCmd := t.makeGitCommand()
+	checkCmd := t.makeGitCommand(t.getRepoPath())
 	checkCmd.Args = append(checkCmd.Args, "merge-base", "--is-ancestor", "HEAD", "origin/"+t.repository.GitBranch)
 	t.logCmd(checkCmd)
 	err = checkCmd.Run()
-	return err != nil
+	return err == nil
 }
 
 func (t *task) cloneRepository() error {
-	cmd := t.makeGitCommand()
+	cmd := t.makeGitCommand(util.Config.TmpPath)
 	t.log("Cloning repository " + t.repository.GitURL)
 	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GitURL, t.getRepoName())
 	t.logCmd(cmd)
@@ -540,9 +540,8 @@ func (t *task) cloneRepository() error {
 }
 
 func (t *task) pullRepository() error {
-	cmd := t.makeGitCommand()
+	cmd := t.makeGitCommand(t.getRepoPath())
 	t.log("Updating repository " + t.repository.GitURL)
-	cmd.Dir = t.getRepoPath()
 	cmd.Args = append(cmd.Args, "pull", "origin", t.repository.GitBranch)
 	t.logCmd(cmd)
 	return cmd.Run()
