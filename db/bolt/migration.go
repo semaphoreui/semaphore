@@ -9,7 +9,7 @@ import (
 
 func (d *BoltDb) IsMigrationApplied(migration db.Migration) (bool, error) {
 	err := d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("versions"))
+		b := tx.Bucket([]byte("migrations"))
 		if b == nil {
 			return db.ErrNotFound
 		}
@@ -45,7 +45,7 @@ func (d *BoltDb) ApplyMigration(migration db.Migration) (err error) {
 	}
 
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("versions"))
+		b, err := tx.CreateBucketIfNotExists([]byte("migrations"))
 
 		if err != nil {
 			return err
