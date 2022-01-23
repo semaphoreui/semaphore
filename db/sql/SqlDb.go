@@ -343,9 +343,6 @@ func (d *SqlDb) Sql() *gorp.DbMap {
 }
 
 func (d *SqlDb) IsInitialized() (bool, error) {
-	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) from migrations"))
-	if err != nil {
-		return false, nil
-	}
-	return exists > 0, nil
+	_, err := d.sql.SelectInt(d.prepareQuery("select count(1) from migrations"))
+	return err == nil, nil
 }

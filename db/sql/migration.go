@@ -62,24 +62,44 @@ func (d *SqlDb) prepareMigration(query string) string {
 
 // IsMigrationApplied queries the database to see if a migration table with this version id exists already
 func (d *SqlDb) IsMigrationApplied(migration db.Migration) (bool, error) {
-	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) as ex from migrations where migration=?"), migration.Version)
+	initialized, err := d.IsInitialized()
 
-	if err == nil {
-		return exists > 0, nil
-	}
-
-	fmt.Println("Creating migrations table")
-	query := d.prepareMigration(initialSQL)
-	_, err = d.exec(query)
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 
-	return d.IsMigrationApplied(migration)
+	if !initialized {
+		return false, nil
+	}
+
+	exists, err := d.sql.SelectInt(
+		d.prepareQuery("select count(1) as ex from migrations where version = ?"),
+		migration.Version)
+
+	if err != nil {
+		return false, err
+	}
+
+	return exists > 0, nil
 }
 
 // ApplyMigration runs executes a database migration
 func (d *SqlDb) ApplyMigration(migration db.Migration) error {
+	initialized, err := d.IsInitialized()
+
+	if err != nil {
+		return err
+	}
+
+	if !initialized {
+		fmt.Println("Creating migrations table")
+		query := d.prepareMigration(initialSQL)
+		_, err = d.exec(query)
+		if err != nil {
+			return err
+		}
+	}
+
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return err
@@ -103,7 +123,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
-	_, err = tx.Exec(d.prepareQuery("insert into migrations(migration, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	_, err = tx.Exec(d.prepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
