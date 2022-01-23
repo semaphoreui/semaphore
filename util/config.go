@@ -150,22 +150,32 @@ func loadConfig(configPath string) {
 	//var usedPath string
 
 	if configPath == "" {
-		// if no configPath look in the cwd
 		cwd, err := os.Getwd()
 		exitOnConfigError(err)
-		defaultPath := path.Join(cwd, "config.json")
-		file, err := os.Open(defaultPath)
+		paths := []string{
+			path.Join(cwd, "config.json"),
+			"/usr/local/etc/semaphore/config.json",
+		}
+		for _, p := range paths {
+			_, err = os.Stat(p)
+			if err != nil {
+				continue
+			}
+			var file *os.File
+			file, err = os.Open(p)
+			if err != nil {
+				continue
+			}
+			decodeConfig(file)
+			break
+		}
 		exitOnConfigError(err)
-		decodeConfig(file)
-		//usedPath = defaultPath
 	} else {
-		path := configPath
-		file, err := os.Open(path)
+		p := configPath
+		file, err := os.Open(p)
 		exitOnConfigError(err)
 		decodeConfig(file)
-		//usedPath = path
 	}
-	//fmt.Println("Using config file: " + usedPath)
 }
 
 func validateConfig() {

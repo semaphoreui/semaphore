@@ -33,7 +33,7 @@ Complete documentation is available at https://ansible-semaphore.com.`,
 }
 
 func Execute() {
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "/usr/local/etc/semaphore/config.json", "Configuration file path")
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
