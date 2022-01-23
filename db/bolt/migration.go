@@ -53,6 +53,10 @@ func (d *BoltDb) ApplyMigration(migration db.Migration) (err error) {
 
 		j, err := json.Marshal(migration)
 
+		if err != nil {
+			return err
+		}
+
 		return b.Put([]byte(migration.Version), j)
 	})
 }

@@ -8,8 +8,8 @@ web2/.nyc_output
 web2/dist/**/*
 /config.json
 /.dredd/config.json
-/database.bolt
 /database.boltdb
+/database.boltdb.lock
 .DS_Store
 node_modules/
 
