@@ -50,7 +50,7 @@
       :key="v.name"
       :label="v.title"
       :hint="v.description"
-      v-model="environment[v.name]"
+      v-model="env[v.name]"
       :required="v.required"
       :rules="[
           val => !v.required || !!val || v.title + ' is required',
@@ -86,14 +86,18 @@ export default {
     commitHash: String,
     commitMessage: String,
     buildTask: Object,
+    environment: String,
   },
   data() {
     return {
       template: null,
       buildTasks: null,
       commitAvailable: null,
-      environment: {},
+      env: null,
     };
+  },
+  created() {
+    this.env = JSON.parse(this.environment || '{}');
   },
   watch: {
     needReset(val) {
@@ -118,6 +122,9 @@ export default {
     commitAvailable(val) {
       this.item.commit_hash = val ? this.commitHash : null;
     },
+    environment(val) {
+      this.env = JSON.parse(val || '{}');
+    },
   },
   methods: {
     isLoaded() {
@@ -127,7 +134,7 @@ export default {
     },
 
     beforeSave() {
-      this.item.environment = JSON.stringify(this.environment);
+      this.item.environment = JSON.stringify(this.env);
     },
 
     async afterLoadData() {
