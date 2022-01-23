@@ -1,12 +1,11 @@
-package sql
+package db
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
 
-// Version represents an sql schema version
+// Version represents sql schema version
 type Version struct {
 	Major int
 	Minor int
@@ -17,11 +16,8 @@ type Version struct {
 	Notes        *string
 }
 
-// Versions holds all sql schema version references
-var Versions []*Version
-
 // VersionString returns a well formatted string of the current Version
-func (version *Version) VersionString() string {
+func (version Version) VersionString() string {
 	s := fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
 
 	if len(version.Build) == 0 {
@@ -32,32 +28,12 @@ func (version *Version) VersionString() string {
 }
 
 // HumanoidVersion adds a v to the VersionString
-func (version *Version) HumanoidVersion() string {
+func (version Version) HumanoidVersion() string {
 	return "v" + version.VersionString()
 }
 
-// GetPath is the humanoid version with the file format appended
-func (version *Version) GetPath() string {
-	return version.HumanoidVersion() + ".sql"
-}
-
-//GetErrPath is the humanoid version with '.err' and file format appended
-func (version *Version) GetErrPath() string {
-	return version.HumanoidVersion() + ".err.sql"
-}
-
-// GetSQL takes a path to an SQL file and returns it from packr as a slice of strings separated by newlines
-func (version *Version) GetSQL(path string) (queries []string) {
-	sql, err := dbAssets.MustString(path)
-	if err != nil {
-		panic(err)
-	}
-	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
-	return
-}
-
-func init() {
-	Versions = []*Version{
+func GetVersions() []Version {
+	return []Version{
 		{},
 		{Major: 1},
 		{Major: 1, Minor: 2},

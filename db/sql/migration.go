@@ -3,6 +3,7 @@ package sql
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/go-gorp/gorp/v3"
 	"regexp"
 	"strings"
@@ -18,6 +19,27 @@ var (
 	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
 	dropForeignKey  = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
+
+// getVersionPath is the humanoid version with the file format appended
+func getVersionPath(version db.Version) string {
+	return version.HumanoidVersion() + ".sql"
+}
+
+// getVersionErrPath is the humanoid version with '.err' and file format appended
+func getVersionErrPath(version db.Version) string {
+	return version.HumanoidVersion() + ".err.sql"
+}
+
+// getVersionSQL takes a path to an SQL file and returns it from packr as
+// a slice of strings separated by newlines
+func getVersionSQL(path string) (queries []string) {
+	sql, err := dbAssets.MustString(path)
+	if err != nil {
+		panic(err)
+	}
+	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
+	return
+}
 
 // prepareMigration converts migration SQLite-query to current dialect.
 // Supported MySQL and Postgres dialects.
@@ -38,7 +60,7 @@ func (d *SqlDb) prepareMigration(query string) string {
 }
 
 // isMigrationApplied queries the database to see if a migration table with this version id exists already
-func (d *SqlDb) isMigrationApplied(version *Version) (bool, error) {
+func (d *SqlDb) isMigrationApplied(version db.Version) (bool, error) {
 	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) as ex from migrations where version=?"), version.VersionString())
 
 	if err != nil {
@@ -55,7 +77,7 @@ func (d *SqlDb) isMigrationApplied(version *Version) (bool, error) {
 }
 
 // Run executes a database migration
-func (d *SqlDb) applyMigration(version *Version) error {
+func (d *SqlDb) applyMigration(version db.Version) error {
 	fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
 
 	tx, err := d.sql.Begin()
@@ -63,7 +85,7 @@ func (d *SqlDb) applyMigration(version *Version) error {
 		return err
 	}
 
-	query := version.GetSQL(version.GetPath())
+	query := getVersionSQL(getVersionPath(version))
 	for i, query := range query {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
@@ -117,17 +139,17 @@ func (d *SqlDb) applyMigration(version *Version) error {
 }
 
 // TryRollback attempts to rollback the database to an earlier version if a rollback exists
-func (d *SqlDb) tryRollbackMigration(version *Version) {
+func (d *SqlDb) tryRollbackMigration(version db.Version) {
 	fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
 
-	data := dbAssets.Bytes(version.GetErrPath())
+	data := dbAssets.Bytes(getVersionErrPath(version))
 	if len(data) == 0 {
 		fmt.Println("Rollback SQL does not exist.")
 		fmt.Println()
 		return
 	}
 
-	query := version.GetSQL(version.GetErrPath())
+	query := getVersionSQL(getVersionErrPath(version))
 	for _, query := range query {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 
@@ -143,7 +165,7 @@ func (d *SqlDb) Migrate() error {
 	didRun := false
 
 	// go from beginning to the end
-	for _, version := range Versions {
+	for _, version := range db.GetVersions() {
 		if exists, err := d.isMigrationApplied(version); err != nil || exists {
 			if exists {
 				continue
