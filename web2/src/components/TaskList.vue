@@ -24,6 +24,7 @@
             :commit-hash="sourceTask == null ? null : sourceTask.commit_hash"
             :commit-message="sourceTask == null ? null : sourceTask.commit_message"
             :build_task="sourceTask == null ? null : sourceTask.build_task"
+            :environment="sourceTask == null ? null : sourceTask.environment"
         />
       </template>
     </EditDialog>

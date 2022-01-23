@@ -534,7 +534,7 @@ func (t *task) canRepositoryBePulled() bool {
 func (t *task) cloneRepository() error {
 	cmd := t.makeGitCommand()
 	t.log("Cloning repository " + t.repository.GitURL)
-	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitURL, t.repository.GitBranch, t.getRepoName())
+	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GitURL, t.getRepoName())
 	t.logCmd(cmd)
 	return cmd.Run()
 }
