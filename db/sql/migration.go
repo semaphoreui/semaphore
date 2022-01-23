@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/sql/migrations"
 	"github.com/go-gorp/gorp/v3"
 	"regexp"
 	"strings"
@@ -63,17 +64,18 @@ func (d *SqlDb) prepareMigration(query string) string {
 func (d *SqlDb) IsMigrationApplied(migration db.Migration) (bool, error) {
 	exists, err := d.sql.SelectInt(d.prepareQuery("select count(1) as ex from migrations where migration=?"), migration.Version)
 
-	if err != nil {
-		fmt.Println("Creating migrations table")
-		query := d.prepareMigration(initialSQL)
-		if _, err = d.exec(query); err != nil {
-			panic(err)
-		}
-
-		return d.IsMigrationApplied(migration)
+	if err == nil {
+		return exists > 0, nil
 	}
 
-	return exists > 0, nil
+	fmt.Println("Creating migrations table")
+	query := d.prepareMigration(initialSQL)
+	_, err = d.exec(query)
+	if err != nil {
+		panic(err)
+	}
+
+	return d.IsMigrationApplied(migration)
 }
 
 // ApplyMigration runs executes a database migration
@@ -83,8 +85,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	query := getVersionSQL(getVersionPath(migration))
-	for i, query := range query {
+	queries := getVersionSQL(getVersionPath(migration))
+	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
 		if len(query) == 0 {
@@ -101,34 +103,19 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
-	if _, err := tx.Exec(d.prepareQuery("insert into migrations(migration, upgraded_date) values (?, ?)"), migration.Version, time.Now()); err != nil {
+	_, err = tx.Exec(d.prepareQuery("insert into migrations(migration, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
 	}
 
 	switch migration.Version {
 	case "2.8.26":
-		rows, err2 := d.sql.Query("SELECT id, git_url FROM project__repository")
-		if err2 == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var id, url string
+		err = migrations.Migration_2_8_26{Sql: d.sql}.Apply()
+	}
 
-				err3 := rows.Scan(&id, &url)
-				if err3 != nil {
-					continue
-				}
-
-				branch := "master"
-				parts := strings.Split(url, "#")
-				if len(parts) > 1 {
-					url, branch = parts[0], parts[1]
-				}
-				_, _ = d.sql.Exec("UPDATE project__repository "+
-					"SET git_url = ?, git_branch = ? "+
-					"WHERE id = ?", url, branch, id)
-			}
-		}
+	if err != nil {
+		return err
 	}
 
 	fmt.Println()
