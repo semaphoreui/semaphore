@@ -5,16 +5,14 @@ import (
 	"time"
 )
 
-
 var globalTokenObject = db.ObjectProperties{
-	TableName:          "token",
+	TableName: "token",
 }
 
 type globalToken struct {
-	ID      string    `db:"id" json:"id"`
-	UserID  int       `db:"user_id" json:"user_id"`
+	ID     string `db:"id" json:"id"`
+	UserID int    `db:"user_id" json:"user_id"`
 }
-
 
 func (d *BoltDb) CreateSession(session db.Session) (db.Session, error) {
 	newSession, err := d.createObject(session.UserID, db.SessionProps, session)
@@ -92,4 +90,3 @@ func (d *BoltDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
 	err = d.getObjects(userID, db.SessionProps, db.RetrieveQueryParams{}, nil, &tokens)
 	return
 }
-

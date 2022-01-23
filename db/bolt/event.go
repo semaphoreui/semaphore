@@ -24,7 +24,7 @@ import (
 //}
 
 // getEvents filter and sort enumerable object passed via parameter.
-func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter func (db.Event) bool) (events []db.Event, err error) {
+func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter func(db.Event) bool) (events []db.Event, err error) {
 
 	i := 0 // offset counter
 	n := 0 // number of added items
@@ -105,7 +105,7 @@ func (d *BoltDb) GetUserEvents(userID int, params db.RetrieveQueryParams) (event
 		}
 
 		c := b.Cursor()
-		events, err = d.getEvents(c, params, func (evt db.Event) bool {
+		events, err = d.getEvents(c, params, func(evt db.Event) bool {
 			if evt.ProjectID == nil {
 				return false
 			}
@@ -127,7 +127,7 @@ func (d *BoltDb) GetEvents(projectID int, params db.RetrieveQueryParams) (events
 		}
 
 		c := b.Cursor()
-		events, err = d.getEvents(c, params, func (evt db.Event) bool {
+		events, err = d.getEvents(c, params, func(evt db.Event) bool {
 			if evt.ProjectID == nil {
 				return false
 			}

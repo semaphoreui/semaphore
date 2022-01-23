@@ -3,25 +3,9 @@ package bolt
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"math/rand"
 	"reflect"
-	"strconv"
 	"testing"
-	"time"
 )
-
-func CreateTestStore() BoltDb {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
-	store := BoltDb{
-		Filename: fn,
-	}
-	err := store.Connect()
-	if err != nil {
-		panic(err)
-	}
-	return store
-}
 
 type test1 struct {
 	ID             int    `db:"ID"`

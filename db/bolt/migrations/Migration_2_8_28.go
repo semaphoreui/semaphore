@@ -10,8 +10,9 @@ type Migration_2_8_28 struct {
 	DB *bbolt.DB
 }
 
-func (d Migration_2_8_28) getProjectRepositories(projectID string) (repos map[string]map[string]interface{}, err error) {
-	err = d.DB.View(func(tx *bbolt.Tx) error {
+func (d Migration_2_8_28) getProjectRepositories(projectID string) (map[string]map[string]interface{}, error) {
+	repos := make(map[string]map[string]interface{})
+	err := d.DB.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__repository_" + projectID))
 		return b.ForEach(func(id, body []byte) error {
 			r := make(map[string]interface{})
@@ -19,7 +20,7 @@ func (d Migration_2_8_28) getProjectRepositories(projectID string) (repos map[st
 			return json.Unmarshal(body, &r)
 		})
 	})
-	return
+	return repos, err
 }
 
 func (d Migration_2_8_28) setProjectRepository(projectID string, repoID string, repo map[string]interface{}) error {
@@ -37,7 +38,7 @@ func (d Migration_2_8_28) Apply() (err error) {
 	var projectIDs []string
 
 	err = d.DB.View(func(tx *bbolt.Tx) error {
-		return tx.Bucket([]byte("projects")).ForEach(func(id, _ []byte) error {
+		return tx.Bucket([]byte("project")).ForEach(func(id, _ []byte) error {
 			projectIDs = append(projectIDs, string(id))
 			return nil
 		})
