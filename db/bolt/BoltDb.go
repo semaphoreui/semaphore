@@ -426,13 +426,13 @@ func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objec
 			return db.ErrNotFound
 		}
 
-		d := b.Get(objectID.ToBytes())
+		j := b.Get(objectID.ToBytes())
 
-		if d == nil {
+		if j == nil {
 			return db.ErrNotFound
 		}
 
-		return json.Unmarshal(d, &data)
+		return json.Unmarshal(j, &data)
 	})
 
 	if err != nil {
@@ -479,7 +479,7 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 
 		idValue := reflect.ValueOf(object).FieldByName(idFieldName)
 
-		var objectID objectID
+		var objID objectID
 
 		switch idValue.Kind() {
 		case reflect.Int,
@@ -492,16 +492,16 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			reflect.Uint16,
 			reflect.Uint32,
 			reflect.Uint64:
-			objectID = intObjectID(idValue.Int())
+			objID = intObjectID(idValue.Int())
 		case reflect.String:
-			objectID = strObjectID(idValue.String())
+			objID = strObjectID(idValue.String())
 		}
 
-		if objectID == nil {
+		if objID == nil {
 			return fmt.Errorf("unsupported ID type")
 		}
 
-		if b.Get(objectID.ToBytes()) == nil {
+		if b.Get(objID.ToBytes()) == nil {
 			return db.ErrNotFound
 		}
 
@@ -510,7 +510,7 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object in
 			return err
 		}
 
-		return b.Put(objectID.ToBytes(), str)
+		return b.Put(objID.ToBytes(), str)
 	})
 }
 
@@ -527,13 +527,13 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
 		tmpObj.Set(objPtr.Elem())
 
-		var objectID objectID
+		var objID objectID
 
 		if props.PrimaryColumnName != "" {
-			idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+			idFieldName, err2 := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
 
-			if err != nil {
-				return err
+			if err2 != nil {
+				return err2
 			}
 
 			idValue := tmpObj.FieldByName(idFieldName)
@@ -550,9 +550,9 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 				reflect.Uint32,
 				reflect.Uint64:
 				if idValue.Int() == 0 {
-					id, err2 := b.NextSequence()
-					if err2 != nil {
-						return err2
+					id, err3 := b.NextSequence()
+					if err3 != nil {
+						return err3
 					}
 					if props.SortInverted {
 						id = MaxID - id
@@ -560,18 +560,18 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 					idValue.SetInt(int64(id))
 				}
 
-				objectID = intObjectID(idValue.Int())
+				objID = intObjectID(idValue.Int())
 			case reflect.String:
 				if idValue.String() == "" {
 					return fmt.Errorf("object ID can not be empty string")
 				}
-				objectID = strObjectID(idValue.String())
+				objID = strObjectID(idValue.String())
 			case reflect.Invalid:
-				id, err2 := b.NextSequence()
-				if err2 != nil {
-					return err2
+				id, err3 := b.NextSequence()
+				if err3 != nil {
+					return err3
 				}
-				objectID = intObjectID(id)
+				objID = intObjectID(id)
 			default:
 				return fmt.Errorf("unsupported ID type")
 			}
@@ -583,10 +583,10 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 			if props.SortInverted {
 				id = MaxID - id
 			}
-			objectID = intObjectID(id)
+			objID = intObjectID(id)
 		}
 
-		if objectID == nil {
+		if objID == nil {
 			return fmt.Errorf("object ID can not be nil")
 		}
 
@@ -596,7 +596,7 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object in
 			return err
 		}
 
-		return b.Put(objectID.ToBytes(), str)
+		return b.Put(objID.ToBytes(), str)
 	})
 
 	return object, err

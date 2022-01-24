@@ -257,6 +257,7 @@ var SessionProps = ObjectProperties{
 var TokenProps = ObjectProperties{
 	TableName:         "user__token",
 	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(APIToken{}),
 }
 
 var TaskProps = ObjectProperties{

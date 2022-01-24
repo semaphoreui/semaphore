@@ -266,7 +266,7 @@ func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	_, err = store.CreateTemplate(db.Template{
@@ -277,17 +277,82 @@ func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	if isUse {
 		t.Fatal()
 	}
+}
 
+func TestBoltDb_CreateAPIToken(t *testing.T) {
+	store := CreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "test",
+			Name:     "Test",
+			Email:    "test@example.com",
+			Admin:    true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := store.CreateAPIToken(db.APIToken{
+		ID:     "f349gyhgqirgysfgsfg34973dsfad",
+		UserID: user.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token2, err := store.GetAPIToken(token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if token2.ID != token.ID {
+		t.Fatal()
+	}
+
+	tokens, err := store.GetAPITokens(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tokens) != 1 {
+		t.Fatal()
+	}
+
+	if tokens[0].ID != token.ID {
+		t.Fatal()
+	}
+
+	err = store.ExpireAPIToken(user.ID, token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tokens, err = store.GetAPITokens(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token2, err = store.GetAPIToken(token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !token2.Expired {
+		t.Fatal()
+	}
 }
