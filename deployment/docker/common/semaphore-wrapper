@@ -108,7 +108,7 @@ EOF
 
     cat "${SEMAPHORE_TMP_PATH}/config.stdin"
     $1 setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
-    echoerr "Run Semaphore with semaphore --config ${SEMAPHORE_CONFIG_PATH}/config.json"
+    echoerr "Run Semaphore with semaphore server --config ${SEMAPHORE_CONFIG_PATH}/config.json"
 fi
 
 # run our command
