@@ -342,11 +342,6 @@ func TestBoltDb_CreateAPIToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tokens, err = store.GetAPITokens(user.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	token2, err = store.GetAPIToken(token.ID)
 	if err != nil {
 		t.Fatal(err)
