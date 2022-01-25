@@ -204,13 +204,19 @@ func (key *AccessKey) SerializeSecret() error {
 		return nil
 	}
 
-	if util.Config.AccessKeyEncryption == "" {
+	encryptionString := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
+
+	if encryptionString == "" {
+		encryptionString = util.Config.AccessKeyEncryption
+	}
+
+	if encryptionString == "" {
 		secret := base64.StdEncoding.EncodeToString(plaintext)
 		key.Secret = &secret
 		return nil
 	}
 
-	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
+	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
 
 	if err != nil {
 		return err
