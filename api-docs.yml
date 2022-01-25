@@ -253,6 +253,10 @@ definitions:
           type: integer
         git_url:
           type: string
+          example: git@example.com
+        git_branch:
+          type: string
+          example: master
         ssh_key_id:
           type: integer
   Repository:
@@ -267,6 +271,7 @@ definitions:
         type: integer
       git_url:
         type: string
+        example: git@example.com
       git_branch:
         type: string
         example: master
