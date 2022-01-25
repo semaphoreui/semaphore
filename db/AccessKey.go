@@ -89,7 +89,7 @@ func (key *AccessKey) Install(usage AccessKeyUsage) error {
 		if key.SshKey.Passphrase != "" {
 			return fmt.Errorf("ssh key with passphrase not supported")
 		}
-		return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+		return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 	case AccessKeyUsageVault:
 		switch key.Type {
 		case AccessKeyLoginPassword:
@@ -116,7 +116,7 @@ func (key *AccessKey) Install(usage AccessKeyUsage) error {
 			if key.SshKey.Passphrase != "" {
 				return fmt.Errorf("ssh key with passphrase not supported")
 			}
-			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
 			content["ansible_user"] = key.LoginPassword.Login
@@ -283,7 +283,13 @@ func (key *AccessKey) DeserializeSecret() error {
 		return err
 	}
 
-	if util.Config.AccessKeyEncryption == "" {
+	encryptionString := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
+
+	if encryptionString == "" {
+		encryptionString = util.Config.AccessKeyEncryption
+	}
+
+	if encryptionString == "" {
 		err = key.unmarshalAppropriateField(ciphertext)
 		if _, ok := err.(*json.SyntaxError); ok {
 			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
@@ -291,7 +297,7 @@ func (key *AccessKey) DeserializeSecret() error {
 		return err
 	}
 
-	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
+	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
 	if err != nil {
 		return err
 	}

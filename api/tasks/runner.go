@@ -804,34 +804,6 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
-	//if util.Config.VariablesPassingMethod == util.VariablesPassingBoth ||
-	//	util.Config.VariablesPassingMethod == util.VariablesPassingEnv {
-	//
-	//	if t.task.Message != "" {
-	//		env = append(env, "SEMAPHORE_TASK_MESSAGE="+t.task.Message)
-	//	}
-	//
-	//	if t.task.UserID != nil {
-	//		user, err := t.store.GetUser(*t.task.UserID)
-	//		if err != nil {
-	//			panic("Deploy task can't find user")
-	//		}
-	//		env = append(env, "SEMAPHORE_TASK_USERNAME="+user.Username)
-	//	}
-	//
-	//	if t.template.Type != db.TemplateTask {
-	//		env = append(env, "SEMAPHORE_TASK_TYPE="+string(t.template.Type))
-	//		incomingVersion, err := t.task.GetIncomingVersion(t.store)
-	//		if err != nil {
-	//			panic("Deploy task has no build task")
-	//		}
-	//		env = append(env, "SEMAPHORE_INCOMING_VERSION="+incomingVersion)
-	//		if t.template.Type == db.TemplateBuild {
-	//			env = append(env, "SEMAPHORE_TARGET_VERSION="+*t.task.Migration)
-	//		}
-	//	}
-	//}
-
 	if gitSSHCommand != "" {
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
 	}
