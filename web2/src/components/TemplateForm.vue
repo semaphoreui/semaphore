@@ -187,22 +187,6 @@
 
         <SurveyVars :vars="item.survey_vars" @change="setSurveyVars"/>
 
-        <!--
-                <codemirror
-                    :style="{ border: '1px solid lightgray' }"
-                    v-model="item.arguments"
-                    :options="cmOptions"
-                    :disabled="formSaving"
-                    placeholder='Enter extra CLI Arguments...
-        Example:
-        [
-          "-i",
-          "@myinventory.sh",
-          "--private-key=/there/id_rsa",
-          "-vvvv"
-        ]'
-                />
-        -->
         <v-select
           v-model="item.view_id"
           label="View (Optional)"
@@ -234,20 +218,44 @@
           :disabled="formSaving"
         ></v-select>
 
+        <a @click="advancedOptions = true" v-if="!advancedOptions">
+          Advanced<v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
+        </a>
+
+        <codemirror
+          v-if="advancedOptions"
+          :style="{ border: '1px solid lightgray' }"
+          v-model="item.arguments"
+          :options="cmOptions"
+          :disabled="formSaving"
+          placeholder='Enter extra CLI Arguments...
+Example:
+[
+  "-i",
+  "@myinventory.sh",
+  "--private-key=/there/id_rsa",
+  "-vvvv"
+]'
+        />
       </v-col>
     </v-row>
   </v-form>
 </template>
+<style lang="scss">
+.CodeMirror-placeholder {
+  color: #a4a4a4 !important;
+}
+</style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
-// import { codemirror } from 'vue-codemirror';
+import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
-// import 'codemirror/addon/lint/json-lint.js';
+import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
 import SurveyVars from './SurveyVars';
@@ -257,7 +265,7 @@ export default {
 
   components: {
     SurveyVars,
-    // codemirror,
+    codemirror,
   },
 
   props: {
@@ -289,6 +297,8 @@ export default {
 
       helpDialog: null,
       helpKey: null,
+
+      advancedOptions: false,
     };
   },
 
