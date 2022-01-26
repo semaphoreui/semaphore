@@ -782,17 +782,24 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 	if t.template.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
 		if err != nil {
-			t.log("Could not unmarshal arguments to []string")
+			t.log("Invalid format of the template extra arguments, must be valid JSON")
 			return
 		}
 	}
 
-	if t.template.OverrideArguments {
-		args = templateExtraArgs
-	} else {
-		args = append(args, templateExtraArgs...)
-		args = append(args, playbookName)
+	var taskExtraArgs []string
+
+	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
+		if err != nil {
+			t.log("Invalid format of the task extra arguments, must be valid JSON")
+			return
+		}
 	}
+
+	args = append(args, templateExtraArgs...)
+	args = append(args, taskExtraArgs...)
+	args = append(args, playbookName)
 
 	return
 }

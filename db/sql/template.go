@@ -16,7 +16,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
-			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version,"+
+			"alias, playbook, arguments, allow_override_args_in_task, description, vault_key_id, `type`, start_version,"+
 			"build_template_id, view_id, autorun, survey_vars)"+
 			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
@@ -26,7 +26,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.Alias,
 		template.Playbook,
 		template.Arguments,
-		template.OverrideArguments,
+		template.AllowOverrideArgsInTask,
 		template.Description,
 		template.VaultKeyID,
 		template.Type,
@@ -66,7 +66,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"alias=?, "+
 		"playbook=?, "+
 		"arguments=?, "+
-		"override_args=?, "+
+		"allow_override_args_in_task=?, "+
 		"description=?, "+
 		"vault_key_id=?, "+
 		"`type`=?, "+
@@ -82,7 +82,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.Alias,
 		template.Playbook,
 		template.Arguments,
-		template.OverrideArguments,
+		template.AllowOverrideArgsInTask,
 		template.Description,
 		template.VaultKeyID,
 		template.Type,
@@ -106,7 +106,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.alias",
 		"pt.playbook",
 		"pt.arguments",
-		"pt.override_args",
+		"pt.allow_override_args_in_task",
 		"pt.vault_key_id",
 		"pt.view_id",
 		"pt.`type`").

@@ -338,8 +338,9 @@ definitions:
       description:
         type: string
         example: Hello, World!
-      override_args:
+      allow_override_args_in_task:
         type: boolean
+        example: false
   Template:
     type: object
     properties:
@@ -372,8 +373,9 @@ definitions:
       description:
         type: string
         example: Hello, World!
-      override_args:
+      allow_override_args_in_task:
         type: boolean
+        example: false
 
   ScheduleRequest:
     type: object
