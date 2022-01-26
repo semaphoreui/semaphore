@@ -90,7 +90,7 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (new
 		if err != nil {
 			return
 		}
-		if len(builds) == 0 {
+		if len(builds) == 0 || builds[0].Version == nil {
 			taskObj.Version = tpl.StartVersion
 		} else {
 			v := getNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
@@ -180,7 +180,7 @@ func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 	str := r.URL.Query().Get("limit")
 	limit, err := strconv.Atoi(str)
-	if  err != nil || limit <= 0 || limit > 200 {
+	if err != nil || limit <= 0 || limit > 200 {
 		limit = 200
 	}
 	GetTasksList(w, r, uint64(limit))
