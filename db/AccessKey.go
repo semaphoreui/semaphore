@@ -204,11 +204,7 @@ func (key *AccessKey) SerializeSecret() error {
 		return nil
 	}
 
-	encryptionString := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
-
-	if encryptionString == "" {
-		encryptionString = util.Config.AccessKeyEncryption
-	}
+	encryptionString := util.Config.GetAccessKeyEncryption()
 
 	if encryptionString == "" {
 		secret := base64.StdEncoding.EncodeToString(plaintext)
@@ -289,11 +285,7 @@ func (key *AccessKey) DeserializeSecret() error {
 		return err
 	}
 
-	encryptionString := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
-
-	if encryptionString == "" {
-		encryptionString = util.Config.AccessKeyEncryption
-	}
+	encryptionString := util.Config.GetAccessKeyEncryption()
 
 	if encryptionString == "" {
 		err = key.unmarshalAppropriateField(ciphertext)

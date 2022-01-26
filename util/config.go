@@ -69,8 +69,11 @@ type ConfigType struct {
 	TmpPath string `json:"tmp_path"`
 
 	// cookie hashing & encryption
-	CookieHash          string `json:"cookie_hash"`
-	CookieEncryption    string `json:"cookie_encryption"`
+	CookieHash       string `json:"cookie_hash"`
+	CookieEncryption string `json:"cookie_encryption"`
+	// AccessKeyEncryption is BASE64 encoded byte array used
+	// for encrypting and decrypting access keys stored in database.
+	// Do not use it! Use method GetAccessKeyEncryption instead of it.
 	AccessKeyEncryption string `json:"access_key_encryption"`
 
 	// email alerting
@@ -120,6 +123,16 @@ var Config *ConfigType
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
+}
+
+func (conf *ConfigType) GetAccessKeyEncryption() string {
+	ret := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
+
+	if ret == "" {
+		ret = conf.AccessKeyEncryption
+	}
+
+	return ret
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
