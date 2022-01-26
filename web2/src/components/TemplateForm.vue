@@ -219,7 +219,8 @@
         ></v-select>
 
         <a @click="advancedOptions = true" v-if="!advancedOptions">
-          Advanced<v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
+          Advanced
+          <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
         </a>
 
         <codemirror
@@ -236,6 +237,13 @@ Example:
   "--private-key=/there/id_rsa",
   "-vvvv"
 ]'
+        />
+
+        <v-checkbox
+          v-if="advancedOptions"
+          class="mt-0"
+          label="Allow override in task"
+          v-model="item.allow_override_args_in_task"
         />
       </v-col>
     </v-row>
@@ -361,6 +369,8 @@ export default {
           responseType: 'json',
         })).data;
       }
+
+      this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;
 
       this.keys = (await axios({
         keys: 'get',

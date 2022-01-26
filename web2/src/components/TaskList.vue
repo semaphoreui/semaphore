@@ -21,10 +21,7 @@
             @error="onError"
             :need-save="needSave"
             :need-reset="needReset"
-            :commit-hash="sourceTask == null ? null : sourceTask.commit_hash"
-            :commit-message="sourceTask == null ? null : sourceTask.commit_message"
-            :build-task="sourceTask == null ? null : sourceTask.build_task"
-            :environment="sourceTask == null ? null : sourceTask.environment"
+            :source-task="sourceTask"
         />
       </template>
     </EditDialog>
