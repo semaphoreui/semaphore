@@ -100,7 +100,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "template":
 			res, err := store.Sql().Exec(
 				"insert into project__template "+
-					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, override_args, description, view_id) "+
+					"(project_id, inventory_id, repository_id, environment_id, alias, playbook, arguments, allow_override_args_in_task, description, view_id) "+
 					"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!", view.ID)
 			printError(err)

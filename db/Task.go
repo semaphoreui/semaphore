@@ -27,6 +27,8 @@ type Task struct {
 
 	Message string `db:"message" json:"message"`
 
+	// CommitMessage is a git commit hash of playbook repository which
+	// was active when task was created.
 	CommitHash *string `db:"commit_hash" json:"commit_hash"`
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
 	// It is readonly by API.
@@ -37,6 +39,8 @@ type Task struct {
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version"`
+
+	Arguments *string `db:"arguments" json:"arguments"`
 }
 
 func (task *Task) GetIncomingVersion(d Store) *string {

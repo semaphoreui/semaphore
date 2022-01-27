@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -47,11 +46,11 @@ type task struct {
 }
 
 func (t *task) getRepoName() string {
-	return "repository_" + strconv.Itoa(t.repository.ID) + "_" + strconv.Itoa(t.template.ID)
+	return t.repository.GetDirName(t.template.ID)
 }
 
 func (t *task) getRepoPath() string {
-	return path.Join(util.Config.TmpPath, t.getRepoName())
+	return t.repository.GetPath(t.template.ID)
 }
 
 func (t *task) validateRepo() error {
@@ -534,7 +533,7 @@ func (t *task) canRepositoryBePulled() bool {
 func (t *task) cloneRepository() error {
 	cmd := t.makeGitCommand(util.Config.TmpPath)
 	t.log("Cloning repository " + t.repository.GitURL)
-	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GitURL, t.getRepoName())
+	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GetGitURL(), t.getRepoName())
 	t.logCmd(cmd)
 	return cmd.Run()
 }
@@ -782,17 +781,24 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 	if t.template.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
 		if err != nil {
-			t.log("Could not unmarshal arguments to []string")
+			t.log("Invalid format of the template extra arguments, must be valid JSON")
 			return
 		}
 	}
 
-	if t.template.OverrideArguments {
-		args = templateExtraArgs
-	} else {
-		args = append(args, templateExtraArgs...)
-		args = append(args, playbookName)
+	var taskExtraArgs []string
+
+	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
+		if err != nil {
+			t.log("Invalid format of the task extra arguments, must be valid JSON")
+			return
+		}
 	}
+
+	args = append(args, templateExtraArgs...)
+	args = append(args, taskExtraArgs...)
+	args = append(args, playbookName)
 
 	return
 }
@@ -802,6 +808,7 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
+	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
 	if gitSSHCommand != "" {

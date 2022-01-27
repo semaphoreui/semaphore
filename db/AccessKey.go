@@ -16,10 +16,13 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+type AccessKeyType string
+
 const (
-	AccessKeySSH           = "ssh"
-	AccessKeyNone          = "none"
-	AccessKeyLoginPassword = "login_password"
+	AccessKeySSH           AccessKeyType = "ssh"
+	AccessKeyNone          AccessKeyType = "none"
+	AccessKeyLoginPassword AccessKeyType = "login_password"
+	AccessKeyPAT           AccessKeyType = "pat"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -27,7 +30,7 @@ type AccessKey struct {
 	ID   int    `db:"id" json:"id"`
 	Name string `db:"name" json:"name" binding:"required"`
 	// 'ssh/login_password/none'
-	Type string `db:"type" json:"type" binding:"required"`
+	Type AccessKeyType `db:"type" json:"type" binding:"required"`
 
 	ProjectID *int `db:"project_id" json:"project_id"`
 
@@ -39,6 +42,7 @@ type AccessKey struct {
 
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
+	PAT            string        `db:"-" json:"pat"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
 
 	InstallationKey int64 `db:"-" json:"-"`
@@ -199,9 +203,13 @@ func (key *AccessKey) SerializeSecret() error {
 		if err != nil {
 			return err
 		}
-	default:
+	case AccessKeyPAT:
+		plaintext = []byte(key.PAT)
+	case AccessKeyNone:
 		key.Secret = nil
 		return nil
+	default:
+		return fmt.Errorf("invalid access token type")
 	}
 
 	encryptionString := util.Config.GetAccessKeyEncryption()
@@ -253,6 +261,8 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 		if err == nil {
 			key.LoginPassword = loginPass
 		}
+	case AccessKeyPAT:
+		key.PAT = string(secret)
 	}
 	return
 }
@@ -261,6 +271,7 @@ func (key *AccessKey) ResetSecret() {
 	//key.Secret = nil
 	key.LoginPassword = LoginPassword{}
 	key.SshKey = SshKey{}
+	key.PAT = ""
 }
 
 func (key *AccessKey) DeserializeSecret() error {
