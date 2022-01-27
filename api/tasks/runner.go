@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -47,11 +46,11 @@ type task struct {
 }
 
 func (t *task) getRepoName() string {
-	return "repository_" + strconv.Itoa(t.repository.ID) + "_" + strconv.Itoa(t.template.ID)
+	return t.repository.GetDirName(t.template.ID)
 }
 
 func (t *task) getRepoPath() string {
-	return path.Join(util.Config.TmpPath, t.getRepoName())
+	return t.repository.GetPath(t.template.ID)
 }
 
 func (t *task) validateRepo() error {
@@ -534,7 +533,7 @@ func (t *task) canRepositoryBePulled() bool {
 func (t *task) cloneRepository() error {
 	cmd := t.makeGitCommand(util.Config.TmpPath)
 	t.log("Cloning repository " + t.repository.GitURL)
-	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GitURL, t.getRepoName())
+	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GetGitURL(), t.getRepoName())
 	t.logCmd(cmd)
 	return cmd.Run()
 }

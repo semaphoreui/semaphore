@@ -111,7 +111,21 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {
+	repos, err := helpers.Store(r).GetRepositories(*key.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	for _, repo := range repos {
+		if repo.SSHKeyID != key.ID {
+			continue
+		}
+		repo.ClearCache()
+	}
+
+	err = helpers.Store(r).UpdateAccessKey(key)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -121,7 +135,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	desc := "Access Key " + key.Name + " updated"
 	objType := db.EventKey
 
-	_, err := helpers.Store(r).CreateEvent(db.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
