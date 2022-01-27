@@ -9,11 +9,13 @@ import (
 	"strings"
 )
 
+type RepositorySchema string
+
 const (
-	RepositoryGit   = "git"
-	RepositorySSH   = "ssh"
-	RepositoryHTTPS = "https"
-	RepositoryFile  = "file"
+	RepositoryGit   RepositorySchema = "git"
+	RepositorySSH   RepositorySchema = "ssh"
+	RepositoryHTTPS RepositorySchema = "https"
+	RepositoryFile  RepositorySchema = "file"
 )
 
 // Repository is the model for code stored in a git repository
@@ -69,19 +71,31 @@ func (r Repository) GetPath(templateID int) string {
 
 func (r Repository) GetGitURL() string {
 	url := r.GitURL
-	if r.getSchema() == RepositoryHTTPS && r.SSHKey.Type == AccessKeyLoginPassword {
-		url = "https://" + r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password + "@" + r.GitURL[5:]
+
+	if r.getSchema() == RepositoryHTTPS {
+		auth := ""
+		switch r.SSHKey.Type {
+		case AccessKeyLoginPassword:
+			auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
+		case AccessKeyPAT:
+			auth = r.SSHKey.PAT
+		}
+		if auth != "" {
+			auth += "@"
+		}
+		url = "https://" + auth + r.GitURL[8:]
 	}
+
 	return url
 }
 
-func (r Repository) getSchema() string {
+func (r Repository) getSchema() RepositorySchema {
 	re := regexp.MustCompile(`^(\w+)://`)
 	m := re.FindStringSubmatch(r.GitURL)
 	if m == nil {
 		return RepositoryFile
 	}
-	return m[1]
+	return RepositorySchema(m[1])
 }
 
 func (r Repository) Validate() error {

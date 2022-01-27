@@ -121,7 +121,11 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		if repo.SSHKeyID != key.ID {
 			continue
 		}
-		repo.ClearCache()
+		err = repo.ClearCache()
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
 	}
 
 	err = helpers.Store(r).UpdateAccessKey(key)

@@ -64,6 +64,13 @@
         autocomplete="new-password"
     />
 
+    <v-text-field
+      v-model="item.pat"
+      label="Personal access token"
+      v-if="item.type === 'pat'"
+      :disabled="formSaving || !canEditSecrets"
+    />
+
     <v-checkbox
         v-model="item.override_secret"
         label="Override"
@@ -95,6 +102,9 @@ export default {
         id: 'login_password',
         name: 'Login with password',
       }, {
+        id: 'pat',
+        name: 'Personal access tokens',
+      }, {
         id: 'none',
         name: 'None',
       }],
@@ -112,6 +122,7 @@ export default {
       return {
         ssh: {},
         login_password: {},
+        pat: '',
       };
     },
 

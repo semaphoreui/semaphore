@@ -808,6 +808,7 @@ func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
+	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
 
 	if gitSSHCommand != "" {

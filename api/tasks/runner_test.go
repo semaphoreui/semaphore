@@ -31,6 +31,7 @@ func TestPopulateDetails(t *testing.T) {
 
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
 	})
 	if err != nil {
 		t.Fatal(err)
