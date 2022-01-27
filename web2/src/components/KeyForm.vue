@@ -103,7 +103,7 @@ export default {
         name: 'Login with password',
       }, {
         id: 'pat',
-        name: 'Personal access tokens',
+        name: 'Personal access token',
       }, {
         id: 'none',
         name: 'None',
