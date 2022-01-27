@@ -57,7 +57,7 @@ Login / password: `demo / demo`.
 
 Admin and user docs: https://docs.ansible-semaphore.com
 
-API docs: https://ansible-semaphore.github.io/semaphore
+API docs: https://ansible-semaphore.com/api
 
 ## Contributing
 
