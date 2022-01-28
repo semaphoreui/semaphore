@@ -86,7 +86,7 @@ func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (new
 
 	if tpl.Type == db.TemplateBuild { // get next version for task if it is a Build
 		var builds []db.TaskWithTpl
-		builds, err = d.GetTemplateTasks(tpl, db.RetrieveQueryParams{Count: 1})
+		builds, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, db.RetrieveQueryParams{Count: 1})
 		if err != nil {
 			return
 		}
@@ -153,7 +153,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 	var tasks []db.TaskWithTpl
 
 	if tpl != nil {
-		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template), db.RetrieveQueryParams{
+		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template).ProjectID, tpl.(db.Template).ID, db.RetrieveQueryParams{
 			Count: int(limit),
 		})
 	} else {

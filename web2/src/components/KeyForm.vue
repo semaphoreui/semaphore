@@ -31,12 +31,12 @@
         :disabled="formSaving || !canEditSecrets"
     />
 
-    <v-text-field
-        v-model="item.login_password.passphrase"
-        label="Passphrase (Optional)"
-        v-if="item.type === 'ssh'"
-        :disabled="formSaving || !canEditSecrets"
-    />
+<!--    <v-text-field-->
+<!--        v-model="item.login_password.passphrase"-->
+<!--        label="Passphrase (Optional)"-->
+<!--        v-if="item.type === 'ssh'"-->
+<!--        :disabled="formSaving || !canEditSecrets"-->
+<!--    />-->
 
     <v-textarea
         outlined

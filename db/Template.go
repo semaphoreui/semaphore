@@ -97,7 +97,7 @@ func FillTemplates(d Store, templates []Template) (err error) {
 	for i := range templates {
 		tpl := &templates[i]
 		var tasks []TaskWithTpl
-		tasks, err = d.GetTemplateTasks(*tpl, RetrieveQueryParams{Count: 1})
+		tasks, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, RetrieveQueryParams{Count: 1})
 		if err != nil {
 			return
 		}
