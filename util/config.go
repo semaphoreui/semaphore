@@ -83,6 +83,9 @@ type ConfigType struct {
 	EmailUsername string `json:"email_username"`
 	EmailPassword string `json:"email_password"`
 
+	// Audit Log
+	AuditLogURL string `json:"audit_log_url"`
+
 	// web host
 	WebHost string `json:"web_host"`
 
@@ -111,6 +114,7 @@ type ConfigType struct {
 	TelegramAlert bool `json:"telegram_alert"`
 	LdapEnable    bool `json:"ldap_enable"`
 	LdapNeedTLS   bool `json:"ldap_needtls"`
+	AuditLog      bool `json:"audit_log"`
 
 	SshConfigPath string `json:"ssh_config_path"`
 

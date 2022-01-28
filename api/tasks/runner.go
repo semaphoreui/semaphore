@@ -99,7 +99,7 @@ func (t *task) updateStatus() {
 
 		sockets.Message(user, b)
 	}
-
+	t.sendAuditLog()
 	if err := t.store.UpdateTask(t.task); err != nil {
 		t.panicOnError(err, "Failed to update task status")
 	}
