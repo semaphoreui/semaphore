@@ -14,6 +14,9 @@ func (d Migration_2_8_28) getProjectRepositories(projectID string) (map[string]m
 	repos := make(map[string]map[string]interface{})
 	err := d.DB.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__repository_" + projectID))
+		if b == nil {
+			return nil
+		}
 		return b.ForEach(func(id, body []byte) error {
 			r := make(map[string]interface{})
 			repos[string(id)] = r
@@ -25,7 +28,10 @@ func (d Migration_2_8_28) getProjectRepositories(projectID string) (map[string]m
 
 func (d Migration_2_8_28) setProjectRepository(projectID string, repoID string, repo map[string]interface{}) error {
 	return d.DB.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("project__repository_" + projectID))
+		b, err := tx.CreateBucketIfNotExists([]byte("project__repository_" + projectID))
+		if err != nil {
+			return err
+		}
 		j, err := json.Marshal(repo)
 		if err != nil {
 			return err
