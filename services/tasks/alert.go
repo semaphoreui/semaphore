@@ -29,7 +29,7 @@ type Alert struct {
 	Author          string
 }
 
-func (t *task) sendMailAlert() {
+func (t *TaskRunner) sendMailAlert() {
 	if !util.Config.EmailAlert || !t.alert {
 		return
 	}
@@ -49,7 +49,7 @@ func (t *task) sendMailAlert() {
 	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
 	for _, user := range t.users {
-		userObj, err := t.store.GetUser(user)
+		userObj, err := t.pool.store.GetUser(user)
 
 		if !userObj.Alert {
 			return
@@ -66,7 +66,7 @@ func (t *task) sendMailAlert() {
 	}
 }
 
-func (t *task) sendTelegramAlert() {
+func (t *TaskRunner) sendTelegramAlert() {
 	if !util.Config.TelegramAlert || !t.alert {
 		return
 	}
@@ -94,7 +94,7 @@ func (t *task) sendTelegramAlert() {
 
 	var author string
 	if t.task.UserID != nil {
-		user, err := t.store.GetUser(*t.task.UserID)
+		user, err := t.pool.store.GetUser(*t.task.UserID)
 		if err != nil {
 			panic(err)
 		}

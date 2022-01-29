@@ -77,8 +77,10 @@ func TestPopulateDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tsk := task{
-		store:     &store,
+	pool := TaskPool{store: &store}
+
+	tsk := TaskRunner{
+		pool:      &pool,
 		projectID: proj.ID,
 		task: db.Task{
 			TemplateID:  tpl.ID,
@@ -102,7 +104,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 
 	inventoryID := 1
 
-	tsk := task{
+	tsk := TaskRunner{
 		task: db.Task{},
 		inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
@@ -135,7 +137,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 
 	inventoryID := 1
 
-	tsk := task{
+	tsk := TaskRunner{
 		task: db.Task{},
 		inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
@@ -172,7 +174,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 
 	inventoryID := 1
 
-	tsk := task{
+	tsk := TaskRunner{
 		task: db.Task{},
 		inventory: db.Inventory{
 			BecomeKeyID: &inventoryID,

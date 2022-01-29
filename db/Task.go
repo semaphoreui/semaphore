@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+const (
+	TaskRunningStatus  = "running"
+	TaskWaitingStatus  = "waiting"
+	TaskStoppingStatus = "stopping"
+	TaskStoppedStatus  = "stopped"
+	TaskSuccessStatus  = "success"
+	TaskFailStatus     = "error"
+)
+
 //Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`

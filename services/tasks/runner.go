@@ -2,8 +2,10 @@ package tasks
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,24 +15,16 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const (
-	taskRunningStatus  = "running"
-	taskWaitingStatus  = "waiting"
-	taskStoppingStatus = "stopping"
-	taskStoppedStatus  = "stopped"
-	taskSuccessStatus  = "success"
-	taskFailStatus     = "error"
-	gitURLFilePrefix   = "file://"
+	gitURLFilePrefix = "file://"
 )
 
-type task struct {
-	store       db.Store
+type TaskRunner struct {
 	task        db.Task
 	template    db.Template
 	inventory   db.Inventory
@@ -43,29 +37,44 @@ type task struct {
 	alert       bool
 	prepared    bool
 	process     *os.Process
+	pool        *TaskPool
 }
 
-func (t *task) getRepoName() string {
+func getMD5Hash(filepath string) (string, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func (t *TaskRunner) getRepoName() string {
 	return t.repository.GetDirName(t.template.ID)
 }
 
-func (t *task) getRepoPath() string {
+func (t *TaskRunner) getRepoPath() string {
 	return t.repository.GetPath(t.template.ID)
 }
 
-func (t *task) validateRepo() error {
+func (t *TaskRunner) validateRepo() error {
 	_, err := os.Stat(t.getRepoPath())
 	return err
 }
 
-func (t *task) setStatus(status string) {
-	if t.task.Status == taskStoppingStatus {
+func (t *TaskRunner) setStatus(status string) {
+	if t.task.Status == db.TaskStoppingStatus {
 		switch status {
-		case taskFailStatus:
-			status = taskStoppedStatus
-		case taskStoppedStatus:
+		case db.TaskFailStatus:
+			status = db.TaskStoppedStatus
+		case db.TaskStoppedStatus:
 		default:
-			panic("stopping task cannot be " + status)
+			panic("stopping TaskRunner cannot be " + status)
 		}
 	}
 
@@ -73,16 +82,16 @@ func (t *task) setStatus(status string) {
 
 	t.updateStatus()
 
-	if status == taskFailStatus {
+	if status == db.TaskFailStatus {
 		t.sendMailAlert()
 	}
 
-	if status == taskSuccessStatus || status == taskFailStatus {
+	if status == db.TaskSuccessStatus || status == db.TaskFailStatus {
 		t.sendTelegramAlert()
 	}
 }
 
-func (t *task) updateStatus() {
+func (t *TaskRunner) updateStatus() {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
 			"type":        "update",
@@ -100,16 +109,16 @@ func (t *task) updateStatus() {
 		sockets.Message(user, b)
 	}
 
-	if err := t.store.UpdateTask(t.task); err != nil {
-		t.panicOnError(err, "Failed to update task status")
+	if err := t.pool.store.UpdateTask(t.task); err != nil {
+		t.panicOnError(err, "Failed to update TaskRunner status")
 	}
 }
 
-func (t *task) fail() {
-	t.setStatus(taskFailStatus)
+func (t *TaskRunner) fail() {
+	t.setStatus(db.TaskFailStatus)
 }
 
-func (t *task) destroyKeys() {
+func (t *TaskRunner) destroyKeys() {
 	err := t.repository.SSHKey.Destroy()
 	if err != nil {
 		t.log("Can't destroy repository key, error: " + err.Error())
@@ -131,11 +140,11 @@ func (t *task) destroyKeys() {
 	}
 }
 
-func (t *task) createTaskEvent() {
+func (t *TaskRunner) createTaskEvent() {
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
-	_, err := t.store.CreateEvent(db.Event{
+	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
@@ -148,12 +157,12 @@ func (t *task) createTaskEvent() {
 	}
 }
 
-func (t *task) prepareRun() {
+func (t *TaskRunner) prepareRun() {
 	t.prepared = false
 
 	defer func() {
-		log.Info("Stopped preparing task " + strconv.Itoa(t.task.ID))
-		log.Info("Release resource locker with task " + strconv.Itoa(t.task.ID))
+		log.Info("Stopped preparing TaskRunner " + strconv.Itoa(t.task.ID))
+		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		t.createTaskEvent()
@@ -176,7 +185,7 @@ func (t *task) prepareRun() {
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
-	_, err = t.store.CreateEvent(db.Event{
+	_, err = t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
@@ -189,7 +198,7 @@ func (t *task) prepareRun() {
 		panic(err)
 	}
 
-	t.log("Prepare task with template: " + t.template.Alias + "\n")
+	t.log("Prepare TaskRunner with template: " + t.template.Alias + "\n")
 
 	t.updateStatus()
 
@@ -250,10 +259,10 @@ func (t *task) prepareRun() {
 	t.prepared = true
 }
 
-func (t *task) run() {
+func (t *TaskRunner) run() {
 	defer func() {
-		log.Info("Stopped running task " + strconv.Itoa(t.task.ID))
-		log.Info("Release resource locker with task " + strconv.Itoa(t.task.ID))
+		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.task.ID))
+		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
 		resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()
@@ -263,19 +272,19 @@ func (t *task) run() {
 		t.destroyKeys()
 	}()
 
-	if t.task.Status == taskStoppingStatus {
-		t.setStatus(taskStoppedStatus)
+	if t.task.Status == db.TaskStoppingStatus {
+		t.setStatus(db.TaskStoppedStatus)
 		return
 	}
 
 	now := time.Now()
 	t.task.Start = &now
-	t.setStatus(taskRunningStatus)
+	t.setStatus(db.TaskRunningStatus)
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
 
-	_, err := t.store.CreateEvent(db.Event{
+	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
 		ProjectID:   &t.projectID,
 		ObjectType:  &objType,
@@ -289,10 +298,10 @@ func (t *task) run() {
 	}
 
 	t.log("Started: " + strconv.Itoa(t.task.ID))
-	t.log("Run task with template: " + t.template.Alias + "\n")
+	t.log("Run TaskRunner with template: " + t.template.Alias + "\n")
 
-	if t.task.Status == taskStoppingStatus {
-		t.setStatus(taskStoppedStatus)
+	if t.task.Status == db.TaskStoppingStatus {
+		t.setStatus(db.TaskStoppedStatus)
 		return
 	}
 
@@ -303,9 +312,9 @@ func (t *task) run() {
 		return
 	}
 
-	t.setStatus(taskSuccessStatus)
+	t.setStatus(db.TaskSuccessStatus)
 
-	templates, err := t.store.GetTemplates(t.task.ProjectID, db.TemplateFilter{
+	templates, err := t.pool.store.GetTemplates(t.task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.task.TemplateID,
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
@@ -315,18 +324,20 @@ func (t *task) run() {
 	}
 
 	for _, tpl := range templates {
-		_, err = AddTaskToPool(t.store, db.Task{
+		_, err = t.pool.AddTask(db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.task.ID,
 		}, nil, tpl.ProjectID)
 		if err != nil {
 			t.log("Running playbook failed: " + err.Error())
+			continue
 		}
+
 	}
 }
 
-func (t *task) prepareError(err error, errMsg string) error {
+func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	if err == db.ErrNotFound {
 		t.log(errMsg)
 		return err
@@ -341,17 +352,17 @@ func (t *task) prepareError(err error, errMsg string) error {
 }
 
 //nolint: gocyclo
-func (t *task) populateDetails() error {
+func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
 
-	t.template, err = t.store.GetTemplate(t.projectID, t.task.TemplateID)
+	t.template, err = t.pool.store.GetTemplate(t.projectID, t.task.TemplateID)
 	if err != nil {
 		return t.prepareError(err, "Template not found!")
 	}
 
 	// get project alert setting
-	project, err := t.store.GetProject(t.template.ProjectID)
+	project, err := t.pool.store.GetProject(t.template.ProjectID)
 	if err != nil {
 		return t.prepareError(err, "Project not found!")
 	}
@@ -360,7 +371,7 @@ func (t *task) populateDetails() error {
 	t.alertChat = project.AlertChat
 
 	// get project users
-	users, err := t.store.GetProjectUsers(t.template.ProjectID, db.RetrieveQueryParams{})
+	users, err := t.pool.store.GetProjectUsers(t.template.ProjectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return t.prepareError(err, "Users not found!")
 	}
@@ -371,13 +382,13 @@ func (t *task) populateDetails() error {
 	}
 
 	// get inventory
-	t.inventory, err = t.store.GetInventory(t.template.ProjectID, t.template.InventoryID)
+	t.inventory, err = t.pool.store.GetInventory(t.template.ProjectID, t.template.InventoryID)
 	if err != nil {
 		return t.prepareError(err, "Template Inventory not found!")
 	}
 
 	// get repository
-	t.repository, err = t.store.GetRepository(t.template.ProjectID, t.template.RepositoryID)
+	t.repository, err = t.pool.store.GetRepository(t.template.ProjectID, t.template.RepositoryID)
 
 	if err != nil {
 		return err
@@ -385,7 +396,7 @@ func (t *task) populateDetails() error {
 
 	// get environment
 	if t.template.EnvironmentID != nil {
-		t.environment, err = t.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
+		t.environment, err = t.pool.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
 		if err != nil {
 			return err
 		}
@@ -422,7 +433,7 @@ func (t *task) populateDetails() error {
 	return nil
 }
 
-func (t *task) installVaultKeyFile() error {
+func (t *TaskRunner) installVaultKeyFile() error {
 	if t.template.VaultKeyID == nil {
 		return nil
 	}
@@ -430,8 +441,8 @@ func (t *task) installVaultKeyFile() error {
 	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
 }
 
-func (t *task) checkoutRepository() error {
-	if t.task.CommitHash != nil { // checkout to commit if it is provided for task
+func (t *TaskRunner) checkoutRepository() error {
+	if t.task.CommitHash != nil { // checkout to commit if it is provided for TaskRunner
 		err := t.validateRepo()
 		if err != nil {
 			return err
@@ -445,7 +456,7 @@ func (t *task) checkoutRepository() error {
 		return cmd.Run()
 	}
 
-	// store commit to task table
+	// store commit to TaskRunner table
 
 	commitHash, err := t.getCommitHash()
 	if err != nil {
@@ -455,11 +466,11 @@ func (t *task) checkoutRepository() error {
 	t.task.CommitHash = &commitHash
 	t.task.CommitMessage = commitMessage
 
-	return t.store.UpdateTask(t.task)
+	return t.pool.store.UpdateTask(t.task)
 }
 
-// getCommitHash retrieves current commit hash from task repository
-func (t *task) getCommitHash() (res string, err error) {
+// getCommitHash retrieves current commit hash from TaskRunner repository
+func (t *TaskRunner) getCommitHash() (res string, err error) {
 	err = t.validateRepo()
 	if err != nil {
 		return
@@ -477,8 +488,8 @@ func (t *task) getCommitHash() (res string, err error) {
 	return
 }
 
-// getCommitMessage retrieves current commit message from task repository
-func (t *task) getCommitMessage() (res string, err error) {
+// getCommitMessage retrieves current commit message from TaskRunner repository
+func (t *TaskRunner) getCommitMessage() (res string, err error) {
 	err = t.validateRepo()
 	if err != nil {
 		return
@@ -501,7 +512,7 @@ func (t *task) getCommitMessage() (res string, err error) {
 	return
 }
 
-func (t *task) makeGitCommand(dir string) *exec.Cmd {
+func (t *TaskRunner) makeGitCommand(dir string) *exec.Cmd {
 	var gitSSHCommand string
 	if t.repository.SSHKey.Type == db.AccessKeySSH {
 		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
@@ -514,7 +525,7 @@ func (t *task) makeGitCommand(dir string) *exec.Cmd {
 	return cmd
 }
 
-func (t *task) canRepositoryBePulled() bool {
+func (t *TaskRunner) canRepositoryBePulled() bool {
 	fetchCmd := t.makeGitCommand(t.getRepoPath())
 	fetchCmd.Args = append(fetchCmd.Args, "fetch")
 	t.logCmd(fetchCmd)
@@ -530,7 +541,7 @@ func (t *task) canRepositoryBePulled() bool {
 	return err == nil
 }
 
-func (t *task) cloneRepository() error {
+func (t *TaskRunner) cloneRepository() error {
 	cmd := t.makeGitCommand(util.Config.TmpPath)
 	t.log("Cloning repository " + t.repository.GitURL)
 	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GetGitURL(), t.getRepoName())
@@ -538,7 +549,7 @@ func (t *task) cloneRepository() error {
 	return cmd.Run()
 }
 
-func (t *task) pullRepository() error {
+func (t *TaskRunner) pullRepository() error {
 	cmd := t.makeGitCommand(t.getRepoPath())
 	t.log("Updating repository " + t.repository.GitURL)
 	cmd.Args = append(cmd.Args, "pull", "origin", t.repository.GitBranch)
@@ -546,7 +557,7 @@ func (t *task) pullRepository() error {
 	return cmd.Run()
 }
 
-func (t *task) updateRepository() error {
+func (t *TaskRunner) updateRepository() error {
 	err := t.validateRepo()
 
 	if err != nil {
@@ -574,7 +585,7 @@ func (t *task) updateRepository() error {
 	return t.cloneRepository()
 }
 
-func (t *task) installRequirements() error {
+func (t *TaskRunner) installRequirements() error {
 	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
 	requirementsHashFilePath := fmt.Sprintf("%s/requirements.md5", t.getRepoPath())
 
@@ -602,7 +613,7 @@ func (t *task) installRequirements() error {
 	return nil
 }
 
-func (t *task) runGalaxy(args []string) error {
+func (t *TaskRunner) runGalaxy(args []string) error {
 	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
 	cmd.Dir = t.getRepoPath()
 
@@ -612,7 +623,7 @@ func (t *task) runGalaxy(args []string) error {
 	return cmd.Run()
 }
 
-func (t *task) listPlaybookHosts() (string, error) {
+func (t *TaskRunner) listPlaybookHosts() (string, error) {
 
 	if util.Config.ConcurrencyMode == "project" {
 		return "", nil
@@ -643,7 +654,7 @@ func (t *task) listPlaybookHosts() (string, error) {
 	return errb.String(), err
 }
 
-func (t *task) runPlaybook() (err error) {
+func (t *TaskRunner) runPlaybook() (err error) {
 	args, err := t.getPlaybookArgs()
 	if err != nil {
 		return
@@ -663,7 +674,7 @@ func (t *task) runPlaybook() (err error) {
 	return
 }
 
-func (t *task) getExtraVars() (str string, err error) {
+func (t *TaskRunner) getExtraVars() (str string, err error) {
 	extraVars := make(map[string]interface{})
 
 	if t.environment.JSON != "" {
@@ -683,7 +694,7 @@ func (t *task) getExtraVars() (str string, err error) {
 
 	if t.task.UserID != nil {
 		var user db.User
-		user, err = t.store.GetUser(*t.task.UserID)
+		user, err = t.pool.store.GetUser(*t.task.UserID)
 		if err == nil {
 			taskDetails["username"] = user.Username
 		}
@@ -691,7 +702,7 @@ func (t *task) getExtraVars() (str string, err error) {
 
 	if t.template.Type != db.TemplateTask {
 		taskDetails["type"] = t.template.Type
-		incomingVersion := t.task.GetIncomingVersion(t.store)
+		incomingVersion := t.task.GetIncomingVersion(t.pool.store)
 		if incomingVersion != nil {
 			taskDetails["incoming_version"] = incomingVersion
 		}
@@ -715,7 +726,7 @@ func (t *task) getExtraVars() (str string, err error) {
 }
 
 //nolint: gocyclo
-func (t *task) getPlaybookArgs() (args []string, err error) {
+func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
 	if playbookName == "" {
 		playbookName = t.template.Playbook
@@ -791,7 +802,7 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
 		if err != nil {
-			t.log("Invalid format of the task extra arguments, must be valid JSON")
+			t.log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
 	}
@@ -803,7 +814,7 @@ func (t *task) getPlaybookArgs() (args []string, err error) {
 	return
 }
 
-func (t *task) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
+func (t *TaskRunner) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
@@ -823,7 +834,7 @@ func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePat
 		return true
 	}
 
-	newFileMD5Hash, err := helpers.GetMD5Hash(requirementsFilePath)
+	newFileMD5Hash, err := getMD5Hash(requirementsFilePath)
 	if err != nil {
 		return true
 	}
@@ -832,7 +843,7 @@ func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePat
 }
 
 func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
-	newFileMD5Hash, err := helpers.GetMD5Hash(requirementsFile)
+	newFileMD5Hash, err := getMD5Hash(requirementsFile)
 	if err != nil {
 		return err
 	}

@@ -1,126 +1,14 @@
-package tasks
+package projects
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
-
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"net/http"
+	"strconv"
 )
-
-func getNextBuildVersion(startVersion string, currentVersion string) string {
-	re := regexp.MustCompile(`^(.*[^\d])?(\d+)([^\d].*)?$`)
-	m := re.FindStringSubmatch(startVersion)
-
-	if m == nil {
-		return startVersion
-	}
-
-	var prefix, suffix, body string
-
-	switch len(m) - 1 {
-	case 3:
-		prefix = m[1]
-		body = m[2]
-		suffix = m[3]
-	case 2:
-		if _, err := strconv.Atoi(m[1]); err == nil {
-			body = m[1]
-			suffix = m[2]
-		} else {
-			prefix = m[1]
-			body = m[2]
-		}
-	case 1:
-		body = m[1]
-	default:
-		return startVersion
-	}
-
-	if !strings.HasPrefix(currentVersion, prefix) ||
-		!strings.HasSuffix(currentVersion, suffix) {
-		return startVersion
-	}
-
-	curr, err := strconv.Atoi(currentVersion[len(prefix) : len(currentVersion)-len(suffix)])
-	if err != nil {
-		return startVersion
-	}
-
-	start, err := strconv.Atoi(body)
-	if err != nil {
-		panic(err)
-	}
-
-	var newVer int
-	if start > curr {
-		newVer = start
-	} else {
-		newVer = curr + 1
-	}
-
-	return prefix + strconv.Itoa(newVer) + suffix
-}
-
-func AddTaskToPool(d db.Store, taskObj db.Task, userID *int, projectID int) (newTask db.Task, err error) {
-	taskObj.Created = time.Now()
-	taskObj.Status = taskWaitingStatus
-	taskObj.UserID = userID
-	taskObj.ProjectID = projectID
-
-	tpl, err := d.GetTemplate(projectID, taskObj.TemplateID)
-	if err != nil {
-		return
-	}
-
-	err = taskObj.ValidateNewTask(tpl)
-	if err != nil {
-		return
-	}
-
-	if tpl.Type == db.TemplateBuild { // get next version for task if it is a Build
-		var builds []db.TaskWithTpl
-		builds, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, db.RetrieveQueryParams{Count: 1})
-		if err != nil {
-			return
-		}
-		if len(builds) == 0 || builds[0].Version == nil {
-			taskObj.Version = tpl.StartVersion
-		} else {
-			v := getNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
-			taskObj.Version = &v
-		}
-	}
-
-	newTask, err = d.CreateTask(taskObj)
-	if err != nil {
-		return
-	}
-
-	pool.register <- &task{
-		store:     d,
-		task:      newTask,
-		projectID: projectID,
-	}
-
-	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"
-	_, err = d.CreateEvent(db.Event{
-		UserID:      userID,
-		ProjectID:   &projectID,
-		ObjectType:  &objType,
-		ObjectID:    &newTask.ID,
-		Description: &desc,
-	})
-
-	return
-}
 
 // AddTask inserts a task into the database and returns a header or returns error
 func AddTask(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +21,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask, err := AddTaskToPool(helpers.Store(r), taskObj, &user.ID, project.ID)
+	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID)
 
 	if err != nil {
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
@@ -237,34 +125,15 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 	targetTask := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
-	activeTask := pool.getTask(targetTask.ID)
+	if targetTask.ProjectID != project.ID {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	if activeTask == nil { // task not active, but exists in database
-		activeTask = &task{
-			store:     helpers.Store(r),
-			task:      targetTask,
-			projectID: project.ID,
-		}
-		err := activeTask.populateDetails()
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
-
-		activeTask.setStatus(taskStoppedStatus)
-
-		activeTask.createTaskEvent()
-	} else {
-		if activeTask.task.Status == taskRunningStatus {
-			if activeTask.process == nil {
-				panic("running process can not be nil")
-			}
-
-			if err := activeTask.process.Kill(); err != nil {
-				helpers.WriteError(w, err)
-			}
-		}
-		activeTask.setStatus(taskStoppingStatus)
+	err := helpers.TaskPool(r).StopTask(targetTask)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -276,7 +145,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	editor := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
 
-	activeTask := pool.getTask(targetTask.ID)
+	activeTask := helpers.TaskPool(r).GetTask(targetTask.ID)
 
 	if activeTask != nil {
 		// can't delete task in queue or running

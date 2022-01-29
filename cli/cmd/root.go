@@ -5,10 +5,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/services/schedules"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
@@ -42,7 +42,8 @@ func Execute() {
 
 func runService() {
 	store := createStore()
-	schedulePool := schedules.CreateSchedulePool(store)
+	taskPool := tasks.CreateTaskPool(store)
+	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
 
 	defer store.Close()
 	defer schedulePool.Destroy()
@@ -67,8 +68,8 @@ func runService() {
 	fmt.Printf("Port %v\n", util.Config.Port)
 
 	go sockets.StartWS()
-	go tasks.StartRunner()
 	go schedulePool.Run()
+	go taskPool.Run()
 
 	route := api.Route()
 
@@ -76,6 +77,7 @@ func runService() {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			context.Set(r, "store", store)
 			context.Set(r, "schedule_pool", schedulePool)
+			context.Set(r, "task_pool", &taskPool)
 			next.ServeHTTP(w, r)
 		})
 	})

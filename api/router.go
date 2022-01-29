@@ -9,8 +9,6 @@ import (
 
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
-
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
@@ -128,9 +126,9 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
 	projectUserAPI.Path("/environment").HandlerFunc(projects.AddEnvironment).Methods("POST")
 
-	projectUserAPI.Path("/tasks").HandlerFunc(tasks.GetAllTasks).Methods("GET", "HEAD")
-	projectUserAPI.HandleFunc("/tasks/last", tasks.GetLastTasks).Methods("GET", "HEAD")
-	projectUserAPI.Path("/tasks").HandlerFunc(tasks.AddTask).Methods("POST")
+	projectUserAPI.Path("/tasks").HandlerFunc(projects.GetAllTasks).Methods("GET", "HEAD")
+	projectUserAPI.HandleFunc("/tasks/last", projects.GetLastTasks).Methods("GET", "HEAD")
+	projectUserAPI.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
 
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
@@ -193,17 +191,17 @@ func Route() *mux.Router {
 	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.RemoveTemplate).Methods("DELETE")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
-	projectTmplManagement.HandleFunc("/{template_id}/tasks", tasks.GetAllTasks).Methods("GET")
-	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", tasks.GetLastTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks", projects.GetAllTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", projects.GetLastTasks).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetTemplateSchedules).Methods("GET")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
-	projectTaskManagement.Use(tasks.GetTaskMiddleware)
+	projectTaskManagement.Use(projects.GetTaskMiddleware)
 
-	projectTaskManagement.HandleFunc("/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD")
-	projectTaskManagement.HandleFunc("/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
-	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
-	projectTaskManagement.HandleFunc("/{task_id}/stop", tasks.StopTask).Methods("POST")
+	projectTaskManagement.HandleFunc("/{task_id}/output", projects.GetTaskOutput).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", projects.GetTask).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", projects.RemoveTask).Methods("DELETE")
+	projectTaskManagement.HandleFunc("/{task_id}/stop", projects.StopTask).Methods("POST")
 
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)

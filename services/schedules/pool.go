@@ -2,30 +2,32 @@ package schedules
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
 	"sync"
 )
 
 type ScheduleRunner struct {
-	Store    db.Store
-	Schedule db.Schedule
+	schedule db.Schedule
+	pool     *SchedulePool
 }
 
 func (r ScheduleRunner) Run() {
-	_, err := tasks.AddTaskToPool(r.Store, db.Task{
-		TemplateID: r.Schedule.TemplateID,
-		ProjectID: r.Schedule.ProjectID,
-	}, nil, r.Schedule.ProjectID)
+	_, err := r.pool.taskPool.AddTask(db.Task{
+		TemplateID: r.schedule.TemplateID,
+		ProjectID:  r.schedule.ProjectID,
+	}, nil, r.schedule.ProjectID)
 	if err != nil {
 		log.Error(err)
 	}
 }
 
 type SchedulePool struct {
-	cron   *cron.Cron
-	locker sync.Locker
+	cron     *cron.Cron
+	locker   sync.Locker
+	store    db.Store
+	taskPool *tasks.TaskPool
 }
 
 func (p *SchedulePool) init() {
@@ -33,10 +35,10 @@ func (p *SchedulePool) init() {
 	p.locker = &sync.Mutex{}
 }
 
-func (p *SchedulePool) Refresh(d db.Store) {
+func (p *SchedulePool) Refresh() {
 	defer p.locker.Unlock()
 
-	schedules, err := d.GetSchedules()
+	schedules, err := p.store.GetSchedules()
 
 	if err != nil {
 		log.Error(err)
@@ -47,8 +49,8 @@ func (p *SchedulePool) Refresh(d db.Store) {
 	p.clear()
 	for _, schedule := range schedules {
 		_, err := p.addRunner(ScheduleRunner{
-			Store:    d,
-			Schedule: schedule,
+			schedule: schedule,
+			pool:     p,
 		})
 		if err != nil {
 			log.Error(err)
@@ -57,7 +59,7 @@ func (p *SchedulePool) Refresh(d db.Store) {
 }
 
 func (p *SchedulePool) addRunner(runner ScheduleRunner) (int, error) {
-	id, err := p.cron.AddJob(runner.Schedule.CronFormat, runner)
+	id, err := p.cron.AddJob(runner.schedule.CronFormat, runner)
 
 	if err != nil {
 		return 0, err
@@ -85,10 +87,14 @@ func (p *SchedulePool) Destroy() {
 	p.cron = nil
 }
 
-func CreateSchedulePool(d db.Store) (pool SchedulePool) {
+func CreateSchedulePool(store db.Store, taskPool *tasks.TaskPool) SchedulePool {
+	pool := SchedulePool{
+		store:    store,
+		taskPool: taskPool,
+	}
 	pool.init()
-	pool.Refresh(d)
-	return
+	pool.Refresh()
+	return pool
 }
 
 func ValidateCronFormat(cronFormat string) error {
