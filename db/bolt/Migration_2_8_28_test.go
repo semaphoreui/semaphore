@@ -28,9 +28,6 @@ func TestMigration_2_8_28_Apply(t *testing.T) {
 
 		err = r.Put([]byte("0000000001"),
 			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"git_url\": \"git@github.com/test/test#main\"}"))
-		if err != nil {
-			return err
-		}
 
 		return err
 	})
@@ -60,5 +57,29 @@ func TestMigration_2_8_28_Apply(t *testing.T) {
 
 	if repo["git_branch"].(string) != "main" {
 		t.Fatal("invalid branch")
+	}
+}
+
+func TestMigration_2_8_28_Apply2(t *testing.T) {
+	store := CreateTestStore()
+
+	err := store.db.Update(func(tx *bbolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte("project"))
+		if err != nil {
+			return err
+		}
+
+		err = b.Put([]byte("0000000001"), []byte("{}"))
+
+		return err
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = migrations.Migration_2_8_28{DB: store.db}.Apply()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
