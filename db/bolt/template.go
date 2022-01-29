@@ -59,8 +59,13 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	return
 }
 
-func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
+func (d *BoltDb) getRawTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
+	return
+}
+
+func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
+	template, err = d.getRawTemplate(projectID, templateID)
 	if err != nil {
 		return
 	}

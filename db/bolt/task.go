@@ -57,9 +57,9 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 		tpl, ok := templates[task.TemplateID]
 		if !ok {
 			if templateID == nil {
-				tpl, _ = d.GetTemplate(task.ProjectID, task.TemplateID)
+				tpl, _ = d.getRawTemplate(task.ProjectID, task.TemplateID)
 			} else {
-				tpl, _ = d.GetTemplate(task.ProjectID, *templateID)
+				tpl, _ = d.getRawTemplate(task.ProjectID, *templateID)
 			}
 			templates[task.TemplateID] = tpl
 		}
