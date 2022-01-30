@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -9,8 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -257,10 +254,8 @@ func (t *TaskRunner) prepareRun() {
 		return
 	}
 
-	// todo: write environment
-
-	if stderr, err := t.listPlaybookHosts(); err != nil {
-		t.Log("Listing playbook hosts failed: " + err.Error() + "\n" + stderr)
+	if err := t.listPlaybookHosts(); err != nil {
+		t.Log("Listing playbook hosts failed: " + err.Error())
 		t.fail()
 		return
 	}
@@ -546,44 +541,30 @@ func (t *TaskRunner) installRequirements() error {
 }
 
 func (t *TaskRunner) runGalaxy(args []string) error {
-	cmd := exec.Command("ansible-galaxy", args...) //nolint: gas
-	cmd.Dir = t.getRepoPath()
-
-	t.setCmdEnvironment(cmd, t.repository.SSHKey.GetSshCommand())
-
-	t.LogCmd(cmd)
-	return cmd.Run()
+	return lib.AnsiblePlaybook{
+		Logger:     t,
+		TemplateID: t.template.ID,
+		Repository: t.repository,
+	}.RunGalaxy(args)
 }
 
-func (t *TaskRunner) listPlaybookHosts() (string, error) {
-
+func (t *TaskRunner) listPlaybookHosts() (err error) {
 	if util.Config.ConcurrencyMode == "project" {
-		return "", nil
+		return
 	}
 
 	args, err := t.getPlaybookArgs()
 	if err != nil {
-		return "", err
+		return
 	}
-	args = append(args, "--list-hosts")
 
-	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
-	cmd.Dir = t.getRepoPath()
-	t.setCmdEnvironment(cmd, "")
+	t.hosts, err = lib.AnsiblePlaybook{
+		Logger:     t,
+		TemplateID: t.template.ID,
+		Repository: t.repository,
+	}.GetHosts(args)
 
-	var errb bytes.Buffer
-	cmd.Stderr = &errb
-
-	out, err := cmd.Output()
-
-	re := regexp.MustCompile(`(?m)^\\s{6}(.*)$`)
-	matches := re.FindAllSubmatch(out, 20)
-	hosts := make([]string, len(matches))
-	for i := range matches {
-		hosts[i] = string(matches[i][1])
-	}
-	t.hosts = hosts
-	return errb.String(), err
+	return
 }
 
 func (t *TaskRunner) runPlaybook() (err error) {
@@ -591,19 +572,14 @@ func (t *TaskRunner) runPlaybook() (err error) {
 	if err != nil {
 		return
 	}
-	cmd := exec.Command("ansible-playbook", args...) //nolint: gas
-	cmd.Dir = t.getRepoPath()
-	t.setCmdEnvironment(cmd, "")
 
-	t.LogCmd(cmd)
-	cmd.Stdin = strings.NewReader("")
-	err = cmd.Start()
-	if err != nil {
-		return
-	}
-	t.process = cmd.Process
-	err = cmd.Wait()
-	return
+	process := make(chan *os.Process)
+	t.process = <-process
+	return lib.AnsiblePlaybook{
+		Logger:     t,
+		TemplateID: t.template.ID,
+		Repository: t.repository,
+	}.Run(args, process)
 }
 
 func (t *TaskRunner) getExtraVars() (str string, err error) {
@@ -746,20 +722,6 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	return
 }
 
-func (t *TaskRunner) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
-	env := os.Environ()
-	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
-	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
-	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
-	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
-	env = append(env, extractCommandEnvironment(t.environment.JSON)...)
-
-	if gitSSHCommand != "" {
-		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
-	}
-	cmd.Env = env
-}
-
 func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
 	oldFileMD5HashBytes, err := ioutil.ReadFile(requirementsHashFilePath)
 	if err != nil {
@@ -781,25 +743,6 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 	}
 
 	return ioutil.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
-}
-
-// extractCommandEnvironment unmarshalls a json string, extracts the ENV key from it and returns it as
-// []string where strings are in key=value format
-func extractCommandEnvironment(envJSON string) []string {
-	env := make([]string, 0)
-	var js map[string]interface{}
-	err := json.Unmarshal([]byte(envJSON), &js)
-	if err == nil {
-		if cfg, ok := js["ENV"]; ok {
-			switch v := cfg.(type) {
-			case map[string]interface{}:
-				for key, val := range v {
-					env = append(env, fmt.Sprintf("%s=%s", key, val))
-				}
-			}
-		}
-	}
-	return env
 }
 
 // checkTmpDir checks to see if the temporary directory exists
