@@ -416,6 +416,7 @@ export default {
 
       if (this.schedules.length === 1) {
         this.cronFormat = this.schedules[0].cron_format;
+        this.cronRepositoryId = this.schedules[0].repository_id;
       }
 
       this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
@@ -456,6 +457,7 @@ export default {
               project_id: this.projectId,
               template_id: newItem ? newItem.id : this.itemId,
               cron_format: this.cronFormat,
+              repository_id: this.cronRepositoryId,
             },
           });
         }
@@ -479,6 +481,7 @@ export default {
             project_id: this.projectId,
             template_id: this.itemId,
             cron_format: this.cronFormat,
+            repository_id: this.cronRepositoryId,
           },
         });
       }

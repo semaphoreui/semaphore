@@ -3,6 +3,7 @@ package schedules
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
 	"sync"
@@ -14,10 +15,40 @@ type ScheduleRunner struct {
 }
 
 func (r ScheduleRunner) Run() {
+	if r.schedule.RepositoryID != nil && r.schedule.LastCommitHash != nil {
+		repo, err := r.pool.store.GetRepository(r.schedule.ProjectID, *r.schedule.RepositoryID)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		remoteHash, err := lib.GitRepository{
+			Logger:     nil,
+			TemplateID: r.schedule.TemplateID,
+			Repository: repo,
+		}.GetLastRemoteCommitHash()
+
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		if remoteHash == *r.schedule.LastCommitHash {
+			return
+		}
+
+		err = r.pool.store.SetScheduleCommitHash(r.schedule.ProjectID, r.schedule.ID, remoteHash)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+	}
+
 	_, err := r.pool.taskPool.AddTask(db.Task{
 		TemplateID: r.schedule.TemplateID,
 		ProjectID:  r.schedule.ProjectID,
 	}, nil, r.schedule.ProjectID)
+
 	if err != nil {
 		log.Error(err)
 	}

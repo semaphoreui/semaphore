@@ -28,7 +28,6 @@ func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, er
 	return
 }
 
-
 func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	schedules = make([]db.Schedule, 0)
 
@@ -66,4 +65,13 @@ func (d *BoltDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedul
 
 func (d *BoltDb) DeleteSchedule(projectID int, scheduleID int) error {
 	return d.deleteObject(projectID, db.ScheduleProps, intObjectID(scheduleID))
+}
+
+func (d *BoltDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string) error {
+	schedule, err := d.GetSchedule(projectID, scheduleID)
+	if err != nil {
+		return err
+	}
+	schedule.LastCommitHash = &hash
+	return d.updateObject(projectID, db.ScheduleProps, schedule)
 }

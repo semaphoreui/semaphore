@@ -38,7 +38,8 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) error {
 	_, err := d.exec("update project__schedule set "+
 		"cron_format=?, "+
-		"repository_id=? "+
+		"repository_id=?, "+
+		"last_commit_hash = NULL ",
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
@@ -77,4 +78,12 @@ func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int) (schedules [
 		projectID,
 		templateID)
 	return
+}
+
+func (d *SqlDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string) error {
+	_, err := d.exec("update project__schedule set last_commit_hash=? where project_id=? and id=?",
+		hash,
+		projectID,
+		scheduleID)
+	return err
 }

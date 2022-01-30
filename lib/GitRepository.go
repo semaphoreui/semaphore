@@ -52,8 +52,13 @@ func (r GitRepository) run(targetDir GitRepositoryDirType, args ...string) error
 	return cmd.Run()
 }
 
-func (r GitRepository) output(targetDir GitRepositoryDirType, args ...string) ([]byte, error) {
-	return r.makeCmd(targetDir, args...).Output()
+func (r GitRepository) output(targetDir GitRepositoryDirType, args ...string) (out string, err error) {
+	bytes, err := r.makeCmd(targetDir, args...).Output()
+	if err != nil {
+		return
+	}
+	out = strings.Trim(string(bytes), " \n")
+	return
 }
 
 func (r GitRepository) Clone() error {
@@ -95,12 +100,11 @@ func (r GitRepository) CanBePulled() bool {
 func (r GitRepository) GetLastCommitMessage() (msg string, err error) {
 	r.Logger.Log("Get current commit message")
 
-	out, err := r.output(GitRepositoryRepoDir, "show-branch", "--no-name", "HEAD")
+	msg, err = r.output(GitRepositoryRepoDir, "show-branch", "--no-name", "HEAD")
 	if err != nil {
 		return
 	}
 
-	msg = strings.Trim(string(out), " \n")
 	if len(msg) > 100 {
 		msg = msg[0:100]
 	}
@@ -110,11 +114,7 @@ func (r GitRepository) GetLastCommitMessage() (msg string, err error) {
 
 func (r GitRepository) GetLastCommitHash() (hash string, err error) {
 	r.Logger.Log("Get current commit hash")
-	out, err := r.output(GitRepositoryRepoDir, "rev-parse", "HEAD")
-	if err != nil {
-		return
-	}
-	hash = strings.Trim(string(out), " \n")
+	hash, err = r.output(GitRepositoryRepoDir, "rev-parse", "HEAD")
 	return
 }
 
@@ -125,5 +125,18 @@ func (r GitRepository) ValidateRepo() error {
 
 func (r GitRepository) GetFullPath() (path string) {
 	path = r.Repository.GetFullPath(r.TemplateID)
+	return
+}
+
+func (r GitRepository) GetLastRemoteCommitHash() (hash string, err error) {
+	out, err := r.output(GitRepositoryRepoDir, "ls-remote", "origin", r.Repository.GitBranch)
+	if err != nil {
+		return
+	}
+	firstSpaceIndex := strings.IndexRune(out, ' ')
+	if firstSpaceIndex == -1 {
+		err = fmt.Errorf("can't retreave remote commit hash")
+	}
+	hash = out[0:firstSpaceIndex]
 	return
 }

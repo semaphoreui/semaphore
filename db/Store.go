@@ -137,6 +137,7 @@ type Store interface {
 	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
+	SetScheduleCommitHash(projectID int, scheduleID int, hash string) error
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
 

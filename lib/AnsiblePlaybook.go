@@ -54,16 +54,15 @@ func (p AnsiblePlaybook) GetHosts(args []string) (hosts []string, err error) {
 	return
 }
 
-func (p AnsiblePlaybook) Run(args []string, process chan *os.Process) error {
-	cmd := p.makeCmd("ansible-playbook", args)
+func (p AnsiblePlaybook) MakeRunCmd(args []string) (cmd *exec.Cmd, err error) {
+	cmd = p.makeCmd("ansible-playbook", args)
 	p.Logger.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
-		return err
+		return
 	}
-	process <- cmd.Process
-	return cmd.Wait()
+	return
 }
 
 func (p AnsiblePlaybook) RunGalaxy(args []string) error {

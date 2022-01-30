@@ -276,6 +276,7 @@ func (t *TaskRunner) run() {
 		t.destroyKeys()
 	}()
 
+	// TODO: more details
 	if t.task.Status == db.TaskStoppingStatus {
 		t.setStatus(db.TaskStoppedStatus)
 		return
@@ -304,6 +305,7 @@ func (t *TaskRunner) run() {
 	t.Log("Started: " + strconv.Itoa(t.task.ID))
 	t.Log("Run TaskRunner with template: " + t.template.Alias + "\n")
 
+	// TODO: ?????
 	if t.task.Status == db.TaskStoppingStatus {
 		t.setStatus(db.TaskStoppedStatus)
 		return
@@ -573,13 +575,19 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
-	process := make(chan *os.Process)
-	t.process = <-process
-	return lib.AnsiblePlaybook{
+	cmd, err := lib.AnsiblePlaybook{
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
-	}.Run(args, process)
+	}.MakeRunCmd(args)
+
+	if err != nil {
+		return
+	}
+
+	t.process = cmd.Process
+
+	return cmd.Wait()
 }
 
 func (t *TaskRunner) getExtraVars() (str string, err error) {

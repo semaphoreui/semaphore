@@ -184,25 +184,26 @@ func CreateTaskPool(store db.Store) TaskPool {
 }
 
 func (p *TaskPool) StopTask(targetTask db.Task) error {
-	activeTask := p.GetTask(targetTask.ID)
-	if activeTask == nil { // task not active, but exists in database
-		activeTask = &TaskRunner{
+	tsk := p.GetTask(targetTask.ID)
+	if tsk == nil { // task not active, but exists in database
+		tsk = &TaskRunner{
 			task: targetTask,
 			pool: p,
 		}
-		err := activeTask.populateDetails()
+		err := tsk.populateDetails()
 		if err != nil {
 			return err
 		}
-		activeTask.setStatus(db.TaskStoppedStatus)
-		activeTask.createTaskEvent()
+		tsk.setStatus(db.TaskStoppedStatus)
+		tsk.createTaskEvent()
 	} else {
-		activeTask.setStatus(db.TaskStoppingStatus)
-		if activeTask.task.Status == db.TaskRunningStatus {
-			if activeTask.process == nil {
+		status := tsk.task.Status
+		tsk.setStatus(db.TaskStoppingStatus)
+		if status == db.TaskRunningStatus {
+			if tsk.process == nil {
 				panic("running process can not be nil")
 			}
-			err := activeTask.process.Kill()
+			err := tsk.process.Kill()
 			if err != nil {
 				return err
 			}
