@@ -458,6 +458,10 @@ func (t *TaskRunner) checkoutRepository() error {
 
 	err := repo.ValidateRepo()
 
+	if err != nil {
+		return err
+	}
+
 	if t.task.CommitHash != nil {
 		// checkout to commit if it is provided for TaskRunner
 		return repo.Checkout(*t.task.CommitHash)
