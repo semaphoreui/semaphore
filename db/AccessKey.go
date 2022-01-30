@@ -153,6 +153,7 @@ func (key AccessKey) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
 }
 
+// GetSshCommand returns string with SSH command for using with Git.
 func (key AccessKey) GetSshCommand() string {
 	if key.Type != AccessKeySSH {
 		panic("type must be ssh")

@@ -80,10 +80,10 @@ func TestPopulateDetails(t *testing.T) {
 	pool := TaskPool{store: &store}
 
 	tsk := TaskRunner{
-		pool:      &pool,
-		projectID: proj.ID,
+		pool: &pool,
 		task: db.Task{
 			TemplateID:  tpl.ID,
+			ProjectID:   proj.ID,
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}

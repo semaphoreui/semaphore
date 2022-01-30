@@ -11,7 +11,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-func (t *TaskRunner) log(msg string) {
+func (t *TaskRunner) Log(msg string) {
 	now := time.Now()
 
 	for _, user := range t.users {
@@ -20,7 +20,7 @@ func (t *TaskRunner) log(msg string) {
 			"output":     msg,
 			"time":       now,
 			"task_id":    t.task.ID,
-			"project_id": t.projectID,
+			"project_id": t.task.ProjectID,
 		})
 
 		util.LogPanic(err)
@@ -53,7 +53,7 @@ func (t *TaskRunner) logPipe(reader *bufio.Reader) {
 
 	line, err := Readln(reader)
 	for err == nil {
-		t.log(line)
+		t.Log(line)
 		line, err = Readln(reader)
 	}
 
@@ -64,7 +64,7 @@ func (t *TaskRunner) logPipe(reader *bufio.Reader) {
 
 }
 
-func (t *TaskRunner) logCmd(cmd *exec.Cmd) {
+func (t *TaskRunner) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
@@ -74,7 +74,7 @@ func (t *TaskRunner) logCmd(cmd *exec.Cmd) {
 
 func (t *TaskRunner) panicOnError(err error, msg string) {
 	if err != nil {
-		t.log(msg)
+		t.Log(msg)
 		util.LogPanicWithFields(err, log.Fields{"error": msg})
 	}
 }

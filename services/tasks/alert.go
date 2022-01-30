@@ -56,7 +56,7 @@ func (t *TaskRunner) sendMailAlert() {
 		}
 		t.panicOnError(err, "Can't find user Email!")
 
-		t.log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
+		t.Log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
 		if util.Config.EmailSecure {
 			err = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort, util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword, userObj.Email, mailBuffer)
 		} else {
@@ -116,21 +116,21 @@ func (t *TaskRunner) sendTelegramAlert() {
 
 	tpl, err := tpl.Parse(telegramTemplate)
 	if err != nil {
-		t.log("Can't parse telegram template!")
+		t.Log("Can't parse telegram template!")
 		panic(err)
 	}
 
 	err = tpl.Execute(&telegramBuffer, alert)
 	if err != nil {
-		t.log("Can't generate alert template!")
+		t.Log("Can't generate alert template!")
 		panic(err)
 	}
 
 	resp, err := http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
 
 	if err != nil {
-		t.log("Can't send telegram alert! Response code not 200!")
+		t.Log("Can't send telegram alert! Response code not 200!")
 	} else if resp.StatusCode != 200 {
-		t.log("Can't send telegram alert! Response code not 200!")
+		t.Log("Can't send telegram alert! Response code not 200!")
 	}
 }

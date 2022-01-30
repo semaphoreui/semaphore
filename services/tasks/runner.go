@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"io/ioutil"
 	"os"
@@ -30,15 +31,25 @@ type TaskRunner struct {
 	inventory   db.Inventory
 	repository  db.Repository
 	environment db.Environment
-	users       []int
-	projectID   int
-	hosts       []string
-	alertChat   string
-	alert       bool
-	prepared    bool
-	process     *os.Process
-	pool        *TaskPool
+
+	users     []int
+	hosts     []string
+	alertChat string
+	alert     bool
+	prepared  bool
+	process   *os.Process
+	pool      *TaskPool
 }
+
+//func (t *TaskRunner) validate() error {
+//	if t.task.ProjectID != t.template.ProjectID ||
+//		t.task.ProjectID != t.inventory.ProjectID ||
+//		t.task.ProjectID != t.repository.ProjectID ||
+//		t.task.ProjectID != t.environment.ProjectID {
+//		return fmt.Errorf("invalid project id")
+//	}
+//	return nil
+//}
 
 func getMD5Hash(filepath string) (string, error) {
 	file, err := os.Open(filepath)
@@ -54,17 +65,14 @@ func getMD5Hash(filepath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func (t *TaskRunner) getRepoName() string {
-	return t.repository.GetDirName(t.template.ID)
-}
-
 func (t *TaskRunner) getRepoPath() string {
-	return t.repository.GetPath(t.template.ID)
-}
+	repo := lib.GitRepository{
+		Logger:     t,
+		TemplateID: t.template.ID,
+		Repository: t.repository,
+	}
 
-func (t *TaskRunner) validateRepo() error {
-	_, err := os.Stat(t.getRepoPath())
-	return err
+	return repo.GetFullPath()
 }
 
 func (t *TaskRunner) setStatus(status string) {
@@ -100,7 +108,7 @@ func (t *TaskRunner) updateStatus() {
 			"status":      t.task.Status,
 			"task_id":     t.task.ID,
 			"template_id": t.task.TemplateID,
-			"project_id":  t.projectID,
+			"project_id":  t.task.ProjectID,
 			"version":     t.task.Version,
 		})
 
@@ -121,22 +129,22 @@ func (t *TaskRunner) fail() {
 func (t *TaskRunner) destroyKeys() {
 	err := t.repository.SSHKey.Destroy()
 	if err != nil {
-		t.log("Can't destroy repository key, error: " + err.Error())
+		t.Log("Can't destroy repository key, error: " + err.Error())
 	}
 
 	err = t.inventory.SSHKey.Destroy()
 	if err != nil {
-		t.log("Can't destroy inventory user key, error: " + err.Error())
+		t.Log("Can't destroy inventory user key, error: " + err.Error())
 	}
 
 	err = t.inventory.BecomeKey.Destroy()
 	if err != nil {
-		t.log("Can't destroy inventory become user key, error: " + err.Error())
+		t.Log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
 	err = t.template.VaultKey.Destroy()
 	if err != nil {
-		t.log("Can't destroy inventory vault password file, error: " + err.Error())
+		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
 }
 
@@ -146,7 +154,7 @@ func (t *TaskRunner) createTaskEvent() {
 
 	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
-		ProjectID:   &t.projectID,
+		ProjectID:   &t.task.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
 		Description: &desc,
@@ -168,17 +176,18 @@ func (t *TaskRunner) prepareRun() {
 		t.createTaskEvent()
 	}()
 
-	t.log("Preparing: " + strconv.Itoa(t.task.ID))
+	t.Log("Preparing: " + strconv.Itoa(t.task.ID))
 
 	err := checkTmpDir(util.Config.TmpPath)
 	if err != nil {
-		t.log("Creating tmp dir failed: " + err.Error())
+		t.Log("Creating tmp dir failed: " + err.Error())
 		t.fail()
 		return
 	}
 
-	if err := t.populateDetails(); err != nil {
-		t.log("Error: " + err.Error())
+	err = t.populateDetails()
+	if err != nil {
+		t.Log("Error: " + err.Error())
 		t.fail()
 		return
 	}
@@ -187,24 +196,24 @@ func (t *TaskRunner) prepareRun() {
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
 	_, err = t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
-		ProjectID:   &t.projectID,
+		ProjectID:   &t.task.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
 		Description: &desc,
 	})
 
 	if err != nil {
-		t.log("Fatal error inserting an event")
+		t.Log("Fatal error inserting an event")
 		panic(err)
 	}
 
-	t.log("Prepare TaskRunner with template: " + t.template.Alias + "\n")
+	t.Log("Prepare TaskRunner with template: " + t.template.Alias + "\n")
 
 	t.updateStatus()
 
 	//if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
 	if err := t.repository.SSHKey.Install(db.AccessKeyUsagePrivateKey); err != nil {
-		t.log("Failed installing ssh key for repository access: " + err.Error())
+		t.Log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
 	}
@@ -212,38 +221,38 @@ func (t *TaskRunner) prepareRun() {
 	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
 		repositoryPath := strings.TrimPrefix(t.repository.GitURL, gitURLFilePrefix)
 		if _, err := os.Stat(repositoryPath); err != nil {
-			t.log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
+			t.Log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
 			t.fail()
 			return
 		}
 	} else {
 		if err := t.updateRepository(); err != nil {
-			t.log("Failed updating repository: " + err.Error())
+			t.Log("Failed updating repository: " + err.Error())
 			t.fail()
 			return
 		}
 	}
 
 	if err := t.checkoutRepository(); err != nil {
-		t.log("Failed to checkout repository to required commit: " + err.Error())
+		t.Log("Failed to checkout repository to required commit: " + err.Error())
 		t.fail()
 		return
 	}
 
 	if err := t.installInventory(); err != nil {
-		t.log("Failed to install inventory: " + err.Error())
+		t.Log("Failed to install inventory: " + err.Error())
 		t.fail()
 		return
 	}
 
 	if err := t.installRequirements(); err != nil {
-		t.log("Running galaxy failed: " + err.Error())
+		t.Log("Running galaxy failed: " + err.Error())
 		t.fail()
 		return
 	}
 
 	if err := t.installVaultKeyFile(); err != nil {
-		t.log("Failed to install vault password file: " + err.Error())
+		t.Log("Failed to install vault password file: " + err.Error())
 		t.fail()
 		return
 	}
@@ -251,7 +260,7 @@ func (t *TaskRunner) prepareRun() {
 	// todo: write environment
 
 	if stderr, err := t.listPlaybookHosts(); err != nil {
-		t.log("Listing playbook hosts failed: " + err.Error() + "\n" + stderr)
+		t.Log("Listing playbook hosts failed: " + err.Error() + "\n" + stderr)
 		t.fail()
 		return
 	}
@@ -286,19 +295,19 @@ func (t *TaskRunner) run() {
 
 	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
-		ProjectID:   &t.projectID,
+		ProjectID:   &t.task.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
 		Description: &desc,
 	})
 
 	if err != nil {
-		t.log("Fatal error inserting an event")
+		t.Log("Fatal error inserting an event")
 		panic(err)
 	}
 
-	t.log("Started: " + strconv.Itoa(t.task.ID))
-	t.log("Run TaskRunner with template: " + t.template.Alias + "\n")
+	t.Log("Started: " + strconv.Itoa(t.task.ID))
+	t.Log("Run TaskRunner with template: " + t.template.Alias + "\n")
 
 	if t.task.Status == db.TaskStoppingStatus {
 		t.setStatus(db.TaskStoppedStatus)
@@ -307,7 +316,7 @@ func (t *TaskRunner) run() {
 
 	err = t.runPlaybook()
 	if err != nil {
-		t.log("Running playbook failed: " + err.Error())
+		t.Log("Running playbook failed: " + err.Error())
 		t.fail()
 		return
 	}
@@ -319,7 +328,7 @@ func (t *TaskRunner) run() {
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
 	if err != nil {
-		t.log("Running playbook failed: " + err.Error())
+		t.Log("Running playbook failed: " + err.Error())
 		return
 	}
 
@@ -330,16 +339,15 @@ func (t *TaskRunner) run() {
 			BuildTaskID: &t.task.ID,
 		}, nil, tpl.ProjectID)
 		if err != nil {
-			t.log("Running playbook failed: " + err.Error())
+			t.Log("Running playbook failed: " + err.Error())
 			continue
 		}
-
 	}
 }
 
 func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	if err == db.ErrNotFound {
-		t.log(errMsg)
+		t.Log(errMsg)
 		return err
 	}
 
@@ -356,7 +364,7 @@ func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
 
-	t.template, err = t.pool.store.GetTemplate(t.projectID, t.task.TemplateID)
+	t.template, err = t.pool.store.GetTemplate(t.task.ProjectID, t.task.TemplateID)
 	if err != nil {
 		return t.prepareError(err, "Template not found!")
 	}
@@ -442,147 +450,67 @@ func (t *TaskRunner) installVaultKeyFile() error {
 }
 
 func (t *TaskRunner) checkoutRepository() error {
-	if t.task.CommitHash != nil { // checkout to commit if it is provided for TaskRunner
-		err := t.validateRepo()
-		if err != nil {
-			return err
-		}
+	repo := lib.GitRepository{
+		Logger:     t,
+		TemplateID: t.template.ID,
+		Repository: t.repository,
+	}
 
-		cmd := exec.Command("git")
-		cmd.Dir = t.getRepoPath()
-		t.log("Checkout repository to commit " + *t.task.CommitHash)
-		cmd.Args = append(cmd.Args, "checkout", *t.task.CommitHash)
-		t.logCmd(cmd)
-		return cmd.Run()
+	err := repo.ValidateRepo()
+
+	if t.task.CommitHash != nil {
+		// checkout to commit if it is provided for TaskRunner
+		return repo.Checkout(*t.task.CommitHash)
 	}
 
 	// store commit to TaskRunner table
 
-	commitHash, err := t.getCommitHash()
+	commitHash, err := repo.GetLastCommitHash()
+
 	if err != nil {
 		return err
 	}
-	commitMessage, _ := t.getCommitMessage()
+
+	commitMessage, _ := repo.GetLastCommitMessage()
+
 	t.task.CommitHash = &commitHash
 	t.task.CommitMessage = commitMessage
 
 	return t.pool.store.UpdateTask(t.task)
 }
 
-// getCommitHash retrieves current commit hash from TaskRunner repository
-func (t *TaskRunner) getCommitHash() (res string, err error) {
-	err = t.validateRepo()
-	if err != nil {
-		return
-	}
-
-	cmd := exec.Command("git")
-	cmd.Dir = t.getRepoPath()
-	t.log("Get current commit hash")
-	cmd.Args = append(cmd.Args, "rev-parse", "HEAD")
-	out, err := cmd.Output()
-	if err != nil {
-		return
-	}
-	res = strings.Trim(string(out), " \n")
-	return
-}
-
-// getCommitMessage retrieves current commit message from TaskRunner repository
-func (t *TaskRunner) getCommitMessage() (res string, err error) {
-	err = t.validateRepo()
-	if err != nil {
-		return
-	}
-
-	cmd := exec.Command("git")
-	cmd.Dir = t.getRepoPath()
-	t.log("Get current commit message")
-	cmd.Args = append(cmd.Args, "show-branch", "--no-name", "HEAD")
-	out, err := cmd.Output()
-	if err != nil {
-		return
-	}
-	res = strings.Trim(string(out), " \n")
-
-	if len(res) > 100 {
-		res = res[0:100]
-	}
-
-	return
-}
-
-func (t *TaskRunner) makeGitCommand(dir string) *exec.Cmd {
-	var gitSSHCommand string
-	if t.repository.SSHKey.Type == db.AccessKeySSH {
-		gitSSHCommand = t.repository.SSHKey.GetSshCommand()
-	}
-
-	cmd := exec.Command("git") //nolint: gas
-	cmd.Dir = dir
-	t.setCmdEnvironment(cmd, gitSSHCommand)
-
-	return cmd
-}
-
-func (t *TaskRunner) canRepositoryBePulled() bool {
-	fetchCmd := t.makeGitCommand(t.getRepoPath())
-	fetchCmd.Args = append(fetchCmd.Args, "fetch")
-	t.logCmd(fetchCmd)
-	err := fetchCmd.Run()
-	if err != nil {
-		return false
-	}
-
-	checkCmd := t.makeGitCommand(t.getRepoPath())
-	checkCmd.Args = append(checkCmd.Args, "merge-base", "--is-ancestor", "HEAD", "origin/"+t.repository.GitBranch)
-	t.logCmd(checkCmd)
-	err = checkCmd.Run()
-	return err == nil
-}
-
-func (t *TaskRunner) cloneRepository() error {
-	cmd := t.makeGitCommand(util.Config.TmpPath)
-	t.log("Cloning repository " + t.repository.GitURL)
-	cmd.Args = append(cmd.Args, "clone", "--recursive", "--branch", t.repository.GitBranch, t.repository.GetGitURL(), t.getRepoName())
-	t.logCmd(cmd)
-	return cmd.Run()
-}
-
-func (t *TaskRunner) pullRepository() error {
-	cmd := t.makeGitCommand(t.getRepoPath())
-	t.log("Updating repository " + t.repository.GitURL)
-	cmd.Args = append(cmd.Args, "pull", "origin", t.repository.GitBranch)
-	t.logCmd(cmd)
-	return cmd.Run()
-}
-
 func (t *TaskRunner) updateRepository() error {
-	err := t.validateRepo()
+	repo := lib.GitRepository{
+		Logger:     t,
+		TemplateID: t.template.ID,
+		Repository: t.repository,
+	}
+
+	err := repo.ValidateRepo()
 
 	if err != nil {
 		if !os.IsNotExist(err) {
-			err = os.RemoveAll(t.getRepoPath())
+			err = os.RemoveAll(repo.GetFullPath())
 			if err != nil {
 				return err
 			}
 		}
-		return t.cloneRepository()
+		return repo.Clone()
 	}
 
-	if t.canRepositoryBePulled() {
-		err = t.pullRepository()
+	if repo.CanBePulled() {
+		err = repo.Pull()
 		if err == nil {
 			return nil
 		}
 	}
 
-	err = os.RemoveAll(t.getRepoPath())
+	err = os.RemoveAll(repo.GetFullPath())
 	if err != nil {
 		return err
 	}
 
-	return t.cloneRepository()
+	return repo.Clone()
 }
 
 func (t *TaskRunner) installRequirements() error {
@@ -590,7 +518,7 @@ func (t *TaskRunner) installRequirements() error {
 	requirementsHashFilePath := fmt.Sprintf("%s/requirements.md5", t.getRepoPath())
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
-		t.log("No roles/requirements.yml file found. Skip galaxy install process.\n")
+		t.Log("No roles/requirements.yml file found. Skip galaxy install process.\n")
 		return nil
 	}
 
@@ -607,7 +535,7 @@ func (t *TaskRunner) installRequirements() error {
 			return err
 		}
 	} else {
-		t.log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
+		t.Log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
 	}
 
 	return nil
@@ -619,7 +547,7 @@ func (t *TaskRunner) runGalaxy(args []string) error {
 
 	t.setCmdEnvironment(cmd, t.repository.SSHKey.GetSshCommand())
 
-	t.logCmd(cmd)
+	t.LogCmd(cmd)
 	return cmd.Run()
 }
 
@@ -663,7 +591,7 @@ func (t *TaskRunner) runPlaybook() (err error) {
 	cmd.Dir = t.getRepoPath()
 	t.setCmdEnvironment(cmd, "")
 
-	t.logCmd(cmd)
+	t.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
 	err = cmd.Start()
 	if err != nil {
@@ -782,8 +710,8 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 
 	extraVars, err := t.getExtraVars()
 	if err != nil {
-		t.log(err.Error())
-		t.log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		t.Log(err.Error())
+		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
 	}
@@ -792,7 +720,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	if t.template.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
 		if err != nil {
-			t.log("Invalid format of the template extra arguments, must be valid JSON")
+			t.Log("Invalid format of the template extra arguments, must be valid JSON")
 			return
 		}
 	}
@@ -802,7 +730,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
 		if err != nil {
-			t.log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
+			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
 	}

@@ -31,7 +31,7 @@ func (t *TaskRunner) installInventory() (err error) {
 }
 
 func (t *TaskRunner) installStaticInventory() error {
-	t.log("installing static inventory")
+	t.Log("installing static inventory")
 
 	// create inventory file
 	return ioutil.WriteFile(util.Config.TmpPath+"/inventory_"+strconv.Itoa(t.task.ID), []byte(t.inventory.Inventory), 0664)

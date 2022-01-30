@@ -75,7 +75,7 @@ func (p *TaskPool) Run() {
 					panic("Trying to lock an already locked resource!")
 				}
 
-				p.activeProj[t.projectID] = t
+				p.activeProj[t.task.ProjectID] = t
 
 				for _, node := range t.hosts {
 					p.activeNodes[node] = t
@@ -86,8 +86,8 @@ func (p *TaskPool) Run() {
 				continue
 			}
 
-			if p.activeProj[t.projectID] == t {
-				delete(p.activeProj, t.projectID)
+			if p.activeProj[t.task.ProjectID] == t {
+				delete(p.activeProj, t.task.ProjectID)
 			}
 
 			for _, node := range t.hosts {
@@ -115,7 +115,7 @@ func (p *TaskPool) Run() {
 			p.queue = append(p.queue, task)
 			log.Debug(task)
 			msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
-			task.log(msg)
+			task.Log(msg)
 			log.Info(msg)
 
 		case <-ticker.C:
@@ -156,7 +156,7 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 
 	switch util.Config.ConcurrencyMode {
 	case "project":
-		return p.activeProj[t.projectID] != nil
+		return p.activeProj[t.task.ProjectID] != nil
 	case "node":
 		for _, node := range t.hosts {
 			if p.activeNodes[node] != nil {
@@ -302,9 +302,8 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	}
 
 	p.register <- &TaskRunner{
-		task:      newTask,
-		projectID: projectID,
-		pool:      p,
+		task: newTask,
+		pool: p,
 	}
 
 	objType := db.EventTask

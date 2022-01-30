@@ -65,7 +65,7 @@ func (r Repository) GetDirName(templateID int) string {
 	return r.getDirNamePrefix() + strconv.Itoa(templateID)
 }
 
-func (r Repository) GetPath(templateID int) string {
+func (r Repository) GetFullPath(templateID int) string {
 	return path.Join(util.Config.TmpPath, r.GetDirName(templateID))
 }
 
