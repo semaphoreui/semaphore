@@ -39,7 +39,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) error {
 	_, err := d.exec("update project__schedule set "+
 		"cron_format=?, "+
 		"repository_id=?, "+
-		"last_commit_hash = NULL ",
+		"last_commit_hash = NULL "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
