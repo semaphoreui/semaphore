@@ -4,7 +4,6 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/sql/migrations"
 	"github.com/go-gorp/gorp/v3"
 	"regexp"
 	"strings"
@@ -73,7 +72,7 @@ func (d *SqlDb) IsMigrationApplied(migration db.Migration) (bool, error) {
 	}
 
 	exists, err := d.sql.SelectInt(
-		d.prepareQuery("select count(1) as ex from migrations where version = ?"),
+		d.PrepareQuery("select count(1) as ex from migrations where version = ?"),
 		migration.Version)
 
 	if err != nil {
@@ -123,7 +122,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
-	_, err = tx.Exec(d.prepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
@@ -131,7 +130,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 	switch migration.Version {
 	case "2.8.26":
-		err = migrations.Migration_2_8_26{Sql: d.sql}.Apply()
+		err = Migration_2_8_26{DB: d}.Apply(tx)
 	}
 
 	if err != nil {

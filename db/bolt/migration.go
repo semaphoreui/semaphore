@@ -3,7 +3,6 @@ package bolt
 import (
 	"encoding/json"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt/migrations"
 	"go.etcd.io/bbolt"
 )
 
@@ -37,7 +36,7 @@ func (d *BoltDb) IsMigrationApplied(migration db.Migration) (bool, error) {
 func (d *BoltDb) ApplyMigration(migration db.Migration) (err error) {
 	switch migration.Version {
 	case "2.8.26":
-		err = migrations.Migration_2_8_28{DB: d.db}.Apply()
+		err = Migration_2_8_28{DB: d.db}.Apply()
 	}
 
 	if err != nil {

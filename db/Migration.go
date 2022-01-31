@@ -52,6 +52,7 @@ func GetMigrations() []Migration {
 		{Version: "2.8.25"},
 		{Version: "2.8.26"},
 		{Version: "2.8.36"},
+		{Version: "2.8.38"},
 	}
 }
 

@@ -72,7 +72,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	for _, statement := range statements {
-		_, err = tx.Exec(d.prepareQuery(statement), projectID)
+		_, err = tx.Exec(d.PrepareQuery(statement), projectID)
 
 		if err != nil {
 			err = tx.Rollback()

@@ -91,7 +91,7 @@ func (d *SqlDb) prepareQueryWithDialect(query string, dialect gorp.Dialect) stri
 	return query
 }
 
-func (d *SqlDb) prepareQuery(query string) string {
+func (d *SqlDb) PrepareQuery(query string) string {
 	return d.prepareQueryWithDialect(query, d.sql.Dialect)
 }
 
@@ -102,7 +102,7 @@ func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...interf
 	case gorp.PostgresDialect:
 		query += " returning " + primaryKeyColumnName
 
-		err := d.sql.QueryRow(d.prepareQuery(query), args...).Scan(&insertId)
+		err := d.sql.QueryRow(d.PrepareQuery(query), args...).Scan(&insertId)
 
 		if err != nil {
 			return 0, err
@@ -125,16 +125,16 @@ func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...interf
 }
 
 func (d *SqlDb) exec(query string, args ...interface{}) (sql.Result, error) {
-	q := d.prepareQuery(query)
+	q := d.PrepareQuery(query)
 	return d.sql.Exec(q, args...)
 }
 
 func (d *SqlDb) selectOne(holder interface{}, query string, args ...interface{}) error {
-	return d.sql.SelectOne(holder, d.prepareQuery(query), args...)
+	return d.sql.SelectOne(holder, d.PrepareQuery(query), args...)
 }
 
 func (d *SqlDb) selectAll(i interface{}, query string, args ...interface{}) ([]interface{}, error) {
-	q := d.prepareQuery(query)
+	q := d.PrepareQuery(query)
 	return d.sql.Select(i, q, args...)
 }
 
@@ -343,6 +343,6 @@ func (d *SqlDb) Sql() *gorp.DbMap {
 }
 
 func (d *SqlDb) IsInitialized() (bool, error) {
-	_, err := d.sql.SelectInt(d.prepareQuery("select count(1) from migrations"))
+	_, err := d.sql.SelectInt(d.PrepareQuery("select count(1) from migrations"))
 	return err == nil, nil
 }

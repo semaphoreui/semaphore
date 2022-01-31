@@ -1,4 +1,4 @@
-package migrations
+package bolt
 
 import (
 	"encoding/json"
