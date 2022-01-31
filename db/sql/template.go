@@ -75,7 +75,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"view_id=?, "+
 		"autorun=?, "+
 		"survey_vars=? "+
-		"where removed = false and id=? and project_id=?",
+		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
@@ -110,8 +110,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.vault_key_id",
 		"pt.view_id",
 		"pt.`type`").
-		From("project__template pt").
-		Where("pt.removed = false")
+		From("project__template pt")
 
 	if filter.ViewID != nil {
 		q = q.Where("pt.view_id=?", *filter.ViewID)
@@ -170,7 +169,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.selectOne(
 		&template,
-		"select * from project__template where project_id=? and id=? and removed = false",
+		"select * from project__template where project_id=? and id=?",
 		projectID,
 		templateID)
 

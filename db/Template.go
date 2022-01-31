@@ -51,8 +51,6 @@ type Template struct {
 	// if true, semaphore will not prepend any arguments to `arguments` like inventory, etc
 	AllowOverrideArgsInTask bool `db:"allow_override_args_in_task" json:"allow_override_args_in_task"`
 
-	Removed bool `db:"removed" json:"-"`
-
 	Description *string `db:"description" json:"description"`
 
 	VaultKeyID *int      `db:"vault_key_id" json:"vault_key_id"`
