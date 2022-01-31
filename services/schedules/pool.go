@@ -10,44 +10,63 @@ import (
 )
 
 type ScheduleRunner struct {
-	schedule db.Schedule
-	pool     *SchedulePool
+	projectID  int
+	scheduleID int
+	pool       *SchedulePool
+}
+
+func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updated bool, err error) {
+	repo, err := r.pool.store.GetRepository(schedule.ProjectID, *schedule.RepositoryID)
+	if err != nil {
+		return
+	}
+
+	remoteHash, err := lib.GitRepository{
+		Logger:     nil,
+		TemplateID: schedule.TemplateID,
+		Repository: repo,
+	}.GetLastRemoteCommitHash()
+
+	if err != nil {
+		return
+	}
+
+	if schedule.LastCommitHash != nil && remoteHash == *schedule.LastCommitHash {
+		return
+	}
+
+	err = r.pool.store.SetScheduleCommitHash(schedule.ProjectID, schedule.ID, remoteHash)
+	if err != nil {
+		return
+	}
+
+	updated = true
+	return
 }
 
 func (r ScheduleRunner) Run() {
-	if r.schedule.RepositoryID != nil {
-		repo, err := r.pool.store.GetRepository(r.schedule.ProjectID, *r.schedule.RepositoryID)
+	schedule, err := r.pool.store.GetSchedule(r.projectID, r.scheduleID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	if schedule.RepositoryID != nil {
+		var updated bool
+		updated, err = r.tryUpdateScheduleCommitHash(schedule)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-
-		remoteHash, err := lib.GitRepository{
-			Logger:     nil,
-			TemplateID: r.schedule.TemplateID,
-			Repository: repo,
-		}.GetLastRemoteCommitHash()
-
-		if err != nil {
-			log.Error(err)
-			return
-		}
-
-		if r.schedule.LastCommitHash != nil && remoteHash == *r.schedule.LastCommitHash {
-			return
-		}
-
-		err = r.pool.store.SetScheduleCommitHash(r.schedule.ProjectID, r.schedule.ID, remoteHash)
-		if err != nil {
-			log.Error(err)
+		if !updated {
 			return
 		}
 	}
 
-	_, err := r.pool.taskPool.AddTask(db.Task{
-		TemplateID: r.schedule.TemplateID,
-		ProjectID:  r.schedule.ProjectID,
-	}, nil, r.schedule.ProjectID)
+	_, err = r.pool.taskPool.AddTask(db.Task{
+		TemplateID: schedule.TemplateID,
+		ProjectID:  schedule.ProjectID,
+	}, nil, schedule.ProjectID)
 
 	if err != nil {
 		log.Error(err)
@@ -80,17 +99,18 @@ func (p *SchedulePool) Refresh() {
 	p.clear()
 	for _, schedule := range schedules {
 		_, err := p.addRunner(ScheduleRunner{
-			schedule: schedule,
-			pool:     p,
-		})
+			projectID:  schedule.ProjectID,
+			scheduleID: schedule.ID,
+			pool:       p,
+		}, schedule.CronFormat)
 		if err != nil {
 			log.Error(err)
 		}
 	}
 }
 
-func (p *SchedulePool) addRunner(runner ScheduleRunner) (int, error) {
-	id, err := p.cron.AddJob(runner.schedule.CronFormat, runner)
+func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int, error) {
+	id, err := p.cron.AddJob(cronFormat, runner)
 
 	if err != nil {
 		return 0, err
