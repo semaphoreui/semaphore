@@ -87,7 +87,7 @@ func (d *BoltDb) DeleteUser(userID int) error {
 		_ = d.DeleteProjectUser(p.ID, userID)
 	}
 
-	return d.deleteObject(0, db.UserProps, intObjectID(userID))
+	return d.deleteObject(0, db.UserProps, intObjectID(userID), nil)
 }
 
 func (d *BoltDb) UpdateUser(user db.UserWithPwd) error {
@@ -164,7 +164,7 @@ func (d *BoltDb) UpdateProjectUser(projectUser db.ProjectUser) error {
 }
 
 func (d *BoltDb) DeleteProjectUser(projectID, userID int) error {
-	return d.deleteObject(projectID, db.ProjectUserProps, intObjectID(userID))
+	return d.deleteObject(projectID, db.ProjectUserProps, intObjectID(userID), nil)
 }
 
 //GetUser retrieves a user from the database by ID

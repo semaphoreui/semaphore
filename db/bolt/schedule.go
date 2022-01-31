@@ -1,6 +1,9 @@
 package bolt
 
-import "github.com/ansible-semaphore/semaphore/db"
+import (
+	"github.com/ansible-semaphore/semaphore/db"
+	"go.etcd.io/bbolt"
+)
 
 func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 	var allProjects []db.Project
@@ -63,8 +66,14 @@ func (d *BoltDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedul
 	return
 }
 
+func (d *BoltDb) deleteSchedule(projectID int, scheduleID int, tx *bbolt.Tx) error {
+	return d.deleteObject(projectID, db.ScheduleProps, intObjectID(scheduleID), tx)
+}
+
 func (d *BoltDb) DeleteSchedule(projectID int, scheduleID int) error {
-	return d.deleteObject(projectID, db.ScheduleProps, intObjectID(scheduleID))
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return d.deleteSchedule(projectID, scheduleID, tx)
+	})
 }
 
 func (d *BoltDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string) error {

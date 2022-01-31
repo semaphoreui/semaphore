@@ -43,7 +43,7 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 	return d.updateObject(*key.ProjectID, db.AccessKeyProps, key)
 }
 
-func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey,  error) {
+func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey, error) {
 	err := key.SerializeSecret()
 	if err != nil {
 		return db.AccessKey{}, err
@@ -53,7 +53,7 @@ func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey,  error) {
 }
 
 func (d *BoltDb) DeleteAccessKey(projectID int, accessKeyID int) error {
-	return d.deleteObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID))
+	return d.deleteObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), nil)
 }
 
 func (d *BoltDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {

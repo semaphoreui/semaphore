@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"go.etcd.io/bbolt"
 )
 
 func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
@@ -73,6 +74,34 @@ func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Templat
 	return
 }
 
+func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (err error) {
+	tasks, err := d.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+	for _, task := range tasks {
+		err = d.deleteTaskWithOutputs(projectID, task.ID, tx)
+		if err != nil {
+			return
+		}
+	}
+
+	schedules, err := d.GetTemplateSchedules(projectID, templateID)
+	if err != nil {
+		return
+	}
+	for _, sch := range schedules {
+		err = d.deleteSchedule(projectID, sch.ID, tx)
+		if err != nil {
+			return
+		}
+	}
+
+	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID), tx)
+}
+
 func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
-	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID))
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return d.deleteTemplate(projectID, templateID, tx)
+	})
 }

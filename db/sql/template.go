@@ -187,7 +187,6 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	_, err := d.exec("update project__template set removed=true where project_id=? and id=?", projectID, templateID)
-
+	_, err := d.exec("delete from project__template where project_id=? and id=?", projectID, templateID)
 	return err
 }

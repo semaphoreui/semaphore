@@ -111,24 +111,25 @@ func (d *BoltDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (
 	return d.getTasks(projectID, nil, params)
 }
 
-func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
+func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, tx *bbolt.Tx) (err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
-
 	if err != nil {
 		return
 	}
 
-	err = d.deleteObject(0, db.TaskProps, intObjectID(taskID))
+	err = d.deleteObject(0, db.TaskProps, intObjectID(taskID), tx)
 	if err != nil {
 		return
 	}
 
-	_ = d.db.Update(func(tx *bbolt.Tx) error {
-		return tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
+	return tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
+}
+
+func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return d.deleteTaskWithOutputs(projectID, taskID, tx)
 	})
-
-	return
 }
 
 func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOutput, err error) {

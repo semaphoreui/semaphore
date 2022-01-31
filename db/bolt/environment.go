@@ -34,7 +34,7 @@ func (d *BoltDb) CreateEnvironment(env db.Environment) (db.Environment, error) {
 }
 
 func (d *BoltDb) DeleteEnvironment(projectID int, environmentID int) error {
-	return d.deleteObject(projectID, db.EnvironmentProps, intObjectID(environmentID))
+	return d.deleteObject(projectID, db.EnvironmentProps, intObjectID(environmentID), nil)
 }
 
 func (d *BoltDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {

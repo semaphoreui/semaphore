@@ -396,7 +396,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProperties, objID
 	return
 }
 
-func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
+func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID, tx *bbolt.Tx) error {
 	for _, u := range []db.ObjectProperties{db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps} {
 		inUse, err := d.isObjectInUse(bucketID, props, objectID, u)
 		if err != nil {
@@ -407,13 +407,19 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID 
 		}
 	}
 
-	return d.db.Update(func(tx *bbolt.Tx) error {
+	fn := func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
 			return db.ErrNotFound
 		}
 		return b.Delete(objectID.ToBytes())
-	})
+	}
+
+	if tx != nil {
+		return fn(tx)
+	}
+
+	return d.db.Update(fn)
 }
 
 func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objectID objectID) error {

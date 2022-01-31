@@ -36,7 +36,7 @@ func (d *BoltDb) CreateRepository(repository db.Repository) (db.Repository, erro
 }
 
 func (d *BoltDb) DeleteRepository(projectID int, repositoryId int) error {
-	return d.deleteObject(projectID, db.RepositoryProps, intObjectID(repositoryId))
+	return d.deleteObject(projectID, db.RepositoryProps, intObjectID(repositoryId), nil)
 }
 
 func (d *BoltDb) DeleteRepositorySoft(projectID int, repositoryId int) error {

@@ -10,6 +10,7 @@ web2/dist/**/*
 /.dredd/config.json
 /database.boltdb
 /database.boltdb.lock
+/database2.boltdb
 .DS_Store
 node_modules/
 
