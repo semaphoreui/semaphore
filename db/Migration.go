@@ -56,7 +56,6 @@ func GetMigrations() []Migration {
 }
 
 func Migrate(d Store) error {
-	fmt.Println("Checking db migrations")
 	didRun := false
 
 	for _, version := range GetMigrations() {
