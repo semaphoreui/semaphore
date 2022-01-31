@@ -133,7 +133,7 @@ func (r GitRepository) GetLastRemoteCommitHash() (hash string, err error) {
 	if err != nil {
 		return
 	}
-	firstSpaceIndex := strings.IndexRune(out, ' ')
+	firstSpaceIndex := strings.IndexAny(out, "\t ")
 	if firstSpaceIndex == -1 {
 		err = fmt.Errorf("can't retreave remote commit hash")
 	}

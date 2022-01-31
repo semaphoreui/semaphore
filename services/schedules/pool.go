@@ -15,7 +15,7 @@ type ScheduleRunner struct {
 }
 
 func (r ScheduleRunner) Run() {
-	if r.schedule.RepositoryID != nil && r.schedule.LastCommitHash != nil {
+	if r.schedule.RepositoryID != nil {
 		repo, err := r.pool.store.GetRepository(r.schedule.ProjectID, *r.schedule.RepositoryID)
 		if err != nil {
 			log.Error(err)
@@ -33,7 +33,7 @@ func (r ScheduleRunner) Run() {
 			return
 		}
 
-		if remoteHash == *r.schedule.LastCommitHash {
+		if r.schedule.LastCommitHash != nil && remoteHash == *r.schedule.LastCommitHash {
 			return
 		}
 
