@@ -26,7 +26,7 @@ func TestMigration_2_8_40_Apply(t *testing.T) {
 		}
 
 		err = r.Put([]byte("0000000001"),
-			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"name\": \"test123\"}"))
+			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"alias\": \"test123\"}"))
 
 		return err
 	})
@@ -54,8 +54,8 @@ func TestMigration_2_8_40_Apply(t *testing.T) {
 		t.Fatal("invalid name")
 	}
 
-	if repo["name"] != nil {
-		t.Fatal("name must be deleted")
+	if repo["alias"] != nil {
+		t.Fatal("alias must be deleted")
 	}
 }
 

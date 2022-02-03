@@ -357,21 +357,42 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 
 	repo1, err := store.CreateRepository(db.Repository{
 		Name:      "repo1",
-		ProjectID: 1,
 		GitURL:    "git@example.com/repo1",
 		GitBranch: "master",
+		ProjectID: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, err = store.CreateTemplate(db.Template{
-		ProjectID:    1,
 		Type:         db.TemplateBuild,
 		Name:         "tpl1",
 		Playbook:     "build.yml",
 		RepositoryID: repo1.ID,
+		ProjectID:    1,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl2, err := store.CreateTemplate(db.Template{
+		Type:      db.TemplateBuild,
+		Name:      "tpl12",
+		Playbook:  "build.yml",
+		ProjectID: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.CreateSchedule(db.Schedule{
+		CronFormat:   "* * * * *",
+		TemplateID:   tpl2.ID,
+		ProjectID:    1,
+		RepositoryID: &repo1.ID,
+	})
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -381,7 +402,7 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(refs.Templates) != 1 {
+	if len(refs.Templates) != 2 {
 		t.Fatal()
 	}
 }

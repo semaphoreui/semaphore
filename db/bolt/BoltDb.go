@@ -511,32 +511,71 @@ func (d *BoltDb) getObjectRefs(projectID int, objectProps db.ObjectProps, object
 		return
 	}
 
-	//refs.Schedules, err = d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.ScheduleProps)
+	templates, err := d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.ScheduleProps)
+
+	for _, st := range templates {
+		exists := false
+		for _, tpl := range refs.Templates {
+			if tpl.ID == st.ID {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+		refs.Templates = append(refs.Templates, st)
+	}
 
 	return
 }
 
 func (d *BoltDb) getObjectRefsFrom(projectID int, objProps db.ObjectProps, objID objectID, referringObjectProps db.ObjectProps) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
 	_, err = objProps.GetReferringFieldsFrom(referringObjectProps.Type)
 	if err != nil {
 		return
 	}
 
-	referringObjects := reflect.New(reflect.SliceOf(referringObjectProps.Type))
+	var referringObjects reflect.Value
 
-	err = d.getObjects(projectID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
-		return isObjectReferredBy(objProps, objID, referringObj)
-	}, referringObjects.Interface())
+	if referringObjectProps.Type == db.ScheduleProps.Type {
+		schedules := make([]db.Schedule, 0)
+		err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+			return isObjectReferredBy(objProps, objID, referringObj)
+		}, &schedules)
 
-	if err != nil {
-		return
-	}
+		if err != nil {
+			return
+		}
 
-	for i := 0; i < referringObjects.Elem().Len(); i++ {
-		referringObjs = append(referringObjs, db.ObjectReferrer{
-			ID:   int(referringObjects.Elem().Index(i).FieldByName("ID").Int()),
-			Name: referringObjects.Elem().Index(i).FieldByName("Name").String(),
-		})
+		for _, schedule := range schedules {
+			var template db.Template
+			template, err = d.GetTemplate(projectID, schedule.TemplateID)
+			if err != nil {
+				return
+			}
+			referringObjs = append(referringObjs, db.ObjectReferrer{
+				ID:   template.ID,
+				Name: template.Name,
+			})
+		}
+	} else {
+		referringObjects = reflect.New(reflect.SliceOf(referringObjectProps.Type))
+		err = d.getObjects(projectID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+			return isObjectReferredBy(objProps, objID, referringObj)
+		}, referringObjects.Interface())
+
+		if err != nil {
+			return
+		}
+
+		for i := 0; i < referringObjects.Elem().Len(); i++ {
+			referringObjs = append(referringObjs, db.ObjectReferrer{
+				ID:   int(referringObjects.Elem().Index(i).FieldByName("ID").Int()),
+				Name: referringObjects.Elem().Index(i).FieldByName("Name").String(),
+			})
+		}
 	}
 
 	return

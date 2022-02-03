@@ -369,10 +369,6 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 	return
 }
 
-func (d *SqlDb) getObjectRefCount(projectID int, objectProps db.ObjectProps, objectID int) (int, error) {
-	return 0, nil
-}
-
 func (d *SqlDb) getObjectRefsFrom(
 	projectID int,
 	objectProps db.ObjectProps,
