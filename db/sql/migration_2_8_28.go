@@ -5,12 +5,12 @@ import (
 	"strings"
 )
 
-type Migration_2_8_26 struct {
-	DB *SqlDb
+type migration_2_8_26 struct {
+	db *SqlDb
 }
 
-func (m Migration_2_8_26) Apply(tx *gorp.Transaction) error {
-	rows, err := tx.Query(m.DB.PrepareQuery("SELECT id, git_url FROM project__repository"))
+func (m migration_2_8_26) Apply(tx *gorp.Transaction) error {
+	rows, err := tx.Query(m.db.PrepareQuery("SELECT id, git_url FROM project__repository"))
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (m Migration_2_8_26) Apply(tx *gorp.Transaction) error {
 		if len(parts) > 1 {
 			url, branch = parts[0], parts[1]
 		}
-		q := m.DB.PrepareQuery("UPDATE project__repository " +
+		q := m.db.PrepareQuery("UPDATE project__repository " +
 			"SET git_url = ?, git_branch = ? " +
 			"WHERE id = ?")
 		_, err = tx.Exec(q, url, branch, id)

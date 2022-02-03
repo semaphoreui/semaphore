@@ -33,10 +33,10 @@ func (d *BoltDb) IsMigrationApplied(migration db.Migration) (bool, error) {
 	return false, err
 }
 
-func (d *BoltDb) ApplyMigration(migration db.Migration) (err error) {
-	switch migration.Version {
+func (d *BoltDb) ApplyMigration(m db.Migration) (err error) {
+	switch m.Version {
 	case "2.8.26":
-		err = Migration_2_8_28{DB: d.db}.Apply()
+		err = migration_2_8_28{migration{d.db}}.Apply()
 	}
 
 	if err != nil {
@@ -50,18 +50,66 @@ func (d *BoltDb) ApplyMigration(migration db.Migration) (err error) {
 			return err
 		}
 
-		j, err := json.Marshal(migration)
+		j, err := json.Marshal(m)
 
 		if err != nil {
 			return err
 		}
 
-		return b.Put([]byte(migration.Version), j)
+		return b.Put([]byte(m.Version), j)
 	})
 }
 
-func (d *BoltDb) TryRollbackMigration(migration db.Migration) {
-	switch migration.Version {
+func (d *BoltDb) TryRollbackMigration(m db.Migration) {
+	switch m.Version {
 	case "2.8.26":
 	}
+}
+
+type migration struct {
+	db *bbolt.DB
+}
+
+func (d migration) getProjectIDs() (projectIDs []string, err error) {
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("project"))
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(id, _ []byte) error {
+			projectIDs = append(projectIDs, string(id))
+			return nil
+		})
+	})
+	return
+}
+
+func (d migration) getObjects(projectID string, objectPrefix string) (map[string]map[string]interface{}, error) {
+	repos := make(map[string]map[string]interface{})
+	err := d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("project__" + objectPrefix + "_" + projectID))
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(id, body []byte) error {
+			r := make(map[string]interface{})
+			repos[string(id)] = r
+			return json.Unmarshal(body, &r)
+		})
+	})
+	return repos, err
+}
+
+func (d migration) setObject(projectID string, objectPrefix string, objectID string, object map[string]interface{}) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte("project__" + objectPrefix + "_" + projectID))
+		if err != nil {
+			return err
+		}
+		j, err := json.Marshal(object)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(objectID), j)
+	})
 }

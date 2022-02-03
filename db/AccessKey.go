@@ -38,8 +38,6 @@ type AccessKey struct {
 	// You should use methods SerializeSecret to fill this field.
 	Secret *string `db:"secret" json:"-"`
 
-	Removed bool `db:"removed" json:"removed"`
-
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	PAT            string        `db:"-" json:"pat"`

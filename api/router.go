@@ -161,6 +161,7 @@ func Route() *mux.Router {
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
 	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
+	projectKeyManagement.HandleFunc("/{key_id}/refs", projects.GetKeyRefs).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
@@ -168,6 +169,7 @@ func Route() *mux.Router {
 	projectRepoManagement.Use(projects.RepositoryMiddleware)
 
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.GetRepositories).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/refs", projects.GetRepositoryRefs).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 
@@ -175,6 +177,7 @@ func Route() *mux.Router {
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
 
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.GetInventory).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/refs", projects.GetInventoryRefs).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
 
@@ -182,6 +185,7 @@ func Route() *mux.Router {
 	projectEnvManagement.Use(projects.EnvironmentMiddleware)
 
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.GetEnvironment).Methods("GET", "HEAD")
+	projectEnvManagement.HandleFunc("/{environment_id}/refs", projects.GetEnvironmentRefs).Methods("GET", "HEAD")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
 

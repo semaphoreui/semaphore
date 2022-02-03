@@ -147,7 +147,7 @@ func (t *TaskRunner) destroyKeys() {
 
 func (t *TaskRunner) createTaskEvent() {
 	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " finished - " + strings.ToUpper(t.task.Status)
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " finished - " + strings.ToUpper(t.task.Status)
 
 	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
@@ -190,7 +190,7 @@ func (t *TaskRunner) prepareRun() {
 	}
 
 	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is preparing"
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " is preparing"
 	_, err = t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
 		ProjectID:   &t.task.ProjectID,
@@ -204,7 +204,7 @@ func (t *TaskRunner) prepareRun() {
 		panic(err)
 	}
 
-	t.Log("Prepare TaskRunner with template: " + t.template.Alias + "\n")
+	t.Log("Prepare TaskRunner with template: " + t.template.Name + "\n")
 
 	t.updateStatus()
 
@@ -287,7 +287,7 @@ func (t *TaskRunner) run() {
 	t.setStatus(db.TaskRunningStatus)
 
 	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Alias + ")" + " is running"
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " is running"
 
 	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
@@ -303,7 +303,7 @@ func (t *TaskRunner) run() {
 	}
 
 	t.Log("Started: " + strconv.Itoa(t.task.ID))
-	t.Log("Run TaskRunner with template: " + t.template.Alias + "\n")
+	t.Log("Run TaskRunner with template: " + t.template.Name + "\n")
 
 	// TODO: ?????
 	if t.task.Status == db.TaskStoppingStatus {

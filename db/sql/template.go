@@ -16,14 +16,14 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
-			"alias, playbook, arguments, allow_override_args_in_task, description, vault_key_id, `type`, start_version,"+
+			"name, playbook, arguments, allow_override_args_in_task, description, vault_key_id, `type`, start_version,"+
 			"build_template_id, view_id, autorun, survey_vars)"+
 			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
-		template.Alias,
+		template.Name,
 		template.Playbook,
 		template.Arguments,
 		template.AllowOverrideArgsInTask,
@@ -63,7 +63,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"inventory_id=?, "+
 		"repository_id=?, "+
 		"environment_id=?, "+
-		"alias=?, "+
+		"name=?, "+
 		"playbook=?, "+
 		"arguments=?, "+
 		"allow_override_args_in_task=?, "+
@@ -79,7 +79,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
-		template.Alias,
+		template.Name,
 		template.Playbook,
 		template.Arguments,
 		template.AllowOverrideArgsInTask,
@@ -103,7 +103,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.inventory_id",
 		"pt.repository_id",
 		"pt.environment_id",
-		"pt.alias",
+		"pt.name",
 		"pt.playbook",
 		"pt.arguments",
 		"pt.allow_override_args_in_task",
@@ -129,7 +129,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	}
 
 	switch params.SortBy {
-	case "alias", "playbook":
+	case "name", "playbook":
 		q = q.Where("pt.project_id=?", projectID).
 			OrderBy("pt." + params.SortBy + " " + order)
 	case "inventory":
@@ -146,7 +146,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 			OrderBy("pr.name " + order)
 	default:
 		q = q.Where("pt.project_id=?", projectID).
-			OrderBy("pt.alias " + order)
+			OrderBy("pt.name " + order)
 	}
 
 	query, args, err := q.ToSql()

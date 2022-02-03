@@ -63,7 +63,7 @@
               : `/project/${projectId}/templates/`"
         >Task Templates</router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ item.alias }}</span>
+        <span class="breadcrumbs__item">{{ item.name }}</span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
@@ -277,7 +277,7 @@ export default {
 
         EventBus.$emit('i-snackbar', {
           color: 'success',
-          text: `Template "${this.item.alias}" deleted`,
+          text: `Template "${this.item.name}" deleted`,
         });
 
         await this.$router.push({

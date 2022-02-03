@@ -7,7 +7,7 @@
     >
       <template v-slot:title={}>
         <v-icon class="mr-4">{{ TEMPLATE_TYPE_ICONS[template.type] }}</v-icon>
-        <span class="breadcrumbs__item">{{ template.alias }}</span>
+        <span class="breadcrumbs__item">{{ template.name }}</span>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">New Task</span>
       </template>

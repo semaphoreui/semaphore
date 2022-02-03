@@ -18,6 +18,7 @@ var (
 	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
 	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
 	dropForeignKey  = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
+	changeRE        = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
 )
 
 // getVersionPath is the humanoid version with the file format appended
@@ -38,6 +39,9 @@ func getVersionSQL(path string) (queries []string) {
 		panic(err)
 	}
 	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
+	for i := range queries {
+		queries[i] = strings.Trim(queries[i], "\n\t ")
+	}
 	return
 }
 
@@ -49,12 +53,41 @@ func (d *SqlDb) prepareMigration(query string) string {
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
 		query = ifExistsRE.ReplaceAllString(query, "")
 	case gorp.PostgresDialect:
-		query = serialRE.ReplaceAllString(query, "serial primary key")
-		query = identifierQuoteRE.ReplaceAllString(query, "\"")
+		m := changeRE.FindStringSubmatch(query)
+		var queries []string
+
+		if m != nil {
+			tableName := m[1]
+			oldColumnName := m[2]
+			newColumnName := m[3]
+			columnType := m[4]
+			columnNotNull := m[5] != ""
+
+			queries = append(queries,
+				"alter table `"+tableName+"` alter column `"+oldColumnName+"` type "+columnType)
+
+			if columnNotNull {
+				queries = append(queries,
+					"alter table `"+tableName+"` alter column `"+oldColumnName+"` set not null")
+			} else {
+				queries = append(queries,
+					"alter table `"+tableName+"` alter column `"+oldColumnName+"` drop not null")
+			}
+
+			if oldColumnName != newColumnName {
+				queries = append(queries,
+					"alter table `"+tableName+"` rename column `"+oldColumnName+"` to `"+newColumnName+"`")
+			}
+
+			query = strings.Join(queries, "; ")
+		}
+
 		query = dateTimeTypeRE.ReplaceAllString(query, "timestamp")
 		query = tinyintRE.ReplaceAllString(query, "smallint")
 		query = longtextRE.ReplaceAllString(query, "text")
+		query = serialRE.ReplaceAllString(query, "serial primary key")
 		query = dropForeignKey.ReplaceAllString(query, "drop constraint")
+		query = identifierQuoteRE.ReplaceAllString(query, "\"")
 	}
 	return query
 }
@@ -130,7 +163,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 	switch migration.Version {
 	case "2.8.26":
-		err = Migration_2_8_26{DB: d}.Apply(tx)
+		err = migration_2_8_26{db: d}.Apply(tx)
 	}
 
 	if err != nil {

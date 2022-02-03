@@ -11,7 +11,7 @@ type globalToken struct {
 	UserID int    `db:"user_id" json:"user_id"`
 }
 
-var globalTokenObject = db.ObjectProperties{
+var globalTokenObject = db.ObjectProps{
 	TableName:         "token",
 	PrimaryColumnName: "id",
 	Type:              reflect.TypeOf(globalToken{}),

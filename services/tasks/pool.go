@@ -18,14 +18,25 @@ type logRecord struct {
 }
 
 type TaskPool struct {
-	queue        []*TaskRunner
-	register     chan *TaskRunner
-	activeProj   map[int]*TaskRunner
-	activeNodes  map[string]*TaskRunner
-	running      int
+	// queue contains list of tasks in status TaskWaitingStatus.
+	queue []*TaskRunner
+	
+	// register channel used to put tasks to queue.
+	register chan *TaskRunner
+
+	activeProj  map[int]*TaskRunner
+	activeNodes map[string]*TaskRunner
+
+	// running is a number of task with status TaskRunningStatus.
+	running int
+
+	// runningTasks contains tasks with status TaskRunningStatus.
 	runningTasks map[int]*TaskRunner
-	logger       chan logRecord
-	store        db.Store
+
+	// logger channel used to putting log records to database.
+	logger chan logRecord
+
+	store db.Store
 }
 
 type resourceLock struct {

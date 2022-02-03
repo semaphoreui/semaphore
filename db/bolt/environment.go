@@ -7,6 +7,10 @@ func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment d
 	return
 }
 
+func (d *BoltDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.EnvironmentProps, environmentID)
+}
+
 func (d *BoltDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) (environment []db.Environment, err error) {
 	err = d.getObjects(projectID, db.EnvironmentProps, params, nil, &environment)
 	return
@@ -35,8 +39,4 @@ func (d *BoltDb) CreateEnvironment(env db.Environment) (db.Environment, error) {
 
 func (d *BoltDb) DeleteEnvironment(projectID int, environmentID int) error {
 	return d.deleteObject(projectID, db.EnvironmentProps, intObjectID(environmentID), nil)
-}
-
-func (d *BoltDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
-	return d.deleteObjectSoft(projectID, db.EnvironmentProps, intObjectID(environmentID))
 }

@@ -18,6 +18,10 @@ func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, e
 	return repository, err
 }
 
+func (d *SqlDb) GetRepositoryRefs(projectID int, repositoryID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.RepositoryProps, repositoryID)
+}
+
 func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (repositories []db.Repository, err error) {
 	q := squirrel.Select("*").
 		From("project__repository pr")
@@ -96,8 +100,4 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 
 func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
 	return d.deleteObject(projectID, db.RepositoryProps, repositoryId)
-}
-
-func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
-	return d.deleteObjectSoft(projectID, db.RepositoryProps, repositoryId)
 }

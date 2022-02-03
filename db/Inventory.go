@@ -2,8 +2,9 @@ package db
 
 const (
 	InventoryStatic = "static"
-	InventoryFile = "file"
+	InventoryFile   = "file"
 )
+
 // Inventory is the model of an ansible inventory file
 type Inventory struct {
 	ID        int    `db:"id" json:"id"`
@@ -20,8 +21,6 @@ type Inventory struct {
 
 	// static/file
 	Type string `db:"type" json:"type"`
-
-	Removed bool `db:"removed" json:"removed"`
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {

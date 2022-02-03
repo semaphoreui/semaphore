@@ -42,8 +42,8 @@ type Template struct {
 	RepositoryID  int  `db:"repository_id" json:"repository_id"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id"`
 
-	// Alias as described in https://github.com/ansible-semaphore/semaphore/issues/188
-	Alias string `db:"alias" json:"alias"`
+	// Name as described in https://github.com/ansible-semaphore/semaphore/issues/188
+	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
 	// to fit into []string
@@ -74,8 +74,8 @@ type Template struct {
 }
 
 func (tpl *Template) Validate() error {
-	if tpl.Alias == "" {
-		return &ValidationError{"template alias can not be empty"}
+	if tpl.Name == "" {
+		return &ValidationError{"template name can not be empty"}
 	}
 
 	if tpl.Playbook == "" {

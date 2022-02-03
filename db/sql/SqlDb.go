@@ -11,6 +11,7 @@ import (
 	"github.com/gobuffalo/packr"
 	_ "github.com/lib/pq"
 	"github.com/masterminds/squirrel"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -182,7 +183,7 @@ func createDb() error {
 	return nil
 }
 
-func (d *SqlDb) getObject(projectID int, props db.ObjectProperties, objectID int, object interface{}) (err error) {
+func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, object interface{}) (err error) {
 	q := squirrel.Select("*").
 		From(props.TableName).
 		Where("id=?", objectID)
@@ -208,7 +209,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProperties, objectID int
 	return
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
 		From(props.TableName+" pe").
 		Where("pe.project_id=?", projectID)
@@ -238,18 +239,10 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProperties, params db.R
 	return
 }
 
-func (d *SqlDb) deleteObject(projectID int, props db.ObjectProperties, objectID int) error {
+func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {
 	return validateMutationResult(
 		d.exec(
 			"delete from "+props.TableName+" where project_id=? and id=?",
-			projectID,
-			objectID))
-}
-
-func (d *SqlDb) deleteObjectSoft(projectID int, props db.ObjectProperties, objectID int) error {
-	return validateMutationResult(
-		d.exec(
-			"update "+props.TableName+" set removed=1 where project_id=? and id=?",
 			projectID,
 			objectID))
 }
@@ -336,6 +329,118 @@ func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []inter
 	}
 
 	return q.ToSql()
+}
+
+func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.ObjectReferrers, err error) {
+	refs.Templates, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.TemplateProps)
+	if err != nil {
+		return
+	}
+
+	refs.Repositories, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.RepositoryProps)
+	if err != nil {
+		return
+	}
+
+	refs.Inventories, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.InventoryProps)
+	if err != nil {
+		return
+	}
+
+	templates, err := d.getObjectRefsFrom(projectID, objectProps, objectID, db.ScheduleProps)
+	if err != nil {
+		return
+	}
+
+	for _, st := range templates {
+		exists := false
+		for _, tpl := range refs.Templates {
+			if tpl.ID == st.ID {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+		refs.Templates = append(refs.Templates, st)
+	}
+
+	return
+}
+
+func (d *SqlDb) getObjectRefCount(projectID int, objectProps db.ObjectProps, objectID int) (int, error) {
+	return 0, nil
+}
+
+func (d *SqlDb) getObjectRefsFrom(
+	projectID int,
+	objectProps db.ObjectProps,
+	objectID int,
+	referringObjectProps db.ObjectProps,
+) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
+
+	fields, err := objectProps.GetReferringFieldsFrom(referringObjectProps.Type)
+
+	cond := ""
+	vals := []interface{}{projectID}
+
+	for _, f := range fields {
+		if cond != "" {
+			cond += ", "
+		}
+
+		cond += f + " = ?"
+
+		vals = append(vals, objectID)
+	}
+
+	if cond == "" {
+		return
+	}
+
+	var referringObjects reflect.Value
+
+	if referringObjectProps.Type == db.ScheduleProps.Type {
+		var referringSchedules []db.Schedule
+		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and "+cond, vals...)
+
+		if err != nil {
+			return
+		}
+
+		if len(referringSchedules) == 0 {
+			return
+		}
+
+		var ids []string
+		for _, schedule := range referringSchedules {
+			ids = append(ids, strconv.Itoa(schedule.ID))
+		}
+
+		referringObjects = reflect.New(reflect.SliceOf(db.TemplateProps.Type))
+		_, err = d.selectAll(referringObjects.Interface(),
+			"select id, name from project__template where id in ("+strings.Join(ids, ",")+")")
+	} else {
+		referringObjects = reflect.New(reflect.SliceOf(referringObjectProps.Type))
+		_, err = d.selectAll(
+			referringObjects.Interface(),
+			"select id, name from "+referringObjectProps.TableName+" where project_id = ? and "+cond,
+			vals...)
+	}
+
+	if err != nil {
+		return
+	}
+
+	for i := 0; i < referringObjects.Elem().Len(); i++ {
+		id := int(referringObjects.Elem().Index(i).FieldByName("ID").Int())
+		name := referringObjects.Elem().Index(i).FieldByName("Name").String()
+		referringObjs = append(referringObjs, db.ObjectReferrer{ID: id, Name: name})
+	}
+
+	return
 }
 
 func (d *SqlDb) Sql() *gorp.DbMap {

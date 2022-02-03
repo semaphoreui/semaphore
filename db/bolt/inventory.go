@@ -20,12 +20,12 @@ func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams) (i
 	return
 }
 
-func (d *BoltDb) DeleteInventory(projectID int, inventoryID int) error {
-	return d.deleteObject(projectID, db.InventoryProps, intObjectID(inventoryID), nil)
+func (d *BoltDb) GetInventoryRefs(projectID int, inventoryID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.InventoryProps, inventoryID)
 }
 
-func (d *BoltDb) DeleteInventorySoft(projectID int, inventoryID int) error {
-	return d.deleteObjectSoft(projectID, db.InventoryProps, intObjectID(inventoryID))
+func (d *BoltDb) DeleteInventory(projectID int, inventoryID int) error {
+	return d.deleteObject(projectID, db.InventoryProps, intObjectID(inventoryID), nil)
 }
 
 func (d *BoltDb) UpdateInventory(inventory db.Inventory) error {

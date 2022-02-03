@@ -39,7 +39,7 @@ aliases:
         curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.5/install.sh | bash
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install 12.15.0 && nvm alias default 12.15.0
+        nvm install 12.15.0 && nvm name default 12.15.0
         # Each step uses the same `$BASH_ENV`, so need to modify it
         echo 'export NVM_DIR="$HOME/.nvm"' >> $BASH_ENV
         echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV

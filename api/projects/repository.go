@@ -30,6 +30,17 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
+	repo := context.Get(r, "repository").(db.Repository)
+	refs, err := helpers.Store(r).GetRepositoryRefs(repo.ProjectID, repo.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
+}
+
 // GetRepositories returns all repositories in a project sorted by type
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
 	if repo := context.Get(r, "repository"); repo != nil {
@@ -152,19 +163,13 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	softDeletion := r.URL.Query().Get("setRemoved") == "1"
-
-	if softDeletion {
-		err = helpers.Store(r).DeleteRepositorySoft(repository.ProjectID, repository.ID)
-	} else {
-		err = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
-		if err == db.ErrInvalidOperation {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Repository is in use by one or more templates",
-				"inUse": true,
-			})
-			return
-		}
+	err = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
+	if err == db.ErrInvalidOperation {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "Repository is in use by one or more templates",
+			"inUse": true,
+		})
+		return
 	}
 
 	if err != nil {

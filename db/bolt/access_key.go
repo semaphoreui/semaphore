@@ -13,6 +13,10 @@ func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey,
 	return
 }
 
+func (d *BoltDb) GetAccessKeyRefs(projectID int, accessKeyID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.AccessKeyProps, accessKeyID)
+}
+
 func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
 	err := d.getObjects(projectID, db.AccessKeyProps, params, nil, &keys)
@@ -54,8 +58,4 @@ func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey, error) {
 
 func (d *BoltDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), nil)
-}
-
-func (d *BoltDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
-	return d.deleteObjectSoft(projectID, db.AccessKeyProps, intObjectID(accessKeyID))
 }

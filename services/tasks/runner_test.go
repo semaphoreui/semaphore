@@ -65,7 +65,7 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Alias:         "Test",
+		Name:          "Test",
 		Playbook:      "test.yml",
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,

@@ -19,6 +19,17 @@
       </template>
     </EditDialog>
 
+    <EditDialog
+      v-model="itemRefsDialog"
+      title="Environment in use"
+      :max-width="500"
+      hide-buttons
+    >
+      <template>
+        <ObjectRefsView :object-refs="itemRefs" />
+      </template>
+    </EditDialog>
+
     <YesNoDialog
       title="Delete environment"
       text="Are you really want to delete this environment?"

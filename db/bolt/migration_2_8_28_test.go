@@ -35,7 +35,7 @@ func TestMigration_2_8_28_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = Migration_2_8_28{DB: store.db}.Apply()
+	err = migration_2_8_28{migration{store.db}}.Apply()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestMigration_2_8_28_Apply2(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = Migration_2_8_28{DB: store.db}.Apply()
+	err = migration_2_8_28{migration{store.db}}.Apply()
 	if err != nil {
 		t.Fatal(err)
 	}

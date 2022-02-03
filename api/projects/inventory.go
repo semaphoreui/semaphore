@@ -34,6 +34,17 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func GetInventoryRefs(w http.ResponseWriter, r *http.Request) {
+	inventory := context.Get(r, "inventory").(db.Inventory)
+	refs, err := helpers.Store(r).GetInventoryRefs(inventory.ProjectID, inventory.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
+}
+
 // GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
 	if inventory := context.Get(r, "inventory"); inventory != nil {
@@ -180,19 +191,13 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(db.Inventory)
 	var err error
 
-	softDeletion := r.URL.Query().Get("setRemoved") == "1"
-
-	if softDeletion {
-		err = helpers.Store(r).DeleteInventorySoft(inventory.ProjectID, inventory.ID)
-	} else {
-		err = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
-		if err == db.ErrInvalidOperation {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Inventory is in use by one or more templates",
-				"inUse": true,
-			})
-			return
-		}
+	err = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
+	if err == db.ErrInvalidOperation {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "Inventory is in use by one or more templates",
+			"inUse": true,
+		})
+		return
 	}
 
 	if err != nil {

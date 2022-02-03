@@ -14,7 +14,8 @@ web2/dist/**/*
 .DS_Store
 node_modules/
 
-.idea/
+/.idea/
+/semaphore.iml
 /bin/
 
 *-packr.go

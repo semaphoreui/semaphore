@@ -13,7 +13,7 @@ func TestTask_GetVersion(t *testing.T) {
 	build, err := store.CreateTemplate(db.Template{
 		ProjectID: 0,
 		Type:      db.TemplateBuild,
-		Alias:     "Build",
+		Name:      "Build",
 		Playbook:  "build.yml",
 	})
 	if err != nil {
@@ -24,7 +24,7 @@ func TestTask_GetVersion(t *testing.T) {
 		ProjectID:       0,
 		Type:            db.TemplateDeploy,
 		BuildTemplateID: &build.ID,
-		Alias:           "Deploy",
+		Name:            "Deploy",
 		Playbook:        "deploy.yml",
 	})
 	if err != nil {
@@ -35,7 +35,7 @@ func TestTask_GetVersion(t *testing.T) {
 		ProjectID:       0,
 		Type:            db.TemplateDeploy,
 		BuildTemplateID: &deploy.ID,
-		Alias:           "Deploy2",
+		Name:            "Deploy2",
 		Playbook:        "deploy2.yml",
 	})
 	if err != nil {

@@ -30,6 +30,17 @@ func KeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func GetKeyRefs(w http.ResponseWriter, r *http.Request) {
+	key := context.Get(r, "accessKey").(db.AccessKey)
+	refs, err := helpers.Store(r).GetAccessKeyRefs(*key.ProjectID, key.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
+}
+
 // GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	if key := context.Get(r, "accessKey"); key != nil {
@@ -161,19 +172,13 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	softDeletion := r.URL.Query().Get("setRemoved") == "1"
-
-	if softDeletion {
-		err = helpers.Store(r).DeleteAccessKeySoft(*key.ProjectID, key.ID)
-	} else {
-		err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
-		if err == db.ErrInvalidOperation {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Access Key is in use by one or more templates",
-				"inUse": true,
-			})
-			return
-		}
+	err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
+	if err == db.ErrInvalidOperation {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "Access Key is in use by one or more templates",
+			"inUse": true,
+		})
+		return
 	}
 
 	if err != nil {

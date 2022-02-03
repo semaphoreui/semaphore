@@ -18,12 +18,12 @@ func (d *SqlDb) GetInventories(projectID int, params db.RetrieveQueryParams) ([]
 	return inventories, err
 }
 
-func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
-	return d.deleteObject(projectID, db.InventoryProps, inventoryID)
+func (d *SqlDb) GetInventoryRefs(projectID int, inventoryID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.InventoryProps, inventoryID)
 }
 
-func (d *SqlDb) DeleteInventorySoft(projectID int, inventoryID int) error {
-	return d.deleteObjectSoft(projectID, db.InventoryProps,  inventoryID)
+func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
+	return d.deleteObject(projectID, db.InventoryProps, inventoryID)
 }
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
@@ -58,6 +58,3 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 	newInventory.ID = insertID
 	return
 }
-
-
-

@@ -326,7 +326,7 @@ definitions:
       view_id:
         type: integer
         minimum: 1
-      alias:
+      name:
         type: string
         example: Test
       playbook:
@@ -361,7 +361,7 @@ definitions:
       view_id:
         type: integer
         minimum: 1
-      alias:
+      name:
         type: string
         example: Test
       playbook:
@@ -1221,7 +1221,7 @@ paths:
           required: true
           type: string
           description: sorting name
-          enum: [alias, playbook, ssh_key, inventory, environment, repository]
+          enum: [name, playbook, ssh_key, inventory, environment, repository]
         - name: order
           in: query
           required: true

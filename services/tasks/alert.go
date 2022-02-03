@@ -10,17 +10,17 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-const emailTemplate = `Subject: Task '{{ .Alias }}' failed
+const emailTemplate = `Subject: Task '{{ .Name }}' failed
 
-Task {{ .TaskID }} with template '{{ .Alias }}' has failed!
+Task {{ .TaskID }} with template '{{ .Name }}' has failed!
 Task log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>`
 
-const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Alias }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
+const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Name }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
 
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
 	TaskID          string
-	Alias           string
+	Name            string
 	TaskURL         string
 	ChatID          string
 	TaskResult      string
@@ -39,7 +39,7 @@ func (t *TaskRunner) sendMailAlert() {
 	var mailBuffer bytes.Buffer
 	alert := Alert{
 		TaskID:  strconv.Itoa(t.task.ID),
-		Alias:   t.template.Alias,
+		Name:    t.template.Name,
 		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
 	}
 	tpl := template.New("mail body template")
@@ -103,7 +103,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 
 	alert := Alert{
 		TaskID:          strconv.Itoa(t.task.ID),
-		Alias:           t.template.Alias,
+		Name:            t.template.Name,
 		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
 		ChatID:          chatID,
 		TaskResult:      strings.ToUpper(t.task.Status),

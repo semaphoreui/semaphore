@@ -98,7 +98,7 @@
               label="Build Template"
               :items="buildTemplates"
               item-value="id"
-              item-text="alias"
+              item-text="name"
               :rules="[v => !!v || 'Build Template is required']"
               required
               :disabled="formSaving"
@@ -117,9 +117,9 @@
         </v-card>
 
         <v-text-field
-          v-model="item.alias"
-          label="Playbook Alias"
-          :rules="[v => !!v || 'Playbook Alias is required']"
+          v-model="item.name"
+          label="Playbook Name"
+          :rules="[v => !!v || 'Playbook Name is required']"
           required
           :disabled="formSaving"
         ></v-text-field>

@@ -132,7 +132,7 @@
           opacity: viewItemsLoading ? 0.3 : 1,
         }"
     >
-      <template v-slot:item.alias="{ item }">
+      <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" small>
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
@@ -140,7 +140,7 @@
             :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
               : `/project/${projectId}/templates/${item.id}`"
-        >{{ item.alias }}</router-link>
+        >{{ item.name }}</router-link>
       </template>
 
       <template v-slot:item.version="{ item }">
@@ -300,7 +300,7 @@ export default {
       if (this.itemId == null || this.itemId === 'new') {
         return '';
       }
-      return this.items.find((x) => x.id === this.itemId).alias;
+      return this.items.find((x) => x.id === this.itemId).name;
     },
 
     isLoaded() {
@@ -403,8 +403,8 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Alias',
-          value: 'alias',
+          text: 'Name',
+          value: 'name',
         },
         {
           text: 'Version',

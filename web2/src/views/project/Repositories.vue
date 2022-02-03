@@ -18,6 +18,20 @@
       </template>
     </EditDialog>
 
+    <EditDialog
+      v-model="itemRefsDialog"
+      title="Can't delete the repository"
+      :max-width="500"
+    >
+      <template v-slot:form="{}">
+        <ObjectRefsView
+          title="The repository used by following resources:"
+          :object-refs="itemRefs"
+          :project-id="projectId"
+        />
+      </template>
+    </EditDialog>
+
     <YesNoDialog
       title="Delete repository"
       text="Are you really want to delete this repository?"
