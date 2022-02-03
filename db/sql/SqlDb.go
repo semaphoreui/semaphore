@@ -384,7 +384,7 @@ func (d *SqlDb) getObjectRefsFrom(
 
 	for _, f := range fields {
 		if cond != "" {
-			cond += ", "
+			cond += " or "
 		}
 
 		cond += f + " = ?"
@@ -400,7 +400,7 @@ func (d *SqlDb) getObjectRefsFrom(
 
 	if referringObjectProps.Type == db.ScheduleProps.Type {
 		var referringSchedules []db.Schedule
-		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and "+cond, vals...)
+		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and ("+cond+")", vals...)
 
 		if err != nil {
 			return

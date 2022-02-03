@@ -21,12 +21,15 @@
 
     <EditDialog
       v-model="itemRefsDialog"
-      title="Environment in use"
+      title="Can't delete the environment"
       :max-width="500"
-      hide-buttons
     >
-      <template>
-        <ObjectRefsView :object-refs="itemRefs" />
+      <template v-slot:form="{}">
+        <ObjectRefsView
+          title="The environment used by following resources:"
+          :object-refs="itemRefs"
+          :project-id="projectId"
+        />
       </template>
     </EditDialog>
 
@@ -44,7 +47,8 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Environment</v-btn>
+      >New Environment
+      </v-btn>
     </v-toolbar>
 
     <v-data-table

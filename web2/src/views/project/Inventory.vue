@@ -19,6 +19,20 @@
       </template>
     </EditDialog>
 
+    <EditDialog
+      v-model="itemRefsDialog"
+      title="Can't delete the inventory"
+      :max-width="500"
+    >
+      <template v-slot:form="{}">
+        <ObjectRefsView
+          title="The inventory used by following resources:"
+          :object-refs="itemRefs"
+          :project-id="projectId"
+        />
+      </template>
+    </EditDialog>
+
     <YesNoDialog
       title="Delete inventory"
       text="Are you really want to delete this inventory?"

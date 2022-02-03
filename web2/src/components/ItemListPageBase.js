@@ -65,18 +65,22 @@ export default {
     async askDeleteItem(itemId) {
       this.itemId = itemId;
 
-      this.itemRefs = (await axios({
-        method: 'get',
-        url: `${this.getSingleItemUrl()}/refs`,
-        responseType: 'json',
-      })).data;
+      try {
+        this.itemRefs = (await axios({
+          method: 'get',
+          url: `${this.getSingleItemUrl()}/refs`,
+          responseType: 'json',
+        })).data;
 
-      if (this.itemRefs.templates.length > 0
-        || this.itemRefs.repositories.length > 0
-        || this.itemRefs.inventories.length > 0
-        || this.itemRefs.schedules.length > 0) {
-        this.itemRefsDialog = true;
-        return;
+        if (this.itemRefs.templates.length > 0
+          || this.itemRefs.repositories.length > 0
+          || this.itemRefs.inventories.length > 0
+          || this.itemRefs.schedules.length > 0) {
+          this.itemRefsDialog = true;
+          return;
+        }
+      } catch (e) {
+        // Do nothing
       }
 
       this.deleteItemDialog = true;

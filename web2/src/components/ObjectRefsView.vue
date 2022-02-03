@@ -1,33 +1,61 @@
 <template>
-  <div>
-    <div>{{ title }}</div>
-
-    <div v-if="objectRefs.templates.length > 0">
-      <div>Templates</div>
-      <router-link
-        v-for="t in objectRefs.templates"
-        :key="t.id"
-        :to="`/project/${projectId}/templates/${t.id}`">{{ t.name }}
-      </router-link>
-    </div>
-
-    <div v-if="objectRefs.inventories.length > 0">
-      <div>Inventories</div>
-      <a v-for="referrer in objectRefs.inventories" :key="referrer.id">{{ referrer.name }}</a>
-    </div>
-
-    <div v-if="objectRefs.repositories.length > 0">
-      <div>Repositories</div>
-      <a v-for="referrer in objectRefs.repositories" :key="referrer.id">{{ referrer.name }}</a>
+  <div class="object-refs-view">
+    <v-alert
+      dense
+      type="info"
+    >
+      The {{ objectTitle }} used by other resources.
+    </v-alert>
+    <div
+      v-for="s in sections"
+      class="object-refs-view__section"
+      :key="s.slug"
+    >
+      <div class="object-refs-view__section-title">
+        <v-icon small class="mr-2">mdi-{{ s.icon }}</v-icon>{{ s.title }}:
+      </div>
+      <span v-for="t in objectRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
+        <router-link
+          :to="`/project/${projectId}/templates/${t.id}`"
+          class="object-refs-view__link">{{ t.name }}</router-link>
+      </span>
     </div>
   </div>
 </template>
+<style lang="scss">
+.object-refs-view__section {
+  margin-bottom: 10px;
+}
+
+.object-refs-view__link-wrap + .object-refs-view__link-wrap {
+  &:before {
+    content: ", ";
+  }
+}
+</style>
 <script>
 export default {
   props: {
     objectRefs: Object,
     projectId: Number,
-    title: String,
+    objectTitle: String,
+  },
+  computed: {
+    sections() {
+      return [{
+        slug: 'templates',
+        title: 'Templates',
+        icon: 'check-all',
+      }, {
+        slug: 'inventories',
+        title: 'Inventories',
+        icon: 'monitor-multiple',
+      }, {
+        slug: 'repositories',
+        title: 'Repositories',
+        icon: 'git',
+      }].filter((s) => this.objectRefs[s.slug].length > 0);
+    },
   },
 };
 </script>
