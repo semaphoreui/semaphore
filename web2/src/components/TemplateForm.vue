@@ -242,7 +242,7 @@ Example:
         <v-checkbox
           v-if="advancedOptions"
           class="mt-0"
-          label="Allow override in task"
+          label="Allow override CLI args in task"
           v-model="item.allow_override_args_in_task"
         />
       </v-col>

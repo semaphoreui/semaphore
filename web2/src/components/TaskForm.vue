@@ -65,9 +65,39 @@
       </a>
     </div>
 
+    <v-alert
+      v-if="advancedOptions && !template.allow_override_args_in_task"
+      color="info"
+      dense
+      text
+      class="mb-2"
+    >
+      Please allow overriding CLI argument in Task Template settings<br>
+      <div style="position: relative; margin-top: 10px;">
+        <video
+          autoplay
+          muted
+          style="width: 100%; border-radius: 4px;"
+        >
+          <source
+            src="/allow-override-cli-args-in-task.mp4"
+            type="video/mp4"/>
+        </video>
+      </div>
+    </v-alert>
+
+    <div
+      v-if="advancedOptions && !template.allow_override_args_in_task"
+    >
+      <a @click="advancedOptions = false">
+        Hide
+        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
+      </a>
+    </div>
+
     <codemirror
       class="mt-4"
-      v-if="advancedOptions"
+      v-if="advancedOptions && template.allow_override_args_in_task"
       :style="{ border: '1px solid lightgray' }"
       v-model="item.arguments"
       :options="cmOptions"
