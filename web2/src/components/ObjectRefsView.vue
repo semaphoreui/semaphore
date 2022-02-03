@@ -1,10 +1,10 @@
 <template>
   <div class="object-refs-view">
     <v-alert
-      dense
-      type="info"
+      type="warning"
+      prominent
     >
-      The {{ objectTitle }} used by other resources.
+      The {{ objectTitle }} can't be deleted because it used by the resources below
     </v-alert>
     <div
       v-for="s in sections"
