@@ -86,15 +86,6 @@
       </div>
     </v-alert>
 
-    <div
-      v-if="advancedOptions && !template.allow_override_args_in_task"
-    >
-      <a @click="advancedOptions = false">
-        Hide
-        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
-      </a>
-    </div>
-
     <codemirror
       class="mt-4"
       v-if="advancedOptions && template.allow_override_args_in_task"
@@ -110,6 +101,15 @@ Example:
   "-vvvv"
 ]'
     />
+
+    <div
+      v-if="advancedOptions"
+    >
+      <a @click="advancedOptions = false">
+        Hide
+        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
+      </a>
+    </div>
 
     <v-row no-gutters>
       <v-col>
