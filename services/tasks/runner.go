@@ -31,7 +31,7 @@ type TaskRunner struct {
 
 	users     []int
 	hosts     []string
-	alertChat string
+	alertChat *string
 	alert     bool
 	prepared  bool
 	process   *os.Process

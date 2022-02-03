@@ -72,8 +72,8 @@ func (t *TaskRunner) sendTelegramAlert() {
 	}
 
 	chatID := util.Config.TelegramChat
-	if t.alertChat != "" {
-		chatID = t.alertChat
+	if t.alertChat != nil && *t.alertChat != "" {
+		chatID = *t.alertChat
 	}
 
 	var telegramBuffer bytes.Buffer
