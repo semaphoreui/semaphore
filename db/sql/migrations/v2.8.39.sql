@@ -1,21 +1,7 @@
-alter table `task` change `build_task_id` `build_task_id_old` int;
-
-alter table `task` add column `build_task_id` int;
-
-update `task` set `build_task_id` = `build_task_id_old` where `build_task_id_old` is not null;
-
-update `task` set `build_task_id_old` = null where `build_task_id_old` is not null;
-
 alter table `task`
     add constraint `task_build_task_id_fk_y38rt`
         foreign key (`build_task_id`) references `task` (`id`)
             on delete set null;
-
-alter table `task` drop foreign key if exists `task_ibfk_2`;
-
-alter table `task` drop column `build_task_id_old`;
-
-
 
 
 create table `project__template_backup_385025846` (
