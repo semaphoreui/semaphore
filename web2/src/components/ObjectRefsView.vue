@@ -14,11 +14,14 @@
       <div class="object-refs-view__section-title">
         <v-icon small class="mr-2">mdi-{{ s.icon }}</v-icon>{{ s.title }}:
       </div>
-      <span v-for="t in objectRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
-        <router-link
-          :to="`/project/${projectId}/templates/${t.id}`"
-          class="object-refs-view__link">{{ t.name }}</router-link>
-      </span>
+
+      <div class="ml-6">
+        <span v-for="t in objectRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
+          <router-link
+            :to="`/project/${projectId}/templates/${t.id}`"
+            class="object-refs-view__link">{{ t.name }}</router-link>
+        </span>
+      </div>
     </div>
   </div>
 </template>
