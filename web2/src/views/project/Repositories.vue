@@ -25,7 +25,7 @@
     >
       <template v-slot:form="{}">
         <ObjectRefsView
-          title="The repository used by following resources:"
+          object-title="repository"
           :object-refs="itemRefs"
           :project-id="projectId"
         />

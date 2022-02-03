@@ -26,7 +26,7 @@
     >
       <template v-slot:form="{}">
         <ObjectRefsView
-          title="The inventory used by following resources:"
+          object-title="inventory"
           :object-refs="itemRefs"
           :project-id="projectId"
         />
