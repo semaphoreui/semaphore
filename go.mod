@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Sirupsen/logrus v1.0.4
 	github.com/go-gorp/gorp/v3 v3.0.2
+	github.com/go-ldap/ldap/v3 v3.4.1
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gobuffalo/packr v1.10.4
 	github.com/google/go-github v17.0.0+incompatible
@@ -26,7 +27,5 @@ require (
 	go.etcd.io/bbolt v1.3.2
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
-	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
-	gopkg.in/ldap.v2 v2.5.1
 )

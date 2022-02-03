@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/go-ldap/ldap/v3"
 	"net/http"
 	"strings"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/ldap.v2"
 )
 
 func findLDAPUser(username, password string) (*db.User, error) {
