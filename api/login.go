@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -23,33 +24,34 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	var l *ldap.Conn
 	var err error
-	if util.Config.LdapNeedTLS {
-		l, err = ldap.DialTLS("tcp", util.Config.LdapServer, &tls.Config{
-			InsecureSkipVerify: true,
-		})
-	} else {
-		l, err = ldap.Dial("tcp", util.Config.LdapServer)
-	}
 
+	l, err = ldap.DialURL( util.Config.LdapServer, ldap.DialWithTLSConfig( &tls.Config{ InsecureSkipVerify: true }))
 	if err != nil {
 		return nil, err
 	}
-	defer l.Close()
 
-	// Reconnect with TLS if needed
-	if util.Config.LdapNeedTLS {
-		tlsConf := tls.Config{
-			InsecureSkipVerify: true, //nolint: gas
-		}
-		if err = l.StartTLS(&tlsConf); err != nil {
+	// Reconnect using StartTLS 
+	if util.Config.LdapStartTLS {
+		log.Info("Reconnecting with StartTLS")
+		defer l.Close()
+		err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	// First bind with a read only user
-	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+	// Initial Bind
+	if util.Config.LdapBindDN != "" ||  util.Config.LdapBindPassword != "" {
+		log.Info("Binding to LDAP Server using provided bind user: " + util.Config.LdapBindDN)
+	        err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword)
+        } else {
+		err = l.UnauthenticatedBind("")
+		log.Info("Binding to LDAP Server using unauthenticated bind.")
+	}
+	if err != nil {
 		return nil, err
 	}
+
 
 	// Search for the given username
 	searchRequest := ldap.NewSearchRequest(
@@ -62,16 +64,19 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
+		log.Info("No results found: " + err.Error() )
 		return nil, err
 	}
 
 	if len(sr.Entries) < 1 {
+		log.Info("User not found: " + strconv.Itoa(len(sr.Entries)) )
 		return nil, nil
 	}
 
 	if len(sr.Entries) > 1 {
 		return nil, fmt.Errorf("too many entries returned")
 	}
+
 
 	// Bind as the user to verify their password
 	userdn := sr.Entries[0].DN
