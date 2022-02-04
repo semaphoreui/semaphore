@@ -110,7 +110,7 @@ type ConfigType struct {
 	EmailSecure   bool `json:"email_secure"`
 	TelegramAlert bool `json:"telegram_alert"`
 	LdapEnable    bool `json:"ldap_enable"`
-	LdapNeedTLS   bool `json:"ldap_needtls"`
+	LdapStartTLS   bool `json:"ldap_starttls"`
 
 	SshConfigPath string `json:"ssh_config_path"`
 

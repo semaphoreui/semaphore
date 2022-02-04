@@ -68,7 +68,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
-		askConfirmation("Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
+		askConfirmation("Enable LDAP + StartTLS connection", false, &conf.LdapStartTLS)
 		askValue("LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
 		askValue("Password for LDAP bind user", "pa55w0rd", &conf.LdapBindPassword)
 		askValue("LDAP DN for user search", "ou=users,dc=example", &conf.LdapSearchDN)
