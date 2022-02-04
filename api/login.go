@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func findLDAPUser(username, password string) (*db.User, error) {
+func tryFindLDAPUser(username, password string) (*db.User, error) {
 	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
@@ -38,7 +38,6 @@ func findLDAPUser(username, password string) (*db.User, error) {
 
 	// Reconnect with TLS if needed
 	if util.Config.LdapNeedTLS {
-		// TODO: InsecureSkipVerify should be configurable
 		tlsConf := tls.Config{
 			InsecureSkipVerify: true, //nolint: gas
 		}
@@ -66,8 +65,12 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	if len(sr.Entries) != 1 {
-		return nil, fmt.Errorf("user does not exist or too many entries returned")
+	if len(sr.Entries) < 1 {
+		return nil, nil
+	}
+
+	if len(sr.Entries) > 1 {
+		return nil, fmt.Errorf("too many entries returned")
 	}
 
 	// Bind as the user to verify their password
@@ -155,13 +158,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
+	var err error
+
 	var ldapUser *db.User
+
 	if util.Config.LdapEnable {
-		// search LDAP for users
-		if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
-			ldapUser = lu
-		} else {
+		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
+		if err != nil {
 			log.Info(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 
