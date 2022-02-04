@@ -245,8 +245,10 @@ export default {
         responseType: 'json',
       })).data.filter((task) => task.status === 'success') : [];
 
-      if (this.buildTasks.length > 0) {
-        this.item.build_task_id = this.build_task ? this.build_task.id : this.buildTasks[0].id;
+      if (this.item.build_task_id == null
+        && this.buildTasks.length > 0
+        && this.buildTasks.length > 0) {
+        this.item.build_task_id = this.buildTasks[0].id;
       }
     },
 
