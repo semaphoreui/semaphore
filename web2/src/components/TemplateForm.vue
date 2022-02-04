@@ -274,7 +274,7 @@ export default {
   },
 
   props: {
-    sourceItemId: String,
+    sourceItemId: Number,
   },
 
   data() {

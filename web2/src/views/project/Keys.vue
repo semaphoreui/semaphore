@@ -20,19 +20,12 @@
       </template>
     </EditDialog>
 
-    <EditDialog
+    <ObjectRefsDialog
+      object-title="access key"
+      :object-refs="itemRefs"
+      :project-id="projectId"
       v-model="itemRefsDialog"
-      title="Can't delete the access key"
-      :max-width="500"
-    >
-      <template v-slot:form="{}">
-        <ObjectRefsView
-          object-title="access key"
-          :object-refs="itemRefs"
-          :project-id="projectId"
-        />
-      </template>
-    </EditDialog>
+    />
 
     <YesNoDialog
       title="Delete key"

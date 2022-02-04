@@ -75,6 +75,16 @@ func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Templat
 }
 
 func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (err error) {
+	inUse, err := d.isObjectInUse(projectID, db.TemplateProps, intObjectID(templateID), db.TemplateProps)
+
+	if err != nil {
+		return err
+	}
+
+	if inUse {
+		return db.ErrInvalidOperation
+	}
+
 	tasks, err := d.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
@@ -104,4 +114,8 @@ func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		return d.deleteTemplate(projectID, templateID, tx)
 	})
+}
+
+func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
 }

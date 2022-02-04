@@ -189,3 +189,7 @@ func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
 	_, err := d.exec("delete from project__template where project_id=? and id=?", projectID, templateID)
 	return err
 }
+
+func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
+}

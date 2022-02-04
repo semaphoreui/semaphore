@@ -19,19 +19,12 @@
       </template>
     </EditDialog>
 
-    <EditDialog
+    <ObjectRefsDialog
+      object-title="inventory"
+      :object-refs="itemRefs"
+      :project-id="projectId"
       v-model="itemRefsDialog"
-      title="Can't delete the inventory"
-      :max-width="500"
-    >
-      <template v-slot:form="{}">
-        <ObjectRefsView
-          object-title="inventory"
-          :object-refs="itemRefs"
-          :project-id="projectId"
-        />
-      </template>
-    </EditDialog>
+    />
 
     <YesNoDialog
       title="Delete inventory"

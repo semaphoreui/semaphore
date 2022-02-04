@@ -87,6 +87,9 @@ func (task *Task) ValidateNewTask(template Template) error {
 func (task *TaskWithTpl) Fill(d Store) error {
 	if task.BuildTaskID != nil {
 		build, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
+		if err == ErrNotFound {
+			return nil
+		}
 		if err != nil {
 			return err
 		}

@@ -19,19 +19,12 @@
       </template>
     </EditDialog>
 
-    <EditDialog
+    <ObjectRefsDialog
+      object-title="environment"
+      :object-refs="itemRefs"
+      :project-id="projectId"
       v-model="itemRefsDialog"
-      title="Can't delete the environment"
-      :max-width="500"
-    >
-      <template v-slot:form="{}">
-        <ObjectRefsView
-          object-title="environment"
-          :object-refs="itemRefs"
-          :project-id="projectId"
-        />
-      </template>
-    </EditDialog>
+    />
 
     <YesNoDialog
       title="Delete environment"

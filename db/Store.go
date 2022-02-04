@@ -149,6 +149,7 @@ type Store interface {
 	UpdateProject(project Project) error
 
 	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
@@ -236,11 +237,12 @@ var RepositoryProps = ObjectProps{
 }
 
 var TemplateProps = ObjectProps{
-	TableName:            "project__template",
-	Type:                 reflect.TypeOf(Template{}),
-	PrimaryColumnName:    "id",
-	SortableColumns:      []string{"name"},
-	DefaultSortingColumn: "name",
+	TableName:             "project__template",
+	Type:                  reflect.TypeOf(Template{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "template_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
 }
 
 var ScheduleProps = ObjectProps{

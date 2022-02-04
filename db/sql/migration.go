@@ -11,14 +11,15 @@ import (
 )
 
 var (
-	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
-	dropForeignKey  = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
-	changeRE        = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
+	autoIncrementRE   = regexp.MustCompile(`(?i)\bautoincrement\b`)
+	serialRE          = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE    = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE         = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE        = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE        = regexp.MustCompile(`(?i)\bif exists\b`)
+	changeRE          = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
+	dropForeignKeyRE  = regexp.MustCompile(`^alter table \x60(\w+)\x60 drop foreign key \x60(\w+)\x60 /\* postgres:\x60(\w*)\x60 mysql:\x60(\w*)\x60 \*/$`)
+	dropForeignKey2RE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // getVersionPath is the humanoid version with the file format appended
@@ -40,7 +41,7 @@ func getVersionSQL(path string) (queries []string) {
 	}
 	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
 	for i := range queries {
-		queries[i] = strings.Trim(queries[i], "\n\t ")
+		queries[i] = strings.Trim(queries[i], "\r\n\t ")
 	}
 	return
 }
@@ -50,12 +51,33 @@ func getVersionSQL(path string) (queries []string) {
 func (d *SqlDb) prepareMigration(query string) string {
 	switch d.sql.Dialect.(type) {
 	case gorp.MySQLDialect:
+		mysqlFullVersion, err := d.sql.SelectStr("select version()")
+		if err == nil && strings.Contains(mysqlFullVersion, "MariaDB") {
+			// Actions for MariaDB only
+		} else {
+			// Actions for MySQL only
+			m := dropForeignKeyRE.FindStringSubmatch(query)
+			if m != nil {
+				tableName := m[1]
+				foreignKeyNameMySQL := m[4]
+				if foreignKeyNameMySQL == "" {
+					query = ""
+				} else {
+					query = "alter table `" + tableName + "` drop constraint `" + foreignKeyNameMySQL + "`"
+				}
+			}
+		}
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
 		query = ifExistsRE.ReplaceAllString(query, "")
 	case gorp.PostgresDialect:
-		m := changeRE.FindStringSubmatch(query)
-		var queries []string
+		m := dropForeignKeyRE.FindStringSubmatch(query)
+		if m != nil {
+			tableName := m[1]
+			foreignKeyNamePostgres := m[3]
+			query = "alter table `" + tableName + "` drop constraint `" + foreignKeyNamePostgres + "`"
+		}
 
+		m = changeRE.FindStringSubmatch(query)
 		if m != nil {
 			tableName := m[1]
 			oldColumnName := m[2]
@@ -63,6 +85,7 @@ func (d *SqlDb) prepareMigration(query string) string {
 			columnType := m[4]
 			columnNotNull := m[5] != ""
 
+			var queries []string
 			queries = append(queries,
 				"alter table `"+tableName+"` alter column `"+oldColumnName+"` type "+columnType)
 
@@ -86,7 +109,7 @@ func (d *SqlDb) prepareMigration(query string) string {
 		query = tinyintRE.ReplaceAllString(query, "smallint")
 		query = longtextRE.ReplaceAllString(query, "text")
 		query = serialRE.ReplaceAllString(query, "serial primary key")
-		query = dropForeignKey.ReplaceAllString(query, "drop constraint")
+		query = dropForeignKey2RE.ReplaceAllString(query, "drop constraint")
 		query = identifierQuoteRE.ReplaceAllString(query, "\"")
 	}
 	return query
@@ -126,6 +149,9 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 	if !initialized {
 		fmt.Println("Creating migrations table")
 		query := d.prepareMigration(initialSQL)
+		if query == "" {
+			return nil
+		}
 		_, err = d.exec(query)
 		if err != nil {
 			return err
@@ -146,6 +172,10 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 
 		q := d.prepareMigration(query)
+		if q == "" {
+			continue
+		}
+
 		_, err = tx.Exec(q)
 		if err != nil {
 			handleRollbackError(tx.Rollback())
@@ -184,11 +214,14 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 		return
 	}
 
-	query := getVersionSQL(getVersionErrPath(version))
-	for _, query := range query {
+	queries := getVersionSQL(getVersionErrPath(version))
+	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
-
-		if _, err := d.exec(d.prepareMigration(query)); err != nil {
+		q := d.prepareMigration(query)
+		if q == "" {
+			continue
+		}
+		if _, err := d.exec(q); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}

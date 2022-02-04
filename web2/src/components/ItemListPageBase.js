@@ -2,7 +2,7 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import EditDialog from '@/components/EditDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
-import ObjectRefsView from '@/components/ObjectRefsView.vue';
+import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 
 import { getErrorMessage } from '@/lib/error';
 
@@ -10,7 +10,7 @@ export default {
   components: {
     YesNoDialog,
     EditDialog,
-    ObjectRefsView,
+    ObjectRefsDialog,
   },
 
   props: {

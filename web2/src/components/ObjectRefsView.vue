@@ -2,7 +2,6 @@
   <div class="object-refs-view">
     <v-alert
       type="warning"
-      prominent
     >
       The {{ objectTitle }} can't be deleted because it used by the resources below
     </v-alert>
