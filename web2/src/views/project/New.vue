@@ -8,7 +8,7 @@
 
     <div class="project-settings-form">
       <div style="height: 220px;">
-        <ProjectForm item-id="new" ref="editForm"/>
+        <ProjectForm item-id="new" ref="editForm" @save="onSave"/>
       </div>
 
       <div class="text-right">
@@ -33,19 +33,19 @@ export default {
   },
 
   methods: {
+    onSave(item) {
+      EventBus.$emit('i-project', {
+        action: 'new',
+        item,
+      });
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
 
     async createProject() {
-      const item = await this.$refs.editForm.save();
-      if (!item) {
-        return;
-      }
-      EventBus.$emit('i-project', {
-        action: 'new',
-        item,
-      });
+      await this.$refs.editForm.save();
     },
   },
 };
