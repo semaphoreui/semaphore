@@ -92,7 +92,7 @@
               @click:append-outer="showHelpDialog('build_version')"
             ></v-text-field>
 
-            <v-select
+            <v-autocomplete
               v-if="item.type === 'deploy'"
               v-model="item.build_template_id"
               label="Build Template"
@@ -104,7 +104,7 @@
               :disabled="formSaving"
               append-outer-icon="mdi-help-circle"
               @click:append-outer="showHelpDialog('build')"
-            ></v-select>
+            ></v-autocomplete>
 
             <v-checkbox
               v-if="item.type === 'deploy'"
@@ -300,6 +300,7 @@ export default {
       environment: null,
       views: null,
       schedules: null,
+      buildTemplates: null,
       cronFormat: null,
       cronRepositoryId: null,
 
@@ -396,11 +397,19 @@ export default {
         responseType: 'json',
       })).data;
 
-      this.buildTemplates = (await axios({
+      const template = (await axios({
         keys: 'get',
-        url: `/api/project/${this.projectId}/templates?type=build`,
+        url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
-      })).data.filter((template) => template.type === 'build');
+      })).data;
+
+      this.buildTemplates = [
+        { header: 'Build Templates' },
+        ...template.filter((t) => t.type === 'build'),
+        { divider: true },
+        { header: 'Deploy Templates' },
+        ...template.filter((t) => t.type === 'deploy'),
+      ];
 
       this.schedules = this.isNew ? [] : (await axios({
         keys: 'get',
