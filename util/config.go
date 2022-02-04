@@ -111,6 +111,8 @@ type ConfigType struct {
 	TelegramAlert bool `json:"telegram_alert"`
 	LdapEnable    bool `json:"ldap_enable"`
 	LdapStartTLS   bool `json:"ldap_starttls"`
+	LdapSkipVerifyCerts bool `json:"ldap_skip_verify_certs"`
+
 
 	SshConfigPath string `json:"ssh_config_path"`
 

@@ -25,7 +25,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	var l *ldap.Conn
 	var err error
 
-	l, err = ldap.DialURL( util.Config.LdapServer, ldap.DialWithTLSConfig( &tls.Config{ InsecureSkipVerify: true }))
+	l, err = ldap.DialURL( util.Config.LdapServer, ldap.DialWithTLSConfig( &tls.Config{ InsecureSkipVerify: util.Config.LdapSkipVerifyCerts }))
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	if util.Config.LdapStartTLS {
 		log.Info("Reconnecting with StartTLS")
 		defer l.Close()
-		err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+		err = l.StartTLS(&tls.Config{InsecureSkipVerify: util.Config.LdapSkipVerifyCerts})
 		if err != nil {
 			return nil, err
 		}
