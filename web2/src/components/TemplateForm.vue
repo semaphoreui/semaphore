@@ -19,8 +19,7 @@
       >
         <div v-if="helpKey === 'build_version'">
           <p>
-            Defines start version of your
-            <a target="_black" href="https://en.wikipedia.org/wiki/Software_build">artifact</a>.
+            Defines start version of your artifact.
             Each run increments the artifact version.
           </p>
           <p>
@@ -32,9 +31,7 @@
         </div>
         <div v-else-if="helpKey === 'build'">
           <p>
-            Defines what
-            <a target="_black" href="https://en.wikipedia.org/wiki/Software_build">artifact</a>
-            should be deployed when the task run.
+            Defines what artifact should be deployed when the task run.
           </p>
           <p>
             For more information about deploying, see the
@@ -402,14 +399,32 @@ export default {
         url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
       })).data;
+      const builds = [];
+      const deploys = [];
+      template.forEach((t) => {
+        switch (t.type) {
+          case 'build':
+            if (builds.length === 0) {
+              builds.push({ header: 'Build Templates' });
+            }
+            builds.push(t);
+            break;
+          case 'deploy':
+            if (deploys.length === 0) {
+              deploys.push({ header: 'Deploy Templates' });
+            }
+            deploys.push(t);
+            break;
+          default:
+            break;
+        }
+      });
 
-      this.buildTemplates = [
-        { header: 'Build Templates' },
-        ...template.filter((t) => t.type === 'build'),
-        { divider: true },
-        { header: 'Deploy Templates' },
-        ...template.filter((t) => t.type === 'deploy'),
-      ];
+      this.buildTemplates = builds;
+      if (this.buildTemplates.length > 0 && deploys.length > 0) {
+        this.buildTemplates.push({ divider: true });
+      }
+      this.buildTemplates.push(...deploys);
 
       this.schedules = this.isNew ? [] : (await axios({
         keys: 'get',

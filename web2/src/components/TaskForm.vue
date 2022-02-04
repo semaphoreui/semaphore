@@ -33,7 +33,7 @@
       label="Build Version"
       :items="buildTasks"
       item-value="id"
-      :item-text="(itm) => itm.version + (itm.message ? ' — ' + itm.message : '')"
+      :item-text="(itm) => getTaskMessage(itm)"
       :rules="[v => !!v || 'Build Version is required']"
       required
       :disabled="formSaving"
@@ -187,6 +187,20 @@ export default {
     },
   },
   methods: {
+    getTaskMessage(task) {
+      let buildTask = task;
+
+      while (buildTask.version == null && buildTask.build_task != null) {
+        buildTask = buildTask.build_task;
+      }
+
+      if (!buildTask) {
+        return '';
+      }
+
+      return buildTask.version + (buildTask.message ? ` — ${buildTask.message}` : '');
+    },
+
     assignItem(val) {
       const v = val || {};
 
@@ -227,9 +241,9 @@ export default {
 
       this.buildTasks = this.template.type === 'deploy' ? (await axios({
         keys: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks`,
+        url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success`,
         responseType: 'json',
-      })).data.filter((task) => task.version != null && task.status === 'success') : [];
+      })).data.filter((task) => task.status === 'success') : [];
 
       if (this.buildTasks.length > 0) {
         this.item.build_task_id = this.build_task ? this.build_task.id : this.buildTasks[0].id;
