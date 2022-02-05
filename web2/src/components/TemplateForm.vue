@@ -199,7 +199,7 @@
           v-model="cronFormat"
           label="Cron (Optional)"
           :disabled="formSaving"
-          placeholder="Example: * 1 * * * *"
+          placeholder="Example: * 1 * * *"
           v-if="schedules == null || schedules.length <= 1"
           append-outer-icon="mdi-help-circle"
           @click:append-outer="showHelpDialog('cron')"
