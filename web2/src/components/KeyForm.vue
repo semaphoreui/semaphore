@@ -31,22 +31,6 @@
         :disabled="formSaving || !canEditSecrets"
     />
 
-<!--    <v-text-field-->
-<!--        v-model="item.login_password.passphrase"-->
-<!--        label="Passphrase (Optional)"-->
-<!--        v-if="item.type === 'ssh'"-->
-<!--        :disabled="formSaving || !canEditSecrets"-->
-<!--    />-->
-
-    <v-textarea
-        outlined
-        v-model="item.ssh.private_key"
-        label="Private Key"
-        :disabled="formSaving || !canEditSecrets"
-        :rules="[v => !!v || 'Private Key is required']"
-        v-if="item.type === 'ssh'"
-    />
-
     <v-text-field
         v-model="item.login_password.login"
         label="Login (Optional)"
@@ -62,6 +46,29 @@
         :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
+    />
+
+    <v-text-field
+      v-model="item.ssh.login"
+      label="Username (Optional)"
+      v-if="item.type === 'ssh'"
+      :disabled="formSaving || !canEditSecrets"
+    />
+
+    <!--    <v-text-field-->
+    <!--        v-model="item.ssh.passphrase"-->
+    <!--        label="Passphrase (Optional)"-->
+    <!--        v-if="item.type === 'ssh'"-->
+    <!--        :disabled="formSaving || !canEditSecrets"-->
+    <!--    />-->
+
+    <v-textarea
+      outlined
+      v-model="item.ssh.private_key"
+      label="Private Key"
+      :disabled="formSaving || !canEditSecrets"
+      :rules="[v => !!v || 'Private Key is required']"
+      v-if="item.type === 'ssh'"
     />
 
     <v-text-field

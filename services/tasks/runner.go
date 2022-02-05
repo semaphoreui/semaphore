@@ -208,8 +208,7 @@ func (t *TaskRunner) prepareRun() {
 
 	t.updateStatus()
 
-	//if err := t.installKey(t.repository.SSHKey, db.AccessKeyUsagePrivateKey); err != nil {
-	if err := t.repository.SSHKey.Install(db.AccessKeyUsagePrivateKey); err != nil {
+	if err := t.repository.SSHKey.Install(db.AccessKeyRoleGit); err != nil {
 		t.Log("Failed installing ssh key for repository access: " + err.Error())
 		t.fail()
 		return
@@ -443,7 +442,7 @@ func (t *TaskRunner) installVaultKeyFile() error {
 		return nil
 	}
 
-	return t.template.VaultKey.Install(db.AccessKeyUsageVault)
+	return t.template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault)
 }
 
 func (t *TaskRunner) checkoutRepository() error {
@@ -667,6 +666,10 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 		switch t.inventory.SSHKey.Type {
 		case db.AccessKeySSH:
 			args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
+			//args = append(args, "--extra-vars={\"ansible_ssh_private_key_file\": \""+t.inventory.SSHKey.GetPath()+"\"}")
+			if t.inventory.SSHKey.SshKey.Login != "" {
+				args = append(args, "--extra-vars={\"ansible_user\": \""+t.inventory.SSHKey.SshKey.Login+"\"}")
+			}
 		case db.AccessKeyLoginPassword:
 			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
 		case db.AccessKeyNone:

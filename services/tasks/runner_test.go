@@ -112,6 +112,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 				ID:   12345,
 				Type: db.AccessKeySSH,
 			},
+			Type: db.InventoryStatic,
 		},
 		template: db.Template{
 			Playbook: "test.yml",
@@ -140,6 +141,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	tsk := TaskRunner{
 		task: db.Task{},
 		inventory: db.Inventory{
+			Type:     db.InventoryStatic,
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -177,6 +179,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	tsk := TaskRunner{
 		task: db.Task{},
 		inventory: db.Inventory{
+			Type:        db.InventoryStatic,
 			BecomeKeyID: &inventoryID,
 			BecomeKey: db.AccessKey{
 				ID:   12345,
