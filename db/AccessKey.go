@@ -152,17 +152,13 @@ func (key AccessKey) GetPath() string {
 }
 
 // GetSshCommand returns string with SSH command for using with Git.
-func (key AccessKey) GetSshCommand() string {
-	if key.Type != AccessKeySSH {
-		panic("type must be ssh")
-	}
-
-	args := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + key.GetPath()
-	if util.Config.SshConfigPath != "" {
-		args += " -F " + util.Config.SshConfigPath
-	}
-	return args
-}
+//func (key AccessKey) GetSshCommand() string {
+//	args := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + key.GetPath()
+//	if util.Config.SshConfigPath != "" {
+//		args += " -F " + util.Config.SshConfigPath
+//	}
+//	return args
+//}
 
 func (key AccessKey) Validate(validateSecretFields bool) error {
 	if key.Name == "" {

@@ -27,7 +27,11 @@ func (r GitRepository) makeCmd(targetDir GitRepositoryDirType, args ...string) *
 
 	cmd.Env = os.Environ()
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSH_COMMAND=%s", r.Repository.SSHKey.GetSshCommand()))
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + r.Repository.SSHKey.GetPath()
+		if util.Config.SshConfigPath != "" {
+			sshCmd += " -F " + util.Config.SshConfigPath
+		}
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
 
 	switch targetDir {

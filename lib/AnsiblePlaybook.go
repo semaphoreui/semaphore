@@ -22,7 +22,14 @@ type AnsiblePlaybook struct {
 func (p AnsiblePlaybook) makeCmd(command string, args []string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = p.GetFullPath()
-	p.setCmdEnvironment(cmd, p.Repository.SSHKey.GetSshCommand())
+
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
+	cmd.Env = append(cmd.Env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
+	cmd.Env = append(cmd.Env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
+	cmd.Env = append(cmd.Env, extractCommandEnvironment(p.Environment.JSON)...)
+
 	return cmd
 }
 
@@ -72,20 +79,6 @@ func (p AnsiblePlaybook) RunGalaxy(args []string) error {
 func (p AnsiblePlaybook) GetFullPath() (path string) {
 	path = p.Repository.GetFullPath(p.TemplateID)
 	return
-}
-
-func (p AnsiblePlaybook) setCmdEnvironment(cmd *exec.Cmd, gitSSHCommand string) {
-	env := os.Environ()
-	env = append(env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
-	env = append(env, fmt.Sprintf("PWD=%s", cmd.Dir))
-	env = append(env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
-	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
-	env = append(env, extractCommandEnvironment(p.Environment.JSON)...)
-
-	if gitSSHCommand != "" {
-		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", gitSSHCommand))
-	}
-	cmd.Env = env
 }
 
 func extractCommandEnvironment(envJSON string) []string {

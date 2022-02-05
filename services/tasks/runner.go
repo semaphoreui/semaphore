@@ -652,8 +652,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	switch t.inventory.Type {
 	case db.InventoryFile:
 		inventory = t.inventory.Inventory
-	default:
+	case db.InventoryStatic:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+	default:
+		err = fmt.Errorf("invalid invetory type")
+		return
 	}
 
 	args = []string{
@@ -668,7 +671,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
 		case db.AccessKeyNone:
 		default:
-			err = fmt.Errorf("access key does not suite for inventory's User Access Key")
+			err = fmt.Errorf("access key does not suite for inventory's user credentials")
 			return
 		}
 	}
@@ -679,7 +682,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			args = append(args, "--extra-vars=@"+t.inventory.BecomeKey.GetPath())
 		case db.AccessKeyNone:
 		default:
-			err = fmt.Errorf("access key does not suite for inventory's Become User Access Key")
+			err = fmt.Errorf("access key does not suite for inventory's sudo user credentials")
 			return
 		}
 	}
