@@ -255,7 +255,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Playbook Repositories</v-list-item-title>
+            <v-list-item-title>Repositories</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 

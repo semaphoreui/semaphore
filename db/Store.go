@@ -40,15 +40,6 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
-type ObjectReferrerType string
-
-const (
-	ObjectReferrerTemplate   ObjectReferrerType = "template"
-	ObjectReferrerInventory  ObjectReferrerType = "inventory"
-	ObjectReferrerRepository ObjectReferrerType = "repository"
-	ObjectReferrerSchedule   ObjectReferrerType = "schedules"
-)
-
 type ObjectReferrer struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`

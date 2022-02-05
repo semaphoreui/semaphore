@@ -143,11 +143,11 @@
 
         <v-select
           v-model="item.repository_id"
-          label="Playbook Repository"
+          label="Repository"
           :items="repositories"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || 'Playbook Repository is required']"
+          :rules="[v => !!v || 'Repository is required']"
           required
           :disabled="formSaving"
         ></v-select>
