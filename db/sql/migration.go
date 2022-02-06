@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	autoIncrementRE   = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE          = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE    = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE         = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE        = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE        = regexp.MustCompile(`(?i)\bif exists\b`)
-	changeRE          = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
-	dropForeignKeyRE  = regexp.MustCompile(`^alter table \x60(\w+)\x60 drop foreign key \x60(\w+)\x60 /\* postgres:\x60(\w*)\x60 mysql:\x60(\w*)\x60 \*/$`)
+	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
+	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
+	changeRE        = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
+	//dropForeignKeyRE  = regexp.MustCompile(`^alter table \x60(\w+)\x60 drop foreign key \x60(\w+)\x60 /\* postgres:\x60(\w*)\x60 mysql:\x60(\w*)\x60 \*/$`)
 	dropForeignKey2RE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
@@ -51,33 +51,10 @@ func getVersionSQL(path string) (queries []string) {
 func (d *SqlDb) prepareMigration(query string) string {
 	switch d.sql.Dialect.(type) {
 	case gorp.MySQLDialect:
-		mysqlFullVersion, err := d.sql.SelectStr("select version()")
-		if err == nil && strings.Contains(mysqlFullVersion, "MariaDB") {
-			// Actions for MariaDB only
-		} else {
-			// Actions for MySQL only
-			m := dropForeignKeyRE.FindStringSubmatch(query)
-			if m != nil {
-				tableName := m[1]
-				foreignKeyNameMySQL := m[4]
-				if foreignKeyNameMySQL == "" {
-					query = ""
-				} else {
-					query = "alter table `" + tableName + "` drop constraint `" + foreignKeyNameMySQL + "`"
-				}
-			}
-		}
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
 		query = ifExistsRE.ReplaceAllString(query, "")
 	case gorp.PostgresDialect:
-		m := dropForeignKeyRE.FindStringSubmatch(query)
-		if m != nil {
-			tableName := m[1]
-			foreignKeyNamePostgres := m[3]
-			query = "alter table `" + tableName + "` drop constraint `" + foreignKeyNamePostgres + "`"
-		}
-
-		m = changeRE.FindStringSubmatch(query)
+		m := changeRE.FindStringSubmatch(query)
 		if m != nil {
 			tableName := m[1]
 			oldColumnName := m[2]
@@ -194,6 +171,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 	switch migration.Version {
 	case "2.8.26":
 		err = migration_2_8_26{db: d}.Apply(tx)
+	case "2.8.42":
+		err = migration_2_8_42{db: d}.Apply(tx)
 	}
 
 	if err != nil {
