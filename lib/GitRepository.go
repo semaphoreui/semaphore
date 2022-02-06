@@ -133,14 +133,19 @@ func (r GitRepository) GetFullPath() (path string) {
 }
 
 func (r GitRepository) GetLastRemoteCommitHash() (hash string, err error) {
-	out, err := r.output(GitRepositoryRepoDir, "ls-remote", "origin", r.Repository.GitBranch)
+	out, err := r.output(GitRepositoryTmpDir, "ls-remote", r.Repository.GetGitURL(), r.Repository.GitBranch)
 	if err != nil {
 		return
 	}
+
 	firstSpaceIndex := strings.IndexAny(out, "\t ")
 	if firstSpaceIndex == -1 {
 		err = fmt.Errorf("can't retreave remote commit hash")
 	}
+	if err != nil {
+		return
+	}
+
 	hash = out[0:firstSpaceIndex]
 	return
 }
