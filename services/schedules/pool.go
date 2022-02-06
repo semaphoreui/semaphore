@@ -21,6 +21,11 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
+	err = repo.SSHKey.DeserializeSecret()
+	if err != nil {
+		return
+	}
+
 	remoteHash, err := lib.GitRepository{
 		Logger:     nil,
 		TemplateID: schedule.TemplateID,

@@ -77,7 +77,7 @@ func TestSetGetSecretWithEncryption(t *testing.T) {
 		t.Error(err)
 	}
 
-	accessKey.ResetSecret()
+	//accessKey.ClearSecret()
 
 	err = accessKey.DeserializeSecret()
 

@@ -27,7 +27,6 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string) *exec.Cmd {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
-	cmd.Env = append(cmd.Env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	cmd.Env = append(cmd.Env, extractCommandEnvironment(p.Environment.JSON)...)
 
 	return cmd

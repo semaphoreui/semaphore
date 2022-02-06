@@ -398,6 +398,11 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
+	err = t.repository.SSHKey.DeserializeSecret()
+	if err != nil {
+		return err
+	}
+
 	// get environment
 	if t.template.EnvironmentID != nil {
 		t.environment, err = t.pool.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)

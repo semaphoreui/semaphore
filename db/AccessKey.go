@@ -66,7 +66,7 @@ const (
 	AccessKeyRoleGit
 )
 
-func (key *AccessKey) Install(usage AccessKeyRole) error {
+func (key AccessKey) Install(usage AccessKeyRole) error {
 	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func (key *AccessKey) Install(usage AccessKeyRole) error {
 	return nil
 }
 
-func (key *AccessKey) Destroy() error {
+func (key AccessKey) Destroy() error {
 	path := key.GetPath()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
@@ -153,15 +153,6 @@ func (key *AccessKey) Destroy() error {
 func (key AccessKey) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
 }
-
-// GetSshCommand returns string with SSH command for using with Git.
-//func (key AccessKey) GetSshCommand() string {
-//	args := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + key.GetPath()
-//	if util.Config.SshConfigPath != "" {
-//		args += " -F " + util.Config.SshConfigPath
-//	}
-//	return args
-//}
 
 func (key AccessKey) Validate(validateSecretFields bool) error {
 	if key.Name == "" {
@@ -265,12 +256,11 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 	return
 }
 
-func (key *AccessKey) ResetSecret() {
-	//key.Secret = nil
-	key.LoginPassword = LoginPassword{}
-	key.SshKey = SshKey{}
-	key.PAT = ""
-}
+//func (key *AccessKey) ClearSecret() {
+//	key.LoginPassword = LoginPassword{}
+//	key.SshKey = SshKey{}
+//	key.PAT = ""
+//}
 
 func (key *AccessKey) DeserializeSecret() error {
 	if key.Secret == nil || *key.Secret == "" {
