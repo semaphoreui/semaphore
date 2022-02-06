@@ -33,15 +33,11 @@
         type="info"
         class="mt-4"
     >
-      Environment must be valid JSON. You may use the key <code>ENV</code> to pass
-      environment variables to ansible-playbook.
+      Environment must be valid JSON.
       Example:
       <pre style="font-size: 14px;">{
   "var_available_in_playbook_1": 1245,
   "var_available_in_playbook_2": "test",
-  "ENV": {
-    "VAR1": "Read by lookup('env', 'VAR1')"
-  }
 }</pre>
     </v-alert>
   </v-form>

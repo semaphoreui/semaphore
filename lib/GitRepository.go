@@ -50,6 +50,13 @@ func (r GitRepository) makeCmd(targetDir GitRepositoryDirType, args ...string) *
 }
 
 func (r GitRepository) run(targetDir GitRepositoryDirType, args ...string) error {
+	err := r.Repository.SSHKey.Install(db.AccessKeyRoleGit)
+	if err != nil {
+		return err
+	}
+
+	defer r.Repository.SSHKey.Destroy()
+
 	cmd := r.makeCmd(targetDir, args...)
 
 	r.Logger.LogCmd(cmd)

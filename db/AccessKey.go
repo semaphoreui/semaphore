@@ -66,7 +66,7 @@ const (
 	AccessKeyRoleGit
 )
 
-func (key AccessKey) Install(usage AccessKeyRole) error {
+func (key *AccessKey) Install(usage AccessKeyRole) error {
 	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
 	if err != nil {
 		return err
@@ -143,7 +143,8 @@ func (key AccessKey) Install(usage AccessKeyRole) error {
 
 func (key AccessKey) Destroy() error {
 	path := key.GetPath()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
 		return nil
 	}
 	return os.Remove(path)

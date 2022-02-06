@@ -38,16 +38,6 @@ type TaskRunner struct {
 	pool      *TaskPool
 }
 
-//func (t *TaskRunner) validate() error {
-//	if t.task.ProjectID != t.template.ProjectID ||
-//		t.task.ProjectID != t.inventory.ProjectID ||
-//		t.task.ProjectID != t.repository.ProjectID ||
-//		t.task.ProjectID != t.environment.ProjectID {
-//		return fmt.Errorf("invalid project id")
-//	}
-//	return nil
-//}
-
 func getMD5Hash(filepath string) (string, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -124,12 +114,7 @@ func (t *TaskRunner) fail() {
 }
 
 func (t *TaskRunner) destroyKeys() {
-	err := t.repository.SSHKey.Destroy()
-	if err != nil {
-		t.Log("Can't destroy repository key, error: " + err.Error())
-	}
-
-	err = t.inventory.SSHKey.Destroy()
+	err := t.inventory.SSHKey.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory user key, error: " + err.Error())
 	}
@@ -207,12 +192,6 @@ func (t *TaskRunner) prepareRun() {
 	t.Log("Prepare TaskRunner with template: " + t.template.Name + "\n")
 
 	t.updateStatus()
-
-	if err := t.repository.SSHKey.Install(db.AccessKeyRoleGit); err != nil {
-		t.Log("Failed installing ssh key for repository access: " + err.Error())
-		t.fail()
-		return
-	}
 
 	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
 		repositoryPath := strings.TrimPrefix(t.repository.GitURL, gitURLFilePrefix)
@@ -579,22 +558,14 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
-	cmd, err := lib.AnsiblePlaybook{
+	return lib.AnsiblePlaybook{
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
-	}.MakeRunCmd(args)
-
-	if err != nil {
-		return
-	}
-
-	t.process = cmd.Process
-
-	return cmd.Wait()
+	}.RunPlaybook(args, func(p *os.Process) { t.process = p })
 }
 
-func (t *TaskRunner) getExtraVars() (str string, err error) {
+func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	extraVars := make(map[string]interface{})
 
 	if t.environment.JSON != "" {
@@ -603,8 +574,6 @@ func (t *TaskRunner) getExtraVars() (str string, err error) {
 			return
 		}
 	}
-
-	delete(extraVars, "ENV")
 
 	taskDetails := make(map[string]interface{})
 
@@ -707,7 +676,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
 	}
 
-	extraVars, err := t.getExtraVars()
+	extraVars, err := t.getEnvironmentExtraVars()
 	if err != nil {
 		t.Log(err.Error())
 		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
@@ -725,7 +694,6 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	}
 
 	var taskExtraArgs []string
-
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
 		if err != nil {
