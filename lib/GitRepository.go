@@ -65,6 +65,13 @@ func (r GitRepository) run(targetDir GitRepositoryDirType, args ...string) error
 }
 
 func (r GitRepository) output(targetDir GitRepositoryDirType, args ...string) (out string, err error) {
+	err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit)
+	if err != nil {
+		return
+	}
+
+	defer r.Repository.SSHKey.Destroy()
+
 	bytes, err := r.makeCmd(targetDir, args...).Output()
 	if err != nil {
 		return
