@@ -20,6 +20,13 @@
       </template>
     </EditDialog>
 
+    <ObjectRefsDialog
+      object-title="access key"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      v-model="itemRefsDialog"
+    />
+
     <YesNoDialog
       title="Delete key"
       text="Are you really want to delete this key?"

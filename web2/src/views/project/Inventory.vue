@@ -19,6 +19,13 @@
       </template>
     </EditDialog>
 
+    <ObjectRefsDialog
+      object-title="inventory"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      v-model="itemRefsDialog"
+    />
+
     <YesNoDialog
       title="Delete inventory"
       text="Are you really want to delete this inventory?"

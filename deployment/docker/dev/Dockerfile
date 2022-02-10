@@ -33,4 +33,4 @@ RUN deployment/docker/dev/bin/install
 USER semaphore
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/semaphore-wrapper"]
-CMD ["./bin/semaphore", "--config", "/etc/semaphore/config.json"]
+CMD ["./bin/semaphore", "server", "--config", "/etc/semaphore/config.json"]

@@ -51,7 +51,7 @@
               class="breadcrumbs__item breadcrumbs__item--link"
               :to="`/project/${projectId}/templates/${template ? template.id : null}`"
               @click="taskLogDialog = false"
-          >{{ template ? template.alias : null }}
+          >{{ template ? template.name : null }}
           </router-link>
           <v-icon>mdi-chevron-right</v-icon>
           <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
@@ -162,7 +162,7 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="newProjectDialog = true">
+          <v-list-item @click="newProjectDialog = true" v-if="user.admin">
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
             </v-list-item-icon>
@@ -187,6 +187,18 @@
       </v-list>
 
       <v-list class="pt-0" v-if="project">
+        <v-list-item v-if="systemInfo && systemInfo.demo">
+          <v-list-item-content>
+            <v-alert class="ma-0 pa-2" color="red">
+              <div class="mb-1 font-weight-bold">DEMO MODE</div>
+              <ul style="padding-left: 14px; font-size: 14px; line-height: 1.3;">
+                <li>You can run any tasks</li>
+                <li>You have read-only access</li>
+              </ul>
+            </v-alert>
+          </v-list-item-content>
+        </v-list-item>
+
         <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
@@ -243,7 +255,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Playbook Repositories</v-list-item-title>
+            <v-list-item-title>Repositories</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -279,7 +291,7 @@
           </template>
 
           <v-list>
-            <v-list-item key="users" to="/users">
+            <v-list-item key="users" to="/users" v-if="user.admin">
               <v-list-item-icon>
                 <v-icon>mdi-account-multiple</v-icon>
               </v-list-item-icon>
@@ -299,27 +311,28 @@
               </v-list-item-content>
             </v-list-item>
 
-            <v-list-item key="password" @click="passwordDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-information</v-icon>
-              </v-list-item-icon>
+            <!--
+                        <v-list-item key="password" @click="passwordDialog = true">
+                          <v-list-item-icon>
+                            <v-icon>mdi-information</v-icon>
+                          </v-list-item-icon>
 
-              <v-list-item-content>
-                System Information
-              </v-list-item-content>
-            </v-list-item>
+                          <v-list-item-content>
+                            System Information
+                          </v-list-item-content>
+                        </v-list-item>
 
-            <v-list-item key="password" @click="passwordDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-tune</v-icon>
-              </v-list-item-icon>
+                        <v-list-item key="password" @click="passwordDialog = true">
+                          <v-list-item-icon>
+                            <v-icon>mdi-tune</v-icon>
+                          </v-list-item-icon>
 
-              <v-list-item-content>
-                System Settings
-              </v-list-item-content>
-            </v-list-item>
+                          <v-list-item-content>
+                            System Settings
+                          </v-list-item-content>
+                        </v-list-item>
 
-            <!--            <v-list-item key="password" @click="passwordDialog = true">-->
+                                    <v-list-item key="password" @click="passwordDialog = true">-->
 <!--              <v-list-item-icon>-->
 <!--                <v-icon>mdi-lock</v-icon>-->
 <!--              </v-list-item-icon>-->
@@ -539,6 +552,7 @@ export default {
     return {
       drawer: null,
       user: null,
+      systemInfo: null,
       state: 'loading',
       snackbar: false,
       snackbarText: '',
@@ -809,9 +823,16 @@ export default {
       if (!this.isAuthenticated) {
         return;
       }
+
       this.user = (await axios({
         method: 'get',
         url: '/api/user',
+        responseType: 'json',
+      })).data;
+
+      this.systemInfo = (await axios({
+        method: 'get',
+        url: '/api/info',
         responseType: 'json',
       })).data;
     },

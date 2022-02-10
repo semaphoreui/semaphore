@@ -18,6 +18,13 @@
       </template>
     </EditDialog>
 
+    <ObjectRefsDialog
+      object-title="repository"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      v-model="itemRefsDialog"
+    />
+
     <YesNoDialog
       title="Delete repository"
       text="Are you really want to delete this repository?"
@@ -27,7 +34,7 @@
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Playbook Repositories</v-toolbar-title>
+      <v-toolbar-title>Repositories</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
@@ -42,6 +49,11 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.git_url="{ item }">
+        {{ item.git_url }}
+        <code>{{ item.git_branch }}</code>
+      </template>
+
       <template v-slot:item.ssh_key_id="{ item }">
         {{ keys.find((k) => k.id === item.ssh_key_id).name }}
       </template>

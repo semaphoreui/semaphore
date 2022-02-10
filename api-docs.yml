@@ -253,6 +253,10 @@ definitions:
           type: integer
         git_url:
           type: string
+          example: git@example.com
+        git_branch:
+          type: string
+          example: master
         ssh_key_id:
           type: integer
   Repository:
@@ -267,6 +271,10 @@ definitions:
         type: integer
       git_url:
         type: string
+        example: git@example.com
+      git_branch:
+        type: string
+        example: master
       ssh_key_id:
         type: integer
 
@@ -318,7 +326,7 @@ definitions:
       view_id:
         type: integer
         minimum: 1
-      alias:
+      name:
         type: string
         example: Test
       playbook:
@@ -330,8 +338,9 @@ definitions:
       description:
         type: string
         example: Hello, World!
-      override_args:
+      allow_override_args_in_task:
         type: boolean
+        example: false
   Template:
     type: object
     properties:
@@ -352,7 +361,7 @@ definitions:
       view_id:
         type: integer
         minimum: 1
-      alias:
+      name:
         type: string
         example: Test
       playbook:
@@ -364,8 +373,9 @@ definitions:
       description:
         type: string
         example: Hello, World!
-      override_args:
+      allow_override_args_in_task:
         type: boolean
+        example: false
 
   ScheduleRequest:
     type: object
@@ -1211,7 +1221,7 @@ paths:
           required: true
           type: string
           description: sorting name
-          enum: [alias, playbook, ssh_key, inventory, environment, repository]
+          enum: [name, playbook, ssh_key, inventory, environment, repository]
         - name: order
           in: query
           required: true

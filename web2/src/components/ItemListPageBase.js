@@ -2,12 +2,15 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import EditDialog from '@/components/EditDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
+
 import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: {
     YesNoDialog,
     EditDialog,
+    ObjectRefsDialog,
   },
 
   props: {
@@ -19,9 +22,13 @@ export default {
     return {
       headers: this.getHeaders(),
       items: null,
+
       itemId: null,
       editDialog: null,
       deleteItemDialog: null,
+
+      itemRefs: null,
+      itemRefsDialog: null,
     };
   },
 
@@ -32,7 +39,8 @@ export default {
 
   methods: {
     // eslint-disable-next-line no-empty-function
-    async beforeLoadItems() { },
+    async beforeLoadItems() {
+    },
 
     getSingleItemUrl() {
       throw new Error('Not implemented');
@@ -54,8 +62,27 @@ export default {
       await this.loadItems();
     },
 
-    askDeleteItem(itemId) {
+    async askDeleteItem(itemId) {
       this.itemId = itemId;
+
+      try {
+        this.itemRefs = (await axios({
+          method: 'get',
+          url: `${this.getSingleItemUrl()}/refs`,
+          responseType: 'json',
+        })).data;
+
+        if (this.itemRefs.templates.length > 0
+          || this.itemRefs.repositories.length > 0
+          || this.itemRefs.inventories.length > 0
+          || this.itemRefs.schedules.length > 0) {
+          this.itemRefsDialog = true;
+          return;
+        }
+      } catch (e) {
+        // Do nothing
+      }
+
       this.deleteItemDialog = true;
     },
 

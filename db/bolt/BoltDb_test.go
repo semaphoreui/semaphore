@@ -3,83 +3,62 @@ package bolt
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"math/rand"
 	"reflect"
-	"strconv"
 	"testing"
-	"time"
 )
 
 type test1 struct {
-	ID int `db:"ID"`
-	FirstName string `db:"first_name" json:"firstName"`
-	LastName string `db:"last_name" json:"lastName"`
-	Password string `db:"-" json:"password"`
+	ID             int    `db:"ID"`
+	FirstName      string `db:"first_name" json:"firstName"`
+	LastName       string `db:"last_name" json:"lastName"`
+	Password       string `db:"-" json:"password"`
 	PasswordRepeat string `db:"-" json:"passwordRepeat"`
-	PasswordHash string `db:"password" json:"-"`
-	Removed bool `db:"removed"`
+	PasswordHash   string `db:"password" json:"-"`
+	Removed        bool   `db:"removed"`
 }
 
-var test1props = db.ObjectProperties{
-	IsGlobal: true,
-	TableName: "test1",
-	PrimaryColumnName: "ID",
-}
+//var test1props = db.ObjectProps{
+//	IsGlobal:          true,
+//	TableName:         "test1",
+//	PrimaryColumnName: "ID",
+//}
 
-func createBoltDb() BoltDb {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
-	return BoltDb{
-		Filename: fn,
-	}
-}
-
-func createStore() db.Store {
-	store := createBoltDb()
-	return &store
-}
-
-func TestDeleteObjectSoft(t *testing.T) {
-	store := createBoltDb()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	obj := test1{
-		FirstName: "Denis",
-		LastName: "Gukov",
-	}
-	newObj, err := store.createObject(0, test1props, obj)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	objID := intObjectID(newObj.(test1).ID)
-
-	err = store.deleteObjectSoft(0, test1props, objID)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	var found test1
-	err = store.getObject(0, test1props, objID, &found)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if found.ID != int(objID) ||
-		found.Removed != true ||
-		found.Password != obj.Password ||
-		found.LastName != obj.LastName {
-
-		t.Fatal()
-	}
-}
+//func TestDeleteObjectSoft(t *testing.T) {
+//	store := CreateTestStore()
+//
+//	obj := test1{
+//		FirstName: "Denis",
+//		LastName:  "Gukov",
+//	}
+//	newObj, err := store.createObject(0, test1props, obj)
+//
+//	if err != nil {
+//		t.Fatal(err.Error())
+//	}
+//
+//	objID := intObjectID(newObj.(test1).ID)
+//
+//	err = store.deleteObjectSoft(0, test1props, objID)
+//
+//	if err != nil {
+//		t.Fatal(err.Error())
+//	}
+//
+//	var found test1
+//	err = store.getObject(0, test1props, objID, &found)
+//
+//	if err != nil {
+//		t.Fatal(err.Error())
+//	}
+//
+//	if found.ID != int(objID) ||
+//		found.Removed != true ||
+//		found.Password != obj.Password ||
+//		found.LastName != obj.LastName {
+//
+//		t.Fatal()
+//	}
+//}
 
 func TestMarshalObject_UserWithPwd(t *testing.T) {
 	user := db.UserWithPwd{
@@ -107,11 +86,11 @@ func TestMarshalObject_UserWithPwd(t *testing.T) {
 
 func TestMarshalObject(t *testing.T) {
 	test1 := test1{
-		FirstName: "Denis",
-		LastName: "Gukov",
-		Password: "1234556",
+		FirstName:      "Denis",
+		LastName:       "Gukov",
+		Password:       "1234556",
 		PasswordRepeat: "123456",
-		PasswordHash: "9347502348723",
+		PasswordHash:   "9347502348723",
 	}
 
 	bytes, err := marshalObject(test1)
@@ -151,23 +130,23 @@ func TestUnmarshalObject(t *testing.T) {
 func TestSortObjects(t *testing.T) {
 	objects := []db.Inventory{
 		{
-			ID: 1,
+			ID:   1,
 			Name: "x",
 		},
 		{
-			ID: 2,
+			ID:   2,
 			Name: "a",
 		},
 		{
-			ID: 3,
+			ID:   3,
 			Name: "d",
 		},
 		{
-			ID: 4,
+			ID:   4,
 			Name: "b",
 		},
 		{
-			ID: 5,
+			ID:   5,
 			Name: "r",
 		},
 	}
@@ -182,7 +161,6 @@ func TestSortObjects(t *testing.T) {
 		objects[2].Name == "d" &&
 		objects[3].Name == "r" &&
 		objects[4].Name == "x"
-
 
 	if !expected {
 		t.Fatal(fmt.Errorf("objects not sorted"))
@@ -211,12 +189,7 @@ func TestGetFieldNameByTag2(t *testing.T) {
 }
 
 func TestIsObjectInUse(t *testing.T) {
-	store := createBoltDb()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "test",
@@ -227,9 +200,9 @@ func TestIsObjectInUse(t *testing.T) {
 	}
 
 	_, err = store.CreateTemplate(db.Template{
-		Alias: "Test",
-		Playbook: "test.yml",
-		ProjectID: proj.ID,
+		Name:        "Test",
+		Playbook:    "test.yml",
+		ProjectID:   proj.ID,
 		InventoryID: 10,
 	})
 
@@ -250,12 +223,7 @@ func TestIsObjectInUse(t *testing.T) {
 }
 
 func TestIsObjectInUse_Environment(t *testing.T) {
-	store := createBoltDb()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "test",
@@ -268,9 +236,9 @@ func TestIsObjectInUse_Environment(t *testing.T) {
 	envID := 10
 
 	_, err = store.CreateTemplate(db.Template{
-		Alias: "Test",
-		Playbook: "test.yml",
-		ProjectID: proj.ID,
+		Name:          "Test",
+		Playbook:      "test.yml",
+		ProjectID:     proj.ID,
 		EnvironmentID: &envID,
 	})
 
@@ -291,40 +259,150 @@ func TestIsObjectInUse_Environment(t *testing.T) {
 }
 
 func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
-	store := createBoltDb()
-	err := store.Connect()
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "test",
 	})
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	_, err = store.CreateTemplate(db.Template{
-		Alias: "Test",
-		Playbook: "test.yml",
-		ProjectID: proj.ID,
+		Name:          "Test",
+		Playbook:      "test.yml",
+		ProjectID:     proj.ID,
 		EnvironmentID: nil,
 	})
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	if isUse {
 		t.Fatal()
 	}
+}
 
+func TestBoltDb_CreateAPIToken(t *testing.T) {
+	store := CreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "test",
+			Name:     "Test",
+			Email:    "test@example.com",
+			Admin:    true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := store.CreateAPIToken(db.APIToken{
+		ID:     "f349gyhgqirgysfgsfg34973dsfad",
+		UserID: user.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token2, err := store.GetAPIToken(token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if token2.ID != token.ID {
+		t.Fatal()
+	}
+
+	tokens, err := store.GetAPITokens(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tokens) != 1 {
+		t.Fatal()
+	}
+
+	if tokens[0].ID != token.ID {
+		t.Fatal()
+	}
+
+	err = store.ExpireAPIToken(user.ID, token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token2, err = store.GetAPIToken(token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !token2.Expired {
+		t.Fatal()
+	}
+}
+
+func TestBoltDb_GetRepositoryRefs(t *testing.T) {
+	store := CreateTestStore()
+
+	repo1, err := store.CreateRepository(db.Repository{
+		Name:      "repo1",
+		GitURL:    "git@example.com/repo1",
+		GitBranch: "master",
+		ProjectID: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.CreateTemplate(db.Template{
+		Type:         db.TemplateBuild,
+		Name:         "tpl1",
+		Playbook:     "build.yml",
+		RepositoryID: repo1.ID,
+		ProjectID:    1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl2, err := store.CreateTemplate(db.Template{
+		Type:      db.TemplateBuild,
+		Name:      "tpl12",
+		Playbook:  "build.yml",
+		ProjectID: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.CreateSchedule(db.Schedule{
+		CronFormat:   "* * * * *",
+		TemplateID:   tpl2.ID,
+		ProjectID:    1,
+		RepositoryID: &repo1.ID,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	refs, err := store.GetRepositoryRefs(1, repo1.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(refs.Templates) != 2 {
+		t.Fatal()
+	}
 }

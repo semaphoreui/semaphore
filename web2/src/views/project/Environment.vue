@@ -19,6 +19,13 @@
       </template>
     </EditDialog>
 
+    <ObjectRefsDialog
+      object-title="environment"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      v-model="itemRefsDialog"
+    />
+
     <YesNoDialog
       title="Delete environment"
       text="Are you really want to delete this environment?"
@@ -33,7 +40,8 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Environment</v-btn>
+      >New Environment
+      </v-btn>
     </v-toolbar>
 
     <v-data-table

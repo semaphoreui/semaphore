@@ -1,5 +1,66 @@
 <template>
-  <div class="auth" v-if="newUser != null">
+  <div class="auth">
+    <v-dialog v-model="loginHelpDialog" max-width="600">
+      <v-card>
+        <v-card-title>
+          How to fix sign-in issues
+          <v-spacer></v-spacer>
+          <v-btn icon @click="loginHelpDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <p class="text-body-1">
+            Firstly, you need access to the server where Semaphore running.
+          </p>
+          <p class="text-body-1">
+            Execute the following command on the server to see existing users:
+          </p>
+          <v-alert
+            dense
+            text
+            color="info"
+            style="font-family: monospace;"
+          >
+            semaphore user list
+          </v-alert>
+          <p class="text-body-1">
+            You can change password of existing user:
+          </p>
+          <v-alert
+            dense
+            text
+            color="info"
+            style="font-family: monospace;"
+          >
+            semaphore user change-by-login --login user123 --password {{ makePasswordExample() }}
+          </v-alert>
+          <p class="text-body-1">
+            Or create new admin user:
+          </p>
+          <v-alert
+            dense
+            text
+            color="info"
+            style="font-family: monospace;"
+          >
+            semaphore user add --admin --login user123 --name User123
+            --email user123@example.com --password {{ makePasswordExample() }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer/>
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="loginHelpDialog = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-container
       fluid
       fill-height
@@ -19,31 +80,14 @@
           :value="signInError != null"
           color="error"
           style="margin-bottom: 20px;"
-        >{{ signInError }}</v-alert>
+        >{{ signInError }}
+        </v-alert>
 
         <v-text-field
           v-model="username"
           label="Username"
           :rules="[v => !!v || 'Username is required']"
           autofocus
-          required
-          :disabled="signInProcess"
-        ></v-text-field>
-
-        <v-text-field
-          v-if="newUser"
-          v-model="name"
-          label="Name"
-          :rules="[v => !!v || 'Name is required']"
-          required
-          :disabled="signInProcess"
-        ></v-text-field>
-
-        <v-text-field
-          v-if="newUser"
-          v-model="email"
-          label="Email"
-          :rules="[v => !!v || 'Email is required']"
           required
           :disabled="signInProcess"
         ></v-text-field>
@@ -65,8 +109,12 @@
           :disabled="signInProcess"
           block
         >
-          {{ newUser ? 'Create Admin User' : 'Sign In' }}
+          Sign In
         </v-btn>
+
+        <div class="text-center mt-6">
+          <a @click="loginHelpDialog = true">Don't have account or can't sign in?</a>
+        </div>
       </v-form>
     </v-container>
   </div>
@@ -89,34 +137,28 @@ export default {
 
       password: null,
       username: null,
-      email: null,
-      name: null,
 
-      passwordRules: [
-        (v) => !!v || 'Password is required',
-        (v) => v.length >= 6 || 'Password too short. Min 6 characters',
-      ],
-
-      newUser: null,
+      loginHelpDialog: null,
     };
   },
 
   async created() {
     if (this.isAuthenticated()) {
       document.location = document.baseURI;
-      return;
     }
-
-    const info = (await axios({
-      method: 'get',
-      url: '/api/auth/info',
-      responseType: 'json',
-    })).data;
-
-    this.newUser = info.newUserRequired;
   },
 
   methods: {
+    makePasswordExample() {
+      let pwd = '';
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const charactersLength = characters.length;
+      for (let i = 0; i < 10; i += 1) {
+        pwd += characters.charAt(Math.floor(Math.random() * charactersLength));
+      }
+      return pwd;
+    },
+
     isAuthenticated() {
       return document.cookie.includes('semaphore=');
     },
@@ -130,30 +172,15 @@ export default {
 
       this.signInProcess = true;
       try {
-        if (this.newUser) {
-          await axios({
-            method: 'post',
-            url: '/api/auth/register',
-            responseType: 'json',
-            data: {
-              username: this.username,
-              name: this.name,
-              email: this.email,
-              password: this.password,
-              admin: true,
-            },
-          });
-        } else {
-          await axios({
-            method: 'post',
-            url: '/api/auth/login',
-            responseType: 'json',
-            data: {
-              auth: this.username,
-              password: this.password,
-            },
-          });
-        }
+        await axios({
+          method: 'post',
+          url: '/api/auth/login',
+          responseType: 'json',
+          data: {
+            auth: this.username,
+            password: this.password,
+          },
+        });
         document.location = document.baseURI;
       } catch (err) {
         if (err.response.status === 401) {

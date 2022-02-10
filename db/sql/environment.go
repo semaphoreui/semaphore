@@ -1,11 +1,17 @@
 package sql
 
-import "github.com/ansible-semaphore/semaphore/db"
+import (
+	"github.com/ansible-semaphore/semaphore/db"
+)
 
 func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
 	var environment db.Environment
 	err := d.getObject(projectID, db.EnvironmentProps, environmentID, &environment)
 	return environment, err
+}
+
+func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.EnvironmentProps, environmentID)
 }
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
@@ -55,8 +61,4 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 
 func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
 	return d.deleteObject(projectID, db.EnvironmentProps, environmentID)
-}
-
-func (d *SqlDb) DeleteEnvironmentSoft(projectID int, environmentID int) error {
-	return d.deleteObjectSoft(projectID, db.EnvironmentProps, environmentID)
 }

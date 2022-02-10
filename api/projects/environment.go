@@ -31,6 +31,17 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func GetEnvironmentRefs(w http.ResponseWriter, r *http.Request) {
+	env := context.Get(r, "environment").(db.Environment)
+	refs, err := helpers.Store(r).GetEnvironmentRefs(env.ProjectID, env.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
+}
+
 // GetEnvironment retrieves sorted environments from the database
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
@@ -61,9 +72,9 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if env.ID != oldEnv.ID {
-				helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-					"error": "Environment ID in body and URL must be the same",
-				})
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Environment ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -109,7 +120,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	desc := "Environment " + newEnv.Name + " created"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID: 	 &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &newEnv.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newEnv.ID,
@@ -129,19 +140,13 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	softDeletion := r.URL.Query().Get("setRemoved") == "1"
-
-	if softDeletion {
-		err = helpers.Store(r).DeleteEnvironmentSoft(env.ProjectID, env.ID)
-	} else {
-		err = helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
-		if err == db.ErrInvalidOperation {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Environment is in use by one or more templates",
-				"inUse": true,
-			})
-			return
-		}
+	err = helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
+	if err == db.ErrInvalidOperation {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "Environment is in use by one or more templates",
+			"inUse": true,
+		})
+		return
 	}
 
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/go-ldap/ldap/v3"
 	"net/http"
 	"strings"
 	"time"
@@ -13,10 +14,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/ldap.v2"
 )
 
-func findLDAPUser(username, password string) (*db.User, error) {
+func tryFindLDAPUser(username, password string) (*db.User, error) {
 	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
@@ -35,17 +35,6 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 	defer l.Close()
-
-	// Reconnect with TLS if needed
-	if util.Config.LdapNeedTLS {
-		// TODO: InsecureSkipVerify should be configurable
-		tlsConf := tls.Config{
-			InsecureSkipVerify: true, //nolint: gas
-		}
-		if err = l.StartTLS(&tlsConf); err != nil {
-			return nil, err
-		}
-	}
 
 	// First bind with a read only user
 	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
@@ -66,8 +55,12 @@ func findLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	if len(sr.Entries) != 1 {
-		return nil, fmt.Errorf("user does not exist or too many entries returned")
+	if len(sr.Entries) < 1 {
+		return nil, nil
+	}
+
+	if len(sr.Entries) > 1 {
+		return nil, fmt.Errorf("too many entries returned")
 	}
 
 	// Bind as the user to verify their password
@@ -103,6 +96,8 @@ func findLDAPUser(username, password string) (*db.User, error) {
 	return &ldapUser, nil
 }
 
+// createSession creates session for passed user and stores session details
+// in cookies.
 func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	newSession, err := helpers.Store(r).CreateSession(db.Session{
 		UserID:     user.ID,
@@ -132,59 +127,6 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 }
 
-func info(w http.ResponseWriter, r *http.Request) {
-	var info struct {
-		NewUserRequired bool `json:"newUserRequired"`
-	}
-
-	if util.Config.RegisterFirstUser {
-		hasPlaceholderUser, err := db.HasPlaceholderUser(helpers.Store(r))
-		if err != nil {
-			log.Error(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		info.NewUserRequired = hasPlaceholderUser
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, info)
-}
-
-func register(w http.ResponseWriter, r *http.Request) {
-	var user db.UserWithPwd
-	if !helpers.Bind(w, r, &user) {
-		return
-	}
-
-	if !util.Config.RegisterFirstUser {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	hasPlaceholderUser, err := db.HasPlaceholderUser(helpers.Store(r))
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if !hasPlaceholderUser {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	newUser, err := db.ReplacePlaceholderUser(helpers.Store(r), user)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	createSession(w, r, newUser)
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
 //nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
@@ -206,13 +148,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
+	var err error
+
 	var ldapUser *db.User
+
 	if util.Config.LdapEnable {
-		// search LDAP for users
-		if lu, err := findLDAPUser(login.Auth, login.Password); err == nil {
-			ldapUser = lu
-		} else {
+		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
+		if err != nil {
 			log.Info(err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 

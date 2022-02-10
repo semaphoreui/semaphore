@@ -18,7 +18,7 @@ func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 }
 
 func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
-	err = d.selectOne(&token, d.prepareQuery("select * from user__token where id=? and expired=false"), tokenID)
+	err = d.selectOne(&token, d.PrepareQuery("select * from user__token where id=? and expired=false"), tokenID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -56,7 +56,7 @@ func (d *SqlDb) TouchSession(userID int, sessionID int) error {
 }
 
 func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	_, err = d.selectAll(&tokens, d.prepareQuery("select * from user__token where user_id=?"), userID)
+	_, err = d.selectAll(&tokens, d.PrepareQuery("select * from user__token where user_id=?"), userID)
 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
@@ -64,4 +64,3 @@ func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
 
 	return
 }
-

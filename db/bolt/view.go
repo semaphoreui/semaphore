@@ -22,7 +22,7 @@ func (d *BoltDb) CreateView(view db.View) (db.View, error) {
 }
 
 func (d *BoltDb) DeleteView(projectID int, viewID int) error {
-	return d.deleteObject(projectID, db.ViewProps, intObjectID(viewID))
+	return d.deleteObject(projectID, db.ViewProps, intObjectID(viewID), nil)
 }
 
 func (d *BoltDb) SetViewPositions(projectID int, positions map[int]int) error {
@@ -38,9 +38,4 @@ func (d *BoltDb) SetViewPositions(projectID int, positions map[int]int) error {
 		}
 	}
 	return nil
-}
-
-
-func (d *BoltDb) GetViewTemplates(projectID int, viewID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
-	return d.getTemplates(projectID, &viewID, params)
 }

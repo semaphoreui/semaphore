@@ -74,7 +74,22 @@
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Task Templates</v-toolbar-title>
+      <v-toolbar-title>
+        Task Templates
+        <!--
+        <v-btn-toggle class="ml-4" rounded>
+          <v-btn small>
+            <v-icon left>mdi-table</v-icon>
+            <span class="hidden-sm-and-down">Table</span>
+          </v-btn>
+
+          <v-btn small>
+            <v-icon left>mdi-pipe</v-icon>
+            <span class="hidden-sm-and-down">Pipelines</span>
+          </v-btn>
+        </v-btn-toggle>
+        -->
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
           color="primary"
@@ -117,7 +132,7 @@
           opacity: viewItemsLoading ? 0.3 : 1,
         }"
     >
-      <template v-slot:item.alias="{ item }">
+      <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" small>
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
@@ -125,7 +140,7 @@
             :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
               : `/project/${projectId}/templates/${item.id}`"
-        >{{ item.alias }}</router-link>
+        >{{ item.name }}</router-link>
       </template>
 
       <template v-slot:item.version="{ item }">
@@ -136,15 +151,15 @@
 
             :task-id="item.last_task.tpl_type === 'build'
               ? item.last_task.id
-              : item.last_task.build_task.id"
+              : (item.last_task.build_task || {}).id"
 
             :label="item.last_task.tpl_type === 'build'
               ? item.last_task.version
-              : item.last_task.build_task.version"
+              : (item.last_task.build_task || {}).version"
 
             :tooltip="item.last_task.tpl_type === 'build'
               ? item.last_task.message
-              : item.last_task.build_task.message"
+              : (item.last_task.build_task || {}).message"
         />
         <div v-else>&mdash;</div>
       </template>
@@ -285,7 +300,7 @@ export default {
       if (this.itemId == null || this.itemId === 'new') {
         return '';
       }
-      return this.items.find((x) => x.id === this.itemId).alias;
+      return this.items.find((x) => x.id === this.itemId).name;
     },
 
     isLoaded() {
@@ -388,8 +403,8 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Alias',
-          value: 'alias',
+          text: 'Name',
+          value: 'name',
         },
         {
           text: 'Version',

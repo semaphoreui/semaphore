@@ -2,19 +2,21 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"reflect"
 	"time"
 )
 
-
-var globalTokenObject = db.ObjectProperties{
-	TableName:          "token",
-}
-
 type globalToken struct {
-	ID      string    `db:"id" json:"id"`
-	UserID  int       `db:"user_id" json:"user_id"`
+	ID     string `db:"id" json:"id"`
+	UserID int    `db:"user_id" json:"user_id"`
 }
 
+var globalTokenObject = db.ObjectProps{
+	TableName:         "token",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(globalToken{}),
+	IsGlobal:          true,
+}
 
 func (d *BoltDb) CreateSession(session db.Session) (db.Session, error) {
 	newSession, err := d.createObject(session.UserID, db.SessionProps, session)
@@ -89,7 +91,6 @@ func (d *BoltDb) TouchSession(userID int, sessionID int) (err error) {
 }
 
 func (d *BoltDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	err = d.getObjects(userID, db.SessionProps, db.RetrieveQueryParams{}, nil, &tokens)
+	err = d.getObjects(userID, db.TokenProps, db.RetrieveQueryParams{}, nil, &tokens)
 	return
 }
-

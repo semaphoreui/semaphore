@@ -15,24 +15,26 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template (project_id, inventory_id, repository_id, environment_id, " +
-			"alias, playbook, arguments, override_args, description, vault_key_id, `type`, start_version," +
-			"build_template_id, view_id)" +
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
+			"name, playbook, arguments, allow_override_args_in_task, description, vault_key_id, `type`, start_version,"+
+			"build_template_id, view_id, autorun, survey_vars)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
-		template.Alias,
+		template.Name,
 		template.Playbook,
 		template.Arguments,
-		template.OverrideArguments,
+		template.AllowOverrideArgsInTask,
 		template.Description,
 		template.VaultKeyID,
 		template.Type,
 		template.StartVersion,
 		template.BuildTemplateID,
-		template.ViewID)
+		template.ViewID,
+		template.Autorun,
+		db.ObjectToJSON(template.SurveyVars))
 
 	if err != nil {
 		return
@@ -57,57 +59,68 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
-	_, err = d.exec("update project__template set " +
-		"inventory_id=?, " +
-		"repository_id=?, " +
-		"environment_id=?, " +
-		"alias=?, " +
-		"playbook=?, " +
-		"arguments=?, " +
-		"override_args=?, " +
-		"description=?, " +
-		"vault_key_id=?, " +
-		"`type`=?, " +
-		"start_version=?," +
-		"build_template_id=?, " +
-		"view_id=? " +
-		"where removed = false and id=? and project_id=?",
+	_, err = d.exec("update project__template set "+
+		"inventory_id=?, "+
+		"repository_id=?, "+
+		"environment_id=?, "+
+		"name=?, "+
+		"playbook=?, "+
+		"arguments=?, "+
+		"allow_override_args_in_task=?, "+
+		"description=?, "+
+		"vault_key_id=?, "+
+		"`type`=?, "+
+		"start_version=?,"+
+		"build_template_id=?, "+
+		"view_id=?, "+
+		"autorun=?, "+
+		"survey_vars=? "+
+		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
 		template.EnvironmentID,
-		template.Alias,
+		template.Name,
 		template.Playbook,
 		template.Arguments,
-		template.OverrideArguments,
+		template.AllowOverrideArgsInTask,
 		template.Description,
 		template.VaultKeyID,
 		template.Type,
 		template.StartVersion,
 		template.BuildTemplateID,
 		template.ViewID,
+		template.Autorun,
+		db.ObjectToJSON(template.SurveyVars),
 		template.ID,
 		template.ProjectID,
 	)
 	return err
 }
-func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+
+func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	q := squirrel.Select("pt.id",
 		"pt.project_id",
 		"pt.inventory_id",
 		"pt.repository_id",
 		"pt.environment_id",
-		"pt.alias",
+		"pt.name",
 		"pt.playbook",
 		"pt.arguments",
-		"pt.override_args",
+		"pt.allow_override_args_in_task",
 		"pt.vault_key_id",
 		"pt.view_id",
 		"pt.`type`").
-		From("project__template pt").
-		Where("pt.removed = false")
+		From("project__template pt")
 
-	if viewID != nil {
-		q = q.Where("pt.view_id=?", *viewID)
+	if filter.ViewID != nil {
+		q = q.Where("pt.view_id=?", *filter.ViewID)
+	}
+
+	if filter.BuildTemplateID != nil {
+		q = q.Where("pt.build_template_id=?", *filter.BuildTemplateID)
+		if filter.AutorunOnly {
+			q = q.Where("pt.autorun=true")
+		}
 	}
 
 	order := "ASC"
@@ -116,7 +129,7 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 	}
 
 	switch params.SortBy {
-	case "alias", "playbook":
+	case "name", "playbook":
 		q = q.Where("pt.project_id=?", projectID).
 			OrderBy("pt." + params.SortBy + " " + order)
 	case "inventory":
@@ -133,7 +146,7 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 			OrderBy("pr.name " + order)
 	default:
 		q = q.Where("pt.project_id=?", projectID).
-			OrderBy("pt.alias " + order)
+			OrderBy("pt.name " + order)
 	}
 
 	query, args, err := q.ToSql()
@@ -153,14 +166,10 @@ func (d *SqlDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuery
 	return
 }
 
-func (d *SqlDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
-	return d.getTemplates(projectID, nil, params)
-}
-
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.selectOne(
 		&template,
-		"select * from project__template where project_id=? and id=? and removed = false",
+		"select * from project__template where project_id=? and id=?",
 		projectID,
 		templateID)
 
@@ -177,7 +186,10 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	_, err := d.exec("update project__template set removed=true where project_id=? and id=?", projectID, templateID)
-
+	_, err := d.exec("delete from project__template where project_id=? and id=?", projectID, templateID)
 	return err
+}
+
+func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
 }

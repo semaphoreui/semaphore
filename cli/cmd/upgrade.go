@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -75,7 +76,9 @@ func doUpgrade() error {
 // findAsset returns the binary for this platform.
 func findAsset(release *github.RepositoryRelease) *github.ReleaseAsset {
 	for _, asset := range release.Assets {
-		if *asset.Name == fmt.Sprintf("semaphore_%s_%s", runtime.GOOS, runtime.GOARCH) {
+		suffix := fmt.Sprintf("_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
+		if strings.HasPrefix(*asset.Name, "semaphore_") &&
+			strings.HasSuffix(*asset.Name, suffix) {
 			return &asset
 		}
 	}

@@ -8,12 +8,14 @@ web2/.nyc_output
 web2/dist/**/*
 /config.json
 /.dredd/config.json
-/database.bolt
 /database.boltdb
+/database.boltdb.lock
+/database2.boltdb
 .DS_Store
 node_modules/
 
-.idea/
+/.idea/
+/semaphore.iml
 /bin/
 
 *-packr.go

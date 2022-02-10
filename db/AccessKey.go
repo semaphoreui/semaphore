@@ -16,10 +16,13 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+type AccessKeyType string
+
 const (
-	AccessKeySSH           = "ssh"
-	AccessKeyNone          = "none"
-	AccessKeyLoginPassword = "login_password"
+	AccessKeySSH           AccessKeyType = "ssh"
+	AccessKeyNone          AccessKeyType = "none"
+	AccessKeyLoginPassword AccessKeyType = "login_password"
+	AccessKeyPAT           AccessKeyType = "pat"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -27,7 +30,7 @@ type AccessKey struct {
 	ID   int    `db:"id" json:"id"`
 	Name string `db:"name" json:"name" binding:"required"`
 	// 'ssh/login_password/none'
-	Type string `db:"type" json:"type" binding:"required"`
+	Type AccessKeyType `db:"type" json:"type" binding:"required"`
 
 	ProjectID *int `db:"project_id" json:"project_id"`
 
@@ -35,10 +38,9 @@ type AccessKey struct {
 	// You should use methods SerializeSecret to fill this field.
 	Secret *string `db:"secret" json:"-"`
 
-	Removed bool `db:"removed" json:"removed"`
-
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
+	PAT            string        `db:"-" json:"pat"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
 
 	InstallationKey int64 `db:"-" json:"-"`
@@ -55,16 +57,16 @@ type SshKey struct {
 	PrivateKey string `json:"private_key"`
 }
 
-type AccessKeyUsage int
+type AccessKeyRole int
 
 const (
-	AccessKeyUsageAnsibleUser = iota
-	AccessKeyUsageAnsibleBecomeUser
-	AccessKeyUsagePrivateKey
-	AccessKeyUsageVault
+	AccessKeyRoleAnsibleUser = iota
+	AccessKeyRoleAnsibleBecomeUser
+	AccessKeyRoleAnsiblePasswordVault
+	AccessKeyRoleGit
 )
 
-func (key *AccessKey) Install(usage AccessKeyUsage) error {
+func (key *AccessKey) Install(usage AccessKeyRole) error {
 	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
 	if err != nil {
 		return err
@@ -85,17 +87,20 @@ func (key *AccessKey) Install(usage AccessKeyUsage) error {
 	}
 
 	switch usage {
-	case AccessKeyUsagePrivateKey:
-		if key.SshKey.Passphrase != "" {
-			return fmt.Errorf("ssh key with passphrase not supported")
+	case AccessKeyRoleGit:
+		switch key.Type {
+		case AccessKeySSH:
+			if key.SshKey.Passphrase != "" {
+				return fmt.Errorf("ssh key with passphrase not supported")
+			}
+			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		}
-		return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
-	case AccessKeyUsageVault:
+	case AccessKeyRoleAnsiblePasswordVault:
 		switch key.Type {
 		case AccessKeyLoginPassword:
 			return ioutil.WriteFile(path, []byte(key.LoginPassword.Password), 0600)
 		}
-	case AccessKeyUsageAnsibleBecomeUser:
+	case AccessKeyRoleAnsibleBecomeUser:
 		switch key.Type {
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
@@ -110,13 +115,13 @@ func (key *AccessKey) Install(usage AccessKeyUsage) error {
 		default:
 			return fmt.Errorf("access key type not supported for ansible user")
 		}
-	case AccessKeyUsageAnsibleUser:
+	case AccessKeyRoleAnsibleUser:
 		switch key.Type {
 		case AccessKeySSH:
 			if key.SshKey.Passphrase != "" {
 				return fmt.Errorf("ssh key with passphrase not supported")
 			}
-			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey + "\n"), 0600)
+			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
 			content["ansible_user"] = key.LoginPassword.Login
@@ -136,9 +141,10 @@ func (key *AccessKey) Install(usage AccessKeyUsage) error {
 	return nil
 }
 
-func (key *AccessKey) Destroy() error {
+func (key AccessKey) Destroy() error {
 	path := key.GetPath()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
 		return nil
 	}
 	return os.Remove(path)
@@ -147,18 +153,6 @@ func (key *AccessKey) Destroy() error {
 // GetPath returns the location of the access key once written to disk
 func (key AccessKey) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
-}
-
-func (key AccessKey) GetSshCommand() string {
-	if key.Type != AccessKeySSH {
-		panic("type must be ssh")
-	}
-
-	args := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + key.GetPath()
-	if util.Config.SshConfigPath != "" {
-		args += " -F " + util.Config.SshConfigPath
-	}
-	return args
 }
 
 func (key AccessKey) Validate(validateSecretFields bool) error {
@@ -199,18 +193,24 @@ func (key *AccessKey) SerializeSecret() error {
 		if err != nil {
 			return err
 		}
-	default:
+	case AccessKeyPAT:
+		plaintext = []byte(key.PAT)
+	case AccessKeyNone:
 		key.Secret = nil
 		return nil
+	default:
+		return fmt.Errorf("invalid access token type")
 	}
 
-	if util.Config.AccessKeyEncryption == "" {
+	encryptionString := util.Config.GetAccessKeyEncryption()
+
+	if encryptionString == "" {
 		secret := base64.StdEncoding.EncodeToString(plaintext)
 		key.Secret = &secret
 		return nil
 	}
 
-	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
+	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
 
 	if err != nil {
 		return err
@@ -251,15 +251,17 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 		if err == nil {
 			key.LoginPassword = loginPass
 		}
+	case AccessKeyPAT:
+		key.PAT = string(secret)
 	}
 	return
 }
 
-func (key *AccessKey) ResetSecret() {
-	//key.Secret = nil
-	key.LoginPassword = LoginPassword{}
-	key.SshKey = SshKey{}
-}
+//func (key *AccessKey) ClearSecret() {
+//	key.LoginPassword = LoginPassword{}
+//	key.SshKey = SshKey{}
+//	key.PAT = ""
+//}
 
 func (key *AccessKey) DeserializeSecret() error {
 	if key.Secret == nil || *key.Secret == "" {
@@ -283,7 +285,9 @@ func (key *AccessKey) DeserializeSecret() error {
 		return err
 	}
 
-	if util.Config.AccessKeyEncryption == "" {
+	encryptionString := util.Config.GetAccessKeyEncryption()
+
+	if encryptionString == "" {
 		err = key.unmarshalAppropriateField(ciphertext)
 		if _, ok := err.(*json.SyntaxError); ok {
 			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
@@ -291,7 +295,7 @@ func (key *AccessKey) DeserializeSecret() error {
 		return err
 	}
 
-	encryption, err := base64.StdEncoding.DecodeString(util.Config.AccessKeyEncryption)
+	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
 	if err != nil {
 		return err
 	}

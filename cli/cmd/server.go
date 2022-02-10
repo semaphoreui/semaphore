@@ -7,12 +7,13 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(serviceCmd)
+	rootCmd.AddCommand(serverCmd)
 }
 
-var serviceCmd = &cobra.Command{
-	Use:   "service",
-	Short: "Run Semaphore service",
+var serverCmd = &cobra.Command{
+	Use:     "server",
+	Short:   "Run in server mode",
+	Aliases: []string{"service"},
 	Run: func(cmd *cobra.Command, args []string) {
 		runService()
 	},
@@ -26,4 +27,3 @@ func cropTrailingSlashMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-

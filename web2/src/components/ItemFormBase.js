@@ -167,7 +167,9 @@ export default {
         });
       } catch (err) {
         this.formError = getErrorMessage(err);
-        this.$emit('error', {});
+        this.$emit('error', {
+          message: this.formError,
+        });
       } finally {
         this.formSaving = false;
       }

@@ -29,6 +29,11 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
+	if !user.Admin {
+		log.Warn(user.Username + " is not permitted to edit users")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	if !helpers.Bind(w, r, &body) {
 		return

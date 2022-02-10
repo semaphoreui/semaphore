@@ -7,8 +7,10 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"go.etcd.io/bbolt"
+	"math/rand"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,7 +52,7 @@ func (d strObjectID) ToBytes() []byte {
 	return []byte(d)
 }
 
-func makeBucketId(props db.ObjectProperties, ids ...int) []byte {
+func makeBucketId(props db.ObjectProps, ids ...int) []byte {
 	n := len(ids)
 
 	id := props.TableName
@@ -105,7 +107,7 @@ func (d *BoltDb) IsInitialized() (initialized bool, err error) {
 	return
 }
 
-func (d *BoltDb) getObject(bucketID int, props db.ObjectProperties, objectID objectID, object interface{}) (err error) {
+func (d *BoltDb) getObject(bucketID int, props db.ObjectProps, objectID objectID, object interface{}) (err error) {
 	err = d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		if b == nil {
@@ -257,7 +259,7 @@ func marshalObject(obj interface{}) ([]byte, error) {
 	return json.Marshal(copyObject(obj, newType))
 }
 
-func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
+func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
@@ -315,7 +317,7 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProperties, params db.R
 	return
 }
 
-func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
+func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		var c enumerable
@@ -328,18 +330,269 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProperties, params db.R
 	})
 }
 
-func isObjectBelongTo(props db.ObjectProperties, objID objectID, tpl interface{}) bool {
-	if props.ForeignColumnSuffix == "" {
+func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProps, objectID objectID, tx *bbolt.Tx) error {
+	for _, u := range []db.ObjectProps{db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps} {
+		inUse, err := d.isObjectInUse(bucketID, props, objectID, u)
+		if err != nil {
+			return err
+		}
+		if inUse {
+			return db.ErrInvalidOperation
+		}
+	}
+
+	fn := func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+		return b.Delete(objectID.ToBytes())
+	}
+
+	if tx != nil {
+		return fn(tx)
+	}
+
+	return d.db.Update(fn)
+}
+
+// updateObject updates data for object in database.
+func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object interface{}) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+		if err != nil {
+			return err
+		}
+
+		idValue := reflect.ValueOf(object).FieldByName(idFieldName)
+
+		var objID objectID
+
+		switch idValue.Kind() {
+		case reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64:
+			objID = intObjectID(idValue.Int())
+		case reflect.String:
+			objID = strObjectID(idValue.String())
+		}
+
+		if objID == nil {
+			return fmt.Errorf("unsupported ID type")
+		}
+
+		if b.Get(objID.ToBytes()) == nil {
+			return db.ErrNotFound
+		}
+
+		str, err := marshalObject(object)
+		if err != nil {
+			return err
+		}
+
+		return b.Put(objID.ToBytes(), str)
+	})
+}
+
+func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (interface{}, error) {
+	err := d.db.Update(func(tx *bbolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
+
+		if err != nil {
+			return err
+		}
+
+		objPtr := reflect.ValueOf(&object).Elem()
+
+		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
+		tmpObj.Set(objPtr.Elem())
+
+		var objID objectID
+
+		if props.PrimaryColumnName != "" {
+			idFieldName, err2 := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+			if err2 != nil {
+				return err2
+			}
+
+			idValue := tmpObj.FieldByName(idFieldName)
+
+			switch idValue.Kind() {
+			case reflect.Int,
+				reflect.Int8,
+				reflect.Int16,
+				reflect.Int32,
+				reflect.Int64,
+				reflect.Uint,
+				reflect.Uint8,
+				reflect.Uint16,
+				reflect.Uint32,
+				reflect.Uint64:
+				//if idValue.Int() == 0 {
+				id, err3 := b.NextSequence()
+				if err3 != nil {
+					return err3
+				}
+				if props.SortInverted {
+					id = MaxID - id
+				}
+				idValue.SetInt(int64(id))
+				//}
+
+				objID = intObjectID(idValue.Int())
+			case reflect.String:
+				if idValue.String() == "" {
+					return fmt.Errorf("object ID can not be empty string")
+				}
+				objID = strObjectID(idValue.String())
+			case reflect.Invalid:
+				id, err3 := b.NextSequence()
+				if err3 != nil {
+					return err3
+				}
+				objID = intObjectID(id)
+			default:
+				return fmt.Errorf("unsupported ID type")
+			}
+		} else {
+			id, err2 := b.NextSequence()
+			if err2 != nil {
+				return err2
+			}
+			if props.SortInverted {
+				id = MaxID - id
+			}
+			objID = intObjectID(id)
+		}
+
+		if objID == nil {
+			return fmt.Errorf("object ID can not be nil")
+		}
+
+		objPtr.Set(tmpObj)
+		str, err := marshalObject(object)
+		if err != nil {
+			return err
+		}
+
+		return b.Put(objID.ToBytes(), str)
+	})
+
+	return object, err
+}
+
+func (d *BoltDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.ObjectReferrers, err error) {
+	refs.Templates, err = d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.TemplateProps)
+	if err != nil {
+		return
+	}
+
+	refs.Repositories, err = d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.RepositoryProps)
+	if err != nil {
+		return
+	}
+
+	refs.Inventories, err = d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.InventoryProps)
+	if err != nil {
+		return
+	}
+
+	templates, err := d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.ScheduleProps)
+
+	for _, st := range templates {
+		exists := false
+		for _, tpl := range refs.Templates {
+			if tpl.ID == st.ID {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+		refs.Templates = append(refs.Templates, st)
+	}
+
+	return
+}
+
+func (d *BoltDb) getObjectRefsFrom(projectID int, objProps db.ObjectProps, objID objectID, referringObjectProps db.ObjectProps) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
+	_, err = objProps.GetReferringFieldsFrom(referringObjectProps.Type)
+	if err != nil {
+		return
+	}
+
+	var referringObjects reflect.Value
+
+	if referringObjectProps.Type == db.ScheduleProps.Type {
+		schedules := make([]db.Schedule, 0)
+		err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+			return isObjectReferredBy(objProps, objID, referringObj)
+		}, &schedules)
+
+		if err != nil {
+			return
+		}
+
+		for _, schedule := range schedules {
+			var template db.Template
+			template, err = d.GetTemplate(projectID, schedule.TemplateID)
+			if err != nil {
+				return
+			}
+			referringObjs = append(referringObjs, db.ObjectReferrer{
+				ID:   template.ID,
+				Name: template.Name,
+			})
+		}
+	} else {
+		referringObjects = reflect.New(reflect.SliceOf(referringObjectProps.Type))
+		err = d.getObjects(projectID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+			return isObjectReferredBy(objProps, objID, referringObj)
+		}, referringObjects.Interface())
+
+		if err != nil {
+			return
+		}
+
+		for i := 0; i < referringObjects.Elem().Len(); i++ {
+			referringObjs = append(referringObjs, db.ObjectReferrer{
+				ID:   int(referringObjects.Elem().Index(i).FieldByName("ID").Int()),
+				Name: referringObjects.Elem().Index(i).FieldByName("Name").String(),
+			})
+		}
+	}
+
+	return
+}
+
+func isObjectReferredBy(props db.ObjectProps, objID objectID, referringObj interface{}) bool {
+	if props.ReferringColumnSuffix == "" {
 		return false
 	}
 
-	fieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(tpl), "db", props.ForeignColumnSuffix)
+	fieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(referringObj), "db", props.ReferringColumnSuffix)
 
 	if err != nil {
 		return false
 	}
 
-	f := reflect.ValueOf(tpl).FieldByName(fieldName)
+	f := reflect.ValueOf(referringObj).FieldByName(fieldName)
 
 	if f.IsZero() {
 		return false
@@ -378,224 +631,31 @@ func isObjectBelongTo(props db.ObjectProperties, objID objectID, tpl interface{}
 }
 
 // isObjectInUse checks if objID associated with any object in foreignTableProps.
-func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProperties, objID objectID, foreignTableProps db.ObjectProperties) (inUse bool, err error) {
-	templates := reflect.New(reflect.SliceOf(foreignTableProps.Type))
+func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProps, objID objectID, referringObjectProps db.ObjectProps) (inUse bool, err error) {
+	referringObjects := reflect.New(reflect.SliceOf(referringObjectProps.Type))
 
-	err = d.getObjects(bucketID, foreignTableProps, db.RetrieveQueryParams{}, func(foreignObj interface{}) bool {
-		return isObjectBelongTo(objProps, objID, foreignObj)
-	}, templates.Interface())
+	err = d.getObjects(bucketID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		return isObjectReferredBy(objProps, objID, referringObj)
+	}, referringObjects.Interface())
 
 	if err != nil {
 		return
 	}
 
-	inUse = templates.Elem().Len() > 0
+	inUse = referringObjects.Elem().Len() > 0
 
 	return
 }
 
-func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	for _, u := range []db.ObjectProperties{db.TemplateProps, db.EnvironmentProps, db.InventoryProps, db.RepositoryProps} {
-		inUse, err := d.isObjectInUse(bucketID, props, objectID, u)
-		if err != nil {
-			return err
-		}
-		if inUse {
-			return db.ErrInvalidOperation
-		}
+func CreateTestStore() BoltDb {
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
+	store := BoltDb{
+		Filename: fn,
 	}
-
-	return d.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-		return b.Delete(objectID.ToBytes())
-	})
-}
-
-func (d *BoltDb) deleteObjectSoft(bucketID int, props db.ObjectProperties, objectID objectID) error {
-	var data map[string]interface{}
-
-	// load data
-	err := d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-
-		d := b.Get(objectID.ToBytes())
-
-		if d == nil {
-			return db.ErrNotFound
-		}
-
-		return json.Unmarshal(d, &data)
-	})
-
+	err := store.Connect()
 	if err != nil {
-		return err
+		panic(err)
 	}
-
-	// mark as removed if "removed" exists
-	if _, ok := data["removed"]; !ok {
-		return fmt.Errorf("removed field not exists")
-	}
-
-	data["removed"] = true
-
-	// store data back
-	res, err := json.Marshal(data)
-
-	if err != nil {
-		return err
-	}
-
-	return d.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-
-		return b.Put(objectID.ToBytes(), res)
-	})
-}
-
-// updateObject updates data for object in database.
-func (d *BoltDb) updateObject(bucketID int, props db.ObjectProperties, object interface{}) error {
-	return d.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-
-		idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-		if err != nil {
-			return err
-		}
-
-		idValue := reflect.ValueOf(object).FieldByName(idFieldName)
-
-		var objectID objectID
-
-		switch idValue.Kind() {
-		case reflect.Int,
-			reflect.Int8,
-			reflect.Int16,
-			reflect.Int32,
-			reflect.Int64,
-			reflect.Uint,
-			reflect.Uint8,
-			reflect.Uint16,
-			reflect.Uint32,
-			reflect.Uint64:
-			objectID = intObjectID(idValue.Int())
-		case reflect.String:
-			objectID = strObjectID(idValue.String())
-		}
-
-		if objectID == nil {
-			return fmt.Errorf("unsupported ID type")
-		}
-
-		if b.Get(objectID.ToBytes()) == nil {
-			return db.ErrNotFound
-		}
-
-		str, err := marshalObject(object)
-		if err != nil {
-			return err
-		}
-
-		return b.Put(objectID.ToBytes(), str)
-	})
-}
-
-func (d *BoltDb) createObject(bucketID int, props db.ObjectProperties, object interface{}) (interface{}, error) {
-	err := d.db.Update(func(tx *bbolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
-
-		if err != nil {
-			return err
-		}
-
-		objPtr := reflect.ValueOf(&object).Elem()
-
-		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
-		tmpObj.Set(objPtr.Elem())
-
-		var objectID objectID
-
-		if props.PrimaryColumnName != "" {
-			idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-			if err != nil {
-				return err
-			}
-
-			idValue := tmpObj.FieldByName(idFieldName)
-
-			switch idValue.Kind() {
-			case reflect.Int,
-				reflect.Int8,
-				reflect.Int16,
-				reflect.Int32,
-				reflect.Int64,
-				reflect.Uint,
-				reflect.Uint8,
-				reflect.Uint16,
-				reflect.Uint32,
-				reflect.Uint64:
-				if idValue.Int() == 0 {
-					id, err2 := b.NextSequence()
-					if err2 != nil {
-						return err2
-					}
-					if props.SortInverted {
-						id = MaxID - id
-					}
-					idValue.SetInt(int64(id))
-				}
-
-				objectID = intObjectID(idValue.Int())
-			case reflect.String:
-				if idValue.String() == "" {
-					return fmt.Errorf("object ID can not be empty string")
-				}
-				objectID = strObjectID(idValue.String())
-			case reflect.Invalid:
-				id, err2 := b.NextSequence()
-				if err2 != nil {
-					return err2
-				}
-				objectID = intObjectID(id)
-			default:
-				return fmt.Errorf("unsupported ID type")
-			}
-		} else {
-			id, err2 := b.NextSequence()
-			if err2 != nil {
-				return err2
-			}
-			if props.SortInverted {
-				id = MaxID - id
-			}
-			objectID = intObjectID(id)
-		}
-
-		if objectID == nil {
-			return fmt.Errorf("object ID can not be nil")
-		}
-
-		objPtr.Set(tmpObj)
-		str, err := marshalObject(object)
-		if err != nil {
-			return err
-		}
-
-		return b.Put(objectID.ToBytes(), str)
-	})
-
-	return object, err
+	return store
 }

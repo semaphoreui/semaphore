@@ -7,7 +7,7 @@
     >
       <template v-slot:title={}>
         <v-icon class="mr-4">{{ TEMPLATE_TYPE_ICONS[template.type] }}</v-icon>
-        <span class="breadcrumbs__item">{{ template.alias }}</span>
+        <span class="breadcrumbs__item">{{ template.name }}</span>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">New Task</span>
       </template>
@@ -21,9 +21,7 @@
             @error="onError"
             :need-save="needSave"
             :need-reset="needReset"
-            :commit-hash="sourceTask == null ? null : sourceTask.commit_hash"
-            :commit-message="sourceTask == null ? null : sourceTask.commit_message"
-            :build_task="sourceTask == null ? null : sourceTask.build_task"
+            :source-task="sourceTask"
         />
       </template>
     </EditDialog>
@@ -48,8 +46,8 @@
           <TaskLink
               :disabled="item.tpl_type === 'build'"
               :task-id="item.build_task_id"
-              :tooltip="item.tpl_type === 'build' ? item.message : item.build_task.message"
-              :label="item.tpl_type === 'build' ? item.version : item.build_task.version"
+              :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
+              :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
               :status="item.status"
           />
         </div>

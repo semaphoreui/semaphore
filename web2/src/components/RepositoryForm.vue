@@ -22,12 +22,22 @@
 
     <v-text-field
         v-model="item.git_url"
-        label="Repository URL"
+        label="URL"
         :rules="[v => !!v || 'Repository is required']"
         required
         :disabled="formSaving"
         append-outer-icon="mdi-help-circle"
         @click:append-outer="showHelpDialog('url')"
+    ></v-text-field>
+
+    <v-text-field
+      v-model="item.git_branch"
+      label="Branch"
+      :rules="[v => !!v || 'Branch is required']"
+      required
+      :disabled="formSaving"
+      append-outer-icon="mdi-help-circle"
+      @click:append-outer="showHelpDialog('url')"
     ></v-text-field>
 
     <v-select

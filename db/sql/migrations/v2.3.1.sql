@@ -1,6 +1,3 @@
--- alter table session change ip ip varchar(39) not null default '';
-
-
 alter table session rename to session_backup;
 
 create table session

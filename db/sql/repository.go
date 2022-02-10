@@ -18,6 +18,10 @@ func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, e
 	return repository, err
 }
 
+func (d *SqlDb) GetRepositoryRefs(projectID int, repositoryID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.RepositoryProps, repositoryID)
+}
+
 func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (repositories []db.Repository, err error) {
 	q := squirrel.Select("*").
 		From("project__repository pr")
@@ -52,10 +56,17 @@ func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (r
 }
 
 func (d *SqlDb) UpdateRepository(repository db.Repository) error {
-	_, err := d.exec(
-		"update project__repository set name=?, git_url=?, ssh_key_id=? where id=?",
+	err := repository.Validate()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(
+		"update project__repository set name=?, git_url=?, git_branch=?, ssh_key_id=? where id=?",
 		repository.Name,
 		repository.GitURL,
+		repository.GitBranch,
 		repository.SSHKeyID,
 		repository.ID)
 
@@ -63,11 +74,18 @@ func (d *SqlDb) UpdateRepository(repository db.Repository) error {
 }
 
 func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repository, err error) {
+	err = repository.Validate()
+
+	if err != nil {
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__repository(project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)",
+		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name) values (?, ?, ?, ?, ?)",
 		repository.ProjectID,
 		repository.GitURL,
+		repository.GitBranch,
 		repository.SSHKeyID,
 		repository.Name)
 
@@ -83,8 +101,3 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 func (d *SqlDb) DeleteRepository(projectID int, repositoryId int) error {
 	return d.deleteObject(projectID, db.RepositoryProps, repositoryId)
 }
-
-func (d *SqlDb) DeleteRepositorySoft(projectID int, repositoryId int) error {
-	return d.deleteObjectSoft(projectID, db.RepositoryProps, repositoryId)
-}
-

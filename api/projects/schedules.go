@@ -3,8 +3,8 @@ package projects
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/api/schedules"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/services/schedules"
 	"github.com/gorilla/context"
 	"net/http"
 	"strconv"
@@ -33,7 +33,7 @@ func SchedulesMiddleware(next http.Handler) http.Handler {
 
 func refreshSchedulePool(r *http.Request) {
 	pool := context.Get(r, "schedule_pool").(schedules.SchedulePool)
-	pool.Refresh(helpers.Store(r))
+	pool.Refresh()
 }
 
 // GetSchedule returns single template by ID

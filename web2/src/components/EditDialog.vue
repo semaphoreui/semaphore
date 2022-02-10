@@ -41,6 +41,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           color="blue darken-1"
           text
           @click="needSave = true"
+          v-if="saveButtonText != null"
         >
           {{ saveButtonText }}
         </v-btn>

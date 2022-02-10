@@ -11,7 +11,6 @@ type Environment struct {
 	ProjectID int     `db:"project_id" json:"project_id"`
 	Password  *string `db:"password" json:"password"`
 	JSON      string  `db:"json" json:"json" binding:"required"`
-	Removed   bool    `db:"removed" json:"removed"`
 }
 
 func (env *Environment) Validate() error {

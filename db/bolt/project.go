@@ -47,7 +47,7 @@ func (d *BoltDb) GetProject(projectID int) (project db.Project, err error) {
 }
 
 func (d *BoltDb) DeleteProject(projectID int) error {
-	return d.deleteObject(0, db.ProjectProps, intObjectID(projectID))
+	return d.deleteObject(0, db.ProjectProps, intObjectID(projectID), nil)
 }
 
 func (d *BoltDb) UpdateProject(project db.Project) error {

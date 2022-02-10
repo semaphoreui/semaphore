@@ -1,105 +1,112 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="!isLoaded">
     <v-progress-linear
-        indeterminate
-        color="primary darken-2"
+      indeterminate
+      color="primary darken-2"
     ></v-progress-linear>
   </div>
   <div v-else>
 
     <EditDialog
-        :max-width="700"
-        v-model="editDialog"
-        save-button-text="Save"
-        title="Edit Template"
-        @save="loadData()"
+      :max-width="700"
+      v-model="editDialog"
+      save-button-text="Save"
+      title="Edit Template"
+      @save="loadData()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
-            :project-id="projectId"
-            :item-id="itemId"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <EditDialog
-        :max-width="700"
-        v-model="copyDialog"
-        save-button-text="Create"
-        title="New Template"
-        @save="onTemplateCopied"
+      :max-width="700"
+      v-model="copyDialog"
+      save-button-text="Create"
+      title="New Template"
+      @save="onTemplateCopied"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
-            :project-id="projectId"
-            item-id="new"
-            :source-item-id="itemId"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          :project-id="projectId"
+          item-id="new"
+          :source-item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
+    <ObjectRefsDialog
+      object-title="template"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      v-model="itemRefsDialog"
+    />
+
     <YesNoDialog
-        title="Delete template"
-        text="Are you really want to delete this template?"
-        v-model="deleteDialog"
-        @yes="remove()"
+      title="Delete template"
+      text="Are you really want to delete this template?"
+      v-model="deleteDialog"
+      @yes="remove()"
     />
 
     <v-toolbar flat color="white">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
         <router-link
-            class="breadcrumbs__item breadcrumbs__item--link"
-            :to="viewId
+          class="breadcrumbs__item breadcrumbs__item--link"
+          :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/`
               : `/project/${projectId}/templates/`"
-        >Task Templates</router-link>
+        >Task Templates
+        </router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ item.alias }}</span>
+        <span class="breadcrumbs__item">{{ item.name }}</span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
       <v-btn
-          icon
-          color="error"
-          @click="deleteDialog = true"
+        icon
+        color="error"
+        @click="askDelete()"
       >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
       <v-btn
-          icon
-          color="black"
-          @click="copyDialog = true"
+        icon
+        color="black"
+        @click="copyDialog = true"
       >
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
       <v-btn
-          icon
-          color="black"
-          @click="editDialog = true"
+        icon
+        color="black"
+        @click="editDialog = true"
       >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-toolbar>
 
     <v-container>
-
       <v-alert
-          text
-          type="info"
-          class="mb-0 ml-4 mr-4 mb-2"
-          v-if="item.description"
+        text
+        type="info"
+        class="mb-0 ml-4 mr-4 mb-2"
+        v-if="item.description"
       >{{ item.description }}
       </v-alert>
 
@@ -181,7 +188,7 @@
       </v-row>
     </v-container>
 
-    <TaskList :template="item" />
+    <TaskList :template="item"/>
   </div>
 </template>
 <style lang="scss">
@@ -196,10 +203,11 @@ import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
 import TaskList from '@/components/TaskList.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
+import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 
 export default {
   components: {
-    YesNoDialog, EditDialog, TemplateForm, TaskList,
+    YesNoDialog, EditDialog, TemplateForm, TaskList, ObjectRefsDialog,
   },
 
   props: {
@@ -218,6 +226,8 @@ export default {
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
       TEMPLATE_TYPE_ACTION_TITLES,
+      itemRefs: null,
+      itemRefsDialog: null,
     };
   },
 
@@ -240,9 +250,9 @@ export default {
     },
     isLoaded() {
       return this.item
-          && this.inventory
-          && this.environment
-          && this.repositories;
+        && this.inventory
+        && this.environment
+        && this.repositories;
     },
   },
 
@@ -267,6 +277,21 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
+    async askDelete() {
+      this.itemRefs = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/templates/${this.itemId}/refs`,
+        responseType: 'json',
+      })).data;
+
+      if (this.itemRefs.templates.length > 0) {
+        this.itemRefsDialog = true;
+        return;
+      }
+
+      this.deleteDialog = true;
+    },
+
     async remove() {
       try {
         await axios({
@@ -277,7 +302,7 @@ export default {
 
         EventBus.$emit('i-snackbar', {
           color: 'success',
-          text: `Template "${this.item.alias}" deleted`,
+          text: `Template "${this.item.name}" deleted`,
         });
 
         await this.$router.push({

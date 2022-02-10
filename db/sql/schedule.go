@@ -8,11 +8,12 @@ import (
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format)" +
-			"values (?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id)"+
+			"values (?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
-		schedule.CronFormat)
+		schedule.CronFormat,
+		schedule.RepositoryID)
 
 	if err != nil {
 		return
@@ -24,12 +25,26 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 	return
 }
 
+func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCommentHash string) error {
+	_, err := d.exec("update project__schedule set "+
+		"last_commit_hash=? "+
+		"where project_id=? and id=?",
+		lastCommentHash,
+		projectID,
+		scheduleID)
+	return err
+}
+
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) error {
-	_, err := d.exec("update project__schedule set cron_format=? where project_id=? and id=?",
+	_, err := d.exec("update project__schedule set "+
+		"cron_format=?, "+
+		"repository_id=?, "+
+		"last_commit_hash = NULL "+
+		"where project_id=? and id=?",
 		schedule.CronFormat,
+		schedule.RepositoryID,
 		schedule.ProjectID,
 		schedule.ID)
-
 	return err
 }
 
@@ -63,4 +78,12 @@ func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int) (schedules [
 		projectID,
 		templateID)
 	return
+}
+
+func (d *SqlDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string) error {
+	_, err := d.exec("update project__schedule set last_commit_hash=? where project_id=? and id=?",
+		hash,
+		projectID,
+		scheduleID)
+	return err
 }

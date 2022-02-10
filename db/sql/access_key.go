@@ -15,6 +15,10 @@ func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, 
 	return
 }
 
+func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.AccessKeyProps, keyID)
+}
+
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
 	err := d.getObjects(projectID, db.AccessKeyProps, params, &keys)
@@ -82,8 +86,4 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 
 func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
-}
-
-func (d *SqlDb) DeleteAccessKeySoft(projectID int, accessKeyID int) error {
-	return d.deleteObjectSoft(projectID, db.AccessKeyProps, accessKeyID)
 }

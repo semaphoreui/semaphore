@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+const (
+	TaskRunningStatus  = "running"
+	TaskWaitingStatus  = "waiting"
+	TaskStoppingStatus = "stopping"
+	TaskStoppedStatus  = "stopped"
+	TaskSuccessStatus  = "success"
+	TaskFailStatus     = "error"
+)
+
 //Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`
@@ -28,13 +37,43 @@ type Task struct {
 
 	Message string `db:"message" json:"message"`
 
+	// CommitMessage is a git commit hash of playbook repository which
+	// was active when task was created.
 	CommitHash *string `db:"commit_hash" json:"commit_hash"`
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
 	// It is readonly by API.
 	CommitMessage string `db:"commit_message" json:"commit_message"`
 
-	BuildTaskID *int    `db:"build_task_id" json:"build_task_id"`
-	Version     *string `db:"version" json:"version"`
+	BuildTaskID *int `db:"build_task_id" json:"build_task_id"`
+
+	// Version is a build version.
+	// This field available only for Build tasks.
+	Version *string `db:"version" json:"version"`
+
+	Arguments *string `db:"arguments" json:"arguments"`
+}
+
+func (task *Task) GetIncomingVersion(d Store) *string {
+	if task.BuildTaskID == nil {
+		return nil
+	}
+
+	buildTask, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
+
+	if err != nil {
+		return nil
+	}
+
+	tpl, err := d.GetTemplate(task.ProjectID, buildTask.TemplateID)
+	if err != nil {
+		return nil
+	}
+
+	if tpl.Type == TemplateBuild {
+		return buildTask.Version
+	}
+
+	return buildTask.GetIncomingVersion(d)
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
@@ -49,6 +88,9 @@ func (task *Task) ValidateNewTask(template Template) error {
 func (task *TaskWithTpl) Fill(d Store) error {
 	if task.BuildTaskID != nil {
 		build, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
+		if err == ErrNotFound {
+			return nil
+		}
 		if err != nil {
 			return err
 		}

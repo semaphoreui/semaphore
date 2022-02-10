@@ -4,11 +4,11 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
-	"github.com/ansible-semaphore/semaphore/api/schedules"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
+	"github.com/ansible-semaphore/semaphore/services/schedules"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
@@ -27,23 +27,12 @@ var rootCmd = &cobra.Command{
 Source code is available at https://github.com/ansible-semaphore/semaphore.
 Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 && configPath == "" {
-			_ = cmd.Help()
-			os.Exit(0)
-		} else {
-			serviceCmd.Run(cmd, args)
-		}
+		_ = cmd.Help()
+		os.Exit(0)
 	},
 }
 
 func Execute() {
-	args := os.Args[1:]
-	if len(args) == 2 && args[0] == "-config" {
-		configPath = args[1]
-		runService()
-		return
-	}
-
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -53,7 +42,8 @@ func Execute() {
 
 func runService() {
 	store := createStore()
-	schedulePool := schedules.CreateSchedulePool(store)
+	taskPool := tasks.CreateTaskPool(store)
+	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
 
 	defer store.Close()
 	defer schedulePool.Destroy()
@@ -78,8 +68,8 @@ func runService() {
 	fmt.Printf("Port %v\n", util.Config.Port)
 
 	go sockets.StartWS()
-	go tasks.StartRunner()
 	go schedulePool.Run()
+	go taskPool.Run()
 
 	route := api.Route()
 
@@ -87,6 +77,7 @@ func runService() {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			context.Set(r, "store", store)
 			context.Set(r, "schedule_pool", schedulePool)
+			context.Set(r, "task_pool", &taskPool)
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -113,31 +104,17 @@ func createStore() db.Store {
 	if err := store.Connect(); err != nil {
 		switch err {
 		case bbolt.ErrTimeout:
-			fmt.Println("\n BoltDB supports only one connection at a time. You should stop service when using CLI.")
+			fmt.Println("\n BoltDB supports only one connection at a time. You should stop Semaphore to use CLI.")
 		default:
 			fmt.Println("\n Have you run `semaphore setup`?")
 		}
-		panic(err)
+		os.Exit(1)
 	}
 
-	initialized, err := store.IsInitialized()
+	err := db.Migrate(store)
 
 	if err != nil {
 		panic(err)
-	}
-
-	err = store.Migrate()
-
-	if err != nil {
-		panic(err)
-	}
-
-	if !initialized && util.Config.RegisterFirstUser {
-		err = store.CreatePlaceholderUser()
-
-		if err != nil {
-			panic(err)
-		}
 	}
 
 	return store

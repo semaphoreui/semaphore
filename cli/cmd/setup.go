@@ -50,8 +50,8 @@ func doSetup() int {
 		os.Exit(1)
 	}
 
-	fmt.Println("Running DB Migrations..")
-	if err := store.Migrate(); err != nil {
+	fmt.Println("Running db Migrations..")
+	if err := db.Migrate(store); err != nil {
 		fmt.Printf("Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -83,8 +83,8 @@ func doSetup() int {
 		fmt.Printf("\n You are all setup %v!\n", user.Name)
 	}
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore --config %v\n\n", configPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore --config %v &\n\n", configPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", configPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", configPath)
 	fmt.Printf(" You can login with %v or %v.\n", user.Email, user.Username)
 
 	return 0

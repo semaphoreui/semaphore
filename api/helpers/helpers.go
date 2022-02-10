@@ -1,13 +1,10 @@
 package helpers
 
 import (
-	"crypto/md5"
 	"encoding/json"
-	"fmt"
-	"io"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -22,6 +19,10 @@ import (
 
 func Store(r *http.Request) db.Store {
 	return context.Get(r, "store").(db.Store)
+}
+
+func TaskPool(r *http.Request) *tasks.TaskPool {
+	return context.Get(r, "task_pool").(*tasks.TaskPool)
 }
 
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
@@ -93,24 +94,9 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 }
 
-func GetMD5Hash(filepath string) (string, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
-}
-
 func QueryParams(url *url.URL) db.RetrieveQueryParams {
 	return db.RetrieveQueryParams{
-		SortBy: url.Query().Get("sort"),
+		SortBy:       url.Query().Get("sort"),
 		SortInverted: url.Query().Get("order") == "desc",
 	}
 }
-

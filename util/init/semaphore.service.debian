@@ -5,7 +5,7 @@ After=network.target
 [Service]
 User=www-data
 Group=www-data
-ExecStart=/usr/bin/semaphore --config /etc/semaphore/config.json
+ExecStart=/usr/bin/semaphore server --config /etc/semaphore/config.json
 Type=simple
 
 [Install]

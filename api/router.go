@@ -9,8 +9,6 @@ import (
 
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/api/tasks"
-
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
@@ -70,8 +68,6 @@ func Route() *mux.Router {
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicAPIRouter.Use(JSONMiddleware)
 
-	publicAPIRouter.HandleFunc("/auth/info", info).Methods("GET")
-	publicAPIRouter.HandleFunc("/auth/register", register).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 
@@ -88,7 +84,6 @@ func Route() *mux.Router {
 
 	authenticatedAPI.Path("/users").HandlerFunc(getUsers).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
-
 	authenticatedAPI.Path("/user").HandlerFunc(getUser).Methods("GET", "HEAD")
 
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
@@ -131,9 +126,9 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
 	projectUserAPI.Path("/environment").HandlerFunc(projects.AddEnvironment).Methods("POST")
 
-	projectUserAPI.Path("/tasks").HandlerFunc(tasks.GetAllTasks).Methods("GET", "HEAD")
-	projectUserAPI.HandleFunc("/tasks/last", tasks.GetLastTasks).Methods("GET", "HEAD")
-	projectUserAPI.Path("/tasks").HandlerFunc(tasks.AddTask).Methods("POST")
+	projectUserAPI.Path("/tasks").HandlerFunc(projects.GetAllTasks).Methods("GET", "HEAD")
+	projectUserAPI.HandleFunc("/tasks/last", projects.GetLastTasks).Methods("GET", "HEAD")
+	projectUserAPI.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
 
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
@@ -162,10 +157,11 @@ func Route() *mux.Router {
 	projectUserManagement.HandleFunc("/{user_id}/admin", projects.MakeUserAdmin).Methods("DELETE")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
 
-	projectKeyManagement := projectAdminUsersAPI.PathPrefix("/keys").Subrouter()
+	projectKeyManagement := projectUserAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
 	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
+	projectKeyManagement.HandleFunc("/{key_id}/refs", projects.GetKeyRefs).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
@@ -173,6 +169,7 @@ func Route() *mux.Router {
 	projectRepoManagement.Use(projects.RepositoryMiddleware)
 
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.GetRepositories).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/refs", projects.GetRepositoryRefs).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 
@@ -180,6 +177,7 @@ func Route() *mux.Router {
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
 
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.GetInventory).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/refs", projects.GetInventoryRefs).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
 
@@ -187,6 +185,7 @@ func Route() *mux.Router {
 	projectEnvManagement.Use(projects.EnvironmentMiddleware)
 
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.GetEnvironment).Methods("GET", "HEAD")
+	projectEnvManagement.HandleFunc("/{environment_id}/refs", projects.GetEnvironmentRefs).Methods("GET", "HEAD")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
 
@@ -196,17 +195,18 @@ func Route() *mux.Router {
 	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.RemoveTemplate).Methods("DELETE")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
-	projectTmplManagement.HandleFunc("/{template_id}/tasks", tasks.GetAllTasks).Methods("GET")
-	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", tasks.GetLastTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/refs", projects.GetTemplateRefs).Methods("GET", "HEAD")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks", projects.GetAllTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", projects.GetLastTasks).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetTemplateSchedules).Methods("GET")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
-	projectTaskManagement.Use(tasks.GetTaskMiddleware)
+	projectTaskManagement.Use(projects.GetTaskMiddleware)
 
-	projectTaskManagement.HandleFunc("/{task_id}/output", tasks.GetTaskOutput).Methods("GET", "HEAD")
-	projectTaskManagement.HandleFunc("/{task_id}", tasks.GetTask).Methods("GET", "HEAD")
-	projectTaskManagement.HandleFunc("/{task_id}", tasks.RemoveTask).Methods("DELETE")
-	projectTaskManagement.HandleFunc("/{task_id}/stop", tasks.StopTask).Methods("POST")
+	projectTaskManagement.HandleFunc("/{task_id}/output", projects.GetTaskOutput).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", projects.GetTask).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}", projects.RemoveTask).Methods("DELETE")
+	projectTaskManagement.HandleFunc("/{task_id}/stop", projects.StopTask).Methods("POST")
 
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
@@ -338,16 +338,16 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updateAvailable, err := util.CheckUpdate()
+	//updateAvailable, err := util.CheckUpdate()
 
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
+	//if err != nil {
+	//	helpers.WriteError(w, err)
+	//	return
+	//}
 
 	body := map[string]interface{}{
 		"version": util.Version,
-		"update":  updateAvailable,
+		//"update":  updateAvailable,
 		"config": map[string]string{
 			"dbHost":  dbConfig.Hostname,
 			"dbName":  dbConfig.DbName,
@@ -356,6 +356,7 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 			"cmdPath": util.FindSemaphore(),
 		},
 		"ansible": util.AnsibleVersion(),
+		"demo":    util.Config.DemoMode,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

@@ -49,15 +49,6 @@ type ldapMappings struct {
 	CN   string `json:"cn"`
 }
 
-type VariablesPassingMethod string
-
-const (
-	VariablesPassingNone  VariablesPassingMethod = "none"
-	VariablesPassingEnv   VariablesPassingMethod = "env_vars"
-	VariablesPassingExtra VariablesPassingMethod = "extra_vars"
-	VariablesPassingBoth  VariablesPassingMethod = ""
-)
-
 //ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
@@ -78,8 +69,11 @@ type ConfigType struct {
 	TmpPath string `json:"tmp_path"`
 
 	// cookie hashing & encryption
-	CookieHash          string `json:"cookie_hash"`
-	CookieEncryption    string `json:"cookie_encryption"`
+	CookieHash       string `json:"cookie_hash"`
+	CookieEncryption string `json:"cookie_encryption"`
+	// AccessKeyEncryption is BASE64 encoded byte array used
+	// for encrypting and decrypting access keys stored in database.
+	// Do not use it! Use method GetAccessKeyEncryption instead of it.
 	AccessKeyEncryption string `json:"access_key_encryption"`
 
 	// email alerting
@@ -120,12 +114,7 @@ type ConfigType struct {
 
 	SshConfigPath string `json:"ssh_config_path"`
 
-	// VariablesPassingMethod defines how Semaphore will pass variables to Ansible.
-	// Default both via environment variables and via extra vars.
-	VariablesPassingMethod VariablesPassingMethod `json:"variables_passing_method"`
-
-	// RegisterFirstUser allows register new user from web interface if no user exists in database.
-	RegisterFirstUser bool `json:"register_first_user"`
+	DemoMode bool `json:"demo_mode"`
 }
 
 //Config exposes the application configuration storage for use in the application
@@ -134,6 +123,16 @@ var Config *ConfigType
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
+}
+
+func (conf *ConfigType) GetAccessKeyEncryption() string {
+	ret := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
+
+	if ret == "" {
+		ret = conf.AccessKeyEncryption
+	}
+
+	return ret
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
@@ -164,22 +163,32 @@ func loadConfig(configPath string) {
 	//var usedPath string
 
 	if configPath == "" {
-		// if no configPath look in the cwd
 		cwd, err := os.Getwd()
 		exitOnConfigError(err)
-		defaultPath := path.Join(cwd, "config.json")
-		file, err := os.Open(defaultPath)
+		paths := []string{
+			path.Join(cwd, "config.json"),
+			"/usr/local/etc/semaphore/config.json",
+		}
+		for _, p := range paths {
+			_, err = os.Stat(p)
+			if err != nil {
+				continue
+			}
+			var file *os.File
+			file, err = os.Open(p)
+			if err != nil {
+				continue
+			}
+			decodeConfig(file)
+			break
+		}
 		exitOnConfigError(err)
-		decodeConfig(file)
-		//usedPath = defaultPath
 	} else {
-		path := configPath
-		file, err := os.Open(path)
+		p := configPath
+		file, err := os.Open(p)
 		exitOnConfigError(err)
 		decodeConfig(file)
-		//usedPath = path
 	}
-	//fmt.Println("Using config file: " + usedPath)
 }
 
 func validateConfig() {

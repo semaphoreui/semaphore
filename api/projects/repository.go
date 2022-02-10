@@ -4,39 +4,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"net/http"
 )
-
-func removeAllByPattern(path string, filenamePattern string) error {
-	d, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		if matched, _ := filepath.Match(filenamePattern, name); !matched {
-			continue
-		}
-		if err := os.RemoveAll(filepath.Join(path, name)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func clearRepositoryCache(repository db.Repository) error {
-	return removeAllByPattern(util.Config.TmpPath, "repository_" + strconv.Itoa(repository.ID) + "_*")
-}
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
@@ -57,6 +28,17 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 		context.Set(r, "repository", repository)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
+	repo := context.Get(r, "repository").(db.Repository)
+	refs, err := helpers.Store(r).GetRepositoryRefs(repo.ProjectID, repo.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
 // GetRepositories returns all repositories in a project sorted by type
@@ -152,7 +134,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if oldRepo.GitURL != repository.GitURL {
-		util.LogWarning(clearRepositoryCache(oldRepo))
+		util.LogWarning(oldRepo.ClearCache())
 	}
 
 	user := context.Get(r, "user").(*db.User)
@@ -161,7 +143,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	objType := db.EventRepository
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:	     &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
 		ObjectID:    &repository.ID,
@@ -181,19 +163,13 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	softDeletion := r.URL.Query().Get("setRemoved") == "1"
-
-	if softDeletion {
-		err = helpers.Store(r).DeleteRepositorySoft(repository.ProjectID, repository.ID)
-	} else {
-		err = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
-		if err == db.ErrInvalidOperation {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Repository is in use by one or more templates",
-				"inUse": true,
-			})
-			return
-		}
+	err = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
+	if err == db.ErrInvalidOperation {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "Repository is in use by one or more templates",
+			"inUse": true,
+		})
+		return
 	}
 
 	if err != nil {
@@ -201,7 +177,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.LogWarning(clearRepositoryCache(repository))
+	util.LogWarning(repository.ClearCache())
 	user := context.Get(r, "user").(*db.User)
 
 	desc := "Repository (" + repository.GitURL + ") deleted"

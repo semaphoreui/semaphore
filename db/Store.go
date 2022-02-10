@@ -1,9 +1,11 @@
 package db
 
 import (
+	"encoding/json"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -19,6 +21,18 @@ func GetParsedTime(t time.Time) time.Time {
 	return parsedTime
 }
 
+func ObjectToJSON(obj interface{}) *string {
+	if obj == nil || (reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) {
+		return nil
+	}
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil
+	}
+	str := string(bytes)
+	return &str
+}
+
 type RetrieveQueryParams struct {
 	Offset       int
 	Count        int
@@ -26,18 +40,29 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 }
 
-// ObjectProperties describe database entities.
+type ObjectReferrer struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type ObjectReferrers struct {
+	Templates    []ObjectReferrer `json:"templates"`
+	Inventories  []ObjectReferrer `json:"inventories"`
+	Repositories []ObjectReferrer `json:"repositories"`
+}
+
+// ObjectProps describe database entities.
 // It mainly used for NoSQL implementations (currently BoltDB) to preserve same
 // data structure of different implementations and easy change it if required.
-type ObjectProperties struct {
-	TableName            string
-	IsGlobal             bool // doesn't belong to other table, for example to project or user.
-	ForeignColumnSuffix  string
-	PrimaryColumnName    string
-	SortableColumns      []string
-	DefaultSortingColumn string
-	SortInverted         bool         // sort from high to low object ID by default. It is useful for some NoSQL implementations.
-	Type                 reflect.Type // to which type the table bust be mapped.
+type ObjectProps struct {
+	TableName             string
+	Type                  reflect.Type // to which type the table bust be mapped.
+	IsGlobal              bool         // doesn't belong to other table, for example to project or user.
+	ReferringColumnSuffix string
+	PrimaryColumnName     string
+	SortableColumns       []string
+	DefaultSortingColumn  string
+	SortInverted          bool // sort from high to low object ID by default. It is useful for some NoSQL implementations.
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -54,39 +79,47 @@ func (e *ValidationError) Error() string {
 type Store interface {
 	Connect() error
 	Close() error
+
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
 	IsInitialized() (bool, error)
-	Migrate() error
+	// IsMigrationApplied queries the database to see if a migration table with
+	// this version id exists already
+	IsMigrationApplied(version Migration) (bool, error)
+	// ApplyMigration runs executes a database migration
+	ApplyMigration(version Migration) error
+	// TryRollbackMigration attempts to roll back the database to an earlier version
+	// if a rollback exists
+	TryRollbackMigration(version Migration)
 
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
+	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
 	UpdateEnvironment(env Environment) error
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
-	DeleteEnvironmentSoft(projectID int, templateID int) error
 
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
+	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
 	GetInventories(projectID int, params RetrieveQueryParams) ([]Inventory, error)
 	UpdateInventory(inventory Inventory) error
 	CreateInventory(inventory Inventory) (Inventory, error)
 	DeleteInventory(projectID int, inventoryID int) error
-	DeleteInventorySoft(projectID int, inventoryID int) error
 
 	GetRepository(projectID int, repositoryID int) (Repository, error)
+	GetRepositoryRefs(projectID int, repositoryID int) (ObjectReferrers, error)
 	GetRepositories(projectID int, params RetrieveQueryParams) ([]Repository, error)
 	UpdateRepository(repository Repository) error
 	CreateRepository(repository Repository) (Repository, error)
 	DeleteRepository(projectID int, repositoryID int) error
-	DeleteRepositorySoft(projectID int, repositoryID int) error
 
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
+	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
-	DeleteAccessKeySoft(projectID int, accessKeyID int) error
 
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
@@ -100,16 +133,14 @@ type Store interface {
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 
-	CreatePlaceholderUser() error
-	GetPlaceholderUser() (User, error)
-
 	GetProject(projectID int) (Project, error)
 	GetProjects(userID int) ([]Project, error)
 	CreateProject(project Project) (Project, error)
 	DeleteProject(projectID int) error
 	UpdateProject(project Project) error
 
-	GetTemplates(projectID int, params RetrieveQueryParams) ([]Template, error)
+	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
@@ -119,6 +150,7 @@ type Store interface {
 	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
+	SetScheduleCommitHash(projectID int, scheduleID int, hash string) error
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
 
@@ -145,7 +177,7 @@ type Store interface {
 	CreateTask(task Task) (Task, error)
 	UpdateTask(task Task) error
 
-	GetTemplateTasks(template Template, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
@@ -154,138 +186,135 @@ type Store interface {
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
-	GetViewTemplates(projectID int, viewID int, params RetrieveQueryParams) ([]Template, error)
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
 	SetViewPositions(projectID int, viewPositions map[int]int) error
 }
 
-func HasPlaceholderUser(d Store) (bool, error) {
-	_, err := d.GetPlaceholderUser()
-
-	if err == nil {
-		return true, nil
-	}
-
-	if err == ErrNotFound {
-		return false, nil
-	}
-
-	return false, err
+var AccessKeyProps = ObjectProps{
+	TableName:             "access_key",
+	Type:                  reflect.TypeOf(AccessKey{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "key_id",
+	SortableColumns:       []string{"name", "type"},
+	DefaultSortingColumn:  "name",
 }
 
-func ReplacePlaceholderUser(d Store, user UserWithPwd) (newUser User, err error) {
-	placeholder, err := d.GetPlaceholderUser()
-	if err != nil {
-		return
-	}
-	user.ID = placeholder.ID
-	err = d.UpdateUser(user)
-	if err != nil {
-		return
-	}
-	newUser = user.User
-	return
+var EnvironmentProps = ObjectProps{
+	TableName:             "project__environment",
+	Type:                  reflect.TypeOf(Environment{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "environment_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
 }
 
-var AccessKeyProps = ObjectProperties{
-	TableName:            "access_key",
-	SortableColumns:      []string{"name", "type"},
-	ForeignColumnSuffix:  "key_id",
-	PrimaryColumnName:    "id",
-	Type:                 reflect.TypeOf(AccessKey{}),
-	DefaultSortingColumn: "name",
+var InventoryProps = ObjectProps{
+	TableName:             "project__inventory",
+	Type:                  reflect.TypeOf(Inventory{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "inventory_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
 }
 
-var EnvironmentProps = ObjectProperties{
-	TableName:            "project__environment",
-	SortableColumns:      []string{"name"},
-	ForeignColumnSuffix:  "environment_id",
-	PrimaryColumnName:    "id",
-	Type:                 reflect.TypeOf(Environment{}),
-	DefaultSortingColumn: "name",
+var RepositoryProps = ObjectProps{
+	TableName:             "project__repository",
+	Type:                  reflect.TypeOf(Repository{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "repository_id",
+	DefaultSortingColumn:  "name",
 }
 
-var InventoryProps = ObjectProperties{
-	TableName:            "project__inventory",
-	SortableColumns:      []string{"name"},
-	ForeignColumnSuffix:  "inventory_id",
-	PrimaryColumnName:    "id",
-	Type:                 reflect.TypeOf(Inventory{}),
-	DefaultSortingColumn: "name",
+var TemplateProps = ObjectProps{
+	TableName:             "project__template",
+	Type:                  reflect.TypeOf(Template{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "template_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
 }
 
-var RepositoryProps = ObjectProperties{
-	TableName:            "project__repository",
-	ForeignColumnSuffix:  "repository_id",
-	PrimaryColumnName:    "id",
-	Type:                 reflect.TypeOf(Repository{}),
-	DefaultSortingColumn: "name",
-}
-
-var TemplateProps = ObjectProperties{
-	TableName:            "project__template",
-	SortableColumns:      []string{"name"},
-	PrimaryColumnName:    "id",
-	Type:                 reflect.TypeOf(Template{}),
-	DefaultSortingColumn: "alias",
-}
-
-var ScheduleProps = ObjectProperties{
+var ScheduleProps = ObjectProps{
 	TableName:         "project__schedule",
-	PrimaryColumnName: "id",
 	Type:              reflect.TypeOf(Schedule{}),
+	PrimaryColumnName: "id",
 }
 
-var ProjectUserProps = ObjectProperties{
+var ProjectUserProps = ObjectProps{
 	TableName:         "project__user",
-	PrimaryColumnName: "user_id",
 	Type:              reflect.TypeOf(ProjectUser{}),
+	PrimaryColumnName: "user_id",
 }
 
-var ProjectProps = ObjectProperties{
+var ProjectProps = ObjectProps{
 	TableName:            "project",
-	IsGlobal:             true,
-	PrimaryColumnName:    "id",
 	Type:                 reflect.TypeOf(Project{}),
+	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "name",
+	IsGlobal:             true,
 }
 
-var UserProps = ObjectProperties{
+var UserProps = ObjectProps{
 	TableName:         "user",
-	IsGlobal:          true,
-	PrimaryColumnName: "id",
 	Type:              reflect.TypeOf(User{}),
-}
-
-var SessionProps = ObjectProperties{
-	TableName:         "session",
 	PrimaryColumnName: "id",
-	Type:              reflect.TypeOf(Session{}),
-}
-
-var TokenProps = ObjectProperties{
-	TableName:         "user__token",
-	PrimaryColumnName: "id",
-}
-
-var TaskProps = ObjectProperties{
-	TableName:         "task",
 	IsGlobal:          true,
-	PrimaryColumnName: "id",
-	SortInverted:      true,
-	Type:              reflect.TypeOf(Task{}),
 }
 
-var TaskOutputProps = ObjectProperties{
+var SessionProps = ObjectProps{
+	TableName:         "session",
+	Type:              reflect.TypeOf(Session{}),
+	PrimaryColumnName: "id",
+}
+
+var TokenProps = ObjectProps{
+	TableName:         "user__token",
+	Type:              reflect.TypeOf(APIToken{}),
+	PrimaryColumnName: "id",
+}
+
+var TaskProps = ObjectProps{
+	TableName:         "task",
+	Type:              reflect.TypeOf(Task{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
+	SortInverted:      true,
+}
+
+var TaskOutputProps = ObjectProps{
 	TableName: "task__output",
 	Type:      reflect.TypeOf(TaskOutput{}),
 }
 
-var ViewProps = ObjectProperties{
+var ViewProps = ObjectProps{
 	TableName:            "project__view",
-	PrimaryColumnName:    "id",
 	Type:                 reflect.TypeOf(View{}),
+	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "position",
+}
+
+func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
+	n := t.NumField()
+	for i := 0; i < n; i++ {
+		if !strings.HasSuffix(t.Field(i).Tag.Get("db"), p.ReferringColumnSuffix) {
+			continue
+		}
+		fields = append(fields, t.Field(i).Tag.Get("db"))
+	}
+
+	for i := 0; i < n; i++ {
+		if t.Field(i).Tag != "" || t.Field(i).Type.Kind() != reflect.Struct {
+			continue
+		}
+		var nested []string
+		nested, err = p.GetReferringFieldsFrom(t.Field(i).Type)
+		if err != nil {
+			return
+		}
+		fields = append(fields, nested...)
+	}
+
+	return
 }

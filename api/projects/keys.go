@@ -30,6 +30,17 @@ func KeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func GetKeyRefs(w http.ResponseWriter, r *http.Request) {
+	key := context.Get(r, "accessKey").(db.AccessKey)
+	refs, err := helpers.Store(r).GetAccessKeyRefs(*key.ProjectID, key.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
+}
+
 // GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
 	if key := context.Get(r, "accessKey"); key != nil {
@@ -111,7 +122,25 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := helpers.Store(r).UpdateAccessKey(key); err != nil {
+	repos, err := helpers.Store(r).GetRepositories(*key.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	for _, repo := range repos {
+		if repo.SSHKeyID != key.ID {
+			continue
+		}
+		err = repo.ClearCache()
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+	}
+
+	err = helpers.Store(r).UpdateAccessKey(key)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -121,7 +150,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	desc := "Access Key " + key.Name + " updated"
 	objType := db.EventKey
 
-	_, err := helpers.Store(r).CreateEvent(db.Event{
+	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   oldKey.ProjectID,
 		Description: &desc,
@@ -143,19 +172,13 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	softDeletion := r.URL.Query().Get("setRemoved") == "1"
-
-	if softDeletion {
-		err = helpers.Store(r).DeleteAccessKeySoft(*key.ProjectID, key.ID)
-	} else {
-		err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
-		if err == db.ErrInvalidOperation {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Access Key is in use by one or more templates",
-				"inUse": true,
-			})
-			return
-		}
+	err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
+	if err == db.ErrInvalidOperation {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error": "Access Key is in use by one or more templates",
+			"inUse": true,
+		})
+		return
 	}
 
 	if err != nil {

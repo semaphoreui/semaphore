@@ -11,7 +11,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-func (t *task) log(msg string) {
+func (t *TaskRunner) Log(msg string) {
 	now := time.Now()
 
 	for _, user := range t.users {
@@ -20,7 +20,7 @@ func (t *task) log(msg string) {
 			"output":     msg,
 			"time":       now,
 			"task_id":    t.task.ID,
-			"project_id": t.projectID,
+			"project_id": t.task.ProjectID,
 		})
 
 		util.LogPanic(err)
@@ -28,10 +28,10 @@ func (t *task) log(msg string) {
 		sockets.Message(user, b)
 	}
 
-	pool.logger <- logRecord{
-		task: t,
+	t.pool.logger <- logRecord{
+		task:   t,
 		output: msg,
-		time: now,
+		time:   now,
 	}
 }
 
@@ -49,22 +49,22 @@ func Readln(r *bufio.Reader) (string, error) {
 	return string(ln), err
 }
 
-func (t *task) logPipe(reader *bufio.Reader) {
+func (t *TaskRunner) logPipe(reader *bufio.Reader) {
 
 	line, err := Readln(reader)
 	for err == nil {
-		t.log(line)
+		t.Log(line)
 		line, err = Readln(reader)
 	}
 
 	if err != nil && err.Error() != "EOF" {
 		//don't panic on this errors, sometimes it throw not dangerous "read |0: file already closed" error
-		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read task output"})
+		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read TaskRunner output"})
 	}
 
 }
 
-func (t *task) logCmd(cmd *exec.Cmd) {
+func (t *TaskRunner) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
@@ -72,9 +72,9 @@ func (t *task) logCmd(cmd *exec.Cmd) {
 	go t.logPipe(bufio.NewReader(stdout))
 }
 
-func (t *task) panicOnError(err error, msg string) {
+func (t *TaskRunner) panicOnError(err error, msg string) {
 	if err != nil {
-		t.log(msg)
+		t.Log(msg)
 		util.LogPanicWithFields(err, log.Fields{"error": msg})
 	}
 }

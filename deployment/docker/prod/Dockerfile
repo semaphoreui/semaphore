@@ -30,4 +30,4 @@ WORKDIR /home/semaphore
 USER 1001
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/usr/local/bin/semaphore-wrapper", "/usr/local/bin/semaphore", "--config", "/etc/semaphore/config.json"]
+CMD ["/usr/local/bin/semaphore-wrapper", "/usr/local/bin/semaphore", "server", "--config", "/etc/semaphore/config.json"]

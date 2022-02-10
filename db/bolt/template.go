@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"go.etcd.io/bbolt"
 )
 
 func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
@@ -11,6 +12,7 @@ func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, 
 		return
 	}
 
+	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
 	newTpl, err := d.createObject(template.ProjectID, db.TemplateProps, template)
 	if err != nil {
 		return
@@ -27,19 +29,27 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
+	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
 	return d.updateObject(template.ProjectID, db.TemplateProps, template)
 }
 
-func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	var filter func(interface{}) bool
-	if viewID != nil {
-		filter = func (tpl interface{}) bool {
-			template := tpl.(db.Template)
-			return template.ViewID != nil && *template.ViewID == *viewID
+func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+	var ftr = func(tpl interface{}) bool {
+		template := tpl.(db.Template)
+		var res = true
+		if filter.ViewID != nil {
+			res = res && template.ViewID != nil && *template.ViewID == *filter.ViewID
 		}
+		if filter.BuildTemplateID != nil {
+			res = res && template.BuildTemplateID != nil && *template.BuildTemplateID == *filter.BuildTemplateID
+			if filter.AutorunOnly {
+				res = res && template.Autorun
+			}
+		}
+		return res
 	}
 
-	err = d.getObjects(projectID, db.TemplateProps, params, filter, &templates)
+	err = d.getObjects(projectID, db.TemplateProps, params, ftr, &templates)
 
 	if err != nil {
 		return
@@ -50,12 +60,13 @@ func (d *BoltDb) getTemplates(projectID int, viewID *int, params db.RetrieveQuer
 	return
 }
 
-func (d *BoltDb) GetTemplates(projectID int, params db.RetrieveQueryParams) ( []db.Template,  error) {
-	return d.getTemplates(projectID, nil, params)
+func (d *BoltDb) getRawTemplate(projectID int, templateID int) (template db.Template, err error) {
+	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
+	return
 }
 
 func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
-	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
+	template, err = d.getRawTemplate(projectID, templateID)
 	if err != nil {
 		return
 	}
@@ -63,6 +74,48 @@ func (d *BoltDb) GetTemplate(projectID int, templateID int) (template db.Templat
 	return
 }
 
+func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (err error) {
+	inUse, err := d.isObjectInUse(projectID, db.TemplateProps, intObjectID(templateID), db.TemplateProps)
+
+	if err != nil {
+		return err
+	}
+
+	if inUse {
+		return db.ErrInvalidOperation
+	}
+
+	tasks, err := d.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+	for _, task := range tasks {
+		err = d.deleteTaskWithOutputs(projectID, task.ID, tx)
+		if err != nil {
+			return
+		}
+	}
+
+	schedules, err := d.GetTemplateSchedules(projectID, templateID)
+	if err != nil {
+		return
+	}
+	for _, sch := range schedules {
+		err = d.deleteSchedule(projectID, sch.ID, tx)
+		if err != nil {
+			return
+		}
+	}
+
+	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID), tx)
+}
+
 func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
-	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID))
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return d.deleteTemplate(projectID, templateID, tx)
+	})
+}
+
+func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
+	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
 }

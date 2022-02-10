@@ -21,7 +21,7 @@
     </v-toolbar>
     <div class="project-settings-form">
       <div style="height: 220px;">
-        <ProjectForm :item-id="projectId" ref="form"/>
+        <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
       </div>
 
       <div class="text-right">
@@ -78,15 +78,22 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    async saveProject() {
-      const item = await this.$refs.form.save();
-      if (!item) {
-        return;
-      }
+    onError(e) {
+      EventBus.$emit('i-snackbar', {
+        color: 'error',
+        text: e.message,
+      });
+    },
+
+    onSave(e) {
       EventBus.$emit('i-project', {
         action: 'edit',
-        item,
+        item: e.item,
       });
+    },
+
+    async saveProject() {
+      await this.$refs.form.save();
     },
 
     async deleteProject() {
