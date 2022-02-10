@@ -36,16 +36,6 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	}
 	defer l.Close()
 
-	// Reconnect with TLS if needed
-	if util.Config.LdapNeedTLS {
-		tlsConf := tls.Config{
-			InsecureSkipVerify: true, //nolint: gas
-		}
-		if err = l.StartTLS(&tlsConf); err != nil {
-			return nil, err
-		}
-	}
-
 	// First bind with a read only user
 	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
 		return nil, err

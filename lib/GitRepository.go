@@ -55,7 +55,7 @@ func (r GitRepository) run(targetDir GitRepositoryDirType, args ...string) error
 		return err
 	}
 
-	defer r.Repository.SSHKey.Destroy()
+	defer r.Repository.SSHKey.Destroy() //nolint: errcheck
 
 	cmd := r.makeCmd(targetDir, args...)
 
@@ -70,7 +70,7 @@ func (r GitRepository) output(targetDir GitRepositoryDirType, args ...string) (o
 		return
 	}
 
-	defer r.Repository.SSHKey.Destroy()
+	defer r.Repository.SSHKey.Destroy() //nolint: errcheck
 
 	bytes, err := r.makeCmd(targetDir, args...).Output()
 	if err != nil {
