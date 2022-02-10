@@ -672,6 +672,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "--check")
 	}
 
+	if t.task.Limit != "" {
+		t.log("--limit="+t.task.Limit)
+		args = append(args, "--limit="+t.task.Limit)
+	}
+
 	if t.template.VaultKeyID != nil {
 		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
 	}
