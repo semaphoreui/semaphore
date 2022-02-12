@@ -99,8 +99,7 @@ type ConfigType struct {
 	TelegramToken string `json:"telegram_token"`
 
 	// task concurrency
-	ConcurrencyMode  string `json:"concurrency_mode"`
-	MaxParallelTasks int    `json:"max_parallel_tasks"`
+	MaxParallelTasks int `json:"max_parallel_tasks"`
 
 	// configType field ordering with bools at end reduces struct size
 	// (maligned check)

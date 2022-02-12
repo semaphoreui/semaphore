@@ -30,9 +30,8 @@ type TaskRunner struct {
 	environment db.Environment
 
 	users     []int
-	hosts     []string
-	alertChat *string
 	alert     bool
+	alertChat *string
 	prepared  bool
 	process   *os.Process
 	pool      *TaskPool
@@ -62,7 +61,7 @@ func (t *TaskRunner) getRepoPath() string {
 	return repo.GetFullPath()
 }
 
-func (t *TaskRunner) setStatus(status string) {
+func (t *TaskRunner) setStatus(status db.TaskStatus) {
 	if t.task.Status == db.TaskStoppingStatus {
 		switch status {
 		case db.TaskFailStatus:
@@ -132,7 +131,7 @@ func (t *TaskRunner) destroyKeys() {
 
 func (t *TaskRunner) createTaskEvent() {
 	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " finished - " + strings.ToUpper(t.task.Status)
+	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " finished - " + strings.ToUpper(string(t.task.Status))
 
 	_, err := t.pool.store.CreateEvent(db.Event{
 		UserID:      t.task.UserID,
@@ -153,7 +152,7 @@ func (t *TaskRunner) prepareRun() {
 	defer func() {
 		log.Info("Stopped preparing TaskRunner " + strconv.Itoa(t.task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
-		resourceLocker <- &resourceLock{lock: false, holder: t}
+		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		t.createTaskEvent()
 	}()
@@ -163,13 +162,6 @@ func (t *TaskRunner) prepareRun() {
 	err := checkTmpDir(util.Config.TmpPath)
 	if err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
-		t.fail()
-		return
-	}
-
-	err = t.populateDetails()
-	if err != nil {
-		t.Log("Error: " + err.Error())
 		t.fail()
 		return
 	}
@@ -232,12 +224,6 @@ func (t *TaskRunner) prepareRun() {
 		return
 	}
 
-	if err := t.listPlaybookHosts(); err != nil {
-		t.Log("Listing playbook hosts failed: " + err.Error())
-		t.fail()
-		return
-	}
-
 	t.prepared = true
 }
 
@@ -245,7 +231,7 @@ func (t *TaskRunner) run() {
 	defer func() {
 		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
-		resourceLocker <- &resourceLock{lock: false, holder: t}
+		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()
 		t.task.End = &now
@@ -531,25 +517,6 @@ func (t *TaskRunner) runGalaxy(args []string) error {
 		TemplateID: t.template.ID,
 		Repository: t.repository,
 	}.RunGalaxy(args)
-}
-
-func (t *TaskRunner) listPlaybookHosts() (err error) {
-	if util.Config.ConcurrencyMode == "project" {
-		return
-	}
-
-	args, err := t.getPlaybookArgs()
-	if err != nil {
-		return
-	}
-
-	t.hosts, err = lib.AnsiblePlaybook{
-		Logger:     t,
-		TemplateID: t.template.ID,
-		Repository: t.repository,
-	}.GetHosts(args)
-
-	return
 }
 
 func (t *TaskRunner) runPlaybook() (err error) {

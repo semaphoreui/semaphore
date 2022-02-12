@@ -71,6 +71,8 @@ type Template struct {
 	// Do not use it in your code. Use SurveyVars instead.
 	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
 	SurveyVars     []SurveyVar `db:"-" json:"survey_vars"`
+
+	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
 }
 
 func (tpl *Template) Validate() error {
