@@ -53,9 +53,7 @@ https://docs.ansible-semaphore.com/administration-guide/installation
 
 ## Demo
 
-https://demo.ansible-semaphore.com
-
-Login / password: `demo / demo`.
+You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
 
 ## Docs
 
