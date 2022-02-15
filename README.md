@@ -40,11 +40,6 @@ Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and S
 - [UI Walkthrough](https://blog.strangeman.info/ansible/2017/08/05/semaphore-ui-guide.html) (external blog)
 -->
 
-## Release Signing
-
-All releases after 2.5.1 are signed with the gpg public key
-`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
-
 ## Installation
 
 https://docs.ansible-semaphore.com/administration-guide/installation
@@ -66,6 +61,11 @@ API docs: https://ansible-semaphore.com/api/
 PR's & UX reviews are welcome!
 
 Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
+
+## Release Signing
+
+All releases after 2.5.1 are signed with the gpg public key
+`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
 
 ## License
 
