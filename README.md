@@ -19,6 +19,10 @@ Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and S
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
+
+[![Star History Chart](https://api.star-history.com/svg?repos=ansible-semaphore/semaphore,rundeck/rundeck&type=Date)](https://star-history.com/#ansible-semaphore/semaphore,rundeck/rundeck&Date)
+
+
 <!--
 ![image](https://user-images.githubusercontent.com/914224/134411082-48235676-06d2-4d4b-b674-4ffe1e8d0d0d.png)
 
