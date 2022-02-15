@@ -33,10 +33,10 @@ export default {
   },
 
   methods: {
-    onSave(item) {
+    onSave(e) {
       EventBus.$emit('i-project', {
         action: 'new',
-        item,
+        item: e.item,
       });
     },
 
