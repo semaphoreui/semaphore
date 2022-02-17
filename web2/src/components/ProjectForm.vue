@@ -34,9 +34,13 @@
       v-model.number="item.max_parallel_tasks"
       label="Max number of parallel tasks (Optional)"
       :disabled="formSaving"
-      :rules="[v => (v == null || v === '' || v >= 0) || 'Should be 0 or greater']"
+      :rules="[
+        v => Math.floor(v) == v || 'Must be integer',
+        v => (v == null || v === '' || v >= 0) || 'Must be 0 or greater',
+      ]"
       hint="Should be 0 or greater, 0 - unlimited."
       type="number"
+      :step="1"
     ></v-text-field>
   </v-form>
 </template>
