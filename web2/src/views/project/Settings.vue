@@ -20,7 +20,7 @@
       </div>
     </v-toolbar>
     <div class="project-settings-form">
-      <div style="height: 220px;">
+      <div style="height: 300px;">
         <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
       </div>
 

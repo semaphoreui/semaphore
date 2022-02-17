@@ -220,6 +220,13 @@
           <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
         </a>
 
+        <v-checkbox
+          v-if="advancedOptions"
+          class="mt-0"
+          label="Suppress success alerts"
+          v-model="item.suppress_success_alerts"
+        />
+
         <codemirror
           v-if="advancedOptions"
           :style="{ border: '1px solid lightgray' }"
