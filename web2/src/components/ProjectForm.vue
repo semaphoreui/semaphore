@@ -26,8 +26,21 @@
 
     <v-text-field
       v-model="item.alert_chat"
-      label="Telegram Chat ID"
+      label="Telegram Chat ID (Optional)"
       :disabled="formSaving"
+    ></v-text-field>
+
+    <v-text-field
+      v-model.number="item.max_parallel_tasks"
+      label="Max number of parallel tasks (Optional)"
+      :disabled="formSaving"
+      :rules="[
+        v => Math.floor(v) == v || 'Must be integer',
+        v => (v == null || v === '' || v >= 0) || 'Must be 0 or greater',
+      ]"
+      hint="Should be 0 or greater, 0 - unlimited."
+      type="number"
+      :step="1"
     ></v-text-field>
   </v-form>
 </template>

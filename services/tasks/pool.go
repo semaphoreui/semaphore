@@ -17,18 +17,19 @@ type logRecord struct {
 	time   time.Time
 }
 
+type resourceLock struct {
+	lock   bool
+	holder *TaskRunner
+}
+
 type TaskPool struct {
 	// queue contains list of tasks in status TaskWaitingStatus.
 	queue []*TaskRunner
-	
+
 	// register channel used to put tasks to queue.
 	register chan *TaskRunner
 
-	activeProj  map[int]*TaskRunner
-	activeNodes map[string]*TaskRunner
-
-	// running is a number of task with status TaskRunningStatus.
-	running int
+	activeProj map[int]map[int]*TaskRunner
 
 	// runningTasks contains tasks with status TaskRunningStatus.
 	runningTasks map[int]*TaskRunner
@@ -37,14 +38,9 @@ type TaskPool struct {
 	logger chan logRecord
 
 	store db.Store
-}
 
-type resourceLock struct {
-	lock   bool
-	holder *TaskRunner
+	resourceLocker chan *resourceLock
 }
-
-var resourceLocker = make(chan *resourceLock)
 
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 
@@ -72,7 +68,7 @@ func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)
 
 	defer func() {
-		close(resourceLocker)
+		close(p.resourceLocker)
 		ticker.Stop()
 	}()
 
@@ -86,33 +82,30 @@ func (p *TaskPool) Run() {
 					panic("Trying to lock an already locked resource!")
 				}
 
-				p.activeProj[t.task.ProjectID] = t
-
-				for _, node := range t.hosts {
-					p.activeNodes[node] = t
+				projTasks, ok := p.activeProj[t.task.ProjectID]
+				if !ok {
+					projTasks = make(map[int]*TaskRunner)
+					p.activeProj[t.task.ProjectID] = projTasks
 				}
-
-				p.running++
+				projTasks[t.task.ID] = t
 				p.runningTasks[t.task.ID] = t
 				continue
 			}
 
-			if p.activeProj[t.task.ProjectID] == t {
-				delete(p.activeProj, t.task.ProjectID)
+			if p.activeProj[t.task.ProjectID] != nil && p.activeProj[t.task.ProjectID][t.task.ID] != nil {
+				delete(p.activeProj[t.task.ProjectID], t.task.ID)
+				if len(p.activeProj[t.task.ProjectID]) == 0 {
+					delete(p.activeProj, t.task.ProjectID)
+				}
 			}
 
-			for _, node := range t.hosts {
-				delete(p.activeNodes, node)
-			}
-
-			p.running--
 			delete(p.runningTasks, t.task.ID)
 		}
-	}(resourceLocker)
+	}(p.resourceLocker)
 
 	for {
 		select {
-		case record := <-p.logger:
+		case record := <-p.logger: // new log message which should be put to database
 			_, err := record.task.pool.store.CreateTaskOutput(db.TaskOutput{
 				TaskID: record.task.task.ID,
 				Output: record.output,
@@ -122,14 +115,15 @@ func (p *TaskPool) Run() {
 			if err != nil {
 				log.Error(err)
 			}
-		case task := <-p.register:
+		case task := <-p.register: // new task created by API or schedule
 			p.queue = append(p.queue, task)
 			log.Debug(task)
 			msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
 			task.Log(msg)
 			log.Info(msg)
+			task.updateStatus()
 
-		case <-ticker.C:
+		case <-ticker.C: // timer 5 seconds
 			if len(p.queue) == 0 {
 				continue
 			}
@@ -148,7 +142,7 @@ func (p *TaskPool) Run() {
 				continue
 			}
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
-			resourceLocker <- &resourceLock{lock: true, holder: t}
+			p.resourceLocker <- &resourceLock{lock: true, holder: t}
 			if !t.prepared {
 				go t.prepareRun()
 				continue
@@ -161,36 +155,40 @@ func (p *TaskPool) Run() {
 }
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
-	if p.running >= util.Config.MaxParallelTasks {
+
+	if len(p.runningTasks) >= util.Config.MaxParallelTasks {
 		return true
 	}
 
-	switch util.Config.ConcurrencyMode {
-	case "project":
-		return p.activeProj[t.task.ProjectID] != nil
-	case "node":
-		for _, node := range t.hosts {
-			if p.activeNodes[node] != nil {
-				return true
-			}
-		}
-
+	if p.activeProj[t.task.ProjectID] == nil || len(p.activeProj[t.task.ProjectID]) == 0 {
 		return false
-	default:
-		return p.running > 0
 	}
+
+	for _, r := range p.activeProj[t.task.ProjectID] {
+		if r.template.ID == t.task.TemplateID {
+			return true
+		}
+	}
+
+	proj, err := p.store.GetProject(t.task.ProjectID)
+
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	return proj.MaxParallelTasks > 0 && len(p.activeProj[t.task.ProjectID]) >= proj.MaxParallelTasks
 }
 
 func CreateTaskPool(store db.Store) TaskPool {
 	return TaskPool{
-		queue:        make([]*TaskRunner, 0), // queue of waiting tasks
-		register:     make(chan *TaskRunner), // add TaskRunner to queue
-		activeProj:   make(map[int]*TaskRunner),
-		activeNodes:  make(map[string]*TaskRunner),
-		running:      0,                           // number of running tasks
-		runningTasks: make(map[int]*TaskRunner),   // working tasks
-		logger:       make(chan logRecord, 10000), // store log records to database
-		store:        store,
+		queue:          make([]*TaskRunner, 0), // queue of waiting tasks
+		register:       make(chan *TaskRunner), // add TaskRunner to queue
+		activeProj:     make(map[int]map[int]*TaskRunner),
+		runningTasks:   make(map[int]*TaskRunner),   // working tasks
+		logger:         make(chan logRecord, 10000), // store log records to database
+		store:          store,
+		resourceLocker: make(chan *resourceLock),
 	}
 }
 
@@ -313,10 +311,19 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	p.register <- &TaskRunner{
+	taskRunner := TaskRunner{
 		task: newTask,
 		pool: p,
 	}
+
+	err = taskRunner.populateDetails()
+	if err != nil {
+		taskRunner.Log("Error: " + err.Error())
+		taskRunner.fail()
+		return
+	}
+
+	p.register <- &taskRunner
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(newTask.ID) + " queued for running"

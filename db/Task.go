@@ -4,13 +4,15 @@ import (
 	"time"
 )
 
+type TaskStatus string
+
 const (
-	TaskRunningStatus  = "running"
-	TaskWaitingStatus  = "waiting"
-	TaskStoppingStatus = "stopping"
-	TaskStoppedStatus  = "stopped"
-	TaskSuccessStatus  = "success"
-	TaskFailStatus     = "error"
+	TaskRunningStatus  TaskStatus = "running"
+	TaskWaitingStatus  TaskStatus = "waiting"
+	TaskStoppingStatus TaskStatus = "stopping"
+	TaskStoppedStatus  TaskStatus = "stopped"
+	TaskSuccessStatus  TaskStatus = "success"
+	TaskFailStatus     TaskStatus = "error"
 )
 
 //Task is a model of a task which will be executed by the runner
@@ -19,8 +21,8 @@ type Task struct {
 	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
 	ProjectID  int `db:"project_id" json:"project_id"`
 
-	Status string `db:"status" json:"status"`
-	Debug  bool   `db:"debug" json:"debug"`
+	Status TaskStatus `db:"status" json:"status"`
+	Debug  bool       `db:"debug" json:"debug"`
 
 	DryRun bool `db:"dry_run" json:"dry_run"`
 

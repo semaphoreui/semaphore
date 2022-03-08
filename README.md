@@ -19,6 +19,10 @@ Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and S
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
+
+[![Star History Chart](https://api.star-history.com/svg?repos=ansible-semaphore/semaphore,rundeck/rundeck&type=Date)](https://star-history.com/#ansible-semaphore/semaphore,rundeck/rundeck&Date)
+
+
 <!--
 ![image](https://user-images.githubusercontent.com/914224/134411082-48235676-06d2-4d4b-b674-4ffe1e8d0d0d.png)
 
@@ -36,11 +40,6 @@ Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and S
 - [UI Walkthrough](https://blog.strangeman.info/ansible/2017/08/05/semaphore-ui-guide.html) (external blog)
 -->
 
-## Release Signing
-
-All releases after 2.5.1 are signed with the gpg public key
-`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
-
 ## Installation
 
 https://docs.ansible-semaphore.com/administration-guide/installation
@@ -49,9 +48,7 @@ https://docs.ansible-semaphore.com/administration-guide/installation
 
 ## Demo
 
-https://demo.ansible-semaphore.com
-
-Login / password: `demo / demo`.
+You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
 
 ## Docs
 
@@ -64,6 +61,11 @@ API docs: https://ansible-semaphore.com/api/
 PR's & UX reviews are welcome!
 
 Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
+
+## Release Signing
+
+All releases after 2.5.1 are signed with the gpg public key
+`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
 
 ## License
 

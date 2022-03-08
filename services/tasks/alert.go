@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"bytes"
+	"github.com/ansible-semaphore/semaphore/db"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -71,6 +72,10 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
+	if t.template.SuppressSuccessAlerts && t.task.Status == db.TaskSuccessStatus {
+		return
+	}
+
 	chatID := util.Config.TelegramChat
 	if t.alertChat != nil && *t.alertChat != "" {
 		chatID = *t.alertChat
@@ -106,7 +111,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		Name:            t.template.Name,
 		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
 		ChatID:          chatID,
-		TaskResult:      strings.ToUpper(t.task.Status),
+		TaskResult:      strings.ToUpper(string(t.task.Status)),
 		TaskVersion:     version,
 		TaskDescription: message,
 		Author:          author,

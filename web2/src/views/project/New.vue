@@ -7,7 +7,7 @@
     </v-toolbar>
 
     <div class="project-settings-form">
-      <div style="height: 220px;">
+      <div style="height: 300px;">
         <ProjectForm item-id="new" ref="editForm" @save="onSave"/>
       </div>
 
@@ -33,10 +33,10 @@ export default {
   },
 
   methods: {
-    onSave(item) {
+    onSave(e) {
       EventBus.$emit('i-project', {
         action: 'new',
-        item,
+        item: e.item,
       });
     },
 

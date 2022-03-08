@@ -85,10 +85,11 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 
 func (d *SqlDb) UpdateProject(project db.Project) error {
 	_, err := d.exec(
-		"update project set name=?, alert=?, alert_chat=? where id=?",
+		"update project set name=?, alert=?, alert_chat=?, max_parallel_tasks=? where id=?",
 		project.Name,
 		project.Alert,
 		project.AlertChat,
+		project.MaxParallelTasks,
 		project.ID)
 	return err
 }
