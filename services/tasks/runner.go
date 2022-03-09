@@ -672,7 +672,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
     
     if t.task.Limit != "" {
 		t.Log("--limit="+t.task.Limit)
-		args = append(taskExtraArgs, "--limit="+t.task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)

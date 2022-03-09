@@ -22,6 +22,8 @@ if [[ ! -f $SCRIPT_HOME/../semaphore.simg ]]; then
 else
     # Build RPM
     module load singularity || echo 'Not using modules'
-    cd ${SEMAPHORE_HOME} && singularity exec semaphore.simg task release
+    cd ${SEMAPHORE_HOME} && singularity exec $SCRIPT_HOME/../semaphore.simg task release
+    chmod a+rx ${SEMAPHORE_HOME}/bin
+    chmod a+r ${SEMAPHORE_HOME}/bin/*
 fi
 
