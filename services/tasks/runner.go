@@ -639,11 +639,6 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "--check")
 	}
 
-	if t.task.Limit != "" {
-		t.log("--limit="+t.task.Limit)
-		args = append(args, "--limit="+t.task.Limit)
-	}
-
 	if t.template.VaultKeyID != nil {
 		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
 	}
@@ -664,6 +659,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			return
 		}
 	}
+	
 
 	var taskExtraArgs []string
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
@@ -672,6 +668,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
+	}
+    
+    if t.task.Limit != "" {
+		t.Log("--limit="+t.task.Limit)
+		args = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)

@@ -2,13 +2,14 @@ Bootstrap: docker
 From: golang:1.16.3-alpine3.13
 Stage: spython-base
 
-%post
+%setup
+mkdir $SINGULARITY_ROOTFS/bigdata
 
+%post
 SEMAPHORE_VERSION="development"
 SEMAPHORE_ARCH="linux_amd64"
 SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
 APP_ROOT="/mnt/"
-ls $APP_ROOT
 
 # hadolint ignore=DL3013
 apk add --no-cache sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client tini nodejs nodejs-npm bash rsync && \
@@ -33,7 +34,7 @@ cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
 
 # Copy in app source
 cd ${APP_ROOT}
-deployment/docker/ci/bin/install
+./deployment/docker/ci/bin/install
 
 su -  semaphore # USER semaphore
 # EXPOSE 3000
