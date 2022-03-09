@@ -1,0 +1,53 @@
+Bootstrap: docker
+From: golang:1.16.3-alpine3.13
+Stage: spython-base
+
+%post
+
+SEMAPHORE_VERSION="development"
+SEMAPHORE_ARCH="linux_amd64"
+SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
+APP_ROOT="/mnt/"
+ls $APP_ROOT
+
+# hadolint ignore=DL3013
+apk add --no-cache sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client tini nodejs nodejs-npm bash rsync && \
+apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base &&\
+rm -rf /var/cache/apk/*
+
+pip3 install --upgrade pip cffi   && \
+pip3 install ansible &&\
+apk del build-dependencies
+
+adduser -D -u 1002 -g 0 semaphore && \
+mkdir -p $APP_ROOT && \
+mkdir -p /tmp/semaphore && \
+mkdir -p /etc/semaphore && \
+chown -R semaphore:0 /go && \
+chown -R semaphore:0 /tmp/semaphore && \
+chown -R semaphore:0 /etc/semaphore && \
+ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""       && \
+ssh-keyscan -H github.com > /root/.ssh/known_hosts
+
+cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
+
+# Copy in app source
+cd ${APP_ROOT}
+deployment/docker/ci/bin/install
+
+su -  semaphore # USER semaphore
+# EXPOSE 3000
+
+%environment
+export SEMAPHORE_VERSION="development"
+export SEMAPHORE_ARCH="linux_amd64"
+export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
+export APP_ROOT="/mnt/"
+
+%runscript
+cd ${APP_ROOT}
+exec /usr/local/bin/semaphore-wrapper ./bin/semaphore server --config /etc/semaphore/config.json "$@"
+
+%startscript
+cd ${APP_ROOT}
+exec /usr/local/bin/semaphore-wrapper ./bin/semaphore server --config /etc/semaphore/config.json "$@"
