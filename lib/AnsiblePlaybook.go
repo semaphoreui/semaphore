@@ -24,7 +24,8 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string) *exec.Cmd {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
-	cmd.Env = append(cmd.Env, fmt.Sprintln("PYTHONUNBUFFERED=1"))
+	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
+	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
 
 	return cmd
 }

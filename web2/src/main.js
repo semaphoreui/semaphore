@@ -1,17 +1,21 @@
 import Vue from 'vue';
 import moment from 'moment';
 import axios from 'axios';
+import Convert from 'ansi-to-html';
 import App from './App.vue';
 import router from './router';
 import vuetify from './plugins/vuetify';
 import './assets/scss/main.scss';
 
-axios.defaults.baseURL = document.baseURI;
+const convert = new Convert();
 
+axios.defaults.baseURL = document.baseURI;
 Vue.config.productionTip = false;
 
 Vue.filter('formatDate', (value) => (value ? moment(String(value)).fromNow() : '—'));
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
+Vue.filter('formatLog', (value) => (value ? convert.toHtml(String(value)) : value));
+
 Vue.filter('formatMilliseconds', (value) => {
   if (value == null || value === '') {
     return '—';
