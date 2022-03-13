@@ -287,6 +287,15 @@
                   <v-list-item-title>{{ user.name }}</v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
+              <v-list-item>
+                <v-switch
+                  v-model="$vuetify.theme.dark"
+                  hint="Toggles the theme"
+                  inset
+                  label="Dark Mode"
+                  persistent-hint
+                ></v-switch>
+              </v-list-item>
             </v-list>
           </template>
 
