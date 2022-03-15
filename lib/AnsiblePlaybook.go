@@ -1,13 +1,11 @@
 package lib
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
@@ -34,28 +32,6 @@ func (p AnsiblePlaybook) runCmd(command string, args []string) error {
 	cmd := p.makeCmd(command, args)
 	p.Logger.LogCmd(cmd)
 	return cmd.Run()
-}
-
-func (p AnsiblePlaybook) GetHosts(args []string) (hosts []string, err error) {
-	args = append(args, "--list-hosts")
-	cmd := p.makeCmd("ansible-playbook", args)
-
-	var errb bytes.Buffer
-	cmd.Stderr = &errb
-
-	out, err := cmd.Output()
-	if err != nil {
-		return
-	}
-
-	re := regexp.MustCompile(`(?m)^\\s{6}(.*)$`)
-	matches := re.FindAllSubmatch(out, 20)
-	hosts = make([]string, len(matches))
-	for i := range matches {
-		hosts[i] = string(matches[i][1])
-	}
-
-	return
 }
 
 func (p AnsiblePlaybook) RunPlaybook(args []string, cb func(*os.Process)) error {
