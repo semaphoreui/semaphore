@@ -59,7 +59,8 @@
         <div class="task-log-records__time">
           {{ record.time | formatTime }}
         </div>
-        <div class="task-log-records__output">{{ record.output }}</div>
+        <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
+        </div>
       </div>
     </div>
 
