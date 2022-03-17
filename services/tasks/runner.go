@@ -494,7 +494,7 @@ func (t *TaskRunner) installCollectionsRequirements() error {
 	
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
-			"collections",
+			"collection",
 			"install",
 			"-r",
 			requirementsFilePath,
