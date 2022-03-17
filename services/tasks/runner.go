@@ -523,6 +523,7 @@ func (t *TaskRunner) installRolesRequirements() error {
 	
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
+			"role",
 			"install",
 			"-r",
 			requirementsFilePath,
