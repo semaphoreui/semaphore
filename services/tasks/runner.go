@@ -483,20 +483,49 @@ func (t *TaskRunner) updateRepository() error {
 	return repo.Clone()
 }
 
-func (t *TaskRunner) installRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
-	requirementsHashFilePath := fmt.Sprintf("%s/requirements.md5", t.getRepoPath())
+func (t *TaskRunner) installCollectionsRequirements() error {
+	requirementsFilePath := fmt.Sprintf("%s/collections/requirements.yml", t.getRepoPath())
+	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
+	if _, err := os.Stat(requirementsFilePath); err != nil {
+		t.Log("No collections/requirements.yml file found. Skip galaxy install process.\n")
+		return nil
+	}
+	
+	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
+		if err := t.runGalaxy([]string{
+			"collections",
+			"install",
+			"-r",
+			requirementsFilePath,
+			"--force",
+		}); err != nil {
+			return err
+		}
+		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
+			return err
+		}
+	} else {
+		t.Log("collections/requirements.yml has no changes. Skip galaxy install process.\n")
+	}
+	
+	return nil
+}
+
+func (t *TaskRunner) installRolesRequirements() error {
+	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
+	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
+	
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.Log("No roles/requirements.yml file found. Skip galaxy install process.\n")
 		return nil
 	}
-
+	
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
 			"install",
 			"-r",
-			"roles/requirements.yml",
+			requirementsFilePath,
 			"--force",
 		}); err != nil {
 			return err
@@ -507,7 +536,17 @@ func (t *TaskRunner) installRequirements() error {
 	} else {
 		t.Log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
 	}
+	
+	return nil
+}
 
+func (t *TaskRunner) installRequirements() error {
+	if err := t.installCollectionsRequirements(); err != nil {
+		return err
+	}
+	if err := t.installRolesRequirements(); err != nil {
+		return err
+	}
 	return nil
 }
 
