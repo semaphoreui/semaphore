@@ -22,13 +22,56 @@
 
     <v-text-field
         v-model="item.git_url"
-        label="URL"
-        :rules="[v => !!v || 'Repository is required']"
+        label="URL or path"
+        :rules="[
+          v => !!v || 'Repository is required',
+          v => getTypeOfUrl(v) != null || 'Incorrect URL',
+        ]"
         required
         :disabled="formSaving"
-        append-outer-icon="mdi-help-circle"
-        @click:append-outer="showHelpDialog('url')"
+        :hide-details="true"
     ></v-text-field>
+
+    <div class="mt-1 mb-4">
+      <span class="caption">git:</span>
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='file' ? 'primary' : ''"
+        @click="setType('file')"
+        style="font-weight: bold;"
+      >
+        file
+      </v-chip>
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='git' ? 'primary' : ''"
+        @click="setType('git')"
+        style="font-weight: bold;"
+      >
+        git
+      </v-chip>
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='ssh' ? 'primary' : ''"
+        @click="setType('ssh')"
+        style="font-weight: bold;"
+      >
+        ssh
+      </v-chip>
+      <span class="caption ml-3">local:</span>
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='local' ? 'primary' : ''"
+        @click="setType('local')"
+        style="font-weight: bold;"
+      >
+        abs. path
+      </v-chip>
+    </div>
 
     <v-text-field
       v-model="item.git_branch"
@@ -36,8 +79,6 @@
       :rules="[v => !!v || 'Branch is required']"
       required
       :disabled="formSaving"
-      append-outer-icon="mdi-help-circle"
-      @click:append-outer="showHelpDialog('url')"
     ></v-text-field>
 
     <v-select
@@ -115,7 +156,54 @@ export default {
       responseType: 'json',
     })).data;
   },
+  computed: {
+    type() {
+      return this.getTypeOfUrl(this.item.git_url);
+    },
+  },
+
   methods: {
+    getTypeOfUrl(url) {
+      if (url == null || url === '') {
+        return null;
+      }
+
+      if (url.startsWith('/')) {
+        return 'local';
+      }
+
+      const m = url.match(/^(\w+):\/\//);
+
+      if (m == null) {
+        return 'ssh';
+      }
+
+      if (!['git', 'file', 'ssh'].includes(m[1])) {
+        return null;
+      }
+
+      return m[1];
+    },
+
+    setType(type) {
+      let url;
+
+      const m = this.item.git_url.match(/^\w+:\/\/(.*)$/);
+      if (m != null) {
+        url = m[1];
+      } else {
+        url = this.item.git_url;
+      }
+
+      if (type === 'local') {
+        url = url.startsWith('/') ? url : `/${url}`;
+      } else {
+        url = `${type}://${url}`;
+      }
+
+      this.item.git_url = url;
+    },
+
     showHelpDialog(key) {
       this.helpKey = key;
       this.helpDialog = true;
