@@ -18,10 +18,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-const (
-	gitURLFilePrefix = "file://"
-)
-
 type TaskRunner struct {
 	task        db.Task
 	template    db.Template
@@ -159,8 +155,7 @@ func (t *TaskRunner) prepareRun() {
 
 	t.Log("Preparing: " + strconv.Itoa(t.task.ID))
 
-	err := checkTmpDir(util.Config.TmpPath)
-	if err != nil {
+	if err := checkTmpDir(util.Config.TmpPath); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		t.fail()
 		return
@@ -168,15 +163,15 @@ func (t *TaskRunner) prepareRun() {
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " is preparing"
-	_, err = t.pool.store.CreateEvent(db.Event{
+	evt := db.Event{
 		UserID:      t.task.UserID,
 		ProjectID:   &t.task.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.task.ID,
 		Description: &desc,
-	})
+	}
 
-	if err != nil {
+	if _, err := t.pool.store.CreateEvent(evt); err != nil {
 		t.Log("Fatal error inserting an event")
 		panic(err)
 	}
@@ -185,10 +180,9 @@ func (t *TaskRunner) prepareRun() {
 
 	t.updateStatus()
 
-	if strings.HasPrefix(t.repository.GitURL, gitURLFilePrefix) {
-		repositoryPath := strings.TrimPrefix(t.repository.GitURL, gitURLFilePrefix)
-		if _, err := os.Stat(repositoryPath); err != nil {
-			t.Log("Failed in finding static repository at " + repositoryPath + ": " + err.Error())
+	if t.repository.GetType() == db.RepositoryLocal {
+		if _, err := os.Stat(t.repository.GitURL); err != nil {
+			t.Log("Failed in finding static repository at " + t.repository.GitURL + ": " + err.Error())
 			t.fail()
 			return
 		}
@@ -198,12 +192,11 @@ func (t *TaskRunner) prepareRun() {
 			t.fail()
 			return
 		}
-	}
-
-	if err := t.checkoutRepository(); err != nil {
-		t.Log("Failed to checkout repository to required commit: " + err.Error())
-		t.fail()
-		return
+		if err := t.checkoutRepository(); err != nil {
+			t.Log("Failed to checkout repository to required commit: " + err.Error())
+			t.fail()
+			return
+		}
 	}
 
 	if err := t.installInventory(); err != nil {
@@ -416,6 +409,7 @@ func (t *TaskRunner) installVaultKeyFile() error {
 }
 
 func (t *TaskRunner) checkoutRepository() error {
+
 	repo := lib.GitRepository{
 		Logger:     t,
 		TemplateID: t.template.ID,
@@ -491,7 +485,7 @@ func (t *TaskRunner) installCollectionsRequirements() error {
 		t.Log("No collections/requirements.yml file found. Skip galaxy install process.\n")
 		return nil
 	}
-	
+
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
 			"collection",
@@ -508,19 +502,19 @@ func (t *TaskRunner) installCollectionsRequirements() error {
 	} else {
 		t.Log("collections/requirements.yml has no changes. Skip galaxy install process.\n")
 	}
-	
+
 	return nil
 }
 
 func (t *TaskRunner) installRolesRequirements() error {
 	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
-	
+
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.Log("No roles/requirements.yml file found. Skip galaxy install process.\n")
 		return nil
 	}
-	
+
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
 			"role",
@@ -537,7 +531,7 @@ func (t *TaskRunner) installRolesRequirements() error {
 	} else {
 		t.Log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
 	}
-	
+
 	return nil
 }
 
