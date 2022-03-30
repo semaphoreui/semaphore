@@ -10,7 +10,7 @@ import (
 
 func TestRepository_GetSchema(t *testing.T) {
 	repo := Repository{GitURL: "https://example.com/hello/world"}
-	schema := repo.getSchema()
+	schema := repo.GetType()
 	if schema != "https" {
 		t.Fatal()
 	}
