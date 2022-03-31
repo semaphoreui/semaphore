@@ -76,9 +76,9 @@
     <v-text-field
       v-model="item.git_branch"
       label="Branch"
-      :rules="[v => !!v || 'Branch is required']"
+      :rules="[v => (!!v || type === 'local') || 'Branch is required']"
       required
-      :disabled="formSaving"
+      :disabled="formSaving || type === 'local'"
     ></v-text-field>
 
     <v-select

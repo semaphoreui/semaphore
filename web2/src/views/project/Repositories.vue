@@ -51,7 +51,7 @@
     >
       <template v-slot:item.git_url="{ item }">
         {{ item.git_url }}
-        <code>{{ item.git_branch }}</code>
+        <code v-if="!item.git_url.startsWith('/')">{{ item.git_branch }}</code>
       </template>
 
       <template v-slot:item.ssh_key_id="{ item }">

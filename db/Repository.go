@@ -115,7 +115,7 @@ func (r Repository) Validate() error {
 		return &ValidationError{"repository url can't be empty"}
 	}
 
-	if r.GitBranch == "" {
+	if r.GetType() != RepositoryLocal && r.GitBranch == "" {
 		return &ValidationError{"repository branch can't be empty"}
 	}
 
