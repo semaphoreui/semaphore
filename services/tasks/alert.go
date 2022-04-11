@@ -18,6 +18,8 @@ Task log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>`
 
 const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Name }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
 
+const slackTemplate = `{"username": "ansible-semaphore", "text": "{{ .Name }}\n#{{ .TaskID }} {{ .TaskResult }} {{ .TaskVersion }} {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}", "color": "{{ .Color }}"}`
+
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
 	TaskID          string
@@ -28,6 +30,7 @@ type Alert struct {
 	TaskDescription string
 	TaskVersion     string
 	Author          string
+	Color			string
 }
 
 func (t *TaskRunner) sendMailAlert() {
@@ -137,5 +140,82 @@ func (t *TaskRunner) sendTelegramAlert() {
 		t.Log("Can't send telegram alert! Response code not 200!")
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send telegram alert! Response code not 200!")
+	}
+}
+
+func (t *TaskRunner) sendSlackAlert() {
+	if !util.Config.SlackAlert || !t.alert {
+		return
+	}
+
+	if t.template.SuppressSuccessAlerts && t.task.Status == db.TaskSuccessStatus {
+		return
+	}
+
+	slackUrl := util.Config.SlackUrl
+
+	var slackBuffer bytes.Buffer
+
+	var version string
+	if t.task.Version != nil {
+		version = *t.task.Version
+	} else if t.task.BuildTaskID != nil {
+		version = "build " + strconv.Itoa(*t.task.BuildTaskID)
+	} else {
+		version = ""
+	}
+
+	var message string
+	if t.task.Message != "" {
+		message = "- " + t.task.Message
+	}
+
+	var author string
+	if t.task.UserID != nil {
+		user, err := t.pool.store.GetUser(*t.task.UserID)
+		if err != nil {
+			panic(err)
+		}
+		author = user.Name
+	}
+
+	var color string
+	if t.task.Status == db.TaskSuccessStatus {
+		color = "good"
+	} else {
+		color = "bad"
+	}
+	alert := Alert{
+		TaskID:          strconv.Itoa(t.task.ID),
+		Name:            t.template.Name,
+		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
+		ChatID:          chatID,
+		TaskResult:      strings.ToUpper(string(t.task.Status)),
+		TaskVersion:     version,
+		TaskDescription: message,
+		Author:          author,
+		Color:			 color,
+	}
+
+	tpl := template.New("slack body template")
+
+	tpl, err := tpl.Parse(slackTemplate)
+	if err != nil {
+		t.Log("Can't parse slack template!")
+		panic(err)
+	}
+
+	err = tpl.Execute(&slackBuffer, alert)
+	if err != nil {
+		t.Log("Can't generate alert template!")
+		panic(err)
+	}
+
+	resp, err := http.Post(slackUrl, "application/json", &slackBuffer)
+
+	if err != nil {
+		t.Log("Can't send slack alert! Response code not 200!")
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send slack alert! Response code not 200!")
 	}
 }
