@@ -1,0 +1,8 @@
+on:
+  workflow_call:
+jobs:
+  install_node:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/setup-node@v3
+        with: { node-version: '14' }

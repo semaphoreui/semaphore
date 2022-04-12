@@ -7,7 +7,10 @@ jobs:
   build-local:
     runs-on: [ubuntu-latest]
     steps:
-      - uses: ./.github/workflows/common.yml
+      - uses: ./.github/workflows/install-go.yml
+      - uses: ./.github/workflows/install-node.yml
+      - uses: ./.github/workflows/install-task-binary.yml
+      - uses: actions/checkout@v3
       - run: task deps
       - run: task compile
       - uses: ./.github/workflows/test-compile-changes.yml
@@ -16,13 +19,48 @@ jobs:
   build:
     runs-on: [ubuntu-latest]
     steps:
-      - uses: ./.github/workflows/common.yml
+      - uses: ./.github/workflows/install-go.yml
+      - uses: ./.github/workflows/install-node.yml
+      - uses: ./.github/workflows/install-task-binary.yml
       - run: sudo apt update && sudo apt-get install rpm
+      - uses: actions/checkout@v3
       - run: task deps
       - run: task compile
       - uses: ./.github/workflows/test-compile-changes.yml
       - uses: ./.github/workflows/unlock-gpg.yml
       - run: task build
+
+  test-golang:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: ./.github/workflows/install-go.yml
+      - uses: ./.github/workflows/install-task-binary.yml
+      - run: go get github.com/schrej/godacov
+      - uses: actions/checkout@v3
+      - run: task deps:tools
+      - run: task deps:be
+      - run: task compile:be
+      - run: task lint:be
+      - run: task test
+      - run: godacov -t "${CODACY_TOKEN}" -r ./coverage.out -c "${CIRCLE_SHA1}" || true
+
+  test-integration:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/workflows/install-task-binary.yml
+      - run: context=ci task dc:up
+
+  test-db-migration:
+    steps:
+      - uses: ./.github/workflows/install-node.yml
+      - uses: ./.github/workflows/install-task-binary.yml
+      # TODO: add semaphore binary from previous job
+      - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"email_alert\": false\n}\nEOF\n"
+      - run: dockerize -wait tcp://127.0.0.1:3306 -timeout 1m
+      - run: bin/semaphore migrate --config config.json
 
   release:
     runs-on: [ubuntu-latest]

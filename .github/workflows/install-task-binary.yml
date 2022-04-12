@@ -1,0 +1,7 @@
+on:
+  workflow_call:
+jobs:
+  install_task_binary:
+    runs-on: [ubuntu-latest]
+    steps:
+      - run: go get github.com/go-task/task/v3/cmd/task

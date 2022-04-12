@@ -7,8 +7,7 @@ jobs:
   unlock_gpg:
     runs-on: [ubuntu-latest]
     steps:
-      - name: Unlock
-        run: |
+      - run: |
           echo ${{ ${{ secrets.gpg_key }} }} | tr " " "\n" | base64 -d | gpg --import --batch
           gpg --sign -u "8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.gpg_pass }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
