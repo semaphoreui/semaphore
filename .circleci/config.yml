@@ -257,8 +257,6 @@ workflows:
       - test:db:migration:
           requires:
             - build:local
-
-# Don't build on master because build is just a gorelease without the release
       - build:
           requires:
             - test:golang
@@ -267,8 +265,6 @@ workflows:
           filters:
             branches:
               ignore: master
-
-# Dev deploys require all tests to pass and app builds
       - deploy:dev:
           requires:
             - build
@@ -276,16 +272,12 @@ workflows:
           filters:
             branches:
               only: develop
-
-# Production deploys only happen if everything passes
-# and we have a tag starting with v
       - release:
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^v.*/
-
       - deploy:prod:
           filters:
             branches:

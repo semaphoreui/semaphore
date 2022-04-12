@@ -1,0 +1,30 @@
+name: Main
+on:
+  push:
+    branches:
+      - develop
+jobs:
+  build-local:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: ./.github/workflows/common.yml
+      - run: task deps
+      - run: task compile
+      - uses: ./.github/workflows/test-compile-changes.yml
+      - run: task build:local
+
+  build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: ./.github/workflows/common.yml
+      - run: sudo apt update && sudo apt-get install rpm
+      - run: task deps
+      - run: task compile
+      - uses: ./.github/workflows/test-compile-changes.yml
+      - uses: ./.github/workflows/unlock-gpg.yml
+      - run: task build
+
+  release:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: ./.github/workflows/unlock-gpg.yml
