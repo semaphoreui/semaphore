@@ -3,11 +3,11 @@ package tasks
 import (
 	"bytes"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
-	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const emailTemplate = `Subject: Task '{{ .Name }}' failed
@@ -17,7 +17,7 @@ Task log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>`
 
 const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Name }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
 
-const slackTemplate = `{ "attachments": [ { "title": "{{ .Name }}", "title_link": "{{ .TaskURL }}", "text": "execution ID #{{ .TaskID }} was a {{ .TaskResult }}!", "color": "{{ .Color }}", "mrkdwn_in": ["text"], "fields": [ { "title": "Author", "value": "{{ .Author }}", "short": true }] } ]}`
+const slackTemplate = `{ "attachments": [ { "title": "Task: {{ .Name }}", "title_link": "{{ .TaskURL }}", "text": "execution ID #{{ .TaskID }}, status: {{ .TaskResult }}!", "color": "{{ .Color }}", "mrkdwn_in": ["text"], "fields": [ { "title": "Author", "value": "{{ .Author }}", "short": true }] } ]}`
 
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
@@ -29,7 +29,7 @@ type Alert struct {
 	TaskDescription string
 	TaskVersion     string
 	Author          string
-	Color			string
+	Color           string
 }
 
 func (t *TaskRunner) sendMailAlert() {
@@ -181,8 +181,16 @@ func (t *TaskRunner) sendSlackAlert() {
 	var color string
 	if t.task.Status == db.TaskSuccessStatus {
 		color = "good"
-	} else {
+	} else if t.task.Status == db.TaskFailStatus {
 		color = "bad"
+	} else if t.task.Status == db.TaskRunningStatus {
+		color = "#333CFF"
+	} else if t.task.Status == db.TaskWaitingStatus {
+		color = "#FFFC33"
+	} else if t.task.Status == db.TaskStoppingStatus {
+		color = "#BEBEBE"
+	} else if t.task.Status == db.TaskStoppedStatus {
+		color = "#5B5B5B"
 	}
 	alert := Alert{
 		TaskID:          strconv.Itoa(t.task.ID),
@@ -192,7 +200,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		TaskVersion:     version,
 		TaskDescription: message,
 		Author:          author,
-		Color:			 color,
+		Color:           color,
 	}
 
 	tpl := template.New("slack body template")
