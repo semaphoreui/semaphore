@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -18,7 +17,7 @@ Task log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>`
 
 const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Name }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
 
-const slackTemplate = `{"username": "ansible-semaphore", "text": "{{ .Name }}\n#{{ .TaskID }} {{ .TaskResult }} {{ .TaskVersion }} {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}", "color": "{{ .Color }}"}`
+const slackTemplate = `{ "attachments": [ { "title": "{{ .Name }}", "title_link": "{{ .TaskURL }}", "text": "execution ID #{{ .TaskID }} was a {{ .TaskResult }}!", "color": "{{ .Color }}", "mrkdwn_in": ["text"], "fields": [ { "title": "Author", "value": "{{ .Author }}", "short": true }] } ]}`
 
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
@@ -189,7 +188,6 @@ func (t *TaskRunner) sendSlackAlert() {
 		TaskID:          strconv.Itoa(t.task.ID),
 		Name:            t.template.Name,
 		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
-		ChatID:          chatID,
 		TaskResult:      strings.ToUpper(string(t.task.Status)),
 		TaskVersion:     version,
 		TaskDescription: message,
@@ -210,7 +208,6 @@ func (t *TaskRunner) sendSlackAlert() {
 		t.Log("Can't generate alert template!")
 		panic(err)
 	}
-
 	resp, err := http.Post(slackUrl, "application/json", &slackBuffer)
 
 	if err != nil {
