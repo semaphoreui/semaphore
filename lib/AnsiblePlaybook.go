@@ -2,11 +2,12 @@ package lib
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type AnsiblePlaybook struct {

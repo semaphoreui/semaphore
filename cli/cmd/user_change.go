@@ -41,7 +41,7 @@ func applyChangeUserArgsForUser(user db.User, store db.Store) {
 
 	if err := store.UpdateUser(db.UserWithPwd{
 		User: user,
-		Pwd: targetUserArgs.password,
+		Pwd:  targetUserArgs.password,
 	}); err != nil {
 		panic(err)
 	}
