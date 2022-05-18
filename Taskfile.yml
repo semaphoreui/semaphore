@@ -3,13 +3,11 @@
 #
 # Tasks without a `desc:` field are intended mainly to be called
 # internally by other tasks and therefore are not listed when running `task` or `task -l`
-version: '2'
+version: "2"
 
 vars:
   docker_namespace: ansiblesemaphore
   docker_image: semaphore
-
-
 
 tasks:
   all:
@@ -23,9 +21,9 @@ tasks:
   deps:
     desc: Install all dependencies (except dredd requirements)
     cmds:
-     - task: deps:tools
-     - task: deps:be
-     - task: deps:fe2
+      - task: deps:tools
+      - task: deps:be
+      - task: deps:fe2
 
   deps:be:
     desc: Vendor application dependencies
@@ -37,14 +35,12 @@ tasks:
     dir: web2
     cmds:
       - npm install
-      - npm audit fix
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
     dir: web2
     cmds:
       - npm install dredd@13.1.2
-      - npm audit fix
 
   deps:tools:
     desc: Installs tools needed
@@ -57,10 +53,10 @@ tasks:
       - go install github.com/haya14busa/goverage@latest
       - go install github.com/snikch/goodman/cmd/goodman@latest
       - go install github.com/go-swagger/go-swagger/cmd/swagger@latest
-      - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
-      - '{{ if ne OS "windows" }} chmod +x $(go env GOPATH)/bin/goreleaser{{ else }} {{ end }}'
+      - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C /usr/local/bin goreleaser"{{ else }} {{ end }}'
+      - '{{ if ne OS "windows" }} chmod +x /usr/local/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
-      - '{{ if ne OS "windows" }} sh -c "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v{{ .GOLINTER_VERSION }}"{{ else }}{{ end }}'
+      - '{{ if ne OS "windows" }} sh -c "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v{{ .GOLINTER_VERSION }}"{{ else }}{{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You need to install golangci-lint manually to build this application https://github.com/golangci/golangci-lint#install"{{ else }}{{ end }}'
 
   compile:
@@ -128,7 +124,7 @@ tasks:
     desc: Build a binary for the current architecture
     dir: cli
     cmds:
-     - go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+      - go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
 
   release:
     desc: creates a release without performing validations or publishing artifacts
@@ -252,7 +248,6 @@ tasks:
           prefix: -dredd
           args: up
 
-
   docker:build:
     desc: Build an image for Semaphore, requires context
     vars:
@@ -281,7 +276,7 @@ tasks:
 
   docker:test:
     desc: Test docker containers by building them, running tests and deleting
-    deps: ['deps:docker']
+    deps: ["deps:docker"]
     cmds:
       - task: docker:lint
         vars:
@@ -294,7 +289,7 @@ tasks:
 
   docker:goss:
     dir: "deployment/docker/{{ .context}}"
-    deps: ['deps:docker']
+    deps: ["deps:docker"]
     cmds:
       - GOSS_FILES_STRATEGY='cp' dgoss run -it "{{ .docker_namespace }}/{{ .docker_image }}:{{ .context }}-test"
 

@@ -2,9 +2,6 @@
 
 set -e
 
-# Get prerequisites for building the app
-(cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh)
-
 # Compile and build
 task deps
 set +e
