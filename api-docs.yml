@@ -222,7 +222,7 @@ definitions:
           minimum: 1
         type:
           type: string
-          enum: [static, file]
+          enum: [static, static-yaml, file]
   Inventory:
     type: object
     properties:
@@ -241,7 +241,7 @@ definitions:
         type: integer
       type:
         type: string
-        enum: [static, file]
+        enum: [static, static-yaml, file]
 
   RepositoryRequest:
       type: object
