@@ -1,14 +1,18 @@
 [Unit]
 Description=Ansible Semaphore
+Documentation=https://github.com/ansible-semaphore/semaphore
+Documentation=man:semaphore --help
 Requires=network.target
+After=network.target syslog.target
 
 [Service]
-EnvironmentFile=/etc/semaphore/env
-ExecStart=/usr/bin/semaphore server --config ${SEMAPHORE_CONFIG}
 User=semaphore
 Group=semaphore
+ExecStart=/usr/bin/semaphore server --config /home/semaphore/config.json
+ExecStop=/bin/kill -s QUIT $MAINPID
+ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
-RestartSec=3s
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
