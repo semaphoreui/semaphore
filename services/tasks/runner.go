@@ -559,11 +559,38 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
+	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
 	return lib.AnsiblePlaybook{
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
-	}.RunPlaybook(args, func(p *os.Process) { t.process = p })
+	}.RunPlaybook(args, &environmentVariables, func(p *os.Process) { t.process = p })
+}
+
+func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {
+	extraVars := make(map[string]interface{})
+
+	if t.environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.environment.JSON), &extraVars)
+		if err != nil {
+			return
+		}
+	}
+
+	if cfg, ok := extraVars["ENV"]; ok {
+		switch v := cfg.(type) {
+		case map[string]interface{}:
+			for key, val := range v {
+				arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+			}
+		}
+	}
+
+	return
 }
 
 func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
@@ -602,6 +629,7 @@ func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	}
 
 	vars := make(map[string]interface{})
+	delete(extraVars, "ENV")
 	vars["task_details"] = taskDetails
 	extraVars["semaphore_vars"] = vars
 
