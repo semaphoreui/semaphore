@@ -33,11 +33,15 @@
         type="info"
         class="mt-4"
     >
-      Environment must be valid JSON.
+      Environment must be valid JSON. To add shell environment variables, use the ENV key.
       Example:
       <pre style="font-size: 14px;">{
   "var_available_in_playbook_1": 1245,
   "var_available_in_playbook_2": "test",
+  "ENV": {
+    "MY_SECRET_TOKEN": "topsecret",
+    "ANOTHER_ENV_VAR": "12345"
+  }
 }</pre>
     </v-alert>
   </v-form>
