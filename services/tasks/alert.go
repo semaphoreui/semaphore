@@ -11,9 +11,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-const emailTemplate = `Subject: Task '{{ .Name }}' failed
+const emailTemplate = `Subject: Task '{{ .Name }}' got '{{ .TaskResult }}'
 
-Task {{ .TaskID }} with template '{{ .Name }}' has failed!
+Task {{ .TaskID }} with template '{{ .Name }}' got '{{ .TaskResult }}'!
 Task log: <a href='{{ .TaskURL }}'>{{ .TaskURL }}</a>`
 
 const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Name }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
@@ -35,13 +35,18 @@ func (t *TaskRunner) sendMailAlert() {
 		return
 	}
 
+	if t.template.SuppressSuccessAlerts && t.task.Status == db.TaskSuccessStatus {
+		return
+	}
+
 	mailHost := util.Config.EmailHost + ":" + util.Config.EmailPort
 
 	var mailBuffer bytes.Buffer
 	alert := Alert{
-		TaskID:  strconv.Itoa(t.task.ID),
-		Name:    t.template.Name,
-		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
+		TaskID:     strconv.Itoa(t.task.ID),
+		Name:       t.template.Name,
+		TaskURL:    util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID),
+		TaskResult: strings.ToUpper(string(t.task.Status)),
 	}
 	tpl := template.New("mail body template")
 	tpl, err := tpl.Parse(emailTemplate)
