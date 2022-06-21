@@ -15,6 +15,9 @@ module.exports = {
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'linebreak-style': 'off',
     'prefer-destructuring': 'off',
+    'vuejs-accessibility/click-events-have-key-events': 'off',
+    'vue/valid-v-slot': 'off',
+    'vue/multi-word-component-names': 'off',
   },
   overrides: [
     {
