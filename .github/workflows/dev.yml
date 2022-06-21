@@ -13,7 +13,7 @@ jobs:
         with: { go-version: 1.17 }
 
       - uses: actions/setup-node@v3
-        with: { node-version: '14' }
+        with: { node-version: '16' }
 
       - run: go get github.com/go-task/task/v3/cmd/task
 
@@ -133,7 +133,7 @@ jobs:
   #       with: { go-version: 1.17 }
 
   #     - run: go get github.com/go-task/task/v3/cmd/task
-      
+
   #     - uses: actions/checkout@v3
 
   #     - run: context=prod task docker:test
