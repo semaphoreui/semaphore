@@ -73,7 +73,7 @@ jobs:
       - run: task deps:tools
       - run: task deps:be
       - run: task compile:be
-      - run: task lint:be
+#      - run: task lint:be
       - run: task test
 
 
