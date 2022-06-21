@@ -3,19 +3,18 @@ on:
   push:
     branches:
       - develop
-      - github_actions
 
 jobs:
   build-local:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.17 }
+        with: { go-version: 1.18 }
 
       - uses: actions/setup-node@v3
         with: { node-version: '16' }
 
-      - run: go get github.com/go-task/task/v3/cmd/task
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
 
       - uses: actions/checkout@v3
 
@@ -38,12 +37,12 @@ jobs:
   #   runs-on: [ubuntu-latest]
   #   steps:
   #     - uses: actions/setup-go@v3
-  #       with: { go-version: 1.17 }
+  #       with: { go-version: 1.18 }
 
   #     - uses: actions/setup-node@v3
   #       with: { node-version: '14' }
 
-  #     - run: go get github.com/go-task/task/v3/cmd/task
+  #     - run: go install github.com/go-task/task/v3/cmd/task@latest
 
   #     - uses: actions/checkout@v3
 
@@ -65,9 +64,9 @@ jobs:
     needs: build-local
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.17 }
+        with: { go-version: 1.18 }
 
-      - run: go get github.com/go-task/task/v3/cmd/task
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
 
       - uses: actions/checkout@v3
 
@@ -102,9 +101,9 @@ jobs:
     needs: [test-db-migration]
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.17 }
+        with: { go-version: 1.18 }
 
-      - run: go get github.com/go-task/task/v3/cmd/task
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
 
       - uses: actions/checkout@v3
 
@@ -116,9 +115,9 @@ jobs:
   #   runs-on: [ubuntu-latest]
   #   steps:
   #     - uses: actions/setup-go@v3
-  #       with: { go-version: 1.17 }
+  #       with: { go-version: 1.18 }
 
-  #     - run: go get github.com/go-task/task/v3/cmd/task
+  #     - run: go install github.com/go-task/task/v3/cmd/task@latest
 
   #     - uses: actions/checkout@v3
 
@@ -130,9 +129,9 @@ jobs:
   #   runs-on: [ubuntu-latest]
   #   steps:
   #     - uses: actions/setup-go@v3
-  #       with: { go-version: 1.17 }
+  #       with: { go-version: 1.18 }
 
-  #     - run: go get github.com/go-task/task/v3/cmd/task
+  #     - run: go install github.com/go-task/task/v3/cmd/task@latest
 
   #     - uses: actions/checkout@v3
 

@@ -1,5 +1,5 @@
 # ansible-semaphore production image
-FROM golang:1.16.3-alpine3.13 as builder
+FROM golang:1.18.3-alpine3.16 as builder
 
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
