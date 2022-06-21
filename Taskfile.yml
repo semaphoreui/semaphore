@@ -37,7 +37,7 @@ tasks:
     dir: web2
     cmds:
       - npm install
-      - npm audit fix
+#      - npm audit fix
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
