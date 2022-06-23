@@ -696,6 +696,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			return
 		}
 	}
+	
 
 	var taskExtraArgs []string
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
@@ -704,6 +705,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
+	}
+    
+    if t.task.Limit != "" {
+		t.Log("--limit="+t.task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)
