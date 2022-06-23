@@ -626,8 +626,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	switch t.inventory.Type {
 	case db.InventoryFile:
 		inventory = t.inventory.Inventory
-	case db.InventoryStatic:
+	case db.InventoryStatic, db.InventoryStaticYaml:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+		if t.inventory.Type == db.InventoryStaticYaml {
+			inventory += ".yml"
+		}
 	default:
 		err = fmt.Errorf("invalid invetory type")
 		return

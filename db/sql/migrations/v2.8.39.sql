@@ -5,7 +5,7 @@ alter table `task`
 
 
 create table `project__template_backup_385025846` (
-    id int,
+    id int primary key,
     removed boolean default false
 );
 

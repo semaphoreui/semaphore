@@ -64,7 +64,7 @@
         :style="{ border: '1px solid lightgray' }"
         v-model="item.inventory"
         :options="cmOptions"
-        v-if="item.type === 'static'"
+        v-if="item.type === 'static' || item.type === 'static-yaml'"
         placeholder="Enter inventory..."
     />
 
@@ -79,6 +79,22 @@
       <pre style="font-size: 14px;">[website]
 172.18.8.40
 172.18.8.41</pre>
+    </v-alert>
+
+    <v-alert
+        dense
+        text
+        class="mt-4"
+        type="info"
+        v-if="item.type === 'static-yaml'"
+    >
+      Static YAML inventory example:
+      <pre style="font-size: 14px;">all:
+  children:
+    website:
+      hosts:
+        172.18.8.40:
+        172.18.8.41:</pre>
     </v-alert>
   </v-form>
 </template>
@@ -119,6 +135,9 @@ export default {
       inventoryTypes: [{
         id: 'static',
         name: 'Static',
+      }, {
+        id: 'static-yaml',
+        name: 'Static YAML',
       }, {
         id: 'file',
         name: 'File',
