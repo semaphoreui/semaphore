@@ -60,7 +60,7 @@
       @yes="remove()"
     />
 
-    <v-toolbar flat color="white">
+    <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
         <router-link
