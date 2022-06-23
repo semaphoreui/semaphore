@@ -105,7 +105,7 @@
     <v-navigation-drawer
         app
         dark
-        color="#005057"
+        :color="$vuetify.theme.dark ? '#003236' : '#005057'"
         fixed
         width="260"
         v-model="drawer"
@@ -274,6 +274,14 @@
         <v-menu top max-width="235" nudge-top="12">
           <template v-slot:activator="{ on, attrs }">
             <v-list class="pa-0">
+              <v-list-item>
+                <v-switch
+                  v-model="$vuetify.theme.dark"
+                  inset
+                  label="Dark Mode"
+                  persistent-hint
+                ></v-switch>
+              </v-list-item>
               <v-list-item
                   key="project"
                   v-bind="attrs"
@@ -286,15 +294,6 @@
                 <v-list-item-content>
                   <v-list-item-title>{{ user.name }}</v-list-item-title>
                 </v-list-item-content>
-              </v-list-item>
-              <v-list-item>
-                <v-switch
-                  v-model="$vuetify.theme.dark"
-                  hint="Toggles the theme"
-                  inset
-                  label="Dark Mode"
-                  persistent-hint
-                ></v-switch>
               </v-list-item>
             </v-list>
           </template>
