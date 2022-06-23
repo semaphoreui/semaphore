@@ -33,7 +33,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat color="white">
+    <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Environment</v-toolbar-title>
       <v-spacer></v-spacer>
