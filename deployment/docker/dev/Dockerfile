@@ -25,6 +25,8 @@ RUN adduser -D -u 1002 -g 0 semaphore && \
 
 RUN cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
 
+git config --global --add safe.directory /go/src/github.com/ansible-semaphore/semaphore
+
 # Copy in app source
 WORKDIR ${APP_ROOT}
 COPY . ${APP_ROOT}
