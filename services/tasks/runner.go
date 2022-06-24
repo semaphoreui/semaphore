@@ -648,8 +648,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	switch t.inventory.Type {
 	case db.InventoryFile:
 		inventory = t.inventory.Inventory
-	case db.InventoryStatic:
+	case db.InventoryStatic, db.InventoryStaticYaml:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+		if t.inventory.Type == db.InventoryStaticYaml {
+			inventory += ".yml"
+		}
 	default:
 		err = fmt.Errorf("invalid invetory type")
 		return
@@ -715,6 +718,7 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			return
 		}
 	}
+	
 
 	var taskExtraArgs []string
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
@@ -723,6 +727,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
+	}
+    
+    if t.task.Limit != "" {
+		t.Log("--limit="+t.task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)

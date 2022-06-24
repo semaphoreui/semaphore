@@ -144,6 +144,9 @@ export default {
         id: 'static',
         name: 'Static',
       }, {
+        id: 'static-yaml',
+        name: 'Static YAML',
+      }, {
         id: 'file',
         name: 'File',
       }],

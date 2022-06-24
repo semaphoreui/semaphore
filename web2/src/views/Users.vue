@@ -25,7 +25,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat color="white">
+    <v-toolbar flat >
       <v-btn
         icon
         class="mr-4"

@@ -1,0 +1,51 @@
+name: Release
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  # deploy-prod:
+  #   runs-on: [ubuntu-latest]
+  #   steps:
+  #     - uses: actions/setup-go@v3
+  #       with: { go-version: 1.18 }
+
+  #     - run: go install github.com/go-task/task/v3/cmd/task@latest
+
+  #     - uses: actions/checkout@v3
+
+  #     - run: context=prod task docker:test
+
+  #     - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+  #     - run: context=prod tag=latest task docker:build
+  #     - run: tag=latest task docker:push
+  #     - run: docker tag ansiblesemaphore/semaphore:latest ansiblesemaphore/semaphore:$CIRCLE_TAG
+  #     - run: tag=$CIRCLE_TAG task docker:push
+
+
+  release:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/setup-go@v3
+        with: { go-version: 1.18 }
+
+      - uses: actions/setup-node@v3
+        with: { node-version: '16' }
+
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - run: sudo apt update && sudo apt-get install rpm
+
+      - uses: actions/checkout@v3
+
+      - run: task deps
+
+      - run: |
+          echo ${{ secrets.GPG_KEY }} | tr " " "\n" | base64 -d | gpg --import --batch
+          gpg --sign -u "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          rm -f unlock.sig
+
+      - run:  git reset --hard
+
+      - run: GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
