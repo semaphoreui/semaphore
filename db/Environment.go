@@ -11,15 +11,20 @@ type Environment struct {
 	ProjectID int     `db:"project_id" json:"project_id"`
 	Password  *string `db:"password" json:"password"`
 	JSON      string  `db:"json" json:"json" binding:"required"`
+	ENV       string  `db:"env" json:"env" binding:"required"`
 }
 
 func (env *Environment) Validate() error {
 	if env.Name == "" {
-		return &ValidationError{"environment name can not be empty"}
+		return &ValidationError{"Environment name can not be empty"}
 	}
 
 	if !json.Valid([]byte(env.JSON)) {
-		return &ValidationError{"environment must be valid JSON"}
+		return &ValidationError{"Extra variables must be valid JSON"}
+	}
+
+	if !json.Valid([]byte(env.ENV)) && env.ENV != "" {
+		return &ValidationError{"Environment variables must be valid JSON"}
 	}
 
 	return nil
