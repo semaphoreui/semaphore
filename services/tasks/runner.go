@@ -559,11 +559,33 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
+	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
 	return lib.AnsiblePlaybook{
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
-	}.RunPlaybook(args, func(p *os.Process) { t.process = p })
+	}.RunPlaybook(args, &environmentVariables, func(p *os.Process) { t.process = p })
+}
+
+func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {
+	environmentVars := make(map[string]string)
+
+	if t.environment.ENV != "" {
+		err = json.Unmarshal([]byte(t.environment.ENV), &environmentVars)
+		if err != nil {
+			return
+		}
+	}
+
+	for key, val := range environmentVars {
+		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	return
 }
 
 func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
