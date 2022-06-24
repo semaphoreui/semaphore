@@ -572,22 +572,17 @@ func (t *TaskRunner) runPlaybook() (err error) {
 }
 
 func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {
-	extraVars := make(map[string]interface{})
+	environmentVars := make(map[string]string)
 
-	if t.environment.JSON != "" {
-		err = json.Unmarshal([]byte(t.environment.JSON), &extraVars)
+	if t.environment.ENV != "" {
+		err = json.Unmarshal([]byte(t.environment.ENV), &environmentVars)
 		if err != nil {
 			return
 		}
 	}
 
-	if cfg, ok := extraVars["ENV"]; ok {
-		switch v := cfg.(type) {
-		case map[string]interface{}:
-			for key, val := range v {
-				arr = append(arr, fmt.Sprintf("%s=%s", key, val))
-			}
-		}
+	for key, val := range environmentVars {
+		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
 	}
 
 	return
@@ -629,7 +624,6 @@ func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	}
 
 	vars := make(map[string]interface{})
-	delete(extraVars, "ENV")
 	vars["task_details"] = taskDetails
 	extraVars["semaphore_vars"] = vars
 
