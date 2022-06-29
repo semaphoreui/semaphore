@@ -1,6 +1,6 @@
 # Docker Deployments
 
-Production images for each tag, latest and the development branch will be pushed to [docker hub](https://hub.docker.com/r/ansiblesemaphore/semaphore).
+Production images for each tag, latest and the development branch will be pushed to [docker hub](https://hub.docker.com/r/semaphoreui/semaphore).
 To build images locally see the contexts included here and use the `d` and `dc` tasks in the root Taskfile.yml to help with building and running.
 
 ## Contexts
