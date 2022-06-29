@@ -11,7 +11,7 @@ To build a production image you should run
 
     context=prod task docker:build
     
-this will create an image called `ansiblesemaphore/semaphore:latest` which will be compiled from the currently checked out code
+this will create an image called `semaphoreui/semaphore:latest` which will be compiled from the currently checked out code
 
 This image is run as non root user 1001 (for PaaS systems such as openshift) and is build on alpine with added glibc.
 With ansible etc... installed in the container it is ~283MiB in size.

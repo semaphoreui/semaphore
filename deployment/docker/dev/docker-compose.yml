@@ -15,7 +15,7 @@ services:
       - "3306:3306"
 
   semaphore_dev:
-    image: ansiblesemaphore/semaphore:dev-compose
+    image: semaphoreui/semaphore:dev-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/dev/Dockerfile

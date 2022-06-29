@@ -47,5 +47,5 @@ jobs:
       - run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
       - run: context=prod tag=latest task docker:build
       - run: tag=latest task docker:push
-      - run: docker tag ansiblesemaphore/semaphore:latest ansiblesemaphore/semaphore:${{ github.ref_name }}
+      - run: docker tag semaphoreui/semaphore:latest semaphoreui/semaphore:${{ github.ref_name }}
       - run: tag=${{ github.ref_name }} task docker:push

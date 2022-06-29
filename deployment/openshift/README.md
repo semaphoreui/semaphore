@@ -21,7 +21,7 @@ If you deploy the template to multiple namespaces you must set the SEMAPHORE_URL
 `oc process --parameters semaphore`
 
 |NAME| DESCRIPTION| VALUE|
-|SEMAPHORE_IMAGE_SOURCE| The id of the repository from which to pull the semaphore image| docker.io/ansiblesemaphore/semaphore|
+|SEMAPHORE_IMAGE_SOURCE| The id of the repository from which to pull the semaphore image| docker.io/semaphoreui/semaphore|
 |SEMAPHORE_IMAGE_TAG| The tag to use for the semaphore repository| latest|
 |SEMAPHORE_DATA_VOLUME_SIZE| The size, in Gi of the semaphore data volume, which is mounted at /etc/semaphore| 5|
 |SEMAPHORE_URL| Set this to the value which you wish to be passed to the route. Default value works for local development usage| semaphore-semaphore.127.0.0.1.nip.io|
