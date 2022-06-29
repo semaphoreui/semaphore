@@ -86,7 +86,6 @@
 
       <v-btn
         icon
-        color="black"
         @click="copyDialog = true"
       >
         <v-icon>mdi-content-copy</v-icon>
@@ -94,7 +93,6 @@
 
       <v-btn
         icon
-        color="black"
         @click="editDialog = true"
       >
         <v-icon>mdi-pencil</v-icon>
