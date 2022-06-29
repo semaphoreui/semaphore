@@ -45,7 +45,7 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__environment (project_id, name, json, env, password) values (?, ?, ?, ?)",
+		"insert into project__environment (project_id, name, json, env, password) values (?, ?, ?, ?, ?)",
 		env.ProjectID,
 		env.Name,
 		env.JSON,
