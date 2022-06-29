@@ -85,7 +85,7 @@ jobs:
 
   deploy-dev:
     runs-on: [ubuntu-latest]
-   needs: [build-local, test-golang]
+    needs: [build-local, test-golang]
     steps:
       - uses: actions/setup-go@v3
         with: { go-version: 1.18 }
