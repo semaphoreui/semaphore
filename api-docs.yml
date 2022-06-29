@@ -184,6 +184,9 @@ definitions:
       json:
         type: string
         example: '{}'
+      env:
+        type: string
+        example: '{}'
 
   Environment:
     type: object
@@ -200,6 +203,9 @@ definitions:
       password:
         type: string
       json:
+        type: string
+        example: '{}'
+      env:
         type: string
         example: '{}'
 
