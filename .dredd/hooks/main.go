@@ -91,7 +91,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Removes environment > 204 > application/json", capabilityWrapper("environment"))
 
 	h.Before("project > /api/project/{project_id}/templates > create template > 201 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment"})
+		addCapabilities([]string{"repository", "inventory", "environment", "view"})
 	})
 
 	h.Before("project > /api/project/{project_id}/templates/{template_id} > Get template > 200 > application/json", capabilityWrapper("template"))

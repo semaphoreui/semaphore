@@ -107,6 +107,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			templateID, _ = res.LastInsertId()
 		case "task":
 			task = addTask()
+		default:
+			panic("unknown capability " + v)
 		}
 		resolved = append(resolved, v)
 	}
