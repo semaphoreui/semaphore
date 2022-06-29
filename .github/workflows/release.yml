@@ -33,8 +33,8 @@ jobs:
 
 
   deploy-prod:
-    uns-on: [ubuntu-latest]
-    teps:
+    runs-on: [ubuntu-latest]
+    steps:
       - uses: actions/setup-go@v3
         with: { go-version: 1.18 }
 
