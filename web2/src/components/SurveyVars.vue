@@ -5,7 +5,7 @@
       hide-overlay
       width="300"
     >
-      <v-card>
+      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
         <v-card-title></v-card-title>
         <v-card-text class="pb-0">
           <v-form v-if="editedVar != null">
@@ -59,7 +59,12 @@
     <fieldset style="padding: 0 10px 5px 10px;
                      border: 1px solid rgba(0, 0, 0, 0.38);
                      border-radius: 4px;
-                     font-size: 12px;">
+                     font-size: 12px;"
+              :style="{
+                       'border-color': $vuetify.theme.dark ?
+                         'rgba(200, 200, 200, 0.38)' :
+                         'rgba(0, 0, 0, 0.38)'
+                     }">
       <legend style="padding: 0 3px;">Survey Variables</legend>
       <v-chip-group column>
         <v-chip

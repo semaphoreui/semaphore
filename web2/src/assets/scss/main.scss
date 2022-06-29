@@ -58,3 +58,11 @@ $mdi-font-path: "~@mdi/font/fonts";
 }
 
 @import '~vuetify/src/styles/main';
+
+.v-application.theme--dark .v-overlay__scrim {
+  background: white !important;
+}
+
+.v-bottom-sheet > .v-sheet.theme--dark {
+  background: #212121;
+}
