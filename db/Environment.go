@@ -11,7 +11,7 @@ type Environment struct {
 	ProjectID int     `db:"project_id" json:"project_id"`
 	Password  *string `db:"password" json:"password"`
 	JSON      string  `db:"json" json:"json" binding:"required"`
-	ENV       string  `db:"env" json:"env" binding:"required"`
+	ENV       *string `db:"env" json:"env" binding:"required"`
 }
 
 func (env *Environment) Validate() error {
@@ -23,7 +23,7 @@ func (env *Environment) Validate() error {
 		return &ValidationError{"Extra variables must be valid JSON"}
 	}
 
-	if !json.Valid([]byte(env.ENV)) && env.ENV != "" {
+	if env.ENV != nil && !json.Valid([]byte(*env.ENV)) {
 		return &ValidationError{"Environment variables must be valid JSON"}
 	}
 

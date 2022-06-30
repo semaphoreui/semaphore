@@ -574,8 +574,8 @@ func (t *TaskRunner) runPlaybook() (err error) {
 func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {
 	environmentVars := make(map[string]string)
 
-	if t.environment.ENV != "" {
-		err = json.Unmarshal([]byte(t.environment.ENV), &environmentVars)
+	if t.environment.ENV != nil {
+		err = json.Unmarshal([]byte(*t.environment.ENV), &environmentVars)
 		if err != nil {
 			return
 		}
@@ -718,7 +718,6 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			return
 		}
 	}
-	
 
 	var taskExtraArgs []string
 	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
@@ -728,9 +727,9 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			return
 		}
 	}
-    
-    if t.task.Limit != "" {
-		t.Log("--limit="+t.task.Limit)
+
+	if t.task.Limit != "" {
+		t.Log("--limit=" + t.task.Limit)
 		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
