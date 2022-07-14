@@ -65,6 +65,11 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("Telegram chat ID", "", &conf.TelegramChat)
 	}
 
+	askConfirmation("Enable slack alerts?", false, &conf.SlackAlert)
+	if conf.SlackAlert {
+		askValue("Slack Webhook URL", "", &conf.SlackUrl)
+	}
+
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
