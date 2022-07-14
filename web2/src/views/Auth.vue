@@ -87,7 +87,6 @@
           v-model="username"
           label="Username"
           :rules="[v => !!v || 'Username is required']"
-          autofocus
           required
           :disabled="signInProcess"
         ></v-text-field>

@@ -60,7 +60,7 @@
       @yes="remove()"
     />
 
-    <v-toolbar flat color="white">
+    <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
         <router-link
@@ -86,7 +86,6 @@
 
       <v-btn
         icon
-        color="black"
         @click="copyDialog = true"
       >
         <v-icon>mdi-content-copy</v-icon>
@@ -94,7 +93,6 @@
 
       <v-btn
         icon
-        color="black"
         @click="editDialog = true"
       >
         <v-icon>mdi-pencil</v-icon>

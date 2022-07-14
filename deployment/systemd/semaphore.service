@@ -5,6 +5,7 @@ Requires=network.target
 [Service]
 EnvironmentFile=/etc/semaphore/env
 ExecStart=/usr/bin/semaphore server --config ${SEMAPHORE_CONFIG}
+ExecReload=/bin/kill -HUP $MAINPID
 User=semaphore
 Group=semaphore
 Restart=always

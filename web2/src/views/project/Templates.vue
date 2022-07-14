@@ -72,7 +72,7 @@
       </template>
     </EditDialog>
 
-    <v-toolbar flat color="white">
+    <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
         Task Templates
@@ -197,7 +197,7 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn text color="black" class="pl-1 pr-2" @click="createTask(item.id)">
+        <v-btn text class="pl-1 pr-2" @click="createTask(item.id)">
           <v-icon class="pr-1">mdi-replay</v-icon>
           {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
         </v-btn>

@@ -3,12 +3,13 @@ package api
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/go-ldap/ldap/v3"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/go-ldap/ldap/v3"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -84,7 +85,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	}
 
 	ldapUser := db.User{
-		Username: sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID),
+		Username: strings.ToLower(sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID)),
 		Created:  time.Now(),
 		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
 		Email:    sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Mail),

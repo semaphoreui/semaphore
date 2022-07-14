@@ -24,7 +24,7 @@ package:
     installed: true
   nodejs:
     installed: false
-  openssh-client:
+  openssh-client-default:
     installed: true
   tini:
     installed: true

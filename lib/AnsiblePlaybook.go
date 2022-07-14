@@ -15,7 +15,7 @@ type AnsiblePlaybook struct {
 	Logger     Logger
 }
 
-func (p AnsiblePlaybook) makeCmd(command string, args []string) *exec.Cmd {
+func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = p.GetFullPath()
 
@@ -24,18 +24,21 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string) *exec.Cmd {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
 	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
+	if environmentVars != nil {
+		cmd.Env = append(cmd.Env, *environmentVars...)
+	}
 
 	return cmd
 }
 
 func (p AnsiblePlaybook) runCmd(command string, args []string) error {
-	cmd := p.makeCmd(command, args)
+	cmd := p.makeCmd(command, args, nil)
 	p.Logger.LogCmd(cmd)
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, cb func(*os.Process)) error {
-	cmd := p.makeCmd("ansible-playbook", args)
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()

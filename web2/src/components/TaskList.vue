@@ -67,7 +67,7 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn text color="black" class="pl-1 pr-2" @click="createTask(item)">
+        <v-btn text class="pl-1 pr-2" @click="createTask(item)">
           <v-icon class="pr-1">mdi-replay</v-icon>
           Re{{ getActionButtonTitle() }}
         </v-btn>

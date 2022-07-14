@@ -93,7 +93,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			inventoryID, _ = res.LastInsertId()
 		case "environment":
 			res, err := store.Sql().Exec(
-				"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
+				"insert into project__environment (project_id, name, json, password, env) values (?, ?, ?, ?, '{}')",
 				userProject.ID, "ITI-"+uid, "{}", "test-pass")
 			printError(err)
 			environmentID, _ = res.LastInsertId()
@@ -107,6 +107,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			templateID, _ = res.LastInsertId()
 		case "task":
 			task = addTask()
+		default:
+			panic("unknown capability " + v)
 		}
 		resolved = append(resolved, v)
 	}

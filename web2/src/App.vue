@@ -105,7 +105,7 @@
     <v-navigation-drawer
         app
         dark
-        color="#005057"
+        :color="darkMode ? '#003236' : '#005057'"
         fixed
         width="260"
         v-model="drawer"
@@ -274,6 +274,14 @@
         <v-menu top max-width="235" nudge-top="12">
           <template v-slot:activator="{ on, attrs }">
             <v-list class="pa-0">
+              <v-list-item>
+                <v-switch
+                  v-model="darkMode"
+                  inset
+                  label="Dark Mode"
+                  persistent-hint
+                ></v-switch>
+              </v-list-item>
               <v-list-item
                   key="project"
                   v-bind="attrs"
@@ -565,6 +573,7 @@ export default {
       taskLogDialog: null,
       task: null,
       template: null,
+      darkMode: false,
     };
   },
 
@@ -585,6 +594,15 @@ export default {
         if (taskId) {
           EventBus.$emit('i-show-task', { taskId });
         }
+      }
+    },
+
+    darkMode(val) {
+      this.$vuetify.theme.dark = val;
+      if (val) {
+        localStorage.setItem('darkMode', '1');
+      } else {
+        localStorage.removeItem('darkMode');
       }
     },
   },
@@ -621,6 +639,10 @@ export default {
       }
       this.state = 'success';
       return;
+    }
+
+    if (localStorage.getItem('darkMode') === '1') {
+      this.darkMode = true;
     }
 
     try {

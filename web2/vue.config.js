@@ -1,4 +1,9 @@
 module.exports = {
+  configureWebpack: {
+    devServer: {
+      historyApiFallback: true,
+    },
+  },
   chainWebpack: (config) => {
     config.plugin('html')
       .tap((args) => {

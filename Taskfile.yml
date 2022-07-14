@@ -6,7 +6,7 @@
 version: '2'
 
 vars:
-  docker_namespace: ansiblesemaphore
+  docker_namespace: semaphoreui
   docker_image: semaphore
 
 
@@ -37,21 +37,21 @@ tasks:
     dir: web2
     cmds:
       - npm install
-      - npm audit fix
+      # - npm audit fix
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
     dir: web2
     cmds:
       - npm install dredd@13.1.2
-      - npm audit fix
+      # - npm audit fix
 
   deps:tools:
     desc: Installs tools needed
     dir: web2
     vars:
       GORELEASER_VERSION: "0.159.0"
-      GOLINTER_VERSION: "1.31.0"
+      GOLINTER_VERSION: "1.46.2"
     cmds:
       - go install github.com/gobuffalo/packr/...@v1.10.4
       - go install github.com/haya14busa/goverage@latest

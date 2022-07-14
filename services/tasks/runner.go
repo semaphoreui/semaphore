@@ -561,11 +561,33 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
+	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
 	return lib.AnsiblePlaybook{
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
-	}.RunPlaybook(args, func(p *os.Process) { t.process = p })
+	}.RunPlaybook(args, &environmentVariables, func(p *os.Process) { t.process = p })
+}
+
+func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {
+	environmentVars := make(map[string]string)
+
+	if t.environment.ENV != nil {
+		err = json.Unmarshal([]byte(*t.environment.ENV), &environmentVars)
+		if err != nil {
+			return
+		}
+	}
+
+	for key, val := range environmentVars {
+		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	return
 }
 
 func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
@@ -628,8 +650,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	switch t.inventory.Type {
 	case db.InventoryFile:
 		inventory = t.inventory.Inventory
-	case db.InventoryStatic:
+	case db.InventoryStatic, db.InventoryStaticYaml:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+		if t.inventory.Type == db.InventoryStaticYaml {
+			inventory += ".yml"
+		}
 	default:
 		err = fmt.Errorf("invalid invetory type")
 		return
@@ -703,6 +728,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
+	}
+
+	if t.task.Limit != "" {
+		t.Log("--limit=" + t.task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)

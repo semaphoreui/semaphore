@@ -61,7 +61,7 @@
 
     <v-row>
       <v-col cols="12" md="6" class="pb-0">
-        <v-card class="mb-6">
+        <v-card class="mb-6" :color="$vuetify.theme.dark ? '#212121' : 'white'">
           <v-tabs
             fixed-tabs
             v-model="itemTypeIndex"
@@ -261,10 +261,10 @@ Example:
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
-import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
 import { codemirror } from 'vue-codemirror';
+import ItemFormBase from '@/components/ItemFormBase';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/lint/json-lint.js';

@@ -84,53 +84,38 @@
     <v-select
         v-model="item.ssh_key_id"
         label="Access Key"
-        append-outer-icon="mdi-help-circle"
         :items="keys"
         item-value="id"
         item-text="name"
         :rules="[v => !!v || 'Key is required']"
         required
         :disabled="formSaving"
-        @click:append-outer="showHelpDialog('key')"
-    ></v-select>
-
-    <v-dialog
-        v-model="helpDialog"
-        hide-overlay
-        width="300"
     >
-      <v-alert
-          border="top"
-          colored-border
-          type="info"
-          elevation="2"
-          class="mb-0"
-      >
-        <div v-if="helpKey === 'url'">
-          <p>
-            Address of the repository with your Ansible playbooks. It can be:
-          </p>
-          <ul>
-            <li>Git URL <code>git://</code></li>
-            <li>SSH URL <code>ssh://</code></li>
-            <li>HTTPS URL <code>https://</code></li>
-            <li>file URL <code>file://</code></li>
-          </ul>
-        </div>
-        <div v-else-if="helpKey === 'key'">
-          <p>Credentials to access to the Git repository. It should be:</p>
-          <ul>
-            <li><code>SSH</code> if you use Git or SSH URL.</li>
-            <li><code>None</code> if you use HTTPS or file URL.</li>
-          </ul>
-        </div>
-      </v-alert>
-    </v-dialog>
+      <template v-slot:append-outer>
+        <v-tooltip left color="black" content-class="opacity1">
+          <template v-slot:activator="{ on, attrs }">
+            <v-icon
+              v-bind="attrs"
+              v-on="on"
+            >
+              mdi-help-circle
+            </v-icon>
+          </template>
+          <div class="py-4">
+            <p>Credentials to access to the Git repository. It should be:</p>
+            <ul>
+              <li><code>SSH</code> if you use Git or SSH URL.</li>
+              <li><code>None</code> if you use HTTPS or file URL.</li>
+            </ul>
+          </div>
+        </v-tooltip>
+      </template>
+    </v-select>
   </v-form>
 </template>
 <script>
-import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
@@ -143,6 +128,9 @@ export default {
       inventoryTypes: [{
         id: 'static',
         name: 'Static',
+      }, {
+        id: 'static-yaml',
+        name: 'Static YAML',
       }, {
         id: 'file',
         name: 'File',

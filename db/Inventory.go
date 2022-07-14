@@ -1,8 +1,9 @@
 package db
 
 const (
-	InventoryStatic = "static"
-	InventoryFile   = "file"
+	InventoryStatic     = "static"
+	InventoryStaticYaml = "static-yaml"
+	InventoryFile       = "file"
 )
 
 // Inventory is the model of an ansible inventory file
