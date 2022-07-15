@@ -13,7 +13,7 @@ RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
 FROM frolvlad/alpine-glibc:alpine-3.16 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
-RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini && \
+RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
