@@ -13,6 +13,7 @@
     "ansi-to-html": "^0.7.2",
     "axios": "^0.21.4",
     "core-js": "^3.23.2",
+    "eslint-plugin-vuejs-accessibility": "^1.2.0",
     "moment": "^2.29.3",
     "vue": "^2.6.14",
     "vue-codemirror": "^4.0.6",
@@ -33,6 +34,8 @@
     "eslint": "^7.32.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-vue": "^9.1.1",
+    "glob-parent": ">=5.1.2",
+    "nanoid": ">=3.1.31",
     "nyc": "^15.1.0",
     "sass": "~1.32.12",
     "sass-loader": "^13.0.0",
@@ -40,8 +43,6 @@
     "stylus-loader": "^3.0.2",
     "vue-cli-plugin-vuetify": "~2.0.7",
     "vue-template-compiler": "^2.6.14",
-    "vuetify-loader": "^1.8.0",
-    "glob-parent": ">=5.1.2",
-    "nanoid": ">=3.1.31"
+    "vuetify-loader": "^1.8.0"
   }
 }
