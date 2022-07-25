@@ -155,19 +155,12 @@ func (p *TaskPool) Run() {
 }
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
-
 	if len(p.runningTasks) >= util.Config.MaxParallelTasks {
 		return true
 	}
 
 	if p.activeProj[t.task.ProjectID] == nil || len(p.activeProj[t.task.ProjectID]) == 0 {
 		return false
-	}
-
-	for _, r := range p.activeProj[t.task.ProjectID] {
-		if r.template.ID == t.task.TemplateID {
-			return true
-		}
 	}
 
 	proj, err := p.store.GetProject(t.task.ProjectID)
