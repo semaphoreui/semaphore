@@ -70,6 +70,4 @@ nfpms:
     bindir: /usr/bin
 
 release:
-  # Do not auto publish release
-  draft: true
   name_template: "{{.Tag}}"
