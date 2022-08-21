@@ -53,8 +53,7 @@ tasks:
       GORELEASER_VERSION: "0.159.0"
       GOLINTER_VERSION: "1.46.2"
     cmds:
-      - go install github.com/gobuffalo/packr/...@v1.10.4
-      - go install github.com/haya14busa/goverage@latest
+      - go install github.com/gobuffalo/packr/v2@latest
       - go install github.com/snikch/goodman/cmd/goodman@latest
       - go install github.com/go-swagger/go-swagger/cmd/swagger@latest
       - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
@@ -100,7 +99,7 @@ tasks:
     cmds:
       - mkdir -p web2/dist
       - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
-      - packr
+      - packr2
     vars:
       TAG:
         sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null | sed -n 's/^\([^^~]\{1,\}\)\(\^0\)\{0,1\}$/\1/p'
@@ -157,9 +156,7 @@ tasks:
     cmds:
       - go vet ./...
       - swagger validate ./api-docs.yml
-      # 2> /dev/null makes goverage less noisy about pattern matching
-      # if no tests exist but will still print failing test results
-      - goverage -v -coverprofile=coverage.out ./... 2> /dev/null
+      - go test -v -coverprofile=coverage.out ./... 2> /dev/null
 
   test:api:
     desc: test the api with dredd
