@@ -23,9 +23,9 @@ tasks:
   deps:
     desc: Install all dependencies (except dredd requirements)
     cmds:
-     - task: deps:tools
-     - task: deps:be
-     - task: deps:fe2
+      - task: deps:tools
+      - task: deps:be
+      - task: deps:fe2
 
   deps:be:
     desc: Vendor application dependencies
