@@ -64,13 +64,27 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, fmt.Errorf("too many entries returned")
 	}
 
-	// Bind as the user to verify their password
+	// Bind as the user
 	userdn := sr.Entries[0].DN
 	if err = l.Bind(userdn, password); err != nil {
 		return nil, err
 	}
 
-	// Get user info and ensure authentication in case LDAP supports unauthenticated bind
+	// Ensure authentication and verify itself with whoami operation
+	var res *ldap.WhoAmIResult
+	if res, err = l.WhoAmI(nil); err != nil {
+		return nil, err
+	}
+	if len(res.AuthzID) <= 0 {
+		return nil, fmt.Errorf("error while doing whoami operation")
+	}
+
+	// Second time bind as read only user
+	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+		return nil, err
+	}
+
+	// Get user info
 	searchRequest = ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
@@ -82,6 +96,10 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	sr, err = l.Search(searchRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(sr.Entries) <= 0 {
+		return nil, fmt.Errorf("ldap search returned no entries")
 	}
 
 	ldapUser := db.User{
@@ -128,7 +146,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
