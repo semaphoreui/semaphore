@@ -61,6 +61,16 @@
       >
         ssh
       </v-chip>
+
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='https' ? 'primary' : ''"
+        @click="setType('https')"
+        style="font-weight: bold;"
+      >
+        https
+      </v-chip>
       <span class="caption ml-3">local:</span>
       <v-chip
         x-small
@@ -166,7 +176,7 @@ export default {
         return 'ssh';
       }
 
-      if (!['git', 'file', 'ssh'].includes(m[1])) {
+      if (!['git', 'file', 'ssh', 'https'].includes(m[1])) {
         return null;
       }
 
