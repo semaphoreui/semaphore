@@ -42,9 +42,24 @@ Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and S
 
 ## Installation
 
+### Full documentation
 https://docs.ansible-semaphore.com/administration-guide/installation
 
+### Snap
+
+```
+sudo snap stop semaphore
+sudo semaphore user add --admin --name "Your Name" --login your_login --email your-email@examaple.com --password your_password
+sudo snap start semaphore
+```
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
+
+### Docker 
+
+```
+docker pull semaphoreui/semaphore
+```
+https://hub.docker.com/r/semaphoreui/semaphore
 
 ## Demo
 
@@ -54,7 +69,7 @@ You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
 
 Admin and user docs: https://docs.ansible-semaphore.com
 
-API docs: https://ansible-semaphore.com/api/
+API description: https://ansible-semaphore.com/api/
 
 ## Contributing
 
