@@ -20,11 +20,26 @@
       class="mb-4"
     ></v-text-field>
 
+    <v-subheader>
+      Extra variables
+    </v-subheader>
+
     <codemirror
         :style="{ border: '1px solid lightgray' }"
         v-model="item.json"
         :options="cmOptions"
-        placeholder="Enter environment JSON..."
+        placeholder="Enter extra variables JSON..."
+    />
+
+    <v-subheader>
+      Environment variables
+    </v-subheader>
+
+    <codemirror
+        :style="{ border: '1px solid lightgray' }"
+        v-model="item.env"
+        :options="cmOptions"
+        placeholder="Enter env JSON..."
     />
 
     <v-alert
@@ -33,11 +48,11 @@
         type="info"
         class="mt-4"
     >
-      Environment must be valid JSON.
+      Environment and extra variables must be valid JSON.
       Example:
       <pre style="font-size: 14px;">{
   "var_available_in_playbook_1": 1245,
-  "var_available_in_playbook_2": "test",
+  "var_available_in_playbook_2": "test"
 }</pre>
     </v-alert>
   </v-form>

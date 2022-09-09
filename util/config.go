@@ -98,6 +98,9 @@ type ConfigType struct {
 	TelegramChat  string `json:"telegram_chat"`
 	TelegramToken string `json:"telegram_token"`
 
+	// slack alerting
+	SlackUrl string `json:"slack_url"`
+
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks"`
 
@@ -108,6 +111,7 @@ type ConfigType struct {
 	EmailAlert    bool `json:"email_alert"`
 	EmailSecure   bool `json:"email_secure"`
 	TelegramAlert bool `json:"telegram_alert"`
+	SlackAlert    bool `json:"slack_alert"`
 	LdapEnable    bool `json:"ldap_enable"`
 	LdapNeedTLS   bool `json:"ldap_needtls"`
 

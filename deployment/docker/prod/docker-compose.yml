@@ -13,7 +13,7 @@ services:
       MYSQL_PASSWORD: hx4hjxqthfwbfsy5535u4agfdscm
 
   semaphore:
-    image: ansiblesemaphore/semaphore:prod-compose
+    image: semaphoreui/semaphore:prod-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/prod/Dockerfile

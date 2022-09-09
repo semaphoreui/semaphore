@@ -71,7 +71,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	template.ProjectID = project.ID
-	template, err := helpers.Store(r).CreateTemplate(template)
+	newTemplate, err := helpers.Store(r).CreateTemplate(template)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -80,13 +80,13 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 	objType := db.EventTemplate
-	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
+	desc := "Template ID " + strconv.Itoa(newTemplate.ID) + " created"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
-		ObjectID:    &template.ID,
+		ObjectID:    &newTemplate.ID,
 		Description: &desc,
 	})
 
@@ -94,7 +94,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, template)
+	helpers.WriteJSON(w, http.StatusCreated, newTemplate)
 }
 
 // UpdateTemplate writes a template to an existing key in the database

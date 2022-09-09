@@ -10,7 +10,6 @@
     <span v-if="disabled">{{ label }}</span>
     <v-tooltip
         v-else
-        color="black"
         right
         max-width="350"
         transition="fade-transition"

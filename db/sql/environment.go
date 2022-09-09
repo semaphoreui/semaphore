@@ -28,9 +28,10 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 	}
 
 	_, err = d.exec(
-		"update project__environment set name=?, json=? where id=?",
+		"update project__environment set name=?, json=?, env=? where id=?",
 		env.Name,
 		env.JSON,
+		env.ENV,
 		env.ID)
 	return err
 }
@@ -44,10 +45,11 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
+		"insert into project__environment (project_id, name, json, env, password) values (?, ?, ?, ?, ?)",
 		env.ProjectID,
 		env.Name,
 		env.JSON,
+		env.ENV,
 		env.Password)
 
 	if err != nil {

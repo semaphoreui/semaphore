@@ -35,7 +35,7 @@
       label="Max number of parallel tasks (Optional)"
       :disabled="formSaving"
       :rules="[
-        v => Math.floor(v) == v || 'Must be integer',
+        v => (v == null || v === '' || Math.floor(v) === v) || 'Must be integer',
         v => (v == null || v === '' || v >= 0) || 'Must be 0 or greater',
       ]"
       hint="Should be 0 or greater, 0 - unlimited."

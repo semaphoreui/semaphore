@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var tablesShouldBeTruncated = [...]string {
+var tablesShouldBeTruncated = [...]string{
 	"access_key",
 	"event",
 	"user__token",
@@ -30,6 +30,7 @@ var tablesShouldBeTruncated = [...]string {
 	"user",
 	"project__view",
 }
+
 // Test Runner User
 func addTestRunnerUser() {
 	uid := getUUID()
@@ -88,14 +89,14 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 func addUserProjectRelation(pid int, user int) {
 	_, err := store.Sql().Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, 1)", pid, user)
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
 func deleteUserProjectRelation(pid int, user int) {
 	_, err := store.Sql().Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
@@ -105,11 +106,11 @@ func addAccessKey(pid *int) *db.AccessKey {
 	key := db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",
-		Secret:	   &secret,
+		Secret:    &secret,
 		ProjectID: pid,
 	}
 	if err := store.Sql().Insert(&key); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	return &key
 }
@@ -121,7 +122,7 @@ func addProject() *db.Project {
 		Created: time.Now(),
 	}
 	if err := store.Sql().Insert(&project); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	return &project
 }
@@ -134,21 +135,20 @@ func addUser() *db.User {
 		Email:    "test@semaphore." + uid,
 	}
 	if err := store.Sql().Insert(&user); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	return &user
 }
 
-
 func addView() *db.View {
 	view, err := store.CreateView(db.View{
 		ProjectID: userProject.ID,
-		Title: "Test",
-		Position: 1,
+		Title:     "Test",
+		Position:  1,
 	})
 
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
 	return &view
@@ -158,26 +158,32 @@ func addSchedule() *db.Schedule {
 	schedule, err := store.CreateSchedule(db.Schedule{
 		TemplateID: int(templateID),
 		CronFormat: "* * * 1 *",
-		ProjectID: userProject.ID,
+		ProjectID:  userProject.ID,
 	})
 
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
 	return &schedule
 }
 
-
 func addTask() *db.Task {
 	t := db.Task{
+		ProjectID:  userProject.ID,
 		TemplateID: int(templateID),
-		Status: "testing",
-		UserID: &userPathTestUser.ID,
-		Created: db.GetParsedTime(time.Now()),
+		Status:     "testing",
+		UserID:     &userPathTestUser.ID,
+		Created:    db.GetParsedTime(time.Now()),
 	}
 	if err := store.Sql().Insert(&t); err != nil {
-		fmt.Println(err)
+		fmt.Println("error during insertion of task:")
+		if j, err := json.Marshal(t); err == nil {
+			fmt.Println(string(j))
+		} else {
+			fmt.Println("can not stringify task object")
+		}
+		panic(err)
 	}
 	return &t
 }
@@ -185,7 +191,7 @@ func addTask() *db.Task {
 func deleteObject(i interface{}) {
 	_, err := store.Sql().Delete(i)
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
@@ -198,7 +204,7 @@ func addToken(tok string, user int) {
 		Expired: false,
 	}
 	if err := store.Sql().Insert(&token); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
@@ -261,6 +267,7 @@ func stringInSlice(a string, list []string) (int, bool) {
 
 func printError(err error) {
 	if err != nil {
-		fmt.Println(err)
+		//fmt.Println(err)
+		panic(err)
 	}
 }

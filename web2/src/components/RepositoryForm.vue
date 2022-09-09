@@ -41,9 +41,43 @@
         :color="type ===x ? 'primary' : ''"
         @click="setType(x)"
         style="font-weight: bold;"
+<<<<<<< HEAD
         :key="x"
       >{{ x }}</v-chip>
 
+=======
+      >
+        file
+      </v-chip>
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='git' ? 'primary' : ''"
+        @click="setType('git')"
+        style="font-weight: bold;"
+      >
+        git
+      </v-chip>
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='ssh' ? 'primary' : ''"
+        @click="setType('ssh')"
+        style="font-weight: bold;"
+      >
+        ssh
+      </v-chip>
+
+      <v-chip
+        x-small
+        class="ml-1"
+        :color="type ==='https' ? 'primary' : ''"
+        @click="setType('https')"
+        style="font-weight: bold;"
+      >
+        https
+      </v-chip>
+>>>>>>> f02c260e3509fb17a3b23f24fb62d16cd7fb6493
       <span class="caption ml-3">local:</span>
       <v-chip
         x-small
@@ -67,53 +101,38 @@
     <v-select
         v-model="item.ssh_key_id"
         label="Access Key"
-        append-outer-icon="mdi-help-circle"
         :items="keys"
         item-value="id"
         item-text="name"
         :rules="[v => !!v || 'Key is required']"
         required
         :disabled="formSaving"
-        @click:append-outer="showHelpDialog('key')"
-    ></v-select>
-
-    <v-dialog
-        v-model="helpDialog"
-        hide-overlay
-        width="300"
     >
-      <v-alert
-          border="top"
-          colored-border
-          type="info"
-          elevation="2"
-          class="mb-0"
-      >
-        <div v-if="helpKey === 'url'">
-          <p>
-            Address of the repository with your Ansible playbooks. It can be:
-          </p>
-          <ul>
-            <li>Git URL <code>git://</code></li>
-            <li>SSH URL <code>ssh://</code></li>
-            <li>HTTPS URL <code>https://</code></li>
-            <li>file URL <code>file://</code></li>
-          </ul>
-        </div>
-        <div v-else-if="helpKey === 'key'">
-          <p>Credentials to access to the Git repository. It should be:</p>
-          <ul>
-            <li><code>SSH</code> if you use Git or SSH URL.</li>
-            <li><code>None</code> if you use HTTPS or file URL.</li>
-          </ul>
-        </div>
-      </v-alert>
-    </v-dialog>
+      <template v-slot:append-outer>
+        <v-tooltip left color="black" content-class="opacity1">
+          <template v-slot:activator="{ on, attrs }">
+            <v-icon
+              v-bind="attrs"
+              v-on="on"
+            >
+              mdi-help-circle
+            </v-icon>
+          </template>
+          <div class="py-4">
+            <p>Credentials to access to the Git repository. It should be:</p>
+            <ul>
+              <li><code>SSH</code> if you use Git or SSH URL.</li>
+              <li><code>None</code> if you use HTTPS or file URL.</li>
+            </ul>
+          </div>
+        </v-tooltip>
+      </template>
+    </v-select>
   </v-form>
 </template>
 <script>
-import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
