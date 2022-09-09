@@ -41,43 +41,8 @@
         :color="type ===x ? 'primary' : ''"
         @click="setType(x)"
         style="font-weight: bold;"
-<<<<<<< HEAD
         :key="x"
       >{{ x }}</v-chip>
-
-=======
-      >
-        file
-      </v-chip>
-      <v-chip
-        x-small
-        class="ml-1"
-        :color="type ==='git' ? 'primary' : ''"
-        @click="setType('git')"
-        style="font-weight: bold;"
-      >
-        git
-      </v-chip>
-      <v-chip
-        x-small
-        class="ml-1"
-        :color="type ==='ssh' ? 'primary' : ''"
-        @click="setType('ssh')"
-        style="font-weight: bold;"
-      >
-        ssh
-      </v-chip>
-
-      <v-chip
-        x-small
-        class="ml-1"
-        :color="type ==='https' ? 'primary' : ''"
-        @click="setType('https')"
-        style="font-weight: bold;"
-      >
-        https
-      </v-chip>
->>>>>>> f02c260e3509fb17a3b23f24fb62d16cd7fb6493
       <span class="caption ml-3">local:</span>
       <v-chip
         x-small
