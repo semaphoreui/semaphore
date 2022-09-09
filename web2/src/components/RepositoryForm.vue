@@ -35,32 +35,15 @@
     <div class="mt-1 mb-4">
       <span class="caption">git:</span>
       <v-chip
+        v-for="x in ['ssh', 'https', 'file', 'git']"
         x-small
         class="ml-1"
-        :color="type ==='file' ? 'primary' : ''"
-        @click="setType('file')"
+        :color="type ===x ? 'primary' : ''"
+        @click="setType(x)"
         style="font-weight: bold;"
-      >
-        file
-      </v-chip>
-      <v-chip
-        x-small
-        class="ml-1"
-        :color="type ==='git' ? 'primary' : ''"
-        @click="setType('git')"
-        style="font-weight: bold;"
-      >
-        git
-      </v-chip>
-      <v-chip
-        x-small
-        class="ml-1"
-        :color="type ==='ssh' ? 'primary' : ''"
-        @click="setType('ssh')"
-        style="font-weight: bold;"
-      >
-        ssh
-      </v-chip>
+        :key="x"
+      >{{ x }}</v-chip>
+
       <span class="caption ml-3">local:</span>
       <v-chip
         x-small
@@ -181,7 +164,7 @@ export default {
         return 'ssh';
       }
 
-      if (!['git', 'file', 'ssh'].includes(m[1])) {
+      if (!['git', 'file', 'ssh', 'https'].includes(m[1])) {
         return null;
       }
 
