@@ -49,17 +49,20 @@ export SEMAPHORE_ACCESS_KEY_ENCRYPTION="${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-cFcXI
 }
 
 # wait on db to be up
-echoerr "Attempting to connect to database ${SEMAPHORE_DB} on ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT} with user ${SEMAPHORE_DB_USER} ..."
-TIMEOUT=30
-while ! $(nc -z "$SEMAPHORE_DB_HOST" "$SEMAPHORE_DB_PORT") >/dev/null 2>&1; do
-    TIMEOUT=$(expr $TIMEOUT - 1)
-    if [ $TIMEOUT -eq 0 ]; then
-        echoerr "Could not connect to database server. Exiting."
-        exit 1
-    fi
-    echo -n "."
-    sleep 1
-done
+
+if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
+  echoerr "Attempting to connect to database ${SEMAPHORE_DB} on ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT} with user ${SEMAPHORE_DB_USER} ..."
+  TIMEOUT=30
+  while ! $(nc -z "$SEMAPHORE_DB_HOST" "$SEMAPHORE_DB_PORT") >/dev/null 2>&1; do
+      TIMEOUT=$(expr $TIMEOUT - 1)
+      if [ $TIMEOUT -eq 0 ]; then
+          echoerr "Could not connect to database server. Exiting."
+          exit 1
+      fi
+      echo -n "."
+      sleep 1
+  done
+fi
 
 case ${SEMAPHORE_DB_DIALECT} in
     mysql) SEMAPHORE_DB_DIALECT_ID=1;;
