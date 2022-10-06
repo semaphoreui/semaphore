@@ -71,6 +71,7 @@ services:
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ADMIN: admin
 ```
+https://hub.docker.com/r/semaphoreui/semaphore
 
 ## Demo
 
