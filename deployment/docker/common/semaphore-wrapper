@@ -43,13 +43,13 @@ export SEMAPHORE_ACCESS_KEY_ENCRYPTION="${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-cFcXI
     exit 1
 }
 
-[ -d "${SEMAPHORE_DB_PATH}" ] || mkdir -p "${SEMAPHORE_DB_PATH}" || {
-    echo "Can't create BoltDB path ${SEMAPHORE_DB_PATH}."
+[ -d "${SEMAPHORE_CONFIG_PATH}" ] || mkdir -p "${SEMAPHORE_CONFIG_PATH}" || {
+    echo "Can't create Semaphore Config path ${SEMAPHORE_CONFIG_PATH}."
     exit 1
 }
 
-[ -d "${SEMAPHORE_CONFIG_PATH}" ] || mkdir -p "${SEMAPHORE_CONFIG_PATH}" || {
-    echo "Can't create Semaphore Config path ${SEMAPHORE_CONFIG_PATH}."
+[ -d "${SEMAPHORE_DB_PATH}" ] || mkdir -p "${SEMAPHORE_DB_PATH}" || {
+    echo "Can't create data path ${SEMAPHORE_DB_PATH}."
     exit 1
 }
 

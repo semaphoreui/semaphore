@@ -17,8 +17,10 @@ RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-defa
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
+    mkdir -p /var/lib/semaphore && \
     chown -R semaphore:0 /tmp/semaphore && \
-    chown -R semaphore:0 /etc/semaphore
+    chown -R semaphore:0 /etc/semaphore && \
+    chown -R semaphore:0 /var/lib/semaphore
 
 COPY --from=builder /usr/local/bin/semaphore-wrapper /usr/local/bin/
 COPY --from=builder /usr/local/bin/semaphore /usr/local/bin/

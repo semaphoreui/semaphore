@@ -17,9 +17,11 @@ RUN adduser -D -u 1002 -g 0 semaphore && \
     mkdir -p /go/src/github.com/ansible-semaphore/semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
+    mkdir -p /var/lib/semaphore && \
     chown -R semaphore:0 /go && \
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
+    chown -R semaphore:0 /var/lib/semaphore && \
     ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""       && \
     ssh-keyscan -H github.com > /root/.ssh/known_hosts
 
