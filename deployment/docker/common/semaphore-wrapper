@@ -92,7 +92,7 @@ EOF
 
     if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
       cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_PATH}
+${SEMAPHORE_DB_PATH}/database.boltdb
 EOF
     else
       cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
