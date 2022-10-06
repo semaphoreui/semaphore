@@ -26,7 +26,6 @@ services:
       SEMAPHORE_DB_HOST: mysql
       SEMAPHORE_DB_PORT: 3306
       SEMAPHORE_DB: semaphore
-      SEMAPHORE_PLAYBOOK_PATH: /etc/semaphore
       SEMAPHORE_ADMIN_PASSWORD: password
       SEMAPHORE_ADMIN_NAME: "Developer"
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
