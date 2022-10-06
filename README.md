@@ -70,6 +70,9 @@ services:
       SEMAPHORE_ADMIN_NAME: admin
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ADMIN: admin
+    volumes:
+      - /path/to/data/home:/etc/semaphore # config.json location
+      - /path/to/data/lib:/var/lib/semaphore # database.boltdb location (Not required if using mysql or postgres)
 ```
 https://hub.docker.com/r/semaphoreui/semaphore
 
