@@ -46,8 +46,9 @@ https://docs.ansible-semaphore.com/administration-guide/installation
 
 ### Snap
 
-```
-sudo snap stop semaphore
+```bash
+sudo snap install semaphore
+sudo snap stop semaphore # BoltDB limitation, it allows only one connection
 sudo semaphore user add --admin --name "Your Name" --login your_login --email your-email@examaple.com --password your_password
 sudo snap start semaphore
 ```
@@ -55,10 +56,21 @@ sudo snap start semaphore
 
 ### Docker 
 
+`docker-compose.yml` for minimal configuration:
+
+```yaml
+services:
+  semaphore:
+    ports:
+      - 3000:3000
+    image: semaphoreui/semaphore:latest
+    environment:
+      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_ADMIN_PASSWORD: changeme
+      SEMAPHORE_ADMIN_NAME: admin
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
 ```
-docker pull semaphoreui/semaphore
-```
-https://hub.docker.com/r/semaphoreui/semaphore
 
 ## Demo
 
