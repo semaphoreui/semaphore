@@ -1,6 +1,5 @@
 # Ansible Semaphore
 
-[![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
 [![Twitter](https://img.shields.io/twitter/follow/AnsibleSem?style=social&logo=twitter)](https://twitter.com/AnsibleSem)
 [![Snap](https://img.shields.io/badge/snap-semaphore-005c63)](https://snapcraft.io/semaphore)
 [![StackShare](https://img.shields.io/badge/tech-stack-008ff9)](https://stackshare.io/ansible-semaphore)
