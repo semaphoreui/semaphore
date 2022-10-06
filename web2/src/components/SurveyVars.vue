@@ -11,7 +11,7 @@
           <v-form v-if="editedVar != null">
             <v-text-field
               label="Name"
-              v-model="editedVar.name"
+              v-model.trim="editedVar.name"
               required
             />
             <v-text-field
