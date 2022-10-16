@@ -4,13 +4,15 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/lib"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
@@ -45,6 +47,16 @@ func getMD5Hash(filepath string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func (t *TaskRunner) getPlaybookDir() string {
+	if strings.HasPrefix(t.task.Playbook, "/") {
+		return t.task.Playbook
+	}
+
+	playbookPath := path.Join(t.getRepoPath(), t.task.Playbook)
+
+	return path.Dir(playbookPath)
 }
 
 func (t *TaskRunner) getRepoPath() string {
@@ -479,7 +491,7 @@ func (t *TaskRunner) updateRepository() error {
 }
 
 func (t *TaskRunner) installCollectionsRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/collections/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {

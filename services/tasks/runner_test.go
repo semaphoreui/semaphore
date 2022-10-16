@@ -1,9 +1,6 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt"
-	"github.com/ansible-semaphore/semaphore/util"
 	"math/rand"
 	"os"
 	"path"
@@ -11,7 +8,41 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/bolt"
+	"github.com/ansible-semaphore/semaphore/util"
 )
+
+func TestGetRepoPath(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	inventoryID := 1
+
+	tsk := TaskRunner{
+		task: db.Task{
+			Playbook: "deploy/test.yml",
+		},
+		inventory: db.Inventory{
+			SSHKeyID: &inventoryID,
+			SSHKey: db.AccessKey{
+				ID:   12345,
+				Type: db.AccessKeySSH,
+			},
+			Type: db.InventoryStatic,
+		},
+		template: db.Template{
+			Playbook: "deploy/test.yml",
+		},
+	}
+
+	dir := tsk.getPlaybookDir()
+	if dir != "/tmp/repository_0_0/deploy" {
+		t.Fatal("Invalid playbook dir: " + dir)
+	}
+}
 
 func TestPopulateDetails(t *testing.T) {
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
