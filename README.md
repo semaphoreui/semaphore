@@ -1,7 +1,7 @@
 # Ansible Semaphore
 
 [![Twitter](https://img.shields.io/twitter/follow/AnsibleSem?style=social&logo=twitter)](https://twitter.com/AnsibleSem)
-[![Snap](https://img.shields.io/badge/snap-semaphore-005c63)](https://snapcraft.io/semaphore)
+[![semaphore](https://snapcraft.io/semaphore/badge.svg)](https://snapcraft.io/semaphore)
 [![StackShare](https://img.shields.io/badge/tech-stack-008ff9)](https://stackshare.io/ansible-semaphore)
 [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://img.shields.io/gitter/room/AnsibleSemaphore/semaphore?logo=gitter)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -46,8 +46,9 @@ https://docs.ansible-semaphore.com/administration-guide/installation
 
 ### Snap
 
-```
-sudo snap stop semaphore
+```bash
+sudo snap install semaphore
+sudo snap stop semaphore # BoltDB limitation, it allows only one connection
 sudo semaphore user add --admin --name "Your Name" --login your_login --email your-email@examaple.com --password your_password
 sudo snap start semaphore
 ```
@@ -55,8 +56,23 @@ sudo snap start semaphore
 
 ### Docker 
 
-```
-docker pull semaphoreui/semaphore
+`docker-compose.yml` for minimal configuration:
+
+```yaml
+services:
+  semaphore:
+    ports:
+      - 3000:3000
+    image: semaphoreui/semaphore:latest
+    environment:
+      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_ADMIN_PASSWORD: changeme
+      SEMAPHORE_ADMIN_NAME: admin
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
+    volumes:
+      - /path/to/data/home:/etc/semaphore # config.json location
+      - /path/to/data/lib:/var/lib/semaphore # database.boltdb location (Not required if using mysql or postgres)
 ```
 https://hub.docker.com/r/semaphoreui/semaphore
 
