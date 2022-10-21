@@ -70,10 +70,9 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 		if task.UserID != nil {
 			usr, ok := users[*task.UserID]
 			if !ok {
-				usr, err = d.GetUser(*task.UserID)
-				if err != nil {
-					return
-				}
+				// trying to get user , but ignore error, because
+				// user can be deleted, and it is ok
+				usr, _ = d.GetUser(*task.UserID)
 				users[*task.UserID] = usr
 			}
 			tasksWithTpl[i].UserName = &usr.Name
