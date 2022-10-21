@@ -212,6 +212,7 @@
           :items="repositories"
           item-value="id"
           item-text="name"
+          clearable
           :disabled="formSaving"
         ></v-select>
 
