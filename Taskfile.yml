@@ -262,6 +262,18 @@ tasks:
           tag: "{{ .tag }}"
           args: -t "{{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}" .
 
+  docker:buildx:
+    desc: Build a multiarch image for Semaphore, requires context
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - task: docker
+        vars:
+          context: "{{ .context }}"
+          action: buildx build
+          tag: "{{ .tag }}"
+          args: --platform=linux/amd64,linux/arm64 -t "{{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}" .
+
   deps:docker:
     desc: Install docker testing dependencies. These must be installed explicitly and are not included in the general deps task.
     status:
@@ -273,7 +285,7 @@ tasks:
       - sudo chmod +rx /usr/local/bin/goss
       - sudo curl -L https://raw.githubusercontent.com/aelsabbahy/goss/v0.3.5/extras/dgoss/dgoss -o /usr/local/bin/dgoss
       - sudo chmod +rx /usr/local/bin/dgoss
-      - sudo curl -L https://github.com/hadolint/hadolint/releases/download/v1.5.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+      - sudo curl -L https://github.com/hadolint/hadolint/releases/download/v2.10.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
       - sudo chmod +rx /usr/local/bin/hadolint
 
   docker:test:
