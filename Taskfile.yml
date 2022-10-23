@@ -50,7 +50,7 @@ tasks:
     desc: Installs tools needed
     dir: web2
     vars:
-      GORELEASER_VERSION: "0.159.0"
+      GORELEASER_VERSION: "0.183.0"
       GOLINTER_VERSION: "1.46.2"
     cmds:
       - go install github.com/gobuffalo/packr/...@v1.10.4
