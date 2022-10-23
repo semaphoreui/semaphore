@@ -1,16 +1,9 @@
-ARG BUILDPLATFORM=linux/amd64
-
 # ansible-semaphore production image
-FROM --platform=$BUILDPLATFORM golang:1.18.3-alpine3.16 as builder
+FROM golang:1.18.3-alpine3.16 as builder
 
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
-
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
-ENV GOOS="${TARGETOS}" 
-ENV GOARCH="${TARGETARCH}"
 
 RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
   ./deployment/docker/prod/bin/install
