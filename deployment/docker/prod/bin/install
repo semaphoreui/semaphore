@@ -11,8 +11,7 @@ set +e
 task compile
 set -e
 
-echo "GOOS=$1 GOARCH=$2 task build:local GOOS=$1 GOARCH=$2"
-GOOS=$1 GOARCH=$2 task build:local GOOS=$1 GOARCH=$2
+task build:local GOOS=$GOOS GOARCH=$GOARCH
 
 mv ./bin/semaphore /usr/local/bin/
 chown 1001:0 /usr/local/bin/semaphore

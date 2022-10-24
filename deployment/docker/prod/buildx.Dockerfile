@@ -12,7 +12,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 RUN apk add --no-cache -U libc-dev curl nodejs npm git
-RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} ./deployment/docker/prod/bin/install
 
 # Uses frolvlad alpine so we have access to glibc which is needed for golang
 # and when deploying in openshift
