@@ -1,23 +1,16 @@
-ARG BUILDPLATFORM=linux/amd64
-
 # ansible-semaphore production image
 FROM --platform=$BUILDPLATFORM golang:1.18.3-alpine3.16 as builder
-
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
-ENV GOOS="${TARGETOS}" 
-ENV GOARCH="${TARGETARCH}"
+ARG TARGETOS
+ARG TARGETARCH
 
-RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
-  ./deployment/docker/prod/bin/install
+RUN apk add --no-cache -U libc-dev curl nodejs npm git
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} ./deployment/docker/prod/bin/install
 
-# Uses frolvlad alpine so we have access to glibc which is needed for golang
-# and when deploying in openshift
-FROM frolvlad/alpine-glibc:alpine-3.16 as runner
+FROM alpine:3.16 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
 RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp && \
@@ -33,7 +26,9 @@ COPY --from=builder /usr/local/bin/semaphore-wrapper /usr/local/bin/
 COPY --from=builder /usr/local/bin/semaphore /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/semaphore-wrapper &&\
-    chown -R semaphore:0 /usr/local/bin/semaphore
+    chown -R semaphore:0 /usr/local/bin/semaphore &&\
+    chmod +x /usr/local/bin/semaphore-wrapper &&\
+    chmod +x /usr/local/bin/semaphore
 
 WORKDIR /home/semaphore
 USER 1001
