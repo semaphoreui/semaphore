@@ -127,8 +127,8 @@ tasks:
     desc: Build a binary for the current architecture
     dir: cli
     cmds:
-      - "echo \"*** Building for platform: ${GOOS}/${GOARCH} ***\""
-      - go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+      - "echo \"*** Building for platform: {{ .GOOS }}/{{ .GOARCH }} ***\""
+      - GOOS={{ .GOOS }} GOARCH={{ .GOARCH }} go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
 
   release:
     desc: creates a release without performing validations or publishing artifacts
