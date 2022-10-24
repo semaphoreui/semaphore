@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+echo "*** ENV VARS: ${BUILDPLATFORM}, ${TARGETOS}, ${TARGETARCH}, ${GOOS}, ${GOARCH}, ***"
+
 set -e
 
 # Get prerequisites for building the app
