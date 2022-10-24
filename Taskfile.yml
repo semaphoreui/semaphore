@@ -249,7 +249,6 @@ tasks:
           prefix: -dredd
           args: up
 
-
   docker:build:
     desc: Build an image for Semaphore, requires context
     vars:
@@ -261,18 +260,6 @@ tasks:
           action: build
           tag: "{{ .tag }}"
           args: -t "{{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}" .
-
-  docker:buildx:
-    desc: Build a multiarch image for Semaphore, requires context
-    vars:
-      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
-    cmds:
-      - task: docker
-        vars:
-          context: "{{ .context }}"
-          action: buildx build
-          tag: "{{ .tag }}"
-          args: --platform=linux/amd64,linux/arm64 -t "{{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}" .
 
   deps:docker:
     desc: Install docker testing dependencies. These must be installed explicitly and are not included in the general deps task.

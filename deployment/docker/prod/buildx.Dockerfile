@@ -32,7 +32,9 @@ COPY --from=builder /usr/local/bin/semaphore-wrapper /usr/local/bin/
 COPY --from=builder /usr/local/bin/semaphore /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/semaphore-wrapper &&\
-    chown -R semaphore:0 /usr/local/bin/semaphore
+    chown -R semaphore:0 /usr/local/bin/semaphore &&\
+    chmod +x /usr/local/bin/semaphore-wrapper &&\
+    chmod +x /usr/local/bin/semaphore
 
 WORKDIR /home/semaphore
 USER 1001
