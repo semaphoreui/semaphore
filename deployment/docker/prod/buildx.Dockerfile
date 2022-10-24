@@ -4,10 +4,6 @@ FROM --platform=$BUILDPLATFORM golang:1.18.3-alpine3.16 as builder
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 
-
-COPY ./ /go/src/github.com/ansible-semaphore/semaphore
-WORKDIR /go/src/github.com/ansible-semaphore/semaphore
-
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -16,7 +12,7 @@ RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} ./deployment/docker/prod/bin/install
 
 # Uses frolvlad alpine so we have access to glibc which is needed for golang
 # and when deploying in openshift
-FROM frolvlad/alpine-glibc:alpine-3.16 as runner
+FROM --platform=$TARGETPLATFORM alpine:3.16 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
 RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp && \
