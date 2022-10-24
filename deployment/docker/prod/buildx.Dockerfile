@@ -1,10 +1,8 @@
-ARG BUILDPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
-
 # ansible-semaphore production image
 FROM --platform=$BUILDPLATFORM golang:1.18.3-alpine3.16 as builder
 
+ARG TARGETOS
+ARG TARGETARCH
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
