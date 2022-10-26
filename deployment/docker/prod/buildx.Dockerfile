@@ -8,7 +8,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 RUN apk add --no-cache -U libc-dev curl nodejs npm git
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} ./deployment/docker/prod/bin/install
+RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
 FROM alpine:3.16 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
