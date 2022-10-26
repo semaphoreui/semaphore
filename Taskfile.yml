@@ -19,6 +19,9 @@ tasks:
       - task: compile
       - task: test
       - task: build:local
+        vars:
+          GOOS: ''
+          GOARCH: ''
 
   deps:
     desc: Install all dependencies (except dredd requirements)
