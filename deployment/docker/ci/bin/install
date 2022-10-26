@@ -11,4 +11,4 @@ echo "--> Install Semaphore entrypoint wrapper script"
 cp ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
 task deps
 task compile
-task build:local
+task build:local GOOS= GOARCH=

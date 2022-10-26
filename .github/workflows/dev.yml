@@ -25,7 +25,7 @@ jobs:
       - name: Test that compile did not create/modify untracked files
         run: git diff --exit-code --stat -- . ':(exclude)web2/package.json' ':(exclude)web2/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
 
-      - run: task build:local
+      - run: task build:local GOOS= GOARCH=
 
       - uses: actions/upload-artifact@master
         with:
