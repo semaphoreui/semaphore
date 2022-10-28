@@ -1,0 +1,1 @@
+ALTER TABLE task ADD diff boolean NOT NULL DEFAULT false;
