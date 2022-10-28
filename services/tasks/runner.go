@@ -707,6 +707,10 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "-vvvv")
 	}
 
+	if t.task.Diff {
+		args = append(args, "--diff")
+	}
+
 	if t.task.DryRun {
 		args = append(args, "--check")
 	}

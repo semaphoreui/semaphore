@@ -123,6 +123,10 @@ Example:
           v-model="item.dry_run"
           label="Dry Run"
         ></v-checkbox>
+        <v-checkbox
+          v-model="item.diff"
+          label="Diff Mode"
+        ></v-checkbox>
       </v-col>
     </v-row>
 

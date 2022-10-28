@@ -1448,6 +1448,8 @@ paths:
                 type: boolean
               dry_run:
                 type: boolean
+              diff:
+                type: boolean
               playbook:
                 type: string
               environment:
