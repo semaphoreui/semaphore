@@ -7,6 +7,14 @@
   </div>
   <div v-else>
 
+    <NewTaskDialog
+      v-model="newTaskDialog"
+      :project-id="projectId"
+      :template-id="itemId"
+      :template-alias="item.name"
+      :template-type="item.type"
+    />
+
     <EditDialog
       :max-width="700"
       v-model="editDialog"
@@ -68,13 +76,18 @@
           :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/`
               : `/project/${projectId}/templates/`"
-        >Task Templates
+        >
+          Task Templates
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.name }}</span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
+
+      <v-btn color="primary" depressed class="mr-3" @click="newTaskDialog = true">
+        {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
+      </v-btn>
 
       <v-btn
         icon
@@ -202,10 +215,11 @@ import TemplateForm from '@/components/TemplateForm.vue';
 import TaskList from '@/components/TaskList.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
+import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 export default {
   components: {
-    YesNoDialog, EditDialog, TemplateForm, TaskList, ObjectRefsDialog,
+    YesNoDialog, EditDialog, TemplateForm, TaskList, ObjectRefsDialog, NewTaskDialog,
   },
 
   props: {
@@ -226,6 +240,7 @@ export default {
       TEMPLATE_TYPE_ACTION_TITLES,
       itemRefs: null,
       itemRefsDialog: null,
+      newTaskDialog: null,
     };
   },
 

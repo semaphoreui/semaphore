@@ -45,32 +45,15 @@
       </template>
     </EditDialog>
 
-    <EditDialog
+    <NewTaskDialog
       v-model="newTaskDialog"
-      :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
-      title="New Task"
-      @save="onTaskCreated"
+      @save="itemId = null"
       @close="itemId = null"
-    >
-      <template v-slot:title={}>
-        <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
-        <span class="breadcrumbs__item">{{ templateAlias }}</span>
-        <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">New Task</span>
-      </template>
-
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TaskForm
-          :project-id="projectId"
-          item-id="new"
-          :template-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
+      :project-id="projectId"
+      :template-id="itemId"
+      :template-alias="templateAlias"
+      :template-type="templateType"
+    />
 
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
@@ -245,19 +228,25 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import TemplateForm from '@/components/TemplateForm.vue';
 import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
-import TaskForm from '@/components/TaskForm.vue';
 import EditViewsForm from '@/components/EditViewsForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import TaskList from '@/components/TaskList.vue';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
+import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
 
 export default {
   components: {
-    TemplateForm, TaskForm, TableSettingsSheet, TaskStatus, TaskLink, TaskList, EditViewsForm,
+    TemplateForm,
+    TableSettingsSheet,
+    TaskStatus,
+    TaskLink,
+    TaskList,
+    EditViewsForm,
+    NewTaskDialog,
   },
   mixins: [ItemListPageBase],
   async created() {
@@ -381,13 +370,6 @@ export default {
         ...data,
         type: undefined,
       });
-    },
-
-    onTaskCreated(e) {
-      EventBus.$emit('i-show-task', {
-        taskId: e.item.id,
-      });
-      this.itemId = null;
     },
 
     showTaskLog(taskId) {
