@@ -3,8 +3,8 @@
     v-model="dialog"
     :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
     title="New Task"
-    @save="close"
-    @close="close"
+    @save="closeDialog"
+    @close="closeDialog"
   >
     <template v-slot:title={}>
       <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
@@ -60,8 +60,10 @@ export default {
     async value(val) {
       this.dialog = val;
     },
+  },
 
-    close(e) {
+  methods: {
+    closeDialog(e) {
       this.dialog = false;
       if (e) {
         EventBus.$emit('i-show-task', {
