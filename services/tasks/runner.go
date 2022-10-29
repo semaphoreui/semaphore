@@ -50,11 +50,7 @@ func getMD5Hash(filepath string) (string, error) {
 }
 
 func (t *TaskRunner) getPlaybookDir() string {
-	if strings.HasPrefix(t.task.Playbook, "/") {
-		return t.task.Playbook
-	}
-
-	playbookPath := path.Join(t.getRepoPath(), t.task.Playbook)
+	playbookPath := path.Join(t.getRepoPath(), t.template.Playbook)
 
 	return path.Dir(playbookPath)
 }
@@ -326,7 +322,7 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	return nil
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
@@ -650,7 +646,7 @@ func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	return
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
 	if playbookName == "" {

@@ -22,9 +22,7 @@ func TestGetRepoPath(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{
-			Playbook: "deploy/test.yml",
-		},
+		task: db.Task{},
 		inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
@@ -35,6 +33,34 @@ func TestGetRepoPath(t *testing.T) {
 		},
 		template: db.Template{
 			Playbook: "deploy/test.yml",
+		},
+	}
+
+	dir := tsk.getPlaybookDir()
+	if dir != "/tmp/repository_0_0/deploy" {
+		t.Fatal("Invalid playbook dir: " + dir)
+	}
+}
+
+func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	inventoryID := 1
+
+	tsk := TaskRunner{
+		task: db.Task{},
+		inventory: db.Inventory{
+			SSHKeyID: &inventoryID,
+			SSHKey: db.AccessKey{
+				ID:   12345,
+				Type: db.AccessKeySSH,
+			},
+			Type: db.InventoryStatic,
+		},
+		template: db.Template{
+			Playbook: "/deploy/test.yml",
 		},
 	}
 
