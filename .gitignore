@@ -4,8 +4,8 @@ web/public/js/bundle.js
 web/public/css/*.*
 web/public/html/**/*.*
 web/public/fonts/*.*
-web2/.nyc_output
-web2/dist/**/*
+web/.nyc_output
+web/dist/**/*
 /config.json
 /.dredd/config.json
 /database.boltdb

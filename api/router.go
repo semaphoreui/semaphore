@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var publicAssets2 = packr.NewBox("../web2/dist")
+var publicAssets2 = packr.NewBox("../web/dist")
 
 //JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
 func JSONMiddleware(next http.Handler) http.Handler {

@@ -37,21 +37,21 @@ tasks:
 
   deps:fe2:
     desc: Installs npm requirements for front end from package.json
-    dir: web2
+    dir: web
     cmds:
       - npm install
       # - npm audit fix
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
-    dir: web2
+    dir: web
     cmds:
       - npm install dredd@13.1.2
       # - npm audit fix
 
   deps:tools:
     desc: Installs tools needed
-    dir: web2
+    dir: web
     vars:
       GORELEASER_VERSION: "0.183.0"
       GOLINTER_VERSION: "1.46.2"
@@ -73,7 +73,7 @@ tasks:
 
   compile:fe2:
     desc: Build vue.js project
-    dir: web2
+    dir: web
     sources:
       - src/*.*
       - src/**/*.*
@@ -94,13 +94,13 @@ tasks:
   compile:be:
     desc: Runs Packr for static assets
     sources:
-      - web2/dist/*
+      - web/dist/*
       - db/migrations/*
     generates:
       - db/db-packr.go
       - api/api-packr.go
     cmds:
-      - mkdir -p web2/dist
+      - mkdir -p web/dist
       - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
       - packr
     vars:
@@ -110,7 +110,7 @@ tasks:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
         # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web2/package-lock.json' ':(exclude)web2/package.json' || true
+        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json' || true
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
@@ -164,7 +164,7 @@ tasks:
   test:api:
     desc: test the api with dredd
     cmds:
-      - ./web2/node_modules/.bin/dredd --config .dredd/dredd.yml
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.yml
 
   ci:artifacts:
     cmds:
