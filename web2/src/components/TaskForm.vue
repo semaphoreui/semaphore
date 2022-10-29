@@ -111,22 +111,27 @@ Example:
       </a>
     </div>
 
-    <v-row no-gutters>
-      <v-col>
-        <v-checkbox
-          v-model="item.debug"
-          label="Debug"
-        ></v-checkbox>
+    <v-row no-gutters class="mt-6">
+      <v-col cols="12" sm="6">
+        <v-checkbox class="mt-0" v-model="item.debug">
+          <template v-slot:label>
+            <div class="text-no-wrap">Debug <code>--vvvv</code></div>
+          </template>
+        </v-checkbox>
       </v-col>
-      <v-col>
-        <v-checkbox
-          v-model="item.dry_run"
-          label="Dry Run"
-        ></v-checkbox>
-        <v-checkbox
-          v-model="item.diff"
-          label="Diff Mode"
-        ></v-checkbox>
+      <v-col cols="12" sm="6">
+        <v-checkbox class="mt-0" v-model="item.dry_run">
+          <template v-slot:label>
+            <div class="text-no-wrap">Dry Run <code>--check</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+      <v-col cols="12" sm="6">
+        <v-checkbox class="mt-0" v-model="item.diff">
+          <template v-slot:label>
+            <div class="text-no-wrap">Diff <code>--diff</code></div>
+          </template>
+        </v-checkbox>
       </v-col>
     </v-row>
 
