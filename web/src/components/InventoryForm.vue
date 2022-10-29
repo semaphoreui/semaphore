@@ -100,7 +100,7 @@
 </template>
 <style>
 .CodeMirror {
-  height: 200px !important;
+  height: 160px !important;
 }
 </style>
 <script>

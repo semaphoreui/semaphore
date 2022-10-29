@@ -8,25 +8,33 @@
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
         <v-card-title></v-card-title>
         <v-card-text class="pb-0">
-          <v-form v-if="editedVar != null">
+          <v-form
+            ref="form"
+            lazy-validation
+            v-if="editedVar != null"
+          >
             <v-text-field
-              label="Name"
+              label="Name *"
               v-model.trim="editedVar.name"
+              :rules="[(v) => !!v || 'Name is required']"
               required
             />
+
             <v-text-field
-              label="Title"
+              label="Title *"
               v-model="editedVar.title"
+              :rules="[(v) => !!v || 'Title is required']"
               required
             />
+
             <v-text-field
-              label="Description (Optional)"
+              label="Description"
               v-model="editedVar.description"
               required
             />
             <v-select
               v-model="editedVar.type"
-              label="Type (Optional)"
+              label="Type"
               :items="varTypes"
               item-value="id"
               item-text="name"
@@ -56,7 +64,7 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    <fieldset style="padding: 0 10px 5px 10px;
+    <fieldset style="padding: 0 10px 2px 10px;
                      border: 1px solid rgba(0, 0, 0, 0.38);
                      border-radius: 4px;
                      font-size: 12px;"
@@ -66,7 +74,7 @@
                          'rgba(0, 0, 0, 0.38)'
                      }">
       <legend style="padding: 0 3px;">Survey Variables</legend>
-      <v-chip-group column>
+      <v-chip-group column style="margin-top: -4px;">
         <v-chip
           v-for="(v, i) in modifiedVars"
           close
@@ -77,7 +85,9 @@
         >
           {{ v.title }}
         </v-chip>
-        <v-chip @click="editVar(null)">+</v-chip>
+        <v-chip @click="editVar(null)">
+          + <span class="ml-1" v-if="modifiedVars.length === 0">Add variable</span>
+        </v-chip>
       </v-chip-group>
     </fieldset>
   </div>
@@ -95,9 +105,11 @@ export default {
       this.var = val || [];
     },
   },
+
   created() {
     this.modifiedVars = (this.vars || []).map((v) => ({ ...v }));
   },
+
   data() {
     return {
       editDialog: null,
@@ -117,17 +129,23 @@ export default {
     editVar(index) {
       this.editedVar = index != null ? { ...this.modifiedVars[index] } : {};
       this.editedVarIndex = index;
+      if (this.$refs.form) {
+        this.$refs.form.resetValidation();
+      }
       this.editDialog = true;
     },
 
     saveVar() {
+      if (!this.$refs.form.validate()) {
+        return;
+      }
+
       if (this.editedVarIndex != null) {
         this.modifiedVars[this.editedVarIndex] = this.editedVar;
       } else {
         this.modifiedVars.push(this.editedVar);
       }
       this.editDialog = false;
-      this.editVarIndex = null;
       this.editedVar = null;
       this.$emit('change', this.modifiedVars);
     },

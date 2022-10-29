@@ -115,16 +115,30 @@
 
         <v-text-field
           v-model="item.name"
-          label="Playbook Name"
-          :rules="[v => !!v || 'Playbook Name is required']"
+          label="Name *"
+          :rules="[v => !!v || 'Name is required']"
+          outlined
+          dense
           required
           :disabled="formSaving"
         ></v-text-field>
 
+        <v-textarea
+          v-model="item.description"
+          label="Description"
+          :disabled="formSaving"
+          rows="1"
+          :auto-grow="true"
+          outlined
+          dense
+        ></v-textarea>
+
         <v-text-field
           v-model="item.playbook"
-          label="Playbook Filename"
+          label="Playbook Filename *"
           :rules="[v => !!v || 'Playbook Filename is required']"
+          outlined
+          dense
           required
           :disabled="formSaving"
           placeholder="Example: site.yml"
@@ -132,37 +146,45 @@
 
         <v-select
           v-model="item.inventory_id"
-          label="Inventory"
+          label="Inventory *"
           :items="inventory"
           item-value="id"
           item-text="name"
           :rules="[v => !!v || 'Inventory is required']"
+          outlined
+          dense
           required
           :disabled="formSaving"
         ></v-select>
 
         <v-select
           v-model="item.repository_id"
-          label="Repository"
+          label="Repository *"
           :items="repositories"
           item-value="id"
           item-text="name"
           :rules="[v => !!v || 'Repository is required']"
+          outlined
+          dense
           required
           :disabled="formSaving"
         ></v-select>
 
         <v-select
           v-model="item.environment_id"
-          label="Environment"
+          label="Environment *"
           :items="environment"
           item-value="id"
           item-text="name"
           :rules="[v => !!v || 'Environment is required']"
+          outlined
+          dense
           required
           :disabled="formSaving"
         ></v-select>
+
         <v-select
+          v-if="itemTypeIndex === 0"
           v-model="item.vault_key_id"
           label="Vault Password"
           clearable
@@ -170,72 +192,114 @@
           item-value="id"
           item-text="name"
           :disabled="formSaving"
+          outlined
+          dense
         ></v-select>
       </v-col>
 
       <v-col cols="12" md="6" class="pb-0">
-        <v-textarea
-          outlined
-          v-model="item.description"
-          label="Description (Optional)"
-          :disabled="formSaving"
-          rows="5"
-        ></v-textarea>
 
-        <SurveyVars :vars="item.survey_vars" @change="setSurveyVars"/>
+        <v-select
+          v-if="itemTypeIndex > 0"
+          v-model="item.vault_key_id"
+          label="Vault Password"
+          clearable
+          :items="loginPasswordKeys"
+          item-value="id"
+          item-text="name"
+          :disabled="formSaving"
+          outlined
+          dense
+        ></v-select>
+
+        <SurveyVars style="margin-top: -10px;" :vars="item.survey_vars" @change="setSurveyVars"/>
 
         <v-select
           v-model="item.view_id"
-          label="View (Optional)"
+          label="View"
           clearable
           :items="views"
           item-value="id"
           item-text="title"
           :disabled="formSaving"
+          outlined
+          dense
         ></v-select>
 
-        <v-text-field
-          class="mt-6"
-          v-model="cronFormat"
-          label="Cron (Optional)"
-          :disabled="formSaving"
-          placeholder="Example: * 1 * * *"
-          v-if="schedules == null || schedules.length <= 1"
-          append-outer-icon="mdi-help-circle"
-          @click:append-outer="showHelpDialog('cron')"
-        ></v-text-field>
+        <v-row>
+          <v-col cols="5" class="pr-1">
+            <v-text-field
+              style="font-size: 14px"
+              v-model="cronFormat"
+              label="Cron"
+              :disabled="formSaving"
+              placeholder="* * * * *"
+              v-if="schedules == null || schedules.length <= 1"
+              outlined
+              dense
+              hide-details
+            ></v-text-field>
+          </v-col>
 
-        <v-select
-          v-model="cronRepositoryId"
-          label="Cron Condition Repository (Optional)"
-          placeholder="Cron checks new commit before run"
-          :items="repositories"
-          item-value="id"
-          item-text="name"
-          clearable
-          :disabled="formSaving"
-        ></v-select>
+          <v-col cols="7">
+            <a
+              v-if="!cronRepositoryIdVisible && cronRepositoryId == null"
+              @click="cronRepositoryIdVisible = true"
+              class="text-caption d-block"
+              style="line-height: 1.1;"
+            >
+              I want to run a task by the cron only for for new commits of some repository
+            </a>
 
-        <a @click="advancedOptions = true" v-if="!advancedOptions">
-          Advanced
-          <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
-        </a>
+            <v-select
+              style="font-size: 14px"
+              v-if="cronRepositoryIdVisible || cronRepositoryId != null"
+              v-model="cronRepositoryId"
+              label="Repository"
+              placeholder="Cron checks new commit before run"
+              :items="repositories"
+              item-value="id"
+              item-text="name"
+              clearable
+              :disabled="formSaving"
+              outlined
+              dense
+              hide-details
+            ></v-select>
+
+          </v-col>
+        </v-row>
+
+        <small class="mt-1 mb-4 d-block">
+          Read the
+          <a target="_blank" href="https://pkg.go.dev/github.com/robfig/cron#hdr-CRON_Expression_Format">docs</a>
+          to learn more about Cron.
+        </small>
 
         <v-checkbox
-          v-if="advancedOptions"
           class="mt-0"
           label="Suppress success alerts"
           v-model="item.suppress_success_alerts"
         />
 
+<!--        <a @click="advancedOptions = true" v-if="!advancedOptions">-->
+<!--          Advanced-->
+<!--          <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>-->
+<!--        </a>-->
+
+<!--        <div v-if="advancedOptions" class="mb-3">-->
+<!--          <a @click="advancedOptions = false">-->
+<!--            Hide-->
+<!--            <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>-->
+<!--          </a>-->
+<!--        </div>-->
+
         <codemirror
-          v-if="advancedOptions"
           :style="{ border: '1px solid lightgray' }"
           v-model="item.arguments"
           :options="cmOptions"
           :disabled="formSaving"
-          placeholder='Enter extra CLI Arguments...
-Example:
+          placeholder='CLI Args (JSON array). Example:
 [
   "-i",
   "@myinventory.sh",
@@ -245,11 +309,10 @@ Example:
         />
 
         <v-checkbox
-          v-if="advancedOptions"
-          class="mt-0"
-          label="Allow override CLI args in task"
+          label="Allow CLI args in Task"
           v-model="item.allow_override_args_in_task"
         />
+
       </v-col>
     </v-row>
   </v-form>
@@ -308,6 +371,7 @@ export default {
       buildTemplates: null,
       cronFormat: null,
       cronRepositoryId: null,
+      cronRepositoryIdVisible: false,
 
       helpDialog: null,
       helpKey: null,
