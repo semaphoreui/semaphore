@@ -1,16 +1,16 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="!isLoaded">
     <v-progress-linear
-        indeterminate
-        color="primary darken-2"
+      indeterminate
+      color="primary darken-2"
     ></v-progress-linear>
   </div>
   <div v-else>
     <v-dialog
-        v-model="editViewsDialog"
-        :max-width="400"
-        persistent
-        :transition="false"
+      v-model="editViewsDialog"
+      :max-width="400"
+      persistent
+      :transition="false"
     >
       <v-card>
         <v-card-title>
@@ -27,30 +27,30 @@
     </v-dialog>
 
     <EditDialog
-        :max-width="700"
-        v-model="editDialog"
-        save-button-text="Create"
-        title="New template"
-        @save="loadItems()"
+      :max-width="700"
+      v-model="editDialog"
+      save-button-text="Create"
+      title="New template"
+      @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
-            :project-id="projectId"
-            item-id="new"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          :project-id="projectId"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <EditDialog
-        v-model="newTaskDialog"
-        :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
-        title="New Task"
-        @save="onTaskCreated"
-        @close="itemId = null"
+      v-model="newTaskDialog"
+      :save-button-text="TEMPLATE_TYPE_ACTION_TITLES[templateType]"
+      title="New Task"
+      @save="onTaskCreated"
+      @close="itemId = null"
     >
       <template v-slot:title={}>
         <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
@@ -61,18 +61,18 @@
 
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TaskForm
-            :project-id="projectId"
-            item-id="new"
-            :template-id="itemId"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          :project-id="projectId"
+          item-id="new"
+          :template-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
         Task Templates
@@ -92,9 +92,9 @@
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
-          color="primary"
-          @click="editItem('new')"
-          class="mr-1"
+        color="primary"
+        @click="editItem('new')"
+        class="mr-1"
       >New template
       </v-btn>
 
@@ -107,10 +107,10 @@
       <v-tab :to="getViewUrl(null)" :disabled="viewItemsLoading">All</v-tab>
 
       <v-tab
-          v-for="(view) in views"
-          :key="view.id"
-          :to="getViewUrl(view.id)"
-          :disabled="viewItemsLoading"
+        v-for="(view) in views"
+        :key="view.id"
+        :to="getViewUrl(view.id)"
+        :disabled="viewItemsLoading"
       >{{ view.title }}
       </v-tab>
 
@@ -120,15 +120,15 @@
     </v-tabs>
 
     <v-data-table
-        hide-default-footer
-        class="mt-4 templates-table"
-        single-expand
-        show-expand
-        :headers="filteredHeaders"
-        :items="items"
-        :items-per-page="Number.MAX_VALUE"
-        :expanded.sync="openedItems"
-        :style="{
+      hide-default-footer
+      class="mt-4 templates-table"
+      single-expand
+      show-expand
+      :headers="filteredHeaders"
+      :items="items"
+      :items-per-page="Number.MAX_VALUE"
+      :expanded.sync="openedItems"
+      :style="{
           opacity: viewItemsLoading ? 0.3 : 1,
         }"
     >
@@ -137,27 +137,28 @@
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
         <router-link
-            :to="viewId
+          :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
               : `/project/${projectId}/templates/${item.id}`"
-        >{{ item.name }}</router-link>
+        >{{ item.name }}
+        </router-link>
       </template>
 
       <template v-slot:item.version="{ item }">
         <TaskLink
-            v-if="item.last_task && item.last_task.tpl_type !== ''"
-            :disabled="true"
-            :status="item.last_task.status"
+          v-if="item.last_task && item.last_task.tpl_type !== ''"
+          :disabled="true"
+          :status="item.last_task.status"
 
-            :task-id="item.last_task.tpl_type === 'build'
+          :task-id="item.last_task.tpl_type === 'build'
               ? item.last_task.id
               : (item.last_task.build_task || {}).id"
 
-            :label="item.last_task.tpl_type === 'build'
+          :label="item.last_task.tpl_type === 'build'
               ? item.last_task.version
               : (item.last_task.build_task || {}).version"
 
-            :tooltip="item.last_task.tpl_type === 'build'
+          :tooltip="item.last_task.tpl_type === 'build'
               ? item.last_task.message
               : (item.last_task.build_task || {}).message"
         />
@@ -174,9 +175,9 @@
       <template v-slot:item.last_task="{ item }">
         <div class="mt-2 mb-2" v-if="item.last_task != null" style="line-height: 1">
           <TaskLink
-              :task-id="item.last_task.id"
-              :label="'#' + item.last_task.id"
-              :tooltip="item.last_task.message"
+            :task-id="item.last_task.id"
+            :label="'#' + item.last_task.id"
+            :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
             by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
@@ -198,31 +199,31 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn text class="pl-1 pr-2" @click="createTask(item.id)">
-          <v-icon class="pr-1">mdi-replay</v-icon>
+          <v-icon class="pr-1">mdi-play</v-icon>
           {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
         </v-btn>
       </template>
 
       <template v-slot:expanded-item="{ headers, item }">
         <td
-            :colspan="headers.length"
-            v-if="openedItems.some((template) => template.id === item.id)"
+          :colspan="headers.length"
+          v-if="openedItems.some((template) => template.id === item.id)"
         >
           <TaskList
-              style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
-              :template="item"
-              :limit="5"
-              :hide-footer="true"
+            style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
+            :template="item"
+            :limit="5"
+            :hide-footer="true"
           />
         </td>
       </template>
     </v-data-table>
 
     <TableSettingsSheet
-        v-model="settingsSheet"
-        table-name="project__template"
-        :headers="headers"
-        @change="onTableSettingsChange"
+      v-model="settingsSheet"
+      table-name="project__template"
+      :headers="headers"
+      @change="onTableSettingsChange"
     />
   </div>
 </template>
@@ -305,10 +306,10 @@ export default {
 
     isLoaded() {
       return this.items
-          && this.inventory
-          && this.environment
-          && this.repositories
-          && this.views;
+        && this.inventory
+        && this.environment
+        && this.repositories
+        && this.views;
     },
   },
   watch: {
