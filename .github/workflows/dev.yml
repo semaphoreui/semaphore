@@ -56,7 +56,7 @@ jobs:
 
   test-db-migration:
     runs-on: [ubuntu-latest]
-    needs: [build-local, test-golang]
+    needs: [build-local]
     steps:
       - uses: shogo82148/actions-setup-mysql@v1
         with:
