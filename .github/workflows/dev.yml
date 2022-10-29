@@ -27,28 +27,31 @@ jobs:
 
       - run: task build:local GOOS= GOARCH=
 
+      - run: task test
+
       - uses: actions/upload-artifact@master
         with:
           name: semaphore
           path: bin/semaphore
+          retention-days: 1
 
 
-  test-golang:
-    runs-on: [ubuntu-latest]
-    needs: build-local
-    steps:
-      - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
-
-      - run: go install github.com/go-task/task/v3/cmd/task@latest
-
-      - uses: actions/checkout@v3
-
-      - run: task deps:tools
-      - run: task deps:be
-      - run: task compile:be
+#  test-golang:
+#    runs-on: [ubuntu-latest]
+#    needs: build-local
+#    steps:
+#      - uses: actions/setup-go@v3
+#        with: { go-version: 1.18 }
+#
+#      - run: go install github.com/go-task/task/v3/cmd/task@latest
+#
+#      - uses: actions/checkout@v3
+#
+#      - run: task deps:tools
+#      - run: task deps:be
+#      - run: task compile:be
 #      - run: task lint:be
-      - run: task test
+#      - run: task test
 
 
   test-db-migration:
