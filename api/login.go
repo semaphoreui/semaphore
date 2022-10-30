@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/tls"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strings"
 	"time"
@@ -13,8 +14,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 func tryFindLDAPUser(username, password string) (*db.User, error) {
@@ -128,7 +127,44 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 }
 
-//nolint: gocyclo
+func loginByPassword(store db.Store, login string, password string) (user db.User, err error) {
+	user, err = store.GetUserByLoginOrEmail(login, login)
+
+	if err != nil {
+		return
+	}
+
+	if user.External {
+		err = db.ErrNotFound
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+
+	if err != nil {
+		err = db.ErrNotFound
+		return
+	}
+
+	return
+}
+
+func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
+	user, err = store.GetUserByLoginOrEmail(ldapUser.Username, ldapUser.Email)
+
+	if err == db.ErrNotFound {
+		user, err = store.CreateUserWithoutPassword(ldapUser)
+	}
+
+	if !user.External {
+		err = db.ErrNotFound
+		return
+	}
+
+	return
+}
+
+// nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
@@ -162,35 +198,20 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
+	var user db.User
 
-	if err == db.ErrNotFound {
-		if ldapUser == nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		user, err = helpers.Store(r).CreateUserWithoutPassword(*ldapUser)
+	if ldapUser == nil {
+		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
+	} else {
+		user, err = loginByLDAP(helpers.Store(r), *ldapUser)
 	}
 
 	if err != nil {
-		panic(err)
-	}
-
-	// check if ldap user & no ldap user found
-	if user.External && ldapUser == nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	// non-ldap login
-	if !user.External {
-		if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
+		if err == db.ErrNotFound {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-
-		// authenticated.
+		panic(err)
 	}
 
 	createSession(w, r, user)
