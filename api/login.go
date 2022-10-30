@@ -211,7 +211,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if util.Config.LdapEnable {
 		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
 		if err != nil {
-			log.Info(err.Error())
+			log.Warn(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -230,7 +230,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		panic(err)
+
+		switch err.(type) {
+		case *db.ValidationError:
+			// TODO: Return more informative error code.
+		}
+
+		log.Error(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	createSession(w, r, user)
