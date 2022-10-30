@@ -1,11 +1,14 @@
 # ansible-semaphore production image
-FROM golang:1.18.3-alpine3.16 as builder
+FROM --platform=$BUILDPLATFORM golang:1.18.3-alpine3.16 as builder
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 
-RUN apk add --no-cache -U libc-dev curl nodejs npm git && \
-  ./deployment/docker/prod/bin/install
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN apk add --no-cache -U libc-dev curl nodejs npm git
+RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
 FROM alpine:3.16 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
@@ -23,7 +26,9 @@ COPY --from=builder /usr/local/bin/semaphore-wrapper /usr/local/bin/
 COPY --from=builder /usr/local/bin/semaphore /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/semaphore-wrapper &&\
-    chown -R semaphore:0 /usr/local/bin/semaphore
+    chown -R semaphore:0 /usr/local/bin/semaphore &&\
+    chmod +x /usr/local/bin/semaphore-wrapper &&\
+    chmod +x /usr/local/bin/semaphore
 
 WORKDIR /home/semaphore
 USER 1001

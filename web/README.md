@@ -1,4 +1,4 @@
-# web2
+# web
 
 ## Project setup
 ```

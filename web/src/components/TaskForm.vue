@@ -58,10 +58,41 @@
         ]"
     />
 
-    <div class="mt-4 mb-2" v-if="!advancedOptions">
+    <v-row no-gutters class="mt-6">
+      <v-col cols="12" sm="6">
+        <v-checkbox class="mt-0" v-model="item.debug">
+          <template v-slot:label>
+            <div class="text-no-wrap">Debug <code>--vvvv</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+      <v-col cols="12" sm="6">
+        <v-checkbox class="mt-0" v-model="item.dry_run">
+          <template v-slot:label>
+            <div class="text-no-wrap">Dry Run <code>--check</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+      <v-col cols="12" sm="6">
+        <v-checkbox class="mt-0" v-model="item.diff">
+          <template v-slot:label>
+            <div class="text-no-wrap">Diff <code>--diff</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+    </v-row>
+
+    <div class="mt-4" v-if="!advancedOptions">
       <a @click="advancedOptions = true">
         Advanced
         <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
+      </a>
+    </div>
+
+    <div class="mt-4" v-else>
+      <a @click="advancedOptions = false">
+        Hide
+        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
       </a>
     </div>
 
@@ -92,8 +123,7 @@
       :style="{ border: '1px solid lightgray' }"
       v-model="item.arguments"
       :options="cmOptions"
-      placeholder='Enter extra CLI Arguments...
-Example:
+      placeholder='CLI Args (JSON array). Example:
 [
   "-i",
   "@myinventory.sh",
@@ -101,30 +131,6 @@ Example:
   "-vvvv"
 ]'
     />
-
-    <div
-      v-if="advancedOptions"
-    >
-      <a @click="advancedOptions = false">
-        Hide
-        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
-      </a>
-    </div>
-
-    <v-row no-gutters>
-      <v-col>
-        <v-checkbox
-          v-model="item.debug"
-          label="Debug"
-        ></v-checkbox>
-      </v-col>
-      <v-col>
-        <v-checkbox
-          v-model="item.dry_run"
-          label="Dry Run"
-        ></v-checkbox>
-      </v-col>
-    </v-row>
 
   </v-form>
 </template>

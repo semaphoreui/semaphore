@@ -85,7 +85,8 @@ func getEventObjectName(d Store, evt Event) (string, error) {
 	case EventTask:
 		task, err := d.GetTask(*evt.ProjectID, *evt.ObjectID)
 		if err != nil {
-			return "", err
+			// Task can be deleted, it is ok, just return empty string
+			return "", nil
 		}
 		return task.Playbook, nil
 	default:

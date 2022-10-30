@@ -23,37 +23,40 @@ jobs:
       - run: task compile
 
       - name: Test that compile did not create/modify untracked files
-        run: git diff --exit-code --stat -- . ':(exclude)web2/package.json' ':(exclude)web2/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
+        run: git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
 
-      - run: task build:local
+      - run: task build:local GOOS= GOARCH=
+
+      - run: task test
 
       - uses: actions/upload-artifact@master
         with:
           name: semaphore
           path: bin/semaphore
+          retention-days: 1
 
 
-  test-golang:
-    runs-on: [ubuntu-latest]
-    needs: build-local
-    steps:
-      - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
-
-      - run: go install github.com/go-task/task/v3/cmd/task@latest
-
-      - uses: actions/checkout@v3
-
-      - run: task deps:tools
-      - run: task deps:be
-      - run: task compile:be
+#  test-golang:
+#    runs-on: [ubuntu-latest]
+#    needs: build-local
+#    steps:
+#      - uses: actions/setup-go@v3
+#        with: { go-version: 1.18 }
+#
+#      - run: go install github.com/go-task/task/v3/cmd/task@latest
+#
+#      - uses: actions/checkout@v3
+#
+#      - run: task deps:tools
+#      - run: task deps:be
+#      - run: task compile:be
 #      - run: task lint:be
-      - run: task test
+#      - run: task test
 
 
   test-db-migration:
     runs-on: [ubuntu-latest]
-    needs: [build-local, test-golang]
+    needs: [build-local]
     steps:
       - uses: shogo82148/actions-setup-mysql@v1
         with:
@@ -95,12 +98,26 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - run: context=prod task docker:test
+#      - run: context=prod task docker:test
 
-      - run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
-      - run: context=prod tag=develop task docker:build
-      - run: tag=develop task docker:push
+      - uses: docker/setup-qemu-action@v2
 
+      - uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/buildx.Dockerfile
+          push: true
+          tags: semaphoreui/semaphore:develop
 
 
 

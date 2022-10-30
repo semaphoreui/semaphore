@@ -19,13 +19,16 @@ tasks:
       - task: compile
       - task: test
       - task: build:local
+        vars:
+          GOOS: ''
+          GOARCH: ''
 
   deps:
     desc: Install all dependencies (except dredd requirements)
     cmds:
-     - task: deps:tools
-     - task: deps:be
-     - task: deps:fe2
+      - task: deps:tools
+      - task: deps:be
+      - task: deps:fe2
 
   deps:be:
     desc: Vendor application dependencies
@@ -34,29 +37,28 @@ tasks:
 
   deps:fe2:
     desc: Installs npm requirements for front end from package.json
-    dir: web2
+    dir: web
     cmds:
       - npm install
       # - npm audit fix
 
   deps:integration:
     desc: Installs requirements for integration testing with dredd
-    dir: web2
+    dir: web
     cmds:
       - npm install dredd@13.1.2
       # - npm audit fix
 
   deps:tools:
     desc: Installs tools needed
-    dir: web2
+    dir: web
     vars:
-      GORELEASER_VERSION: "0.159.0"
+      GORELEASER_VERSION: "0.183.0"
       GOLINTER_VERSION: "1.46.2"
     cmds:
       - go install github.com/gobuffalo/packr/...@v1.10.4
-      - go install github.com/haya14busa/goverage@latest
       - go install github.com/snikch/goodman/cmd/goodman@latest
-      - go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+      - go install github.com/go-swagger/go-swagger/cmd/swagger@v0.29.0
       - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
       - '{{ if ne OS "windows" }} chmod +x $(go env GOPATH)/bin/goreleaser{{ else }} {{ end }}'
       - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
@@ -71,7 +73,7 @@ tasks:
 
   compile:fe2:
     desc: Build vue.js project
-    dir: web2
+    dir: web
     sources:
       - src/*.*
       - src/**/*.*
@@ -92,13 +94,13 @@ tasks:
   compile:be:
     desc: Runs Packr for static assets
     sources:
-      - web2/dist/*
+      - web/dist/*
       - db/migrations/*
     generates:
       - db/db-packr.go
       - api/api-packr.go
     cmds:
-      - mkdir -p web2/dist
+      - mkdir -p web/dist
       - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
       - packr
     vars:
@@ -108,7 +110,7 @@ tasks:
         sh: git rev-parse --abbrev-ref HEAD
       DIRTY:
         # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web2/package-lock.json' ':(exclude)web2/package.json' || true
+        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json' || true
       SHA:
         sh: git log --pretty=format:'%h' -n 1
       TIMESTAMP:
@@ -128,7 +130,7 @@ tasks:
     desc: Build a binary for the current architecture
     dir: cli
     cmds:
-     - go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+      - env GOOS={{ .GOOS }} GOARCH={{ .GOARCH }} go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
 
   release:
     desc: creates a release without performing validations or publishing artifacts
@@ -157,14 +159,12 @@ tasks:
     cmds:
       - go vet ./...
       - swagger validate ./api-docs.yml
-      # 2> /dev/null makes goverage less noisy about pattern matching
-      # if no tests exist but will still print failing test results
-      - goverage -v -coverprofile=coverage.out ./... 2> /dev/null
+      - go test -v -coverprofile=coverage.out ./...
 
   test:api:
     desc: test the api with dredd
     cmds:
-      - ./web2/node_modules/.bin/dredd --config .dredd/dredd.yml
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.yml
 
   ci:artifacts:
     cmds:
@@ -252,7 +252,6 @@ tasks:
           prefix: -dredd
           args: up
 
-
   docker:build:
     desc: Build an image for Semaphore, requires context
     vars:
@@ -276,7 +275,7 @@ tasks:
       - sudo chmod +rx /usr/local/bin/goss
       - sudo curl -L https://raw.githubusercontent.com/aelsabbahy/goss/v0.3.5/extras/dgoss/dgoss -o /usr/local/bin/dgoss
       - sudo chmod +rx /usr/local/bin/dgoss
-      - sudo curl -L https://github.com/hadolint/hadolint/releases/download/v1.5.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+      - sudo curl -L https://github.com/hadolint/hadolint/releases/download/v2.10.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
       - sudo chmod +rx /usr/local/bin/hadolint
 
   docker:test:

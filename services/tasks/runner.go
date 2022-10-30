@@ -4,13 +4,15 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/lib"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
@@ -47,6 +49,12 @@ func getMD5Hash(filepath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
+func (t *TaskRunner) getPlaybookDir() string {
+	playbookPath := path.Join(t.getRepoPath(), t.template.Playbook)
+
+	return path.Dir(playbookPath)
+}
+
 func (t *TaskRunner) getRepoPath() string {
 	repo := lib.GitRepository{
 		Logger:     t,
@@ -72,14 +80,13 @@ func (t *TaskRunner) setStatus(status db.TaskStatus) {
 
 	t.updateStatus()
 
-	t.sendSlackAlert()
-
 	if status == db.TaskFailStatus {
 		t.sendMailAlert()
 	}
 
 	if status == db.TaskSuccessStatus || status == db.TaskFailStatus {
 		t.sendTelegramAlert()
+		t.sendSlackAlert()
 	}
 }
 
@@ -315,7 +322,7 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	return nil
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
@@ -480,7 +487,7 @@ func (t *TaskRunner) updateRepository() error {
 }
 
 func (t *TaskRunner) installCollectionsRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/collections/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -639,7 +646,7 @@ func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	return
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
 	if playbookName == "" {
@@ -694,6 +701,10 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 
 	if t.task.Debug {
 		args = append(args, "-vvvv")
+	}
+
+	if t.task.Diff {
+		args = append(args, "--diff")
 	}
 
 	if t.task.DryRun {
