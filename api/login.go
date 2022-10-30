@@ -165,17 +165,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
 
 	if err == db.ErrNotFound {
-		if ldapUser != nil {
-			// create new LDAP user
-			user, err = helpers.Store(r).CreateUserWithoutPassword(*ldapUser)
-			if err != nil {
-				panic(err)
-			}
-		} else {
+		if ldapUser == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	} else if err != nil {
+
+		user, err = helpers.Store(r).CreateUserWithoutPassword(*ldapUser)
+	}
+
+	if err != nil {
 		panic(err)
 	}
 
