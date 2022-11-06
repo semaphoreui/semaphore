@@ -211,13 +211,13 @@ func deleteObject(i interface{}) {
 
 // Token Handling
 func addToken(tok string, user int) {
-	token := db.APIToken{
+	_, err := store.CreateAPIToken(db.APIToken{
 		ID:      tok,
 		Created: time.Now(),
 		UserID:  user,
 		Expired: false,
-	}
-	if err := store.Sql().Insert(&token); err != nil {
+	})
+	if err != nil {
 		panic(err)
 	}
 }
