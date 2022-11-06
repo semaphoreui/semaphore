@@ -100,11 +100,17 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			printError(err)
 			inventoryID = int64(res.ID)
 		case "environment":
-			res, err := store.Sql().Exec(
-				"insert into project__environment (project_id, name, json, password, env) values (?, ?, ?, ?, '{}')",
-				userProject.ID, "ITI-"+uid, "{}", "test-pass")
+			pwd := "test-pass"
+			env := "{}"
+			res, err := store.CreateEnvironment(db.Environment{
+				ProjectID: userProject.ID,
+				Name:      "ITI-" + uid,
+				JSON:      "{}",
+				Password:  &pwd,
+				ENV:       &env,
+			})
 			printError(err)
-			environmentID, _ = res.LastInsertId()
+			environmentID = int64(res.ID)
 		case "template":
 			res, err := store.Sql().Exec(
 				"insert into project__template "+
