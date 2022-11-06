@@ -80,11 +80,15 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "access_key":
 			userKey = addAccessKey(&userProject.ID)
 		case "repository":
-			pRepo, err := store.Sql().Exec(
-				"insert into project__repository (project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)",
-				userProject.ID, "git@github.com/ansible,semaphore/semaphore", userKey.ID, "ITR-"+uid)
+			pRepo, err := store.CreateRepository(db.Repository{
+				ProjectID: userProject.ID,
+				GitURL:    "git@github.com/ansible,semaphore/semaphore",
+				GitBranch: "develop",
+				SSHKeyID:  userKey.ID,
+				Name:      "ITR-" + uid,
+			})
 			printError(err)
-			repoID, _ = pRepo.LastInsertId()
+			repoID = int64(pRepo.ID)
 		case "inventory":
 			res, err := store.Sql().Exec(
 				"insert into project__inventory (project_id, name, type, ssh_key_id, inventory) values (?, ?, ?, ?, ?)",
