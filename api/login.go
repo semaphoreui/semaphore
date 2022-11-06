@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -109,6 +110,14 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		Email:    sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Mail),
 		External: true,
 		Alert:    false,
+	}
+
+	err = db.ValidateUser(ldapUser)
+
+	if err != nil {
+		jsonBytes, _ := json.Marshal(ldapUser)
+		log.Error("LDAP returned incorrect user data: " + string(jsonBytes))
+		return nil, err
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
