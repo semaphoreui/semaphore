@@ -103,7 +103,6 @@ func addUserProjectRelation(pid int, user int) {
 
 func deleteUserProjectRelation(pid int, user int) {
 	err := store.DeleteProjectUser(pid, user)
-	//_, err := store.Sql().Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
 	if err != nil {
 		panic(err)
 	}
@@ -112,13 +111,15 @@ func deleteUserProjectRelation(pid int, user int) {
 func addAccessKey(pid *int) *db.AccessKey {
 	uid := getUUID()
 	secret := "5up3r53cr3t\n"
-	key := db.AccessKey{
+
+	key, err := store.CreateAccessKey(db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",
 		Secret:    &secret,
 		ProjectID: pid,
-	}
-	if err := store.Sql().Insert(&key); err != nil {
+	})
+
+	if err != nil {
 		panic(err)
 	}
 	return &key
