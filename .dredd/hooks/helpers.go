@@ -139,7 +139,10 @@ func addUser() *db.User {
 		Username: "ITU-" + uid,
 		Email:    "test@semaphore." + uid,
 	}
-	if err := store.Sql().Insert(&user); err != nil {
+
+	user, err := store.CreateUserWithoutPassword(user)
+
+	if err != nil {
 		panic(err)
 	}
 	return &user
