@@ -9,7 +9,6 @@ import (
 	"github.com/snikch/goodman/transaction"
 	"math/rand"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -98,7 +97,8 @@ func addUserProjectRelation(pid int, user int) {
 }
 
 func deleteUserProjectRelation(pid int, user int) {
-	_, err := store.Sql().Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
+	err := store.DeleteProjectUser(pid, user)
+	//_, err := store.Sql().Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
 	if err != nil {
 		panic(err)
 	}
