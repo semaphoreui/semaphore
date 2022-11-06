@@ -46,9 +46,14 @@ func addTestRunnerUser() {
 
 	truncateAll()
 
-	if err := store.Sql().Insert(testRunnerUser); err != nil {
+	newUser, err := store.CreateUserWithoutPassword(*testRunnerUser)
+
+	if err != nil {
 		panic(err)
 	}
+
+	testRunnerUser.ID = newUser.ID
+
 	addToken(adminToken, testRunnerUser.ID)
 }
 
