@@ -125,7 +125,8 @@ func addProject() *db.Project {
 		Name:    "ITP-" + uid,
 		Created: time.Now(),
 	}
-	if err := store.Sql().Insert(&project); err != nil {
+	project, err := store.CreateProject(project)
+	if err != nil {
 		panic(err)
 	}
 	return &project
