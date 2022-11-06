@@ -90,11 +90,15 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			printError(err)
 			repoID = int64(pRepo.ID)
 		case "inventory":
-			res, err := store.Sql().Exec(
-				"insert into project__inventory (project_id, name, type, ssh_key_id, inventory) values (?, ?, ?, ?, ?)",
-				userProject.ID, "ITI-"+uid, "static", userKey.ID, "Test Inventory")
+			res, err := store.CreateInventory(db.Inventory{
+				ProjectID: userProject.ID,
+				Name:      "ITI-" + uid,
+				Type:      "static",
+				SSHKeyID:  &userKey.ID,
+				Inventory: "Test Inventory",
+			})
 			printError(err)
-			inventoryID, _ = res.LastInsertId()
+			inventoryID = int64(res.ID)
 		case "environment":
 			res, err := store.Sql().Exec(
 				"insert into project__environment (project_id, name, json, password, env) values (?, ?, ?, ?, '{}')",
