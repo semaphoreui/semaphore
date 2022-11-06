@@ -87,7 +87,11 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	_, err := store.Sql().Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, 1)", pid, user)
+	_, err := store.CreateProjectUser(db.ProjectUser{
+		ProjectID: pid,
+		UserID:    user,
+		Admin:     true,
+	})
 	if err != nil {
 		panic(err)
 	}
