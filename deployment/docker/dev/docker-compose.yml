@@ -1,3 +1,4 @@
+version: "2"
 services:
   # uncommenct this section and comment out the mysql section to use postgres instead of mysql
   #postgres:
