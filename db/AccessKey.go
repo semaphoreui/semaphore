@@ -284,7 +284,7 @@ func (key *AccessKey) DeserializeSecret() error {
 	if encryptionString == "" {
 		err = key.unmarshalAppropriateField(ciphertext)
 		if _, ok := err.(*json.SyntaxError); ok {
-			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
+			err = fmt.Errorf("secret must be valid json")
 		}
 		return err
 	}
