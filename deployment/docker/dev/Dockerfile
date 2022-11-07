@@ -1,11 +1,11 @@
-FROM golang:1.16.3-alpine3.13
+FROM golang:1.18.3-alpine3.16
 
 ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}" \
     APP_ROOT="/go/src/github.com/ansible-semaphore/semaphore/"
 
 # hadolint ignore=DL3013
-RUN apk add --no-cache sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client tini nodejs nodejs-npm bash rsync && \
+RUN apk add --no-cache sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client-default tini nodejs npm bash rsync && \
     apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base &&\
     rm -rf /var/cache/apk/*
 
@@ -17,13 +17,17 @@ RUN adduser -D -u 1002 -g 0 semaphore && \
     mkdir -p /go/src/github.com/ansible-semaphore/semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
+    mkdir -p /var/lib/semaphore && \
     chown -R semaphore:0 /go && \
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
+    chown -R semaphore:0 /var/lib/semaphore && \
     ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""       && \
     ssh-keyscan -H github.com > /root/.ssh/known_hosts
 
 RUN cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
+
+RUN git config --global --add safe.directory /go/src/github.com/ansible-semaphore/semaphore
 
 # Copy in app source
 WORKDIR ${APP_ROOT}

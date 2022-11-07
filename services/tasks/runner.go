@@ -4,13 +4,15 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/lib"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
@@ -47,6 +49,12 @@ func getMD5Hash(filepath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
+func (t *TaskRunner) getPlaybookDir() string {
+	playbookPath := path.Join(t.getRepoPath(), t.template.Playbook)
+
+	return path.Dir(playbookPath)
+}
+
 func (t *TaskRunner) getRepoPath() string {
 	repo := lib.GitRepository{
 		Logger:     t,
@@ -78,6 +86,7 @@ func (t *TaskRunner) setStatus(status db.TaskStatus) {
 
 	if status == db.TaskSuccessStatus || status == db.TaskFailStatus {
 		t.sendTelegramAlert()
+		t.sendSlackAlert()
 	}
 }
 
@@ -313,7 +322,7 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	return nil
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
@@ -478,7 +487,7 @@ func (t *TaskRunner) updateRepository() error {
 }
 
 func (t *TaskRunner) installCollectionsRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/collections/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -559,11 +568,33 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
+	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
 	return lib.AnsiblePlaybook{
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
-	}.RunPlaybook(args, func(p *os.Process) { t.process = p })
+	}.RunPlaybook(args, &environmentVariables, func(p *os.Process) { t.process = p })
+}
+
+func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {
+	environmentVars := make(map[string]string)
+
+	if t.environment.ENV != nil {
+		err = json.Unmarshal([]byte(*t.environment.ENV), &environmentVars)
+		if err != nil {
+			return
+		}
+	}
+
+	for key, val := range environmentVars {
+		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	return
 }
 
 func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
@@ -615,7 +646,7 @@ func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	return
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
 	if playbookName == "" {
@@ -626,8 +657,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 	switch t.inventory.Type {
 	case db.InventoryFile:
 		inventory = t.inventory.Inventory
-	case db.InventoryStatic:
+	case db.InventoryStatic, db.InventoryStaticYaml:
 		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+		if t.inventory.Type == db.InventoryStaticYaml {
+			inventory += ".yml"
+		}
 	default:
 		err = fmt.Errorf("invalid invetory type")
 		return
@@ -669,6 +703,10 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "-vvvv")
 	}
 
+	if t.task.Diff {
+		args = append(args, "--diff")
+	}
+
 	if t.task.DryRun {
 		args = append(args, "--check")
 	}
@@ -701,6 +739,11 @@ func (t *TaskRunner) getPlaybookArgs() (args []string, err error) {
 			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
+	}
+
+	if t.task.Limit != "" {
+		t.Log("--limit=" + t.task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)

@@ -442,16 +442,16 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interfa
 				reflect.Uint16,
 				reflect.Uint32,
 				reflect.Uint64:
-				//if idValue.Int() == 0 {
-				id, err3 := b.NextSequence()
-				if err3 != nil {
-					return err3
+				if idValue.Int() == 0 {
+					id, err3 := b.NextSequence()
+					if err3 != nil {
+						return err3
+					}
+					if props.SortInverted {
+						id = MaxID - id
+					}
+					idValue.SetInt(int64(id))
 				}
-				if props.SortInverted {
-					id = MaxID - id
-				}
-				idValue.SetInt(int64(id))
-				//}
 
 				objID = intObjectID(idValue.Int())
 			case reflect.String:

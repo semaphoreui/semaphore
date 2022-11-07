@@ -80,8 +80,6 @@ func (r Repository) GetGitURL() string {
 		switch r.SSHKey.Type {
 		case AccessKeyLoginPassword:
 			auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
-		case AccessKeyPAT:
-			auth = r.SSHKey.PAT
 		}
 		if auth != "" {
 			auth += "@"

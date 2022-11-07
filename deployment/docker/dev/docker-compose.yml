@@ -31,6 +31,13 @@ services:
     ports:
       - 3000:3000
     image: ansiblesemaphore/semaphore:latest
+  semaphore_dev:
+    image: semaphoreui/semaphore:dev-compose
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/dev/Dockerfile
+    volumes:
+      - "./../../../:/go/src/github.com/ansible-semaphore/semaphore:rw"
     environment:
       SEMAPHORE_DB_USER: semaphore
       SEMAPHORE_DB_PASS: semaphore

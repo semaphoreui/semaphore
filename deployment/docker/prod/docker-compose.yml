@@ -13,7 +13,7 @@ services:
       MYSQL_PASSWORD: hx4hjxqthfwbfsy5535u4agfdscm
 
   semaphore:
-    image: ansiblesemaphore/semaphore:prod-compose
+    image: semaphoreui/semaphore:prod-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/prod/Dockerfile
@@ -24,7 +24,6 @@ services:
       SEMAPHORE_DB_HOST: mysql
       SEMAPHORE_DB_PORT: 3306
       SEMAPHORE_DB: semaphore
-      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore/
       SEMAPHORE_ADMIN_PASSWORD: cangetin
       SEMAPHORE_ADMIN_NAME: admin
       SEMAPHORE_ADMIN_EMAIL: admin@localhost

@@ -25,10 +25,12 @@ type Task struct {
 	Debug  bool       `db:"debug" json:"debug"`
 
 	DryRun bool `db:"dry_run" json:"dry_run"`
+	Diff   bool `db:"diff" json:"diff"`
 
 	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`
+	Limit       string `db:"hosts_limit" json:"limit"`
 
 	UserID *int `db:"user_id" json:"user_id"`
 

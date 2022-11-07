@@ -6,6 +6,7 @@ After=network.target
 User=www-data
 Group=www-data
 ExecStart=/usr/bin/semaphore server --config /etc/semaphore/config.json
+ExecReload=/bin/kill -HUP $MAINPID
 Type=simple
 
 [Install]

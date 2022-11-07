@@ -23,7 +23,7 @@ func (t *TaskRunner) installInventory() (err error) {
 		}
 	}
 
-	if t.inventory.Type == db.InventoryStatic {
+	if t.inventory.Type == db.InventoryStatic || t.inventory.Type == db.InventoryStaticYaml {
 		err = t.installStaticInventory()
 	}
 
@@ -33,6 +33,11 @@ func (t *TaskRunner) installInventory() (err error) {
 func (t *TaskRunner) installStaticInventory() error {
 	t.Log("installing static inventory")
 
+	path := util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
+	if t.inventory.Type == db.InventoryStaticYaml {
+		path += ".yml"
+	}
+
 	// create inventory file
-	return ioutil.WriteFile(util.Config.TmpPath+"/inventory_"+strconv.Itoa(t.task.ID), []byte(t.inventory.Inventory), 0664)
+	return ioutil.WriteFile(path, []byte(t.inventory.Inventory), 0664)
 }

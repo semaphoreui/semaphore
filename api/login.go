@@ -2,10 +2,13 @@ package api
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -13,8 +16,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 func tryFindLDAPUser(username, password string) (*db.User, error) {
@@ -64,13 +65,27 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, fmt.Errorf("too many entries returned")
 	}
 
-	// Bind as the user to verify their password
+	// Bind as the user
 	userdn := sr.Entries[0].DN
 	if err = l.Bind(userdn, password); err != nil {
 		return nil, err
 	}
 
-	// Get user info and ensure authentication in case LDAP supports unauthenticated bind
+	// Ensure authentication and verify itself with whoami operation
+	var res *ldap.WhoAmIResult
+	if res, err = l.WhoAmI(nil); err != nil {
+		return nil, err
+	}
+	if len(res.AuthzID) <= 0 {
+		return nil, fmt.Errorf("error while doing whoami operation")
+	}
+
+	// Second time bind as read only user
+	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+		return nil, err
+	}
+
+	// Get user info
 	searchRequest = ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
@@ -84,6 +99,10 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
+	if len(sr.Entries) <= 0 {
+		return nil, fmt.Errorf("ldap search returned no entries")
+	}
+
 	ldapUser := db.User{
 		Username: strings.ToLower(sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID)),
 		Created:  time.Now(),
@@ -91,6 +110,14 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		Email:    sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Mail),
 		External: true,
 		Alert:    false,
+	}
+
+	err = db.ValidateUser(ldapUser)
+
+	if err != nil {
+		jsonBytes, _ := json.Marshal(ldapUser)
+		log.Error("LDAP returned incorrect user data: " + string(jsonBytes))
+		return nil, err
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
@@ -128,7 +155,44 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 }
 
-//nolint: gocyclo
+func loginByPassword(store db.Store, login string, password string) (user db.User, err error) {
+	user, err = store.GetUserByLoginOrEmail(login, login)
+
+	if err != nil {
+		return
+	}
+
+	if user.External {
+		err = db.ErrNotFound
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+
+	if err != nil {
+		err = db.ErrNotFound
+		return
+	}
+
+	return
+}
+
+func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
+	user, err = store.GetUserByLoginOrEmail(ldapUser.Username, ldapUser.Email)
+
+	if err == db.ErrNotFound {
+		user, err = store.CreateUserWithoutPassword(ldapUser)
+	}
+
+	if !user.External {
+		err = db.ErrNotFound
+		return
+	}
+
+	return
+}
+
+// nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
@@ -156,43 +220,33 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if util.Config.LdapEnable {
 		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
 		if err != nil {
-			log.Info(err.Error())
+			log.Warn(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	user, err := helpers.Store(r).GetUserByLoginOrEmail(login.Auth, login.Auth)
+	var user db.User
 
-	if err == db.ErrNotFound {
-		if ldapUser != nil {
-			// create new LDAP user
-			user, err = helpers.Store(r).CreateUserWithoutPassword(*ldapUser)
-			if err != nil {
-				panic(err)
-			}
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-	} else if err != nil {
-		panic(err)
+	if ldapUser == nil {
+		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
+	} else {
+		user, err = loginByLDAP(helpers.Store(r), *ldapUser)
 	}
 
-	// check if ldap user & no ldap user found
-	if user.External && ldapUser == nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	// non-ldap login
-	if !user.External {
-		if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
+	if err != nil {
+		if err == db.ErrNotFound {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// authenticated.
+		switch err.(type) {
+		case *db.ValidationError:
+			// TODO: Return more informative error code.
+		}
+
+		log.Error(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	createSession(w, r, user)

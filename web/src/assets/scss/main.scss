@@ -1,0 +1,72 @@
+$mdi-font-path: "~@mdi/font/fonts";
+@import '~@mdi/font/scss/materialdesignicons';
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url("../fonts/Roboto-Thin.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url("../fonts/Roboto-Thin.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("../fonts/Roboto-Light.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/Roboto-Regular.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/Roboto-Medium.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/Roboto-Bold.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../fonts/Roboto-Black.ttf") format('truetype');
+}
+
+@import '~vuetify/src/styles/main';
+
+.v-application.theme--dark .v-overlay__scrim {
+  background: #878787 !important;
+}
+
+.v-bottom-sheet > .v-sheet.theme--dark {
+  background: #212121;
+}
+
+.opacity1 {
+  opacity: 1 !important;
+}
