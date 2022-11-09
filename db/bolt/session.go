@@ -69,7 +69,7 @@ func (d *BoltDb) DeleteAPIToken(userID int, tokenID string) (err error) {
 		return
 	}
 
-	err = d.deleteObject(0, db.TokenProps, strObjectID(tokenID), nil)
+	err = d.deleteObject(userID, db.TokenProps, strObjectID(tokenID), nil)
 	return
 }
 

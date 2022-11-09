@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/bolt"
+	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/db/sql"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/snikch/goodman/transaction"
@@ -11,24 +13,6 @@ import (
 	"os"
 	"time"
 )
-
-var tablesShouldBeTruncated = [...]string{
-	"access_key",
-	"event",
-	"user__token",
-	"project",
-	"task__output",
-	"task",
-	"session",
-	"project__environment",
-	"project__inventory",
-	"project__repository",
-	"project__template",
-	"project__schedule",
-	"project__user",
-	"user",
-	"project__view",
-}
 
 // Test Runner User
 func addTestRunnerUser() {
@@ -58,21 +42,44 @@ func addTestRunnerUser() {
 }
 
 func truncateAll() {
-	tx, err := store.Sql().Begin()
-	if err != nil {
-		panic(err)
+	var tablesShouldBeTruncated = [...]string{
+		"access_key",
+		"event",
+		"user__token",
+		"project",
+		"task__output",
+		"task",
+		"session",
+		"project__environment",
+		"project__inventory",
+		"project__repository",
+		"project__template",
+		"project__schedule",
+		"project__user",
+		"user",
+		"project__view",
 	}
 
-	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	if err == nil {
-		for _, tableName := range tablesShouldBeTruncated {
-			tx.Exec("TRUNCATE TABLE " + tableName)
+	switch store.(type) {
+	case *bolt.BoltDb:
+		// Do nothing
+	case *sql.SqlDb:
+		tx, err := store.(*sql.SqlDb).Sql().Begin()
+		if err != nil {
+			panic(err)
 		}
-		tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
-	}
 
-	if err := tx.Commit(); err != nil {
-		panic(err)
+		_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		if err == nil {
+			for _, tableName := range tablesShouldBeTruncated {
+				tx.Exec("TRUNCATE TABLE " + tableName)
+			}
+			tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		}
+
+		if err := tx.Commit(); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -247,10 +254,10 @@ func loadConfig() {
 	}
 }
 
-var store sql.SqlDb
+var store db.Store
 
 func dbConnect() {
-	store = sql.SqlDb{}
+	store = factory.CreateStore()
 
 	if err := store.Connect(); err != nil {
 		panic(err)
