@@ -29,8 +29,8 @@ var userGetCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		store := createStore()
-		defer store.Close()
+		store := createStore("")
+		defer store.Close("")
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, targetUserArgs.email)
 		if err != nil {

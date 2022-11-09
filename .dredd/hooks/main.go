@@ -54,12 +54,12 @@ func main() {
 
 	h.Before("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer store.Close()
+		defer store.Close("")
 		addToken(expiredToken, testRunnerUser.ID)
 	})
 	h.After("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer store.Close()
+		defer store.Close("")
 		//tokens are expired and not deleted so we need to clean up
 		_ = store.DeleteAPIToken(testRunnerUser.ID, expiredToken)
 	})
@@ -72,7 +72,7 @@ func main() {
 	// delete the auto generated association and insert the user id into the query
 	h.Before("project > /api/project/{project_id}/users > Link user to project > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer store.Close()
+		defer store.Close("")
 		deleteUserProjectRelation(userProject.ID, userPathTestUser.ID)
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"admin\": true}"
 	})

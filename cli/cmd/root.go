@@ -41,11 +41,10 @@ func Execute() {
 }
 
 func runService() {
-	store := createStore()
+	store := createStore("root")
 	taskPool := tasks.CreateTaskPool(store)
 	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
 
-	defer store.Close()
 	defer schedulePool.Destroy()
 
 	dialect, err := util.Config.GetDialect()
@@ -89,6 +88,12 @@ func runService() {
 
 	fmt.Println("Server is running")
 
+	if store.KeepConnection() {
+		defer store.Close("root")
+	} else {
+		store.Close("root")
+	}
+
 	err = http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
 
 	if err != nil {
@@ -96,12 +101,12 @@ func runService() {
 	}
 }
 
-func createStore() db.Store {
+func createStore(token string) db.Store {
 	util.ConfigInit(configPath)
 
 	store := factory.CreateStore()
 
-	if err := store.Connect(); err != nil {
+	if err := store.Connect(token); err != nil {
 		switch err {
 		case bbolt.ErrTimeout:
 			fmt.Println("\n BoltDB supports only one connection at a time. You should stop Semaphore to use CLI.")

@@ -50,6 +50,10 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 }
 
 func (r ScheduleRunner) Run() {
+	if !r.pool.store.KeepConnection() {
+		r.pool.store.Connect("schedule")
+		defer r.pool.store.Close("schedule")
+	}
 	schedule, err := r.pool.store.GetSchedule(r.projectID, r.scheduleID)
 	if err != nil {
 		log.Error(err)

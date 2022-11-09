@@ -24,7 +24,7 @@ var setupCmd = &cobra.Command{
 	},
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func doSetup() int {
 	var config *util.ConfigType
 	config = &util.ConfigType{}
@@ -37,7 +37,8 @@ func doSetup() int {
 	fmt.Println(" Pinging db..")
 
 	store := factory.CreateStore()
-	if err := store.Connect(); err != nil {
+	defer store.Close("setup")
+	if err := store.Connect("setup"); err != nil {
 		fmt.Printf("Cannot connect to database!\n %v\n", err.Error())
 		os.Exit(1)
 	}

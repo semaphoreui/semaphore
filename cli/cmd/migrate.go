@@ -13,8 +13,8 @@ var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Execute migrations",
 	Run: func(cmd *cobra.Command, args []string) {
-		store := createStore()
-		defer store.Close()
+		store := createStore("migrate")
+		defer store.Close("migrate")
 		fmt.Println("\n db migrations run on startup automatically")
 	},
 }

@@ -16,7 +16,28 @@ import (
 
 var publicAssets2 = packr.NewBox("../web/dist")
 
-//JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
+func StoreMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		store := helpers.Store(r)
+
+		var url = r.URL.String()
+
+		if !helpers.Store(r).KeepConnection() {
+			err := store.Connect(url)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		next.ServeHTTP(w, r)
+
+		if !store.KeepConnection() {
+			_ = store.Close(url)
+		}
+	})
+}
+
+// JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
 func JSONMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")
@@ -24,7 +45,7 @@ func JSONMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-//plainTextMiddleware resets headers to Plain Text if needed
+// plainTextMiddleware resets headers to Plain Text if needed
 func plainTextMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "text/plain; charset=utf-8")
@@ -66,15 +87,20 @@ func Route() *mux.Router {
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
-	publicAPIRouter.Use(JSONMiddleware)
+
+	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 
-	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(JSONMiddleware, authentication)
+	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
+	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
+	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
-	authenticatedAPI.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
+	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
+
+	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
+
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
@@ -259,7 +285,7 @@ func debugPrintRoutes(r *mux.Router) {
 	}
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	webPath := "/"
 	if util.WebHostURL != nil {

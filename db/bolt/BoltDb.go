@@ -33,8 +33,9 @@ func (d emptyEnumerable) Next() (key []byte, value []byte) {
 }
 
 type BoltDb struct {
-	Filename string
-	db       *bbolt.DB
+	Filename    string
+	db          *bbolt.DB
+	connections map[string]bool
 }
 
 type objectID interface {
@@ -70,7 +71,26 @@ func (d *BoltDb) Migrate() error {
 	return nil
 }
 
-func (d *BoltDb) Connect() error {
+func (d *BoltDb) Connect(token string) error {
+	if d.connections == nil {
+		d.connections = make(map[string]bool)
+	}
+
+	fmt.Println("CONN " + token)
+
+	if _, exists := d.connections[token]; exists {
+		return fmt.Errorf("Connection " + token + " already exists")
+	}
+
+	for k := range d.connections {
+		fmt.Println("- EXIST " + k)
+	}
+
+	if len(d.connections) > 0 {
+		d.connections[token] = true
+		return nil
+	}
+
 	var filename string
 	if d.Filename == "" {
 		config, err := util.Config.GetDBConfig()
@@ -91,11 +111,41 @@ func (d *BoltDb) Connect() error {
 		return err
 	}
 
+	d.connections[token] = true
 	return nil
 }
 
-func (d *BoltDb) Close() error {
-	return d.db.Close()
+func (d *BoltDb) Close(token string) error {
+	fmt.Println("CLOSE " + token)
+
+	_, exists := d.connections[token]
+
+	if !exists {
+		panic(fmt.Errorf("can not close of connection closed"))
+	}
+
+	if len(d.connections) > 1 {
+		delete(d.connections, token)
+		return nil
+	}
+
+	err := d.db.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	d.db = nil
+	delete(d.connections, token)
+
+	for k := range d.connections {
+		fmt.Println("- EXIST " + k)
+	}
+
+	return nil
+}
+
+func (d *BoltDb) KeepConnection() bool {
+	return false
 }
 
 func (d *BoltDb) IsInitialized() (initialized bool, err error) {
@@ -653,7 +703,7 @@ func CreateTestStore() BoltDb {
 	store := BoltDb{
 		Filename: fn,
 	}
-	err := store.Connect()
+	err := store.Connect("test")
 	if err != nil {
 		panic(err)
 	}
