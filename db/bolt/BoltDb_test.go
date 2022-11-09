@@ -350,6 +350,16 @@ func TestBoltDb_CreateAPIToken(t *testing.T) {
 	if !token2.Expired {
 		t.Fatal()
 	}
+
+	err = store.DeleteAPIToken(user.ID, token.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.GetAPIToken(token.ID)
+	if err == nil {
+		t.Fatal("Token not deleted")
+	}
 }
 
 func TestBoltDb_GetRepositoryRefs(t *testing.T) {

@@ -42,7 +42,7 @@ func addTestRunnerUser() {
 	}
 
 	dbConnect()
-	defer store.Sql().Db.Close()
+	defer store.Close()
 
 	truncateAll()
 
@@ -78,10 +78,9 @@ func truncateAll() {
 
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
-	defer store.Sql().Db.Close()
-	deleteToken(adminToken, testRunnerUser.ID)
+	defer store.Close()
+	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
 	_ = store.DeleteUser(testRunnerUser.ID)
-	//deleteObject(testRunnerUser)
 }
 
 // Parameter Substitution
@@ -145,6 +144,7 @@ func addUser() *db.User {
 		Created:  time.Now(),
 		Username: "ITU-" + uid,
 		Email:    "test@semaphore." + uid,
+		Name:     "ITU-" + uid,
 	}
 
 	user, err := store.CreateUserWithoutPassword(user)
@@ -204,13 +204,6 @@ func addTask() *db.Task {
 	return &t
 }
 
-func deleteObject(i interface{}) {
-	_, err := store.Sql().Delete(i)
-	if err != nil {
-		panic(err)
-	}
-}
-
 // Token Handling
 func addToken(tok string, user int) {
 	_, err := store.CreateAPIToken(db.APIToken{
@@ -222,15 +215,6 @@ func addToken(tok string, user int) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func deleteToken(tok string, user int) {
-	token := db.APIToken{
-		ID:     tok,
-		UserID: user,
-	}
-
-	deleteObject(&token)
 }
 
 // HELPERS

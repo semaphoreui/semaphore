@@ -33,6 +33,14 @@ func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) (err error) {
 	return validateMutationResult(res, err)
 }
 
+func (d *SqlDb) DeleteAPIToken(userID int, tokenID string) (err error) {
+	_, err = d.sql.Delete(db.APIToken{
+		ID:     tokenID,
+		UserID: userID,
+	})
+	return
+}
+
 func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err error) {
 	err = d.selectOne(&session, "select * from session where id=? and user_id=? and expired=false", sessionID, userID)
 

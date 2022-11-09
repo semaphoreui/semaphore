@@ -168,6 +168,7 @@ type Store interface {
 	CreateAPIToken(token APIToken) (APIToken, error)
 	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
+	DeleteAPIToken(userID int, tokenID string) error
 
 	GetSession(userID int, sessionID int) (Session, error)
 	CreateSession(session Session) (Session, error)
