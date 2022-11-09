@@ -8,9 +8,6 @@ services:
       MYSQL_DATABASE: semaphore
       MYSQL_USER: semaphore
       MYSQL_PASSWORD: semaphore
-    ## uncomment if you want to store mysql data between launches
-    #volumes:
-    #  - /tmp/mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
 
@@ -31,6 +28,7 @@ services:
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ADMIN: admin
       SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
     ports:
       - "3000:3000"
     depends_on:
@@ -39,6 +37,8 @@ services:
   dredd:
     image: ansiblesemaphore/dredd:ci
     command: ["--config", ".dredd/dredd.yml"]
+    environment:
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/ci/dredd.Dockerfile

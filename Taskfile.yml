@@ -232,26 +232,6 @@ tasks:
           args: stop
           context: "{{ .context }}"
 
-  dc:build:dredd:
-    desc: build a dredd container to the local testing with docker-compose stack
-    cmds:
-      - task: docker
-        vars:
-          context: dev
-          compose: true
-          prefix: -dredd
-          args: build
-
-  dc:up:dredd:
-    desc: build a dredd container to the local testing with docker-compose stack
-    cmds:
-      - task: docker
-        vars:
-          context: dev
-          compose: true
-          prefix: -dredd
-          args: up
-
   docker:build:
     desc: Build an image for Semaphore, requires context
     vars:

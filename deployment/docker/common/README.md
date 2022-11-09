@@ -1,4 +1,10 @@
-# How to test semaphore-wrapper
+# semaphore-wrapper
+
+## What it does
+
+`semaphore-wrapper` generates `config.json` using `setup` command and execute provided command.
+
+## How to test semaphore-wrapper
 
 ```bash
 SEMAPHORE_DB_DIALECT=bolt \

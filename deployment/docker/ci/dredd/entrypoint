@@ -10,7 +10,8 @@ cat > /semaphore/.dredd/config.json <<EOF
 		"user": "semaphore",
 		"pass": "semaphore",
 		"name": "semaphore"
-	}
+	},
+	"access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
 }
 EOF
 

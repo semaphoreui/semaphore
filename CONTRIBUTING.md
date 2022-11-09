@@ -75,16 +75,4 @@ The most basic configuration for this using a local docker container to run the 
 		"name": "semaphore"
 	}
 }
-
-```
-
-It is strongly advised to run these tests inside docker containers, as dredd will write a lot of test information and will __NOT__ clear it up.
-This means that you should never run these tests against your productive database!
-The best practice to run these tests is to use docker and the task commands.
-
-```bash
-context=dev task dc:build #build fresh semaphore images
-context=dev task dc:up  #up semaphore and mysql
-task dc:build:dredd #build fresh dredd image
-task dc:up:dredd #run dredd over docker-compose stack
 ```
