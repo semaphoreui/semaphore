@@ -80,7 +80,8 @@ func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
 	defer store.Sql().Db.Close()
 	deleteToken(adminToken, testRunnerUser.ID)
-	deleteObject(testRunnerUser)
+	_ = store.DeleteUser(testRunnerUser.ID)
+	//deleteObject(testRunnerUser)
 }
 
 // Parameter Substitution
@@ -228,6 +229,7 @@ func deleteToken(tok string, user int) {
 		ID:     tok,
 		UserID: user,
 	}
+
 	deleteObject(&token)
 }
 
