@@ -20,10 +20,10 @@ var schedule *db.Schedule
 var view *db.View
 
 // Runtime created simple ID values for some items we need to reference in other objects
-var repoID int64
-var inventoryID int64
-var environmentID int64
-var templateID int64
+var repoID int
+var inventoryID int
+var environmentID int
+var templateID int
 
 var capabilities = map[string][]string{
 	"user":        {},
@@ -88,7 +88,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				Name:      "ITR-" + uid,
 			})
 			printError(err)
-			repoID = int64(pRepo.ID)
+			repoID = pRepo.ID
 		case "inventory":
 			res, err := store.CreateInventory(db.Inventory{
 				ProjectID: userProject.ID,
@@ -98,7 +98,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				Inventory: "Test Inventory",
 			})
 			printError(err)
-			inventoryID = int64(res.ID)
+			inventoryID = res.ID
 		case "environment":
 			pwd := "test-pass"
 			env := "{}"
@@ -110,15 +110,31 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ENV:       &env,
 			})
 			printError(err)
-			environmentID = int64(res.ID)
+			environmentID = res.ID
 		case "template":
-			res, err := store.Sql().Exec(
-				"insert into project__template "+
-					"(project_id, inventory_id, repository_id, environment_id, name, playbook, arguments, allow_override_args_in_task, description, view_id) "+
-					"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!", view.ID)
+			//res, err := store.Sql().Exec(
+			//	"insert into project__template "+
+			//		"(project_id, inventory_id, repository_id, environment_id, name, playbook, arguments, allow_override_args_in_task, description, view_id) "+
+			//		"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			//	userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!", view.ID)
+
+			args := "[]"
+			desc := "Hello, World!"
+			res, err := store.CreateTemplate(db.Template{
+				ProjectID:               userProject.ID,
+				InventoryID:             inventoryID,
+				RepositoryID:            repoID,
+				EnvironmentID:           &environmentID,
+				Name:                    "Test-" + uid,
+				Playbook:                "test-playbook.yml",
+				Arguments:               &args,
+				AllowOverrideArgsInTask: false,
+				Description:             &desc,
+				ViewID:                  &view.ID,
+			})
+
 			printError(err)
-			templateID, _ = res.LastInsertId()
+			templateID = res.ID
 		case "task":
 			task = addTask()
 		default:

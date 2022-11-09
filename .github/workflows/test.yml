@@ -2,7 +2,7 @@ name: Test
 on:
   push:
     branches:
-    - update_dredd
+    - test
 
 jobs:
   test-integration:
