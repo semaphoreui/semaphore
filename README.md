@@ -84,7 +84,7 @@ You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
 
 Admin and user docs: https://docs.ansible-semaphore.com
 
-API description: https://ansible-semaphore.com/api/
+API description: https://ansible-semaphore.com/api-docs/
 
 ## Contributing
 
