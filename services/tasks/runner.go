@@ -154,12 +154,24 @@ func (t *TaskRunner) createTaskEvent() {
 func (t *TaskRunner) prepareRun() {
 	t.prepared = false
 
+	if !t.pool.store.KeepConnection() {
+		err := t.pool.store.Connect("task " + strconv.Itoa(t.task.ID))
+
+		if err != nil {
+			t.panicOnError(err, "Fatal error inserting an event")
+		}
+	}
+
 	defer func() {
 		log.Info("Stopped preparing TaskRunner " + strconv.Itoa(t.task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
 		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		t.createTaskEvent()
+
+		if !t.pool.store.KeepConnection() {
+			t.pool.store.Close("task " + strconv.Itoa(t.task.ID))
+		}
 	}()
 
 	t.Log("Preparing: " + strconv.Itoa(t.task.ID))

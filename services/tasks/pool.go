@@ -63,7 +63,7 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 	return
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)
 
@@ -106,15 +106,28 @@ func (p *TaskPool) Run() {
 	for {
 		select {
 		case record := <-p.logger: // new log message which should be put to database
+			if !record.task.pool.store.KeepConnection() {
+				err := record.task.pool.store.Connect("task " + strconv.Itoa(record.task.task.ID) + " output")
+
+				if err != nil {
+					log.Error(err)
+				}
+			}
+
 			_, err := record.task.pool.store.CreateTaskOutput(db.TaskOutput{
 				TaskID: record.task.task.ID,
 				Output: record.output,
 				Time:   record.time,
 			})
 
+			if !record.task.pool.store.KeepConnection() {
+				_ = record.task.pool.store.Close("task " + strconv.Itoa(record.task.task.ID) + " output")
+			}
+
 			if err != nil {
 				log.Error(err)
 			}
+
 		case task := <-p.register: // new task created by API or schedule
 			p.queue = append(p.queue, task)
 			log.Debug(task)
