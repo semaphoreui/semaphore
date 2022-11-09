@@ -29,6 +29,8 @@ func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter f
 	i := 0 // offset counter
 	n := 0 // number of added items
 
+	events = []db.Event{}
+
 	for k, v := c.First(); k != nil; k, v = c.Next() {
 		if params.Offset > 0 && i < params.Offset {
 			i++
