@@ -134,9 +134,11 @@ func addAccessKey(pid *int) *db.AccessKey {
 
 func addProject() *db.Project {
 	uid := getUUID()
+	chat := "Test"
 	project := db.Project{
-		Name:    "ITP-" + uid,
-		Created: time.Now(),
+		Name:      "ITP-" + uid,
+		Created:   time.Now(),
+		AlertChat: &chat,
 	}
 	project, err := store.CreateProject(project)
 	if err != nil {
