@@ -113,16 +113,20 @@ func authentication(next http.Handler) http.Handler {
 // nolint: gocyclo
 func authenticationWithStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		store := helpers.Store(r)
 		var url = r.URL.String()
 
-		if !helpers.Store(r).KeepConnection() {
-			_ = helpers.Store(r).Connect(url)
+		if !store.KeepConnection() {
+			err := store.Connect(url)
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		authenticationHandler(w, r)
 
-		if !helpers.Store(r).KeepConnection() {
-			_ = helpers.Store(r).Close(url)
+		if !store.KeepConnection() {
+			_ = store.Close(url)
 		}
 
 		next.ServeHTTP(w, r)

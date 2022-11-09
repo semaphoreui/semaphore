@@ -19,10 +19,9 @@ var publicAssets2 = packr.NewBox("../web/dist")
 func StoreMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		store := helpers.Store(r)
-
 		var url = r.URL.String()
 
-		if !helpers.Store(r).KeepConnection() {
+		if !store.KeepConnection() {
 			err := store.Connect(url)
 			if err != nil {
 				panic(err)

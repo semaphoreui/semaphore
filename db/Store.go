@@ -77,8 +77,14 @@ func (e *ValidationError) Error() string {
 }
 
 type Store interface {
+	// Connect connects to the database.
+	// token parameter used if KeepConnection returns false.
 	Connect(token string) error
 	Close(token string) error
+
+	// KeepConnection returns true if connection should be kept from start to finish of the app.
+	// This mode is suitable for MySQL and Postgres but not for BoltDB.
+	// For BoltDB we should reconnect for each request because BoltDB support only one connection at time.
 	KeepConnection() bool
 
 	// IsInitialized indicates is database already initialized, or it is empty.

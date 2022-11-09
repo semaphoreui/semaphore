@@ -97,7 +97,7 @@ definitions:
         type: string
       created:
         type: string
-        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
       admin:
@@ -110,7 +110,7 @@ definitions:
         type: string
       created:
         type: string
-        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       expired:
         type: boolean
       user_id:
@@ -125,6 +125,12 @@ definitions:
         example: Test
       alert:
         type: boolean
+      alert_chat:
+        type: string
+        example: Test
+      max_parallel_tasks:
+        type: integer
+        minimum: 0
   Project:
     type: object
     properties:
@@ -136,9 +142,16 @@ definitions:
         example: Test
       created:
         type: string
-        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
+      alert_chat:
+        type: string
+        example: Test
+      max_parallel_tasks:
+        type: integer
+        minimum: 0
+
 
   AccessKeyRequest:
     type: object
