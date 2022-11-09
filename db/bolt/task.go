@@ -122,7 +122,12 @@ func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, tx *bbolt.Tx) 
 		return
 	}
 
-	return tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
+	err = tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
+	if err == bbolt.ErrBucketNotFound {
+		err = nil
+	}
+
+	return
 }
 
 func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) error {
