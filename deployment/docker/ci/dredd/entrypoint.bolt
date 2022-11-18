@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "---> Add Config"
+cat > /semaphore/.dredd/config.json <<EOF
+{
+	"bolt": {
+	  "host": "/data/database.boltdb"
+	},
+	"dialect": "bolt",
+	"access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
+}
+EOF
+
+echo "---> Waiting for semaphore"
+while ! nc -z ${SEMAPHORE_SERVICE} ${SEMAPHORE_PORT}; do
+  sleep 1
+done
+
+echo "---> Run Dredd"
+# We do this because otherwise it can fail out
+sleep 5
+dredd $@

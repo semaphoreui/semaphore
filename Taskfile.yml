@@ -203,6 +203,7 @@ tasks:
         vars:
           compose: true
           args: up --abort-on-container-exit
+          prefix: "{{ .prefix }}"
           context: "{{ .context }}"
 
   dc:build:
