@@ -144,6 +144,12 @@ func addProject() *db.Project {
 	if err != nil {
 		panic(err)
 	}
+
+	err = store.UpdateProject(project)
+	if err != nil {
+		panic(err)
+	}
+
 	return &project
 }
 
@@ -261,9 +267,7 @@ var store db.Store
 func dbConnect() {
 	store = factory.CreateStore()
 
-	if err := store.Connect(""); err != nil {
-		panic(err)
-	}
+	store.Connect("")
 }
 
 func stringInSlice(a string, list []string) (int, bool) {
