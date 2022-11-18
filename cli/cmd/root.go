@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/spf13/cobra"
-	"go.etcd.io/bbolt"
 	"net/http"
 	"os"
 )
@@ -88,7 +87,7 @@ func runService() {
 
 	fmt.Println("Server is running")
 
-	if store.KeepConnection() {
+	if store.PermanentConnection() {
 		defer store.Close("root")
 	} else {
 		store.Close("root")
@@ -106,15 +105,17 @@ func createStore(token string) db.Store {
 
 	store := factory.CreateStore()
 
-	if err := store.Connect(token); err != nil {
-		switch err {
-		case bbolt.ErrTimeout:
-			fmt.Println("\n BoltDB supports only one connection at a time. You should stop Semaphore to use CLI.")
-		default:
-			fmt.Println("\n Have you run `semaphore setup`?")
-		}
-		os.Exit(1)
-	}
+	store.Connect(token)
+
+	//if err := store.Connect(token); err != nil {
+	//	switch err {
+	//	case bbolt.ErrTimeout:
+	//		fmt.Println("\n BoltDB supports only one connection at a time. You should stop Semaphore to use CLI.")
+	//	default:
+	//		fmt.Println("\n Have you run `semaphore setup`?")
+	//	}
+	//	os.Exit(1)
+	//}
 
 	err := db.Migrate(store)
 

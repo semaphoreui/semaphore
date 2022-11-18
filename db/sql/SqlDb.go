@@ -247,38 +247,41 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) 
 			objectID))
 }
 
-func (d *SqlDb) Close(token string) error {
-	return d.sql.Db.Close()
+func (d *SqlDb) Close(token string) {
+	err := d.sql.Db.Close()
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (d *SqlDb) KeepConnection() bool {
+func (d *SqlDb) PermanentConnection() bool {
 	return true
 }
 
-func (d *SqlDb) Connect(token string) error {
+func (d *SqlDb) Connect(token string) {
 	sqlDb, err := connect()
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	if err := sqlDb.Ping(); err != nil {
 		if err = createDb(); err != nil {
-			return err
+			panic(err)
 		}
 
 		sqlDb, err = connect()
 		if err != nil {
-			return err
+			panic(err)
 		}
 
 		if err = sqlDb.Ping(); err != nil {
-			return err
+			panic(err)
 		}
 	}
 
 	cfg, err := util.Config.GetDBConfig()
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	var dialect gorp.Dialect
@@ -303,8 +306,6 @@ func (d *SqlDb) Connect(token string) error {
 	d.sql.AddTableWithName(db.Template{}, "project__template").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.User{}, "user").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
-
-	return nil
 }
 
 func getSqlForTable(tableName string, p db.RetrieveQueryParams) (string, []interface{}, error) {

@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"os"
 	"strings"
@@ -21,18 +22,9 @@ func StoreMiddleware(next http.Handler) http.Handler {
 		store := helpers.Store(r)
 		var url = r.URL.String()
 
-		if !store.KeepConnection() {
-			err := store.Connect(url)
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		next.ServeHTTP(w, r)
-
-		if !store.KeepConnection() {
-			_ = store.Close(url)
-		}
+		db.StoreSession(store, url, func() {
+			next.ServeHTTP(w, r)
+		})
 	})
 }
 

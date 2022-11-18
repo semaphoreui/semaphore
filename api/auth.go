@@ -114,20 +114,10 @@ func authentication(next http.Handler) http.Handler {
 func authenticationWithStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		store := helpers.Store(r)
-		var url = r.URL.String()
 
-		if !store.KeepConnection() {
-			err := store.Connect(url)
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		authenticationHandler(w, r)
-
-		if !store.KeepConnection() {
-			_ = store.Close(url)
-		}
+		db.StoreSession(store, r.URL.String(), func() {
+			authenticationHandler(w, r)
+		})
 
 		next.ServeHTTP(w, r)
 	})

@@ -104,8 +104,12 @@ func (c *connection) writePump() {
 
 // Handler is used by the router to handle the /ws endpoint
 func Handler(w http.ResponseWriter, r *http.Request) {
+	usr := context.Get(r, "user")
+	if usr == nil {
+		return
+	}
 
-	user := context.Get(r, "user").(*db.User)
+	user := usr.(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		panic(err)

@@ -78,14 +78,14 @@ func (e *ValidationError) Error() string {
 
 type Store interface {
 	// Connect connects to the database.
-	// token parameter used if KeepConnection returns false.
-	Connect(token string) error
-	Close(token string) error
+	// token parameter used if PermanentConnection returns false.
+	Connect(token string)
+	Close(token string)
 
-	// KeepConnection returns true if connection should be kept from start to finish of the app.
+	// PermanentConnection returns true if connection should be kept from start to finish of the app.
 	// This mode is suitable for MySQL and Postgres but not for BoltDB.
 	// For BoltDB we should reconnect for each request because BoltDB support only one connection at time.
-	KeepConnection() bool
+	PermanentConnection() bool
 
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
@@ -325,4 +325,16 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 	}
 
 	return
+}
+
+func StoreSession(store Store, token string, callback func()) {
+	if !store.PermanentConnection() {
+		store.Connect(token)
+	}
+
+	callback()
+
+	if !store.PermanentConnection() {
+		store.Close(token)
+	}
 }

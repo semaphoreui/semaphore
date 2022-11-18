@@ -38,10 +38,7 @@ func doSetup() int {
 
 	store := factory.CreateStore()
 	defer store.Close("setup")
-	if err := store.Connect("setup"); err != nil {
-		fmt.Printf("Cannot connect to database!\n %v\n", err.Error())
-		os.Exit(1)
-	}
+	store.Connect("setup")
 
 	fmt.Println("Running db Migrations..")
 	if err := db.Migrate(store); err != nil {

@@ -76,10 +76,8 @@ func TestPopulateDetails(t *testing.T) {
 	store := bolt.BoltDb{
 		Filename: fn,
 	}
-	err := store.Connect("")
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	store.Connect("")
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {

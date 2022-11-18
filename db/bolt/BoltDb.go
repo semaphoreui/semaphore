@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,7 @@ type BoltDb struct {
 	Filename    string
 	db          *bbolt.DB
 	connections map[string]bool
+	mu          sync.Mutex
 }
 
 type objectID interface {
@@ -71,31 +73,28 @@ func (d *BoltDb) Migrate() error {
 	return nil
 }
 
-func (d *BoltDb) Connect(token string) error {
+func (d *BoltDb) Connect(token string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if d.connections == nil {
 		d.connections = make(map[string]bool)
 	}
 
-	fmt.Println("CONN " + token)
-
 	if _, exists := d.connections[token]; exists {
-		return fmt.Errorf("Connection " + token + " already exists")
-	}
-
-	for k := range d.connections {
-		fmt.Println("- EXIST " + k)
+		panic(fmt.Errorf("Connection " + token + " already exists"))
 	}
 
 	if len(d.connections) > 0 {
 		d.connections[token] = true
-		return nil
+		return
 	}
 
 	var filename string
 	if d.Filename == "" {
 		config, err := util.Config.GetDBConfig()
 		if err != nil {
-			return err
+			panic(err)
 		}
 		filename = config.Hostname
 	} else {
@@ -108,25 +107,25 @@ func (d *BoltDb) Connect(token string) error {
 	})
 
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	d.connections[token] = true
-	return nil
 }
 
-func (d *BoltDb) Close(token string) error {
-	fmt.Println("CLOSE " + token)
+func (d *BoltDb) Close(token string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	_, exists := d.connections[token]
 
 	if !exists {
-		panic(fmt.Errorf("can not close of connection closed"))
+		panic(fmt.Errorf("can not close closed connection " + token))
 	}
 
 	if len(d.connections) > 1 {
 		delete(d.connections, token)
-		return nil
+		return
 	}
 
 	err := d.db.Close()
@@ -136,15 +135,9 @@ func (d *BoltDb) Close(token string) error {
 
 	d.db = nil
 	delete(d.connections, token)
-
-	for k := range d.connections {
-		fmt.Println("- EXIST " + k)
-	}
-
-	return nil
 }
 
-func (d *BoltDb) KeepConnection() bool {
+func (d *BoltDb) PermanentConnection() bool {
 	return false
 }
 
@@ -697,15 +690,12 @@ func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProps, objID obje
 	return
 }
 
-func CreateTestStore() BoltDb {
+func CreateTestStore() *BoltDb {
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
 	store := BoltDb{
 		Filename: fn,
 	}
-	err := store.Connect("test")
-	if err != nil {
-		panic(err)
-	}
-	return store
+	store.Connect("test")
+	return &store
 }

@@ -106,39 +106,31 @@ func (p *TaskPool) Run() {
 	for {
 		select {
 		case record := <-p.logger: // new log message which should be put to database
-			if !record.task.pool.store.KeepConnection() {
-				err := record.task.pool.store.Connect("task " + strconv.Itoa(record.task.task.ID) + " output")
-
+			db.StoreSession(p.store, "logger", func() {
+				_, err := p.store.CreateTaskOutput(db.TaskOutput{
+					TaskID: record.task.task.ID,
+					Output: record.output,
+					Time:   record.time,
+				})
 				if err != nil {
 					log.Error(err)
 				}
-			}
-
-			_, err := record.task.pool.store.CreateTaskOutput(db.TaskOutput{
-				TaskID: record.task.task.ID,
-				Output: record.output,
-				Time:   record.time,
 			})
 
-			if !record.task.pool.store.KeepConnection() {
-				_ = record.task.pool.store.Close("task " + strconv.Itoa(record.task.task.ID) + " output")
-			}
-
-			if err != nil {
-				log.Error(err)
-			}
-
 		case task := <-p.register: // new task created by API or schedule
-			p.queue = append(p.queue, task)
-			log.Debug(task)
-			msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
-			task.Log(msg)
-			log.Info(msg)
-			task.updateStatus()
+
+			db.StoreSession(p.store, "new task", func() {
+				p.queue = append(p.queue, task)
+				log.Debug(task)
+				msg := "Task " + strconv.Itoa(task.task.ID) + " added to queue"
+				task.Log(msg)
+				log.Info(msg)
+				task.updateStatus()
+			})
 
 		case <-ticker.C: // timer 5 seconds
 			if len(p.queue) == 0 {
-				continue
+				break
 			}
 
 			//get TaskRunner from top of queue
@@ -147,19 +139,22 @@ func (p *TaskPool) Run() {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
-				continue
+				break
 			}
+
 			if p.blocks(t) {
 				//move blocked TaskRunner to end of queue
 				p.queue = append(p.queue[1:], t)
-				continue
+				break
 			}
+
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
 			if !t.prepared {
 				go t.prepareRun()
-				continue
+				break
 			}
+
 			go t.run()
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
