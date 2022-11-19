@@ -8,6 +8,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/db/sql"
 	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/snikch/goodman/transaction"
 	"math/rand"
 	"os"
@@ -64,21 +65,26 @@ func truncateAll() {
 	case *bolt.BoltDb:
 		// Do nothing
 	case *sql.SqlDb:
-		tx, err := store.(*sql.SqlDb).Sql().Begin()
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		if err == nil {
-			for _, tableName := range tablesShouldBeTruncated {
-				tx.Exec("TRUNCATE TABLE " + tableName)
+		switch store.(*sql.SqlDb).Sql().Dialect.(type) {
+		case gorp.PostgresDialect:
+			// Do nothing
+		case gorp.MySQLDialect:
+			tx, err := store.(*sql.SqlDb).Sql().Begin()
+			if err != nil {
+				panic(err)
 			}
-			tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
-		}
 
-		if err := tx.Commit(); err != nil {
-			panic(err)
+			_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
+			if err == nil {
+				for _, tableName := range tablesShouldBeTruncated {
+					tx.Exec("TRUNCATE TABLE " + tableName)
+				}
+				tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
+			}
+
+			if err := tx.Commit(); err != nil {
+				panic(err)
+			}
 		}
 	}
 }
