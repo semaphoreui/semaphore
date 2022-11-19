@@ -46,20 +46,8 @@ func runService() {
 
 	defer schedulePool.Destroy()
 
-	dialect, err := util.Config.GetDialect()
-	if err != nil {
-		panic(err)
-	}
-	switch dialect {
-	case util.DbDriverMySQL:
-		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
-	case util.DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", util.Config.BoltDb.Hostname)
-	case util.DbDriverPostgres:
-		fmt.Printf("Postgres %v@%v %v\n", util.Config.Postgres.Username, util.Config.Postgres.Hostname, util.Config.Postgres.DbName)
-	default:
-		panic(fmt.Errorf("database configuration not found"))
-	}
+	util.Config.PrintDbInfo()
+
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 	fmt.Printf("Semaphore %v\n", util.Version)
 	fmt.Printf("Interface %v\n", util.Config.Interface)
@@ -93,7 +81,7 @@ func runService() {
 		store.Close("root")
 	}
 
-	err = http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
+	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
 
 	if err != nil {
 		log.Panic(err)

@@ -49,7 +49,7 @@ type ldapMappings struct {
 	CN   string `json:"cn"`
 }
 
-//ConfigType mapping between Config and the json file that sets it
+// ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
 	BoltDb   DbConfig `json:"bolt"`
@@ -120,7 +120,7 @@ type ConfigType struct {
 	DemoMode bool `json:"demo_mode"`
 }
 
-//Config exposes the application configuration storage for use in the application
+// Config exposes the application configuration storage for use in the application
 var Config *ConfigType
 
 // ToJSON returns a JSON string of the config
@@ -348,6 +348,23 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	return
 }
 
+func (conf *ConfigType) PrintDbInfo() {
+	dialect, err := conf.GetDialect()
+	if err != nil {
+		panic(err)
+	}
+	switch dialect {
+	case DbDriverMySQL:
+		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.Username, conf.MySQL.Hostname, conf.MySQL.DbName)
+	case DbDriverBolt:
+		fmt.Printf("BoltDB %v\n", conf.BoltDb.Hostname)
+	case DbDriverPostgres:
+		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.Username, conf.Postgres.Hostname, conf.Postgres.DbName)
+	default:
+		panic(fmt.Errorf("database configuration not found"))
+	}
+}
+
 func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
 	if conf.Dialect == "" {
 		switch {
@@ -391,7 +408,7 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	return
 }
 
-//GenerateSecrets generates cookie secret during setup
+// GenerateSecrets generates cookie secret during setup
 func (conf *ConfigType) GenerateSecrets() {
 	hash := securecookie.GenerateRandomKey(32)
 	encryption := securecookie.GenerateRandomKey(32)
