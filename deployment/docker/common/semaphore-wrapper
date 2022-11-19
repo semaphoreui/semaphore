@@ -73,10 +73,6 @@ file_env 'SEMAPHORE_ACCESS_KEY_ENCRYPTION'
     exit 1
 }
 
-if [ -n "${SEMAPHORE_DB_PORT}" ]; then
-  SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}"
-fi
-
 # wait on db to be up
 
 if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
@@ -91,6 +87,10 @@ if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
       echo -n "."
       sleep 1
   done
+fi
+
+if [ -n "${SEMAPHORE_DB_PORT}" ]; then
+  SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}"
 fi
 
 case ${SEMAPHORE_DB_DIALECT} in
