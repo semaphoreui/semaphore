@@ -72,6 +72,11 @@ jobs:
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
+      - run: "cat > config.json <<EOF\n{\n\t\"bolt\": {\n\t\t\"host\": \"/tmp/database.bolt\"\
+          \n\t},\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
 
   test-integration:
     runs-on: [ubuntu-latest]

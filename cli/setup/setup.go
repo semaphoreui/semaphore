@@ -106,6 +106,12 @@ func scanPostgres(conf *util.ConfigType) {
 	askValue("db User", "root", &conf.Postgres.Username)
 	askValue("db Password", "", &conf.Postgres.Password)
 	askValue("db Name", "semaphore", &conf.Postgres.DbName)
+	if conf.Postgres.Options == nil {
+		conf.Postgres.Options = make(map[string]string)
+	}
+	if _, exists := conf.Postgres.Options["sslmode"]; !exists {
+		conf.Postgres.Options["sslmode"] = "disable"
+	}
 }
 
 func scanErrorChecker(n int, err error) {
