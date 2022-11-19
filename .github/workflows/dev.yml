@@ -73,7 +73,8 @@ jobs:
         with:
           name: semaphore
 
-      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
+      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
+          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
           ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
           \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
 
