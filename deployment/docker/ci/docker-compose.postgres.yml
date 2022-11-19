@@ -20,7 +20,7 @@ services:
       SEMAPHORE_DB_USER: semaphore
       SEMAPHORE_DB_PASS: semaphore
       SEMAPHORE_DB_HOST: postgres
-      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB_PORT: 5432
       SEMAPHORE_DB: semaphore
       SEMAPHORE_ADMIN_PASSWORD: password
       SEMAPHORE_ADMIN_NAME: "Developer"
