@@ -62,18 +62,31 @@ jobs:
         with:
           mysql-version: '5.6'
 
+      - uses: Harmon758/postgresql-action@v1
+        with:
+          postgresql version: '11'
+          postgresql db: 'circle_test'
+          postgresql user: 'root'
+          postgresql password: 'pwd'
+
       - uses: actions/download-artifact@master
         with:
           name: semaphore
 
+      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
       - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
           ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
-          \n\t},\n\t\"email_alert\": false\n}\nEOF\n"
+          \n\t},\n\t\"dialect\": \"mysql\",\n\t\"email_alert\": false\n}\nEOF\n"
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
       - run: "cat > config.json <<EOF\n{\n\t\"bolt\": {\n\t\t\"host\": \"/tmp/database.bolt\"\
-          \n\t},\n\t\"email_alert\": false\n}\nEOF\n"
+          \n\t},\n\t\"dialect\": \"bolt\",\n\t\"email_alert\": false\n}\nEOF\n"
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
