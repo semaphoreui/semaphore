@@ -78,7 +78,8 @@ func (e *ValidationError) Error() string {
 
 type Store interface {
 	// Connect connects to the database.
-	// token parameter used if PermanentConnection returns false.
+	// Token parameter used if PermanentConnection returns false.
+	// Token used for debugging of session connections.
 	Connect(token string)
 	Close(token string)
 

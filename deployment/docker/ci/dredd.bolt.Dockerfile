@@ -19,7 +19,7 @@ COPY --from=golang /semaphore /semaphore
 
 WORKDIR /semaphore
 
-COPY deployment/docker/ci/dredd/entrypoint /usr/local/bin
+COPY deployment/docker/ci/dredd/entrypoint.bolt /usr/local/bin
 
 ENV SEMAPHORE_SERVICE=semaphore_ci \
     SEMAPHORE_PORT=3000
