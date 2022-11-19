@@ -29,7 +29,7 @@ services:
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
     build:
       context: ./../../../
-      dockerfile: ./deployment/docker/ci/dredd.Dockerfile
+      dockerfile: ./deployment/docker/ci/dredd.bolt.Dockerfile
     depends_on:
       - semaphore_ci
     volumes:
