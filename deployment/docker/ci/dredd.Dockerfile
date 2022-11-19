@@ -20,5 +20,8 @@ COPY --from=golang /semaphore /semaphore
 WORKDIR /semaphore
 
 COPY deployment/docker/ci/dredd/entrypoint /usr/local/bin
+COPY deployment/docker/ci/dredd/gen-config-bolt /usr/local/bin
+COPY deployment/docker/ci/dredd/gen-config-mysql /usr/local/bin
+COPY deployment/docker/ci/dredd/gen-config-postgres /usr/local/bin
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
