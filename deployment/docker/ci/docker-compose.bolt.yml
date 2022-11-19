@@ -11,7 +11,6 @@ services:
       dockerfile: ./deployment/docker/ci/Dockerfile
     environment:
       SEMAPHORE_DB_DIALECT: bolt
-      SEMAPHORE_DB_HOST: /data/database.boltdb
       SEMAPHORE_ADMIN_PASSWORD: password
       SEMAPHORE_ADMIN_NAME: "Developer"
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
@@ -21,7 +20,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - data:/data
+      - data:/var/lib/semaphore
 
   dredd:
     image: semaphoreui/dredd:ci
