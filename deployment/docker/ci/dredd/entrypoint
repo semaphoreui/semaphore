@@ -3,15 +3,8 @@
 set -e
 
 echo "---> Add Config"
-cat > /semaphore/.dredd/config.json <<EOF
-{
-	"bolt": {
-	  "host": "/data/database.boltdb"
-	},
-	"dialect": "bolt",
-	"access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
-}
-EOF
+
+./gen-config-${SEMAPHORE_DB_DIALECT} > /semaphore/.dredd/config.json
 
 echo "---> Waiting for semaphore"
 while ! nc -z semaphore_ci 3000; do

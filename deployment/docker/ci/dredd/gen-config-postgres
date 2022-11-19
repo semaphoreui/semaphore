@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+cat <<EOF
+{
+	"postgres": {
+		"host": "postgres:5342",
+		"user": "semaphore",
+		"pass": "semaphore",
+		"name": "semaphore"
+	},
+	"dialect": "postgres",
+	"access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
+}
+EOF
