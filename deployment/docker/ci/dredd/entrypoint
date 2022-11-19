@@ -4,7 +4,7 @@ set -e
 
 echo "---> Add Config"
 
-./gen-config-${SEMAPHORE_DB_DIALECT} > /semaphore/.dredd/config.json
+/usr/local/bin/gen-config-${SEMAPHORE_DB_DIALECT} > /semaphore/.dredd/config.json
 
 echo "---> Waiting for semaphore"
 while ! nc -z semaphore_ci 3000; do
