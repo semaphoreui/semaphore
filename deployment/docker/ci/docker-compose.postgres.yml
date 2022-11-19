@@ -2,14 +2,13 @@ version: '2'
 
 services:
   postgres:
-    image: mysql:5.6
+    image: postgres:14
     environment:
-      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
-      MYSQL_DATABASE: semaphore
-      MYSQL_USER: semaphore
-      MYSQL_PASSWORD: semaphore
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
     ports:
-      - "3306:3306"
+      - "5432:5432"
 
   semaphore_ci:
     image: semaphoreui/semaphore:ci-compose
