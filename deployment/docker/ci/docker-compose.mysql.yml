@@ -1,16 +1,28 @@
 version: '2'
 
-volumes:
-  data:
-
 services:
+  mysql:
+    image: mysql:5.6
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: semaphore
+      MYSQL_USER: semaphore
+      MYSQL_PASSWORD: semaphore
+    ports:
+      - "3306:3306"
+
   semaphore_ci:
     image: semaphoreui/semaphore:ci-compose
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/ci/Dockerfile
     environment:
-      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_DB_DIALECT: mysql
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB_HOST: mysql
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB: semaphore
       SEMAPHORE_ADMIN_PASSWORD: password
       SEMAPHORE_ADMIN_NAME: "Developer"
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
@@ -19,20 +31,19 @@ services:
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
     ports:
       - "3000:3000"
-    volumes:
-      - data:/var/lib/semaphore
+    depends_on:
+      - mysql
 
   dredd:
-    image: semaphoreui/dredd:ci
-    command: [ "--config", ".dredd/dredd.yml" ]
+    image: ansiblesemaphore/dredd:ci
+    command: ["--config", ".dredd/dredd.yml"]
     environment:
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
-      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_DB_DIALECT: mysql
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/ci/dredd.Dockerfile
     depends_on:
       - semaphore_ci
-    volumes:
-      - data:/data
+      - mysql
 

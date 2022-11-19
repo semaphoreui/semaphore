@@ -19,11 +19,6 @@ COPY --from=golang /semaphore /semaphore
 
 WORKDIR /semaphore
 
-COPY deployment/docker/ci/dredd/entrypoint /usr/local/bin
+COPY deployment/docker/ci/dredd/entrypoint.${SEMAPHORE_DIALECT} /usr/local/bin
 
-ENV SEMAPHORE_SERVICE=semaphore_ci \
-    SEMAPHORE_PORT=3000 \
-    MYSQL_SERVICE=mysql \
-    MYSQL_PORT=3306
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.${SEMAPHORE_DIALECT}"]

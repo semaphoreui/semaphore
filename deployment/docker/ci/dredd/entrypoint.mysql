@@ -6,17 +6,18 @@ echo "---> Add Config"
 cat > /semaphore/.dredd/config.json <<EOF
 {
 	"mysql": {
-		"host": "${MYSQL_SERVICE}:${MYSQL_PORT}",
+		"host": "mysql:3306",
 		"user": "semaphore",
 		"pass": "semaphore",
 		"name": "semaphore"
 	},
+	"dialect": "mysql",
 	"access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
 }
 EOF
 
 echo "---> Waiting for semaphore"
-while ! nc -z ${SEMAPHORE_SERVICE} ${SEMAPHORE_PORT}; do
+while ! nc -z semaphore_ci 3000; do
   sleep 1
 done
 

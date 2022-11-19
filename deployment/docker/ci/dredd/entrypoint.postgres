@@ -5,10 +5,13 @@ set -e
 echo "---> Add Config"
 cat > /semaphore/.dredd/config.json <<EOF
 {
-	"bolt": {
-	  "host": "/data/database.boltdb"
+	"postgres": {
+		"host": "postgres:5342",
+		"user": "semaphore",
+		"pass": "semaphore",
+		"name": "semaphore"
 	},
-	"dialect": "bolt",
+	"dialect": "postgres",
 	"access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
 }
 EOF

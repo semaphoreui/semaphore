@@ -1,7 +1,7 @@
 version: '2'
 
 services:
-  mysql:
+  postgres:
     image: mysql:5.6
     environment:
       MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
@@ -32,17 +32,18 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - mysql
+      - postgres
 
   dredd:
     image: ansiblesemaphore/dredd:ci
     command: ["--config", ".dredd/dredd.yml"]
     environment:
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
+      SEMAPHORE_DB_DIALECT: postgres
     build:
       context: ./../../../
       dockerfile: ./deployment/docker/ci/dredd.Dockerfile
     depends_on:
       - semaphore_ci
-      - mysql
+      - postgres
 
