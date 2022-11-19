@@ -19,6 +19,6 @@ COPY --from=golang /semaphore /semaphore
 
 WORKDIR /semaphore
 
-COPY deployment/docker/ci/dredd/entrypoint.${SEMAPHORE_DIALECT} /usr/local/bin
+COPY deployment/docker/ci/dredd/entrypoint.${SEMAPHORE_DB_DIALECT} /usr/local/bin
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.${SEMAPHORE_DIALECT}"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.${SEMAPHORE_DB_DIALECT}"]
