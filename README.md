@@ -48,9 +48,7 @@ https://docs.ansible-semaphore.com/administration-guide/installation
 
 ```bash
 sudo snap install semaphore
-sudo snap stop semaphore # BoltDB limitation, it allows only one connection
 sudo semaphore user add --admin --name "Your Name" --login your_login --email your-email@examaple.com --password your_password
-sudo snap start semaphore
 ```
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
 
