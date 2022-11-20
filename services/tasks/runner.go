@@ -165,6 +165,11 @@ func (t *TaskRunner) prepareRun() {
 		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		t.createTaskEvent()
+
+		err := t.repository.SSHKey.Destroy()
+		if err != nil {
+			t.Log("Can't destroy repository access key, error: " + err.Error())
+		}
 	}()
 
 	t.Log("Preparing: " + strconv.Itoa(t.task.ID))
