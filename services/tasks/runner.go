@@ -155,8 +155,8 @@ func (t *TaskRunner) prepareRun() {
 	t.prepared = false
 
 	if !t.pool.store.PermanentConnection() {
-		t.pool.store.Connect("task " + strconv.Itoa(t.task.ID))
-		defer t.pool.store.Close("task " + strconv.Itoa(t.task.ID))
+		t.pool.store.Connect("prepare " + strconv.Itoa(t.task.ID))
+		defer t.pool.store.Close("prepare " + strconv.Itoa(t.task.ID))
 	}
 
 	defer func() {
@@ -235,6 +235,11 @@ func (t *TaskRunner) prepareRun() {
 }
 
 func (t *TaskRunner) run() {
+	if !t.pool.store.PermanentConnection() {
+		t.pool.store.Connect("run " + strconv.Itoa(t.task.ID))
+		defer t.pool.store.Close("run " + strconv.Itoa(t.task.ID))
+	}
+
 	defer func() {
 		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
