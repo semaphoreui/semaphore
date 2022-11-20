@@ -155,8 +155,8 @@ func (t *TaskRunner) prepareRun() {
 	t.prepared = false
 
 	if !t.pool.store.PermanentConnection() {
-		t.pool.store.Connect("prepare " + strconv.Itoa(t.task.ID))
-		defer t.pool.store.Close("prepare " + strconv.Itoa(t.task.ID))
+		t.pool.store.Connect("prepare task " + strconv.Itoa(t.task.ID))
+		defer t.pool.store.Close("prepare task " + strconv.Itoa(t.task.ID))
 	}
 
 	defer func() {
@@ -236,8 +236,8 @@ func (t *TaskRunner) prepareRun() {
 
 func (t *TaskRunner) run() {
 	if !t.pool.store.PermanentConnection() {
-		t.pool.store.Connect("run " + strconv.Itoa(t.task.ID))
-		defer t.pool.store.Close("run " + strconv.Itoa(t.task.ID))
+		t.pool.store.Connect("run task " + strconv.Itoa(t.task.ID))
+		defer t.pool.store.Close("run task " + strconv.Itoa(t.task.ID))
 	}
 
 	defer func() {
@@ -281,7 +281,7 @@ func (t *TaskRunner) run() {
 	t.Log("Started: " + strconv.Itoa(t.task.ID))
 	t.Log("Run TaskRunner with template: " + t.template.Name + "\n")
 
-	// TODO: ?????
+	// Mark task as stopped if user stops task during preparation (before task run).
 	if t.task.Status == db.TaskStoppingStatus {
 		t.setStatus(db.TaskStoppedStatus)
 		return

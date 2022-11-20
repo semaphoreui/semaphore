@@ -14,6 +14,46 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+func CreateBoltDB() db.Store {
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
+	store := bolt.BoltDb{
+		Filename: fn,
+	}
+	return &store
+}
+
+func TestTaskRunnerRun(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	store := CreateBoltDB()
+
+	pool := CreateTaskPool(store)
+
+	go pool.Run()
+
+	var task db.Task
+
+	var err error
+
+	db.StoreSession(store, "", func() {
+		task, err = store.CreateTask(db.Task{})
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	taskRunner := TaskRunner{
+		task: task,
+		pool: &pool,
+	}
+
+	taskRunner.run()
+}
+
 func TestGetRepoPath(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
@@ -71,12 +111,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 }
 
 func TestPopulateDetails(t *testing.T) {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
-	store := bolt.BoltDb{
-		Filename: fn,
-	}
-
+	store := CreateBoltDB()
 	store.Connect("")
 
 	proj, err := store.CreateProject(db.Project{})
@@ -132,7 +167,7 @@ func TestPopulateDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pool := TaskPool{store: &store}
+	pool := TaskPool{store: store}
 
 	tsk := TaskRunner{
 		pool: &pool,
