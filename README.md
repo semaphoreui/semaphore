@@ -14,13 +14,7 @@ Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible pla
 
 If your project has grown and deploying from the terminal is no longer for you then Ansible Semaphore is what you need.
 
-Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and StackShare ([ansible-semaphore](https://stackshare.io/ansible-semaphore)).
-
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
-
-
-[![Star History Chart](https://api.star-history.com/svg?repos=ansible-semaphore/semaphore,rundeck/rundeck&type=Date)](https://star-history.com/#ansible-semaphore/semaphore,rundeck/rundeck&Date)
-
 
 <!--
 ![image](https://user-images.githubusercontent.com/914224/134411082-48235676-06d2-4d4b-b674-4ffe1e8d0d0d.png)
@@ -94,6 +88,13 @@ Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/
 
 All releases after 2.5.1 are signed with the gpg public key
 `8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
+
+## Support
+
+If you like Ansible Semaphore, you can support the project development on [Ko-fi](https://ko-fi.com/fiftin).
+
+[<img src="https://user-images.githubusercontent.com/914224/202896424-e407d876-c16b-45e5-8098-69d0dfbe6b95.png">](https://ko-fi.com/fiftin)
+
 
 ## License
 
