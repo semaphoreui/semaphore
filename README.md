@@ -1,6 +1,6 @@
 # Ansible Semaphore
 
-[![Twitter](https://img.shields.io/twitter/follow/AnsibleSem?style=social&logo=twitter)](https://twitter.com/AnsibleSem)
+[![Twitter](https://img.shields.io/twitter/follow/semaphoreui?style=social&logo=twitter)](https://twitter.com/semaphoreui)
 [![semaphore](https://snapcraft.io/semaphore/badge.svg)](https://snapcraft.io/semaphore)
 [![StackShare](https://img.shields.io/badge/tech-stack-008ff9)](https://stackshare.io/ansible-semaphore)
 [![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://img.shields.io/gitter/room/AnsibleSemaphore/semaphore?logo=gitter)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
