@@ -93,7 +93,7 @@ All releases after 2.5.1 are signed with the gpg public key
 
 If you like Ansible Semaphore, you can support the project development on [Ko-fi](https://ko-fi.com/fiftin).
 
-[<img src="https://user-images.githubusercontent.com/914224/202896424-e407d876-c16b-45e5-8098-69d0dfbe6b95.png">](https://ko-fi.com/fiftin)
+[<img src="https://user-images.githubusercontent.com/914224/203517453-4febf7f6-debb-4be9-b6a2-a3b19f5d9f9a.png">](https://ko-fi.com/fiftin)
 
 
 ## License
