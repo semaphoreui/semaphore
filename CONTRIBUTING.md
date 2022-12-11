@@ -17,12 +17,6 @@ When creating a pull-request you should:
 
 1) Set up GOPATH, GOBIN and Workspace.
 ```
-cd {WORKING_DIRECTORY}
-# Exports only needed pre Go 1.8 or for custom GOPATH location
-export GOPATH=`pwd`
-export GOBIN=$GOPATH/bin
-export PATH=$PATH:$GOBIN
-
 mkdir -p $GOPATH/src/github.com/ansible-semaphore && cd $GOPATH/src/github.com/ansible-semaphore
 ```
 
