@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-git/go-git/v5"
 	"os"
 	"os/exec"
 	"strings"
@@ -83,13 +84,18 @@ func (r GitRepository) output(targetDir GitRepositoryDirType, args ...string) (o
 func (r GitRepository) Clone() error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
-	return r.run(GitRepositoryTmpDir,
-		"clone",
-		"--recursive",
-		"--branch",
-		r.Repository.GitBranch,
-		r.Repository.GetGitURL(),
-		r.Repository.GetDirName(r.TemplateID))
+	_, err := git.PlainClone(r.Repository.GetDirName(r.TemplateID), false, &git.CloneOptions{
+		URL: r.Repository.GetGitURL(),
+	})
+
+	return err
+	//return r.run(GitRepositoryTmpDir,
+	//	"clone",
+	//	"--recursive",
+	//	"--branch",
+	//	r.Repository.GitBranch,
+	//	r.Repository.GetGitURL(),
+	//	r.Repository.GetDirName(r.TemplateID))
 }
 
 func (r GitRepository) Pull() error {
