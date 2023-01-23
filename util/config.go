@@ -118,6 +118,8 @@ type ConfigType struct {
 	SshConfigPath string `json:"ssh_config_path"`
 
 	DemoMode bool `json:"demo_mode"`
+
+	AnsibleUsername string `json:"ansible_username"`
 }
 
 // Config exposes the application configuration storage for use in the application
