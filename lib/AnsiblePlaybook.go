@@ -6,10 +6,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
-	"os/user"
-	"strconv"
 	"strings"
-	"syscall"
 )
 
 type AnsiblePlaybook struct {
@@ -23,14 +20,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Dir = p.GetFullPath()
 
 	if util.Config.AnsibleUsername != "" {
-		u, err := user.Lookup(util.Config.AnsibleUsername)
-		if err != nil {
-			panic(err)
-		}
-		uid, err := strconv.ParseInt(u.Uid, 10, 32)
-		gid, err := strconv.ParseInt(u.Gid, 10, 32)
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+		cmdUser(cmd, util.Config.AnsibleUsername)
 	}
 
 	cmd.Env = os.Environ()
