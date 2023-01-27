@@ -174,7 +174,7 @@ func createDb() error {
 		return err
 	}
 
-	_, err = conn.Exec("create database " + cfg.DbName)
+	_, err = conn.Exec("create database " + cfg.GetDbName())
 
 	if err != nil {
 		log.Warn(err.Error())

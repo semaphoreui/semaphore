@@ -96,7 +96,7 @@ func (d *BoltDb) Connect(token string) {
 		if err != nil {
 			panic(err)
 		}
-		filename = config.Hostname
+		filename = config.GetHostname()
 	} else {
 		filename = d.Filename
 	}

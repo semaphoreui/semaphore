@@ -366,9 +366,9 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"version": util.Version,
 		//"update":  updateAvailable,
 		"config": map[string]string{
-			"dbHost":  dbConfig.Hostname,
-			"dbName":  dbConfig.DbName,
-			"dbUser":  dbConfig.Username,
+			"dbHost":  dbConfig.GetHostname(),
+			"dbName":  dbConfig.GetDbName(),
+			"dbUser":  dbConfig.GetUsername(),
 			"path":    util.Config.TmpPath,
 			"cmdPath": util.FindSemaphore(),
 		},
