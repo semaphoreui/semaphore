@@ -300,23 +300,44 @@ func (d *DbConfig) HasSupportMultipleDatabases() bool {
 }
 
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
+	dbName := os.Getenv("SEMAPHORE_DB_NAME")
+	dbUser := os.Getenv("SEMAPHORE_DB_USER")
+	dbPass := os.Getenv("SEMAPHORE_DB_PASS")
+	dbHost := os.Getenv("SEMAPHORE_DB_HOST")
+
+	if dbUser == "" {
+		dbUser = d.Username
+	}
+
+	if dbPass == "" {
+		dbPass = d.Password
+	}
+
+	if dbHost == "" {
+		dbHost = d.Hostname
+	}
+
+	if dbName == "" {
+		dbName = d.DbName
+	}
+
 	switch d.Dialect {
 	case DbDriverBolt:
-		connectionString = d.Hostname
+		connectionString = dbHost
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
 				"%s:%s@tcp(%s)/%s",
-				d.Username,
-				d.Password,
-				d.Hostname,
-				d.DbName)
+				dbUser,
+				dbPass,
+				dbHost,
+				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
 				"%s:%s@tcp(%s)/",
-				d.Username,
-				d.Password,
-				d.Hostname)
+				dbUser,
+				dbPass,
+				dbHost)
 		}
 		options := map[string]string{
 			"parseTime":         "true",
@@ -330,16 +351,16 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 		if includeDbName {
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s/%s",
-				d.Username,
-				url.QueryEscape(d.Password),
-				d.Hostname,
-				d.DbName)
+				dbUser,
+				url.QueryEscape(dbPass),
+				dbHost,
+				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s",
-				d.Username,
-				url.QueryEscape(d.Password),
-				d.Hostname)
+				dbUser,
+				url.QueryEscape(dbPass),
+				dbHost)
 		}
 		connectionString += mapToQueryString(d.Options)
 	default:
