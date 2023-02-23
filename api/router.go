@@ -365,13 +365,6 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 	body := map[string]interface{}{
 		"version": util.Version,
 		//"update":  updateAvailable,
-		"config": map[string]string{
-			"dbHost":  dbConfig.GetHostname(),
-			"dbName":  dbConfig.GetDbName(),
-			"dbUser":  dbConfig.GetUsername(),
-			"path":    util.Config.TmpPath,
-			"cmdPath": util.FindSemaphore(),
-		},
 		"ansible": util.AnsibleVersion(),
 		"demo":    util.Config.DemoMode,
 	}
