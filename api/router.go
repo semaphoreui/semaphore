@@ -348,13 +348,6 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
-	dbConfig, err := util.Config.GetDBConfig()
-
-	if err != nil {
-		helpers.WriteError(w, fmt.Errorf("can't get config"))
-		return
-	}
-
 	//updateAvailable, err := util.CheckUpdate()
 
 	//if err != nil {
