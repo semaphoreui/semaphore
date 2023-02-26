@@ -60,6 +60,7 @@ func (t *TaskRunner) getRepoPath() string {
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
+		Client:     lib.GoGitClient{},
 	}
 
 	return repo.GetFullPath()
@@ -438,6 +439,7 @@ func (t *TaskRunner) checkoutRepository() error {
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
+		Client:     lib.GoGitClient{},
 	}
 
 	err := repo.ValidateRepo()
@@ -472,6 +474,7 @@ func (t *TaskRunner) updateRepository() error {
 		Logger:     t,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
+		Client:     lib.GoGitClient{},
 	}
 
 	err := repo.ValidateRepo()
