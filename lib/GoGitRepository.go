@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 )
@@ -36,8 +37,8 @@ func GetAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 
 		return publicKey, sshErr
 	} else if r.Repository.SSHKey.Type == db.AccessKeyLoginPassword {
-		password := &ssh.Password{
-			User:     r.Repository.SSHKey.LoginPassword.Login,
+		password := &http.BasicAuth{
+			Username: r.Repository.SSHKey.LoginPassword.Login,
 			Password: r.Repository.SSHKey.LoginPassword.Password,
 		}
 
