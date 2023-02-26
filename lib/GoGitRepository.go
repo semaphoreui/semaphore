@@ -25,7 +25,7 @@ func (t ProggressWrapper) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func GetAuthMethod(r GitRepository) (transport.AuthMethod, error) {
+func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
 		var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
 
@@ -50,7 +50,7 @@ func GetAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	}
 }
 
-func OpenRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repository, error) {
+func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repository, error) {
 
 	var dir string
 
@@ -69,7 +69,7 @@ func OpenRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 func (c GoGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
-	authMethod, authErr := GetAuthMethod(r)
+	authMethod, authErr := getAuthMethod(r)
 
 	if authErr != nil {
 		return authErr
@@ -94,7 +94,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 func (c GoGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	rep, err := OpenRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryRepoDir)
 	if err != nil {
 		return err
 	}
@@ -104,9 +104,14 @@ func (c GoGitClient) Pull(r GitRepository) error {
 		return err
 	}
 
+	authMethod, authErr := getAuthMethod(r)
+	if authErr != nil {
+		return authErr
+	}
+
 	// Pull the latest changes from the origin remote and merge into the current branch
-	err = wt.Pull(&git.PullOptions{RemoteName: "origin"})
-	if err != nil {
+	err = wt.Pull(&git.PullOptions{RemoteName: "origin", Auth: authMethod})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
 		r.Logger.Log("Unable to pull latest changes")
 		return err
 	}
@@ -117,7 +122,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 func (c GoGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
 
-	rep, err := OpenRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryRepoDir)
 	if err != nil {
 		return err
 	}
@@ -137,12 +142,12 @@ func (c GoGitClient) Checkout(r GitRepository, target string) error {
 
 func (c GoGitClient) CanBePulled(r GitRepository) bool {
 
-	rep, err := OpenRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryRepoDir)
 	if err != nil {
 		return false
 	}
 
-	authMethod, err := GetAuthMethod(r)
+	authMethod, err := getAuthMethod(r)
 	if err != nil {
 		return false
 	}
@@ -182,7 +187,7 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err error) {
 	r.Logger.Log("Get current commit message")
 
-	rep, err := OpenRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryRepoDir)
 	if err != nil {
 		return
 	}
@@ -201,13 +206,15 @@ func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err erro
 		msg = msg[0:100]
 	}
 
+	r.Logger.Log("Message: " + msg)
+
 	return
 }
 
 func (c GoGitClient) GetLastCommitHash(r GitRepository) (hash string, err error) {
 	r.Logger.Log("Get current commit hash")
 
-	rep, err := OpenRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryRepoDir)
 	if err != nil {
 		return
 	}
@@ -227,7 +234,7 @@ func (c GoGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err 
 		URLs: []string{r.Repository.GitURL},
 	})
 
-	auth, err := GetAuthMethod(r)
+	auth, err := getAuthMethod(r)
 	if err != nil {
 		return
 	}
