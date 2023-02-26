@@ -142,8 +142,16 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 		return false
 	}
 
-	err = rep.Fetch(&git.FetchOptions{})
+	authMethod, err := GetAuthMethod(r)
 	if err != nil {
+		return false
+	}
+
+	err = rep.Fetch(&git.FetchOptions{
+		Auth: authMethod,
+	})
+
+	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return false
 	}
 
