@@ -31,7 +31,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		Logger:     nil,
 		TemplateID: schedule.TemplateID,
 		Repository: repo,
-		Client:     lib.GoGitClient{},
+		Client:     lib.CreateDefaultGitClient(),
 	}.GetLastRemoteCommitHash()
 
 	if err != nil {
