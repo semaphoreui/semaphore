@@ -292,31 +292,68 @@ func (d DbDriver) String() string {
 }
 
 func (d *DbConfig) IsPresent() bool {
-	return d.Hostname != ""
+	return d.GetHostname() != ""
 }
 
 func (d *DbConfig) HasSupportMultipleDatabases() bool {
 	return true
 }
 
+func (d *DbConfig) GetDbName() string {
+	dbName := os.Getenv("SEMAPHORE_DB_NAME")
+	if dbName != "" {
+		return dbName
+	}
+	return d.DbName
+}
+
+func (d *DbConfig) GetUsername() string {
+	username := os.Getenv("SEMAPHORE_DB_USER")
+	if username != "" {
+		return username
+	}
+	return d.Username
+}
+
+func (d *DbConfig) GetPassword() string {
+	password := os.Getenv("SEMAPHORE_DB_PASS")
+	if password != "" {
+		return password
+	}
+	return d.Password
+}
+
+func (d *DbConfig) GetHostname() string {
+	hostname := os.Getenv("SEMAPHORE_DB_HOST")
+	if hostname != "" {
+		return hostname
+	}
+	return d.Hostname
+}
+
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
+	dbName := d.GetDbName()
+	dbUser := d.GetUsername()
+	dbPass := d.GetPassword()
+	dbHost := d.GetHostname()
+
 	switch d.Dialect {
 	case DbDriverBolt:
-		connectionString = d.Hostname
+		connectionString = dbHost
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
 				"%s:%s@tcp(%s)/%s",
-				d.Username,
-				d.Password,
-				d.Hostname,
-				d.DbName)
+				dbUser,
+				dbPass,
+				dbHost,
+				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
 				"%s:%s@tcp(%s)/",
-				d.Username,
-				d.Password,
-				d.Hostname)
+				dbUser,
+				dbPass,
+				dbHost)
 		}
 		options := map[string]string{
 			"parseTime":         "true",
@@ -330,16 +367,16 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 		if includeDbName {
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s/%s",
-				d.Username,
-				url.QueryEscape(d.Password),
-				d.Hostname,
-				d.DbName)
+				dbUser,
+				url.QueryEscape(dbPass),
+				dbHost,
+				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s",
-				d.Username,
-				url.QueryEscape(d.Password),
-				d.Hostname)
+				dbUser,
+				url.QueryEscape(dbPass),
+				dbHost)
 		}
 		connectionString += mapToQueryString(d.Options)
 	default:
@@ -355,11 +392,11 @@ func (conf *ConfigType) PrintDbInfo() {
 	}
 	switch dialect {
 	case DbDriverMySQL:
-		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.Username, conf.MySQL.Hostname, conf.MySQL.DbName)
+		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
 	case DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", conf.BoltDb.Hostname)
+		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
 	case DbDriverPostgres:
-		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.Username, conf.Postgres.Hostname, conf.Postgres.DbName)
+		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
 	default:
 		panic(fmt.Errorf("database configuration not found"))
 	}

@@ -348,13 +348,6 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
-	dbConfig, err := util.Config.GetDBConfig()
-
-	if err != nil {
-		helpers.WriteError(w, fmt.Errorf("can't get config"))
-		return
-	}
-
 	//updateAvailable, err := util.CheckUpdate()
 
 	//if err != nil {
@@ -365,13 +358,6 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 	body := map[string]interface{}{
 		"version": util.Version,
 		//"update":  updateAvailable,
-		"config": map[string]string{
-			"dbHost":  dbConfig.Hostname,
-			"dbName":  dbConfig.DbName,
-			"dbUser":  dbConfig.Username,
-			"path":    util.Config.TmpPath,
-			"cmdPath": util.FindSemaphore(),
-		},
 		"ansible": util.AnsibleVersion(),
 		"demo":    util.Config.DemoMode,
 	}
