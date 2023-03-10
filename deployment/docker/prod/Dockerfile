@@ -4,7 +4,7 @@ FROM golang:1.18.3-alpine3.16 as builder
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 
-RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc && \
+RUN apk add --no-cache -U libc-dev curl nodejs npm git build-base && \
   ./deployment/docker/prod/bin/install
 
 FROM alpine:3.16 as runner
