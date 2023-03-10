@@ -1,12 +1,13 @@
 package schedules
 
 import (
+	"sync"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
-	"sync"
 )
 
 type ScheduleRunner struct {
@@ -30,6 +31,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		Logger:     nil,
 		TemplateID: schedule.TemplateID,
 		Repository: repo,
+		Client:     lib.CreateDefaultGitClient(),
 	}.GetLastRemoteCommitHash()
 
 	if err != nil {
