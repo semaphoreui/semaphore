@@ -12,6 +12,8 @@ RUN apk add --no-cache g++ gcc build-base sshpass git mysql-client python3 py3-p
 RUN pip3 install --upgrade pip cffi   && \
     pip3 install ansible
 
+RUN gcc --version
+
 RUN adduser -D -u 1002 -g 0 semaphore && \
     mkdir -p /go/src/github.com/ansible-semaphore/semaphore && \
     mkdir -p /tmp/semaphore && \
