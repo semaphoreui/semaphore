@@ -16,11 +16,11 @@ import (
 
 type GoGitClient struct{}
 
-type ProggressWrapper struct {
+type ProgressWrapper struct {
 	Logger Logger
 }
 
-func (t ProggressWrapper) Write(p []byte) (n int, err error) {
+func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 	t.Logger.Log(string(p))
 	return len(p), nil
 }
@@ -77,7 +77,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 
 	cloneOpt := &git.CloneOptions{
 		URL:               r.Repository.GetGitURL(),
-		Progress:          ProggressWrapper{r.Logger},
+		Progress:          ProgressWrapper{r.Logger},
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
 		Auth:              authMethod,
