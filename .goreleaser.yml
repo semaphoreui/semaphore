@@ -8,6 +8,8 @@ before:
 
 builds:
   - binary: semaphore
+    env:
+      - CGO_ENABLED=0
     main: ./cli/main.go
     goos:
       - windows
