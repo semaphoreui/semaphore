@@ -1,7 +1,7 @@
 package lib
 
 func CreateDefaultGitClient() GitClient {
-	return CreateCmdGitClient()
+	return CreateGoGitClient()
 }
 
 func CreateGoGitClient() GitClient {
