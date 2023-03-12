@@ -12,6 +12,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
+
+	ssh2 "golang.org/x/crypto/ssh"
 )
 
 type GoGitClient struct{}
@@ -34,6 +36,15 @@ func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 			r.Logger.Log("Unable to creating ssh auth method")
 			return nil, sshErr
 		}
+
+		clientCfg, err := publicKey.ClientConfig()
+		if err != nil {
+			r.Logger.Log("Unable to creating ssh auth method")
+			return nil, sshErr
+		}
+
+		hostKeyHelper := ssh.HostKeyCallbackHelper{HostKeyCallback: ssh2.InsecureIgnoreHostKey()}
+		hostKeyHelper.SetHostKeyCallback(clientCfg)
 
 		return publicKey, sshErr
 	} else if r.Repository.SSHKey.Type == db.AccessKeyLoginPassword {
