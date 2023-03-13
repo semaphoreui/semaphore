@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func authenticationHandler(w http.ResponseWriter, r *http.Request) {
+func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 	var userID int
 
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
@@ -25,7 +25,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 
 		userID = token.UserID
@@ -34,20 +34,20 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("semaphore")
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 
 		value := make(map[string]interface{})
 		if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 
 		user, ok := value["user"]
 		sessionVal, okSession := value["session"]
 		if !ok || !okSession {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 
 		userID = user.(int)
@@ -58,7 +58,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 
 		if time.Since(session.LastActive).Hours() > 7*24 {
@@ -70,13 +70,13 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 
 		if err := helpers.Store(r).TouchSession(userID, sessionID); err != nil {
 			log.Error(err)
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 	}
 
@@ -87,7 +87,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 			log.Error(err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		return
+		return false
 	}
 
 	if util.Config.DemoMode {
@@ -95,18 +95,21 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) {
 			!strings.HasSuffix(r.URL.Path, "/tasks") &&
 			!strings.HasSuffix(r.URL.Path, "/stop") {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+			return false
 		}
 	}
 
 	context.Set(r, "user", &user)
+	return true
 }
 
 // nolint: gocyclo
 func authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authenticationHandler(w, r)
-		next.ServeHTTP(w, r)
+		ok := authenticationHandler(w, r)
+		if ok {
+			next.ServeHTTP(w, r)
+		}
 	})
 }
 
@@ -115,10 +118,14 @@ func authenticationWithStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		store := helpers.Store(r)
 
+		var ok bool
+		
 		db.StoreSession(store, r.URL.String(), func() {
-			authenticationHandler(w, r)
+			ok = authenticationHandler(w, r)
 		})
 
-		next.ServeHTTP(w, r)
+		if ok {
+			next.ServeHTTP(w, r)
+		}
 	})
 }

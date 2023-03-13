@@ -348,16 +348,8 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
-	//updateAvailable, err := util.CheckUpdate()
-
-	//if err != nil {
-	//	helpers.WriteError(w, err)
-	//	return
-	//}
-
 	body := map[string]interface{}{
 		"version": util.Version,
-		//"update":  updateAvailable,
 		"ansible": util.AnsibleVersion(),
 		"demo":    util.Config.DemoMode,
 	}
