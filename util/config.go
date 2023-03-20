@@ -40,6 +40,7 @@ type DbConfig struct {
 	Password string            `json:"pass"`
 	DbName   string            `json:"name"`
 	Options  map[string]string `json:"options"`
+	SSLMode  string            `json:"ssl_mode"`
 }
 
 type ldapMappings struct {
@@ -332,11 +333,20 @@ func (d *DbConfig) GetHostname() string {
 	return d.Hostname
 }
 
+func (d *DbConfig) GetSSLMode() string {
+	ssl_mode := os.Getenv("SEMAPHORE_DB_SSL_MODE")
+	if ssl_mode != "" {
+		return ssl_mode
+	}
+	return d.SSLMode
+}
+
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	dbName := d.GetDbName()
 	dbUser := d.GetUsername()
 	dbPass := d.GetPassword()
 	dbHost := d.GetHostname()
+	dbSSLMode := d.GetSSLMode()
 
 	switch d.Dialect {
 	case DbDriverBolt:
@@ -370,6 +380,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				"postgres://%s:%s@%s/%s",
 				dbUser,
 				url.QueryEscape(dbPass),
+				dbSSLMode,
 				dbHost,
 				dbName)
 		} else {
@@ -377,6 +388,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				"postgres://%s:%s@%s",
 				dbUser,
 				url.QueryEscape(dbPass),
+				dbSSLMode,
 				dbHost)
 		}
 		connectionString += mapToQueryString(d.Options)
