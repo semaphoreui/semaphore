@@ -336,7 +336,7 @@ func (d *DbConfig) GetHostname() string {
 func (d *DbConfig) GetSSLMode() string {
 	ssl_mode := os.Getenv("SEMAPHORE_DB_SSL_MODE")
 	if ssl_mode != "" {
-		return ssl_mode
+		return "&sslmode=" + ssl_mode
 	}
 	return d.SSLMode
 }
