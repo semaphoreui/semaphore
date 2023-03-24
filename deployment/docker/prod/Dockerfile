@@ -5,12 +5,12 @@ COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 
 RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc g++ && \
-  ./deployment/docker/prod/bin/install
+    ./deployment/docker/prod/bin/install
 
 FROM alpine:3.16 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
-RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp && \
+RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp py3-netaddr && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
