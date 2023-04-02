@@ -55,12 +55,12 @@
       :disabled="formSaving || !canEditSecrets"
     />
 
-        <v-text-field
-            v-model="item.ssh.passphrase"
-            label="Passphrase (Optional)"
-            v-if="item.type === 'ssh'"
-            :disabled="formSaving || !canEditSecrets"
-        />
+    <v-text-field
+        v-model="item.ssh.passphrase"
+        label="Passphrase (Optional)"
+        v-if="item.type === 'ssh'"
+        :disabled="formSaving || !canEditSecrets"
+    />
 
     <v-textarea
       outlined
