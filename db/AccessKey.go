@@ -88,9 +88,6 @@ func (key *AccessKey) Install(usage AccessKeyRole) error {
 	case AccessKeyRoleGit:
 		switch key.Type {
 		case AccessKeySSH:
-			if key.SshKey.Passphrase != "" {
-				return fmt.Errorf("ssh key with passphrase not supported")
-			}
 			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
