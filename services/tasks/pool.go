@@ -172,11 +172,13 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 		return false
 	}
 
-	for _, r := range p.activeProj[t.task.ProjectID] {
-		if r.template.ID == t.task.TemplateID {
-			return true
-		}
-	}
+	// Perhaps check if t.repository == '/' (path) then skip this check?
+	// This way we can allow concurrent tasks within same template.       
+	//for _, r := range p.activeProj[t.task.ProjectID] {
+	//	if r.template.ID == t.task.TemplateID {
+	//		return true
+	//	}
+	//}
 
 	proj, err := p.store.GetProject(t.task.ProjectID)
 
