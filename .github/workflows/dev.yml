@@ -137,7 +137,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           file: ./deployment/docker/prod/buildx.Dockerfile
           push: true
-          tags: semaphoreui/semaphore:develop
+          tags: ggtvg00/semaphore:develop
 
 
 
