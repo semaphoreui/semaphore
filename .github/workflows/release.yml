@@ -24,7 +24,7 @@ jobs:
 
       - run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "${{ secrets.GPG_PUB }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          gpg --sign -u "3FDC F125 C4D5 F15A 5E34 0BEF F673 166B 237F F5B4" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - run:  git reset --hard
