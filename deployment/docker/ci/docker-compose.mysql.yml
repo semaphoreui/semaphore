@@ -29,6 +29,7 @@ services:
       SEMAPHORE_ADMIN: admin
       SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
+      TZ: UTZ
     ports:
       - "3000:3000"
     depends_on:
