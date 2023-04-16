@@ -1,18 +1,25 @@
 package api
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-ldap/ldap/v3"
+	"github.com/gorilla/mux"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -192,8 +199,33 @@ func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
 	return
 }
 
+type loginMetadataOidcProvider struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type loginMetadata struct {
+	OidcProviders []loginMetadataOidcProvider `json:"oidc_providers"`
+}
+
 // nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		config := &loginMetadata{
+			OidcProviders: make([]loginMetadataOidcProvider, len(util.Config.OidcProviders)),
+		}
+		i := 0
+		for k, v := range util.Config.OidcProviders {
+			config.OidcProviders[i] = loginMetadataOidcProvider{
+				ID:   k,
+				Name: v.DisplayName,
+			}
+			i++
+		}
+		helpers.WriteJSON(w, http.StatusOK, config)
+		return
+	}
+
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -263,4 +295,175 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func getOidcProvider(id string, ctx context.Context) (*oidc.Provider, *oauth2.Config, error) {
+	provider, ok := util.Config.OidcProviders[id]
+	if !ok {
+		return nil, nil, fmt.Errorf("No such provider: %s", id)
+	}
+	oidcProvider, err := oidc.NewProvider(ctx, provider.AutoDiscovery)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	oauthConfig := oauth2.Config{
+		Endpoint:     oidcProvider.Endpoint(),
+		ClientID:     provider.ClientID,
+		ClientSecret: provider.ClientSecret,
+		RedirectURL:  provider.RedirectURL,
+		Scopes:       provider.Scopes,
+	}
+	if len(oauthConfig.RedirectURL) == 0 {
+		rurl, err := url.JoinPath(util.Config.WebHost, "api/auth/oidc", id, "redirect")
+		if err != nil {
+			return nil, nil, err
+		}
+		oauthConfig.RedirectURL = rurl
+	}
+	if len(oauthConfig.Scopes) == 0 {
+		oauthConfig.Scopes = []string{"openid", "profile", "email"}
+	}
+	return oidcProvider, &oauthConfig, nil
+}
+
+func oidcLogin(w http.ResponseWriter, r *http.Request) {
+	pid := mux.Vars(r)["provider"]
+	ctx := context.Background()
+	_, oauth, err := getOidcProvider(pid, ctx)
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+	state := generateStateOauthCookie(w)
+	u := oauth.AuthCodeURL(state)
+	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
+}
+
+func generateStateOauthCookie(w http.ResponseWriter) string {
+	expiration := time.Now().Add(365 * 24 * time.Hour)
+
+	b := make([]byte, 16)
+	rand.Read(b)
+	oauthState := base64.URLEncoding.EncodeToString(b)
+	cookie := http.Cookie{Name: "oauthstate", Value: oauthState, Expires: expiration}
+	http.SetCookie(w, &cookie)
+
+	return oauthState
+}
+
+func oidcRedirect(w http.ResponseWriter, r *http.Request) {
+	pid := mux.Vars(r)["provider"]
+	oauthState, err := r.Cookie("oauthstate")
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	ctx := context.Background()
+	_oidc, oauth, err := getOidcProvider(pid, ctx)
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+	provider, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("No such provider: %s", pid))
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+	verifier := _oidc.Verifier(&oidc.Config{ClientID: oauth.ClientID})
+
+	if r.FormValue("state") != oauthState.Value {
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	oauth2Token, err := oauth.Exchange(ctx, r.URL.Query().Get("code"))
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Extract the ID Token from OAuth2 token.
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		log.Error(fmt.Errorf("id_token is missing in token response"))
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Parse and verify ID Token payload.
+	idToken, err := verifier.Verify(ctx, rawIDToken)
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Extract custom claims
+	claims := make(map[string]interface{})
+	if err := idToken.Claims(&claims); err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	if len(provider.UsernameClaim) == 0 {
+		provider.UsernameClaim = "preferred_username"
+	}
+	usernameClaim, ok := claims[provider.UsernameClaim].(string)
+	if !ok {
+		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.UsernameClaim))
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+	if len(provider.NameClaim) == 0 {
+		provider.NameClaim = "preferred_username"
+	}
+	nameClaim, ok := claims[provider.NameClaim].(string)
+	if !ok {
+		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.NameClaim))
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+	if len(provider.EmailClaim) == 0 {
+		provider.EmailClaim = "email"
+	}
+	emailClaim, ok := claims[provider.EmailClaim].(string)
+	if !ok {
+		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.EmailClaim))
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	user, err := helpers.Store(r).GetUserByLoginOrEmail(usernameClaim, emailClaim)
+	if err != nil {
+		user = db.User{
+			Username: usernameClaim,
+			Name:     nameClaim,
+			Email:    emailClaim,
+			External: true,
+		}
+		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
+		if err != nil {
+			log.Error(err.Error())
+			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			return
+		}
+	}
+
+	if !user.External {
+		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	createSession(w, r, user)
+
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }

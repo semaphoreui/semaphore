@@ -111,6 +111,17 @@
           Sign In
         </v-btn>
 
+        <v-btn
+            v-for="provider in oidcProviders"
+            color="secondary"
+            class="mt-2"
+            @click="oidcSignIn(provider.id)"
+            block
+            :key="provider.id"
+        >
+            {{ provider.name }}
+        </v-btn>
+
         <div class="text-center mt-6">
           <a @click="loginHelpDialog = true">Don't have account or can't sign in?</a>
         </div>
@@ -138,6 +149,8 @@ export default {
       username: null,
 
       loginHelpDialog: null,
+
+      oidcProviders: [],
     };
   },
 
@@ -145,6 +158,13 @@ export default {
     if (this.isAuthenticated()) {
       document.location = document.baseURI;
     }
+    await axios({
+      method: 'get',
+      url: '/api/auth/login',
+      responseType: 'json',
+    }).then((resp) => {
+      this.oidcProviders = resp.data.oidc_providers;
+    });
   },
 
   methods: {
@@ -190,6 +210,10 @@ export default {
       } finally {
         this.signInProcess = false;
       }
+    },
+
+    async oidcSignIn(provider) {
+      document.location = `/api/auth/oidc/${provider}/login`;
     },
   },
 };
