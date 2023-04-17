@@ -302,9 +302,21 @@ func getOidcProvider(id string, ctx context.Context) (*oidc.Provider, *oauth2.Co
 	if !ok {
 		return nil, nil, fmt.Errorf("No such provider: %s", id)
 	}
-	oidcProvider, err := oidc.NewProvider(ctx, provider.AutoDiscovery)
-	if err != nil {
-		return nil, nil, err
+	config := oidc.ProviderConfig{
+		IssuerURL:   provider.Endpoint.IssuerURL,
+		AuthURL:     provider.Endpoint.AuthURL,
+		TokenURL:    provider.Endpoint.TokenURL,
+		UserInfoURL: provider.Endpoint.UserInfoURL,
+		JWKSURL:     provider.Endpoint.JWKSURL,
+		Algorithms:  provider.Endpoint.Algorithms,
+	}
+	oidcProvider := config.NewProvider(ctx)
+	var err error
+	if len(provider.AutoDiscovery) > 0 {
+		oidcProvider, err = oidc.NewProvider(ctx, provider.AutoDiscovery)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	oauthConfig := oauth2.Config{
