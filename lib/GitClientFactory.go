@@ -3,11 +3,12 @@ package lib
 import "github.com/ansible-semaphore/semaphore/util"
 
 func CreateDefaultGitClient() GitClient {
-	if util.Config.UseExternalGit {
+	switch util.Config.GitClient {
+	case "go_git":
+		return CreateGoGitClient()
+	default:
 		return CreateCmdGitClient()
 	}
-
-	return CreateGoGitClient()
 }
 
 func CreateGoGitClient() GitClient {

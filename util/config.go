@@ -117,8 +117,9 @@ type ConfigType struct {
 
 	SshConfigPath string `json:"ssh_config_path"`
 
-	DemoMode       bool `json:"demo_mode"`
-	UseExternalGit bool `json:"use_external_git"`
+	DemoMode bool `json:"demo_mode"`
+
+	GitClient string `json:"git_client"`
 }
 
 // Config exposes the application configuration storage for use in the application
