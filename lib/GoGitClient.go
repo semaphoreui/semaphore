@@ -29,28 +29,28 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 
 func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
-			var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
+		var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
 
-			if r.Repository.SSHKey.SshKey.Login == "" {
-					r.Repository.SSHKey.SshKey.Login = "git"
-			}
+		if r.Repository.SSHKey.SshKey.Login == "" {
+				r.Repository.SSHKey.SshKey.Login = "git"
+		}
 
-			publicKey, sshErr := ssh.NewPublicKeys(r.Repository.SSHKey.SshKey.Login, []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
+		publicKey, sshErr := ssh.NewPublicKeys(r.Repository.SSHKey.SshKey.Login, []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
 
-			if sshErr != nil {
-					r.Logger.Log("Unable to creating ssh auth method")
-					return nil, sshErr
-			}
-			publicKey.HostKeyCallback = ssh2.InsecureIgnoreHostKey()
+		if sshErr != nil {
+				r.Logger.Log("Unable to creating ssh auth method")
+				return nil, sshErr
+		}
+		publicKey.HostKeyCallback = ssh2.InsecureIgnoreHostKey()
 
-			return publicKey, sshErr
+		return publicKey, sshErr
 	} else if r.Repository.SSHKey.Type == db.AccessKeyLoginPassword {
-			password := &http.BasicAuth{
-					Username: r.Repository.SSHKey.LoginPassword.Login,
-					Password: r.Repository.SSHKey.LoginPassword.Password,
-			}
+		password := &http.BasicAuth{
+				Username: r.Repository.SSHKey.LoginPassword.Login,
+				Password: r.Repository.SSHKey.LoginPassword.Password,
+		}
 
-			return password, nil
+		return password, nil
 	} else if r.Repository.SSHKey.Type == db.AccessKeyNone {
 			return nil, nil
 	} else {
