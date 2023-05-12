@@ -119,7 +119,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		store := helpers.Store(r)
 
 		var ok bool
-		
+
 		db.StoreSession(store, r.URL.String(), func() {
 			ok = authenticationHandler(w, r)
 		})
