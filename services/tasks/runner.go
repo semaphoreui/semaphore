@@ -505,36 +505,64 @@ func (t *TaskRunner) updateRepository() error {
 }
 
 func (t *TaskRunner) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
+	requirementsFilePath := path.Join(t.getRepoPath(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
+	fallbackRequirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
+	fallbackRequirementsHashFilePath := fmt.Sprintf("%s.md5", fallbackRequirementsFilePath)
+	
 	if _, err := os.Stat(requirementsFilePath); err != nil {
-		t.Log("No collections/requirements.yml file found. Skip galaxy install process.\n")
+		t.Log("No <repo_path>/collections/requirements.yml file found. Skip galaxy install process.\n")
 		return nil
 	}
-
-	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy([]string{
-			"collection",
-			"install",
-			"-r",
-			requirementsFilePath,
-			"--force",
-		}); err != nil {
-			return err
+	else {
+		if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
+			if err := t.runGalaxy([]string{
+				"collection",
+				"install",
+				"-r",
+				requirementsFilePath,
+				"--force",
+			}); err != nil {
+				return err
+			}
+			if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
+				return err
+			}
+		} else {
+			t.Log("<repo_path>/collections/requirements.yml has no changes. Skip galaxy install process.\n")
+			return nil
 		}
-		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
-			return err
-		}
-	} else {
-		t.Log("collections/requirements.yml has no changes. Skip galaxy install process.\n")
 	}
 
+	if _, err := os.Stat(fallbackRequirementsFilePath, fallbackRequirementsHashFilePath) err != nil {
+		t.Log("No <playbook_dir>/collections/requirements.yml file found. Skip galaxy install process.\n")
+		return nil
+	}
+	else {
+		if hasRequirementsChanges(fallbackRequirementsFilePath, fallbackRequirementsHashFilePath) {
+			if err := t.runGalaxy([]string{
+				"collection",
+				"install",
+				"-r",
+				fallbackRequirementsFilePath,
+				"--force",
+			}); err != nil {
+				return err
+			}
+			if err := writeMD5Hash(fallbackRequirementsFilePath, fallbackRequirementsHashFilePath); err != nil {
+				return err
+			}
+		} else {
+			t.Log("<playbook_dir>/collections/requirements.yml has no changes. Skip galaxy install process.\n")
+			return nil
+		}
+	}
 	return nil
 }
 
 func (t *TaskRunner) installRolesRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getRepoPath(), "roles", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
