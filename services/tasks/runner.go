@@ -519,7 +519,6 @@ func (t *TaskRunner) installCollectionsRequirements() error {
 			"install",
 			"-r",
 			requirementsFilePath,
-			"--force",
 		}); err != nil {
 			return err
 		}
