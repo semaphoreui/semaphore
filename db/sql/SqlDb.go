@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type SqlDb struct {
@@ -258,6 +259,17 @@ func (d *SqlDb) PermanentConnection() bool {
 	return true
 }
 
+func keepAlive(dbc *sql.DB) {
+	for {
+		err := dbc.Ping()
+		if err != nil {
+			panic(err)
+			return
+		}
+		time.Sleep(60 * time.Second)
+	}
+}
+
 func (d *SqlDb) Connect(token string) {
 	sqlDb, err := connect()
 	if err != nil {
@@ -277,6 +289,9 @@ func (d *SqlDb) Connect(token string) {
 		if err = sqlDb.Ping(); err != nil {
 			panic(err)
 		}
+	}
+	if token == "root" {
+		go keepAlive(sqlDb)
 	}
 
 	cfg, err := util.Config.GetDBConfig()
