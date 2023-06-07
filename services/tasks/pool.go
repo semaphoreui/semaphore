@@ -2,6 +2,8 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +24,32 @@ type resourceLock struct {
 	holder *TaskRunner
 }
 
+type RunnerPool struct {
+}
+
+func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (AnsibleJob, error) {
+	return &LocalAnsibleJob{
+		playbook: playbook,
+	}, nil
+}
+
+type AnsibleJob interface {
+	RunGalaxy(args []string) error
+	RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error
+}
+
+type LocalAnsibleJob struct {
+	playbook *lib.AnsiblePlaybook
+}
+
+func (j *LocalAnsibleJob) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+	return j.playbook.RunPlaybook(args, environmentVars, cb)
+}
+
+func (j *LocalAnsibleJob) RunGalaxy(args []string) error {
+	return j.playbook.RunGalaxy(args)
+}
+
 type TaskPool struct {
 	// queue contains list of tasks in status TaskWaitingStatus.
 	queue []*TaskRunner
@@ -40,6 +68,8 @@ type TaskPool struct {
 	store db.Store
 
 	resourceLocker chan *resourceLock
+
+	runners RunnerPool
 }
 
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
@@ -203,11 +233,22 @@ func CreateTaskPool(store db.Store) TaskPool {
 func (p *TaskPool) StopTask(targetTask db.Task) error {
 	tsk := p.GetTask(targetTask.ID)
 	if tsk == nil { // task not active, but exists in database
+		job, err := p.runners.CreateJob(&lib.AnsiblePlaybook{
+			Logger:     tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		})
+
+		if err != nil {
+			return err
+		}
+
 		tsk = &TaskRunner{
 			task: targetTask,
 			pool: p,
+			job:  job,
 		}
-		err := tsk.populateDetails()
+		err = tsk.populateDetails()
 		if err != nil {
 			return err
 		}
