@@ -97,9 +97,9 @@ func FillTemplates(d Store, templates []Template) (err error) {
 	for i := range templates {
 		tpl := &templates[i]
 		var tasks []TaskWithTpl
+		tasks, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, RetrieveQueryParams{Count: 1})
 		if err != nil {
 			return
-		tasks, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, RetrieveQueryParams{Count: 1})
 		}
 		if len(tasks) > 0 {
 			tpl.LastTask = &tasks[0]
