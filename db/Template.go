@@ -127,6 +127,15 @@ func FillTemplate(d Store, template *Template) (err error) {
 	if template.SurveyVarsJSON != nil {
 		err = json.Unmarshal([]byte(*template.SurveyVarsJSON), &template.SurveyVars)
 	}
+	
+	var tasks []TaskWithTpl
+	if err != nil {
+		return
+	tasks, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, RetrieveQueryParams{Count: 1})
+	}
+	if len(tasks) > 0 {
+		template.LastTask = &tasks[0]
+	}
 
 	return
 }
