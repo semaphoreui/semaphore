@@ -24,15 +24,6 @@ type resourceLock struct {
 	holder *TaskRunner
 }
 
-type RunnerPool struct {
-}
-
-func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (AnsibleJob, error) {
-	return &LocalAnsibleJob{
-		playbook: playbook,
-	}, nil
-}
-
 type AnsibleJob interface {
 	RunGalaxy(args []string) error
 	RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error
