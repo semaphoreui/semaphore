@@ -3,7 +3,6 @@ package tasks
 import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,23 +21,6 @@ type logRecord struct {
 type resourceLock struct {
 	lock   bool
 	holder *TaskRunner
-}
-
-type AnsibleJob interface {
-	RunGalaxy(args []string) error
-	RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error
-}
-
-type LocalAnsibleJob struct {
-	playbook *lib.AnsiblePlaybook
-}
-
-func (j *LocalAnsibleJob) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
-	return j.playbook.RunPlaybook(args, environmentVars, cb)
-}
-
-func (j *LocalAnsibleJob) RunGalaxy(args []string) error {
-	return j.playbook.RunGalaxy(args)
 }
 
 type TaskPool struct {
