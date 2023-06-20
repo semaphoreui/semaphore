@@ -2,6 +2,7 @@ package runners
 
 import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/mux"
 	"net/http"
@@ -39,5 +40,13 @@ func registerRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: add runner to database
+	runner, err := helpers.Store(r).CreateRunner(db.Runner{
+		State: db.RunnerActive,
+	})
+
+	if err != nil {
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, runner)
 }

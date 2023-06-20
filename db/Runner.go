@@ -1,6 +1,15 @@
 package db
 
+type RunnerState string
+
+const (
+	RunnerOffline RunnerState = "offline"
+	RunnerActive  RunnerState = "active"
+)
+
 type Runner struct {
-	ID    int    `db:"id" json:"-"`
-	token string `db:"token" json:"token"`
+	ID        int         `db:"id" json:"-"`
+	Token     string      `db:"token" json:"token"`
+	ProjectID *int        `db:"project_id" json:"project_id"`
+	State     RunnerState `db:"state" json:"state"`
 }
