@@ -120,6 +120,8 @@ type ConfigType struct {
 	DemoMode bool `json:"demo_mode"`
 
 	GitClient string `json:"git_client"`
+
+	RegistrationToken string `json:"registration_token"`
 }
 
 // Config exposes the application configuration storage for use in the application

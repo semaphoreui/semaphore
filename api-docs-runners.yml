@@ -37,12 +37,18 @@ paths:
             schema:
               type: object
               required:
-                - token
+                - registrationToken
               properties:
-                token: { type: string }
+                registrationToken: { type: string }
       responses:
         200:
           description: API Token
+
   /unregister:
     post:
-  /getJob:
+
+  /status:
+    put:
+
+  /jobs:
+    get:
