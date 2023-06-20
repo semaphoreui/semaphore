@@ -626,8 +626,8 @@ func (t *TaskRunner) getEnvironmentExtraVars() (str string, err error) {
 	}
 
 	taskDetails := make(map[string]interface{})
-
-  taskDetails["id"] = t.task.ID
+	
+	taskDetails["id"] = t.task.ID
 
 	if t.task.Message != "" {
 		taskDetails["message"] = t.task.Message
