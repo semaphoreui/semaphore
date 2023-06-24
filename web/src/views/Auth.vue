@@ -127,6 +127,8 @@
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 
+const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)');
+
 export default {
   data() {
     return {
@@ -138,12 +140,33 @@ export default {
       username: null,
 
       loginHelpDialog: null,
+
+      darkMode: false,
     };
+  },
+
+  watch: {
+    darkMode(val) {
+      this.$vuetify.theme.dark = val;
+    },
   },
 
   async created() {
     if (this.isAuthenticated()) {
       document.location = document.baseURI;
+    }
+
+    const isDarkMode = localStorage.getItem('darkMode');
+    if (isDarkMode !== null) {
+      this.darkMode = isDarkMode === '1';
+    } else {
+      prefersDarkMode.addEventListener('change', (e) => {
+        this.darkMode = e.matches;
+      });
+
+      if (prefersDarkMode.matches && localStorage.getItem('darkMode') !== '0') {
+        this.darkMode = true;
+      }
     }
   },
 
