@@ -13,6 +13,9 @@ import Team from '../views/project/Team.vue';
 import Users from '../views/Users.vue';
 import Auth from '../views/Auth.vue';
 import New from '../views/project/New.vue';
+import Webhooks from '../views/project/Webhooks.vue';
+import WebhookExtractors from '../views/project/WebhookExtractors.vue';
+import WebhookExtractor from '../views/project/WebhookExtractor.vue';
 
 Vue.use(VueRouter);
 
@@ -64,6 +67,18 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/webhooks',
+    component: Webhooks,
+  },
+  {
+    path: '/project/:projectId/webhook/:webhookId',
+    component: WebhookExtractors,
+  },
+  {
+    path: '/project/:projectId/webhook/:webhookId/extractor/:extractorId',
+    component: WebhookExtractor,
   },
   {
     path: '/project/:projectId/repositories',

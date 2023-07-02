@@ -19,6 +19,8 @@ tags:
     description: Everything related to a project
   - name: user
     description: User-related API
+  - name: webhook
+    description: Webhook API
 
 schemes:
   - http
@@ -180,7 +182,6 @@ definitions:
         type: integer
         minimum: 0
 
-
   AccessKeyRequest:
     type: object
     properties:
@@ -334,22 +335,164 @@ definitions:
         type: string
         enum: [static, static-yaml, file]
 
+  WebhookRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      project_id:
+        type: integer
+        minimum: 1
+      template_id:
+        type: integer
+        minimum: 1
+
+  Webhook:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
+  WebhookExtractorRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      webhook_id:
+        type: integer
+        minimum: 1
+  WebhookExtractor:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      webhook_id:
+        type: integer
+
+  WebhookExtractValueRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      extractor_id:
+        type: integer
+        minimum: 1
+      value_source:
+        type: string
+        enum: [body, header]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      variable:
+        type: string
+        example: variable
+
+  WebhookExtractValue:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: extract this value
+      extractor_id:
+        type: integer
+        minimum: 1
+      value_source:
+        type: string
+        enum: [body, header]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      variable:
+        type: string
+        example: variable
+
+  WebhookMatcherRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      extractor_id:
+        type: integer
+        minimum: 1
+      match_type:
+        type: string
+        enum: [body, header]
+      method:
+        type: string
+        enum: [equals, unequals, contains]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      value:
+        type: string
+        example: value
+
+  WebhookMatcher:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: deploy
+      extractor_id:
+        type: integer
+        minimum: 1
+      match_type:
+        type: string
+        enum: [body, header]
+      method:
+        type: string
+        enum: [equals, unequals, contains]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      value:
+        type: string
+        example: value
+
   RepositoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-        git_url:
-          type: string
-          example: git@example.com
-        git_branch:
-          type: string
-          example: master
-        ssh_key_id:
-          type: integer
+    type: object
+    properties:
+      name:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+      git_url:
+        type: string
+        example: git@example.com
+      git_branch:
+        type: string
+        example: master
+      ssh_key_id:
+        type: integer
   Repository:
     type: object
     properties:
@@ -521,19 +664,18 @@ definitions:
       template_id:
         type: integer
 
-
   ViewRequest:
-      type: object
-      properties:
-        title:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-          minimum: 1
-        position:
-          type: integer
-          minimum: 1
+    type: object
+    properties:
+      title:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+        minimum: 1
+      position:
+        type: integer
+        minimum: 1
   View:
     type: object
     properties:
@@ -668,6 +810,35 @@ parameters:
     type: integer
     required: true
     x-example: 10
+  webhook_id:
+    name: webhook_id
+    description: webhook ID
+    in: path
+    type: integer
+    required: true
+    x-example: 11
+  extractor_id:
+    name: extractor_id
+    description: Extractor ID
+    in: path
+    type: integer
+    required: true
+    x-example: 12
+  extractvalue_id:
+    name: extractvalue_id
+    description: ExtractValue ID
+    in: path
+    type: integer
+    required: true
+    x-example: 12
+  matcher_id:
+    name: matcher_id
+    description: Matcher ID
+    in: path
+    type: integer
+    required: true
+    x-example: 12
+
 paths:
   /ping:
     get:
@@ -1124,6 +1295,237 @@ paths:
       responses:
         204:
           description: User updated
+
+  /project/{project_id}/webhooks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get Webhooks linked to project
+      responses:
+        200:
+          description: Webhooks
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Webhook"
+    post:
+      tags:
+        - project
+      summary: Add Webhook
+      parameters:
+        - name: Webhook
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Webhook"
+      responses:
+        204:
+          description: Webhook Created
+        400:
+          description: Bad Webhook params
+  /project/{project_id}/webhook/{webhook_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+    put:
+      tags:
+        - project
+      summary: Updates Webhook
+      parameters:
+        - name: Webhook
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookRequest"
+      responses:
+        204:
+          description: Webhook updated
+        400:
+          description: Bad webhook parameter
+    delete:
+      tags:
+        - project
+      summary: Removes webhook
+      responses:
+        204:
+          description: webhook removed
+  /project/{project_id}/webhook/{webhook_id}/extractors:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+    get:
+      tags:
+        - webhook
+      summary: Get Webhook Extractors linked to project
+      responses:
+        200:
+          description: Webhook Extractors
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WebhookExtractor"
+    post:
+      tags:
+        - project
+      summary: Add Webhook Extractor
+      parameters:
+        - name: Webhook Extractor
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookExtractor"
+      responses:
+        204:
+          description: Webhook Extractor Created
+        400:
+          description: Bad Webhook Extractor params
+  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/extractor_id"
+    put:
+      tags:
+        - webhook
+      summary: Updates Webhook extractor
+      parameters:
+        - name: Webhook Extractor
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookExtractorRequest"
+      responses:
+        204:
+          description: Webhook Extractor updated
+        400:
+          description: Bad webhook extractor parameter
+    delete:
+      tags:
+        - webhook
+      summary: Removes webhook extractor
+      responses:
+        204:
+          description: webhook extractor removed
+  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/values:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/extractor_id"
+    get:
+      tags:
+        - webhook
+      summary: Get Webhook Extracted Values linked to webhook extractor
+      responses:
+        200:
+          description: Webhook Extracted Value
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WebhookExtractValue"
+    post:
+      tags:
+        - project
+      summary: Add Webhook Extracted Value
+      parameters:
+        - name: Webhook Extracted Value
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookExtractValue"
+      responses:
+        204:
+          description: Webhook Extract Value Created
+        400:
+          description: Bad Webhook Extract Value params
+  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/value/{extractvalue_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/extractor_id"
+      - $ref: "#/parameters/extractvalue_id"
+    put:
+      tags:
+        - webhook
+      summary: Updates Webhook ExtractValue
+      parameters:
+        - name: Webhook ExtractValue
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookExtractValueRequest"
+      responses:
+        204:
+          description: Webhook Extract Value updated
+        400:
+          description: Bad webhook extract value parameter
+    delete:
+      tags:
+        - webhook
+      summary: Removes webhook extract value
+      responses:
+        204:
+          description: webhook extract value removed
+  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/matchers:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/extractor_id"
+    get:
+      tags:
+        - webhook
+      summary: Get Webhook Matcher linked to webhook extractor
+      responses:
+        200:
+          description: Webhook Matcher
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WebhookMatcher"
+    post:
+      tags:
+        - project
+      summary: Add Webhook Matcher
+      parameters:
+        - name: Webhook Matcher
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookMatcher"
+      responses:
+        204:
+          description: Webhook Matcher Created
+        400:
+          description: Bad Webhook Matcher params
+  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/matcher/{matcher_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/extractor_id"
+      - $ref: "#/parameters/matcher_id"
+    put:
+      tags:
+        - webhook
+      summary: Updates Webhook Matcher
+      parameters:
+        - name: Webhook Matcher
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookMatcherRequest"
+      responses:
+        204:
+          description: Webhook Matcher updated
+        400:
+          description: Bad webhook matcher parameter
+    delete:
+      tags:
+        - webhook
+      summary: Removes webhook matcher
+      responses:
+        204:
+          description: webhook matcher removed
 
   # project access keys
   /project/{project_id}/keys:

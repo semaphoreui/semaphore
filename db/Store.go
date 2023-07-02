@@ -51,6 +51,19 @@ type ObjectReferrers struct {
 	Repositories []ObjectReferrer `json:"repositories"`
 }
 
+type WebhookReferrers struct {
+	WebhookExtractors []ObjectReferrer `json:"extractors"`
+}
+
+type WebhookExtractorReferrers struct {
+	WebhookMatchers []ObjectReferrer `json:"matchers"`
+	WebhookExtractValues []ObjectReferrer `json:"values"`
+}
+
+type WebhookExtractorChildReferrers struct {
+	WebhookExtractors []ObjectReferrer `json:"extracors"`
+}
+
 // ObjectProps describe database entities.
 // It mainly used for NoSQL implementations (currently BoltDB) to preserve same
 // data structure of different implementations and easy change it if required.
@@ -125,6 +138,41 @@ type Store interface {
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
 	RekeyAccessKeys(oldKey string) error
+
+	CreateWebhook(webhook Webhook) (newWebhook Webhook, err error)
+	GetWebhooks(projectID int, params RetrieveQueryParams) ([]Webhook, error)
+	GetWebhook(webhookID int, projectID int) (webhook Webhook, err error)
+	UpdateWebhook(webhook Webhook) error
+	GetWebhookRefs(projectID int, webhookID int) (WebhookReferrers, error)
+	DeleteWebhook(projectID int, webhookID int) error
+	GetAllWebhooks() ([]Webhook, error)
+
+	CreateWebhookExtractor(webhookExtractor WebhookExtractor) (newWebhookExtractor WebhookExtractor, err error)
+	GetWebhookExtractors(webhookID int, params RetrieveQueryParams) ([]WebhookExtractor, error)
+	GetWebhookExtractor(extractorID int, webhookID int) (extractor WebhookExtractor, err error)
+	UpdateWebhookExtractor(webhookExtractor WebhookExtractor) error
+	GetWebhookExtractorRefs(webhookID int, extractorID int) (WebhookExtractorReferrers, error)
+	DeleteWebhookExtractor(webhookID int, extractorID int) error
+	GetWebhookExtractorsByWebhookID(webhookID int) ([]WebhookExtractor, error)
+	GetAllWebhookExtractors() ([]WebhookExtractor, error)
+
+	CreateWebhookExtractValue(value WebhookExtractValue) (newValue WebhookExtractValue, err error)
+	GetWebhookExtractValues(extractorID int, params RetrieveQueryParams) ([]WebhookExtractValue, error)
+	GetWebhookExtractValue(valueID int, extractorID int) (value WebhookExtractValue, err error)
+	UpdateWebhookExtractValue(webhookExtractValue WebhookExtractValue) error
+	GetWebhookExtractValueRefs(extractorID int, valueID int) (WebhookExtractorChildReferrers, error)
+	DeleteWebhookExtractValue(extractorID int, valueID int) error
+	GetWebhookExtractValuesByExtractorID(extractorID int) ([]WebhookExtractValue, error)
+	GetAllWebhookExtractValues() ([]WebhookExtractValue, error)
+
+	CreateWebhookMatcher(matcher WebhookMatcher) (newMatcher WebhookMatcher, err error)
+	GetWebhookMatchers(extractorID int, params RetrieveQueryParams) ([]WebhookMatcher, error)
+	GetAllWebhookMatchers() ([]WebhookMatcher, error)
+	GetWebhookMatcher(matcherID int, extractorID int) (matcher WebhookMatcher, err error)
+	UpdateWebhookMatcher(webhookMatcher WebhookMatcher) error
+	GetWebhookMatcherRefs(extractorID int, matcherID int) (WebhookExtractorChildReferrers, error)
+	DeleteWebhookMatcher(extractorID int, matcherID int) error
+	GetWebhookMatchersByExtractorID(extractorID int) ([]WebhookMatcher, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
@@ -221,6 +269,42 @@ var AccessKeyProps = ObjectProps{
 	DefaultSortingColumn:  "name",
 }
 
+var WebhookProps = ObjectProps{
+	TableName:             "project__webhook",
+	Type:                  reflect.TypeOf(Webhook{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "webhook_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var WebhookExtractorProps = ObjectProps{
+	TableName:             "project__webhook_extractor",
+	Type:                  reflect.TypeOf(WebhookExtractor{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "extractor_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var WebhookExtractValueProps = ObjectProps{
+	TableName:             "project__webhook_extract_value",
+	Type:                  reflect.TypeOf(WebhookExtractValue{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "extract_value_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var WebhookMatcherProps = ObjectProps{
+	TableName:             "project__webhook_matcher",
+	Type:                  reflect.TypeOf(WebhookMatcher{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "matcher_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
 var EnvironmentProps = ObjectProps{
 	TableName:             "project__environment",
 	Type:                  reflect.TypeOf(Environment{}),
@@ -272,6 +356,7 @@ var ProjectProps = ObjectProps{
 	TableName:            "project",
 	Type:                 reflect.TypeOf(Project{}),
 	PrimaryColumnName:    "id",
+	ReferringColumnSuffix: "project_id",
 	DefaultSortingColumn: "name",
 	IsGlobal:             true,
 }

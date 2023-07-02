@@ -35,6 +35,8 @@ func getVersionErrPath(version db.Migration) string {
 // getVersionSQL takes a path to an SQL file and returns it from packr as
 // a slice of strings separated by newlines
 func getVersionSQL(path string) (queries []string) {
+	log.Info(fmt.Sprintf("GetVersionSQL: %s", path))
+
 	sql, err := dbAssets.MustString(path)
 	if err != nil {
 		panic(err)

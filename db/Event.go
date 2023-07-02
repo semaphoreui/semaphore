@@ -9,6 +9,9 @@ type Event struct {
 	ID          int              `db:"id" json:"-"`
 	UserID      *int             `db:"user_id" json:"user_id"`
 	ProjectID   *int             `db:"project_id" json:"project_id"`
+	WebhookID   *int             `db:"webhook_id" json:"webhook_id"`
+	ExtractorID   *int           `db:"extractor_id" json:"extractor_id"`
+
 	ObjectID    *int             `db:"object_id" json:"object_id"`
 	ObjectType  *EventObjectType `db:"object_type" json:"object_type"`
 	Description *string          `db:"description" json:"description"`
@@ -32,6 +35,10 @@ const (
 	EventTemplate    EventObjectType = "template"
 	EventUser        EventObjectType = "user"
 	EventView        EventObjectType = "view"
+	EventWebhook     EventObjectType = "webhook"
+	EventWebhookExtractor EventObjectType = "webhookextractor"
+	EventWebhookExtractValue EventObjectType = "webhookextractvalue"
+	EventWebhookMatcher EventObjectType = "webhookmatcher"
 )
 
 func FillEvents(d Store, events []Event) (err error) {

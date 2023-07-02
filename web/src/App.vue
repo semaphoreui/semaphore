@@ -250,6 +250,16 @@
           </v-list-item-content>
         </v-list-item>
 
+        <v-list-item key="webhooks" :to="`/project/${projectId}/webhooks`">
+          <v-list-item-icon>
+            <v-icon>mdi-hook</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Webhooks</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
         <v-list-item key="team" :to="`/project/${projectId}/team`">
           <v-list-item-icon>
             <v-icon>mdi-account-multiple</v-icon>
