@@ -14,33 +14,33 @@
             v-if="editedVar != null"
           >
             <v-text-field
-              label="Name *"
+              :label="$t('name2')"
               v-model.trim="editedVar.name"
-              :rules="[(v) => !!v || 'Name is required']"
+              :rules="[(v) => !!v || $t('name_required')]"
               required
             />
 
             <v-text-field
-              label="Title *"
+              :label="$t('title')"
               v-model="editedVar.title"
-              :rules="[(v) => !!v || 'Title is required']"
+              :rules="[(v) => !!v || $t('title_required')]"
               required
             />
 
             <v-text-field
-              label="Description"
+              :label="$t('description')"
               v-model="editedVar.description"
               required
             />
             <v-select
               v-model="editedVar.type"
-              label="Type"
+              :label="$t('type')"
               :items="varTypes"
               item-value="id"
               item-text="name"
             ></v-select>
             <v-checkbox
-              label="Required"
+              :label="$t('required')"
               v-model="editedVar.required"
             />
           </v-form>
@@ -52,14 +52,14 @@
             text
             @click="editDialog = false"
           >
-            Cancel
+            {{ $t('cancel') }}
           </v-btn>
           <v-btn
             color="blue darken-1"
             text
             @click="saveVar()"
           >
-            {{ editedVarIndex == null ? 'Add' : 'Save' }}
+            {{ editedVarIndex == null ? $t('add') : $t('save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -73,7 +73,7 @@
                          'rgba(200, 200, 200, 0.38)' :
                          'rgba(0, 0, 0, 0.38)'
                      }">
-      <legend style="padding: 0 3px;">Survey Variables</legend>
+      <legend style="padding: 0 3px;">{{ $t('surveyVariables') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
         <v-chip
           v-for="(v, i) in modifiedVars"
@@ -86,7 +86,7 @@
           {{ v.title }}
         </v-chip>
         <v-chip @click="editVar(null)">
-          + <span class="ml-1" v-if="modifiedVars.length === 0">Add variable</span>
+          + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('addVariable') }}</span>
         </v-chip>
       </v-chip-group>
     </fieldset>

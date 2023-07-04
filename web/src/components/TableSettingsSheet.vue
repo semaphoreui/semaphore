@@ -1,6 +1,6 @@
 <template>
   <PageBottomSheet v-model="sheet" v-if="settings">
-    <h4>Columns</h4>
+    <h4>{{ $t('columns') }}</h4>
     <div class="d-flex flex-row flex-wrap">
       <v-checkbox
         class="mr-6"

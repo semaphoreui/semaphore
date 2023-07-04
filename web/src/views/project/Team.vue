@@ -2,8 +2,8 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="(this.itemId === 'new' ? 'Link' : 'Save')"
-      :title="(this.itemId === 'new' ? 'New' : 'Edit') + ' Team Member'"
+      :save-button-text="(this.itemId === 'new' ? 'Link' : $t('save'))"
+      :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -19,20 +19,20 @@
     </EditDialog>
 
     <YesNoDialog
-      title="Delete team member"
-      text="Are you really want to delete the team member?"
+      :title="$t('deleteTeamMember')"
+      :text="$t('askDeleteTMem')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Team</v-toolbar-title>
+      <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Team Member</v-btn>
+      >{{ $t('newTeamMember') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -93,25 +93,25 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Name',
+          text: this.$i18n.t('name'),
           value: 'name',
           width: '50%',
         },
         {
-          text: 'Username',
+          text: this.$i18n.t('username'),
           value: 'username',
         },
         {
-          text: 'Email',
+          text: this.$i18n.t('email'),
           value: 'email',
           width: '50%',
         },
         {
-          text: 'Admin',
+          text: this.$i18n.t('admin'),
           value: 'admin',
         },
         {
-          text: 'Actions',
+          text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
         }];

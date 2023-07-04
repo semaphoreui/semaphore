@@ -14,7 +14,7 @@
     >
       <v-card>
         <v-card-title>
-          Edit Views
+          {{ $t('editViews') }}
           <v-spacer></v-spacer>
           <v-btn icon @click="closeEditViewDialog()">
             <v-icon>mdi-close</v-icon>
@@ -29,8 +29,8 @@
     <EditDialog
       :max-width="700"
       v-model="editDialog"
-      save-button-text="Create"
-      title="New template"
+      :save-button-text="$t('create')"
+      :title="$t('newTemplate')"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -58,7 +58,7 @@
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
-        Task Templates
+        {{ $t('taskTemplates2') }}
         <!--
         <v-btn-toggle class="ml-4" rounded>
           <v-btn small>
@@ -78,7 +78,7 @@
         color="primary"
         @click="editItem('new')"
         class="mr-1"
-      >New template
+      >{{ $t('newTemplate') }}
       </v-btn>
 
       <v-btn icon @click="settingsSheet = true">
@@ -87,7 +87,7 @@
     </v-toolbar>
 
     <v-tabs show-arrows class="pl-4" v-model="viewTab">
-      <v-tab :to="getViewUrl(null)" :disabled="viewItemsLoading">All</v-tab>
+      <v-tab :to="getViewUrl(null)" :disabled="viewItemsLoading">{{ $t('all') }}</v-tab>
 
       <v-tab
         v-for="(view) in views"
@@ -152,7 +152,7 @@
         <div class="mt-2 mb-2 d-flex" v-if="item.last_task != null">
           <TaskStatus :status="item.last_task.status"/>
         </div>
-        <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">Not launched</div>
+        <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">{{ $t('notLaunched') }}</div>
       </template>
 
       <template v-slot:item.last_task="{ item }">
@@ -163,7 +163,8 @@
             :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
-            by {{ item.last_task.user_name }} {{ item.last_task.created|formatDate }}
+            {{ $t('by', {user_name: item.last_task.user_name, formatDate: item.last_task.created|
+              formatDate}) }}
           </div>
         </div>
       </template>
@@ -386,46 +387,46 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Name',
+          text: this.$i18n.t('name'),
           value: 'name',
         },
         {
-          text: 'Version',
+          text: this.$i18n.t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: 'Status',
+          text: this.$i18n.t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: 'Last task',
+          text: this.$i18n.t('lastTask'),
           value: 'last_task',
           sortable: false,
         },
         {
-          text: 'Playbook',
+          text: this.$i18n.t('playbook'),
           value: 'playbook',
           sortable: false,
         },
         {
-          text: 'Inventory',
+          text: this.$i18n.t('inventory'),
           value: 'inventory_id',
           sortable: false,
         },
         {
-          text: 'Environment',
+          text: this.$i18n.t('environment'),
           value: 'environment_id',
           sortable: false,
         },
         {
-          text: 'Repository',
+          text: this.$i18n.t('repository2'),
           value: 'repository_id',
           sortable: false,
         },
         {
-          text: 'Actions',
+          text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
           width: '0%',

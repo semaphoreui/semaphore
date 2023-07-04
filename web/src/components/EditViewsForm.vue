@@ -48,8 +48,8 @@
     <v-alert
         v-else
         type="info"
-    >No views</v-alert>
-    <v-btn @click="addView()" color="primary">Add view</v-btn>
+    >{{ $t('noViews') }}</v-alert>
+    <v-btn @click="addView()" color="primary">{{ $t('addView') }}</v-btn>
   </div>
 </template>
 
