@@ -60,7 +60,7 @@ func (t *TaskRunner) sendMailAlert() {
 		userObj, err := t.pool.store.GetUser(user)
 
 		if !userObj.Alert {
-			return
+			continue
 		}
 		t.panicOnError(err, "Can't find user Email!")
 
