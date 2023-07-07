@@ -93,6 +93,7 @@ type ConfigType struct {
 	LdapSearchDN     string       `json:"ldap_searchdn"`
 	LdapSearchFilter string       `json:"ldap_searchfilter"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
+	LdapWhoAmI       bool         `json:"ldap_whoami"`
 
 	// telegram alerting
 	TelegramChat  string `json:"telegram_chat"`

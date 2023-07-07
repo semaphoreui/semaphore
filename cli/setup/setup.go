@@ -82,6 +82,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("LDAP mapping for username field", "uid", &conf.LdapMappings.UID)
 		askValue("LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
 		askValue("LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
+        askConfirmation("Enable LDAP WhoAmI check", true, &conf.LdapWhoAmI)
 	}
 }
 
