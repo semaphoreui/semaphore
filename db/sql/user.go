@@ -104,10 +104,10 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 
 func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
 	_, err = d.exec(
-		"insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
+		"insert into project__user (project_id, user_id, `role`) values (?, ?, ?)",
 		projectUser.ProjectID,
 		projectUser.UserID,
-		projectUser.Admin)
+		projectUser.Role)
 
 	if err != nil {
 		return
@@ -165,8 +165,8 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 
 func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
 	_, err := d.exec(
-		"update `project__user` set admin=? where user_id=? and project_id = ?",
-		projectUser.Admin,
+		"update `project__user` set role=? where user_id=? and project_id = ?",
+		projectUser.Role,
 		projectUser.UserID,
 		projectUser.ProjectID)
 
@@ -178,7 +178,7 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 	return err
 }
 
-//GetUser retrieves a user from the database by ID
+// GetUser retrieves a user from the database by ID
 func (d *SqlDb) GetUser(userID int) (db.User, error) {
 	var user db.User
 

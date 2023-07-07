@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - develop
+      - roles
 
 jobs:
   build-local:

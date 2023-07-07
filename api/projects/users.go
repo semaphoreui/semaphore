@@ -70,7 +70,11 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: project.ID, UserID: projectUser.UserID, Admin: projectUser.Admin})
+	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    projectUser.UserID,
+		Role:      db.ProjectTaskRunner,
+	})
 
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
@@ -82,7 +86,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:		 &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &projectUser.UserID,
@@ -131,14 +135,18 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
-	admin := true
+	role := db.ProjectOwner
 
 	if r.Method == "DELETE" {
 		// strip admin
-		admin = false
+		role = db.ProjectTaskRunner
 	}
 
-	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{UserID: user.ID, ProjectID: project.ID, Admin: admin})
+	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{
+		UserID:    user.ID,
+		ProjectID: project.ID,
+		Role:      role,
+	})
 
 	if err != nil {
 		helpers.WriteError(w, err)

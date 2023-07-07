@@ -3,9 +3,9 @@ package db
 type ProjectUserRole string
 
 const (
-	ProjectUserOwner  ProjectUserRole = "owner"
-	ProjectUserRunner ProjectUserRole = "runner"
-	ProjectUserGuest  ProjectUserRole = "guest"
+	ProjectOwner      ProjectUserRole = "owner"
+	ProjectTaskRunner ProjectUserRole = "task_runner"
+	ProjectGuest      ProjectUserRole = "guest"
 )
 
 type ProjectUserPermission int
@@ -17,16 +17,15 @@ const (
 )
 
 var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
-	ProjectUserOwner:  ProjectUserCanRunTask | ProjectCanEditProjectSettings | ProjectCanRunTasks,
-	ProjectUserRunner: ProjectCanRunTasks,
-	ProjectUserGuest:  0,
+	ProjectOwner:      ProjectUserCanRunTask | ProjectCanEditProjectSettings | ProjectCanRunTasks,
+	ProjectTaskRunner: ProjectCanRunTasks,
+	ProjectGuest:      0,
 }
 
 type ProjectUser struct {
 	ID        int             `db:"id" json:"-"`
 	ProjectID int             `db:"project_id" json:"project_id"`
 	UserID    int             `db:"user_id" json:"user_id"`
-	Admin     bool            `db:"admin" json:"admin"`
 	Role      ProjectUserRole `db:"role" json:"role"`
 }
 

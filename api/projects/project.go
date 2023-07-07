@@ -60,7 +60,7 @@ func MustBeAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		if !projectUser.Admin {
+		if projectUser.Role != db.ProjectOwner {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -69,7 +69,7 @@ func MustBeAdmin(next http.Handler) http.Handler {
 	})
 }
 
-//GetProject returns a project details
+// GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
 }

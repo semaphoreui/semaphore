@@ -153,7 +153,7 @@ func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (
 		if err != nil {
 			return
 		}
-		usr.Admin = projUser.Admin
+		usr.Role = projUser.Role
 		users = append(users, usr)
 	}
 	return
@@ -167,7 +167,7 @@ func (d *BoltDb) DeleteProjectUser(projectID, userID int) error {
 	return d.deleteObject(projectID, db.ProjectUserProps, intObjectID(userID), nil)
 }
 
-//GetUser retrieves a user from the database by ID
+// GetUser retrieves a user from the database by ID
 func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 	err = d.getObject(0, db.UserProps, intObjectID(userID), &user)
 	return
