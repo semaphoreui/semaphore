@@ -132,7 +132,7 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 	return user, err
 }
 
-func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
+func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.UserWithProjectRole, err error) {
 	q := squirrel.Select("u.*").
 		Column("pu.role").
 		From("project__user as pu").

@@ -62,8 +62,8 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var projectUser struct {
-		UserID int  `json:"user_id" binding:"required"`
-		Admin  bool `json:"admin"`
+		UserID int                `json:"user_id" binding:"required"`
+		Role   db.ProjectUserRole `json:"role"`
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
@@ -73,7 +73,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{
 		ProjectID: project.ID,
 		UserID:    projectUser.UserID,
-		Role:      db.ProjectTaskRunner,
+		Role:      projectUser.Role,
 	})
 
 	if err != nil {

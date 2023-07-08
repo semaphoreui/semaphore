@@ -141,7 +141,7 @@ func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err
 	return
 }
 
-func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
+func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.UserWithProjectRole, err error) {
 	var projectUsers []db.ProjectUser
 	err = d.getObjects(projectID, db.ProjectUserProps, params, nil, &projectUsers)
 	if err != nil {
@@ -153,8 +153,11 @@ func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (
 		if err != nil {
 			return
 		}
-		usr.Role = projUser.Role
-		users = append(users, usr)
+		var usrWithRole = db.UserWithProjectRole{
+			User: usr,
+			Role: projUser.Role,
+		}
+		users = append(users, usrWithRole)
 	}
 	return
 }

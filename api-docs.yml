@@ -895,7 +895,7 @@ paths:
           in: query
           required: true
           type: string
-          enum: [name, username, email, admin]
+          enum: [name, username, email, role]
           description: sorting name
           x-example: email
         - name: order
@@ -926,8 +926,8 @@ paths:
               user_id:
                 type: integer
                 minimum: 2
-              admin:
-                type: boolean
+              role:
+                type: string
       responses:
         204:
           description: User added
