@@ -131,21 +131,22 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// MakeUserAdmin writes the admin flag to the users account
-func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
-	role := db.ProjectOwner
 
-	if r.Method == "DELETE" {
-		// strip admin
-		role = db.ProjectTaskRunner
+	var projectUser struct {
+		Role db.ProjectUserRole `json:"role"`
+	}
+
+	if !helpers.Bind(w, r, &projectUser) {
+		return
 	}
 
 	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{
 		UserID:    user.ID,
 		ProjectID: project.ID,
-		Role:      role,
+		Role:      projectUser.Role,
 	})
 
 	if err != nil {

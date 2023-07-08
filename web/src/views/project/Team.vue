@@ -25,14 +25,15 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Team</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Team Member</v-btn>
+      >New Team Member
+      </v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -42,14 +43,15 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
-      <template v-slot:item.admin="{ item }">
-
-        <v-switch
-          v-model="item.admin"
-          inset
-          :disabled="!isUserAdmin()"
-          @change="item.admin ? grantAdmin(item.id) : refuseAdmin(item.id)"
-        ></v-switch>
+      <template v-slot:item.role="{ item }">
+        <v-select
+          v-model="item.role"
+          :items="roles"
+          item-value="slug"
+          item-text="title"
+          :style="{width: '200px'}"
+          @change="updateProjectUser(item)"
+        />
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -73,23 +75,29 @@ import axios from 'axios';
 export default {
   components: { TeamMemberForm },
   mixins: [ItemListPageBase],
+  data() {
+    return {
+      roles: [{
+        slug: 'owner',
+        title: 'Owner',
+      }, {
+        slug: 'task_runner',
+        title: 'Task Runner',
+      }],
+    };
+  },
+
   methods: {
-    async grantAdmin(userId) {
+    async updateProjectUser(user) {
       await axios({
-        method: 'post',
-        url: `/api/project/${this.projectId}/users/${userId}/admin`,
+        method: 'put',
+        url: `/api/project/${this.projectId}/users/${user.id}`,
         responseType: 'json',
+        data: user,
       });
       await this.loadItems();
     },
-    async refuseAdmin(userId) {
-      await axios({
-        method: 'delete',
-        url: `/api/project/${this.projectId}/users/${userId}/admin`,
-        responseType: 'json',
-      });
-      await this.loadItems();
-    },
+
     getHeaders() {
       return [
         {
@@ -107,8 +115,8 @@ export default {
           width: '50%',
         },
         {
-          text: 'Admin',
-          value: 'admin',
+          text: 'Role',
+          value: 'role',
         },
         {
           text: 'Actions',
