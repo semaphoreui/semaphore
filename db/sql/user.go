@@ -133,7 +133,8 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 }
 
 func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
-	q := squirrel.Select("u.*").Column("pu.admin").
+	q := squirrel.Select("u.*").
+		Column("pu.role").
 		From("project__user as pu").
 		LeftJoin("`user` as u on pu.user_id=u.id").
 		Where("pu.project_id=?", projectID)
@@ -146,7 +147,7 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 	switch params.SortBy {
 	case "name", "username", "email":
 		q = q.OrderBy("u." + params.SortBy + " " + sortDirection)
-	case "admin":
+	case "role":
 		q = q.OrderBy("pu." + params.SortBy + " " + sortDirection)
 	default:
 		q = q.OrderBy("u.name " + sortDirection)
