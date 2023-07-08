@@ -3,6 +3,7 @@ package projects
 import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/gorilla/mux"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -22,7 +23,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// check if user it project's team
+		// check if user in project's team
 		_, err = helpers.Store(r).GetProjectUser(projectID, user.ID)
 
 		if err != nil {
@@ -42,31 +43,36 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// MustBeAdmin ensures that the user has administrator rights
-func MustBeAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
-		user := context.Get(r, "user").(*db.User)
+// GetMustCanMiddlewareFor ensures that the user has administrator rights
+func GetMustCanMiddlewareFor(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			project := context.Get(r, "project").(db.Project)
+			user := context.Get(r, "user").(*db.User)
 
-		projectUser, err := helpers.Store(r).GetProjectUser(project.ID, user.ID)
+			if !user.Admin {
+				// check if user in project's team
+				projectUser, err := helpers.Store(r).GetProjectUser(project.ID, user.ID)
 
-		if err == db.ErrNotFound {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
+				if err == db.ErrNotFound {
+					w.WriteHeader(http.StatusForbidden)
+					return
+				}
 
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
+				if err != nil {
+					helpers.WriteError(w, err)
+					return
+				}
 
-		if projectUser.Role != db.ProjectOwner {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
+				if r.Method != "GET" && r.Method != "HEAD" && !projectUser.Can(permissions) {
+					w.WriteHeader(http.StatusForbidden)
+					return
+				}
+			}
 
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // GetProject returns a project details

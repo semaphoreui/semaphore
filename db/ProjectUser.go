@@ -4,6 +4,7 @@ type ProjectUserRole string
 
 const (
 	ProjectOwner      ProjectUserRole = "owner"
+	ProjectManager    ProjectUserRole = "manager"
 	ProjectTaskRunner ProjectUserRole = "task_runner"
 	ProjectGuest      ProjectUserRole = "guest"
 )
@@ -11,14 +12,16 @@ const (
 type ProjectUserPermission int
 
 const (
-	ProjectUserCanRunTask ProjectUserPermission = 1 << iota
-	ProjectCanEditProjectSettings
-	ProjectCanRunTasks
+	CanRunProjectTasks ProjectUserPermission = 1 << iota
+	CanUpdateProject
+	CanManageProjectResources
+	CanManageProjectUsers
 )
 
 var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
-	ProjectOwner:      ProjectUserCanRunTask | ProjectCanEditProjectSettings | ProjectCanRunTasks,
-	ProjectTaskRunner: ProjectCanRunTasks,
+	ProjectOwner:      CanRunProjectTasks | CanUpdateProject | CanManageProjectResources,
+	ProjectManager:    CanRunProjectTasks | CanManageProjectResources,
+	ProjectTaskRunner: CanRunProjectTasks,
 	ProjectGuest:      0,
 }
 

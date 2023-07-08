@@ -123,8 +123,20 @@ func Route() *mux.Router {
 	projectGet.Use(projects.ProjectMiddleware)
 	projectGet.Methods("GET", "HEAD").HandlerFunc(projects.GetProject)
 
+	//
+	// Start and Stop tasks
+	projectTaskStart := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectTaskStart.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanRunProjectTasks))
+	projectTaskStart.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
+
+	projectTaskStop := authenticatedAPI.PathPrefix("/tasks").Subrouter()
+	projectTaskStop.Use(projects.ProjectMiddleware, projects.GetTaskMiddleware, projects.GetMustCanMiddlewareFor(db.CanRunProjectTasks))
+	projectTaskStop.HandleFunc("/{task_id}/stop", projects.StopTask).Methods("POST")
+
+	//
+	// Project resources CRUD
 	projectUserAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectUserAPI.Use(projects.ProjectMiddleware)
+	projectUserAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanManageProjectResources))
 
 	projectUserAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
@@ -145,7 +157,6 @@ func Route() *mux.Router {
 
 	projectUserAPI.Path("/tasks").HandlerFunc(projects.GetAllTasks).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/tasks/last", projects.GetLastTasks).Methods("GET", "HEAD")
-	projectUserAPI.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
 
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
@@ -157,13 +168,17 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
 
+	//
+	// Updating and deleting project
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
-	projectAdminAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
+	projectAdminAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanUpdateProject))
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
 	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
 
+	//
+	// Manage project users
 	projectAdminUsersAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.MustBeAdmin)
+	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanManageProjectUsers))
 	projectAdminUsersAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
 
 	projectUserManagement := projectAdminUsersAPI.PathPrefix("/users").Subrouter()
@@ -173,6 +188,8 @@ func Route() *mux.Router {
 	projectUserManagement.HandleFunc("/{user_id}", projects.UpdateUser).Methods("PUT")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
 
+	//
+	// Project resources CRUD (continue)
 	projectKeyManagement := projectUserAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
 
@@ -222,7 +239,6 @@ func Route() *mux.Router {
 	projectTaskManagement.HandleFunc("/{task_id}/output", projects.GetTaskOutput).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", projects.GetTask).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", projects.RemoveTask).Methods("DELETE")
-	projectTaskManagement.HandleFunc("/{task_id}/stop", projects.StopTask).Methods("POST")
 
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
