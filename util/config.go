@@ -49,6 +49,28 @@ type ldapMappings struct {
 	CN   string `json:"cn"`
 }
 
+type oidcEndpoint struct {
+	IssuerURL   string   `json:"issuer"`
+	AuthURL     string   `json:"auth"`
+	TokenURL    string   `json:"token"`
+	UserInfoURL string   `json:"userinfo"`
+	JWKSURL     string   `json:"jwks"`
+	Algorithms  []string `json:"algorithms"`
+}
+
+type oidcProvider struct {
+	ClientID      string       `json:"client_id"`
+	ClientSecret  string       `json:"client_secret"`
+	RedirectURL   string       `json:"redirect_url"`
+	Scopes        []string     `json:"scopes"`
+	DisplayName   string       `json:"display_name"`
+	AutoDiscovery string       `json:"provider_url"`
+	Endpoint      oidcEndpoint `json:"endpoint"`
+	UsernameClaim string       `json:"username_claim"`
+	NameClaim     string       `json:"name_claim"`
+	EmailClaim    string       `json:"email_claim"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
@@ -93,6 +115,9 @@ type ConfigType struct {
 	LdapSearchDN     string       `json:"ldap_searchdn"`
 	LdapSearchFilter string       `json:"ldap_searchfilter"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
+
+	// oidc settings
+	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
 
 	// telegram alerting
 	TelegramChat  string `json:"telegram_chat"`
