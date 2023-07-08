@@ -30,18 +30,18 @@
     <v-select
       v-if="template.type === 'deploy'"
       v-model="item.build_task_id"
-      label="Build Version"
+      :label="$t('buildVersion')"
       :items="buildTasks"
       item-value="id"
       :item-text="(itm) => getTaskMessage(itm)"
-      :rules="[v => !!v || 'Build Version is required']"
+      :rules="[v => !!v || $t('build_version_required')]"
       required
       :disabled="formSaving"
     />
 
     <v-text-field
       v-model="item.message"
-      label="Message (Optional)"
+      :label="$t('messageOptional')"
       :disabled="formSaving"
     />
 
@@ -53,8 +53,9 @@
       v-model="editedEnvironment[v.name]"
       :required="v.required"
       :rules="[
-          val => !v.required || !!val || v.title + ' is required',
-          val => !val || v.type !== 'int' || /^\d+$/.test(val) || v.title + ' must be integer',
+          val => !v.required || !!val || v.title + $t('isRequired'),
+          val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
+          v.title + ' ' + $t('mustBeInteger'),
         ]"
     />
 
@@ -62,21 +63,21 @@
       <v-col cols="12" sm="6">
         <v-checkbox class="mt-0" v-model="item.debug">
           <template v-slot:label>
-            <div class="text-no-wrap">Debug <code>--vvvv</code></div>
+            <div class="text-no-wrap">{{ $t('debug') }} <code>--vvvv</code></div>
           </template>
         </v-checkbox>
       </v-col>
       <v-col cols="12" sm="6">
         <v-checkbox class="mt-0" v-model="item.dry_run">
           <template v-slot:label>
-            <div class="text-no-wrap">Dry Run <code>--check</code></div>
+            <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
           </template>
         </v-checkbox>
       </v-col>
       <v-col cols="12" sm="6">
         <v-checkbox class="mt-0" v-model="item.diff">
           <template v-slot:label>
-            <div class="text-no-wrap">Diff <code>--diff</code></div>
+            <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
           </template>
         </v-checkbox>
       </v-col>
@@ -84,14 +85,14 @@
 
     <div class="mt-4" v-if="!advancedOptions">
       <a @click="advancedOptions = true">
-        Advanced
+        {{ $t('advanced') }}
         <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
       </a>
     </div>
 
     <div class="mt-4" v-else>
       <a @click="advancedOptions = false">
-        Hide
+        {{ $t('hide') }}
         <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
       </a>
     </div>
@@ -103,7 +104,7 @@
       text
       class="mb-2"
     >
-      Please allow overriding CLI argument in Task Template settings<br>
+      {{ $t('pleaseAllowOverridingCliArgumentInTaskTemplateSett') }}<br>
       <div style="position: relative; margin-top: 10px;">
         <video
           autoplay
@@ -123,13 +124,7 @@
       :style="{ border: '1px solid lightgray' }"
       v-model="item.arguments"
       :options="cmOptions"
-      placeholder='CLI Args (JSON array). Example:
-[
-  "-i",
-  "@myinventory.sh",
-  "--private-key=/there/id_rsa",
-  "-vvvv"
-]'
+      :placeholder="$t('cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe')"
     />
 
   </v-form>
