@@ -1,6 +1,6 @@
 module github.com/ansible-semaphore/semaphore
 
-go 1.18
+go 1.19
 
 require (
 	github.com/Sirupsen/logrus v1.0.4
