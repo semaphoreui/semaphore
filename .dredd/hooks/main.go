@@ -74,7 +74,7 @@ func main() {
 		dbConnect()
 		defer store.Close("")
 		deleteUserProjectRelation(userProject.ID, userPathTestUser.ID)
-		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"admin\": true}"
+		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))

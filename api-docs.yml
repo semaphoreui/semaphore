@@ -956,7 +956,7 @@ paths:
           in: query
           required: true
           type: string
-          enum: [name, username, email, admin]
+          enum: [name, username, email, role]
           description: sorting name
           x-example: email
         - name: order
@@ -987,8 +987,9 @@ paths:
               user_id:
                 type: integer
                 minimum: 2
-              admin:
-                type: boolean
+              role:
+                type: string
+                example: owner
       responses:
         204:
           description: User added
@@ -1003,24 +1004,21 @@ paths:
       responses:
         204:
           description: User removed
-  /project/{project_id}/users/{user_id}/admin:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/user_id"
-    post:
-      tags:
-        - project
-      summary: Makes user admin
+    put:
+      parameters:
+        - name: Project User
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              role:
+                type: string
+                example: owner
+      summary: Update user role
       responses:
         204:
-          description: User made administrator
-    delete:
-      tags:
-        - project
-      summary: Revoke admin privileges
-      responses:
-        204:
-          description: User admin privileges revoked
+          description: User updated
 
   # project access keys
   /project/{project_id}/keys:

@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - develop
-      - go19
+      - roles
 
 jobs:
   build-local:

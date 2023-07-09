@@ -193,6 +193,7 @@ export default {
   actions: 'Actions',
   alert: 'Alerte',
   admin: 'Administrateur',
+  role: 'Rôle',
   external: 'Externe',
   time: 'Temps',
   path: 'Chemin',
