@@ -928,6 +928,7 @@ paths:
                 minimum: 2
               role:
                 type: string
+                example: owner
       responses:
         204:
           description: User added

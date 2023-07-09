@@ -25,6 +25,11 @@ var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
 	ProjectGuest:      0,
 }
 
+func (r ProjectUserRole) IsValid() bool {
+	_, ok := rolePermissions[r]
+	return ok
+}
+
 type ProjectUser struct {
 	ID        int             `db:"id" json:"-"`
 	ProjectID int             `db:"project_id" json:"project_id"`

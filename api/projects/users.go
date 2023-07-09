@@ -70,6 +70,11 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !projectUser.Role.IsValid() {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{
 		ProjectID: project.ID,
 		UserID:    projectUser.UserID,
@@ -140,6 +145,11 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
+		return
+	}
+
+	if !projectUser.Role.IsValid() {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
