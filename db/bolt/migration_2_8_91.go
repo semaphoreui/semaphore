@@ -22,7 +22,7 @@ func (d migration_2_8_91) Apply() (err error) {
 
 	for projectID, projectUsers := range usersByProjectMap {
 		for userId, userData := range projectUsers {
-			if userData["admin"] == "true" {
+			if userData["admin"] == true {
 				userData["role"] = "owner"
 			} else {
 				userData["role"] = "task_runner"

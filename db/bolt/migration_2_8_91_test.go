@@ -26,7 +26,7 @@ func TestMigration_2_8_91_Apply(t *testing.T) {
 		}
 
 		err = r.Put([]byte("0000000001"),
-			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"admin\": \"true\"}"))
+			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"admin\": true}"))
 
 		return err
 	})
