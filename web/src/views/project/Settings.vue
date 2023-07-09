@@ -2,20 +2,20 @@
   <div>
     <YesNoDialog
       v-model="deleteProjectDialog"
-      title="Delete project"
-      text="Are you really want to delete this project?"
+      :title="$t('deleteProject')"
+      text="$t('askDeleteProj')"
       @yes="deleteProject()"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Dashboard</v-toolbar-title>
+      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <div>
         <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
+          <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
+          <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+          <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
         </v-tabs>
       </div>
     </v-toolbar>
@@ -25,18 +25,19 @@
       </div>
 
       <div class="text-right">
-        <v-btn color="primary" @click="saveProject()">Save</v-btn>
+        <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
       </div>
     </div>
 
     <div class="project-delete-form">
       <v-row align="center">
         <v-col class="shrink">
-          <v-btn color="error" @click="deleteProjectDialog = true">Delete Project</v-btn>
+          <v-btn color="error" @click="deleteProjectDialog = true">{{ $t('deleteProject2') }}
+          </v-btn>
         </v-col>
         <v-col class="grow">
           <div style="font-size: 14px; color: #ff5252">
-            Once you delete a project, there is no going back. Please be certain.
+            {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
           </div>
         </v-col>
       </v-row>

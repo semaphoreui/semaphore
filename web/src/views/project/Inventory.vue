@@ -2,8 +2,8 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
-      :title="`${itemId === 'new' ? 'New' : 'Edit'} Inventory`"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Inventory`"
       :max-width="450"
       @save="loadItems"
     >
@@ -27,20 +27,20 @@
     />
 
     <YesNoDialog
-      title="Delete inventory"
-      text="Are you really want to delete this inventory?"
+      :title="$t('deleteInventory')"
+      :text="$t('askDeleteInv')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Inventory</v-toolbar-title>
+      <v-toolbar-title>{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Inventory</v-btn>
+      >{{ $t('newInventory') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -89,22 +89,22 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: 'Name',
+        text: this.$i18n.t('name'),
         value: 'name',
         width: '33.33%',
       },
       {
-        text: 'Type',
+        text: this.$i18n.t('type'),
         value: 'type',
         width: '33.33%',
       },
       {
-        text: 'Path',
+        text: this.$i18n.t('path'),
         value: 'inventory',
         width: '33.33%',
       },
       {
-        text: 'Actions',
+        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

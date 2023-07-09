@@ -13,18 +13,18 @@
 
     <v-select
       v-model="item.user_id"
-      label="User"
+      :label="$t('user')"
       :items="users"
       item-value="id"
       item-text="name"
-      :rules="[v => !!v || 'User is required']"
+      :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"
     ></v-select>
 
     <v-checkbox
       v-model="item.admin"
-      label="Administrator"
+      :label="$t('administrator')"
     ></v-checkbox>
   </v-form>
 </template>

@@ -81,8 +81,10 @@ func Route() *mux.Router {
 
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
-	publicAPIRouter.HandleFunc("/auth/login", login).Methods("POST")
+	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
+	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
+	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)

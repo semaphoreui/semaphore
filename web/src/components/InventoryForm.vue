@@ -13,26 +13,26 @@
 
     <v-text-field
       v-model="item.name"
-      label="Name"
-      :rules="[v => !!v || 'Name is required']"
+      :label="$t('name')"
+      :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
     ></v-text-field>
 
     <v-select
       v-model="item.ssh_key_id"
-      label="User Credentials"
+      :label="$t('userCredentials')"
       :items="keys"
       item-value="id"
       item-text="name"
-      :rules="[v => !!v || 'User Credentials is required']"
+      :rules="[v => !!v || $t('user_credentials_required')]"
       required
       :disabled="formSaving"
     ></v-select>
 
     <v-select
         v-model="item.become_key_id"
-        label="Sudo Credentials (Optional)"
+        :label="$t('sudoCredentialsOptional')"
         clearable
         :items="loginPasswordKeys"
         item-value="id"
@@ -42,8 +42,8 @@
 
     <v-select
       v-model="item.type"
-      label="Type"
-      :rules="[v => !!v || 'Type is required']"
+      :label="$t('type')"
+      :rules="[v => !!v || $t('type_required')]"
       :items="inventoryTypes"
       item-value="id"
       item-text="name"
@@ -53,8 +53,8 @@
 
     <v-text-field
       v-model="item.inventory"
-      label="Path to Inventory file"
-      :rules="[v => !!v || 'Path to Inventory file is required']"
+      :label="$t('pathToInventoryFile')"
+      :rules="[v => !!v || $t('path_required')]"
       required
       :disabled="formSaving"
       v-if="item.type === 'file'"
@@ -65,7 +65,7 @@
         v-model="item.inventory"
         :options="cmOptions"
         v-if="item.type === 'static' || item.type === 'static-yaml'"
-        placeholder="Enter inventory..."
+        :placeholder="$t('enterInventory')"
     />
 
     <v-alert
@@ -75,7 +75,7 @@
         type="info"
         v-if="item.type === 'static'"
     >
-      Static inventory example:
+      {{ $t('staticInventoryExample') }}
       <pre style="font-size: 14px;">[website]
 172.18.8.40
 172.18.8.41</pre>
@@ -88,7 +88,7 @@
         type="info"
         v-if="item.type === 'static-yaml'"
     >
-      Static YAML inventory example:
+      {{ $t('staticYamlInventoryExample') }}
       <pre style="font-size: 14px;">all:
   children:
     website:
