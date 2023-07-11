@@ -3,13 +3,14 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
-	"os"
-	"strings"
 )
 
 func init() {
@@ -29,9 +30,10 @@ func doSetup() int {
 	var config *util.ConfigType
 	config = &util.ConfigType{}
 	config.GenerateSecrets()
-	setup.InteractiveSetup(config)
+	stdin := bufio.NewReader(os.Stdin)
+	setup.InteractiveSetup(config, stdin)
 
-	configPath := setup.SaveConfig(config)
+	configPath := setup.SaveConfig(config, stdin)
 	util.Config = config
 
 	fmt.Println(" Pinging db..")
@@ -45,8 +47,6 @@ func doSetup() int {
 		fmt.Printf("Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
-
-	stdin := bufio.NewReader(os.Stdin)
 
 	var user db.UserWithPwd
 	user.Username = readNewline("\n\n > Username: ", stdin)
