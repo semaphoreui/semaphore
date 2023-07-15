@@ -62,15 +62,24 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var projectUser struct {
-		UserID int  `json:"user_id" binding:"required"`
-		Admin  bool `json:"admin"`
+		UserID int                `json:"user_id" binding:"required"`
+		Role   db.ProjectUserRole `json:"role"`
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
 		return
 	}
 
-	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: project.ID, UserID: projectUser.UserID, Admin: projectUser.Admin})
+	if !projectUser.Role.IsValid() {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    projectUser.UserID,
+		Role:      projectUser.Role,
+	})
 
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
@@ -82,7 +91,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:		 &user.ID,
+		UserID:      &user.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
 		ObjectID:    &projectUser.UserID,
@@ -127,18 +136,28 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// MakeUserAdmin writes the admin flag to the users account
-func MakeUserAdmin(w http.ResponseWriter, r *http.Request) {
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	user := context.Get(r, "projectUser").(db.User)
-	admin := true
 
-	if r.Method == "DELETE" {
-		// strip admin
-		admin = false
+	var projectUser struct {
+		Role db.ProjectUserRole `json:"role"`
 	}
 
-	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{UserID: user.ID, ProjectID: project.ID, Admin: admin})
+	if !helpers.Bind(w, r, &projectUser) {
+		return
+	}
+
+	if !projectUser.Role.IsValid() {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{
+		UserID:    user.ID,
+		ProjectID: project.ID,
+		Role:      projectUser.Role,
+	})
 
 	if err != nil {
 		helpers.WriteError(w, err)

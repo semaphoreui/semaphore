@@ -13,30 +13,30 @@
 
     <v-text-field
       v-model="item.name"
-      label="Project Name"
-      :rules="[v => !!v || 'Project name is required']"
+      :label="$t('projectName')"
+      :rules="[v => !!v || $t('project_name_required')]"
       required
       :disabled="formSaving"
     ></v-text-field>
 
     <v-checkbox
       v-model="item.alert"
-      label="Allow alerts for this project"
+      :label="$t('allowAlertsForThisProject')"
     ></v-checkbox>
 
     <v-text-field
       v-model="item.alert_chat"
-      label="Telegram Chat ID (Optional)"
+      :label="$t('telegramChatIdOptional')"
       :disabled="formSaving"
     ></v-text-field>
 
     <v-text-field
       v-model.number="item.max_parallel_tasks"
-      label="Max number of parallel tasks (Optional)"
+      :label="$t('maxNumberOfParallelTasksOptional')"
       :disabled="formSaving"
       :rules="[
-        v => (v == null || v === '' || Math.floor(v) === v) || 'Must be integer',
-        v => (v == null || v === '' || v >= 0) || 'Must be 0 or greater',
+        v => (v == null || v === '' || Math.floor(v) === v) || $t('mustBeInteger'),
+        v => (v == null || v === '' || v >= 0) || $t('mustBe0OrGreater'),
       ]"
       hint="Should be 0 or greater, 0 - unlimited."
       type="number"

@@ -45,7 +45,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Admin: true})
+	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Role: db.ProjectOwner})
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

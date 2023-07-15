@@ -104,10 +104,10 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 
 func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
 	_, err = d.exec(
-		"insert into project__user (project_id, user_id, `admin`) values (?, ?, ?)",
+		"insert into project__user (project_id, user_id, `role`) values (?, ?, ?)",
 		projectUser.ProjectID,
 		projectUser.UserID,
-		projectUser.Admin)
+		projectUser.Role)
 
 	if err != nil {
 		return
@@ -132,8 +132,9 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 	return user, err
 }
 
-func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
-	q := squirrel.Select("u.*").Column("pu.admin").
+func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.UserWithProjectRole, err error) {
+	q := squirrel.Select("u.*").
+		Column("pu.role").
 		From("project__user as pu").
 		LeftJoin("`user` as u on pu.user_id=u.id").
 		Where("pu.project_id=?", projectID)
@@ -146,7 +147,7 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 	switch params.SortBy {
 	case "name", "username", "email":
 		q = q.OrderBy("u." + params.SortBy + " " + sortDirection)
-	case "admin":
+	case "role":
 		q = q.OrderBy("pu." + params.SortBy + " " + sortDirection)
 	default:
 		q = q.OrderBy("u.name " + sortDirection)
@@ -165,8 +166,8 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 
 func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
 	_, err := d.exec(
-		"update `project__user` set admin=? where user_id=? and project_id = ?",
-		projectUser.Admin,
+		"update `project__user` set role=? where user_id=? and project_id = ?",
+		projectUser.Role,
 		projectUser.UserID,
 		projectUser.ProjectID)
 
@@ -178,7 +179,7 @@ func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
 	return err
 }
 
-//GetUser retrieves a user from the database by ID
+// GetUser retrieves a user from the database by ID
 func (d *SqlDb) GetUser(userID int) (db.User, error) {
 	var user db.User
 

@@ -18,8 +18,8 @@
     <EditDialog
       :max-width="700"
       v-model="editDialog"
-      save-button-text="Save"
-      title="Edit Template"
+      :save-button-text="$t('save')"
+      :title="$t('editTemplate')"
       @save="loadData()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -37,8 +37,8 @@
     <EditDialog
       :max-width="700"
       v-model="copyDialog"
-      save-button-text="Create"
-      title="New Template"
+      :save-button-text="$t('create')"
+      :title="$t('newTemplate2')"
       @save="onTemplateCopied"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -62,8 +62,8 @@
     />
 
     <YesNoDialog
-      title="Delete template"
-      text="Are you really want to delete this template?"
+      :title="$t('deleteTemplate')"
+      text="$t('askDeleteTemp')"
       v-model="deleteDialog"
       @yes="remove()"
     />
@@ -77,7 +77,7 @@
               ? `/project/${projectId}/views/${viewId}/templates/`
               : `/project/${projectId}/templates/`"
         >
-          Task Templates
+          {{ $t('taskTemplates2') }}
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.name }}</span>
@@ -86,7 +86,7 @@
       <v-spacer></v-spacer>
 
       <v-btn color="primary" depressed class="mr-3" @click="newTaskDialog = true">
-        {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
+        {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
 
       <v-btn
@@ -130,7 +130,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title>Playbook</v-list-item-title>
+                <v-list-item-title>{{ $t('playbook') }}</v-list-item-title>
                 <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
@@ -144,8 +144,9 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title>Type</v-list-item-title>
-                <v-list-item-subtitle>{{ TEMPLATE_TYPE_TITLES[item.type] }}</v-list-item-subtitle>
+                <v-list-item-title>{{ $t('type') }}</v-list-item-title>
+                <v-list-item-subtitle>{{ $t(TEMPLATE_TYPE_TITLES[item.type]) }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -158,7 +159,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title>Inventory</v-list-item-title>
+                <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ inventory.find((x) => x.id === item.inventory_id).name }}
                 </v-list-item-subtitle>
@@ -173,7 +174,7 @@
                 <v-icon>mdi-code-braces</v-icon>
               </v-list-item-icon>
               <v-list-item-content>
-                <v-list-item-title>Environment</v-list-item-title>
+                <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ environment.find((x) => x.id === item.environment_id).name }}
                 </v-list-item-subtitle>
@@ -188,7 +189,7 @@
                 <v-icon>mdi-git</v-icon>
               </v-list-item-icon>
               <v-list-item-content>
-                <v-list-item-title>Repository</v-list-item-title>
+                <v-list-item-title>{{ $t('repository2') }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ repositories.find((x) => x.id === item.repository_id).name }}
                 </v-list-item-subtitle>

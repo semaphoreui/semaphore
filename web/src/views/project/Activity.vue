@@ -2,13 +2,13 @@
   <div v-if="items">
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Dashboard</v-toolbar-title>
+      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <div>
         <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
+          <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
+          <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+          <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
         </v-tabs>
       </div>
     </v-toolbar>
@@ -35,19 +35,19 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Time',
+          text: this.$i18n.t('time'),
           value: 'created',
           sortable: false,
           width: '20%',
         },
         {
-          text: 'User',
+          text: this.$i18n.t('user'),
           value: 'username',
           sortable: false,
           width: '10%',
         },
         {
-          text: 'Description',
+          text: this.$i18n.t('description'),
           value: 'description',
           sortable: false,
           width: '70%',
