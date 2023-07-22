@@ -25,7 +25,7 @@ func (d migration_2_8_91) Apply() (err error) {
 			if userData["admin"] == true {
 				userData["role"] = "owner"
 			} else {
-				userData["role"] = "task_runner"
+				userData["role"] = "manager"
 			}
 			delete(userData, "admin")
 			err = d.setObject(projectID, "user", userId, userData)
