@@ -61,6 +61,8 @@ API description: https://ansible-semaphore.com/api-docs/
 
 ## Contributing
 
+If you want to write an article about Ansible or Semaphore, contact [@fiftin](https://github.com/fiftin) and we will place your article in our [Blog](https://www.ansible-semaphore.com/blog/) with link to your profile.
+
 PR's & UX reviews are welcome!
 
 Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
