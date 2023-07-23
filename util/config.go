@@ -143,14 +143,14 @@ type ConfigType struct {
 	MaxParallelTasks int `json:"max_parallel_tasks"`
 
 	// feature switches
-	EmailAlert            bool `json:"email_alert"`
-	EmailSecure           bool `json:"email_secure"`
-	TelegramAlert         bool `json:"telegram_alert"`
-	SlackAlert            bool `json:"slack_alert"`
-	LdapEnable            bool `json:"ldap_enable"`
-	LdapNeedTLS           bool `json:"ldap_needtls"`
-	PasswordLoginDisabled bool `json:"password_login_disable"`
-	DemoMode              bool `json:"demo_mode"`
+	EmailAlert           bool `json:"email_alert"`
+	EmailSecure          bool `json:"email_secure"`
+	TelegramAlert        bool `json:"telegram_alert"`
+	SlackAlert           bool `json:"slack_alert"`
+	LdapEnable           bool `json:"ldap_enable"`
+	LdapNeedTLS          bool `json:"ldap_needtls"`
+	PasswordLoginDisable bool `json:"password_login_disable"`
+	DemoMode             bool `json:"demo_mode"`
 
 	GitClientId GitClientId `json:"git_client"`
 }
