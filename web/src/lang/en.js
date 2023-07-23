@@ -53,7 +53,7 @@ export default {
   orCreateNewAdminUser: 'Or create new admin user:',
   close2: 'Close',
   semaphore: 'SEMAPHORE',
-  dontHaveAccountOrCantSignIn: 'Don\'\'t have account or can\'\'t sign in?',
+  dontHaveAccountOrCantSignIn: 'Don\'t have account or can\'t sign in?',
   password2: 'Password',
   cancel: 'Cancel',
   noViews: 'No views',
