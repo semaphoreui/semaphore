@@ -115,6 +115,7 @@ type ConfigType struct {
 	LdapSearchDN     string       `json:"ldap_searchdn"`
 	LdapSearchFilter string       `json:"ldap_searchfilter"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
+	LdapDebug        bool         `json:"ldap_debug"`
 
 	// oidc settings
 	OidcProviders map[string]oidcProvider `json:"oidc_providers"`

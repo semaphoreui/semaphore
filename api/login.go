@@ -45,6 +45,10 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	}
 	defer l.Close()
 
+	if util.Config.LdapDebug {
+		l.Debug = true
+	}
+
 	// First bind with a read only user
 	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
 		return nil, err
