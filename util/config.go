@@ -71,6 +71,17 @@ type oidcProvider struct {
 	EmailClaim    string       `json:"email_claim"`
 }
 
+type GitClientId string
+
+const (
+	// GoGitClientId is builtin Git client. It is not require external dependencies and is preferred.
+	// Use it if you don't need external SSH authorization.
+	GoGitClientId GitClientId = "go_git"
+	// CmdGitClientId is external Git client.
+	// Default Git client. It is use external Git binary to clone repositories.
+	CmdGitClientId GitClientId = "cmd_git"
+)
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
@@ -89,6 +100,10 @@ type ConfigType struct {
 
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path"`
+
+	// SshConfigPath is a path to the custom SSH config file.
+	// Default path is ~/.ssh/config.
+	SshConfigPath string `json:"ssh_config_path"`
 
 	// cookie hashing & encryption
 	CookieHash       string `json:"cookie_hash"`
@@ -122,29 +137,22 @@ type ConfigType struct {
 	// telegram alerting
 	TelegramChat  string `json:"telegram_chat"`
 	TelegramToken string `json:"telegram_token"`
-
-	// slack alerting
-	SlackUrl string `json:"slack_url"`
+	SlackUrl      string `json:"slack_url"`
 
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks"`
 
-	// configType field ordering with bools at end reduces struct size
-	// (maligned check)
-
 	// feature switches
-	EmailAlert    bool `json:"email_alert"`
-	EmailSecure   bool `json:"email_secure"`
-	TelegramAlert bool `json:"telegram_alert"`
-	SlackAlert    bool `json:"slack_alert"`
-	LdapEnable    bool `json:"ldap_enable"`
-	LdapNeedTLS   bool `json:"ldap_needtls"`
+	EmailAlert            bool `json:"email_alert"`
+	EmailSecure           bool `json:"email_secure"`
+	TelegramAlert         bool `json:"telegram_alert"`
+	SlackAlert            bool `json:"slack_alert"`
+	LdapEnable            bool `json:"ldap_enable"`
+	LdapNeedTLS           bool `json:"ldap_needtls"`
+	PasswordLoginDisabled bool `json:"password_login_disable"`
+	DemoMode              bool `json:"demo_mode"`
 
-	SshConfigPath string `json:"ssh_config_path"`
-
-	DemoMode bool `json:"demo_mode"`
-
-	GitClient string `json:"git_client"`
+	GitClientId GitClientId `json:"git_client"`
 }
 
 // Config exposes the application configuration storage for use in the application
