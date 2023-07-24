@@ -4,6 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -29,7 +30,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	if !user.Admin {
+	if !user.Admin && !util.Config.NonAdminCanCreateProject {
 		log.Warn(user.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return

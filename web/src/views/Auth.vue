@@ -90,6 +90,7 @@
           :rules="[v => !!v || $t('username_required')]"
           required
           :disabled="signInProcess"
+          v-if="loginWithPassword"
         ></v-text-field>
 
         <v-text-field
@@ -101,6 +102,7 @@
           :disabled="signInProcess"
           @keyup.enter.native="signIn"
           style="margin-bottom: 20px;"
+          v-if="loginWithPassword"
         ></v-text-field>
 
         <v-btn
@@ -108,6 +110,7 @@
           @click="signIn"
           :disabled="signInProcess"
           block
+          v-if="loginWithPassword"
         >
           {{ $t('signIn') }}
         </v-btn>
@@ -152,6 +155,7 @@ export default {
       loginHelpDialog: null,
 
       oidcProviders: [],
+      loginWithPassword: null,
     };
   },
 
@@ -165,6 +169,7 @@ export default {
       responseType: 'json',
     }).then((resp) => {
       this.oidcProviders = resp.data.oidc_providers;
+      this.loginWithPassword = resp.data.login_with_password;
     });
   },
 

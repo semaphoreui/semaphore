@@ -105,6 +105,11 @@ type ConfigType struct {
 	// Default path is ~/.ssh/config.
 	SshConfigPath string `json:"ssh_config_path"`
 
+	GitClientId GitClientId `json:"git_client"`
+
+	// web host
+	WebHost string `json:"web_host"`
+
 	// cookie hashing & encryption
 	CookieHash       string `json:"cookie_hash"`
 	CookieEncryption string `json:"cookie_encryption"`
@@ -114,45 +119,41 @@ type ConfigType struct {
 	AccessKeyEncryption string `json:"access_key_encryption"`
 
 	// email alerting
+	EmailAlert    bool   `json:"email_alert"`
 	EmailSender   string `json:"email_sender"`
 	EmailHost     string `json:"email_host"`
 	EmailPort     string `json:"email_port"`
 	EmailUsername string `json:"email_username"`
 	EmailPassword string `json:"email_password"`
-
-	// web host
-	WebHost string `json:"web_host"`
+	EmailSecure   bool   `json:"email_secure"`
 
 	// ldap settings
+	LdapEnable       bool         `json:"ldap_enable"`
 	LdapBindDN       string       `json:"ldap_binddn"`
 	LdapBindPassword string       `json:"ldap_bindpassword"`
 	LdapServer       string       `json:"ldap_server"`
 	LdapSearchDN     string       `json:"ldap_searchdn"`
 	LdapSearchFilter string       `json:"ldap_searchfilter"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
+	LdapNeedTLS      bool         `json:"ldap_needtls"`
+
+	// telegram and slack alerting
+	TelegramAlert bool   `json:"telegram_alert"`
+	TelegramChat  string `json:"telegram_chat"`
+	TelegramToken string `json:"telegram_token"`
+	SlackAlert    bool   `json:"slack_alert"`
+	SlackUrl      string `json:"slack_url"`
 
 	// oidc settings
 	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
-
-	// telegram alerting
-	TelegramChat  string `json:"telegram_chat"`
-	TelegramToken string `json:"telegram_token"`
-	SlackUrl      string `json:"slack_url"`
 
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks"`
 
 	// feature switches
-	EmailAlert           bool `json:"email_alert"`
-	EmailSecure          bool `json:"email_secure"`
-	TelegramAlert        bool `json:"telegram_alert"`
-	SlackAlert           bool `json:"slack_alert"`
-	LdapEnable           bool `json:"ldap_enable"`
-	LdapNeedTLS          bool `json:"ldap_needtls"`
-	PasswordLoginDisable bool `json:"password_login_disable"`
-	DemoMode             bool `json:"demo_mode"`
-
-	GitClientId GitClientId `json:"git_client"`
+	DemoMode                 bool `json:"demo_mode"` // Deprecated, will be deleted soon
+	PasswordLoginDisable     bool `json:"password_login_disable"`
+	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`
 }
 
 // Config exposes the application configuration storage for use in the application

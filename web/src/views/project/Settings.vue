@@ -3,7 +3,7 @@
     <YesNoDialog
       v-model="deleteProjectDialog"
       :title="$t('deleteProject')"
-      text="$t('askDeleteProj')"
+      :text="$t('askDeleteProj')"
       @yes="deleteProject()"
     />
 

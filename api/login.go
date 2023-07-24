@@ -205,14 +205,16 @@ type loginMetadataOidcProvider struct {
 }
 
 type loginMetadata struct {
-	OidcProviders []loginMetadataOidcProvider `json:"oidc_providers"`
+	OidcProviders     []loginMetadataOidcProvider `json:"oidc_providers"`
+	LoginWithPassword bool                        `json:"login_with_password"`
 }
 
 // nolint: gocyclo
 func login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		config := &loginMetadata{
-			OidcProviders: make([]loginMetadataOidcProvider, len(util.Config.OidcProviders)),
+			OidcProviders:     make([]loginMetadataOidcProvider, len(util.Config.OidcProviders)),
+			LoginWithPassword: !util.Config.PasswordLoginDisable,
 		}
 		i := 0
 		for k, v := range util.Config.OidcProviders {
