@@ -34,7 +34,7 @@ func TestGetProjects(t *testing.T) {
 	_, err = store.CreateProjectUser(db.ProjectUser{
 		ProjectID: proj1.ID,
 		UserID:    usr.ID,
-		Admin:     true,
+		Role:      db.ProjectOwner,
 	})
 
 	if err != nil {

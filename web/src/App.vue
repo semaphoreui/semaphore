@@ -3,7 +3,7 @@
     <EditDialog
         v-model="passwordDialog"
         save-button-text="Save"
-        title="Change password"
+        :title="$t('changePassword')"
         v-if="user"
         event-name="i-user"
     >
@@ -22,7 +22,7 @@
     <EditDialog
         v-model="userDialog"
         save-button-text="Save"
-        title="Edit User"
+        :title="$t('editUser')"
         v-if="user"
         event-name="i-user"
     >
@@ -54,7 +54,7 @@
           >{{ template ? template.name : null }}
           </router-link>
           <v-icon>mdi-chevron-right</v-icon>
-          <span class="breadcrumbs__item">Task #{{ task ? task.id : null }}</span>
+          <span class="breadcrumbs__item">{{ $t('task', {expr: task ? task.id : null}) }}</span>
         </div>
 
         <v-spacer></v-spacer>
@@ -73,7 +73,7 @@
     <EditDialog
         v-model="newProjectDialog"
         save-button-text="Create"
-        title="New Project"
+        :title="$t('newProject')"
         event-name="i-project"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -98,7 +98,7 @@
           text
           @click="snackbar = false"
       >
-        Close
+        {{ $t('close') }}
       </v-btn>
     </v-snackbar>
 
@@ -168,7 +168,7 @@
             </v-list-item-icon>
 
             <v-list-item-content>
-              New project...
+              {{ $t('newProject2') }}
             </v-list-item-content>
           </v-list-item>
         </v-list>
@@ -181,7 +181,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>New Project</v-list-item-title>
+            <v-list-item-title>{{ $t('newProject') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -190,10 +190,10 @@
         <v-list-item v-if="systemInfo && systemInfo.demo">
           <v-list-item-content>
             <v-alert class="ma-0 pa-2" color="red">
-              <div class="mb-1 font-weight-bold">DEMO MODE</div>
+              <div class="mb-1 font-weight-bold">{{ $t('demoMode') }}</div>
               <ul style="padding-left: 14px; font-size: 14px; line-height: 1.3;">
-                <li>You can run any tasks</li>
-                <li>You have read-only access</li>
+                <li>{{ $t('youCanRunAnyTasks') }}</li>
+                <li>{{ $t('youHaveReadonlyAccess') }}</li>
               </ul>
             </v-alert>
           </v-list-item-content>
@@ -205,7 +205,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Dashboard</v-list-item-title>
+            <v-list-item-title>{{ $t('dashboard') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -215,7 +215,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Task Templates</v-list-item-title>
+            <v-list-item-title>{{ $t('taskTemplates') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -225,7 +225,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Inventory</v-list-item-title>
+            <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -235,7 +235,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Environment</v-list-item-title>
+            <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -245,7 +245,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Key Store</v-list-item-title>
+            <v-list-item-title>{{ $t('keyStore') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -255,7 +255,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Repositories</v-list-item-title>
+            <v-list-item-title>{{ $t('repositories') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -265,7 +265,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Team</v-list-item-title>
+            <v-list-item-title>{{ $t('team') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -278,7 +278,7 @@
                 <v-switch
                   v-model="darkMode"
                   inset
-                  label="Dark Mode"
+                  :label="$t('darkMode')"
                   persistent-hint
                 ></v-switch>
               </v-list-item>
@@ -305,7 +305,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                Users
+                {{ $t('users') }}
               </v-list-item-content>
             </v-list-item>
 
@@ -315,7 +315,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                Edit Account
+                {{ $t('editAccount') }}
               </v-list-item-content>
             </v-list-item>
 
@@ -356,7 +356,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                Sign Out
+                {{ $t('signOut') }}
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -398,18 +398,18 @@
       >
         <v-alert text color="error" class="d-inline-block">
           <h3 class="headline">
-            Error
+            {{ $t('error') }}
           </h3>
           {{ snackbarText }}
         </v-alert>
         <div class="mb-6">
           <v-btn text color="blue darken-1" @click="refreshPage()">
             <v-icon left>mdi-refresh</v-icon>
-            Refresh Page
+            {{ $t('refreshPage') }}
           </v-btn>
           <v-btn text color="blue darken-1" @click="signOut()">
             <v-icon left>mdi-exit-to-app</v-icon>
-            Relogin
+            {{ $t('relogin') }}
           </v-btn>
         </div>
       </v-container>

@@ -44,6 +44,24 @@ definitions:
         format: password
         description: Password
 
+  LoginMetadata:
+    type: object
+    properties:
+      oidc_providers:
+        type: array
+        description: List of OIDC providers
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+              description: ID of the provider, used in the login URL
+              x-example: mysso
+            name:
+              type: string
+              description: Text to show on the login button
+              x-example: Sign in with MySSO
+
   UserRequest:
     type: object
     properties:
@@ -610,6 +628,17 @@ paths:
 
   # Authentication
   /auth/login:
+    get:
+      tags:
+        - authentication
+      summary: Fetches login metadata
+      description: Fetches metadata for login, such as available OIDC providers
+      security: []
+      responses:
+        200:
+          description: Login metadata
+          schema:
+            $ref: "#/definitions/LoginMetadata"
     post:
       tags:
         - authentication
@@ -636,6 +665,38 @@ paths:
       responses:
         204:
           description: Your session was successfully nuked
+
+  /auth/oidc/{provider_id}/login:
+    parameters:
+      - name: provider_id
+        in: path
+        type: string
+        required: true
+        x-example: "mysso"
+    get:
+      tags:
+        - authentication
+      summary: Begin OIDC authentication flow and redirect to OIDC provider
+      description: The user agent is redirected to this endpoint when chosing to sign in via OIDC
+      responses:
+        302:
+          description: Redirection to the OIDC provider on success, or to the login page on error
+
+  /auth/oidc/{provider_id}/redirect:
+    parameters:
+      - name: provider_id
+        in: path
+        type: string
+        required: true
+        x-example: "mysso"
+    get:
+      tags:
+        - authentication
+      summary: Finish OIDC authentication flow, upon succes you will be logged in
+      description: The user agent is redirected here by the OIDC provider to complete authentication
+      responses:
+        302:
+          description: Redirection to the Semaphore root URL on success, or to the login page on error
 
   # User Tokens
   /user/:
@@ -895,7 +956,7 @@ paths:
           in: query
           required: true
           type: string
-          enum: [name, username, email, admin]
+          enum: [name, username, email, role]
           description: sorting name
           x-example: email
         - name: order
@@ -926,8 +987,9 @@ paths:
               user_id:
                 type: integer
                 minimum: 2
-              admin:
-                type: boolean
+              role:
+                type: string
+                example: owner
       responses:
         204:
           description: User added
@@ -942,24 +1004,21 @@ paths:
       responses:
         204:
           description: User removed
-  /project/{project_id}/users/{user_id}/admin:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/user_id"
-    post:
-      tags:
-        - project
-      summary: Makes user admin
+    put:
+      parameters:
+        - name: Project User
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              role:
+                type: string
+                example: owner
+      summary: Update user role
       responses:
         204:
-          description: User made administrator
-    delete:
-      tags:
-        - project
-      summary: Revoke admin privileges
-      responses:
-        204:
-          description: User admin privileges revoked
+          description: User updated
 
   # project access keys
   /project/{project_id}/keys:

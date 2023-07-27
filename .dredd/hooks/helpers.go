@@ -107,7 +107,7 @@ func addUserProjectRelation(pid int, user int) {
 	_, err := store.CreateProjectUser(db.ProjectUser{
 		ProjectID: pid,
 		UserID:    user,
-		Admin:     true,
+		Role:      db.ProjectOwner,
 	})
 	if err != nil {
 		panic(err)

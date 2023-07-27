@@ -50,7 +50,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askValue("Playbook path", defaultPlaybookPath, &conf.TmpPath)
 	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
-	askValue("Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
+	askValue("Public URL (optional, example: https://example.com/semaphore)", "", &conf.WebHost)
 
 	askConfirmation("Enable email alerts?", false, &conf.EmailAlert)
 	if conf.EmailAlert {

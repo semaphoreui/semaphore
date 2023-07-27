@@ -1,4 +1,4 @@
-# Pull Requests
+## Pull Requests
 
 When creating a pull-request you should:
 
@@ -8,7 +8,7 @@ When creating a pull-request you should:
 - __Update api documentation:__ If your pull-request adding/modifying an API request, make sure you update the swagger documentation (`api-docs.yml`)
 - __Run Api Tests:__ If your pull request modifies the API make sure you run the integration tests using dredd.
 
-# Installation in a development environment
+## Installation in a development environment
 
 - Check out the `develop` branch
 - [Install Go](https://golang.org/doc/install). Go must be >= v1.10 for all the tools we use to work
@@ -59,14 +59,32 @@ Dredd is used for API integration tests, if you alter the API in any way you mus
 matches the responses.
 
 As Dredd and the application database config may differ it expects it's own config.json in the .dredd folder.
-The most basic configuration for this using a local docker container to run the database would be
-```json
-{
-	"mysql": {
-		"host": "0.0.0.0:3306",
-		"user": "semaphore",
-		"pass": "semaphore",
-		"name": "semaphore"
-	}
-}
-```
+
+### How to run Dredd tests locally
+
+1) Build Dredd hooks:
+    ````bash
+    task compile:api:hooks
+    ```
+2) Install Dredd globally
+    ```bash
+    npm install -g dredd
+    ```
+3) Create `./dredd/config.json` for Dredd. It must contain database connection same as used in Semaphore server.
+   You can use any supported database dialect for tests. For example BoltDB.
+    ```json
+   {
+        "bolt": {
+            "host": "/tmp/database.boltdb"
+        },
+        "dialect": "bolt"
+    }
+    ```
+4) Start Semaphore server (add `--config` option if required):
+    ````bash
+    ./bin/semaphore server
+    ```
+5) Start Dredd tests
+    ```
+    dredd --config ./.dredd/dredd.local.yml
+    ```

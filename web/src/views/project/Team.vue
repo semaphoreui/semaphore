@@ -2,8 +2,8 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="(this.itemId === 'new' ? 'Link' : 'Save')"
-      :title="(this.itemId === 'new' ? 'New' : 'Edit') + ' Team Member'"
+      :save-button-text="(this.itemId === 'new' ? 'Link' : $t('save'))"
+      :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -19,20 +19,20 @@
     </EditDialog>
 
     <YesNoDialog
-      title="Delete team member"
-      text="Are you really want to delete the team member?"
+      :title="$t('deleteTeamMember')"
+      :text="$t('askDeleteTMem')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Team</v-toolbar-title>
+      <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Team Member</v-btn>
+      >{{ $t('newTeamMember') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -42,14 +42,15 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
-      <template v-slot:item.admin="{ item }">
-
-        <v-switch
-          v-model="item.admin"
-          inset
-          :disabled="!isUserAdmin()"
-          @change="item.admin ? grantAdmin(item.id) : refuseAdmin(item.id)"
-        ></v-switch>
+      <template v-slot:item.role="{ item }">
+        <v-select
+          v-model="item.role"
+          :items="roles"
+          item-value="slug"
+          item-text="title"
+          :style="{width: '200px'}"
+          @change="updateProjectUser(item)"
+        />
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -73,45 +74,57 @@ import axios from 'axios';
 export default {
   components: { TeamMemberForm },
   mixins: [ItemListPageBase],
+  data() {
+    return {
+      roles: [{
+        slug: 'owner',
+        title: 'Owner',
+      }, {
+        slug: 'manager',
+        title: 'Manger',
+      }, {
+        slug: 'task_runner',
+        title: 'Task Runner',
+      }, {
+        slug: 'guest',
+        title: 'Guest',
+      }],
+    };
+  },
+
   methods: {
-    async grantAdmin(userId) {
+    async updateProjectUser(user) {
       await axios({
-        method: 'post',
-        url: `/api/project/${this.projectId}/users/${userId}/admin`,
+        method: 'put',
+        url: `/api/project/${this.projectId}/users/${user.id}`,
         responseType: 'json',
+        data: user,
       });
       await this.loadItems();
     },
-    async refuseAdmin(userId) {
-      await axios({
-        method: 'delete',
-        url: `/api/project/${this.projectId}/users/${userId}/admin`,
-        responseType: 'json',
-      });
-      await this.loadItems();
-    },
+
     getHeaders() {
       return [
         {
-          text: 'Name',
+          text: this.$i18n.t('name'),
           value: 'name',
           width: '50%',
         },
         {
-          text: 'Username',
+          text: this.$i18n.t('username'),
           value: 'username',
         },
         {
-          text: 'Email',
+          text: this.$i18n.t('email'),
           value: 'email',
           width: '50%',
         },
         {
-          text: 'Admin',
-          value: 'admin',
+          text: this.$i18n.t('role'),
+          value: 'role',
         },
         {
-          text: 'Actions',
+          text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
         }];

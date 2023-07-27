@@ -2,8 +2,8 @@
   <div v-if="items != null && keys != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
-      :title="`${itemId === 'new' ? 'New' : 'Edit'} Repository`"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Repository`"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -26,20 +26,20 @@
     />
 
     <YesNoDialog
-      title="Delete repository"
-      text="Are you really want to delete this repository?"
+      :title="$t('deleteRepository')"
+      :text="$t('askDeleteRepo')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Repositories</v-toolbar-title>
+      <v-toolbar-title>{{ $t('repositories') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Repository</v-btn>
+      >{{ $t('newRepository') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -106,22 +106,22 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: 'Name',
+        text: this.$i18n.t('name'),
         value: 'name',
         width: '25%',
       },
       {
-        text: 'Git URL',
+        text: this.$i18n.t('gitUrl'),
         value: 'git_url',
         width: '50%',
       },
       {
-        text: 'SSH Key',
+        text: this.$i18n.t('sshKey'),
         value: 'ssh_key_id',
         width: '25%',
       },
       {
-        text: 'Actions',
+        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

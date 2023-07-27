@@ -2,7 +2,7 @@
   <div>
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>New Project</v-toolbar-title>
+      <v-toolbar-title>{{ $t('newProject') }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
@@ -12,7 +12,7 @@
       </div>
 
       <div class="text-right">
-        <v-btn color="primary" @click="createProject()">Create</v-btn>
+        <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
       </div>
     </div>
 
