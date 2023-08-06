@@ -81,7 +81,7 @@ export default {
         title: 'Owner',
       }, {
         slug: 'manager',
-        title: 'Manger',
+        title: 'Manager',
       }, {
         slug: 'task_runner',
         title: 'Task Runner',
