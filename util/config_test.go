@@ -26,9 +26,7 @@ func TestCastStringToInt(t *testing.T) {
 	if castStringToInt("999") != 999 {
 		t.Error(errMsg)
 	}
-	if castStringToInt("999") != 999 {
-		t.Error(errMsg)
-	}
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("Cast string => int did not panic on invalid input")
@@ -100,7 +98,13 @@ func TestGetConfigValue(t *testing.T) {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
+	getConfigValue("NotExistent")
 
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Did not fail on non-existent config attribute!")
+		}
+	}()
 	getConfigValue("Not.Existent")
 
 }
@@ -148,7 +152,13 @@ func TestSetConfigValue(t *testing.T) {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
+	setConfigValue("NotExistent", "someValue")
 
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Did not fail on non-existent config attribute!")
+		}
+	}()
 	setConfigValue("Not.Existent", "someValue")
 
 }
@@ -195,7 +205,8 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 		t.Error("Setting 'BoltDb.Hostname' was not loaded from environment-vars!")
 	}
 	if Config.MySQL.Hostname == envDbHost || Config.Postgres.Hostname == envDbHost {
-		t.Error("DB-Hostname was not loaded for inactive DB-dialects!")
+		// inactive db-dialects could be set as they share the same env-vars; but should be ignored
+		t.Error("DB-Hostname was loaded for inactive DB-dialects!")
 	}
 
 }
@@ -258,7 +269,7 @@ func TestValidateConfig(t *testing.T) {
 	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
 	Config.MaxParallelTasks = testMaxParallelTasks
 
-	Config.CookieHash = "\"0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ=\""
+	Config.CookieHash = "\"0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ=\"" // invalid with quotes (can happen when supplied as env-var)
 	ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 
 	Config.CookieHash = "!)394340"
@@ -267,7 +278,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.CookieHash = ""
 	ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 
-	Config.CookieHash = "TQwjDZ5fIQtaIw=="
+	Config.CookieHash = "TQwjDZ5fIQtaIw==" // valid b64, but too small
 	ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 	Config.CookieHash = testCookieHash
 

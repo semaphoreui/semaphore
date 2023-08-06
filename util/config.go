@@ -12,10 +12,10 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
@@ -354,6 +354,8 @@ func setConfigValue(path string, value interface{}) {
 			}
 		}
 		attribute.Set(reflect.ValueOf(value))
+	} else {
+		panic(fmt.Errorf("got non-existent config attribute '%v'", path))
 	}
 
 }
