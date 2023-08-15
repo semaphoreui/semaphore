@@ -53,7 +53,7 @@ func InteractiveSetup(conf *util.ConfigType, stdin *bufio.Reader) {
 	askValue("Playbook path", defaultPlaybookPath, &conf.TmpPath, stdin)
 	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
-	askValue("Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost, stdin)
+	askValue("Public URL (optional, example: https://example.com/semaphore)", "", &conf.WebHost, stdin)
 
 	askConfirmation("Enable email alerts?", false, &conf.EmailAlert, stdin)
 	if conf.EmailAlert {

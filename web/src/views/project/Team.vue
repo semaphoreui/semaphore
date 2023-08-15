@@ -80,8 +80,14 @@ export default {
         slug: 'owner',
         title: 'Owner',
       }, {
+        slug: 'manager',
+        title: 'Manager',
+      }, {
         slug: 'task_runner',
         title: 'Task Runner',
+      }, {
+        slug: 'guest',
+        title: 'Guest',
       }],
     };
   },
