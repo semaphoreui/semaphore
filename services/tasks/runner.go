@@ -505,7 +505,7 @@ func (t *TaskRunner) updateRepository() error {
 }
 
 func (t *TaskRunner) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
+	requirementsFilePath := path.Join(t.getRepoPath(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -534,7 +534,7 @@ func (t *TaskRunner) installCollectionsRequirements() error {
 }
 
 func (t *TaskRunner) installRolesRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getRepoPath(), "roles", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
