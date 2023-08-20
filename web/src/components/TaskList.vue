@@ -138,6 +138,7 @@ export default {
       newTaskDialog: null,
       sourceTask: null,
       TEMPLATE_TYPE_ICONS,
+      timer: null,
     };
   },
   watch: {
@@ -147,6 +148,7 @@ export default {
   },
   async created() {
     await this.loadData();
+    this.setupRefreshTimer();
   },
   methods: {
     async loadData() {
@@ -165,12 +167,23 @@ export default {
       EventBus.$emit('i-show-task', {
         taskId: e.item.id,
       });
+      // Load tasks again after new task created
+      this.loadData();
     },
 
     createTask(task) {
       this.sourceTask = task;
       this.newTaskDialog = true;
     },
+
+    setupRefreshTimer() {
+      this.timer = setInterval(() => {
+        this.loadData();
+      }, 5000);
+    },
+  },
+  beforeUnmount() {
+    if (this.timer) clearInterval(this.timer);
   },
 };
 </script>
