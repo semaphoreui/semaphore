@@ -94,7 +94,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if oldUser.External && oldUser.Username != user.Username {
-		log.Warn("Username is not editable for external LDAP users")
+		log.Warn("Username is not editable for external users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -124,7 +124,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user.External {
-		log.Warn("Password is not editable for external LDAP users")
+		log.Warn("Password is not editable for external users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
