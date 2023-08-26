@@ -23,7 +23,12 @@
         <v-tabs centered>
           <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
           <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
+          <v-tab
+            v-if="can(USER_PERMISSIONS.updateProject)"
+            key="settings"
+            :to="`/project/${projectId}/settings`"
+          >{{ $t('settings') }}
+          </v-tab>
         </v-tabs>
       </div>
     </v-toolbar>

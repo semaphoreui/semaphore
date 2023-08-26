@@ -19,8 +19,8 @@ const (
 )
 
 var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
-	ProjectOwner:      CanRunProjectTasks | CanUpdateProject | CanManageProjectResources,
-	ProjectManager:    CanRunProjectTasks | CanManageProjectResources,
+	ProjectOwner:      CanRunProjectTasks | CanManageProjectResources | CanUpdateProject | CanManageProjectUsers,
+	ProjectManager:    CanRunProjectTasks | CanManageProjectResources | CanManageProjectUsers,
 	ProjectTaskRunner: CanRunProjectTasks,
 	ProjectGuest:      0,
 }
@@ -39,5 +39,13 @@ type ProjectUser struct {
 
 func (u *ProjectUser) Can(permissions ProjectUserPermission) bool {
 	userPermissions := rolePermissions[u.Role]
-	return (userPermissions & userPermissions) == permissions
+	return (userPermissions & permissions) == permissions
+}
+
+func (r ProjectUserRole) Can(permissions ProjectUserPermission) bool {
+	return (rolePermissions[r] & permissions) == permissions
+}
+
+func (r ProjectUserRole) GetPermissions() ProjectUserPermission {
+	return rolePermissions[r]
 }
