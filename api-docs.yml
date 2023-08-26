@@ -1509,7 +1509,6 @@ paths:
           description: view removed
 
 
-
   # tasks
   /project/{project_id}/tasks:
     parameters:
@@ -1555,6 +1554,8 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+
+
   /project/{project_id}/tasks/last:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1569,6 +1570,22 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Task'
+
+
+  /project/{project_id}/tasks/{task_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: '#/parameters/task_id'
+    post:
+      tags:
+        - project
+      summary: Stop a job
+      responses:
+        204:
+          description: Task queued
+
+
+
   /project/{project_id}/tasks/{task_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1589,6 +1606,9 @@ paths:
       responses:
         204:
           description: task deleted
+
+
+
   /project/{project_id}/tasks/{task_id}/output:
     parameters:
       - $ref: '#/parameters/project_id'
