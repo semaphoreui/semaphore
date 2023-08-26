@@ -929,7 +929,7 @@ paths:
           description: Project deleted
 
 
-  /project/{project_id}/permissions:
+  /project/{project_id}/role:
     parameters:
       - $ref: "#/parameters/project_id"
     get:
@@ -944,8 +944,10 @@ paths:
             properties:
               role:
                 type: string
+                example: owner
               permissions:
                 type: number
+                example: 0
 
 
   /project/{project_id}/events:
