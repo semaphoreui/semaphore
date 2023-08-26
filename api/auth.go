@@ -61,7 +61,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 
-		if time.Since(session.LastActive).Hours() > 7*24 {
+		if time.Since(session.LastActive).Hours() > 7*24 && !util.Config.DemoMode {
 			// more than week old unused session
 			// destroy.
 			if err := helpers.Store(r).ExpireSession(userID, sessionID); err != nil {
@@ -119,7 +119,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		store := helpers.Store(r)
 
 		var ok bool
-		
+
 		db.StoreSession(store, r.URL.String(), func() {
 			ok = authenticationHandler(w, r)
 		})
