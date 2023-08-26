@@ -21,8 +21,12 @@ export default {
   },
 
   data() {
+    const allowActions = this.allowActions();
+
+    const headers = this.getHeaders().filter((header) => allowActions || header.value !== 'actions');
+
     return {
-      headers: this.getHeaders(),
+      headers,
       items: null,
 
       itemId: null,
@@ -42,6 +46,10 @@ export default {
   },
 
   methods: {
+    allowActions() {
+      return this.can(USER_PERMISSIONS.manageProjectResources);
+    },
+
     can(permission) {
       // eslint-disable-next-line no-bitwise
       return (this.userPermissions & permission) === permission;

@@ -74,7 +74,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TeamMemberForm from '@/components/TeamMemberForm.vue';
 import axios from 'axios';
-import { USER_ROLES } from '@/lib/constants';
+import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
 
 export default {
   components: { TeamMemberForm },
@@ -94,6 +94,10 @@ export default {
         data: user,
       });
       await this.loadItems();
+    },
+
+    allowActions() {
+      return this.can(USER_PERMISSIONS.manageProjectUsers);
     },
 
     getHeaders() {
@@ -122,6 +126,7 @@ export default {
           sortable: false,
         }];
     },
+
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/users/${this.itemId}`;
     },
