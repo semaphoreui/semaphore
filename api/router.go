@@ -2,14 +2,14 @@ package api
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
@@ -131,9 +131,9 @@ func Route() *mux.Router {
 	projectTaskStart.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanRunProjectTasks))
 	projectTaskStart.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
 
-	projectTaskStop := authenticatedAPI.PathPrefix("/tasks").Subrouter()
+	projectTaskStop := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectTaskStop.Use(projects.ProjectMiddleware, projects.GetTaskMiddleware, projects.GetMustCanMiddlewareFor(db.CanRunProjectTasks))
-	projectTaskStop.HandleFunc("/{task_id}/stop", projects.StopTask).Methods("POST")
+	projectTaskStop.HandleFunc("/tasks/{task_id}/stop", projects.StopTask).Methods("POST")
 
 	//
 	// Project resources CRUD
