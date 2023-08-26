@@ -32,7 +32,9 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >{{ $t('newTeamMember') }}</v-btn>
+        v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+      >{{ $t('newTeamMember') }}
+      </v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -45,10 +47,11 @@
       <template v-slot:item.role="{ item }">
         <v-select
           v-model="item.role"
-          :items="roles"
+          :items="USER_ROLES"
           item-value="slug"
           item-text="title"
           :style="{width: '200px'}"
+          :disabled="!can(USER_PERMISSIONS.manageProjectUsers)"
           @change="updateProjectUser(item)"
         />
       </template>
@@ -58,6 +61,7 @@
           icon
           :disabled="!isUserAdmin()"
           @click="askDeleteItem(item.id)"
+          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -70,25 +74,14 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TeamMemberForm from '@/components/TeamMemberForm.vue';
 import axios from 'axios';
+import { USER_ROLES } from '@/lib/constants';
 
 export default {
   components: { TeamMemberForm },
   mixins: [ItemListPageBase],
   data() {
     return {
-      roles: [{
-        slug: 'owner',
-        title: 'Owner',
-      }, {
-        slug: 'manager',
-        title: 'Manager',
-      }, {
-        slug: 'task_runner',
-        title: 'Task Runner',
-      }, {
-        slug: 'guest',
-        title: 'Guest',
-      }],
+      USER_ROLES,
     };
   },
 

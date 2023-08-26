@@ -22,15 +22,22 @@
       :disabled="formSaving"
     ></v-select>
 
-    <v-checkbox
-      v-model="item.admin"
-      :label="$t('administrator')"
-    ></v-checkbox>
+    <v-select
+      v-model="item.role"
+      :label="$t('role')"
+      :items="USER_ROLES"
+      item-value="slug"
+      item-text="title"
+      :rules="[v => !!v || $t('user_required')]"
+      required
+      :disabled="formSaving"
+    ></v-select>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import { USER_ROLES } from '@/lib/constants';
 
 export default {
   mixins: [ItemFormBase],
@@ -40,6 +47,7 @@ export default {
       users: null,
       userId: null,
       teamMembers: null,
+      USER_ROLES,
     };
   },
 

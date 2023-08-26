@@ -44,8 +44,8 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// GetMustCanMiddlewareFor ensures that the user has administrator rights
-func GetMustCanMiddlewareFor(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
+// GetMustCanMiddleware ensures that the user has administrator rights
+func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user := context.Get(r, "user").(*db.User)
@@ -63,13 +63,17 @@ func GetMustCanMiddlewareFor(permissions db.ProjectUserPermission) mux.Middlewar
 
 // GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
-	var project struct {
-		db.Project
-		UserPermissions db.ProjectUserPermission `json:"userPermissions"`
+	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+}
+
+func GetUserRole(w http.ResponseWriter, r *http.Request) {
+	var permissions struct {
+		Role        db.ProjectUserRole       `json:"role"`
+		Permissions db.ProjectUserPermission `json:"permissions"`
 	}
-	project.Project = context.Get(r, "project").(db.Project)
-	project.UserPermissions = context.Get(r, "projectUserRole").(db.ProjectUserRole).GetPermissions()
-	helpers.WriteJSON(w, http.StatusOK, project)
+	permissions.Role = context.Get(r, "projectUserRole").(db.ProjectUserRole)
+	permissions.Permissions = permissions.Role.GetPermissions()
+	helpers.WriteJSON(w, http.StatusOK, permissions)
 }
 
 // UpdateProject saves updated project details to the database

@@ -928,6 +928,26 @@ paths:
         204:
           description: Project deleted
 
+
+  /project/{project_id}/permissions:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Fetch permissions of the current user for project
+      responses:
+        200:
+          description: Permissions
+          schema:
+            type: object
+            properties:
+              role:
+                type: string
+              permissions:
+                type: number
+
+
   /project/{project_id}/events:
     parameters:
       - $ref: '#/parameters/project_id'
