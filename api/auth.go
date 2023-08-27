@@ -61,7 +61,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 
-		if time.Since(session.LastActive).Hours() > 7*24 && !util.Config.DemoMode {
+		if time.Since(session.LastActive).Hours() > 7*24 {
 			// more than week old unused session
 			// destroy.
 			if err := helpers.Store(r).ExpireSession(userID, sessionID); err != nil {
@@ -88,15 +88,6 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusUnauthorized)
 		return false
-	}
-
-	if util.Config.DemoMode {
-		if !user.Admin && r.Method != "GET" &&
-			!strings.HasSuffix(r.URL.Path, "/tasks") &&
-			!strings.HasSuffix(r.URL.Path, "/stop") {
-			w.WriteHeader(http.StatusUnauthorized)
-			return false
-		}
 	}
 
 	context.Set(r, "user", &user)
