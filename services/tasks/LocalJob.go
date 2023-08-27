@@ -29,7 +29,7 @@ func (t *LocalJob) Log(msg string) {
 	t.logger.Log(msg)
 }
 
-func (t *LocalJob) getEnvironmentExtraVars() (str string, err error) {
+func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]interface{})
 
 	if t.environment.JSON != "" {
@@ -47,24 +47,17 @@ func (t *LocalJob) getEnvironmentExtraVars() (str string, err error) {
 		taskDetails["message"] = t.task.Message
 	}
 
-	//if t.task.UserID != nil {
-	//	var user db.User
-	//	user, err = t.pool.store.GetUser(*t.task.UserID)
-	//	if err == nil {
-	//		taskDetails["username"] = user.Username
-	//	}
-	//}
+	taskDetails["username"] = username
 
-	//if t.template.Type != db.TemplateTask {
-	//	taskDetails["type"] = t.template.Type
-	//	incomingVersion := t.task.GetIncomingVersion(t.pool.store)
-	//	if incomingVersion != nil {
-	//		taskDetails["incoming_version"] = incomingVersion
-	//	}
-	//	if t.template.Type == db.TemplateBuild {
-	//		taskDetails["target_version"] = t.task.Version
-	//	}
-	//}
+	if t.template.Type != db.TemplateTask {
+		taskDetails["type"] = t.template.Type
+		if incomingVersion != nil {
+			taskDetails["incoming_version"] = incomingVersion
+		}
+		if t.template.Type == db.TemplateBuild {
+			taskDetails["target_version"] = t.task.Version
+		}
+	}
 
 	vars := make(map[string]interface{})
 	vars["task_details"] = taskDetails
@@ -98,7 +91,7 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getPlaybookArgs() (args []string, err error) {
+func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, err error) {
 	playbookName := t.task.Playbook
 	if playbookName == "" {
 		playbookName = t.template.Playbook
@@ -166,7 +159,7 @@ func (t *LocalJob) getPlaybookArgs() (args []string, err error) {
 		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
 	}
 
-	extraVars, err := t.getEnvironmentExtraVars()
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 	if err != nil {
 		t.Log(err.Error())
 		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
@@ -221,7 +214,7 @@ func (t *LocalJob) destroyKeys() {
 	}
 }
 
-func (t *LocalJob) Run() (err error) {
+func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	err = t.prepareRun()
 	if err != nil {
 		return err
@@ -231,7 +224,7 @@ func (t *LocalJob) Run() (err error) {
 		t.destroyKeys()
 	}()
 
-	args, err := t.getPlaybookArgs()
+	args, err := t.getPlaybookArgs(username, incomingVersion)
 	if err != nil {
 		return
 	}

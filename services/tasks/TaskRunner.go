@@ -168,7 +168,23 @@ func (t *TaskRunner) run() {
 		return
 	}
 
-	err = t.job.Run()
+	var username string
+	var incomingVersion *string
+
+	if t.task.UserID != nil {
+		var user db.User
+		user, err = t.pool.store.GetUser(*t.task.UserID)
+		if err == nil {
+			username = user.Username
+		}
+	}
+
+	if t.template.Type != db.TemplateTask {
+		incomingVersion = t.task.GetIncomingVersion(t.pool.store)
+
+	}
+
+	err = t.job.Run(username, incomingVersion)
 
 	if err != nil {
 		t.Log("Running playbook failed: " + err.Error())
