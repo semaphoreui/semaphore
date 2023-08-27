@@ -32,7 +32,7 @@ type resourceLock struct {
 type job struct {
 
 	// job presents remote or local job information
-	job             *tasks.AnsibleJobRunner
+	job             *tasks.LocalJob
 	Status          db.TaskStatus
 	args            []string
 	environmentVars []string
@@ -127,7 +127,7 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	taskRunner := job{
-		job: &tasks.AnsibleJobRunner{
+		job: &tasks.LocalJob{
 			// TODO: fields
 		},
 	}

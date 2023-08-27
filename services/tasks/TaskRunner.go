@@ -30,7 +30,7 @@ type TaskRunner struct {
 	pool      *TaskPool
 
 	// job executes Ansible and returns stdout to Semaphore logs
-	job AnsibleJobRunner
+	job LocalJob
 }
 
 func getMD5Hash(filepath string) (string, error) {

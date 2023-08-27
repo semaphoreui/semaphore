@@ -11,9 +11,11 @@ import (
 	"strconv"
 )
 
-type AnsibleJobRunner struct {
-	// Received readonly fields
-	task        db.Task
+type LocalJob struct {
+	// Received mutable field
+	task db.Task
+
+	// Received constant fields
 	template    db.Template
 	inventory   db.Inventory
 	repository  db.Repository
@@ -21,29 +23,15 @@ type AnsibleJobRunner struct {
 	playbook    *lib.AnsiblePlaybook
 	logger      lib.Logger
 
-	// State fields
+	// Internal field
 	process *os.Process
-	status  db.TaskStatus
 }
 
-func (t *AnsibleJobRunner) setStatus(status db.TaskStatus) {
-	// TODO: create event
-	t.status = status
-}
-
-func (t *AnsibleJobRunner) updateStatus() {
-	// TODO: ???
-}
-
-func (t *AnsibleJobRunner) fail() {
-	t.setStatus(db.TaskFailStatus)
-}
-
-func (t *AnsibleJobRunner) Log(msg string) {
+func (t *LocalJob) Log(msg string) {
 	t.logger.Log(msg)
 }
 
-func (t *AnsibleJobRunner) getEnvironmentExtraVars() (str string, err error) {
+func (t *LocalJob) getEnvironmentExtraVars() (str string, err error) {
 	extraVars := make(map[string]interface{})
 
 	if t.environment.JSON != "" {
@@ -94,7 +82,7 @@ func (t *AnsibleJobRunner) getEnvironmentExtraVars() (str string, err error) {
 	return
 }
 
-func (t *AnsibleJobRunner) getEnvironmentENV() (arr []string, err error) {
+func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 	environmentVars := make(map[string]string)
 
 	if t.environment.ENV != nil {
@@ -112,7 +100,7 @@ func (t *AnsibleJobRunner) getEnvironmentENV() (arr []string, err error) {
 }
 
 // nolint: gocyclo
-func (t *AnsibleJobRunner) getPlaybookArgs() (args []string, err error) {
+func (t *LocalJob) getPlaybookArgs() (args []string, err error) {
 	playbookName := t.task.Playbook
 	if playbookName == "" {
 		playbookName = t.template.Playbook
@@ -218,7 +206,7 @@ func (t *AnsibleJobRunner) getPlaybookArgs() (args []string, err error) {
 	return
 }
 
-func (t *AnsibleJobRunner) destroyKeys() {
+func (t *LocalJob) destroyKeys() {
 	err := t.inventory.SSHKey.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory user key, error: " + err.Error())
@@ -235,8 +223,11 @@ func (t *AnsibleJobRunner) destroyKeys() {
 	}
 }
 
-func (t *AnsibleJobRunner) Run() (err error) {
-	t.prepareRun()
+func (t *LocalJob) Run() (err error) {
+	err = t.prepareRun()
+	if err != nil {
+		return err
+	}
 
 	defer func() {
 		t.destroyKeys()
@@ -258,7 +249,7 @@ func (t *AnsibleJobRunner) Run() (err error) {
 
 }
 
-func (t *AnsibleJobRunner) prepareRun() {
+func (t *LocalJob) prepareRun() error {
 	defer func() {
 		//t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
@@ -277,68 +268,44 @@ func (t *AnsibleJobRunner) prepareRun() {
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
-		t.fail()
-		return
+		return err
 	}
-
-	//objType := db.EventTask
-	//desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " is preparing"
-	//evt := db.Event{
-	//	UserID:      t.task.UserID,
-	//	ProjectID:   &t.task.ProjectID,
-	//	ObjectType:  &objType,
-	//	ObjectID:    &t.task.ID,
-	//	Description: &desc,
-	//}
-	//
-	//if _, err := t.pool.store.CreateEvent(evt); err != nil {
-	//	t.Log("Fatal error inserting an event")
-	//	panic(err)
-	//}
-	//
-	//t.Log("Prepare TaskRunner with template: " + t.template.Name + "\n")
-
-	t.updateStatus()
 
 	if t.repository.GetType() == db.RepositoryLocal {
 		if _, err := os.Stat(t.repository.GitURL); err != nil {
 			t.Log("Failed in finding static repository at " + t.repository.GitURL + ": " + err.Error())
-			t.fail()
-			return
+			return err
 		}
 	} else {
 		if err := t.updateRepository(); err != nil {
 			t.Log("Failed updating repository: " + err.Error())
-			t.fail()
-			return
+			return err
 		}
 		if err := t.checkoutRepository(); err != nil {
 			t.Log("Failed to checkout repository to required commit: " + err.Error())
-			t.fail()
-			return
+			return err
 		}
 	}
 
 	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
-		t.fail()
-		return
+		return err
 	}
 
 	if err := t.installRequirements(); err != nil {
 		t.Log("Running galaxy failed: " + err.Error())
-		t.fail()
-		return
+		return err
 	}
 
 	if err := t.installVaultKeyFile(); err != nil {
 		t.Log("Failed to install vault password file: " + err.Error())
-		t.fail()
-		return
+		return err
 	}
+
+	return nil
 }
 
-func (t *AnsibleJobRunner) updateRepository() error {
+func (t *LocalJob) updateRepository() error {
 	repo := lib.GitRepository{
 		Logger:     t.logger,
 		TemplateID: t.template.ID,
@@ -373,7 +340,7 @@ func (t *AnsibleJobRunner) updateRepository() error {
 	return repo.Clone()
 }
 
-func (t *AnsibleJobRunner) checkoutRepository() error {
+func (t *LocalJob) checkoutRepository() error {
 
 	repo := lib.GitRepository{
 		Logger:     t.logger,
@@ -410,7 +377,7 @@ func (t *AnsibleJobRunner) checkoutRepository() error {
 	return nil
 }
 
-func (t *AnsibleJobRunner) installRequirements() error {
+func (t *LocalJob) installRequirements() error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}
@@ -420,7 +387,7 @@ func (t *AnsibleJobRunner) installRequirements() error {
 	return nil
 }
 
-func (t *AnsibleJobRunner) getRepoPath() string {
+func (t *LocalJob) getRepoPath() string {
 	repo := lib.GitRepository{
 		Logger:     t.logger,
 		TemplateID: t.template.ID,
@@ -431,7 +398,7 @@ func (t *AnsibleJobRunner) getRepoPath() string {
 	return repo.GetFullPath()
 }
 
-func (t *AnsibleJobRunner) installRolesRequirements() error {
+func (t *LocalJob) installRolesRequirements() error {
 	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
@@ -460,13 +427,13 @@ func (t *AnsibleJobRunner) installRolesRequirements() error {
 	return nil
 }
 
-func (t *AnsibleJobRunner) getPlaybookDir() string {
+func (t *LocalJob) getPlaybookDir() string {
 	playbookPath := path.Join(t.getRepoPath(), t.template.Playbook)
 
 	return path.Dir(playbookPath)
 }
 
-func (t *AnsibleJobRunner) installCollectionsRequirements() error {
+func (t *LocalJob) installCollectionsRequirements() error {
 	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
@@ -495,12 +462,12 @@ func (t *AnsibleJobRunner) installCollectionsRequirements() error {
 	return nil
 }
 
-func (t *AnsibleJobRunner) runGalaxy(args []string) error {
+func (t *LocalJob) runGalaxy(args []string) error {
 	return nil
 	//return t.job.RunGalaxy(args)
 }
 
-func (t *AnsibleJobRunner) installVaultKeyFile() error {
+func (t *LocalJob) installVaultKeyFile() error {
 	if t.template.VaultKeyID == nil {
 		return nil
 	}

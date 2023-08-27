@@ -152,11 +152,6 @@ func (p *TaskPool) Run() {
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			//if !t.prepared {
-			//	go t.prepareRun()
-			//	break
-			//}
-
 			go t.run()
 
 			p.queue = p.queue[1:]
@@ -334,8 +329,11 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job := AnsibleJobRunner{
-		task:        taskRunner.task,
+	job := LocalJob{
+		// Mutable field
+		task: taskRunner.task,
+
+		// Constant fields
 		template:    taskRunner.template,
 		inventory:   taskRunner.inventory,
 		repository:  taskRunner.repository,
