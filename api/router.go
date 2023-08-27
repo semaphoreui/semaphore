@@ -370,7 +370,6 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 	body := map[string]interface{}{
 		"version": util.Version,
 		"ansible": util.AnsibleVersion(),
-		"demo":    util.Config.DemoMode,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
