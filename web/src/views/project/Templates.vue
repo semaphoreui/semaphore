@@ -78,6 +78,7 @@
         color="primary"
         @click="editItem('new')"
         class="mr-1"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
       >{{ $t('newTemplate') }}
       </v-btn>
 
@@ -97,7 +98,12 @@
       >{{ view.title }}
       </v-tab>
 
-      <v-btn icon class="mt-2 ml-4" @click="editViewsDialog = true">
+      <v-btn
+        icon
+        class="mt-2 ml-4"
+        @click="editViewsDialog = true"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+      >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-tabs>
@@ -212,7 +218,7 @@
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/_variables';
+@import '~vuetify/src/styles/settings/variables';
 
 .templates-table .text-start:first-child {
   padding-right: 0 !important;

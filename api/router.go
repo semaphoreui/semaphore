@@ -2,14 +2,14 @@ package api
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
@@ -128,17 +128,19 @@ func Route() *mux.Router {
 	//
 	// Start and Stop tasks
 	projectTaskStart := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectTaskStart.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanRunProjectTasks))
+	projectTaskStart.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
 	projectTaskStart.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
 
-	projectTaskStop := authenticatedAPI.PathPrefix("/tasks").Subrouter()
-	projectTaskStop.Use(projects.ProjectMiddleware, projects.GetTaskMiddleware, projects.GetMustCanMiddlewareFor(db.CanRunProjectTasks))
-	projectTaskStop.HandleFunc("/{task_id}/stop", projects.StopTask).Methods("POST")
+	projectTaskStop := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectTaskStop.Use(projects.ProjectMiddleware, projects.GetTaskMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
+	projectTaskStop.HandleFunc("/tasks/{task_id}/stop", projects.StopTask).Methods("POST")
 
 	//
 	// Project resources CRUD
 	projectUserAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectUserAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanManageProjectResources))
+	projectUserAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
+
+	projectUserAPI.Path("/role").HandlerFunc(projects.GetUserRole).Methods("GET", "HEAD")
 
 	projectUserAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
@@ -173,14 +175,14 @@ func Route() *mux.Router {
 	//
 	// Updating and deleting project
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
-	projectAdminAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanUpdateProject))
+	projectAdminAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanUpdateProject))
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
 	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
 
 	//
 	// Manage project users
 	projectAdminUsersAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddlewareFor(db.CanManageProjectUsers))
+	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectUsers))
 	projectAdminUsersAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
 
 	projectUserManagement := projectAdminUsersAPI.PathPrefix("/users").Subrouter()
