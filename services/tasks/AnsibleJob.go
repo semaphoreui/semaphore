@@ -14,10 +14,10 @@ type LocalAnsibleJob struct {
 	playbook *lib.AnsiblePlaybook
 }
 
-func (j *LocalAnsibleJob) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
-	return j.playbook.RunPlaybook(args, environmentVars, cb)
-}
-
 func (j *LocalAnsibleJob) RunGalaxy(args []string) error {
 	return j.playbook.RunGalaxy(args)
+}
+
+func (j *LocalAnsibleJob) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+	return j.playbook.RunPlaybook(args, environmentVars, cb)
 }

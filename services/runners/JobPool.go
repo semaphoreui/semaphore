@@ -1,3 +1,8 @@
+//
+// Runner's job pool. NOT SERVER!!!
+// Runner gets jobs from the server and put them to this pool.
+//
+
 package runners
 
 import (
@@ -97,7 +102,6 @@ func (p *JobPool) Run() {
 				break
 			}
 
-			//get TaskRunner from top of queue
 			t := p.queue[0]
 			if t.Status == db.TaskFailStatus {
 				//delete failed TaskRunner from queue
@@ -106,18 +110,8 @@ func (p *JobPool) Run() {
 				break
 			}
 
-			//if p.blocks(t) {
-			//	//move blocked TaskRunner to end of queue
-			//	p.queue = append(p.queue[1:], t)
-			//	break
-			//}
-
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
-			//if !t.prepared {
-			//	go t.prepareRun()
-			//	break
-			//}
 
 			go t.run()
 			p.queue = p.queue[1:]
@@ -156,7 +150,6 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	// TODO: link remote job to local semaphore job
 	taskRunner := job{
 		job: &tasks.LocalAnsibleJob{},
 	}
