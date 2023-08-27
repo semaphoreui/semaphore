@@ -24,7 +24,6 @@ type AnsibleJobRunner struct {
 	// State fields
 	process     *os.Process
 	logMessages []string
-	prepared    bool
 	status      db.TaskStatus
 }
 
@@ -242,10 +241,7 @@ func (t *AnsibleJobRunner) destroyKeys() {
 }
 
 func (t *AnsibleJobRunner) Run() (err error) {
-	//if !t.prepared {
-	t.prepareRun() // TODO: ?????
-	//break
-	//}
+	t.prepareRun()
 
 	defer func() {
 		t.destroyKeys()
@@ -268,13 +264,6 @@ func (t *AnsibleJobRunner) Run() (err error) {
 }
 
 func (t *AnsibleJobRunner) prepareRun() {
-	t.prepared = false
-
-	//if !t.pool.store.PermanentConnection() {
-	//	t.pool.store.Connect("prepare task " + strconv.Itoa(t.task.ID))
-	//	defer t.pool.store.Close("prepare task " + strconv.Itoa(t.task.ID))
-	//}
-
 	defer func() {
 		//t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
@@ -352,8 +341,6 @@ func (t *AnsibleJobRunner) prepareRun() {
 		t.fail()
 		return
 	}
-
-	t.prepared = true
 }
 
 func (t *AnsibleJobRunner) updateRepository() error {
