@@ -8,7 +8,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-func (t *TaskRunner) installInventory() (err error) {
+func (t *AnsibleJobRunner) installInventory() (err error) {
 	if t.inventory.SSHKeyID != nil {
 		err = t.inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser)
 		if err != nil {
@@ -30,7 +30,7 @@ func (t *TaskRunner) installInventory() (err error) {
 	return
 }
 
-func (t *TaskRunner) installStaticInventory() error {
+func (t *AnsibleJobRunner) installStaticInventory() error {
 	t.Log("installing static inventory")
 
 	path := util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)

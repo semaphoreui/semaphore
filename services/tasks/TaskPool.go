@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"regexp"
 	"strconv"
 	"strings"
@@ -153,12 +152,14 @@ func (p *TaskPool) Run() {
 
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
-			if !t.prepared {
-				go t.prepareRun()
-				break
-			}
+
+			//if !t.prepared {
+			//	go t.prepareRun()
+			//	break
+			//}
 
 			go t.run()
+
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.task.ID) + " removed from queue")
 		}
@@ -217,17 +218,17 @@ func (p *TaskPool) StopTask(targetTask db.Task) error {
 		tsk.setStatus(db.TaskStoppedStatus)
 		tsk.createTaskEvent()
 	} else {
-		status := tsk.task.Status
+		//status := tsk.task.Status
 		tsk.setStatus(db.TaskStoppingStatus)
-		if status == db.TaskRunningStatus {
-			if tsk.process == nil {
-				panic("running process can not be nil")
-			}
-			err := tsk.process.Kill()
-			if err != nil {
-				return err
-			}
-		}
+		//if status == db.TaskRunningStatus {
+		//	if tsk.process == nil {
+		//		panic("running process can not be nil")
+		//	}
+		//	err := tsk.process.Kill()
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
 	}
 
 	return nil
@@ -334,11 +335,15 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job, err := p.runners.CreateJob(&lib.AnsiblePlaybook{
-		Logger:     &taskRunner,
-		TemplateID: taskRunner.template.ID,
-		Repository: taskRunner.repository,
-	})
+	job := AnsibleJobRunner{
+		// TODO: fields
+	}
+
+	//job, err := p.runners.CreateJob(&lib.AnsiblePlaybook{
+	//	Logger:     &taskRunner,
+	//	TemplateID: taskRunner.template.ID,
+	//	Repository: taskRunner.repository,
+	//})
 
 	if err != nil {
 		return

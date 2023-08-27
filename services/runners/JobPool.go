@@ -32,40 +32,16 @@ type resourceLock struct {
 type job struct {
 
 	// job presents remote or local job information
-	job             *tasks.LocalAnsibleJob
+	job             *tasks.AnsibleJobRunner
 	Status          db.TaskStatus
-	kind            jobType
 	args            []string
 	environmentVars []string
 	id              int
 }
 
-type jobType int
-
 type Response struct {
 	Message string `json:"message"`
 	Status  int    `json:"status"`
-}
-
-const (
-	playbook jobType = iota
-	galaxy
-)
-
-func (j *job) run() {
-	var err error
-	switch j.kind {
-	case playbook:
-		err = j.job.RunPlaybook(j.args, &j.environmentVars, nil)
-	case galaxy:
-		err = j.job.RunGalaxy(j.args)
-	default:
-		panic("Unknown job type")
-	}
-
-	if err != nil {
-		// TODO: some logging
-	}
 }
 
 type JobPool struct {
@@ -113,7 +89,7 @@ func (p *JobPool) Run() {
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			go t.run()
+			go t.job.Run()
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.id) + " removed from queue")
 		}
@@ -151,7 +127,9 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	taskRunner := job{
-		job: &tasks.LocalAnsibleJob{},
+		job: &tasks.AnsibleJobRunner{
+			// TODO: fields
+		},
 	}
 
 	p.register <- &taskRunner

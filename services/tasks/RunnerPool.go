@@ -21,7 +21,7 @@ func (p *RunnerPool) GetRunner(runnerID int) (*RemoteRunner, error) {
 	return nil, nil
 }
 
-func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job AnsibleJob, err error) {
+func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job AnsibleJobRunner, err error) {
 
 	runners, err := p.store.GetGlobalRunners()
 
@@ -33,6 +33,6 @@ func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job AnsibleJob, e
 		err = fmt.Errorf("no runners")
 	}
 
-	job = &LocalAnsibleJob{playbook: playbook}
+	job = AnsibleJobRunner{}
 	return
 }
