@@ -13,16 +13,16 @@ import (
 )
 
 type AnsibleJobRunner struct {
+	// Received readonly fields
 	task        db.Task
 	template    db.Template
 	inventory   db.Inventory
 	repository  db.Repository
 	environment db.Environment
+	playbook    *lib.AnsiblePlaybook
 
-	playbook *lib.AnsiblePlaybook
-
-	process *os.Process
-
+	// State fields
+	process     *os.Process
 	logMessages []string
 	prepared    bool
 	status      db.TaskStatus

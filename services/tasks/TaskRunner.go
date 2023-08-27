@@ -27,9 +27,7 @@ type TaskRunner struct {
 	users     []int
 	alert     bool
 	alertChat *string
-	//prepared  bool
-
-	pool *TaskPool
+	pool      *TaskPool
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job AnsibleJobRunner

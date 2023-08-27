@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"regexp"
 	"strconv"
 	"strings"
@@ -40,8 +41,6 @@ type TaskPool struct {
 	store db.Store
 
 	resourceLocker chan *resourceLock
-
-	runners RunnerPool
 }
 
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
@@ -336,14 +335,17 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	}
 
 	job := AnsibleJobRunner{
-		// TODO: fields
+		task:        taskRunner.task,
+		template:    taskRunner.template,
+		inventory:   taskRunner.inventory,
+		repository:  taskRunner.repository,
+		environment: taskRunner.environment,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &taskRunner,
+			TemplateID: taskRunner.template.ID,
+			Repository: taskRunner.repository,
+		},
 	}
-
-	//job, err := p.runners.CreateJob(&lib.AnsiblePlaybook{
-	//	Logger:     &taskRunner,
-	//	TemplateID: taskRunner.template.ID,
-	//	Repository: taskRunner.repository,
-	//})
 
 	if err != nil {
 		return
