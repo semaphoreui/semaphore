@@ -151,7 +151,6 @@ type ConfigType struct {
 	MaxParallelTasks int `json:"max_parallel_tasks"`
 
 	// feature switches
-	DemoMode                 bool `json:"demo_mode"` // Deprecated, will be deleted soon
 	PasswordLoginDisable     bool `json:"password_login_disable"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`
 }
