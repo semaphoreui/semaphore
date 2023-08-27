@@ -330,10 +330,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	}
 
 	job := LocalJob{
-		// Mutable field
-		task: taskRunner.task,
-
-		// Constant fields
+		task:        taskRunner.task,
 		template:    taskRunner.template,
 		inventory:   taskRunner.inventory,
 		repository:  taskRunner.repository,

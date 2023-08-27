@@ -454,8 +454,7 @@ func (t *LocalJob) installCollectionsRequirements() error {
 }
 
 func (t *LocalJob) runGalaxy(args []string) error {
-	return nil
-	//return t.job.RunGalaxy(args)
+	return t.playbook.RunGalaxy(args)
 }
 
 func (t *LocalJob) installVaultKeyFile() error {

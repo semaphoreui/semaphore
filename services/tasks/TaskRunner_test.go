@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/lib"
 	"math/rand"
 	"os"
 	"path"
@@ -50,7 +51,19 @@ func TestTaskRunnerRun(t *testing.T) {
 		task: task,
 		pool: &pool,
 	}
-
+	taskRunner.job = LocalJob{
+		task:        taskRunner.task,
+		template:    taskRunner.template,
+		inventory:   taskRunner.inventory,
+		repository:  taskRunner.repository,
+		environment: taskRunner.environment,
+		logger:      &taskRunner,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &taskRunner,
+			TemplateID: taskRunner.template.ID,
+			Repository: taskRunner.repository,
+		},
+	}
 	taskRunner.run()
 }
 
@@ -75,8 +88,21 @@ func TestGetRepoPath(t *testing.T) {
 			Playbook: "deploy/test.yml",
 		},
 	}
+	tsk.job = LocalJob{
+		task:        tsk.task,
+		template:    tsk.template,
+		inventory:   tsk.inventory,
+		repository:  tsk.repository,
+		environment: tsk.environment,
+		logger:      &tsk,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		},
+	}
 
-	dir := tsk.getPlaybookDir()
+	dir := tsk.job.getPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -103,8 +129,21 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 			Playbook: "/deploy/test.yml",
 		},
 	}
+	tsk.job = LocalJob{
+		task:        tsk.task,
+		template:    tsk.template,
+		inventory:   tsk.inventory,
+		repository:  tsk.repository,
+		environment: tsk.environment,
+		logger:      &tsk,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		},
+	}
 
-	dir := tsk.getPlaybookDir()
+	dir := tsk.job.getPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -177,6 +216,19 @@ func TestPopulateDetails(t *testing.T) {
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
+	tsk.job = LocalJob{
+		task:        tsk.task,
+		template:    tsk.template,
+		inventory:   tsk.inventory,
+		repository:  tsk.repository,
+		environment: tsk.environment,
+		logger:      &tsk,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		},
+	}
 
 	err = tsk.populateDetails()
 	if err != nil {
@@ -208,15 +260,28 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
+	tsk.job = LocalJob{
+		task:        tsk.task,
+		template:    tsk.template,
+		inventory:   tsk.inventory,
+		repository:  tsk.repository,
+		environment: tsk.environment,
+		logger:      &tsk,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		},
+	}
 
-	args, err := tsk.getPlaybookArgs()
+	args, err := tsk.job.getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -246,15 +311,28 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
+	tsk.job = LocalJob{
+		task:        tsk.task,
+		template:    tsk.template,
+		inventory:   tsk.inventory,
+		repository:  tsk.repository,
+		environment: tsk.environment,
+		logger:      &tsk,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		},
+	}
 
-	args, err := tsk.getPlaybookArgs()
+	args, err := tsk.job.getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -284,15 +362,28 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
+	tsk.job = LocalJob{
+		task:        tsk.task,
+		template:    tsk.template,
+		inventory:   tsk.inventory,
+		repository:  tsk.repository,
+		environment: tsk.environment,
+		logger:      &tsk,
+		playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.template.ID,
+			Repository: tsk.repository,
+		},
+	}
 
-	args, err := tsk.getPlaybookArgs()
+	args, err := tsk.job.getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
