@@ -51,7 +51,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		task: task,
 		pool: &pool,
 	}
-	taskRunner.job = LocalJob{
+	taskRunner.job = &LocalJob{
 		task:        taskRunner.task,
 		template:    taskRunner.template,
 		inventory:   taskRunner.inventory,
@@ -88,7 +88,7 @@ func TestGetRepoPath(t *testing.T) {
 			Playbook: "deploy/test.yml",
 		},
 	}
-	tsk.job = LocalJob{
+	tsk.job = &LocalJob{
 		task:        tsk.task,
 		template:    tsk.template,
 		inventory:   tsk.inventory,
@@ -102,7 +102,7 @@ func TestGetRepoPath(t *testing.T) {
 		},
 	}
 
-	dir := tsk.job.getPlaybookDir()
+	dir := tsk.job.(*LocalJob).getPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -129,7 +129,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 			Playbook: "/deploy/test.yml",
 		},
 	}
-	tsk.job = LocalJob{
+	tsk.job = &LocalJob{
 		task:        tsk.task,
 		template:    tsk.template,
 		inventory:   tsk.inventory,
@@ -143,7 +143,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 		},
 	}
 
-	dir := tsk.job.getPlaybookDir()
+	dir := tsk.job.(*LocalJob).getPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -216,7 +216,7 @@ func TestPopulateDetails(t *testing.T) {
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
-	tsk.job = LocalJob{
+	tsk.job = &LocalJob{
 		task:        tsk.task,
 		template:    tsk.template,
 		inventory:   tsk.inventory,
@@ -260,7 +260,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = LocalJob{
+	tsk.job = &LocalJob{
 		task:        tsk.task,
 		template:    tsk.template,
 		inventory:   tsk.inventory,
@@ -274,7 +274,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		},
 	}
 
-	args, err := tsk.job.getPlaybookArgs("", nil)
+	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -311,7 +311,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = LocalJob{
+	tsk.job = &LocalJob{
 		task:        tsk.task,
 		template:    tsk.template,
 		inventory:   tsk.inventory,
@@ -325,7 +325,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		},
 	}
 
-	args, err := tsk.job.getPlaybookArgs("", nil)
+	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -362,7 +362,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = LocalJob{
+	tsk.job = &LocalJob{
 		task:        tsk.task,
 		template:    tsk.template,
 		inventory:   tsk.inventory,
@@ -376,7 +376,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 
-	args, err := tsk.job.getPlaybookArgs("", nil)
+	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)

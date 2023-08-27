@@ -329,7 +329,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job := LocalJob{
+	job := RemoteJob{
 		task:        taskRunner.task,
 		template:    taskRunner.template,
 		inventory:   taskRunner.inventory,
@@ -347,7 +347,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	taskRunner.job = job
+	taskRunner.job = &job
 
 	p.register <- &taskRunner
 

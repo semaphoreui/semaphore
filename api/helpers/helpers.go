@@ -21,8 +21,8 @@ func Store(r *http.Request) db.Store {
 	return context.Get(r, "store").(db.Store)
 }
 
-func RunnerPool(r *http.Request) *tasks.RunnerPool {
-	return context.Get(r, "runner_pool").(*tasks.RunnerPool)
+func RunnerPool(r *http.Request) *tasks.RemoteRunnerPool {
+	return context.Get(r, "runner_pool").(*tasks.RemoteRunnerPool)
 }
 
 func TaskPool(r *http.Request) *tasks.TaskPool {

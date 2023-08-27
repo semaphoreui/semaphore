@@ -12,7 +12,16 @@ import (
 func RunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		runner, err := helpers.RunnerPool(r).GetRunner(0)
+		runnerID, err := helpers.GetIntParam("runner_id", w, r)
+
+		if err != nil {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "runner_id required",
+			})
+			return
+		}
+
+		runner, err := helpers.RunnerPool(r).GetOrAddRunner(runnerID)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
@@ -39,7 +48,25 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateRunner(w http.ResponseWriter, r *http.Request) {
-	//
+	var body struct {
+		taskLogs map[int][]tasks.LogRecord
+	}
+
+	if !helpers.Bind(w, r, &body) {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid format",
+		})
+		return
+	}
+
+	runner := context.Get(r, "runner").(tasks.RemoteRunner)
+
+	for taskID, logRecords := range body.taskLogs {
+		err := runner.WriteLogs(taskID, logRecords)
+		if err != nil {
+			// TODO: log
+		}
+	}
 }
 
 func RegisterRunner(w http.ResponseWriter, r *http.Request) {

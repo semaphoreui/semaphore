@@ -1630,23 +1630,23 @@ paths:
             items:
               $ref: "#/definitions/TaskOutput"
 
-  /runners:
-    post:
-      tags:
-        - project
-      summary: Starts a job
-      parameters:
-        - name: task
-          in: body
-          required: true
-          schema:
-            type: object
-            properties:
-              registration_token:
-                type: string
-                example: test123
-      responses:
-        201:
-          description: Task queued
-          schema:
-            $ref: "#/definitions/Runner"
+#  /runners:
+#    post:
+#      tags:
+#        - project
+#      summary: Starts a job
+#      parameters:
+#        - name: task
+#          in: body
+#          required: true
+#          schema:
+#            type: object
+#            properties:
+#              registration_token:
+#                type: string
+#                example: test123
+#      responses:
+#        201:
+#          description: Task queued
+#          schema:
+#            $ref: "#/definitions/Runner"

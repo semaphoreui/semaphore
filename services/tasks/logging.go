@@ -3,17 +3,14 @@ package tasks
 import (
 	"bufio"
 	"encoding/json"
-	"os/exec"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/util"
+	"os/exec"
+	"time"
 )
 
-func (t *TaskRunner) Log(msg string) {
-	now := time.Now()
-
+func (t *TaskRunner) Log2(msg string, now time.Time) {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
 			"type":       "log",
@@ -33,6 +30,10 @@ func (t *TaskRunner) Log(msg string) {
 		output: msg,
 		time:   now,
 	}
+}
+
+func (t *TaskRunner) Log(msg string) {
+	t.Log2(msg, time.Now())
 }
 
 // Readln reads from the pipe

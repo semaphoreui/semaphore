@@ -17,6 +17,10 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
+type Job interface {
+	Run(username string, incomingVersion *string) error
+}
+
 type TaskRunner struct {
 	task        db.Task
 	template    db.Template
@@ -30,7 +34,7 @@ type TaskRunner struct {
 	pool      *TaskPool
 
 	// job executes Ansible and returns stdout to Semaphore logs
-	job LocalJob
+	job Job
 }
 
 func getMD5Hash(filepath string) (string, error) {
