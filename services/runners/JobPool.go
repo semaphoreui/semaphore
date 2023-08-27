@@ -23,7 +23,10 @@ type resourceLock struct {
 	holder *job
 }
 
+// job presents current job on semaphore server.
 type job struct {
+
+	// job presents remote or local job information
 	job             *tasks.LocalAnsibleJob
 	Status          db.TaskStatus
 	kind            jobType
@@ -45,13 +48,18 @@ const (
 )
 
 func (j *job) run() {
+	var err error
 	switch j.kind {
 	case playbook:
-		j.job.RunPlaybook(j.args, &j.environmentVars, nil)
+		err = j.job.RunPlaybook(j.args, &j.environmentVars, nil)
 	case galaxy:
-		j.job.RunGalaxy(j.args)
+		err = j.job.RunGalaxy(j.args)
 	default:
 		panic("Unknown job type")
+	}
+
+	if err != nil {
+		// TODO: some logging
 	}
 }
 
@@ -84,7 +92,7 @@ func (p *JobPool) Run() {
 		case job := <-p.register: // new task created by API or schedule
 			p.queue = append(p.queue, job)
 
-		case <-ticker.C: // timer 5 seconds
+		case <-ticker.C: // timer 5 seconds: get task from queue and run it
 			if len(p.queue) == 0 {
 				break
 			}
@@ -118,6 +126,7 @@ func (p *JobPool) Run() {
 	}
 }
 
+// checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 	client := &http.Client{}
 	url := "https://example.com"
@@ -147,7 +156,10 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	taskRunner := job{}
+	// TODO: link remote job to local semaphore job
+	taskRunner := job{
+		job: &tasks.LocalAnsibleJob{},
+	}
 
 	p.register <- &taskRunner
 }
