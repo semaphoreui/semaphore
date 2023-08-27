@@ -18,7 +18,7 @@ type RemoteJob struct {
 }
 
 func (t *RemoteJob) Run(username string, incomingVersion *string) error {
-	job, err := t.runnerPool.CreateJob(t.playbook)
+	job, err := t.runnerPool.CreateJob(username, incomingVersion, t)
 
 	if err != nil {
 		return err

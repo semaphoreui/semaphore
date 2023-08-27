@@ -341,6 +341,9 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			TemplateID: taskRunner.template.ID,
 			Repository: taskRunner.repository,
 		},
+		runnerPool: RemoteRunnerPool{
+			store: p.store,
+		},
 	}
 
 	if err != nil {

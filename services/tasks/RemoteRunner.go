@@ -14,12 +14,12 @@ type RemoteRunner struct {
 	jobs map[int]*RemoteRunnerJob
 }
 
-func (r *RemoteRunner) AddJob(taskID int, job *RemoteRunnerJob) {
+func (r *RemoteRunner) AddJob(job *RemoteRunnerJob) {
 	if job == nil {
 		panic("remote job cannot be nil")
 	}
 
-	r.jobs[taskID] = job
+	r.jobs[job.job.task.ID] = job
 }
 
 func (r *RemoteRunner) WriteLogs(taskID int, logRecords []LogRecord) error {

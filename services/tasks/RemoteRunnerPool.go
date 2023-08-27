@@ -3,11 +3,12 @@ package tasks
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
 )
 
 type RemoteRunnerJob struct {
-	logger lib.Logger
+	job             *RemoteJob
+	username        string
+	incomingVersion *string
 }
 
 func (c *RemoteRunnerJob) Wait() error {
@@ -16,7 +17,7 @@ func (c *RemoteRunnerJob) Wait() error {
 
 func (c *RemoteRunnerJob) WriteLogs(logRecords []LogRecord) {
 	for _, record := range logRecords {
-		c.logger.Log2(record.message, record.time)
+		c.job.logger.Log2(record.message, record.time)
 	}
 }
 
@@ -33,10 +34,28 @@ func CreateRunnerPool(store db.Store) RemoteRunnerPool {
 }
 
 func (p *RemoteRunnerPool) GetOrAddRunner(runnerID int) (*RemoteRunner, error) {
-	return nil, nil
+	_, err := p.store.GetGlobalRunner(runnerID)
+
+	if err != nil {
+		if err == db.ErrNotFound {
+			delete(p.runners, runnerID)
+		}
+
+		return nil, err
+	}
+
+	runner, ok := p.runners[runnerID]
+
+	if !ok {
+		runner = &RemoteRunner{}
+
+		p.runners[runnerID] = runner
+	}
+
+	return runner, nil
 }
 
-func (p *RemoteRunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job *RemoteRunnerJob, err error) {
+func (p *RemoteRunnerPool) CreateJob(username string, incomingVersion *string, j *RemoteJob) (job *RemoteRunnerJob, err error) {
 
 	runners, err := p.store.GetGlobalRunners()
 
@@ -46,9 +65,10 @@ func (p *RemoteRunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job *Remote
 
 	if len(runners) == 0 {
 		err = fmt.Errorf("no runners")
+		return
 	}
 
-	runner := runners[0] // TODO: get random active runner
+	runner := runners[0]
 
 	remoteRunner, err := p.GetOrAddRunner(runner.ID)
 
@@ -56,9 +76,13 @@ func (p *RemoteRunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job *Remote
 		return
 	}
 
-	job = &RemoteRunnerJob{}
+	job = &RemoteRunnerJob{
+		job:             j,
+		incomingVersion: incomingVersion,
+		username:        username,
+	}
 
-	remoteRunner.AddJob(0, job)
+	remoteRunner.AddJob(job)
 
 	return
 }
