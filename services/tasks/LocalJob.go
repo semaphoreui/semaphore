@@ -12,10 +12,8 @@ import (
 )
 
 type LocalJob struct {
-	// Received mutable field
-	task db.Task
-
 	// Received constant fields
+	task        db.Task
 	template    db.Template
 	inventory   db.Inventory
 	repository  db.Repository
