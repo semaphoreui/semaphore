@@ -206,22 +206,11 @@ func CreateTaskPool(store db.Store) TaskPool {
 func (p *TaskPool) StopTask(targetTask db.Task) error {
 	tsk := p.GetTask(targetTask.ID)
 	if tsk == nil { // task not active, but exists in database
-		job, err := p.runners.CreateJob(&lib.AnsiblePlaybook{
-			Logger:     tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
-		})
-
-		if err != nil {
-			return err
-		}
-
 		tsk = &TaskRunner{
 			task: targetTask,
 			pool: p,
-			job:  job,
 		}
-		err = tsk.populateDetails()
+		err := tsk.populateDetails()
 		if err != nil {
 			return err
 		}
@@ -344,6 +333,18 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		taskRunner.fail()
 		return
 	}
+
+	job, err := p.runners.CreateJob(&lib.AnsiblePlaybook{
+		Logger:     &taskRunner,
+		TemplateID: taskRunner.template.ID,
+		Repository: taskRunner.repository,
+	})
+
+	if err != nil {
+		return
+	}
+
+	taskRunner.job = job
 
 	p.register <- &taskRunner
 
