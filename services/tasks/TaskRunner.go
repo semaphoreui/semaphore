@@ -33,6 +33,9 @@ type TaskRunner struct {
 	prepared  bool
 	process   *os.Process
 	pool      *TaskPool
+
+	// job executes Ansible and returns stdout to Semaphore logs
+	job AnsibleJob
 }
 
 func getMD5Hash(filepath string) (string, error) {
@@ -573,11 +576,7 @@ func (t *TaskRunner) installRequirements() error {
 }
 
 func (t *TaskRunner) runGalaxy(args []string) error {
-	return lib.AnsiblePlaybook{
-		Logger:     t,
-		TemplateID: t.template.ID,
-		Repository: t.repository,
-	}.RunGalaxy(args)
+	return t.job.RunGalaxy(args)
 }
 
 func (t *TaskRunner) runPlaybook() (err error) {
@@ -591,11 +590,7 @@ func (t *TaskRunner) runPlaybook() (err error) {
 		return
 	}
 
-	return lib.AnsiblePlaybook{
-		Logger:     t,
-		TemplateID: t.template.ID,
-		Repository: t.repository,
-	}.RunPlaybook(args, &environmentVariables, func(p *os.Process) { t.process = p })
+	return t.job.RunPlaybook(args, &environmentVariables, func(p *os.Process) { t.process = p })
 }
 
 func (t *TaskRunner) getEnvironmentENV() (arr []string, err error) {

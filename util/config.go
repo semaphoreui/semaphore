@@ -150,6 +150,8 @@ type ConfigType struct {
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks"`
 
+	RegistrationToken string `json:"registration_token"`
+
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`

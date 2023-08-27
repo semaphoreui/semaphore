@@ -1,0 +1,54 @@
+swagger: '3.0'
+info:
+  title: SEMAPHORE
+  description: Semaphore Runner API
+  version: "2.2.0"
+
+host: localhost:3000
+
+consumes:
+  - application/json
+produces:
+  - application/json
+  - text/plain; charset=utf-8
+
+tags:
+  - name: authentication
+    description: Authentication, Logout & API Tokens
+  - name: project
+    description: Everything related to a project
+  - name: user
+    description: User-related API
+
+schemes:
+  - http
+  - https
+
+basePath: /api/runners
+
+definitions:
+
+paths:
+  /register:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - registrationToken
+              properties:
+                registrationToken: { type: string }
+      responses:
+        200:
+          description: API Token
+
+  /unregister:
+    post:
+
+  /status:
+    put:
+
+  /jobs:
+    get:
