@@ -89,7 +89,7 @@ func (p *JobPool) Run() {
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			go t.job.Run()
+			go t.job.Run("", nil)
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.id) + " removed from queue")
 		}
