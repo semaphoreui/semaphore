@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/api/runners"
 	"net/http"
 	"os"
 	"strings"
@@ -81,6 +82,7 @@ func Route() *mux.Router {
 
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
+	publicAPIRouter.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")

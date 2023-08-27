@@ -4,39 +4,25 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gorilla/mux"
 	"net/http"
-	"strings"
 )
 
-func RunnerRoute() *mux.Router {
-	r := mux.NewRouter()
-
-	webPath := "/"
-	if util.WebHostURL != nil {
-		webPath = util.WebHostURL.Path
-		if !strings.HasSuffix(webPath, "/") {
-			webPath += "/"
-		}
-	}
-
-	pingRouter := r.Path(webPath + "api/runners/register").Subrouter()
-
-	pingRouter.Methods("POST", "HEAD").HandlerFunc(registerRunner)
-
-	return r
-}
-
-func registerRunner(w http.ResponseWriter, r *http.Request) {
+func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	var register struct {
 		RegistrationToken string `json:"registration_token" binding:"required"`
 	}
 
 	if !helpers.Bind(w, r, &register) {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid format",
+		})
 		return
 	}
 
-	if register.RegistrationToken != util.Config.RegistrationToken {
+	if util.Config.RunnerRegistrationToken == "" || register.RegistrationToken != util.Config.RunnerRegistrationToken {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid registration token",
+		})
 		return
 	}
 
@@ -45,6 +31,9 @@ func registerRunner(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Unexpected error",
+		})
 		return
 	}
 
