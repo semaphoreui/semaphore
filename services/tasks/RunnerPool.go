@@ -1,12 +1,38 @@
 package tasks
 
-import "github.com/ansible-semaphore/semaphore/lib"
+import (
+	"fmt"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
+)
 
 // RunnerPool is a collection of the registered runners.
 type RunnerPool struct {
+	store db.Store
 }
 
-func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (AnsibleJob, error) {
+func CreateRunnerPool(store db.Store) RunnerPool {
+	return RunnerPool{
+		store: store,
+	}
+}
 
-	return &LocalAnsibleJob{playbook: playbook}, nil
+func (p *RunnerPool) GetRunner(runnerID int) (*RemoteRunner, error) {
+	return nil, nil
+}
+
+func (p *RunnerPool) CreateJob(playbook *lib.AnsiblePlaybook) (job AnsibleJob, err error) {
+
+	runners, err := p.store.GetGlobalRunners()
+
+	if err != nil {
+		return
+	}
+
+	if len(runners) == 0 {
+		err = fmt.Errorf("no runners")
+	}
+
+	job = &LocalAnsibleJob{playbook: playbook}
+	return
 }

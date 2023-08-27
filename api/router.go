@@ -88,6 +88,11 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 
+	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
+	routersAPI.Use(runners.RunnerMiddleware)
+	routersAPI.Path("/runners/{token_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	routersAPI.Path("/runners/{token_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")

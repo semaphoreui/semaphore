@@ -21,6 +21,10 @@ func Store(r *http.Request) db.Store {
 	return context.Get(r, "store").(db.Store)
 }
 
+func RunnerPool(r *http.Request) *tasks.RunnerPool {
+	return context.Get(r, "runner_pool").(*tasks.RunnerPool)
+}
+
 func TaskPool(r *http.Request) *tasks.TaskPool {
 	return context.Get(r, "task_pool").(*tasks.TaskPool)
 }
@@ -48,10 +52,10 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 	return intParam, nil
 }
 
-//H just a string-to-anything map
+// H just a string-to-anything map
 type H map[string]interface{}
 
-//Bind decodes json into object
+// Bind decodes json into object
 func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 	err := json.NewDecoder(r.Body).Decode(out)
 	if err != nil {
@@ -61,7 +65,7 @@ func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 	return err == nil
 }
 
-//WriteJSON writes object as JSON
+// WriteJSON writes object as JSON
 func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)
