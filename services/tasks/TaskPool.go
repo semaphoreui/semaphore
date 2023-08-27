@@ -340,6 +340,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		inventory:   taskRunner.inventory,
 		repository:  taskRunner.repository,
 		environment: taskRunner.environment,
+		logger:      &taskRunner,
 		playbook: &lib.AnsiblePlaybook{
 			Logger:     &taskRunner,
 			TemplateID: taskRunner.template.ID,

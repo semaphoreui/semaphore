@@ -7,7 +7,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 )
@@ -20,11 +19,11 @@ type AnsibleJobRunner struct {
 	repository  db.Repository
 	environment db.Environment
 	playbook    *lib.AnsiblePlaybook
+	logger      lib.Logger
 
 	// State fields
-	process     *os.Process
-	logMessages []string
-	status      db.TaskStatus
+	process *os.Process
+	status  db.TaskStatus
 }
 
 func (t *AnsibleJobRunner) setStatus(status db.TaskStatus) {
@@ -41,11 +40,7 @@ func (t *AnsibleJobRunner) fail() {
 }
 
 func (t *AnsibleJobRunner) Log(msg string) {
-	t.logMessages = append(t.logMessages, msg)
-}
-
-func (t *AnsibleJobRunner) LogCmd(cmd *exec.Cmd) {
-
+	t.logger.Log(msg)
 }
 
 func (t *AnsibleJobRunner) getEnvironmentExtraVars() (str string, err error) {
@@ -345,7 +340,7 @@ func (t *AnsibleJobRunner) prepareRun() {
 
 func (t *AnsibleJobRunner) updateRepository() error {
 	repo := lib.GitRepository{
-		Logger:     t,
+		Logger:     t.logger,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
 		Client:     lib.CreateDefaultGitClient(),
@@ -381,7 +376,7 @@ func (t *AnsibleJobRunner) updateRepository() error {
 func (t *AnsibleJobRunner) checkoutRepository() error {
 
 	repo := lib.GitRepository{
-		Logger:     t,
+		Logger:     t.logger,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
 		Client:     lib.CreateDefaultGitClient(),
@@ -427,7 +422,7 @@ func (t *AnsibleJobRunner) installRequirements() error {
 
 func (t *AnsibleJobRunner) getRepoPath() string {
 	repo := lib.GitRepository{
-		Logger:     t,
+		Logger:     t.logger,
 		TemplateID: t.template.ID,
 		Repository: t.repository,
 		Client:     lib.CreateDefaultGitClient(),
