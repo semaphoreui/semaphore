@@ -218,12 +218,15 @@ func (p *TaskPool) StopTask(targetTask db.Task) error {
 		tsk.setStatus(db.TaskStoppingStatus)
 		if status == db.TaskRunningStatus {
 			if tsk.process == nil {
+				tsk.setStatus(db.TaskFailStatus)
 				panic("running process can not be nil")
 			}
 			err := tsk.process.Kill()
 			if err != nil {
+				tsk.setStatus(db.TaskFailStatus)
 				return err
 			}
+			tsk.setStatus(db.TaskStoppedStatus)
 		}
 	}
 
