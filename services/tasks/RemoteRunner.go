@@ -19,7 +19,7 @@ func (r *RemoteRunner) AddJob(job *RemoteRunnerJob) {
 		panic("remote job cannot be nil")
 	}
 
-	r.jobs[job.job.task.ID] = job
+	r.jobs[job.job.Task.ID] = job
 }
 
 func (r *RemoteRunner) WriteLogs(taskID int, logRecords []LogRecord) error {

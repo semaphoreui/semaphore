@@ -10,6 +10,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"io/ioutil"
@@ -40,9 +41,17 @@ type job struct {
 	id              int
 }
 
-type Response struct {
-	Message string `json:"message"`
-	Status  int    `json:"status"`
+type jobData struct {
+	Task        db.Task        `json:"task"`
+	Template    db.Template    `json:"template"`
+	Inventory   db.Inventory   `json:"inventory"`
+	Repository  db.Repository  `json:"repository"`
+	Environment db.Environment `json:"environment"`
+	//playbook    *lib.AnsiblePlaybook
+}
+
+type serverResponse struct {
+	NewJobs []jobData `json:"new_jobs"`
 }
 
 type JobPool struct {
@@ -101,7 +110,9 @@ func (p *JobPool) Run() {
 func (p *JobPool) checkNewJobs() {
 	client := &http.Client{}
 
-	url := util.Config.Runner.ServerURL
+	runnerID := 0
+
+	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(runnerID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -122,18 +133,31 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	var response Response
+	var response serverResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
 		return
 	}
 
-	taskRunner := job{
-		job: &tasks.LocalJob{
-			// TODO: fields
-		},
+	for _, newJob := range response.NewJobs {
+		taskRunner := job{
+			job: &tasks.LocalJob{
+				Task:        newJob.Task,
+				Template:    newJob.Template,
+				Inventory:   newJob.Inventory,
+				Repository:  newJob.Repository,
+				Environment: newJob.Environment,
+				//logger:      &jobData,
+				Playbook: &lib.AnsiblePlaybook{
+					//Logger:     &jobData,
+					TemplateID: newJob.Template.ID,
+					Repository: newJob.Repository,
+				},
+			},
+		}
+
+		p.register <- &taskRunner
 	}
 
-	p.register <- &taskRunner
 }

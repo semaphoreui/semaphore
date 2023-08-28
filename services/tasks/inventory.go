@@ -9,21 +9,21 @@ import (
 )
 
 func (t *LocalJob) installInventory() (err error) {
-	if t.inventory.SSHKeyID != nil {
-		err = t.inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser)
+	if t.Inventory.SSHKeyID != nil {
+		err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser)
 		if err != nil {
 			return
 		}
 	}
 
-	if t.inventory.BecomeKeyID != nil {
-		err = t.inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser)
+	if t.Inventory.BecomeKeyID != nil {
+		err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser)
 		if err != nil {
 			return
 		}
 	}
 
-	if t.inventory.Type == db.InventoryStatic || t.inventory.Type == db.InventoryStaticYaml {
+	if t.Inventory.Type == db.InventoryStatic || t.Inventory.Type == db.InventoryStaticYaml {
 		err = t.installStaticInventory()
 	}
 
@@ -33,11 +33,11 @@ func (t *LocalJob) installInventory() (err error) {
 func (t *LocalJob) installStaticInventory() error {
 	t.Log("installing static inventory")
 
-	path := util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
-	if t.inventory.Type == db.InventoryStaticYaml {
+	path := util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.Task.ID)
+	if t.Inventory.Type == db.InventoryStaticYaml {
 		path += ".yml"
 	}
 
 	// create inventory file
-	return ioutil.WriteFile(path, []byte(t.inventory.Inventory), 0664)
+	return ioutil.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
 }

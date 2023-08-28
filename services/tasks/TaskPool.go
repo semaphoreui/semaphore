@@ -325,21 +325,21 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job := LocalJob{
-		task:        taskRunner.task,
-		template:    taskRunner.template,
-		inventory:   taskRunner.inventory,
-		repository:  taskRunner.repository,
-		environment: taskRunner.environment,
-		logger:      &taskRunner,
-		playbook: &lib.AnsiblePlaybook{
+	job := RemoteJob{
+		Task:        taskRunner.task,
+		Template:    taskRunner.template,
+		Inventory:   taskRunner.inventory,
+		Repository:  taskRunner.repository,
+		Environment: taskRunner.environment,
+		Logger:      &taskRunner,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &taskRunner,
 			TemplateID: taskRunner.template.ID,
 			Repository: taskRunner.repository,
 		},
-		//runnerPool: RemoteRunnerPool{
-		//	store: p.store,
-		//},
+		RunnerPool: RemoteRunnerPool{
+			store: p.store,
+		},
 	}
 
 	if err != nil {

@@ -6,23 +6,23 @@ import (
 )
 
 type RemoteJob struct {
-	task        db.Task
-	template    db.Template
-	inventory   db.Inventory
-	repository  db.Repository
-	environment db.Environment
-	playbook    *lib.AnsiblePlaybook
-	logger      lib.Logger
+	Task        db.Task
+	Template    db.Template
+	Inventory   db.Inventory
+	Repository  db.Repository
+	Environment db.Environment
+	Playbook    *lib.AnsiblePlaybook
+	Logger      lib.Logger
 
-	runnerPool RemoteRunnerPool
+	RunnerPool RemoteRunnerPool
 }
 
 func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	var job *RemoteRunnerJob
 
-	db.StoreSession(t.runnerPool.store, "create job", func() {
-		job, err = t.runnerPool.CreateJob(username, incomingVersion, t)
+	db.StoreSession(t.RunnerPool.store, "create job", func() {
+		job, err = t.RunnerPool.CreateJob(username, incomingVersion, t)
 	})
 
 	if err != nil {

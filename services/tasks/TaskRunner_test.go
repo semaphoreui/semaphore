@@ -52,13 +52,13 @@ func TestTaskRunnerRun(t *testing.T) {
 		pool: &pool,
 	}
 	taskRunner.job = &LocalJob{
-		task:        taskRunner.task,
-		template:    taskRunner.template,
-		inventory:   taskRunner.inventory,
-		repository:  taskRunner.repository,
-		environment: taskRunner.environment,
-		logger:      &taskRunner,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        taskRunner.task,
+		Template:    taskRunner.template,
+		Inventory:   taskRunner.inventory,
+		Repository:  taskRunner.repository,
+		Environment: taskRunner.environment,
+		Logger:      &taskRunner,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &taskRunner,
 			TemplateID: taskRunner.template.ID,
 			Repository: taskRunner.repository,
@@ -89,13 +89,13 @@ func TestGetRepoPath(t *testing.T) {
 		},
 	}
 	tsk.job = &LocalJob{
-		task:        tsk.task,
-		template:    tsk.template,
-		inventory:   tsk.inventory,
-		repository:  tsk.repository,
-		environment: tsk.environment,
-		logger:      &tsk,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        tsk.task,
+		Template:    tsk.template,
+		Inventory:   tsk.inventory,
+		Repository:  tsk.repository,
+		Environment: tsk.environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.template.ID,
 			Repository: tsk.repository,
@@ -130,13 +130,13 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 		},
 	}
 	tsk.job = &LocalJob{
-		task:        tsk.task,
-		template:    tsk.template,
-		inventory:   tsk.inventory,
-		repository:  tsk.repository,
-		environment: tsk.environment,
-		logger:      &tsk,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        tsk.task,
+		Template:    tsk.template,
+		Inventory:   tsk.inventory,
+		Repository:  tsk.repository,
+		Environment: tsk.environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.template.ID,
 			Repository: tsk.repository,
@@ -217,13 +217,13 @@ func TestPopulateDetails(t *testing.T) {
 		},
 	}
 	tsk.job = &LocalJob{
-		task:        tsk.task,
-		template:    tsk.template,
-		inventory:   tsk.inventory,
-		repository:  tsk.repository,
-		environment: tsk.environment,
-		logger:      &tsk,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        tsk.task,
+		Template:    tsk.template,
+		Inventory:   tsk.inventory,
+		Repository:  tsk.repository,
+		Environment: tsk.environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.template.ID,
 			Repository: tsk.repository,
@@ -261,13 +261,13 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		},
 	}
 	tsk.job = &LocalJob{
-		task:        tsk.task,
-		template:    tsk.template,
-		inventory:   tsk.inventory,
-		repository:  tsk.repository,
-		environment: tsk.environment,
-		logger:      &tsk,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        tsk.task,
+		Template:    tsk.template,
+		Inventory:   tsk.inventory,
+		Repository:  tsk.repository,
+		Environment: tsk.environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.template.ID,
 			Repository: tsk.repository,
@@ -312,13 +312,13 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		},
 	}
 	tsk.job = &LocalJob{
-		task:        tsk.task,
-		template:    tsk.template,
-		inventory:   tsk.inventory,
-		repository:  tsk.repository,
-		environment: tsk.environment,
-		logger:      &tsk,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        tsk.task,
+		Template:    tsk.template,
+		Inventory:   tsk.inventory,
+		Repository:  tsk.repository,
+		Environment: tsk.environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.template.ID,
 			Repository: tsk.repository,
@@ -363,13 +363,13 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 	tsk.job = &LocalJob{
-		task:        tsk.task,
-		template:    tsk.template,
-		inventory:   tsk.inventory,
-		repository:  tsk.repository,
-		environment: tsk.environment,
-		logger:      &tsk,
-		playbook: &lib.AnsiblePlaybook{
+		Task:        tsk.task,
+		Template:    tsk.template,
+		Inventory:   tsk.inventory,
+		Repository:  tsk.repository,
+		Environment: tsk.environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.template.ID,
 			Repository: tsk.repository,

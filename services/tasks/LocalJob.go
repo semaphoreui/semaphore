@@ -13,37 +13,37 @@ import (
 
 type LocalJob struct {
 	// Received constant fields
-	task        db.Task
-	template    db.Template
-	inventory   db.Inventory
-	repository  db.Repository
-	environment db.Environment
-	playbook    *lib.AnsiblePlaybook
-	logger      lib.Logger
+	Task        db.Task
+	Template    db.Template
+	Inventory   db.Inventory
+	Repository  db.Repository
+	Environment db.Environment
+	Playbook    *lib.AnsiblePlaybook
+	Logger      lib.Logger
 
 	// Internal field
-	process *os.Process
+	Process *os.Process
 }
 
 func (t *LocalJob) Kill() {
-	if t.process == nil {
+	if t.Process == nil {
 		panic("running process can not be nil")
 	}
-	err := t.process.Kill()
+	err := t.Process.Kill()
 	if err != nil {
 		t.Log(err.Error())
 	}
 }
 
 func (t *LocalJob) Log(msg string) {
-	t.logger.Log(msg)
+	t.Logger.Log(msg)
 }
 
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]interface{})
 
-	if t.environment.JSON != "" {
-		err = json.Unmarshal([]byte(t.environment.JSON), &extraVars)
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
 		if err != nil {
 			return
 		}
@@ -51,21 +51,21 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 
 	taskDetails := make(map[string]interface{})
 
-	taskDetails["id"] = t.task.ID
+	taskDetails["id"] = t.Task.ID
 
-	if t.task.Message != "" {
-		taskDetails["message"] = t.task.Message
+	if t.Task.Message != "" {
+		taskDetails["message"] = t.Task.Message
 	}
 
 	taskDetails["username"] = username
 
-	if t.template.Type != db.TemplateTask {
-		taskDetails["type"] = t.template.Type
+	if t.Template.Type != db.TemplateTask {
+		taskDetails["type"] = t.Template.Type
 		if incomingVersion != nil {
 			taskDetails["incoming_version"] = incomingVersion
 		}
-		if t.template.Type == db.TemplateBuild {
-			taskDetails["target_version"] = t.task.Version
+		if t.Template.Type == db.TemplateBuild {
+			taskDetails["target_version"] = t.Task.Version
 		}
 	}
 
@@ -86,8 +86,8 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 	environmentVars := make(map[string]string)
 
-	if t.environment.ENV != nil {
-		err = json.Unmarshal([]byte(*t.environment.ENV), &environmentVars)
+	if t.Environment.ENV != nil {
+		err = json.Unmarshal([]byte(*t.Environment.ENV), &environmentVars)
 		if err != nil {
 			return
 		}
@@ -102,18 +102,18 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 
 // nolint: gocyclo
 func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, err error) {
-	playbookName := t.task.Playbook
+	playbookName := t.Task.Playbook
 	if playbookName == "" {
-		playbookName = t.template.Playbook
+		playbookName = t.Template.Playbook
 	}
 
 	var inventory string
-	switch t.inventory.Type {
+	switch t.Inventory.Type {
 	case db.InventoryFile:
-		inventory = t.inventory.Inventory
+		inventory = t.Inventory.Inventory
 	case db.InventoryStatic, db.InventoryStaticYaml:
-		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID)
-		if t.inventory.Type == db.InventoryStaticYaml {
+		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.Task.ID)
+		if t.Inventory.Type == db.InventoryStaticYaml {
 			inventory += ".yml"
 		}
 	default:
@@ -125,16 +125,16 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		"-i", inventory,
 	}
 
-	if t.inventory.SSHKeyID != nil {
-		switch t.inventory.SSHKey.Type {
+	if t.Inventory.SSHKeyID != nil {
+		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
-			args = append(args, "--private-key="+t.inventory.SSHKey.GetPath())
+			args = append(args, "--private-key="+t.Inventory.SSHKey.GetPath())
 			//args = append(args, "--extra-vars={\"ansible_ssh_private_key_file\": \""+t.inventory.SSHKey.GetPath()+"\"}")
-			if t.inventory.SSHKey.SshKey.Login != "" {
-				args = append(args, "--extra-vars={\"ansible_user\": \""+t.inventory.SSHKey.SshKey.Login+"\"}")
+			if t.Inventory.SSHKey.SshKey.Login != "" {
+				args = append(args, "--extra-vars={\"ansible_user\": \""+t.Inventory.SSHKey.SshKey.Login+"\"}")
 			}
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.inventory.SSHKey.GetPath())
+			args = append(args, "--extra-vars=@"+t.Inventory.SSHKey.GetPath())
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's user credentials")
@@ -142,10 +142,10 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
-	if t.inventory.BecomeKeyID != nil {
-		switch t.inventory.BecomeKey.Type {
+	if t.Inventory.BecomeKeyID != nil {
+		switch t.Inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.inventory.BecomeKey.GetPath())
+			args = append(args, "--extra-vars=@"+t.Inventory.BecomeKey.GetPath())
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's sudo user credentials")
@@ -153,20 +153,20 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
-	if t.task.Debug {
+	if t.Task.Debug {
 		args = append(args, "-vvvv")
 	}
 
-	if t.task.Diff {
+	if t.Task.Diff {
 		args = append(args, "--diff")
 	}
 
-	if t.task.DryRun {
+	if t.Task.DryRun {
 		args = append(args, "--check")
 	}
 
-	if t.template.VaultKeyID != nil {
-		args = append(args, "--vault-password-file", t.template.VaultKey.GetPath())
+	if t.Template.VaultKeyID != nil {
+		args = append(args, "--vault-password-file", t.Template.VaultKey.GetPath())
 	}
 
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
@@ -178,8 +178,8 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	var templateExtraArgs []string
-	if t.template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.template.Arguments), &templateExtraArgs)
+	if t.Template.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
 		if err != nil {
 			t.Log("Invalid format of the template extra arguments, must be valid JSON")
 			return
@@ -187,17 +187,17 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	var taskExtraArgs []string
-	if t.template.AllowOverrideArgsInTask && t.task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.task.Arguments), &taskExtraArgs)
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
 		if err != nil {
 			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
 			return
 		}
 	}
 
-	if t.task.Limit != "" {
-		t.Log("--limit=" + t.task.Limit)
-		taskExtraArgs = append(taskExtraArgs, "--limit="+t.task.Limit)
+	if t.Task.Limit != "" {
+		t.Log("--limit=" + t.Task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+t.Task.Limit)
 	}
 
 	args = append(args, templateExtraArgs...)
@@ -208,17 +208,17 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 }
 
 func (t *LocalJob) destroyKeys() {
-	err := t.inventory.SSHKey.Destroy()
+	err := t.Inventory.SSHKey.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory user key, error: " + err.Error())
 	}
 
-	err = t.inventory.BecomeKey.Destroy()
+	err = t.Inventory.BecomeKey.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
-	err = t.template.VaultKey.Destroy()
+	err = t.Template.VaultKey.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
 	}
@@ -244,8 +244,8 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
-	return t.playbook.RunPlaybook(args, &environmentVariables, func(p *os.Process) {
-		t.process = p
+	return t.Playbook.RunPlaybook(args, &environmentVariables, func(p *os.Process) {
+		t.Process = p
 	})
 
 }
@@ -259,22 +259,22 @@ func (t *LocalJob) prepareRun() error {
 		//
 		//t.createTaskEvent()
 
-		err := t.repository.SSHKey.Destroy()
+		err := t.Repository.SSHKey.Destroy()
 		if err != nil {
 			t.Log("Can't destroy repository access key, error: " + err.Error())
 		}
 	}()
 
-	t.Log("Preparing: " + strconv.Itoa(t.task.ID))
+	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
 	}
 
-	if t.repository.GetType() == db.RepositoryLocal {
-		if _, err := os.Stat(t.repository.GitURL); err != nil {
-			t.Log("Failed in finding static repository at " + t.repository.GitURL + ": " + err.Error())
+	if t.Repository.GetType() == db.RepositoryLocal {
+		if _, err := os.Stat(t.Repository.GitURL); err != nil {
+			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())
 			return err
 		}
 	} else {
@@ -308,9 +308,9 @@ func (t *LocalJob) prepareRun() error {
 
 func (t *LocalJob) updateRepository() error {
 	repo := lib.GitRepository{
-		Logger:     t.logger,
-		TemplateID: t.template.ID,
-		Repository: t.repository,
+		Logger:     t.Logger,
+		TemplateID: t.Template.ID,
+		Repository: t.Repository,
 		Client:     lib.CreateDefaultGitClient(),
 	}
 
@@ -344,9 +344,9 @@ func (t *LocalJob) updateRepository() error {
 func (t *LocalJob) checkoutRepository() error {
 
 	repo := lib.GitRepository{
-		Logger:     t.logger,
-		TemplateID: t.template.ID,
-		Repository: t.repository,
+		Logger:     t.Logger,
+		TemplateID: t.Template.ID,
+		Repository: t.Repository,
 		Client:     lib.CreateDefaultGitClient(),
 	}
 
@@ -356,9 +356,9 @@ func (t *LocalJob) checkoutRepository() error {
 		return err
 	}
 
-	if t.task.CommitHash != nil {
+	if t.Task.CommitHash != nil {
 		// checkout to commit if it is provided for TaskRunner
-		return repo.Checkout(*t.task.CommitHash)
+		return repo.Checkout(*t.Task.CommitHash)
 	}
 
 	// store commit to TaskRunner table
@@ -390,9 +390,9 @@ func (t *LocalJob) installRequirements() error {
 
 func (t *LocalJob) getRepoPath() string {
 	repo := lib.GitRepository{
-		Logger:     t.logger,
-		TemplateID: t.template.ID,
-		Repository: t.repository,
+		Logger:     t.Logger,
+		TemplateID: t.Template.ID,
+		Repository: t.Repository,
 		Client:     lib.CreateDefaultGitClient(),
 	}
 
@@ -429,7 +429,7 @@ func (t *LocalJob) installRolesRequirements() error {
 }
 
 func (t *LocalJob) getPlaybookDir() string {
-	playbookPath := path.Join(t.getRepoPath(), t.template.Playbook)
+	playbookPath := path.Join(t.getRepoPath(), t.Template.Playbook)
 
 	return path.Dir(playbookPath)
 }
@@ -464,13 +464,13 @@ func (t *LocalJob) installCollectionsRequirements() error {
 }
 
 func (t *LocalJob) runGalaxy(args []string) error {
-	return t.playbook.RunGalaxy(args)
+	return t.Playbook.RunGalaxy(args)
 }
 
 func (t *LocalJob) installVaultKeyFile() error {
-	if t.template.VaultKeyID == nil {
+	if t.Template.VaultKeyID == nil {
 		return nil
 	}
 
-	return t.template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault)
+	return t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault)
 }

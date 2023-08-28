@@ -17,7 +17,7 @@ func (c *RemoteRunnerJob) Wait() error {
 
 func (c *RemoteRunnerJob) WriteLogs(logRecords []LogRecord) {
 	for _, record := range logRecords {
-		c.job.logger.Log2(record.message, record.time)
+		c.job.Logger.Log2(record.message, record.time)
 	}
 }
 

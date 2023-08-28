@@ -83,7 +83,7 @@ const (
 )
 
 type RunnerConfig struct {
-	ServerURL         string `json:"server_url"`
+	ApiURL            string `json:"api_url"`
 	RegistrationToken string `json:"registration_token"`
 }
 
