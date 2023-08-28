@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/api/runners"
 	"net/http"
 	"os"
 	"strings"
@@ -17,12 +18,13 @@ import (
 
 var publicAssets2 = packr.NewBox("../web/dist")
 
+// StoreMiddleware WTF?
 func StoreMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		store := helpers.Store(r)
-		var url = r.URL.String()
+		//var url = r.URL.String()
 
-		db.StoreSession(store, url, func() {
+		db.StoreSession(store, util.RandString(12), func() {
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -81,10 +83,16 @@ func Route() *mux.Router {
 
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
+	publicAPIRouter.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
+
+	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
+	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
+	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
