@@ -169,8 +169,12 @@
             :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
-            {{ $t('by', {user_name: item.last_task.user_name, formatDate: item.last_task.created|
-              formatDate}) }}
+            {{
+              $t('by', {
+                user_name: item.last_task.user_name, formatDate: item.last_task.created |
+                  formatDate
+              })
+            }}
           </div>
         </div>
       </template>
@@ -326,6 +330,10 @@ export default {
   methods: {
     async beforeLoadItems() {
       await this.loadViews();
+    },
+
+    allowActions() {
+      return true;
     },
 
     getViewUrl(viewId) {

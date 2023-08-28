@@ -51,9 +51,10 @@
           item-value="slug"
           item-text="title"
           :style="{width: '200px'}"
-          :disabled="!can(USER_PERMISSIONS.manageProjectUsers)"
           @change="updateProjectUser(item)"
+          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
         />
+        <div v-else>{{ USER_ROLES.find(r => r.slug === item.role).title }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
