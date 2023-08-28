@@ -212,17 +212,13 @@ func (p *TaskPool) StopTask(targetTask db.Task) error {
 		tsk.setStatus(db.TaskStoppedStatus)
 		tsk.createTaskEvent()
 	} else {
-		//status := tsk.task.Status
+		status := tsk.task.Status
+
 		tsk.setStatus(db.TaskStoppingStatus)
-		//if status == db.TaskRunningStatus {
-		//	if tsk.process == nil {
-		//		panic("running process can not be nil")
-		//	}
-		//	err := tsk.process.Kill()
-		//	if err != nil {
-		//		return err
-		//	}
-		//}
+
+		if status == db.TaskRunningStatus {
+			tsk.kill()
+		}
 	}
 
 	return nil
@@ -329,7 +325,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job := RemoteJob{
+	job := LocalJob{
 		task:        taskRunner.task,
 		template:    taskRunner.template,
 		inventory:   taskRunner.inventory,
@@ -341,9 +337,9 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			TemplateID: taskRunner.template.ID,
 			Repository: taskRunner.repository,
 		},
-		runnerPool: RemoteRunnerPool{
-			store: p.store,
-		},
+		//runnerPool: RemoteRunnerPool{
+		//	store: p.store,
+		//},
 	}
 
 	if err != nil {

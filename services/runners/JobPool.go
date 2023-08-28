@@ -11,6 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
+	"github.com/ansible-semaphore/semaphore/util"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -99,7 +100,9 @@ func (p *JobPool) Run() {
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 	client := &http.Client{}
-	url := "https://example.com"
+
+	url := util.Config.Runner.ServerURL
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("Error creating request:", err)

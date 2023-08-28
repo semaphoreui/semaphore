@@ -31,3 +31,6 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	return job.Wait()
 }
+
+func (t *RemoteJob) Kill() {
+}

@@ -19,6 +19,7 @@ import (
 
 type Job interface {
 	Run(username string, incomingVersion *string) error
+	Kill()
 }
 
 type TaskRunner struct {
@@ -97,6 +98,10 @@ func (t *TaskRunner) updateStatus() {
 	if err := t.pool.store.UpdateTask(t.task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
 	}
+}
+
+func (t *TaskRunner) kill() {
+	t.job.Kill()
 }
 
 func (t *TaskRunner) fail() {

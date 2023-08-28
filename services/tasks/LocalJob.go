@@ -25,6 +25,16 @@ type LocalJob struct {
 	process *os.Process
 }
 
+func (t *LocalJob) Kill() {
+	if t.process == nil {
+		panic("running process can not be nil")
+	}
+	err := t.process.Kill()
+	if err != nil {
+		t.Log(err.Error())
+	}
+}
+
 func (t *LocalJob) Log(msg string) {
 	t.logger.Log(msg)
 }
