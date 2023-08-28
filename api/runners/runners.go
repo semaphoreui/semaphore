@@ -50,15 +50,9 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, data)
 }
 
-type JobProgress struct {
-	ID         int
-	Status     db.TaskStatus
-	LogRecords []tasks.LogRecord
-}
-
 func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		jobs []JobProgress
+		jobs []runners.JobProgress
 	}
 
 	if !helpers.Bind(w, r, &body) {

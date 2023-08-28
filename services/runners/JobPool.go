@@ -59,6 +59,12 @@ type JobState struct {
 	Status db.TaskStatus `json:"status"`
 }
 
+type JobProgress struct {
+	ID         int
+	Status     db.TaskStatus
+	LogRecords []tasks.LogRecord
+}
+
 type JobPool struct {
 	// logger channel used to putting log records to database.
 	logger chan logRecord
@@ -111,11 +117,32 @@ func (p *JobPool) Run() {
 	}
 }
 
+func (p *JobPool) sendProgress() {
+	client := &http.Client{}
+
+	runnerID := 0 // TODO: read from stored file
+
+	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(runnerID)
+
+	req, err := http.NewRequest("PUT", url, nil)
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error making request:", err)
+		return
+	}
+	defer resp.Body.Close()
+}
+
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 	client := &http.Client{}
 
-	runnerID := 0
+	runnerID := 0 // TODO: read from stored file
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(runnerID)
 

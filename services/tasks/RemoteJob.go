@@ -17,8 +17,7 @@ type RemoteJob struct {
 	Playbook    *lib.AnsiblePlaybook
 	Logger      lib.Logger
 
-	RunnerPool RemoteRunnerPool
-	taskPool   TaskPool
+	taskPool TaskPool
 }
 
 func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
@@ -33,7 +32,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 	tsk.Username = username
 
 	var runners []db.Runner
-	db.StoreSession(t.RunnerPool.store, "run remote job", func() {
+	db.StoreSession(t.taskPool.store, "run remote job", func() {
 		runners, err = t.taskPool.store.GetGlobalRunners()
 	})
 
