@@ -17,11 +17,16 @@ type RemoteJob struct {
 	runnerPool RemoteRunnerPool
 }
 
-func (t *RemoteJob) Run(username string, incomingVersion *string) error {
-	job, err := t.runnerPool.CreateJob(username, incomingVersion, t)
+func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
+
+	var job *RemoteRunnerJob
+
+	db.StoreSession(t.runnerPool.store, "create job", func() {
+		job, err = t.runnerPool.CreateJob(username, incomingVersion, t)
+	})
 
 	if err != nil {
-		return err
+		return
 	}
 
 	return job.Wait()
