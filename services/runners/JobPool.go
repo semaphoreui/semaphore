@@ -62,7 +62,8 @@ type JobData struct {
 
 type RunnerState struct {
 	CurrentJobs []JobState
-	NewJobs     []JobData `json:"new_jobs" binding:"required"`
+	NewJobs     []JobData            `json:"new_jobs" binding:"required"`
+	AccessKeys  map[int]db.AccessKey `json:"access_keys" binding:"required"`
 }
 
 type JobState struct {
@@ -372,6 +373,16 @@ func (p *JobPool) checkNewJobs() {
 					Repository: newJob.Repository,
 				},
 			},
+		}
+
+		taskRunner.job.Repository.SSHKey = response.AccessKeys[taskRunner.job.Repository.SSHKeyID]
+
+		if taskRunner.job.Inventory.SSHKeyID != nil {
+			taskRunner.job.Inventory.SSHKey = response.AccessKeys[*taskRunner.job.Inventory.SSHKeyID]
+		}
+
+		if taskRunner.job.Inventory.BecomeKeyID != nil {
+			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
 		}
 
 		p.queue = append(p.queue, &taskRunner)

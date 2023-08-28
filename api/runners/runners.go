@@ -40,7 +40,9 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 func GetRunner(w http.ResponseWriter, r *http.Request) {
 	runner := context.Get(r, "runner").(db.Runner)
 
-	data := runners.RunnerState{}
+	data := runners.RunnerState{
+		AccessKeys: make(map[int]db.AccessKey),
+	}
 
 	tasks := helpers.TaskPool(r).GetRunningTasks()
 
@@ -50,6 +52,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if tsk.Task.Status == db.TaskRunningStatus {
+
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:        tsk.Username,
 				IncomingVersion: tsk.IncomingVersion,
@@ -59,6 +62,17 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 				Repository:      tsk.Repository,
 				Environment:     tsk.Environment,
 			})
+
+			if tsk.Inventory.SSHKeyID != nil {
+				data.AccessKeys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
+			}
+
+			if tsk.Inventory.BecomeKeyID != nil {
+				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
+			}
+
+			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
+
 		} else {
 			data.CurrentJobs = append(data.CurrentJobs, runners.JobState{
 				ID:     tsk.Task.ID,
