@@ -16,6 +16,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
@@ -42,31 +43,36 @@ type job struct {
 	id              int
 }
 
+type RunnerConfig struct {
+	RunnerID int    `json:"runner_id"`
+	Token    string `json:"token"`
+}
+
 type JobData struct {
-	Task        db.Task        `json:"task"`
-	Template    db.Template    `json:"template"`
-	Inventory   db.Inventory   `json:"inventory"`
-	Repository  db.Repository  `json:"repository"`
-	Environment db.Environment `json:"environment"`
+	Task        db.Task        `json:"task" binding:"required"`
+	Template    db.Template    `json:"template" binding:"required"`
+	Inventory   db.Inventory   `json:"inventory" binding:"required"`
+	Repository  db.Repository  `json:"repository" binding:"required"`
+	Environment db.Environment `json:"environment" binding:"required"`
 }
 
 type RunnerState struct {
 	CurrentJobs []JobState
-	NewJobs     []JobData `json:"new_jobs"`
+	NewJobs     []JobData `json:"new_jobs" binding:"required"`
 }
 
 type JobState struct {
-	ID     int           `json:"id"`
-	Status db.TaskStatus `json:"status"`
+	ID     int           `json:"id" binding:"required"`
+	Status db.TaskStatus `json:"status" binding:"required"`
 }
 
 type LogRecord struct {
-	Time    time.Time `json:"time"`
-	Message string    `json:"message"`
+	Time    time.Time `json:"time" binding:"required"`
+	Message string    `json:"message" binding:"required"`
 }
 
 type RunnerProgress struct {
-	Jobs []JobProgress `json:"jobs"`
+	Jobs []JobProgress `json:"jobs" binding:"required"`
 }
 
 type JobProgress struct {
@@ -87,13 +93,20 @@ type JobPool struct {
 	logRecords []logRecord
 
 	queue []*job
+
+	config *RunnerConfig
+}
+
+type RunnerRegistration struct {
+	RegistrationToken string `json:"registration_token" binding:"required"`
 }
 
 func (p *JobPool) Run() {
-	ticker := time.NewTicker(5 * time.Second)
+	queueTicker := time.NewTicker(5 * time.Second)
+	requestTimer := time.NewTicker(5 * time.Second)
 
 	defer func() {
-		ticker.Stop()
+		queueTicker.Stop()
 	}()
 
 	for {
@@ -104,7 +117,7 @@ func (p *JobPool) Run() {
 		case job := <-p.register: // new task created by API or schedule
 			p.queue = append(p.queue, job)
 
-		case <-ticker.C: // timer 5 seconds: get task from queue and run it
+		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
 			if len(p.queue) == 0 {
 				break
 			}
@@ -123,16 +136,25 @@ func (p *JobPool) Run() {
 			go t.job.Run("", nil)
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.id) + " removed from queue")
+
+		case <-requestTimer.C:
+
+			go p.checkNewJobs()
+			go p.sendProgress()
+
 		}
 	}
 }
 
 func (p *JobPool) sendProgress() {
+
+	if !p.tryRegisterRunner() {
+		return
+	}
+
 	client := &http.Client{}
 
-	runnerID := 0 // TODO: read from stored file
-
-	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(runnerID)
+	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
 
 	body := RunnerProgress{
 		Jobs: nil,
@@ -151,16 +173,103 @@ func (p *JobPool) sendProgress() {
 		fmt.Println("Error making request:", err)
 		return
 	}
+
 	defer resp.Body.Close()
+}
+
+func (p *JobPool) tryRegisterRunner() bool {
+	if p.config != nil {
+		return true
+	}
+
+	_, err := os.Stat(util.Config.Runner.ConfigFile)
+
+	if err == nil {
+		configBytes, err := os.ReadFile(util.Config.Runner.ConfigFile)
+
+		if err != nil {
+			panic(err)
+		}
+
+		var config RunnerConfig
+
+		err = json.Unmarshal(configBytes, &config)
+
+		if err != nil {
+			panic(err)
+		}
+
+		p.config = &config
+
+		return true
+	}
+
+	if !os.IsNotExist(err) {
+		panic(err)
+	}
+
+	if util.Config.Runner.RegistrationToken == "" {
+		panic("registration token cannot be empty")
+	}
+
+	client := &http.Client{}
+
+	url := util.Config.Runner.ApiURL + "/runners"
+
+	jsonBytes, err := json.Marshal(RunnerRegistration{
+		RegistrationToken: util.Config.Runner.RegistrationToken,
+	})
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return false
+	}
+
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		fmt.Println("Error making request:", err)
+		return false
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return false
+	}
+
+	var config RunnerConfig
+	err = json.Unmarshal(body, &config)
+	if err != nil {
+		fmt.Println("Error parsing JSON:", err)
+		return false
+	}
+
+	configBytes, err := json.Marshal(config)
+
+	if err != nil {
+		panic("cannot save runner config")
+	}
+
+	err = os.WriteFile(util.Config.Runner.ConfigFile, configBytes, 0644)
+
+	p.config = &config
+
+	defer resp.Body.Close()
+
+	return true
 }
 
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
+
+	if !p.tryRegisterRunner() {
+		return
+	}
+
 	client := &http.Client{}
 
-	runnerID := 0 // TODO: read from stored file
-
-	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(runnerID)
+	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -207,5 +316,4 @@ func (p *JobPool) checkNewJobs() {
 
 		p.register <- &taskRunner
 	}
-
 }

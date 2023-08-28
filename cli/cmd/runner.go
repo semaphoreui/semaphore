@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/ansible-semaphore/semaphore/services/runners"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
 )
 
@@ -10,10 +11,11 @@ func init() {
 }
 
 func runRunner() {
+	util.ConfigInit(configPath)
 
 	taskPool := runners.JobPool{}
 
-	go taskPool.Run()
+	taskPool.Run()
 }
 
 var runnerCmd = &cobra.Command{

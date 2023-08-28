@@ -61,6 +61,11 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 
 	taskPool := helpers.TaskPool(r)
 
+	if body.Jobs == nil {
+		helpers.WriteJSON(w, http.StatusNoContent, nil)
+		return
+	}
+
 	for _, job := range body.Jobs {
 		tsk := taskPool.GetTask(job.ID)
 
@@ -68,12 +73,12 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 			tsk.Log2(logRecord.Message, logRecord.Time)
 		}
 	}
+
+	helpers.WriteJSON(w, http.StatusNoContent, nil)
 }
 
 func RegisterRunner(w http.ResponseWriter, r *http.Request) {
-	var register struct {
-		RegistrationToken string `json:"registration_token" binding:"required"`
-	}
+	var register runners.RunnerRegistration
 
 	if !helpers.Bind(w, r, &register) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -100,5 +105,10 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, runner)
+	res := runners.RunnerConfig{
+		RunnerID: runner.ID,
+		Token:    runner.Token,
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, res)
 }

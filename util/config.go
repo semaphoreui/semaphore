@@ -82,9 +82,10 @@ const (
 	CmdGitClientId GitClientId = "cmd_git"
 )
 
-type RunnerConfig struct {
+type RunnerSettings struct {
 	ApiURL            string `json:"api_url"`
 	RegistrationToken string `json:"registration_token"`
+	ConfigFile        string `json:"config_file"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -161,7 +162,7 @@ type ConfigType struct {
 	PasswordLoginDisable     bool `json:"password_login_disable"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`
 
-	Runner RunnerConfig `json:"runner"`
+	Runner RunnerSettings `json:"runner"`
 }
 
 // Config exposes the application configuration storage for use in the application

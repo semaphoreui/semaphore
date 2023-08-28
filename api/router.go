@@ -90,8 +90,8 @@ func Route() *mux.Router {
 
 	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
 	routersAPI.Use(runners.RunnerMiddleware)
-	routersAPI.Path("/runners/{token_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	routersAPI.Path("/runners/{token_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
