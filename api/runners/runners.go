@@ -21,7 +21,9 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		runner, err := helpers.Store(r).GetGlobalRunner(runnerID)
+		store := helpers.Store(r)
+
+		runner, err := store.GetGlobalRunner(runnerID)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
@@ -40,9 +42,28 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 
 	data := runners.RunnerState{}
 
-	for _, tsk := range helpers.TaskPool(r).GetRunningTasks() {
+	tasks := helpers.TaskPool(r).GetRunningTasks()
+
+	for _, tsk := range tasks {
 		if tsk.RunnerID != runner.ID {
 			continue
+		}
+
+		if tsk.Task.Status == db.TaskRunningStatus {
+			data.NewJobs = append(data.NewJobs, runners.JobData{
+				Username:        tsk.Username,
+				IncomingVersion: tsk.IncomingVersion,
+				Task:            tsk.Task,
+				Template:        tsk.Template,
+				Inventory:       tsk.Inventory,
+				Repository:      tsk.Repository,
+				Environment:     tsk.Environment,
+			})
+		} else {
+			data.CurrentJobs = append(data.CurrentJobs, runners.JobState{
+				ID:     tsk.Task.ID,
+				Status: tsk.Task.Status,
+			})
 		}
 	}
 
@@ -62,7 +83,7 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 	taskPool := helpers.TaskPool(r)
 
 	if body.Jobs == nil {
-		helpers.WriteJSON(w, http.StatusNoContent, nil)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -74,7 +95,7 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	helpers.WriteJSON(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func RegisterRunner(w http.ResponseWriter, r *http.Request) {

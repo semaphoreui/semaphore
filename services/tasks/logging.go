@@ -16,8 +16,8 @@ func (t *TaskRunner) Log2(msg string, now time.Time) {
 			"type":       "log",
 			"output":     msg,
 			"time":       now,
-			"task_id":    t.task.ID,
-			"project_id": t.task.ProjectID,
+			"task_id":    t.Task.ID,
+			"project_id": t.Task.ProjectID,
 		})
 
 		util.LogPanic(err)

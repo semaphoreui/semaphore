@@ -54,9 +54,11 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 	tsk.RunnerID = runner.ID
 
 	for {
-		time.Sleep(100000)
+		time.Sleep(1000000000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
-		if tsk.task.Status == db.TaskSuccessStatus {
+		if tsk.Task.Status == db.TaskSuccessStatus ||
+			tsk.Task.Status == db.TaskStoppedStatus ||
+			tsk.Task.Status == db.TaskFailStatus {
 			break
 		}
 	}

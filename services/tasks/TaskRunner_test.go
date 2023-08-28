@@ -48,20 +48,20 @@ func TestTaskRunnerRun(t *testing.T) {
 	}
 
 	taskRunner := TaskRunner{
-		task: task,
+		Task: task,
 		pool: &pool,
 	}
 	taskRunner.job = &LocalJob{
-		Task:        taskRunner.task,
-		Template:    taskRunner.template,
-		Inventory:   taskRunner.inventory,
-		Repository:  taskRunner.repository,
-		Environment: taskRunner.environment,
+		Task:        taskRunner.Task,
+		Template:    taskRunner.Template,
+		Inventory:   taskRunner.Inventory,
+		Repository:  taskRunner.Repository,
+		Environment: taskRunner.Environment,
 		Logger:      &taskRunner,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &taskRunner,
-			TemplateID: taskRunner.template.ID,
-			Repository: taskRunner.repository,
+			TemplateID: taskRunner.Template.ID,
+			Repository: taskRunner.Repository,
 		},
 	}
 	taskRunner.run()
@@ -75,8 +75,8 @@ func TestGetRepoPath(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -84,21 +84,21 @@ func TestGetRepoPath(t *testing.T) {
 			},
 			Type: db.InventoryStatic,
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "deploy/test.yml",
 		},
 	}
 	tsk.job = &LocalJob{
-		Task:        tsk.task,
-		Template:    tsk.template,
-		Inventory:   tsk.inventory,
-		Repository:  tsk.repository,
-		Environment: tsk.environment,
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
 		Logger:      &tsk,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 
@@ -116,8 +116,8 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -125,21 +125,21 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 			},
 			Type: db.InventoryStatic,
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "/deploy/test.yml",
 		},
 	}
 	tsk.job = &LocalJob{
-		Task:        tsk.task,
-		Template:    tsk.template,
-		Inventory:   tsk.inventory,
-		Repository:  tsk.repository,
-		Environment: tsk.environment,
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
 		Logger:      &tsk,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 
@@ -210,23 +210,23 @@ func TestPopulateDetails(t *testing.T) {
 
 	tsk := TaskRunner{
 		pool: &pool,
-		task: db.Task{
+		Task: db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   proj.ID,
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
 	tsk.job = &LocalJob{
-		Task:        tsk.task,
-		Template:    tsk.template,
-		Inventory:   tsk.inventory,
-		Repository:  tsk.repository,
-		Environment: tsk.environment,
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
 		Logger:      &tsk,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 
@@ -234,7 +234,7 @@ func TestPopulateDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tsk.environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
+	if tsk.Environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
 		t.Fatal(err)
 	}
 }
@@ -247,8 +247,8 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -256,21 +256,21 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 			},
 			Type: db.InventoryStatic,
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "test.yml",
 		},
 	}
 	tsk.job = &LocalJob{
-		Task:        tsk.task,
-		Template:    tsk.template,
-		Inventory:   tsk.inventory,
-		Repository:  tsk.repository,
-		Environment: tsk.environment,
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
 		Logger:      &tsk,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 
@@ -294,8 +294,8 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			Type:     db.InventoryStatic,
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
@@ -307,21 +307,21 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 				},
 			},
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "test.yml",
 		},
 	}
 	tsk.job = &LocalJob{
-		Task:        tsk.task,
-		Template:    tsk.template,
-		Inventory:   tsk.inventory,
-		Repository:  tsk.repository,
-		Environment: tsk.environment,
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
 		Logger:      &tsk,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 
@@ -345,8 +345,8 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			Type:        db.InventoryStatic,
 			BecomeKeyID: &inventoryID,
 			BecomeKey: db.AccessKey{
@@ -358,21 +358,21 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 				},
 			},
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "test.yml",
 		},
 	}
 	tsk.job = &LocalJob{
-		Task:        tsk.task,
-		Template:    tsk.template,
-		Inventory:   tsk.inventory,
-		Repository:  tsk.repository,
-		Environment: tsk.environment,
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
 		Logger:      &tsk,
 		Playbook: &lib.AnsiblePlaybook{
 			Logger:     &tsk,
-			TemplateID: tsk.template.ID,
-			Repository: tsk.repository,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 

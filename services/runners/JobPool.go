@@ -6,6 +6,7 @@
 package runners
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -17,14 +18,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 )
 
-type logRecord struct {
-	job    *job
-	output string
-	time   time.Time
+type jobLogRecord struct {
+	taskID int
+	record LogRecord
 }
 
 type resourceLock struct {
@@ -34,6 +35,8 @@ type resourceLock struct {
 
 // job presents current job on semaphore server.
 type job struct {
+	username        string
+	incomingVersion *string
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
@@ -49,11 +52,13 @@ type RunnerConfig struct {
 }
 
 type JobData struct {
-	Task        db.Task        `json:"task" binding:"required"`
-	Template    db.Template    `json:"template" binding:"required"`
-	Inventory   db.Inventory   `json:"inventory" binding:"required"`
-	Repository  db.Repository  `json:"repository" binding:"required"`
-	Environment db.Environment `json:"environment" binding:"required"`
+	Username        string
+	IncomingVersion *string
+	Task            db.Task        `json:"task" binding:"required"`
+	Template        db.Template    `json:"template" binding:"required"`
+	Inventory       db.Inventory   `json:"inventory" binding:"required"`
+	Repository      db.Repository  `json:"repository" binding:"required"`
+	Environment     db.Environment `json:"environment" binding:"required"`
 }
 
 type RunnerState struct {
@@ -81,16 +86,21 @@ type JobProgress struct {
 	LogRecords []LogRecord
 }
 
+type runningJob struct {
+	status     db.TaskStatus
+	logRecords []LogRecord
+}
+
 type JobPool struct {
 	// logger channel used to putting log records to database.
-	logger chan logRecord
+	logger chan jobLogRecord
 
 	// register channel used to put tasks to queue.
 	register chan *job
 
 	resourceLocker chan *resourceLock
 
-	logRecords []logRecord
+	runningJobs map[int]*runningJob
 
 	queue []*job
 
@@ -99,6 +109,37 @@ type JobPool struct {
 
 type RunnerRegistration struct {
 	RegistrationToken string `json:"registration_token" binding:"required"`
+}
+
+func (p *runningJob) Log2(msg string, now time.Time) {
+	p.logRecords = append(p.logRecords, LogRecord{Time: now, Message: msg})
+}
+
+func (p *runningJob) Log(msg string) {
+	p.Log2(msg, time.Now())
+}
+
+func (p *runningJob) LogCmd(cmd *exec.Cmd) {
+	stderr, _ := cmd.StderrPipe()
+	stdout, _ := cmd.StdoutPipe()
+
+	go p.logPipe(bufio.NewReader(stderr))
+	go p.logPipe(bufio.NewReader(stdout))
+}
+
+func (p *runningJob) logPipe(reader *bufio.Reader) {
+
+	line, err := tasks.Readln(reader)
+	for err == nil {
+		p.Log(line)
+		line, err = tasks.Readln(reader)
+	}
+
+	if err != nil && err.Error() != "EOF" {
+		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
+		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read TaskRunner output"})
+	}
+
 }
 
 func (p *JobPool) Run() {
@@ -111,9 +152,6 @@ func (p *JobPool) Run() {
 
 	for {
 		select {
-		case record := <-p.logger: // new log message which should be put to database
-			p.logRecords = append(p.logRecords, record)
-
 		case job := <-p.register: // new task created by API or schedule
 			p.queue = append(p.queue, job)
 
@@ -133,7 +171,13 @@ func (p *JobPool) Run() {
 			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			go t.job.Run("", nil)
+			p.runningJobs[t.id] = &runningJob{}
+
+			t.job.Logger = p.runningJobs[t.id]
+			t.job.Playbook.Logger = t.job.Logger
+
+			go t.job.Run(t.username, t.incomingVersion)
+
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.id) + " removed from queue")
 
@@ -272,6 +316,7 @@ func (p *JobPool) checkNewJobs() {
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
 
 	req, err := http.NewRequest("GET", url, nil)
+
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
@@ -299,15 +344,16 @@ func (p *JobPool) checkNewJobs() {
 
 	for _, newJob := range response.NewJobs {
 		taskRunner := job{
+			username:        newJob.Username,
+			incomingVersion: newJob.IncomingVersion,
+
 			job: &tasks.LocalJob{
 				Task:        newJob.Task,
 				Template:    newJob.Template,
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				//logger:      &jobData,
 				Playbook: &lib.AnsiblePlaybook{
-					//Logger:     &jobData,
 					TemplateID: newJob.Template.ID,
 					Repository: newJob.Repository,
 				},

@@ -18,12 +18,13 @@ import (
 
 var publicAssets2 = packr.NewBox("../web/dist")
 
+// StoreMiddleware WTF?
 func StoreMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		store := helpers.Store(r)
-		var url = r.URL.String()
+		//var url = r.URL.String()
 
-		db.StoreSession(store, url, func() {
+		db.StoreSession(store, util.RandString(12), func() {
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -89,7 +90,7 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 
 	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
-	routersAPI.Use(runners.RunnerMiddleware)
+	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 

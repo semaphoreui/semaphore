@@ -23,11 +23,11 @@ type Job interface {
 }
 
 type TaskRunner struct {
-	task        db.Task
-	template    db.Template
-	inventory   db.Inventory
-	repository  db.Repository
-	environment db.Environment
+	Task        db.Task
+	Template    db.Template
+	Inventory   db.Inventory
+	Repository  db.Repository
+	Environment db.Environment
 
 	users     []int
 	alert     bool
@@ -57,7 +57,7 @@ func getMD5Hash(filepath string) (string, error) {
 }
 
 func (t *TaskRunner) setStatus(status db.TaskStatus) {
-	if t.task.Status == db.TaskStoppingStatus {
+	if t.Task.Status == db.TaskStoppingStatus {
 		switch status {
 		case db.TaskFailStatus:
 			status = db.TaskStoppedStatus
@@ -67,7 +67,7 @@ func (t *TaskRunner) setStatus(status db.TaskStatus) {
 		}
 	}
 
-	t.task.Status = status
+	t.Task.Status = status
 
 	t.updateStatus()
 
@@ -85,13 +85,13 @@ func (t *TaskRunner) updateStatus() {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
 			"type":        "update",
-			"start":       t.task.Start,
-			"end":         t.task.End,
-			"status":      t.task.Status,
-			"task_id":     t.task.ID,
-			"template_id": t.task.TemplateID,
-			"project_id":  t.task.ProjectID,
-			"version":     t.task.Version,
+			"start":       t.Task.Start,
+			"end":         t.Task.End,
+			"status":      t.Task.Status,
+			"task_id":     t.Task.ID,
+			"template_id": t.Task.TemplateID,
+			"project_id":  t.Task.ProjectID,
+			"version":     t.Task.Version,
 		})
 
 		util.LogPanic(err)
@@ -99,7 +99,7 @@ func (t *TaskRunner) updateStatus() {
 		sockets.Message(user, b)
 	}
 
-	if err := t.pool.store.UpdateTask(t.task); err != nil {
+	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
 	}
 }
@@ -114,13 +114,13 @@ func (t *TaskRunner) fail() {
 
 func (t *TaskRunner) createTaskEvent() {
 	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " finished - " + strings.ToUpper(string(t.task.Status))
+	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " finished - " + strings.ToUpper(string(t.Task.Status))
 
 	_, err := t.pool.store.CreateEvent(db.Event{
-		UserID:      t.task.UserID,
-		ProjectID:   &t.task.ProjectID,
+		UserID:      t.Task.UserID,
+		ProjectID:   &t.Task.ProjectID,
 		ObjectType:  &objType,
-		ObjectID:    &t.task.ID,
+		ObjectID:    &t.Task.ID,
 		Description: &desc,
 	})
 
@@ -131,39 +131,39 @@ func (t *TaskRunner) createTaskEvent() {
 
 func (t *TaskRunner) run() {
 	if !t.pool.store.PermanentConnection() {
-		t.pool.store.Connect("run task " + strconv.Itoa(t.task.ID))
-		defer t.pool.store.Close("run task " + strconv.Itoa(t.task.ID))
+		t.pool.store.Connect("run task " + strconv.Itoa(t.Task.ID))
+		defer t.pool.store.Close("run task " + strconv.Itoa(t.Task.ID))
 	}
 
 	defer func() {
-		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.task.ID))
-		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
+		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
+		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
 		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
 		now := time.Now()
-		t.task.End = &now
+		t.Task.End = &now
 		t.updateStatus()
 		t.createTaskEvent()
 	}()
 
 	// TODO: more details
-	if t.task.Status == db.TaskStoppingStatus {
+	if t.Task.Status == db.TaskStoppingStatus {
 		t.setStatus(db.TaskStoppedStatus)
 		return
 	}
 
 	now := time.Now()
-	t.task.Start = &now
+	t.Task.Start = &now
 	t.setStatus(db.TaskRunningStatus)
 
 	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " (" + t.template.Name + ")" + " is running"
+	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " is running"
 
 	_, err := t.pool.store.CreateEvent(db.Event{
-		UserID:      t.task.UserID,
-		ProjectID:   &t.task.ProjectID,
+		UserID:      t.Task.UserID,
+		ProjectID:   &t.Task.ProjectID,
 		ObjectType:  &objType,
-		ObjectID:    &t.task.ID,
+		ObjectID:    &t.Task.ID,
 		Description: &desc,
 	})
 
@@ -172,11 +172,11 @@ func (t *TaskRunner) run() {
 		panic(err)
 	}
 
-	t.Log("Started: " + strconv.Itoa(t.task.ID))
-	t.Log("Run TaskRunner with template: " + t.template.Name + "\n")
+	t.Log("Started: " + strconv.Itoa(t.Task.ID))
+	t.Log("Run TaskRunner with template: " + t.Template.Name + "\n")
 
 	// Mark task as stopped if user stops task during preparation (before task run).
-	if t.task.Status == db.TaskStoppingStatus {
+	if t.Task.Status == db.TaskStoppingStatus {
 		t.setStatus(db.TaskStoppedStatus)
 		return
 	}
@@ -184,16 +184,16 @@ func (t *TaskRunner) run() {
 	var username string
 	var incomingVersion *string
 
-	if t.task.UserID != nil {
+	if t.Task.UserID != nil {
 		var user db.User
-		user, err = t.pool.store.GetUser(*t.task.UserID)
+		user, err = t.pool.store.GetUser(*t.Task.UserID)
 		if err == nil {
 			username = user.Username
 		}
 	}
 
-	if t.template.Type != db.TemplateTask {
-		incomingVersion = t.task.GetIncomingVersion(t.pool.store)
+	if t.Template.Type != db.TemplateTask {
+		incomingVersion = t.Task.GetIncomingVersion(t.pool.store)
 
 	}
 
@@ -207,8 +207,8 @@ func (t *TaskRunner) run() {
 
 	t.setStatus(db.TaskSuccessStatus)
 
-	templates, err := t.pool.store.GetTemplates(t.task.ProjectID, db.TemplateFilter{
-		BuildTemplateID: &t.task.TemplateID,
+	templates, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
+		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
 	if err != nil {
@@ -220,7 +220,7 @@ func (t *TaskRunner) run() {
 		_, err = t.pool.AddTask(db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
-			BuildTaskID: &t.task.ID,
+			BuildTaskID: &t.Task.ID,
 		}, nil, tpl.ProjectID)
 		if err != nil {
 			t.Log("Running playbook failed: " + err.Error())
@@ -248,13 +248,13 @@ func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
 
-	t.template, err = t.pool.store.GetTemplate(t.task.ProjectID, t.task.TemplateID)
+	t.Template, err = t.pool.store.GetTemplate(t.Task.ProjectID, t.Task.TemplateID)
 	if err != nil {
 		return t.prepareError(err, "Template not found!")
 	}
 
 	// get project alert setting
-	project, err := t.pool.store.GetProject(t.template.ProjectID)
+	project, err := t.pool.store.GetProject(t.Template.ProjectID)
 	if err != nil {
 		return t.prepareError(err, "Project not found!")
 	}
@@ -263,7 +263,7 @@ func (t *TaskRunner) populateDetails() error {
 	t.alertChat = project.AlertChat
 
 	// get project users
-	users, err := t.pool.store.GetProjectUsers(t.template.ProjectID, db.RetrieveQueryParams{})
+	users, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return t.prepareError(err, "Users not found!")
 	}
@@ -274,42 +274,42 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	t.inventory, err = t.pool.store.GetInventory(t.template.ProjectID, t.template.InventoryID)
+	t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, t.Template.InventoryID)
 	if err != nil {
 		return t.prepareError(err, "Template Inventory not found!")
 	}
 
 	// get repository
-	t.repository, err = t.pool.store.GetRepository(t.template.ProjectID, t.template.RepositoryID)
+	t.Repository, err = t.pool.store.GetRepository(t.Template.ProjectID, t.Template.RepositoryID)
 
 	if err != nil {
 		return err
 	}
 
-	err = t.repository.SSHKey.DeserializeSecret()
+	err = t.Repository.SSHKey.DeserializeSecret()
 	if err != nil {
 		return err
 	}
 
 	// get environment
-	if t.template.EnvironmentID != nil {
-		t.environment, err = t.pool.store.GetEnvironment(t.template.ProjectID, *t.template.EnvironmentID)
+	if t.Template.EnvironmentID != nil {
+		t.Environment, err = t.pool.store.GetEnvironment(t.Template.ProjectID, *t.Template.EnvironmentID)
 		if err != nil {
 			return err
 		}
 	}
 
-	if t.task.Environment != "" {
+	if t.Task.Environment != "" {
 		environment := make(map[string]interface{})
-		if t.environment.JSON != "" {
-			err = json.Unmarshal([]byte(t.task.Environment), &environment)
+		if t.Environment.JSON != "" {
+			err = json.Unmarshal([]byte(t.Task.Environment), &environment)
 			if err != nil {
 				return err
 			}
 		}
 
 		taskEnvironment := make(map[string]interface{})
-		err = json.Unmarshal([]byte(t.environment.JSON), &taskEnvironment)
+		err = json.Unmarshal([]byte(t.Environment.JSON), &taskEnvironment)
 		if err != nil {
 			return err
 		}
@@ -324,7 +324,7 @@ func (t *TaskRunner) populateDetails() error {
 			return err
 		}
 
-		t.environment.JSON = string(ev)
+		t.Environment.JSON = string(ev)
 	}
 
 	return nil
