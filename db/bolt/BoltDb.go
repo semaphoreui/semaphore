@@ -82,7 +82,8 @@ func (d *BoltDb) Connect(token string) {
 	}
 
 	if _, exists := d.connections[token]; exists {
-		panic(fmt.Errorf("Connection " + token + " already exists"))
+		// Use for debugging
+		//panic(fmt.Errorf("Connection " + token + " already exists"))
 	}
 
 	if len(d.connections) > 0 {
@@ -120,7 +121,8 @@ func (d *BoltDb) Close(token string) {
 	_, exists := d.connections[token]
 
 	if !exists {
-		panic(fmt.Errorf("can not close closed connection " + token))
+		// Use for debugging
+		//panic(fmt.Errorf("can not close closed connection " + token))
 	}
 
 	if len(d.connections) > 1 {
