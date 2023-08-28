@@ -1,34 +1,31 @@
 package tasks
 
 import (
-	"fmt"
 	"time"
 )
 
 type LogRecord struct {
-	time    time.Time
-	message string
+	Time    time.Time `json:"time"`
+	Message string    `json:"message"`
 }
 
 type RemoteRunner struct {
-	jobs map[int]*RemoteRunnerJob
+	ID    int
+	queue []RemoteRunnerJob
+	pool  *RemoteRunnerPool
 }
 
-func (r *RemoteRunner) AddJob(job *RemoteRunnerJob) {
-	if job == nil {
-		panic("remote job cannot be nil")
-	}
-
-	r.jobs[job.job.Task.ID] = job
+func (r *RemoteRunner) EnqueueJob(job RemoteRunnerJob) {
+	r.queue = append(r.queue, job)
 }
 
 func (r *RemoteRunner) WriteLogs(taskID int, logRecords []LogRecord) error {
-	job, ok := r.jobs[taskID]
-	if !ok {
-		return fmt.Errorf("task not found")
-	}
 
-	job.WriteLogs(logRecords)
+	task := r.pool.taskPool.GetTask(taskID)
+
+	for _, record := range logRecords {
+		task.Log2(record.Message, record.Time)
+	}
 
 	return nil
 }

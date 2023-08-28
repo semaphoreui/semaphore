@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
+	"math/rand"
 )
 
 type RemoteRunnerJob struct {
@@ -17,14 +18,15 @@ func (c *RemoteRunnerJob) Wait() error {
 
 func (c *RemoteRunnerJob) WriteLogs(logRecords []LogRecord) {
 	for _, record := range logRecords {
-		c.job.Logger.Log2(record.message, record.time)
+		c.job.Logger.Log2(record.Message, record.Time)
 	}
 }
 
 // RemoteRunnerPool is a collection of the registered runners.
 type RemoteRunnerPool struct {
-	store   db.Store
-	runners map[int]*RemoteRunner
+	store    db.Store
+	runners  map[int]*RemoteRunner
+	taskPool *TaskPool
 }
 
 func CreateRunnerPool(store db.Store) RemoteRunnerPool {
@@ -33,7 +35,7 @@ func CreateRunnerPool(store db.Store) RemoteRunnerPool {
 	}
 }
 
-func (p *RemoteRunnerPool) GetOrAddRunner(runnerID int) (*RemoteRunner, error) {
+func (p *RemoteRunnerPool) GetRunner(runnerID int) (*RemoteRunner, error) {
 	_, err := p.store.GetGlobalRunner(runnerID)
 
 	if err != nil {
@@ -47,7 +49,10 @@ func (p *RemoteRunnerPool) GetOrAddRunner(runnerID int) (*RemoteRunner, error) {
 	runner, ok := p.runners[runnerID]
 
 	if !ok {
-		runner = &RemoteRunner{}
+		runner = &RemoteRunner{
+			queue: make([]RemoteRunnerJob, 0),
+			pool:  p,
+		}
 
 		p.runners[runnerID] = runner
 	}
@@ -68,21 +73,19 @@ func (p *RemoteRunnerPool) CreateJob(username string, incomingVersion *string, j
 		return
 	}
 
-	runner := runners[0]
+	runner := runners[rand.Intn(len(runners))]
 
-	remoteRunner, err := p.GetOrAddRunner(runner.ID)
+	remoteRunner, err := p.GetRunner(runner.ID)
 
 	if err != nil {
 		return
 	}
 
-	job = &RemoteRunnerJob{
+	remoteRunner.EnqueueJob(RemoteRunnerJob{
 		job:             j,
 		incomingVersion: incomingVersion,
 		username:        username,
-	}
-
-	remoteRunner.AddJob(job)
+	})
 
 	return
 }

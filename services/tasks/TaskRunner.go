@@ -36,6 +36,10 @@ type TaskRunner struct {
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
+
+	RunnerID        int
+	Username        string
+	IncomingVersion *string
 }
 
 func getMD5Hash(filepath string) (string, error) {

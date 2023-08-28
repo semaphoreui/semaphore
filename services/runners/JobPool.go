@@ -41,17 +41,22 @@ type job struct {
 	id              int
 }
 
-type jobData struct {
+type JobData struct {
 	Task        db.Task        `json:"task"`
 	Template    db.Template    `json:"template"`
 	Inventory   db.Inventory   `json:"inventory"`
 	Repository  db.Repository  `json:"repository"`
 	Environment db.Environment `json:"environment"`
-	//playbook    *lib.AnsiblePlaybook
 }
 
-type serverResponse struct {
-	NewJobs []jobData `json:"new_jobs"`
+type RunnerState struct {
+	CurrentJobs []JobState
+	NewJobs     []JobData `json:"new_jobs"`
+}
+
+type JobState struct {
+	ID     int           `json:"id"`
+	Status db.TaskStatus `json:"status"`
 }
 
 type JobPool struct {
@@ -133,7 +138,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	var response serverResponse
+	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)

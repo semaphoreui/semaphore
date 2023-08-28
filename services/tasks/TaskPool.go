@@ -43,6 +43,10 @@ type TaskPool struct {
 	resourceLocker chan *resourceLock
 }
 
+func (p *TaskPool) GetRunningTasks() []*TaskRunner {
+	return nil
+}
+
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 
 	for _, t := range p.queue {
