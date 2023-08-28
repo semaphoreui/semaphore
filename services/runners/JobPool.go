@@ -6,6 +6,7 @@
 package runners
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -59,10 +60,19 @@ type JobState struct {
 	Status db.TaskStatus `json:"status"`
 }
 
+type LogRecord struct {
+	Time    time.Time `json:"time"`
+	Message string    `json:"message"`
+}
+
+type RunnerProgress struct {
+	Jobs []JobProgress `json:"jobs"`
+}
+
 type JobProgress struct {
 	ID         int
 	Status     db.TaskStatus
-	LogRecords []tasks.LogRecord
+	LogRecords []LogRecord
 }
 
 type JobPool struct {
@@ -124,7 +134,13 @@ func (p *JobPool) sendProgress() {
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(runnerID)
 
-	req, err := http.NewRequest("PUT", url, nil)
+	body := RunnerProgress{
+		Jobs: nil,
+	}
+
+	jsonBytes, err := json.Marshal(body)
+
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return

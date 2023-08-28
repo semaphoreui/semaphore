@@ -17,7 +17,7 @@ type RemoteJob struct {
 	Playbook    *lib.AnsiblePlaybook
 	Logger      lib.Logger
 
-	taskPool TaskPool
+	taskPool *TaskPool
 }
 
 func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {

@@ -4,7 +4,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/services/runners"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"net/http"
@@ -22,7 +21,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		runner, err := helpers.RunnerPool(r).GetRunner(runnerID)
+		runner, err := helpers.Store(r).GetGlobalRunner(runnerID)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
@@ -37,7 +36,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 }
 
 func GetRunner(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(tasks.RemoteRunner)
+	runner := context.Get(r, "runner").(db.Runner)
 
 	data := runners.RunnerState{}
 
@@ -51,9 +50,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateRunner(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		jobs []runners.JobProgress
-	}
+	var body runners.RunnerProgress
 
 	if !helpers.Bind(w, r, &body) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -62,13 +59,13 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runner := context.Get(r, "runner").(tasks.RemoteRunner)
+	taskPool := helpers.TaskPool(r)
 
-	for _, job := range body.jobs {
+	for _, job := range body.Jobs {
+		tsk := taskPool.GetTask(job.ID)
 
-		err := runner.WriteLogs(job.ID, job.LogRecords)
-		if err != nil {
-			// TODO: log
+		for _, logRecord := range job.LogRecords {
+			tsk.Log2(logRecord.Message, logRecord.Time)
 		}
 	}
 }

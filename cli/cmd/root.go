@@ -43,7 +43,6 @@ func runService() {
 	store := createStore("root")
 	taskPool := tasks.CreateTaskPool(store)
 	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
-	runnerPool := tasks.CreateRunnerPool(store)
 
 	defer schedulePool.Destroy()
 
@@ -65,7 +64,6 @@ func runService() {
 			context.Set(r, "store", store)
 			context.Set(r, "schedule_pool", schedulePool)
 			context.Set(r, "task_pool", &taskPool)
-			context.Set(r, "runner_pool", &runnerPool)
 			next.ServeHTTP(w, r)
 		})
 	})
