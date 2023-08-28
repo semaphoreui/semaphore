@@ -90,6 +90,11 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 	for _, job := range body.Jobs {
 		tsk := taskPool.GetTask(job.ID)
 
+		if tsk == nil {
+			// TODO: log
+			continue
+		}
+
 		for _, logRecord := range job.LogRecords {
 			tsk.Log2(logRecord.Message, logRecord.Time)
 		}

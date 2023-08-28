@@ -43,7 +43,6 @@ type job struct {
 	Status          db.TaskStatus
 	args            []string
 	environmentVars []string
-	id              int
 }
 
 type RunnerConfig struct {
@@ -145,6 +144,7 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(5 * time.Second)
+	p.runningJobs = make(map[int]*runningJob)
 
 	defer func() {
 		queueTicker.Stop()
@@ -152,8 +152,8 @@ func (p *JobPool) Run() {
 
 	for {
 		select {
-		case job := <-p.register: // new task created by API or schedule
-			p.queue = append(p.queue, job)
+		//case j := <-p.register: // new task created by API or schedule
+		//	p.queue = append(p.queue, j)
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
 			if len(p.queue) == 0 {
@@ -164,22 +164,22 @@ func (p *JobPool) Run() {
 			if t.Status == db.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				log.Info("Task " + strconv.Itoa(t.id) + " removed from queue")
+				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
 				break
 			}
 
-			log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
-			p.resourceLocker <- &resourceLock{lock: true, holder: t}
+			//log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
+			//p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			p.runningJobs[t.id] = &runningJob{}
+			p.runningJobs[t.job.Task.ID] = &runningJob{}
 
-			t.job.Logger = p.runningJobs[t.id]
+			t.job.Logger = p.runningJobs[t.job.Task.ID]
 			t.job.Playbook.Logger = t.job.Logger
 
 			go t.job.Run(t.username, t.incomingVersion)
 
 			p.queue = p.queue[1:]
-			log.Info("Task " + strconv.Itoa(t.id) + " removed from queue")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
 
 		case <-requestTimer.C:
 
@@ -202,6 +202,16 @@ func (p *JobPool) sendProgress() {
 
 	body := RunnerProgress{
 		Jobs: nil,
+	}
+
+	for id, j := range p.runningJobs {
+		body.Jobs = append(body.Jobs, JobProgress{
+			ID:         id,
+			LogRecords: j.logRecords,
+			Status:     j.status,
+		})
+
+		// TODO: clean logs
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -343,6 +353,10 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	for _, newJob := range response.NewJobs {
+		if _, exists := p.runningJobs[newJob.Task.ID]; exists {
+			continue
+		}
+
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
@@ -360,6 +374,6 @@ func (p *JobPool) checkNewJobs() {
 			},
 		}
 
-		p.register <- &taskRunner
+		p.queue = append(p.queue, &taskRunner)
 	}
 }
