@@ -15,15 +15,15 @@ const (
 	TaskFailStatus     TaskStatus = "error"
 )
 
-//Task is a model of a task which will be executed by the runner
+// Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`
 	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
 	ProjectID  int `db:"project_id" json:"project_id"`
 
 	Status TaskStatus `db:"status" json:"status"`
-	Debug  bool       `db:"debug" json:"debug"`
 
+	Debug  bool `db:"debug" json:"debug"`
 	DryRun bool `db:"dry_run" json:"dry_run"`
 	Diff   bool `db:"diff" json:"diff"`
 

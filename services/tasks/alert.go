@@ -43,11 +43,11 @@ func (t *TaskRunner) sendMailAlert() {
 
 	var mailBuffer bytes.Buffer
 	alert := Alert{
-		TaskID: strconv.Itoa(t.task.ID),
-		Name:   t.template.Name,
-		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) +
-			"/templates/" + strconv.Itoa(t.template.ID) +
-			"?t=" + strconv.Itoa(t.task.ID),
+		TaskID: strconv.Itoa(t.Task.ID),
+		Name:   t.Template.Name,
+		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) +
+			"/templates/" + strconv.Itoa(t.Template.ID) +
+			"?t=" + strconv.Itoa(t.Task.ID),
 		From: util.Config.EmailSender,
 	}
 	tpl := template.New("mail body template")
@@ -83,7 +83,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	if t.template.SuppressSuccessAlerts && t.task.Status == db.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == db.TaskSuccessStatus {
 		return
 	}
 
@@ -95,22 +95,22 @@ func (t *TaskRunner) sendTelegramAlert() {
 	var telegramBuffer bytes.Buffer
 
 	var version string
-	if t.task.Version != nil {
-		version = *t.task.Version
-	} else if t.task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.task.BuildTaskID)
+	if t.Task.Version != nil {
+		version = *t.Task.Version
+	} else if t.Task.BuildTaskID != nil {
+		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
 	} else {
 		version = ""
 	}
 
 	var message string
-	if t.task.Message != "" {
-		message = "- " + t.task.Message
+	if t.Task.Message != "" {
+		message = "- " + t.Task.Message
 	}
 
 	var author string
-	if t.task.UserID != nil {
-		user, err := t.pool.store.GetUser(*t.task.UserID)
+	if t.Task.UserID != nil {
+		user, err := t.pool.store.GetUser(*t.Task.UserID)
 		if err != nil {
 			panic(err)
 		}
@@ -118,11 +118,11 @@ func (t *TaskRunner) sendTelegramAlert() {
 	}
 
 	alert := Alert{
-		TaskID:          strconv.Itoa(t.task.ID),
-		Name:            t.template.Name,
-		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
+		TaskID:          strconv.Itoa(t.Task.ID),
+		Name:            t.Template.Name,
+		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) + "/templates/" + strconv.Itoa(t.Template.ID) + "?t=" + strconv.Itoa(t.Task.ID),
 		ChatID:          chatID,
-		TaskResult:      strings.ToUpper(string(t.task.Status)),
+		TaskResult:      strings.ToUpper(string(t.Task.Status)),
 		TaskVersion:     version,
 		TaskDescription: message,
 		Author:          author,
@@ -156,7 +156,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		return
 	}
 
-	if t.template.SuppressSuccessAlerts && t.task.Status == db.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == db.TaskSuccessStatus {
 		return
 	}
 
@@ -165,22 +165,22 @@ func (t *TaskRunner) sendSlackAlert() {
 	var slackBuffer bytes.Buffer
 
 	var version string
-	if t.task.Version != nil {
-		version = *t.task.Version
-	} else if t.task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.task.BuildTaskID)
+	if t.Task.Version != nil {
+		version = *t.Task.Version
+	} else if t.Task.BuildTaskID != nil {
+		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
 	} else {
 		version = ""
 	}
 
 	var message string
-	if t.task.Message != "" {
-		message = "- " + t.task.Message
+	if t.Task.Message != "" {
+		message = "- " + t.Task.Message
 	}
 
 	var author string
-	if t.task.UserID != nil {
-		user, err := t.pool.store.GetUser(*t.task.UserID)
+	if t.Task.UserID != nil {
+		user, err := t.pool.store.GetUser(*t.Task.UserID)
 		if err != nil {
 			panic(err)
 		}
@@ -188,24 +188,24 @@ func (t *TaskRunner) sendSlackAlert() {
 	}
 
 	var color string
-	if t.task.Status == db.TaskSuccessStatus {
+	if t.Task.Status == db.TaskSuccessStatus {
 		color = "good"
-	} else if t.task.Status == db.TaskFailStatus {
+	} else if t.Task.Status == db.TaskFailStatus {
 		color = "bad"
-	} else if t.task.Status == db.TaskRunningStatus {
+	} else if t.Task.Status == db.TaskRunningStatus {
 		color = "#333CFF"
-	} else if t.task.Status == db.TaskWaitingStatus {
+	} else if t.Task.Status == db.TaskWaitingStatus {
 		color = "#FFFC33"
-	} else if t.task.Status == db.TaskStoppingStatus {
+	} else if t.Task.Status == db.TaskStoppingStatus {
 		color = "#BEBEBE"
-	} else if t.task.Status == db.TaskStoppedStatus {
+	} else if t.Task.Status == db.TaskStoppedStatus {
 		color = "#5B5B5B"
 	}
 	alert := Alert{
-		TaskID:          strconv.Itoa(t.task.ID),
-		Name:            t.template.Name,
-		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.template.ProjectID) + "/templates/" + strconv.Itoa(t.template.ID) + "?t=" + strconv.Itoa(t.task.ID),
-		TaskResult:      strings.ToUpper(string(t.task.Status)),
+		TaskID:          strconv.Itoa(t.Task.ID),
+		Name:            t.Template.Name,
+		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) + "/templates/" + strconv.Itoa(t.Template.ID) + "?t=" + strconv.Itoa(t.Task.ID),
+		TaskResult:      strings.ToUpper(string(t.Task.Status)),
 		TaskVersion:     version,
 		TaskDescription: message,
 		Author:          author,
