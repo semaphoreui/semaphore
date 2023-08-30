@@ -133,7 +133,7 @@ func (p *TaskPool) Run() {
 				msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
 				task.Log(msg)
 				log.Info(msg)
-				task.updateStatus()
+				task.saveStatus()
 			})
 
 		case <-ticker.C: // timer 5 seconds
