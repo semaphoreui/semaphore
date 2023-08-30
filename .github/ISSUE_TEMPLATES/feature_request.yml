@@ -1,0 +1,94 @@
+---
+
+name: Feature request
+description: You would like to have a new feature implemented
+title: "Feature: "
+labels: ['feature', 'triage']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please make sure to go through these steps **before opening an issue**:
+        
+        - [ ] Read the [documentation](https://docs.ansible-semaphore.com/)
+          - [ ] Read the [troubleshooting guide](https://docs.ansible-semaphore.com/administration-guide/troubleshooting)
+          - [ ] Read the [documentation regarding manual installations](https://docs.ansible-semaphore.com/administration-guide/installation_manually) if you did install Semaphore that way
+
+        - [ ] Check if there are existing [issues](https://github.com/ansible-semaphore/semaphore/issues) or [discussions](https://github.com/ansible-semaphore/semaphore/discussions) regarding your topic
+
+  - type: dropdown
+    id: related-to
+    attributes:
+      label: Related to
+      description: |
+        To what parts of Semaphore is the feature related?
+
+      multiple: true
+      options:
+        - Web-Frontend (what users interact with)
+        - Web-Backend (APIs)
+        - Service (scheduled tasks, alerts)
+        - Ansible (task execution)
+        - Configuration
+        - Database
+        - Docker
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: |
+        What impact would the feature have for Semaphore users?
+
+      multiple: false
+      options:
+        - nice to have
+        - nice to have for enterprise usage
+        - better user experience
+        - security improvements
+        - major improvement to user experience
+        - must have for enterprise usage
+        - must have
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: Missing Feature
+      description: |
+        Describe the feature you are missing.
+        Why would you like to see such a feature being implemented?
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation
+      description: |
+        Please think about how the feature should be implemented.
+        What would you suggest?
+        How should it look and behave?
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: Design
+      description: |
+        If you have programming experience yourself:
+        Please provide us with an example how you would design this feature.
+
+        What edge-cases need to be covered?
+        Are there relations to other components that need to be though of?
+
+    validations:
+      required: false
