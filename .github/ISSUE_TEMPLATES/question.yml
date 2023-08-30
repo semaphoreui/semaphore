@@ -1,0 +1,45 @@
+---
+
+name: Question
+description: You have a question on how to use Semaphore
+title: "Question: "
+labels: ['question', 'triage']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please make sure to go through these steps **before opening an issue**:
+        
+        - [ ] Read the [documentation](https://docs.ansible-semaphore.com/)
+          - [ ] Read the [troubleshooting guide](https://docs.ansible-semaphore.com/administration-guide/troubleshooting)
+          - [ ] Read the [documentation regarding manual installations](https://docs.ansible-semaphore.com/administration-guide/installation_manually) if you did install Semaphore that way
+
+        - [ ] Check if there are existing [issues](https://github.com/ansible-semaphore/semaphore/issues) or [discussions](https://github.com/ansible-semaphore/semaphore/discussions) regarding your topic
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+
+  - type: dropdown
+    id: related-to
+    attributes:
+      label: Related to
+      description: |
+        To what parts of Semaphore is the question related? (if any)
+
+      multiple: true
+      options:
+        - Web-Frontend (what users interact with)
+        - Web-Backend (APIs)
+        - Service (scheduled tasks, alerts)
+        - Ansible (task execution)
+        - Configuration
+        - Database
+        - Documentation
+        - Docker
+    validations:
+      required: false
