@@ -449,6 +449,10 @@
 .app__project-selector {
   height: 64px;
 
+  & > .v-list-item__content {
+    padding: 0;
+  }
+
   .v-list-item__icon {
     margin-top: 20px !important;
   }

@@ -69,7 +69,7 @@ func (t *TaskRunner) setStatus(status db.TaskStatus) {
 
 	t.Task.Status = status
 
-	t.updateStatus()
+	t.saveStatus()
 
 	if status == db.TaskFailStatus {
 		t.sendMailAlert()
@@ -81,7 +81,7 @@ func (t *TaskRunner) setStatus(status db.TaskStatus) {
 	}
 }
 
-func (t *TaskRunner) updateStatus() {
+func (t *TaskRunner) saveStatus() {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]interface{}{
 			"type":        "update",
@@ -142,7 +142,9 @@ func (t *TaskRunner) run() {
 
 		now := time.Now()
 		t.Task.End = &now
-		t.updateStatus()
+
+		t.saveStatus()
+
 		t.createTaskEvent()
 	}()
 
