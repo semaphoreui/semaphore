@@ -332,26 +332,44 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job := RemoteJob{
-		Task:        taskRunner.Task,
-		Template:    taskRunner.Template,
-		Inventory:   taskRunner.Inventory,
-		Repository:  taskRunner.Repository,
-		Environment: taskRunner.Environment,
-		Logger:      &taskRunner,
-		Playbook: &lib.AnsiblePlaybook{
-			Logger:     &taskRunner,
-			TemplateID: taskRunner.Template.ID,
-			Repository: taskRunner.Repository,
-		},
-		taskPool: p,
+	var job Job
+
+	if util.Config.UseRemoteRunner {
+		job = &RemoteJob{
+			Task:        taskRunner.Task,
+			Template:    taskRunner.Template,
+			Inventory:   taskRunner.Inventory,
+			Repository:  taskRunner.Repository,
+			Environment: taskRunner.Environment,
+			Logger:      &taskRunner,
+			Playbook: &lib.AnsiblePlaybook{
+				Logger:     &taskRunner,
+				TemplateID: taskRunner.Template.ID,
+				Repository: taskRunner.Repository,
+			},
+			taskPool: p,
+		}
+	} else {
+		job = &LocalJob{
+			Task:        taskRunner.Task,
+			Template:    taskRunner.Template,
+			Inventory:   taskRunner.Inventory,
+			Repository:  taskRunner.Repository,
+			Environment: taskRunner.Environment,
+			Logger:      &taskRunner,
+			Playbook: &lib.AnsiblePlaybook{
+				Logger:     &taskRunner,
+				TemplateID: taskRunner.Template.ID,
+				Repository: taskRunner.Repository,
+			},
+		}
 	}
 
 	if err != nil {
 		return
 	}
 
-	taskRunner.job = &job
+	taskRunner.job = job
 
 	p.register <- &taskRunner
 
