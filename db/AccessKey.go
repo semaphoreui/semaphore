@@ -258,6 +258,10 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 //}
 
 func (key *AccessKey) DeserializeSecret() error {
+	return key.DeserializeSecret2(util.Config.GetAccessKeyEncryption())
+}
+
+func (key *AccessKey) DeserializeSecret2(encryptionString string) error {
 	if key.Secret == nil || *key.Secret == "" {
 		return nil
 	}
@@ -278,8 +282,6 @@ func (key *AccessKey) DeserializeSecret() error {
 	if err != nil {
 		return err
 	}
-
-	encryptionString := util.Config.GetAccessKeyEncryption()
 
 	if encryptionString == "" {
 		err = key.unmarshalAppropriateField(ciphertext)

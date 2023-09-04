@@ -362,16 +362,20 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 	return
 }
 
+func (d *BoltDb) getObjectsTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
+	b := tx.Bucket(makeBucketId(props, bucketID))
+	var c enumerable
+	if b == nil {
+		c = emptyEnumerable{}
+	} else {
+		c = b.Cursor()
+	}
+	return unmarshalObjects(c, props, params, filter, objects)
+}
+
 func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		var c enumerable
-		if b == nil {
-			c = emptyEnumerable{}
-		} else {
-			c = b.Cursor()
-		}
-		return unmarshalObjects(c, props, params, filter, objects)
+		return d.getObjectsTx(tx, bucketID, props, params, filter, objects)
 	})
 }
 
