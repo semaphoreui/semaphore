@@ -77,7 +77,7 @@ type LogRecord struct {
 }
 
 type RunnerProgress struct {
-	Jobs []JobProgress `json:"jobs" binding:"required"`
+	Jobs []JobProgress
 }
 
 type JobProgress struct {
@@ -177,7 +177,15 @@ func (p *JobPool) Run() {
 			t.job.Logger = p.runningJobs[t.job.Task.ID]
 			t.job.Playbook.Logger = t.job.Logger
 
-			go t.job.Run(t.username, t.incomingVersion)
+			go func(runningJob *runningJob) {
+				runningJob.status = db.TaskRunningStatus
+				err := t.job.Run(t.username, t.incomingVersion)
+				if err != nil {
+					runningJob.status = db.TaskFailStatus
+				} else {
+					runningJob.status = db.TaskSuccessStatus
+				}
+			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
@@ -212,7 +220,7 @@ func (p *JobPool) sendProgress() {
 			Status:     j.status,
 		})
 
-		// TODO: clean logs
+		j.logRecords = make([]LogRecord, 0)
 	}
 
 	jsonBytes, err := json.Marshal(body)

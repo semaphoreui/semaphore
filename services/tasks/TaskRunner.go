@@ -56,7 +56,11 @@ func getMD5Hash(filepath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func (t *TaskRunner) setStatus(status db.TaskStatus) {
+func (t *TaskRunner) SetStatus(status db.TaskStatus) {
+	//if t.Task.Status == status {
+	//	return
+	//}
+
 	if t.Task.Status == db.TaskStoppingStatus {
 		switch status {
 		case db.TaskFailStatus:
@@ -109,7 +113,7 @@ func (t *TaskRunner) kill() {
 }
 
 func (t *TaskRunner) fail() {
-	t.setStatus(db.TaskFailStatus)
+	t.SetStatus(db.TaskFailStatus)
 }
 
 func (t *TaskRunner) createTaskEvent() {
@@ -148,13 +152,13 @@ func (t *TaskRunner) run() {
 
 	// TODO: more details
 	if t.Task.Status == db.TaskStoppingStatus {
-		t.setStatus(db.TaskStoppedStatus)
+		t.SetStatus(db.TaskStoppedStatus)
 		return
 	}
 
 	now := time.Now()
 	t.Task.Start = &now
-	t.setStatus(db.TaskRunningStatus)
+	t.SetStatus(db.TaskRunningStatus)
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " is running"
@@ -177,7 +181,7 @@ func (t *TaskRunner) run() {
 
 	// Mark task as stopped if user stops task during preparation (before task run).
 	if t.Task.Status == db.TaskStoppingStatus {
-		t.setStatus(db.TaskStoppedStatus)
+		t.SetStatus(db.TaskStoppedStatus)
 		return
 	}
 
@@ -205,7 +209,7 @@ func (t *TaskRunner) run() {
 		return
 	}
 
-	t.setStatus(db.TaskSuccessStatus)
+	t.SetStatus(db.TaskSuccessStatus)
 
 	templates, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.Task.TemplateID,

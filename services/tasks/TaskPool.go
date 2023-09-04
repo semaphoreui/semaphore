@@ -216,12 +216,12 @@ func (p *TaskPool) StopTask(targetTask db.Task) error {
 		if err != nil {
 			return err
 		}
-		tsk.setStatus(db.TaskStoppedStatus)
+		tsk.SetStatus(db.TaskStoppedStatus)
 		tsk.createTaskEvent()
 	} else {
 		status := tsk.Task.Status
 
-		tsk.setStatus(db.TaskStoppingStatus)
+		tsk.SetStatus(db.TaskStoppingStatus)
 
 		if status == db.TaskRunningStatus {
 			tsk.kill()
@@ -332,7 +332,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		return
 	}
 
-	job := LocalJob{
+	job := RemoteJob{
 		Task:        taskRunner.Task,
 		Template:    taskRunner.Template,
 		Inventory:   taskRunner.Inventory,
@@ -344,7 +344,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			TemplateID: taskRunner.Template.ID,
 			Repository: taskRunner.Repository,
 		},
-		//taskPool: p,
+		taskPool: p,
 	}
 
 	if err != nil {
