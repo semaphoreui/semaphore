@@ -405,54 +405,58 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProps, objectID objec
 	return d.db.Update(fn)
 }
 
+func (d *BoltDb) updateObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object interface{}) error {
+	b := tx.Bucket(makeBucketId(props, bucketID))
+	if b == nil {
+		return db.ErrNotFound
+	}
+
+	idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+	if err != nil {
+		return err
+	}
+
+	idValue := reflect.ValueOf(object).FieldByName(idFieldName)
+
+	var objID objectID
+
+	switch idValue.Kind() {
+	case reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64:
+		objID = intObjectID(idValue.Int())
+	case reflect.String:
+		objID = strObjectID(idValue.String())
+	}
+
+	if objID == nil {
+		return fmt.Errorf("unsupported ID type")
+	}
+
+	if b.Get(objID.ToBytes()) == nil {
+		return db.ErrNotFound
+	}
+
+	str, err := marshalObject(object)
+	if err != nil {
+		return err
+	}
+
+	return b.Put(objID.ToBytes(), str)
+}
+
 // updateObject updates data for object in database.
 func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object interface{}) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-
-		idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-		if err != nil {
-			return err
-		}
-
-		idValue := reflect.ValueOf(object).FieldByName(idFieldName)
-
-		var objID objectID
-
-		switch idValue.Kind() {
-		case reflect.Int,
-			reflect.Int8,
-			reflect.Int16,
-			reflect.Int32,
-			reflect.Int64,
-			reflect.Uint,
-			reflect.Uint8,
-			reflect.Uint16,
-			reflect.Uint32,
-			reflect.Uint64:
-			objID = intObjectID(idValue.Int())
-		case reflect.String:
-			objID = strObjectID(idValue.String())
-		}
-
-		if objID == nil {
-			return fmt.Errorf("unsupported ID type")
-		}
-
-		if b.Get(objID.ToBytes()) == nil {
-			return db.ErrNotFound
-		}
-
-		str, err := marshalObject(object)
-		if err != nil {
-			return err
-		}
-
-		return b.Put(objID.ToBytes(), str)
+		return d.updateObjectTx(tx, bucketID, props, object)
 	})
 }
 

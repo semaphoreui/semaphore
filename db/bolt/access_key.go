@@ -65,7 +65,7 @@ func (d *BoltDb) RekeyAccessKeys(oldKey string) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		var allProjects []db.Project
 
-		err := d.getObjects(0, db.ProjectProps, db.RetrieveQueryParams{}, nil, &allProjects)
+		err := d.getObjectsTx(tx, 0, db.ProjectProps, db.RetrieveQueryParams{}, nil, &allProjects)
 
 		if err != nil {
 			return err
@@ -73,7 +73,7 @@ func (d *BoltDb) RekeyAccessKeys(oldKey string) error {
 
 		for _, project := range allProjects {
 			var keys []db.AccessKey
-			err = d.getObjects(project.ID, db.AccessKeyProps, db.RetrieveQueryParams{}, nil, &keys)
+			err = d.getObjectsTx(tx, project.ID, db.AccessKeyProps, db.RetrieveQueryParams{}, nil, &keys)
 			if err != nil {
 				return err
 			}
@@ -90,7 +90,7 @@ func (d *BoltDb) RekeyAccessKeys(oldKey string) error {
 					return err
 				}
 
-				err = d.updateObject(*key.ProjectID, db.AccessKeyProps, key)
+				err = d.updateObjectTx(tx, *key.ProjectID, db.AccessKeyProps, key)
 				if err != nil {
 					return err
 				}

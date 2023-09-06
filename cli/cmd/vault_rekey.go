@@ -12,7 +12,8 @@ func init() {
 
 var vaultRekeyCmd = &cobra.Command{
 	Use:   "rekey",
-	Short: "Rekey vault in database",
+	Short: "Re-encrypt Key Store in database to current encryption key",
+	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
 		defer store.Close("")
