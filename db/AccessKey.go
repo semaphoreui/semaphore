@@ -286,7 +286,7 @@ func (key *AccessKey) DeserializeSecret2(encryptionString string) error {
 	if encryptionString == "" {
 		err = key.unmarshalAppropriateField(ciphertext)
 		if _, ok := err.(*json.SyntaxError); ok {
-			err = fmt.Errorf("secret must be valid json")
+			err = fmt.Errorf("secret must be valid json in key '%s'", key.Name)
 		}
 		return err
 	}
