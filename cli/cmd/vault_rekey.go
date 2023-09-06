@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	vaultCmd.PersistentFlags().StringVar(&targetVaultArgs.oldKey, "old-key", "", "Old encryption key")
+	vaultRekeyCmd.PersistentFlags().StringVar(&targetVaultArgs.oldKey, "old-key", "", "Old encryption key")
 
 	vaultCmd.AddCommand(vaultRekeyCmd)
 }
@@ -15,7 +15,7 @@ var vaultRekeyCmd = &cobra.Command{
 	Short: "Re-encrypt Key Store in database with using current encryption key",
 	Long: "To update the encryption key, modify it within the configuration file and " +
 		"then employ the 'vault rekey --old-key <old-key>' command to ensure the re-encryption of the " +
-		"pre-existing keys stored in the database. ",
+		"pre-existing keys stored in the database.",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
 		defer store.Close("")

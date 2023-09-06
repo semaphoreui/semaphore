@@ -17,7 +17,7 @@ func init() {
 
 var vaultCmd = &cobra.Command{
 	Use:   "vault",
-	Short: "Manage vault",
+	Short: "Manage access keys and other secrets",
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)
