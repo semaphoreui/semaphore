@@ -86,7 +86,6 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 	environmentVars := make(map[string]string)
 
-
 	if t.Environment.ENV != nil {
 		err = json.Unmarshal([]byte(*t.Environment.ENV), &environmentVars)
 		if err != nil {
@@ -418,8 +417,6 @@ func (t *LocalJob) installRolesRequirements() error {
 			"install",
 			"-r",
 			requirementsFilePath,
-			"-p",
-			t.getRepoPath(),
 			"--force",
 		}); err != nil {
 			return err
