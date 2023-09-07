@@ -86,12 +86,16 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 	environmentVars := make(map[string]string)
 
+
 	if t.Environment.ENV != nil {
 		err = json.Unmarshal([]byte(*t.Environment.ENV), &environmentVars)
 		if err != nil {
 			return
 		}
 	}
+
+	environmentVars["ANSIBLE_COLLECTIONS_PATHS"] = fmt.Sprintf("%s/collections,%s/.ansible/collections", 
+	    t.getPlaybookDir(), os.UserHomeDir())
 
 	for key, val := range environmentVars {
 		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
@@ -414,6 +418,8 @@ func (t *LocalJob) installRolesRequirements() error {
 			"install",
 			"-r",
 			requirementsFilePath,
+			"-p",
+			t.getRepoPath(),
 			"--force",
 		}); err != nil {
 			return err
@@ -435,29 +441,24 @@ func (t *LocalJob) getPlaybookDir() string {
 }
 
 func (t *LocalJob) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
-	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
+	collectionsDirPath := path.Join(t.getPlaybookDir(), "collections")
+	requirementsFilePath := path.Join(collectionsDirPath, "requirements.yml")
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.Log("No collections/requirements.yml file found. Skip galaxy install process.\n")
 		return nil
 	}
 
-	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy([]string{
-			"collection",
-			"install",
-			"-r",
-			requirementsFilePath,
-			"--force",
-		}); err != nil {
-			return err
-		}
-		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
-			return err
-		}
-	} else {
-		t.Log("collections/requirements.yml has no changes. Skip galaxy install process.\n")
+	if err := t.runGalaxy([]string{
+		"collection",
+		"install",
+		"-r",
+		requirementsFilePath,
+		"-p",
+		collectionsDirPath,
+		"--force",
+	}); err != nil {
+		return err
 	}
 
 	return nil
