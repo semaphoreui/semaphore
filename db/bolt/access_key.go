@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"go.etcd.io/bbolt"
 )
 
 func (d *BoltDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
@@ -58,4 +59,44 @@ func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey, error) {
 
 func (d *BoltDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, intObjectID(accessKeyID), nil)
+}
+
+func (d *BoltDb) RekeyAccessKeys(oldKey string) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		var allProjects []db.Project
+
+		err := d.getObjectsTx(tx, 0, db.ProjectProps, db.RetrieveQueryParams{}, nil, &allProjects)
+
+		if err != nil {
+			return err
+		}
+
+		for _, project := range allProjects {
+			var keys []db.AccessKey
+			err = d.getObjectsTx(tx, project.ID, db.AccessKeyProps, db.RetrieveQueryParams{}, nil, &keys)
+			if err != nil {
+				return err
+			}
+
+			for _, key := range keys {
+				err = key.DeserializeSecret2(oldKey)
+
+				if err != nil {
+					return err
+				}
+
+				err = key.SerializeSecret()
+				if err != nil {
+					return err
+				}
+
+				err = d.updateObjectTx(tx, *key.ProjectID, db.AccessKeyProps, key)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }
