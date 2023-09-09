@@ -87,3 +87,8 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
 }
+
+func (d *SqlDb) RekeyAccessKeys(oldKey string) error {
+
+	return nil
+}
