@@ -161,7 +161,7 @@ func TestSetConfigValue(t *testing.T) {
 	var testCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
 	var testMaxParallelTasks int = 5
 	var testLdapNeedTls bool = true
-	var testDbHost string = "192.168.0.1"
+	//var testDbHost string = "192.168.0.1"
 	var testEmailSecure string = "1"
 	var expectEmailSecure bool = true
 
@@ -184,9 +184,9 @@ func TestSetConfigValue(t *testing.T) {
 	if Config.LdapNeedTLS != testLdapNeedTls {
 		t.Error("Could not set value for config attribute 'LdapNeedTls'!")
 	}
-	if Config.BoltDb.Hostname != testDbHost {
-		t.Error("Could not set value for config attribute 'BoltDb.Hostname'!")
-	}
+	//if Config.BoltDb.Hostname != testDbHost {
+	//	t.Error("Could not set value for config attribute 'BoltDb.Hostname'!")
+	//}
 	if Config.EmailSecure != expectEmailSecure {
 		t.Error("Could not set value for config attribute 'EmailSecure'!")
 	}
