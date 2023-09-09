@@ -199,6 +199,15 @@ type Store interface {
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
 	SetViewPositions(projectID int, viewPositions map[int]int) error
+
+	GetRunner(projectID int, runnerID int) (Runner, error)
+	GetRunners(projectID int) ([]Runner, error)
+	DeleteRunner(projectID int, runnerID int) error
+	GetGlobalRunner(runnerID int) (Runner, error)
+	GetGlobalRunners() ([]Runner, error)
+	DeleteGlobalRunner(runnerID int) error
+	UpdateRunner(runner Runner) error
+	CreateRunner(runner Runner) (Runner, error)
 }
 
 var AccessKeyProps = ObjectProps{
@@ -302,6 +311,13 @@ var ViewProps = ObjectProps{
 	Type:                 reflect.TypeOf(View{}),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "position",
+}
+
+var RunnerProps = ObjectProps{
+	TableName:         "runner",
+	Type:              reflect.TypeOf(Runner{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {

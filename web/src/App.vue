@@ -1,56 +1,56 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
     <EditDialog
-        v-model="passwordDialog"
-        save-button-text="Save"
-        :title="$t('changePassword')"
-        v-if="user"
-        event-name="i-user"
+      v-model="passwordDialog"
+      save-button-text="Save"
+      :title="$t('changePassword')"
+      v-if="user"
+      event-name="i-user"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <ChangePasswordForm
-            :project-id="projectId"
-            :item-id="user.id"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          :project-id="projectId"
+          :item-id="user.id"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <EditDialog
-        v-model="userDialog"
-        save-button-text="Save"
-        :title="$t('editUser')"
-        v-if="user"
-        event-name="i-user"
+      v-model="userDialog"
+      save-button-text="Save"
+      :title="$t('editUser')"
+      v-if="user"
+      event-name="i-user"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <UserForm
-            :project-id="projectId"
-            :item-id="user.id"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          :project-id="projectId"
+          :item-id="user.id"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <EditDialog
-        v-model="taskLogDialog"
-        save-button-text="Delete"
-        :max-width="1000"
-        :hide-buttons="true"
-        @close="onTaskLogDialogClosed()"
+      v-model="taskLogDialog"
+      save-button-text="Delete"
+      :max-width="1000"
+      :hide-buttons="true"
+      @close="onTaskLogDialogClosed()"
     >
       <template v-slot:title={}>
         <div class="text-truncate" style="max-width: calc(100% - 36px);">
           <router-link
-              class="breadcrumbs__item breadcrumbs__item--link"
-              :to="`/project/${projectId}/templates/${template ? template.id : null}`"
-              @click="taskLogDialog = false"
+            class="breadcrumbs__item breadcrumbs__item--link"
+            :to="`/project/${projectId}/templates/${template ? template.id : null}`"
+            @click="taskLogDialog = false"
           >{{ template ? template.name : null }}
           </router-link>
           <v-icon>mdi-chevron-right</v-icon>
@@ -59,8 +59,8 @@
 
         <v-spacer></v-spacer>
         <v-btn
-            icon
-            @click="taskLogDialog = false; onTaskLogDialogClosed()"
+          icon
+          @click="taskLogDialog = false; onTaskLogDialogClosed()"
         >
           <v-icon>mdi-close</v-icon>
         </v-btn>
@@ -71,61 +71,61 @@
     </EditDialog>
 
     <EditDialog
-        v-model="newProjectDialog"
-        save-button-text="Create"
-        :title="$t('newProject')"
-        event-name="i-project"
+      v-model="newProjectDialog"
+      save-button-text="Create"
+      :title="$t('newProject')"
+      event-name="i-project"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <ProjectForm
-            item-id="new"
-            @save="onSave"
-            @error="onError"
-            :need-save="needSave"
-            :need-reset="needReset"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
         />
       </template>
     </EditDialog>
 
     <v-snackbar
-        v-model="snackbar"
-        :color="snackbarColor"
-        :timeout="3000"
-        top
+      v-model="snackbar"
+      :color="snackbarColor"
+      :timeout="3000"
+      top
     >
       {{ snackbarText }}
       <v-btn
-          text
-          @click="snackbar = false"
+        text
+        @click="snackbar = false"
       >
         {{ $t('close') }}
       </v-btn>
     </v-snackbar>
 
     <v-navigation-drawer
-        app
-        dark
-        :color="darkMode ? '#003236' : '#005057'"
-        fixed
-        width="260"
-        v-model="drawer"
-        mobile-breakpoint="960"
-        v-if="$route.path.startsWith('/project/')"
+      app
+      dark
+      :color="darkMode ? '#003236' : '#005057'"
+      fixed
+      width="260"
+      v-model="drawer"
+      mobile-breakpoint="960"
+      v-if="$route.path.startsWith('/project/')"
     >
       <v-menu bottom max-width="235" max-height="100%" v-if="project">
         <template v-slot:activator="{ on, attrs }">
           <v-list class="pa-0 overflow-y-auto">
             <v-list-item
-                key="project"
-                class="app__project-selector"
-                v-bind="attrs"
-                v-on="on"
+              key="project"
+              class="app__project-selector"
+              v-bind="attrs"
+              v-on="on"
             >
               <v-list-item-icon>
                 <v-avatar
-                    :color="getProjectColor(project)"
-                    size="24"
-                    style="font-size: 13px; font-weight: bold;"
+                  :color="getProjectColor(project)"
+                  size="24"
+                  style="font-size: 13px; font-weight: bold;"
                 >
                   <span class="white--text">{{ getProjectInitials(project) }}</span>
                 </v-avatar>
@@ -135,6 +135,7 @@
                 <v-list-item-title class="app__project-selector-title">
                   {{ project.name }}
                 </v-list-item-title>
+                <v-list-item-subtitle>{{ userRole.role }}</v-list-item-subtitle>
               </v-list-item-content>
 
               <v-list-item-icon>
@@ -145,16 +146,16 @@
         </template>
         <v-list>
           <v-list-item
-              v-for="(item, i) in projects"
-              :key="i"
-              :to="`/project/${item.id}`"
-              @click="selectProject(item.id)"
+            v-for="(item, i) in projects"
+            :key="i"
+            :to="`/project/${item.id}`"
+            @click="selectProject(item.id)"
           >
             <v-list-item-icon>
               <v-avatar
-                  :color="getProjectColor(item)"
-                  size="24"
-                  style="font-size: 13px; font-weight: bold;"
+                :color="getProjectColor(item)"
+                size="24"
+                style="font-size: 13px; font-weight: bold;"
               >
                 <span class="white--text">{{ getProjectInitials(item) }}</span>
               </v-avatar>
@@ -162,7 +163,7 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="newProjectDialog = true" v-if="user.admin">
+          <v-list-item @click="newProjectDialog = true" v-if="user.can_create_project">
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
             </v-list-item-icon>
@@ -187,17 +188,6 @@
       </v-list>
 
       <v-list class="pt-0" v-if="project">
-        <v-list-item v-if="systemInfo && systemInfo.demo">
-          <v-list-item-content>
-            <v-alert class="ma-0 pa-2" color="red">
-              <div class="mb-1 font-weight-bold">{{ $t('demoMode') }}</div>
-              <ul style="padding-left: 14px; font-size: 14px; line-height: 1.3;">
-                <li>{{ $t('youCanRunAnyTasks') }}</li>
-                <li>{{ $t('youHaveReadonlyAccess') }}</li>
-              </ul>
-            </v-alert>
-          </v-list-item-content>
-        </v-list-item>
 
         <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
           <v-list-item-icon>
@@ -283,9 +273,9 @@
                 ></v-switch>
               </v-list-item>
               <v-list-item
-                  key="project"
-                  v-bind="attrs"
-                  v-on="on"
+                key="project"
+                v-bind="attrs"
+                v-on="on"
               >
                 <v-list-item-icon>
                   <v-icon>mdi-account</v-icon>
@@ -341,14 +331,14 @@
                         </v-list-item>
 
                                     <v-list-item key="password" @click="passwordDialog = true">-->
-<!--              <v-list-item-icon>-->
-<!--                <v-icon>mdi-lock</v-icon>-->
-<!--              </v-list-item-icon>-->
+            <!--              <v-list-item-icon>-->
+            <!--                <v-icon>mdi-lock</v-icon>-->
+            <!--              </v-list-item-icon>-->
 
-<!--              <v-list-item-content>-->
-<!--                Change Password-->
-<!--              </v-list-item-content>-->
-<!--            </v-list-item>-->
+            <!--              <v-list-item-content>-->
+            <!--                Change Password-->
+            <!--              </v-list-item-content>-->
+            <!--            </v-list-item>-->
 
             <v-list-item key="sign_out" @click="signOut()">
               <v-list-item-icon>
@@ -365,23 +355,27 @@
     </v-navigation-drawer>
 
     <v-main>
-      <router-view :projectId="projectId" :userId="user ? user.id : null"></router-view>
+      <router-view
+        :projectId="projectId"
+        :userPermissions="userRole.permissions"
+        :userId="user ? user.id : null"
+      ></router-view>
     </v-main>
 
   </v-app>
   <v-app v-else-if="state === 'loading'">
     <v-main>
       <v-container
-          fluid
-          fill-height
-          align-center
-          justify-center
-          class="pa-0"
+        fluid
+        fill-height
+        align-center
+        justify-center
+        class="pa-0"
       >
         <v-progress-circular
-            :size="70"
-            color="primary"
-            indeterminate
+          :size="70"
+          color="primary"
+          indeterminate
         ></v-progress-circular>
       </v-container>
     </v-main>
@@ -389,12 +383,12 @@
   <v-app v-else-if="state === 'error'">
     <v-main>
       <v-container
-          fluid
-          flex-column
-          fill-height
-          align-center
-          justify-center
-          class="pa-0 text-center"
+        fluid
+        flex-column
+        fill-height
+        align-center
+        justify-center
+        class="pa-0 text-center"
       >
         <v-alert text color="error" class="d-inline-block">
           <h3 class="headline">
@@ -421,6 +415,7 @@
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
   overflow: hidden;
+
   & * {
     white-space: nowrap;
   }
@@ -453,6 +448,10 @@
 
 .app__project-selector {
   height: 64px;
+
+  & > .v-list-item__content {
+    padding: 0;
+  }
 
   .v-list-item__icon {
     margin-top: 20px !important;
@@ -489,7 +488,7 @@
   }
 
   & > td:first-child {
-    //font-weight: bold !important;
+  //font-weight: bold !important;
   }
 }
 
@@ -560,6 +559,7 @@ export default {
     return {
       drawer: null,
       user: null,
+      userRole: 0,
       systemInfo: null,
       state: 'loading',
       snackbar: false,
@@ -580,8 +580,8 @@ export default {
   watch: {
     async projects(val) {
       if (val.length === 0
-          && this.$route.path.startsWith('/project/')
-          && this.$route.path !== '/project/new') {
+        && this.$route.path.startsWith('/project/')
+        && this.$route.path !== '/project/new') {
         await this.$router.push({ path: '/project/new' });
       }
     },
@@ -783,8 +783,8 @@ export default {
 
       // try to find project and switch to it if URL not pointing to any project
       if (this.$route.path === '/'
-          || this.$route.path === '/project'
-          || (this.$route.path.startsWith('/project/'))) {
+        || this.$route.path === '/project'
+        || (this.$route.path.startsWith('/project/'))) {
         await this.trySelectMostSuitableProject();
       }
 
@@ -812,7 +812,7 @@ export default {
       }
 
       if ((projectId == null || !this.projects.some((p) => p.id === projectId))
-          && localStorage.getItem('projectId')) {
+        && localStorage.getItem('projectId')) {
         projectId = parseInt(localStorage.getItem('projectId'), 10);
       }
 
@@ -826,10 +826,17 @@ export default {
     },
 
     async selectProject(projectId) {
+      this.userRole = (await axios({
+        method: 'get',
+        url: `/api/project/${projectId}/role`,
+        responseType: 'json',
+      })).data;
+
       localStorage.setItem('projectId', projectId);
       if (this.projectId === projectId) {
         return;
       }
+
       await this.$router.push({ path: `/project/${projectId}` });
     },
 
@@ -861,7 +868,7 @@ export default {
 
     getProjectColor(projectData) {
       const projectIndex = this.projects.length
-          - this.projects.findIndex((p) => p.id === projectData.id);
+        - this.projects.findIndex((p) => p.id === projectData.id);
       return PROJECT_COLORS[projectIndex % PROJECT_COLORS.length];
     },
 

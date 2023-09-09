@@ -40,6 +40,7 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
       >{{ $t('newInventory') }}</v-btn>
     </v-toolbar>
 

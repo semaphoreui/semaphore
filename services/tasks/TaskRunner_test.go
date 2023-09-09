@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/lib"
 	"math/rand"
 	"os"
 	"path"
@@ -47,10 +48,22 @@ func TestTaskRunnerRun(t *testing.T) {
 	}
 
 	taskRunner := TaskRunner{
-		task: task,
+		Task: task,
 		pool: &pool,
 	}
-
+	taskRunner.job = &LocalJob{
+		Task:        taskRunner.Task,
+		Template:    taskRunner.Template,
+		Inventory:   taskRunner.Inventory,
+		Repository:  taskRunner.Repository,
+		Environment: taskRunner.Environment,
+		Logger:      &taskRunner,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &taskRunner,
+			TemplateID: taskRunner.Template.ID,
+			Repository: taskRunner.Repository,
+		},
+	}
 	taskRunner.run()
 }
 
@@ -62,8 +75,8 @@ func TestGetRepoPath(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -71,12 +84,25 @@ func TestGetRepoPath(t *testing.T) {
 			},
 			Type: db.InventoryStatic,
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "deploy/test.yml",
 		},
 	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
+		},
+	}
 
-	dir := tsk.getPlaybookDir()
+	dir := tsk.job.(*LocalJob).getPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -90,8 +116,8 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -99,12 +125,25 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 			},
 			Type: db.InventoryStatic,
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "/deploy/test.yml",
 		},
 	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
+		},
+	}
 
-	dir := tsk.getPlaybookDir()
+	dir := tsk.job.(*LocalJob).getPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -171,10 +210,23 @@ func TestPopulateDetails(t *testing.T) {
 
 	tsk := TaskRunner{
 		pool: &pool,
-		task: db.Task{
+		Task: db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   proj.ID,
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
+		},
+	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
 		},
 	}
 
@@ -182,7 +234,7 @@ func TestPopulateDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tsk.environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
+	if tsk.Environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
 		t.Fatal(err)
 	}
 }
@@ -195,8 +247,8 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
 				ID:   12345,
@@ -204,19 +256,32 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 			},
 			Type: db.InventoryStatic,
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "test.yml",
 		},
 	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
+		},
+	}
 
-	args, err := tsk.getPlaybookArgs()
+	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -229,8 +294,8 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			Type:     db.InventoryStatic,
 			SSHKeyID: &inventoryID,
 			SSHKey: db.AccessKey{
@@ -242,19 +307,32 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 				},
 			},
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "test.yml",
 		},
 	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
+		},
+	}
 
-	args, err := tsk.getPlaybookArgs()
+	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -267,8 +345,8 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	inventoryID := 1
 
 	tsk := TaskRunner{
-		task: db.Task{},
-		inventory: db.Inventory{
+		Task: db.Task{},
+		Inventory: db.Inventory{
 			Type:        db.InventoryStatic,
 			BecomeKeyID: &inventoryID,
 			BecomeKey: db.AccessKey{
@@ -280,19 +358,32 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 				},
 			},
 		},
-		template: db.Template{
+		Template: db.Template{
 			Playbook: "test.yml",
 		},
 	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Inventory:   tsk.Inventory,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		Playbook: &lib.AnsiblePlaybook{
+			Logger:     &tsk,
+			TemplateID: tsk.Template.ID,
+			Repository: tsk.Repository,
+		},
+	}
 
-	args, err := tsk.getPlaybookArgs()
+	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }

@@ -81,6 +81,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
 
 	h.Before("project > /api/project/{project_id}/repositories > Add repository > 204 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
 	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
 
 	h.Before("project > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
@@ -104,6 +105,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/tasks/{task_id} > Get a single task > 200 > application/json", capabilityWrapper("task"))
 	h.Before("project > /api/project/{project_id}/tasks/{task_id} > Deletes task (including output) > 204 > application/json", capabilityWrapper("task"))
 	h.Before("project > /api/project/{project_id}/tasks/{task_id}/output > Get task output > 200 > application/json", capabilityWrapper("task"))
+	h.Before("project > /api/project/{project_id}/tasks/{task_id}/stop > Stop a job > 204 > application/json", capabilityWrapper("task"))
 
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Get schedule > 200 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Updates schedule > 204 > application/json", capabilityWrapper("schedule"))

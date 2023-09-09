@@ -90,15 +90,6 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	if util.Config.DemoMode {
-		if !user.Admin && r.Method != "GET" &&
-			!strings.HasSuffix(r.URL.Path, "/tasks") &&
-			!strings.HasSuffix(r.URL.Path, "/stop") {
-			w.WriteHeader(http.StatusUnauthorized)
-			return false
-		}
-	}
-
 	context.Set(r, "user", &user)
 	return true
 }
@@ -119,7 +110,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		store := helpers.Store(r)
 
 		var ok bool
-		
+
 		db.StoreSession(store, r.URL.String(), func() {
 			ok = authenticationHandler(w, r)
 		})

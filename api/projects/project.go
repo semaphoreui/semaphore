@@ -24,7 +24,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		}
 
 		// check if user in project's team
-		_, err = helpers.Store(r).GetProjectUser(projectID, user.ID)
+		projectUser, err := helpers.Store(r).GetProjectUser(projectID, user.ID)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -38,36 +38,22 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		context.Set(r, "projectUserRole", projectUser.Role)
 		context.Set(r, "project", project)
 		next.ServeHTTP(w, r)
 	})
 }
 
-// GetMustCanMiddlewareFor ensures that the user has administrator rights
-func GetMustCanMiddlewareFor(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
+// GetMustCanMiddleware ensures that the user has administrator rights
+func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			project := context.Get(r, "project").(db.Project)
 			user := context.Get(r, "user").(*db.User)
+			projectUserRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
 
-			if !user.Admin {
-				// check if user in project's team
-				projectUser, err := helpers.Store(r).GetProjectUser(project.ID, user.ID)
-
-				if err == db.ErrNotFound {
-					w.WriteHeader(http.StatusForbidden)
-					return
-				}
-
-				if err != nil {
-					helpers.WriteError(w, err)
-					return
-				}
-
-				if r.Method != "GET" && r.Method != "HEAD" && !projectUser.Can(permissions) {
-					w.WriteHeader(http.StatusForbidden)
-					return
-				}
+			if !user.Admin && r.Method != "GET" && r.Method != "HEAD" && !projectUserRole.Can(permissions) {
+				w.WriteHeader(http.StatusForbidden)
+				return
 			}
 
 			next.ServeHTTP(w, r)
@@ -78,6 +64,16 @@ func GetMustCanMiddlewareFor(permissions db.ProjectUserPermission) mux.Middlewar
 // GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+}
+
+func GetUserRole(w http.ResponseWriter, r *http.Request) {
+	var permissions struct {
+		Role        db.ProjectUserRole       `json:"role"`
+		Permissions db.ProjectUserPermission `json:"permissions"`
+	}
+	permissions.Role = context.Get(r, "projectUserRole").(db.ProjectUserRole)
+	permissions.Permissions = permissions.Role.GetPermissions()
+	helpers.WriteJSON(w, http.StatusOK, permissions)
 }
 
 // UpdateProject saves updated project details to the database

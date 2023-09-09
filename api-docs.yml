@@ -186,6 +186,28 @@ definitions:
         type: integer
         minimum: 1
         x-example: 2
+      login_password:
+        type: object
+        properties:
+          password:
+            type: string
+            x-example: password
+            example: password
+          login:
+            type: string
+            x-example: username
+            example: username
+      ssh:
+        type: object
+        properties:
+          login:
+            type: string
+            x-example: user
+            example: user
+          private_key:
+            type: string
+            x-example: private key
+            example: private key
 
   AccessKey:
     type: object
@@ -200,6 +222,28 @@ definitions:
         enum: [none,ssh,login_password]
       project_id:
         type: integer
+      login_password:
+        type: object
+        properties:
+          password:
+            type: string
+            x-example: password
+            example: password
+          login:
+            type: string
+            x-example: username
+            example: username
+      ssh:
+        type: object
+        properties:
+          login:
+            type: string
+            x-example: user
+            example: user
+          private_key:
+            type: string
+            x-example: private key
+            example: private key
 
   EnvironmentRequest:
     type: object
@@ -383,6 +427,12 @@ definitions:
       limit:
         type: string
         example: ''
+      suppress_success_alerts:
+        type: boolean
+      survey_vars:
+        type: array
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
   Template:
     type: object
     properties:
@@ -418,6 +468,22 @@ definitions:
       allow_override_args_in_task:
         type: boolean
         example: false
+      suppress_success_alerts:
+        type: boolean
+  TemplateSurveyVar:
+    type: object
+    properties:
+      name:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      type:
+        type: string
+        example: String => "", Integer => "int"
+      required:
+        type: boolean
 
   ScheduleRequest:
     type: object
@@ -470,6 +536,11 @@ definitions:
       position:
         type: integer
 
+  Runner:
+    type: object
+    properties:
+      token:
+        type: string
 
   Event:
     type: object
@@ -928,6 +999,28 @@ paths:
         204:
           description: Project deleted
 
+
+  /project/{project_id}/role:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Fetch permissions of the current user for project
+      responses:
+        200:
+          description: Permissions
+          schema:
+            type: object
+            properties:
+              role:
+                type: string
+                example: owner
+              permissions:
+                type: number
+                example: 0
+
+
   /project/{project_id}/events:
     parameters:
       - $ref: '#/parameters/project_id'
@@ -989,6 +1082,7 @@ paths:
                 minimum: 2
               role:
                 type: string
+                enum: [owner,manager,task_runner,guest]
                 example: owner
       responses:
         204:
@@ -1014,6 +1108,7 @@ paths:
             properties:
               role:
                 type: string
+                enum: [owner,manager,task_runner,guest]
                 example: owner
       summary: Update user role
       responses:
@@ -1146,6 +1241,21 @@ paths:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/repository_id"
+    put:
+      tags:
+        - project
+      summary: Updates repository
+      parameters:
+        - name: Repository
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RepositoryRequest"
+      responses:
+        204:
+          description: Repository updated
+        400:
+          description: Bad request
     delete:
       tags:
         - project
@@ -1318,12 +1428,19 @@ paths:
             type: array
             items:
               $ref: "#/definitions/Template"
+              properties:
+                survey_vars:
+                  type: array
+                  items:
+                    $ref: "#/definitions/TemplateSurveyVar"
+                last_task:
+                  $ref: "#/definitions/Task"
     post:
       tags:
         - project
       summary: create template
       parameters:
-        - name: template
+        - name: templateyes
           in: body
           required: true
           schema:
@@ -1332,7 +1449,7 @@ paths:
         201:
           description: template created
           schema:
-            $ref: "#/definitions/Template"
+            $ref: "#/definitions/TemplateRequest"
   /project/{project_id}/templates/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1487,7 +1604,6 @@ paths:
           description: view removed
 
 
-
   # tasks
   /project/{project_id}/tasks:
     parameters:
@@ -1533,6 +1649,8 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+
+
   /project/{project_id}/tasks/last:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1547,6 +1665,22 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Task'
+
+
+  /project/{project_id}/tasks/{task_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: '#/parameters/task_id'
+    post:
+      tags:
+        - project
+      summary: Stop a job
+      responses:
+        204:
+          description: Task queued
+
+
+
   /project/{project_id}/tasks/{task_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1567,6 +1701,9 @@ paths:
       responses:
         204:
           description: task deleted
+
+
+
   /project/{project_id}/tasks/{task_id}/output:
     parameters:
       - $ref: '#/parameters/project_id'
@@ -1582,3 +1719,24 @@ paths:
             type: array
             items:
               $ref: "#/definitions/TaskOutput"
+
+#  /runners:
+#    post:
+#      tags:
+#        - project
+#      summary: Starts a job
+#      parameters:
+#        - name: task
+#          in: body
+#          required: true
+#          schema:
+#            type: object
+#            properties:
+#              registration_token:
+#                type: string
+#                example: test123
+#      responses:
+#        201:
+#          description: Task queued
+#          schema:
+#            $ref: "#/definitions/Runner"

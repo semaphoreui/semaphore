@@ -68,7 +68,7 @@
       @yes="remove()"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
         <router-link
@@ -93,6 +93,7 @@
         icon
         color="error"
         @click="askDelete()"
+        v-if="canUpdate"
       >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
@@ -100,6 +101,7 @@
       <v-btn
         icon
         @click="copyDialog = true"
+        v-if="canUpdate"
       >
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
@@ -107,6 +109,7 @@
       <v-btn
         icon
         @click="editDialog = true"
+        v-if="canUpdate"
       >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
@@ -214,7 +217,12 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
 import TaskList from '@/components/TaskList.vue';
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
+import {
+  TEMPLATE_TYPE_ACTION_TITLES,
+  TEMPLATE_TYPE_ICONS,
+  TEMPLATE_TYPE_TITLES,
+  USER_PERMISSIONS,
+} from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
@@ -225,6 +233,7 @@ export default {
 
   props: {
     projectId: Number,
+    userPermissions: Number,
   },
 
   data() {
@@ -242,10 +251,17 @@ export default {
       itemRefs: null,
       itemRefsDialog: null,
       newTaskDialog: null,
+      USER_PERMISSIONS,
     };
   },
 
   computed: {
+    canUpdate() {
+      const perm = USER_PERMISSIONS.manageProjectResources;
+      // eslint-disable-next-line no-bitwise
+      return (this.userPermissions & perm) === perm;
+    },
+
     viewId() {
       if (/^-?\d+$/.test(this.$route.params.viewId)) {
         return parseInt(this.$route.params.viewId, 10);

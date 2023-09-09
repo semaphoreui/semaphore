@@ -3,7 +3,8 @@ on:
   push:
     branches:
       - develop
-      - roles
+  pull_request:
+    branches: [develop]
 
 jobs:
   build-local:
@@ -35,24 +36,6 @@ jobs:
           name: semaphore
           path: bin/semaphore
           retention-days: 1
-
-
-#  test-golang:
-#    runs-on: [ubuntu-latest]
-#    needs: build-local
-#    steps:
-#      - uses: actions/setup-go@v3
-#        with: { go-version: 1.19 }
-#
-#      - run: go install github.com/go-task/task/v3/cmd/task@latest
-#
-#      - uses: actions/checkout@v3
-#
-#      - run: task deps:tools
-#      - run: task deps:be
-#      - run: task compile:be
-#      - run: task lint:be
-#      - run: task test
 
 
   test-db-migration:
@@ -111,6 +94,7 @@ jobs:
   deploy-dev:
     runs-on: [ubuntu-latest]
     needs: [test-integration]
+    if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/setup-go@v3
         with: { go-version: 1.19 }
@@ -118,8 +102,6 @@ jobs:
       - run: go install github.com/go-task/task/v3/cmd/task@latest
 
       - uses: actions/checkout@v3
-
-#      - run: context=prod task docker:test
 
       - uses: docker/setup-qemu-action@v2
 
@@ -139,8 +121,6 @@ jobs:
           file: ./deployment/docker/prod/buildx.Dockerfile
           push: true
           tags: semaphoreui/semaphore:develop
-
-
 
 
   # test-docker:
