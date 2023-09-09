@@ -3,11 +3,53 @@ package util
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 )
 
 func mockError(msg string) {
 	panic(msg)
+}
+
+func TestValidate(t *testing.T) {
+	var val struct {
+		Test string `rule:"^\\d+$"`
+	}
+	val.Test = "45243524"
+
+	err := validate(val)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLoadEnvironmentToObject(t *testing.T) {
+	var val struct {
+		Test     string `env:"TEST_ENV_VAR"`
+		Subfield struct {
+			Value string `env:"TEST_VALUE_ENV_VAR"`
+		}
+	}
+
+	err := os.Setenv("TEST_ENV_VAR", "758478")
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.Setenv("TEST_VALUE_ENV_VAR", "test_value")
+	if err != nil {
+		panic(err)
+	}
+
+	err = loadEnvironmentToObject(&val)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if val.Test != "758478" {
+		t.Error("Invalid value")
+	}
+
 }
 
 func TestCastStringToInt(t *testing.T) {
@@ -113,6 +155,8 @@ func TestSetConfigValue(t *testing.T) {
 
 	Config = new(ConfigType)
 
+	configValue := reflect.ValueOf(Config).Elem()
+
 	var testPort string = "1337"
 	var testCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
 	var testMaxParallelTasks int = 5
@@ -121,12 +165,12 @@ func TestSetConfigValue(t *testing.T) {
 	var testEmailSecure string = "1"
 	var expectEmailSecure bool = true
 
-	setConfigValue("Port", testPort)
-	setConfigValue("CookieHash", testCookieHash)
-	setConfigValue("MaxParallelTasks", testMaxParallelTasks)
-	setConfigValue("LdapNeedTLS", testLdapNeedTls)
-	setConfigValue("BoltDb.Hostname", testDbHost)
-	setConfigValue("EmailSecure", testEmailSecure)
+	setConfigValue(configValue.FieldByName("Port"), testPort)
+	setConfigValue(configValue.FieldByName("CookieHash"), testCookieHash)
+	setConfigValue(configValue.FieldByName("MaxParallelTasks"), testMaxParallelTasks)
+	setConfigValue(configValue.FieldByName("LdapNeedTLS"), testLdapNeedTls)
+	//setConfigValue(configValue.FieldByName("BoltDb.Hostname"), testDbHost)
+	setConfigValue(configValue.FieldByName("EmailSecure"), testEmailSecure)
 
 	if Config.Port != testPort {
 		t.Error("Could not set value for config attribute 'Port'!")
@@ -152,14 +196,14 @@ func TestSetConfigValue(t *testing.T) {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
-	setConfigValue("NotExistent", "someValue")
+	setConfigValue(configValue.FieldByName("NotExistent"), "someValue")
 
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
-	setConfigValue("Not.Existent", "someValue")
+	//setConfigValue(configValue.FieldByName("Not.Existent"), "someValue")
 
 }
 
@@ -236,7 +280,7 @@ func ensureConfigValidationFailure(t *testing.T, attribute string, value interfa
 			)
 		}
 	}()
-	validateConfig(mockError)
+	validateConfig()
 
 }
 
@@ -256,7 +300,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.GitClientId = GoGitClientId
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
-	validateConfig(mockError)
+	validateConfig()
 
 	Config.Port = "INVALID"
 	ensureConfigValidationFailure(t, "Port", Config.Port)
