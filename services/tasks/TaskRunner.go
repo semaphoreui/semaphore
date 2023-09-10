@@ -209,7 +209,9 @@ func (t *TaskRunner) run() {
 		return
 	}
 
-	t.SetStatus(db.TaskSuccessStatus)
+	if t.Task.Status == db.TaskRunningStatus {
+		t.SetStatus(db.TaskSuccessStatus)
+	}
 
 	templates, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.Task.TemplateID,

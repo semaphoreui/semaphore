@@ -89,6 +89,7 @@ type JobProgress struct {
 type runningJob struct {
 	status     db.TaskStatus
 	logRecords []LogRecord
+	job        *tasks.LocalJob
 }
 
 type JobPool struct {
@@ -144,7 +145,7 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
-	requestTimer := time.NewTicker(5 * time.Second)
+	requestTimer := time.NewTicker(1 * time.Second)
 	p.runningJobs = make(map[int]*runningJob)
 
 	defer func() {
@@ -172,14 +173,15 @@ func (p *JobPool) Run() {
 			//log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			//p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			p.runningJobs[t.job.Task.ID] = &runningJob{}
-
+			p.runningJobs[t.job.Task.ID] = &runningJob{
+				job: t.job,
+			}
 			t.job.Logger = p.runningJobs[t.job.Task.ID]
 			t.job.Playbook.Logger = t.job.Logger
 
 			go func(runningJob *runningJob) {
 				runningJob.status = db.TaskRunningStatus
-				err := t.job.Run(t.username, t.incomingVersion)
+				err := runningJob.job.Run(t.username, t.incomingVersion)
 				if err != nil {
 					runningJob.status = db.TaskFailStatus
 				} else {
@@ -359,6 +361,18 @@ func (p *JobPool) checkNewJobs() {
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
 		return
+	}
+
+	for _, currJob := range response.CurrentJobs {
+		if currJob.Status == db.TaskStoppingStatus {
+			_, exists := p.runningJobs[currJob.ID]
+
+			if !exists {
+				continue
+			}
+
+			p.runningJobs[currJob.ID].job.Kill()
+		}
 	}
 
 	for _, newJob := range response.NewJobs {
