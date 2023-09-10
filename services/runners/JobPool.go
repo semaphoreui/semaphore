@@ -40,7 +40,7 @@ type job struct {
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
-	Status          db.TaskStatus
+	status          db.TaskStatus
 	args            []string
 	environmentVars []string
 }
@@ -77,7 +77,7 @@ type LogRecord struct {
 }
 
 type RunnerProgress struct {
-	Jobs []JobProgress `json:"jobs" binding:"required"`
+	Jobs []JobProgress
 }
 
 type JobProgress struct {
@@ -89,6 +89,7 @@ type JobProgress struct {
 type runningJob struct {
 	status     db.TaskStatus
 	logRecords []LogRecord
+	job        *tasks.LocalJob
 }
 
 type JobPool struct {
@@ -144,7 +145,7 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
-	requestTimer := time.NewTicker(5 * time.Second)
+	requestTimer := time.NewTicker(1 * time.Second)
 	p.runningJobs = make(map[int]*runningJob)
 
 	defer func() {
@@ -162,7 +163,7 @@ func (p *JobPool) Run() {
 			}
 
 			t := p.queue[0]
-			if t.Status == db.TaskFailStatus {
+			if t.status == db.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
@@ -172,12 +173,31 @@ func (p *JobPool) Run() {
 			//log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			//p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			p.runningJobs[t.job.Task.ID] = &runningJob{}
-
+			p.runningJobs[t.job.Task.ID] = &runningJob{
+				job: t.job,
+			}
 			t.job.Logger = p.runningJobs[t.job.Task.ID]
 			t.job.Playbook.Logger = t.job.Logger
 
-			go t.job.Run(t.username, t.incomingVersion)
+			go func(runningJob *runningJob) {
+				runningJob.status = db.TaskRunningStatus
+
+				err := runningJob.job.Run(t.username, t.incomingVersion)
+
+				if runningJob.status.IsFinished() {
+					return
+				}
+
+				if err != nil {
+					if runningJob.status == db.TaskStoppingStatus {
+						runningJob.status = db.TaskStoppedStatus
+					} else {
+						runningJob.status = db.TaskFailStatus
+					}
+				} else {
+					runningJob.status = db.TaskSuccessStatus
+				}
+			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
@@ -212,7 +232,7 @@ func (p *JobPool) sendProgress() {
 			Status:     j.status,
 		})
 
-		// TODO: clean logs
+		j.logRecords = make([]LogRecord, 0)
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -351,6 +371,20 @@ func (p *JobPool) checkNewJobs() {
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
 		return
+	}
+
+	for _, currJob := range response.CurrentJobs {
+		runJob, exists := p.runningJobs[currJob.ID]
+
+		if !exists {
+			continue
+		}
+
+		runJob.status = currJob.Status
+
+		if runJob.status == db.TaskStoppingStatus || runJob.status == db.TaskStoppedStatus {
+			p.runningJobs[currJob.ID].job.Kill()
+		}
 	}
 
 	for _, newJob := range response.NewJobs {

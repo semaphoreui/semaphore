@@ -112,6 +112,8 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		for _, logRecord := range job.LogRecords {
 			tsk.Log2(logRecord.Message, logRecord.Time)
 		}
+
+		tsk.SetStatus(job.Status)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -135,7 +137,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runner, err := helpers.Store(r).CreateRunner(db.Runner{
-		State: db.RunnerActive,
+		//State: db.RunnerActive,
 	})
 
 	if err != nil {

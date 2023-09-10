@@ -162,6 +162,8 @@ type ConfigType struct {
 	PasswordLoginDisable     bool `json:"password_login_disable"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`
 
+	UseRemoteRunner bool `json:"use_remote_runner"`
+
 	Runner RunnerSettings `json:"runner"`
 }
 
