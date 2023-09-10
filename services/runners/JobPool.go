@@ -40,7 +40,7 @@ type job struct {
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
-	Status          db.TaskStatus
+	status          db.TaskStatus
 	args            []string
 	environmentVars []string
 }
@@ -163,7 +163,7 @@ func (p *JobPool) Run() {
 			}
 
 			t := p.queue[0]
-			if t.Status == db.TaskFailStatus {
+			if t.status == db.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
@@ -181,9 +181,19 @@ func (p *JobPool) Run() {
 
 			go func(runningJob *runningJob) {
 				runningJob.status = db.TaskRunningStatus
+
 				err := runningJob.job.Run(t.username, t.incomingVersion)
+
+				if runningJob.status.IsFinished() {
+					return
+				}
+
 				if err != nil {
-					runningJob.status = db.TaskFailStatus
+					if runningJob.status == db.TaskStoppingStatus {
+						runningJob.status = db.TaskStoppedStatus
+					} else {
+						runningJob.status = db.TaskFailStatus
+					}
 				} else {
 					runningJob.status = db.TaskSuccessStatus
 				}
@@ -364,13 +374,15 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	for _, currJob := range response.CurrentJobs {
-		if currJob.Status == db.TaskStoppingStatus {
-			_, exists := p.runningJobs[currJob.ID]
+		runJob, exists := p.runningJobs[currJob.ID]
 
-			if !exists {
-				continue
-			}
+		if !exists {
+			continue
+		}
 
+		runJob.status = currJob.Status
+
+		if runJob.status == db.TaskStoppingStatus || runJob.status == db.TaskStoppedStatus {
 			p.runningJobs[currJob.ID].job.Kill()
 		}
 	}

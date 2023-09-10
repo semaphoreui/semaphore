@@ -7,13 +7,17 @@ import (
 type TaskStatus string
 
 const (
-	TaskRunningStatus  TaskStatus = "running"
 	TaskWaitingStatus  TaskStatus = "waiting"
+	TaskRunningStatus  TaskStatus = "running"
 	TaskStoppingStatus TaskStatus = "stopping"
 	TaskStoppedStatus  TaskStatus = "stopped"
 	TaskSuccessStatus  TaskStatus = "success"
 	TaskFailStatus     TaskStatus = "error"
 )
+
+func (s TaskStatus) IsFinished() bool {
+	return s == TaskStoppedStatus || s == TaskSuccessStatus || s == TaskFailStatus
+}
 
 // Task is a model of a task which will be executed by the runner
 type Task struct {

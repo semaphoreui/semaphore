@@ -57,19 +57,39 @@ func getMD5Hash(filepath string) (string, error) {
 }
 
 func (t *TaskRunner) SetStatus(status db.TaskStatus) {
-	//if t.Task.Status == status {
-	//	return
-	//}
-
-	if t.Task.Status == db.TaskStoppingStatus {
-		switch status {
-		case db.TaskFailStatus:
-			status = db.TaskStoppedStatus
-		case db.TaskStoppedStatus:
-		default:
-			panic("stopping TaskRunner cannot be " + status)
-		}
+	if status == t.Task.Status {
+		return
 	}
+
+	switch t.Task.Status {
+	case db.TaskRunningStatus:
+		if status == db.TaskWaitingStatus {
+			//panic("running TaskRunner cannot be " + status)
+			return
+		}
+		break
+	case db.TaskStoppingStatus:
+		if status == db.TaskWaitingStatus || status == db.TaskRunningStatus {
+			//panic("stopping TaskRunner cannot be " + status)
+			return
+		}
+		break
+	case db.TaskSuccessStatus:
+	case db.TaskFailStatus:
+	case db.TaskStoppedStatus:
+		//panic("stopped TaskRunner cannot be " + status)
+		return
+	}
+
+	//if t.Task.Status == db.TaskStoppingStatus {
+	//	switch status {
+	//	case db.TaskFailStatus:
+	//		status = db.TaskStoppedStatus
+	//	case db.TaskStoppedStatus:
+	//	default:
+	//		panic("stopping TaskRunner cannot be " + status)
+	//	}
+	//}
 
 	t.Task.Status = status
 

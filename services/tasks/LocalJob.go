@@ -27,7 +27,7 @@ type LocalJob struct {
 
 func (t *LocalJob) Kill() {
 	if t.Process == nil {
-		panic("running process can not be nil")
+		return
 	}
 	err := t.Process.Kill()
 	if err != nil {
