@@ -1,0 +1,15 @@
+[Unit]
+Description=Semaphore Runner
+Requires=network.target
+
+[Service]
+EnvironmentFile=/etc/semaphore/env
+ExecStart=/usr/bin/semaphore runner --config ${SEMAPHORE_CONFIG}
+ExecReload=/bin/kill -HUP $MAINPID
+User=semaphore
+Group=semaphore
+Restart=always
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
