@@ -72,6 +72,10 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if tsk.Template.VaultKeyID != nil {
+				err := tsk.Template.VaultKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
 				data.AccessKeys[*tsk.Template.VaultKeyID] = tsk.Template.VaultKey
 			}
 
