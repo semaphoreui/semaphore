@@ -64,10 +64,18 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			})
 
 			if tsk.Inventory.SSHKeyID != nil {
+				err := tsk.Inventory.SSHKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
 				data.AccessKeys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
 			}
 
 			if tsk.Inventory.BecomeKeyID != nil {
+				err := tsk.Inventory.BecomeKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
 				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
 			}
 
