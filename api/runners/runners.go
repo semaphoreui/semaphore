@@ -71,6 +71,10 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
 			}
 
+			if tsk.Template.VaultKeyID != nil {
+				data.AccessKeys[*tsk.Template.VaultKeyID] = tsk.Template.VaultKey
+			}
+
 			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
 
 		} else {

@@ -419,6 +419,10 @@ func (p *JobPool) checkNewJobs() {
 			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
 		}
 
+		if taskRunner.job.Template.VaultKeyID != nil {
+			taskRunner.job.Template.VaultKey = response.AccessKeys[*taskRunner.job.Template.VaultKeyID]
+		}
+
 		p.queue = append(p.queue, &taskRunner)
 	}
 }
