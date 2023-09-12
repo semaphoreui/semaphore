@@ -39,6 +39,10 @@ func (t *LocalJob) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
+func (t *LocalJob) SetStatus(status db.TaskStatus) {
+	t.Logger.SetStatus(status)
+}
+
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]interface{})
 

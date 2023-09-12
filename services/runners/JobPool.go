@@ -116,8 +116,22 @@ func (p *runningJob) Log2(msg string, now time.Time) {
 	p.logRecords = append(p.logRecords, LogRecord{Time: now, Message: msg})
 }
 
+func (p *JobPool) hasRunningJobs() bool {
+	for _, j := range p.runningJobs {
+		if !j.status.IsFinished() {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (p *runningJob) Log(msg string) {
 	p.Log2(msg, time.Now())
+}
+
+func (p *runningJob) SetStatus(status db.TaskStatus) {
+	p.status = status
 }
 
 func (p *runningJob) LogCmd(cmd *exec.Cmd) {
@@ -180,7 +194,7 @@ func (p *JobPool) Run() {
 			t.job.Playbook.Logger = t.job.Logger
 
 			go func(runningJob *runningJob) {
-				runningJob.status = db.TaskRunningStatus
+				runningJob.SetStatus(db.TaskRunningStatus)
 
 				err := runningJob.job.Run(t.username, t.incomingVersion)
 
@@ -190,12 +204,12 @@ func (p *JobPool) Run() {
 
 				if err != nil {
 					if runningJob.status == db.TaskStoppingStatus {
-						runningJob.status = db.TaskStoppedStatus
+						runningJob.SetStatus(db.TaskStoppedStatus)
 					} else {
-						runningJob.status = db.TaskFailStatus
+						runningJob.SetStatus(db.TaskFailStatus)
 					}
 				} else {
-					runningJob.status = db.TaskSuccessStatus
+					runningJob.SetStatus(db.TaskSuccessStatus)
 				}
 			}(p.runningJobs[t.job.Task.ID])
 
@@ -204,8 +218,13 @@ func (p *JobPool) Run() {
 
 		case <-requestTimer.C:
 
-			go p.checkNewJobs()
 			go p.sendProgress()
+
+			if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+				os.Exit(0)
+			}
+
+			go p.checkNewJobs()
 
 		}
 	}
@@ -380,10 +399,16 @@ func (p *JobPool) checkNewJobs() {
 			continue
 		}
 
-		runJob.status = currJob.Status
+		runJob.SetStatus(currJob.Status)
 
 		if runJob.status == db.TaskStoppingStatus || runJob.status == db.TaskStoppedStatus {
 			p.runningJobs[currJob.ID].job.Kill()
+		}
+	}
+
+	if util.Config.Runner.OneOff {
+		if len(p.queue) > 0 || len(p.runningJobs) > 0 {
+			return
 		}
 	}
 
