@@ -205,7 +205,7 @@ func CreateTaskPool(store db.Store) TaskPool {
 	}
 }
 
-func (p *TaskPool) StopTask(targetTask db.Task) error {
+func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk := p.GetTask(targetTask.ID)
 	if tsk == nil { // task not active, but exists in database
 		tsk = &TaskRunner{
@@ -221,7 +221,11 @@ func (p *TaskPool) StopTask(targetTask db.Task) error {
 	} else {
 		status := tsk.Task.Status
 
-		tsk.SetStatus(db.TaskStoppingStatus)
+		if forceStop {
+			tsk.SetStatus(db.TaskStoppedStatus)
+		} else {
+			tsk.SetStatus(db.TaskStoppingStatus)
+		}
 
 		if status == db.TaskRunningStatus {
 			tsk.kill()
@@ -328,7 +332,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	err = taskRunner.populateDetails()
 	if err != nil {
 		taskRunner.Log("Error: " + err.Error())
-		taskRunner.fail()
+		taskRunner.SetStatus(db.TaskFailStatus)
 		return
 	}
 

@@ -229,6 +229,9 @@ func (t *LocalJob) destroyKeys() {
 }
 
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
+
+	t.SetStatus(db.TaskRunningStatus)
+
 	err = t.prepareRun()
 	if err != nil {
 		return err

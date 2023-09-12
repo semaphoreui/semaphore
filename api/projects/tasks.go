@@ -130,7 +130,15 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.TaskPool(r).StopTask(targetTask)
+	var stopObj struct {
+		Force bool `json:"force"`
+	}
+
+	if !helpers.Bind(w, r, &stopObj) {
+		return
+	}
+
+	err := helpers.TaskPool(r).StopTask(targetTask, stopObj.Force)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

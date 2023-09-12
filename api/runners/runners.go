@@ -51,7 +51,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if tsk.Task.Status == db.TaskRunningStatus {
+		if tsk.Task.Status == db.TaskStartingStatus {
 
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:        tsk.Username,

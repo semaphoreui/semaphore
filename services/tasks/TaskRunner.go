@@ -61,7 +61,7 @@ func (t *TaskRunner) SetStatus(status db.TaskStatus) {
 		return
 	}
 
-	switch t.Task.Status {
+	switch t.Task.Status { // check old status
 	case db.TaskRunningStatus:
 		if status == db.TaskWaitingStatus {
 			//panic("running TaskRunner cannot be " + status)
@@ -81,17 +81,12 @@ func (t *TaskRunner) SetStatus(status db.TaskStatus) {
 		return
 	}
 
-	//if t.Task.Status == db.TaskStoppingStatus {
-	//	switch status {
-	//	case db.TaskFailStatus:
-	//		status = db.TaskStoppedStatus
-	//	case db.TaskStoppedStatus:
-	//	default:
-	//		panic("stopping TaskRunner cannot be " + status)
-	//	}
-	//}
-
 	t.Task.Status = status
+
+	if status == db.TaskRunningStatus {
+		now := time.Now()
+		t.Task.Start = &now
+	}
 
 	t.saveStatus()
 
@@ -132,10 +127,6 @@ func (t *TaskRunner) kill() {
 	t.job.Kill()
 }
 
-func (t *TaskRunner) fail() {
-	t.SetStatus(db.TaskFailStatus)
-}
-
 func (t *TaskRunner) createTaskEvent() {
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " finished - " + strings.ToUpper(string(t.Task.Status))
@@ -170,15 +161,13 @@ func (t *TaskRunner) run() {
 		t.createTaskEvent()
 	}()
 
-	// TODO: more details
+	// Mark task as stopped if user stopped task during preparation (before task run).
 	if t.Task.Status == db.TaskStoppingStatus {
 		t.SetStatus(db.TaskStoppedStatus)
 		return
 	}
 
-	now := time.Now()
-	t.Task.Start = &now
-	t.SetStatus(db.TaskRunningStatus)
+	t.SetStatus(db.TaskStartingStatus)
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " is running"
@@ -198,12 +187,6 @@ func (t *TaskRunner) run() {
 
 	t.Log("Started: " + strconv.Itoa(t.Task.ID))
 	t.Log("Run TaskRunner with template: " + t.Template.Name + "\n")
-
-	// Mark task as stopped if user stops task during preparation (before task run).
-	if t.Task.Status == db.TaskStoppingStatus {
-		t.SetStatus(db.TaskStoppedStatus)
-		return
-	}
 
 	var username string
 	var incomingVersion *string
@@ -225,7 +208,7 @@ func (t *TaskRunner) run() {
 
 	if err != nil {
 		t.Log("Running playbook failed: " + err.Error())
-		t.fail()
+		t.SetStatus(db.TaskFailStatus)
 		return
 	}
 
@@ -262,7 +245,7 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	}
 
 	if err != nil {
-		t.fail()
+		t.SetStatus(db.TaskFailStatus)
 		panic(err)
 	}
 

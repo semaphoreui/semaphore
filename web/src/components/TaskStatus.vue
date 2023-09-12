@@ -10,6 +10,7 @@ import IndeterminateProgressCircular from '@/components/IndeterminateProgressCir
 
 const TaskStatus = Object.freeze({
   WAITING: 'waiting',
+  STARTING: 'starting',
   RUNNING: 'running',
   SUCCESS: 'success',
   ERROR: 'error',
@@ -28,6 +29,8 @@ export default {
       switch (status) {
         case TaskStatus.WAITING:
           return 'mdi-alarm';
+        case TaskStatus.STARTING:
+          return 'mdi-play-circle';
         case TaskStatus.RUNNING:
           return '';
         case TaskStatus.SUCCESS:
@@ -47,6 +50,8 @@ export default {
       switch (status) {
         case TaskStatus.WAITING:
           return 'Waiting';
+        case TaskStatus.STARTING:
+          return 'Starting...';
         case TaskStatus.RUNNING:
           return 'Running';
         case TaskStatus.SUCCESS:
@@ -66,6 +71,8 @@ export default {
       switch (status) {
         case TaskStatus.WAITING:
           return '';
+        case TaskStatus.STARTING:
+          return 'warning';
         case TaskStatus.RUNNING:
           return 'primary';
         case TaskStatus.SUCCESS:

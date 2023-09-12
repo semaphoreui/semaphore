@@ -8,6 +8,7 @@ type TaskStatus string
 
 const (
 	TaskWaitingStatus  TaskStatus = "waiting"
+	TaskStartingStatus TaskStatus = "starting"
 	TaskRunningStatus  TaskStatus = "running"
 	TaskStoppingStatus TaskStatus = "stopping"
 	TaskStoppedStatus  TaskStatus = "stopped"
