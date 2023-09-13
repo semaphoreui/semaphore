@@ -24,12 +24,12 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
 		"registration_token": "${SEMAPHORE_REGISTRATION_TOKEN}",
 		"config_file": "${SEMAPHORE_RUNNER_CONFIG_FILE}",
 		"api_url": "${SEMAPHORE_API_URL}",
-		"one_off": "${SEMAPHORE_RUNNER_ONE_OFF}
+		"one_off": ${SEMAPHORE_RUNNER_ONE_OFF}
 	}
 }
 EOF
 
-    echoerr "Run Semaphore with semaphore --config ${SEMAPHORE_CONFIG_PATH}/config.json"
+    echoerr "Run Semaphore with semaphore runner --config ${SEMAPHORE_CONFIG_PATH}/config.json"
 fi
 
 # run our command
