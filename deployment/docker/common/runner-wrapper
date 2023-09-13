@@ -7,6 +7,7 @@ echoerr() { printf "%s\n" "$*" >&2; }
 
 SEMAPHORE_REGISTRATION_TOKEN="${SEMAPHORE_REGISTRATION_TOKEN:-}"
 SEMAPHORE_API_URL="${SEMAPHORE_API_URL:-}"
+SEMAPHORE_RUNNER_ONE_OFF="${SEMAPHORE_RUNNER_ONE_OFF:-false}"
 
 # Create a config if it does not exist in the current config path
 if [ ! -f "/etc/semaphore/config.json" ]; then
@@ -18,7 +19,8 @@ if [ ! -f "/etc/semaphore/config.json" ]; then
 	"runner": {
 		"registration_token": "${SEMAPHORE_REGISTRATION_TOKEN}",
 		"config_file": "/data/runner.json",
-		"api_url": "${SEMAPHORE_API_URL}"
+		"api_url": "${SEMAPHORE_API_URL}",
+		"one_off": "${SEMAPHORE_RUNNER_ONE_OFF}
 	}
 }
 EOF

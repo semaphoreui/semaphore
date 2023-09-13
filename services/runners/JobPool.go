@@ -279,18 +279,18 @@ func (p *JobPool) tryRegisterRunner() bool {
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
 	if err == nil {
-		configBytes, err := os.ReadFile(util.Config.Runner.ConfigFile)
+		configBytes, err2 := os.ReadFile(util.Config.Runner.ConfigFile)
 
-		if err != nil {
-			panic(err)
+		if err2 != nil {
+			panic(err2)
 		}
 
 		var config RunnerConfig
 
-		err = json.Unmarshal(configBytes, &config)
+		err2 = json.Unmarshal(configBytes, &config)
 
-		if err != nil {
-			panic(err)
+		if err2 != nil {
+			panic(err2)
 		}
 
 		p.config = &config

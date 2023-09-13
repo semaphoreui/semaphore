@@ -7,94 +7,94 @@ on:
     branches: [develop]
 
 jobs:
-#  build-local:
-#    runs-on: [ubuntu-latest]
-#    steps:
-#      - uses: actions/setup-go@v3
-#        with: { go-version: 1.19 }
-#
-#      - uses: actions/setup-node@v3
-#        with: { node-version: '16' }
-#
-#      - run: go install github.com/go-task/task/v3/cmd/task@latest
-#
-#      - uses: actions/checkout@v3
-#
-#      - run: task deps
-#
-#      - run: task compile
-#
-#      - name: Test that compile did not create/modify untracked files
-#        run: git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
-#
-#      - run: task build:local GOOS= GOARCH=
-#
-#      - run: task test
-#
-#      - uses: actions/upload-artifact@master
-#        with:
-#          name: semaphore
-#          path: bin/semaphore
-#          retention-days: 1
-#
-#
-#  test-db-migration:
-#    runs-on: [ubuntu-latest]
-#    needs: [build-local]
-#    steps:
-#      - uses: shogo82148/actions-setup-mysql@v1
-#        with:
-#          mysql-version: '5.6'
-#
-#      - uses: Harmon758/postgresql-action@v1
-#        with:
-#          postgresql version: '11'
-#          postgresql db: 'circle_test'
-#          postgresql user: 'root'
-#          postgresql password: 'pwd'
-#
-#      - uses: actions/download-artifact@master
-#        with:
-#          name: semaphore
-#
-#      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
-#          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
-#          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
-#          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
-#
-#      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
-#
-#      - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
-#          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
-#          \n\t},\n\t\"dialect\": \"mysql\",\n\t\"email_alert\": false\n}\nEOF\n"
-#
-#      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
-#
-#      - run: "cat > config.json <<EOF\n{\n\t\"bolt\": {\n\t\t\"host\": \"/tmp/database.bolt\"\
-#          \n\t},\n\t\"dialect\": \"bolt\",\n\t\"email_alert\": false\n}\nEOF\n"
-#
-#      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
-#
-#
-#  test-integration:
-#    runs-on: [ubuntu-latest]
-#    needs: [test-db-migration]
-#    steps:
-#      - uses: actions/setup-go@v3
-#        with: { go-version: 1.19 }
-#
-#      - run: go install github.com/go-task/task/v3/cmd/task@latest
-#
-#      - uses: actions/checkout@v3
-#
-#      - run: context=ci prefix=.postgres task dc:up
-#      - run: context=ci prefix=.bolt task dc:up
-#      - run: context=ci prefix=.mysql task dc:up
+  build-local:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/setup-go@v3
+        with: { go-version: 1.19 }
+
+      - uses: actions/setup-node@v3
+        with: { node-version: '16' }
+
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - uses: actions/checkout@v3
+
+      - run: task deps
+
+      - run: task compile
+
+      - name: Test that compile did not create/modify untracked files
+        run: git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
+
+      - run: task build:local GOOS= GOARCH=
+
+      - run: task test
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: semaphore
+          path: bin/semaphore
+          retention-days: 1
+
+
+  test-db-migration:
+    runs-on: [ubuntu-latest]
+    needs: [build-local]
+    steps:
+      - uses: shogo82148/actions-setup-mysql@v1
+        with:
+          mysql-version: '5.6'
+
+      - uses: Harmon758/postgresql-action@v1
+        with:
+          postgresql version: '11'
+          postgresql db: 'circle_test'
+          postgresql user: 'root'
+          postgresql password: 'pwd'
+
+      - uses: actions/download-artifact@master
+        with:
+          name: semaphore
+
+      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
+          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+      - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"dialect\": \"mysql\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+      - run: "cat > config.json <<EOF\n{\n\t\"bolt\": {\n\t\t\"host\": \"/tmp/database.bolt\"\
+          \n\t},\n\t\"dialect\": \"bolt\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+
+  test-integration:
+    runs-on: [ubuntu-latest]
+    needs: [test-db-migration]
+    steps:
+      - uses: actions/setup-go@v3
+        with: { go-version: 1.19 }
+
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - uses: actions/checkout@v3
+
+      - run: context=ci prefix=.postgres task dc:up
+      - run: context=ci prefix=.bolt task dc:up
+      - run: context=ci prefix=.mysql task dc:up
 
   deploy-dev:
     runs-on: [ubuntu-latest]
-#    needs: [test-integration]
-#    if: github.ref == 'refs/heads/develop'
+    needs: [test-integration]
+    if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/setup-go@v3
         with: { go-version: 1.19 }
@@ -113,14 +113,14 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-#      - name: Build and push
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          platforms: linux/amd64,linux/arm64
-#          file: ./deployment/docker/prod/buildx.Dockerfile
-#          push: true
-#          tags: semaphoreui/semaphore:develop
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/buildx.Dockerfile
+          push: true
+          tags: semaphoreui/semaphore:develop
 
       - name: Build and push runner
         uses: docker/build-push-action@v3
