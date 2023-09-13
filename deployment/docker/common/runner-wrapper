@@ -18,7 +18,7 @@ if [ ! -f "/etc/semaphore/config.json" ]; then
  	"tmp_path": "/data",
 	"runner": {
 		"registration_token": "${SEMAPHORE_REGISTRATION_TOKEN}",
-		"config_file": "/data/runner.json",
+		"config_file": "/etc/semaphore/runner.json",
 		"api_url": "${SEMAPHORE_API_URL}",
 		"one_off": "${SEMAPHORE_RUNNER_ONE_OFF}
 	}
