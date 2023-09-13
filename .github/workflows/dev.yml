@@ -122,6 +122,15 @@ jobs:
           push: true
           tags: semaphoreui/semaphore:develop
 
+      - name: Build and push runner
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/runner.buildx.Dockerfile
+          push: true
+          tags: semaphoreui/runner:develop
+
 
   # test-docker:
   #   runs-on: [ubuntu-latest]
