@@ -10,7 +10,7 @@ SEMAPHORE_RUNNER_CONFIG_FILE="${SEMAPHORE_RUNNER_CONFIG_FILE:-/var/lib/semaphore
 SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
 
 SEMAPHORE_REGISTRATION_TOKEN="${SEMAPHORE_REGISTRATION_TOKEN:-}"
-SEMAPHORE_API_URL="${SEMAPHORE_API_URL:-}"
+SEMAPHORE_RUNNER_API_URL="${SEMAPHORE_RUNNER_API_URL:-}"
 SEMAPHORE_RUNNER_ONE_OFF="${SEMAPHORE_RUNNER_ONE_OFF:-false}"
 
 # Create a config if it does not exist in the current config path
@@ -23,7 +23,7 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
 	"runner": {
 		"registration_token": "${SEMAPHORE_REGISTRATION_TOKEN}",
 		"config_file": "${SEMAPHORE_RUNNER_CONFIG_FILE}",
-		"api_url": "${SEMAPHORE_API_URL}",
+		"api_url": "${SEMAPHORE_RUNNER_API_URL}",
 		"one_off": ${SEMAPHORE_RUNNER_ONE_OFF}
 	}
 }

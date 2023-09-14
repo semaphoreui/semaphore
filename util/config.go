@@ -189,9 +189,9 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit(configPath string) {
 	fmt.Println("Loading config")
+	loadConfigDefaults()
 	loadConfigFile(configPath)
 	loadConfigEnvironment()
-	loadConfigDefaults()
 
 	fmt.Println("Validating config")
 	validateConfig()
