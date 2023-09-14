@@ -2,12 +2,14 @@ package tasks
 
 import (
 	"bytes"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const emailTemplate = "Subject: Task '{{ .Name }}' failed\r\n" +
@@ -142,6 +144,18 @@ func (t *TaskRunner) sendTelegramAlert() {
 		panic(err)
 	}
 
+	httpTransport := &http.Transport{}
+	if len(util.Config.AlertUrlProxy) != 0 { // Set the proxy only if the proxy param is specified
+		alertUrlProxy, proxyErr := url.Parse(util.Config.AlertUrlProxy)
+		if proxyErr == nil {
+			httpTransport.Proxy = http.ProxyURL(alertUrlProxy)
+		}
+		if proxyErr != nil {
+			t.Log("Can't send slack alert! Error: " + proxyErr.Error())
+		}
+	}
+	http := http.Client{Transport: httpTransport}
+
 	resp, err := http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
 
 	if err != nil {
@@ -161,6 +175,18 @@ func (t *TaskRunner) sendSlackAlert() {
 	}
 
 	slackUrl := util.Config.SlackUrl
+
+	httpTransport := &http.Transport{}
+	if len(util.Config.AlertUrlProxy) != 0 { // Set the proxy only if the proxy param is specified
+		alertUrlProxy, proxyErr := url.Parse(util.Config.AlertUrlProxy)
+		if proxyErr == nil {
+			httpTransport.Proxy = http.ProxyURL(alertUrlProxy)
+		}
+		if proxyErr != nil {
+			t.Log("Can't send slack alert! Error: " + proxyErr.Error())
+		}
+	}
+	http := http.Client{Transport: httpTransport}
 
 	var slackBuffer bytes.Buffer
 
