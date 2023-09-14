@@ -161,7 +161,7 @@ type ConfigType struct {
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port" default:":3000"`
+	Port string `json:"port" default:":3000" rule:"^:([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -180,11 +180,11 @@ type ConfigType struct {
 	WebHost string `json:"web_host"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash" rule:"^[-A-Za-z0-9+=\\/]{40,}$"`
+	CookieHash       string `json:"cookie_hash" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_COOKIE_HASH"`
 	CookieEncryption string `json:"cookie_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
-	AccessKeyEncryption string `json:"access_key_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$"`
+	AccessKeyEncryption string `json:"access_key_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
 	EmailAlert    bool   `json:"email_alert"`
@@ -203,7 +203,7 @@ type ConfigType struct {
 	LdapSearchDN     string       `json:"ldap_searchdn"`
 	LdapSearchFilter string       `json:"ldap_searchfilter"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
-	LdapNeedTLS      bool         `json:"ldap_needtls"`
+	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// telegram and slack alerting
 	TelegramAlert bool   `json:"telegram_alert"`
@@ -216,7 +216,7 @@ type ConfigType struct {
 	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$"`
+	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS""`
 
 	RunnerRegistrationToken string `json:"runner_registration_token"`
 
@@ -414,7 +414,17 @@ func validate(value interface{}) error {
 			continue
 		}
 
-		match, _ := regexp.MatchString(rule, fieldValue.String())
+		var value string
+
+		if fieldType.Type.Kind() == reflect.Int {
+			value = strconv.FormatInt(fieldValue.Int(), 10)
+		} else if fieldType.Type.Kind() == reflect.Uint {
+			value = strconv.FormatUint(fieldValue.Uint(), 10)
+		} else {
+			value = fieldValue.String()
+		}
+
+		match, _ := regexp.MatchString(rule, value)
 		if !match {
 			return fmt.Errorf(
 				"value of field '%v' is not valid! (Must match regex: '%v')",

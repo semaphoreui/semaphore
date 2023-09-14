@@ -285,6 +285,7 @@ func ensureConfigValidationFailure(t *testing.T, attribute string, value interfa
 }
 
 func TestValidateConfig(t *testing.T) {
+	//assert := assert.New(t)
 
 	Config = new(ConfigType)
 
@@ -310,6 +311,8 @@ func TestValidateConfig(t *testing.T) {
 	Config.Port = testPort
 
 	Config.MaxParallelTasks = -1
+	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
+
 	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
 	Config.MaxParallelTasks = testMaxParallelTasks
 
