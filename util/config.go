@@ -256,6 +256,10 @@ func loadDefaultsToObject(obj interface{}) error {
 		v = reflect.Indirect(v)
 	}
 
+	if v.Type().Kind() != reflect.Struct {
+		return nil
+	}
+
 	for i := 0; i < t.NumField(); i++ {
 		fieldType := t.Field(i)
 		fieldValue := v.Field(i)
