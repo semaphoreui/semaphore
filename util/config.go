@@ -216,7 +216,7 @@ type ConfigType struct {
 	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS""`
+	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
 	RunnerRegistrationToken string `json:"runner_registration_token"`
 
@@ -459,7 +459,7 @@ func loadEnvironmentToObject(obj interface{}) error {
 		fieldValue := v.Field(i)
 
 		if fieldType.Type.Kind() == reflect.Struct {
-			err := loadEnvironmentToObject(fieldValue.Addr())
+			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
 			if err != nil {
 				return err
 			}
