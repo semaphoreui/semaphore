@@ -131,11 +131,11 @@ type ConfigType struct {
 	WebHost string `json:"web_host" env:"SEMAPHORE_WEB_ROOT"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_COOKIE_HASH"`
-	CookieEncryption string `json:"cookie_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
+	CookieHash       string `json:"cookie_hash" env:"SEMAPHORE_COOKIE_HASH"`
+	CookieEncryption string `json:"cookie_encryption" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
-	AccessKeyEncryption string `json:"access_key_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
+	AccessKeyEncryption string `json:"access_key_encryption" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
 	EmailAlert    bool   `json:"email_alert" env:"SEMAPHORE_EMAIL_ALERT"`
