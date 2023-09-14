@@ -294,7 +294,7 @@ func TestValidateConfig(t *testing.T) {
 	Config = new(ConfigType)
 
 	var testPort string = ":3000"
-	var testDbDialect DbDriver = DbDriverBolt
+	var testDbDialect = DbDriverBolt
 	var testCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
 	var testMaxParallelTasks int = 0
 

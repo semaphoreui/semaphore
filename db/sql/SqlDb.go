@@ -150,7 +150,7 @@ func connect() (*sql.DB, error) {
 		return nil, err
 	}
 
-	dialect := cfg.Dialect.String()
+	dialect := cfg.Dialect
 	return sql.Open(dialect, connectionString)
 }
 
@@ -169,7 +169,7 @@ func createDb() error {
 		return err
 	}
 
-	conn, err := sql.Open(cfg.Dialect.String(), connectionString)
+	conn, err := sql.Open(cfg.Dialect, connectionString)
 	if err != nil {
 		return err
 	}

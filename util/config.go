@@ -27,16 +27,14 @@ var Cookie *securecookie.SecureCookie
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
 
-type DbDriver string
-
 const (
-	DbDriverMySQL    DbDriver = "mysql"
-	DbDriverBolt     DbDriver = "bolt"
-	DbDriverPostgres DbDriver = "postgres"
+	DbDriverMySQL    = "mysql"
+	DbDriverBolt     = "bolt"
+	DbDriverPostgres = "postgres"
 )
 
 type DbConfig struct {
-	Dialect DbDriver `json:"-"`
+	Dialect string `json:"-"`
 
 	Hostname string            `json:"host" env:"SEMAPHORE_DB_HOST"`
 	Username string            `json:"user" env:"SEMAPHORE_DB_USER"`
@@ -108,7 +106,7 @@ type ConfigType struct {
 	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
 
-	Dialect DbDriver `json:"dialect" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -510,11 +508,6 @@ func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	return
 }
 
-// String returns dialect name for GORP.
-func (d DbDriver) String() string {
-	return string(d)
-}
-
 func (d *DbConfig) IsPresent() bool {
 	return d.GetHostname() != ""
 }
@@ -626,7 +619,7 @@ func (conf *ConfigType) PrintDbInfo() {
 	}
 }
 
-func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
+func (conf *ConfigType) GetDialect() (dialect string, err error) {
 	if conf.Dialect == "" {
 		switch {
 		case conf.MySQL.IsPresent():
@@ -646,7 +639,7 @@ func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
 }
 
 func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
-	var dialect DbDriver
+	var dialect string
 	dialect, err = conf.GetDialect()
 
 	if err != nil {
