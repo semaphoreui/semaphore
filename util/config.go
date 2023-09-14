@@ -83,55 +83,6 @@ const (
 	CmdGitClientId = "cmd_git"
 )
 
-// // mapping internal config to env-vars
-// // todo: special cases - SEMAPHORE_DB_PORT, SEMAPHORE_DB_PATH (bolt), SEMAPHORE_CONFIG_PATH, OPENID for 1 provider if it makes sense
-//
-//	ConfigEnvironmentalVars = map[string]string{
-//		"Dialect":             "SEMAPHORE_DB_DIALECT",
-//		"MySQL.Hostname":      "SEMAPHORE_DB_HOST",
-//		"MySQL.Username":      "SEMAPHORE_DB_USER",
-//		"MySQL.Password":      "SEMAPHORE_DB_PASS",
-//		"MySQL.DbName":        "SEMAPHORE_DB",
-//		"Postgres.Hostname":   "SEMAPHORE_DB_HOST",
-//		"Postgres.Username":   "SEMAPHORE_DB_USER",
-//		"Postgres.Password":   "SEMAPHORE_DB_PASS",
-//		"Postgres.DbName":     "SEMAPHORE_DB",
-//		"BoltDb.Hostname":     "SEMAPHORE_DB_HOST",
-//		"Port":                "SEMAPHORE_PORT",
-//		"Interface":           "SEMAPHORE_INTERFACE",
-//		"TmpPath":             "SEMAPHORE_TMP_PATH",
-//		"SshConfigPath":       "SEMAPHORE_TMP_PATH",
-//		"GitClientId":         "SEMAPHORE_GIT_CLIENT",
-//		"WebHost":             "SEMAPHORE_WEB_ROOT",
-//		"CookieHash":          "SEMAPHORE_COOKIE_HASH",
-//		"CookieEncryption":    "SEMAPHORE_COOKIE_ENCRYPTION",
-//		"AccessKeyEncryption": "SEMAPHORE_ACCESS_KEY_ENCRYPTION",
-//		"EmailAlert":          "SEMAPHORE_EMAIL_ALERT",
-//		"EmailSender":         "SEMAPHORE_EMAIL_SENDER",
-//		"EmailHost":           "SEMAPHORE_EMAIL_HOST",
-//		"EmailPort":           "SEMAPHORE_EMAIL_PORT",
-//		"EmailUsername":       "SEMAPHORE_EMAIL_USER",
-//		"EmailPassword":       "SEMAPHORE_EMAIL_PASSWORD",
-//		"EmailSecure":         "SEMAPHORE_EMAIL_SECURE",
-//		"LdapEnable":          "SEMAPHORE_LDAP_ACTIVATED",
-//		"LdapBindDN":          "SEMAPHORE_LDAP_DN_BIND",
-//		"LdapBindPassword":    "SEMAPHORE_LDAP_PASSWORD",
-//		"LdapServer":          "SEMAPHORE_LDAP_HOST",
-//		"LdapSearchDN":        "SEMAPHORE_LDAP_DN_SEARCH",
-//		"LdapSearchFilter":    "SEMAPHORE_LDAP_SEARCH_FILTER",
-//		"LdapMappings.DN":     "SEMAPHORE_LDAP_MAPPING_DN",
-//		"LdapMappings.UID":    "SEMAPHORE_LDAP_MAPPING_USERNAME",
-//		"LdapMappings.CN":     "SEMAPHORE_LDAP_MAPPING_FULLNAME",
-//		"LdapMappings.Mail":   "SEMAPHORE_LDAP_MAPPING_EMAIL",
-//		"LdapNeedTLS":         "SEMAPHORE_LDAP_NEEDTLS",
-//		"TelegramAlert":       "SEMAPHORE_TELEGRAM_ALERT",
-//		"TelegramChat":        "SEMAPHORE_TELEGRAM_CHAT",
-//		"TelegramToken":       "SEMAPHORE_TELEGRAM_TOKEN",
-//		"SlackAlert":          "SEMAPHORE_SLACK_ALERT",
-//		"SlackUrl":            "SEMAPHORE_SLACK_URL",
-//		"MaxParallelTasks":    "SEMAPHORE_MAX_PARALLEL_TASKS",
-//	}
-//
 // // basic config validation using regex
 // /* NOTE: other basic regex could be used:
 //
@@ -144,11 +95,11 @@ const (
 // */
 
 type RunnerSettings struct {
-	ApiURL            string `json:"api_url"`
-	RegistrationToken string `json:"registration_token"`
-	ConfigFile        string `json:"config_file"`
+	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
+	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
 	// OneOff indicates than runner runs only one job and exit
-	OneOff bool `json:"one_off"`
+	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -165,52 +116,52 @@ type ConfigType struct {
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
-	Interface string `json:"interface"`
+	Interface string `json:"interface" env:"SEMAPHORE_INTERFACE"`
 
 	// semaphore stores ephemeral projects here
-	TmpPath string `json:"tmp_path" default:"/tmp/semaphore"`
+	TmpPath string `json:"tmp_path" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
-	SshConfigPath string `json:"ssh_config_path"`
+	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_TMP_PATH"`
 
 	GitClientId string `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
 	// web host
-	WebHost string `json:"web_host"`
+	WebHost string `json:"web_host" env:"SEMAPHORE_WEB_ROOT"`
 
 	// cookie hashing & encryption
 	CookieHash       string `json:"cookie_hash" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_COOKIE_HASH"`
-	CookieEncryption string `json:"cookie_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$"`
+	CookieEncryption string `json:"cookie_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
 	AccessKeyEncryption string `json:"access_key_encryption" rule:"^[-A-Za-z0-9+=\\/]{40,}$" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
-	EmailAlert    bool   `json:"email_alert"`
-	EmailSender   string `json:"email_sender"`
-	EmailHost     string `json:"email_host"`
-	EmailPort     string `json:"email_port" rule:"^(|[0-9]{1,5})$"`
-	EmailUsername string `json:"email_username"`
-	EmailPassword string `json:"email_password"`
-	EmailSecure   bool   `json:"email_secure"`
+	EmailAlert    bool   `json:"email_alert" env:"SEMAPHORE_EMAIL_ALERT"`
+	EmailSender   string `json:"email_sender" env:"SEMAPHORE_EMAIL_SENDER"`
+	EmailHost     string `json:"email_host" env:"SEMAPHORE_EMAIL_HOST"`
+	EmailPort     string `json:"email_port" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
+	EmailUsername string `json:"email_username" env:"SEMAPHORE_EMAIL_USERNAME"`
+	EmailPassword string `json:"email_password" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailSecure   bool   `json:"email_secure" env:"SEMAPHORE_EMAIL_SECURE"`
 
 	// ldap settings
-	LdapEnable       bool         `json:"ldap_enable"`
-	LdapBindDN       string       `json:"ldap_binddn"`
-	LdapBindPassword string       `json:"ldap_bindpassword"`
-	LdapServer       string       `json:"ldap_server"`
-	LdapSearchDN     string       `json:"ldap_searchdn"`
-	LdapSearchFilter string       `json:"ldap_searchfilter"`
+	LdapEnable       bool         `json:"ldap_enable" env:"SEMAPHORE_LDAP_ENABLE"`
+	LdapBindDN       string       `json:"ldap_binddn" env:"SEMAPHORE_LDAP_BIND_DN"`
+	LdapBindPassword string       `json:"ldap_bindpassword" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
+	LdapServer       string       `json:"ldap_server" env:"SEMAPHORE_LDAP_SERVER"`
+	LdapSearchDN     string       `json:"ldap_searchdn" env:"SEMAPHORE_LDAP_SEARCH_DN"`
+	LdapSearchFilter string       `json:"ldap_searchfilter" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
 	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// telegram and slack alerting
-	TelegramAlert bool   `json:"telegram_alert"`
-	TelegramChat  string `json:"telegram_chat"`
-	TelegramToken string `json:"telegram_token"`
-	SlackAlert    bool   `json:"slack_alert"`
-	SlackUrl      string `json:"slack_url"`
+	TelegramAlert bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
+	TelegramChat  string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
+	TelegramToken string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
+	SlackAlert    bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
+	SlackUrl      string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
 
 	// oidc settings
 	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
@@ -218,13 +169,13 @@ type ConfigType struct {
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
-	RunnerRegistrationToken string `json:"runner_registration_token"`
+	RunnerRegistrationToken string `json:"runner_registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	// feature switches
-	PasswordLoginDisable     bool `json:"password_login_disable"`
-	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`
+	PasswordLoginDisable     bool `json:"password_login_disable" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	NonAdminCanCreateProject bool `json:"non_admin_can_create_project" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
-	UseRemoteRunner bool `json:"use_remote_runner"`
+	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
 }
