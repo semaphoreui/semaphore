@@ -189,9 +189,9 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit(configPath string) {
 	fmt.Println("Loading config")
-	loadConfigDefaults()
 	loadConfigFile(configPath)
 	loadConfigEnvironment()
+	loadConfigDefaults()
 
 	fmt.Println("Validating config")
 	validateConfig()
@@ -256,13 +256,13 @@ func loadDefaultsToObject(obj interface{}) error {
 		v = reflect.Indirect(v)
 	}
 
-	if v.Type().Kind() != reflect.Struct {
-		return nil
-	}
-
 	for i := 0; i < t.NumField(); i++ {
 		fieldType := t.Field(i)
 		fieldValue := v.Field(i)
+
+		if !fieldValue.IsZero() {
+			continue
+		}
 
 		if fieldType.Type.Kind() == reflect.Struct {
 			err := loadDefaultsToObject(fieldValue.Addr())
