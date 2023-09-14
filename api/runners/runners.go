@@ -51,7 +51,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if tsk.Task.Status == db.TaskRunningStatus {
+		if tsk.Task.Status == db.TaskStartingStatus {
 
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:        tsk.Username,
@@ -64,11 +64,27 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			})
 
 			if tsk.Inventory.SSHKeyID != nil {
+				err := tsk.Inventory.SSHKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
 				data.AccessKeys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
 			}
 
 			if tsk.Inventory.BecomeKeyID != nil {
+				err := tsk.Inventory.BecomeKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
 				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
+			}
+
+			if tsk.Template.VaultKeyID != nil {
+				err := tsk.Template.VaultKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
+				data.AccessKeys[*tsk.Template.VaultKeyID] = tsk.Template.VaultKey
 			}
 
 			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
@@ -112,6 +128,8 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		for _, logRecord := range job.LogRecords {
 			tsk.Log2(logRecord.Message, logRecord.Time)
 		}
+
+		tsk.SetStatus(job.Status)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -135,7 +153,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runner, err := helpers.Store(r).CreateRunner(db.Runner{
-		State: db.RunnerActive,
+		//State: db.RunnerActive,
 	})
 
 	if err != nil {

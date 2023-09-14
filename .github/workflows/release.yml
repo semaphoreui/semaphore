@@ -62,3 +62,12 @@ jobs:
           file: ./deployment/docker/prod/buildx.Dockerfile
           push: true
           tags: semaphoreui/semaphore:latest,semaphoreui/semaphore:${{ github.ref_name }}
+
+      - name: Build and push runner
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/runner.buildx.Dockerfile
+          push: true
+          tags: semaphoreui/runner:latest,semaphoreui/runner:${{ github.ref_name }}

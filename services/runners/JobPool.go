@@ -40,7 +40,7 @@ type job struct {
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
-	Status          db.TaskStatus
+	status          db.TaskStatus
 	args            []string
 	environmentVars []string
 }
@@ -77,7 +77,7 @@ type LogRecord struct {
 }
 
 type RunnerProgress struct {
-	Jobs []JobProgress `json:"jobs" binding:"required"`
+	Jobs []JobProgress
 }
 
 type JobProgress struct {
@@ -89,6 +89,7 @@ type JobProgress struct {
 type runningJob struct {
 	status     db.TaskStatus
 	logRecords []LogRecord
+	job        *tasks.LocalJob
 }
 
 type JobPool struct {
@@ -115,8 +116,22 @@ func (p *runningJob) Log2(msg string, now time.Time) {
 	p.logRecords = append(p.logRecords, LogRecord{Time: now, Message: msg})
 }
 
+func (p *JobPool) hasRunningJobs() bool {
+	for _, j := range p.runningJobs {
+		if !j.status.IsFinished() {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (p *runningJob) Log(msg string) {
 	p.Log2(msg, time.Now())
+}
+
+func (p *runningJob) SetStatus(status db.TaskStatus) {
+	p.status = status
 }
 
 func (p *runningJob) LogCmd(cmd *exec.Cmd) {
@@ -144,7 +159,7 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
-	requestTimer := time.NewTicker(5 * time.Second)
+	requestTimer := time.NewTicker(1 * time.Second)
 	p.runningJobs = make(map[int]*runningJob)
 
 	defer func() {
@@ -162,7 +177,7 @@ func (p *JobPool) Run() {
 			}
 
 			t := p.queue[0]
-			if t.Status == db.TaskFailStatus {
+			if t.status == db.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
@@ -172,20 +187,44 @@ func (p *JobPool) Run() {
 			//log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
 			//p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
-			p.runningJobs[t.job.Task.ID] = &runningJob{}
-
+			p.runningJobs[t.job.Task.ID] = &runningJob{
+				job: t.job,
+			}
 			t.job.Logger = p.runningJobs[t.job.Task.ID]
 			t.job.Playbook.Logger = t.job.Logger
 
-			go t.job.Run(t.username, t.incomingVersion)
+			go func(runningJob *runningJob) {
+				runningJob.SetStatus(db.TaskRunningStatus)
+
+				err := runningJob.job.Run(t.username, t.incomingVersion)
+
+				if runningJob.status.IsFinished() {
+					return
+				}
+
+				if err != nil {
+					if runningJob.status == db.TaskStoppingStatus {
+						runningJob.SetStatus(db.TaskStoppedStatus)
+					} else {
+						runningJob.SetStatus(db.TaskFailStatus)
+					}
+				} else {
+					runningJob.SetStatus(db.TaskSuccessStatus)
+				}
+			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
 			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
 
 		case <-requestTimer.C:
 
-			go p.checkNewJobs()
 			go p.sendProgress()
+
+			if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+				os.Exit(0)
+			}
+
+			go p.checkNewJobs()
 
 		}
 	}
@@ -212,7 +251,7 @@ func (p *JobPool) sendProgress() {
 			Status:     j.status,
 		})
 
-		// TODO: clean logs
+		j.logRecords = make([]LogRecord, 0)
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -240,18 +279,18 @@ func (p *JobPool) tryRegisterRunner() bool {
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
 	if err == nil {
-		configBytes, err := os.ReadFile(util.Config.Runner.ConfigFile)
+		configBytes, err2 := os.ReadFile(util.Config.Runner.ConfigFile)
 
-		if err != nil {
-			panic(err)
+		if err2 != nil {
+			panic(err2)
 		}
 
 		var config RunnerConfig
 
-		err = json.Unmarshal(configBytes, &config)
+		err2 = json.Unmarshal(configBytes, &config)
 
-		if err != nil {
-			panic(err)
+		if err2 != nil {
+			panic(err2)
 		}
 
 		p.config = &config
@@ -353,6 +392,26 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
+	for _, currJob := range response.CurrentJobs {
+		runJob, exists := p.runningJobs[currJob.ID]
+
+		if !exists {
+			continue
+		}
+
+		runJob.SetStatus(currJob.Status)
+
+		if runJob.status == db.TaskStoppingStatus || runJob.status == db.TaskStoppedStatus {
+			p.runningJobs[currJob.ID].job.Kill()
+		}
+	}
+
+	if util.Config.Runner.OneOff {
+		if len(p.queue) > 0 || len(p.runningJobs) > 0 {
+			return
+		}
+	}
+
 	for _, newJob := range response.NewJobs {
 		if _, exists := p.runningJobs[newJob.Task.ID]; exists {
 			continue
@@ -383,6 +442,10 @@ func (p *JobPool) checkNewJobs() {
 
 		if taskRunner.job.Inventory.BecomeKeyID != nil {
 			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
+		}
+
+		if taskRunner.job.Template.VaultKeyID != nil {
+			taskRunner.job.Template.VaultKey = response.AccessKeys[*taskRunner.job.Template.VaultKeyID]
 		}
 
 		p.queue = append(p.queue, &taskRunner)

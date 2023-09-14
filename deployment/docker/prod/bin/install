@@ -19,3 +19,6 @@ chmod +x /usr/local/bin/semaphore
 
 mv ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
 chown 1001:0 /usr/local/bin/semaphore-wrapper
+
+mv ./deployment/docker/common/runner-wrapper /usr/local/bin/runner-wrapper
+chown 1001:0 /usr/local/bin/runner-wrapper

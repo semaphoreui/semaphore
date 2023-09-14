@@ -27,7 +27,7 @@ type LocalJob struct {
 
 func (t *LocalJob) Kill() {
 	if t.Process == nil {
-		panic("running process can not be nil")
+		return
 	}
 	err := t.Process.Kill()
 	if err != nil {
@@ -37,6 +37,10 @@ func (t *LocalJob) Kill() {
 
 func (t *LocalJob) Log(msg string) {
 	t.Logger.Log(msg)
+}
+
+func (t *LocalJob) SetStatus(status db.TaskStatus) {
+	t.Logger.SetStatus(status)
 }
 
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (str string, err error) {
@@ -225,6 +229,9 @@ func (t *LocalJob) destroyKeys() {
 }
 
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
+
+	t.SetStatus(db.TaskRunningStatus)
+
 	err = t.prepareRun()
 	if err != nil {
 		return err

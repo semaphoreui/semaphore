@@ -133,6 +133,7 @@ export default {
   author: 'Author',
   duration: 'Duration',
   stop: 'Stop',
+  forceStop: 'Force Stop',
   deleteTeamMember: 'Delete team member',
   team2: 'Team',
   newTeamMember: 'New Team Member',

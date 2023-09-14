@@ -41,7 +41,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 	}
 
 	if len(runners) == 0 {
-		err = fmt.Errorf("no runners")
+		err = fmt.Errorf("no runners available")
 		return
 	}
 
@@ -51,10 +51,14 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
+	if runner.Webhook != "" {
+		// TODO: call runner hook if it is provided. Used to start docker container
+	}
+
 	tsk.RunnerID = runner.ID
 
 	for {
-		time.Sleep(1000000000)
+		time.Sleep(1_000_000_000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
 		if tsk.Task.Status == db.TaskSuccessStatus ||
 			tsk.Task.Status == db.TaskStoppedStatus ||
@@ -63,8 +67,17 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 		}
 	}
 
+	if runner.Webhook != "" {
+		// TODO: call runner hook if it is provided. Used to remove docker container
+	}
+
+	if tsk.Task.Status == db.TaskFailStatus {
+		err = fmt.Errorf("task failed")
+	}
+
 	return
 }
 
 func (t *RemoteJob) Kill() {
+	// Do nothing because you can't kill remote process
 }

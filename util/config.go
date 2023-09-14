@@ -149,6 +149,8 @@ type RunnerSettings struct {
 	ApiURL            string `json:"api_url"`
 	RegistrationToken string `json:"registration_token"`
 	ConfigFile        string `json:"config_file"`
+	// OneOff indicates than runner runs only one job and exit
+	OneOff bool `json:"one_off"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -223,6 +225,8 @@ type ConfigType struct {
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project"`
+
+	UseRemoteRunner bool `json:"use_remote_runner"`
 
 	Runner RunnerSettings `json:"runner"`
 }

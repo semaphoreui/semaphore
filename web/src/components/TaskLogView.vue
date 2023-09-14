@@ -67,11 +67,12 @@
     <v-btn
         color="error"
         style="position: absolute; bottom: 10px; right: 10px;"
-        v-if="item.status === 'running' || item.status === 'waiting'"
-        @click="stopTask()"
+        v-if="canStop"
+        @click="stopTask(item.status === 'stopping')"
     >
-      {{ $t('stop') }}
+      {{ item.status === 'stopping' ? $t('forceStop') : $t('stop') }}
     </v-btn>
+
   </div>
 </template>
 
@@ -139,6 +140,7 @@ export default {
       user: {},
     };
   },
+
   watch: {
     async itemId() {
       this.reset();
@@ -150,17 +152,27 @@ export default {
       await this.loadData();
     },
   },
+
+  computed: {
+    canStop() {
+      return ['running', 'stopping', 'waiting', 'starting'].includes(this.item.status);
+    },
+  },
+
   async created() {
     socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
   },
 
   methods: {
-    async stopTask() {
+    async stopTask(force) {
       await axios({
         method: 'post',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/stop`,
         responseType: 'json',
+        data: {
+          force,
+        },
       });
     },
 

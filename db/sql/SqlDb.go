@@ -211,8 +211,13 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 
 func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
-		From(props.TableName+" pe").
-		Where("pe.project_id=?", projectID)
+		From(props.TableName + " pe")
+
+	if props.IsGlobal {
+		q = q.Where("pe.project_id is null")
+	} else {
+		q = q.Where("pe.project_id=?", projectID)
+	}
 
 	orderDirection := "ASC"
 	if params.SortInverted {
@@ -240,11 +245,18 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 }
 
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {
-	return validateMutationResult(
-		d.exec(
-			"delete from "+props.TableName+" where project_id=? and id=?",
-			projectID,
-			objectID))
+	if props.IsGlobal {
+		return validateMutationResult(
+			d.exec(
+				"delete from "+props.TableName+" where id=?",
+				objectID))
+	} else {
+		return validateMutationResult(
+			d.exec(
+				"delete from "+props.TableName+" where project_id=? and id=?",
+				projectID,
+				objectID))
+	}
 }
 
 func (d *SqlDb) Close(token string) {

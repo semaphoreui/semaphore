@@ -314,7 +314,7 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
-var RunnerProps = ObjectProps{
+var GlobalRunnerProps = ObjectProps{
 	TableName:         "runner",
 	Type:              reflect.TypeOf(Runner{}),
 	PrimaryColumnName: "id",
