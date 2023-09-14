@@ -18,10 +18,6 @@ import (
 	"strings"
 
 	"github.com/google/go-github/github"
-<<<<<<< HEAD
-=======
-
->>>>>>> 954e168 (Added in Proxy URL settings for the alerting)
 	"github.com/gorilla/securecookie"
 )
 
