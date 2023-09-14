@@ -74,15 +74,13 @@ type oidcProvider struct {
 	EmailClaim    string       `json:"email_claim"`
 }
 
-type GitClientId string
-
 const (
 	// GoGitClientId is builtin Git client. It is not require external dependencies and is preferred.
 	// Use it if you don't need external SSH authorization.
-	GoGitClientId GitClientId = "go_git"
+	GoGitClientId = "go_git"
 	// CmdGitClientId is external Git client.
 	// Default Git client. It is use external Git binary to clone repositories.
-	CmdGitClientId GitClientId = "cmd_git"
+	CmdGitClientId = "cmd_git"
 )
 
 // // mapping internal config to env-vars
@@ -176,7 +174,7 @@ type ConfigType struct {
 	// Default path is ~/.ssh/config.
 	SshConfigPath string `json:"ssh_config_path"`
 
-	GitClientId GitClientId `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
+	GitClientId string `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
 	// web host
 	WebHost string `json:"web_host"`
