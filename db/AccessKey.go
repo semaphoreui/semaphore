@@ -198,7 +198,7 @@ func (key *AccessKey) SerializeSecret() error {
 		return fmt.Errorf("invalid access token type")
 	}
 
-	encryptionString := util.Config.GetAccessKeyEncryption()
+	encryptionString := util.Config.AccessKeyEncryption
 
 	if encryptionString == "" {
 		secret := base64.StdEncoding.EncodeToString(plaintext)
@@ -258,7 +258,7 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 //}
 
 func (key *AccessKey) DeserializeSecret() error {
-	return key.DeserializeSecret2(util.Config.GetAccessKeyEncryption())
+	return key.DeserializeSecret2(util.Config.AccessKeyEncryption)
 }
 
 func (key *AccessKey) DeserializeSecret2(encryptionString string) error {
