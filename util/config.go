@@ -100,6 +100,8 @@ type RunnerSettings struct {
 	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
 	// OneOff indicates than runner runs only one job and exit
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
+
+	Webhook string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -249,49 +251,6 @@ func loadConfigFile(configPath string) {
 	}
 }
 
-func DeepCopy(src interface{}) interface{} {
-	srcValue := reflect.ValueOf(src)
-
-	// Handle pointers
-	if srcValue.Kind() == reflect.Ptr {
-		srcValue = srcValue.Elem()
-	}
-
-	switch srcValue.Kind() {
-	case reflect.Array, reflect.Slice:
-		// Handle arrays and slices
-		newSlice := reflect.MakeSlice(srcValue.Type(), srcValue.Len(), srcValue.Len())
-		for i := 0; i < srcValue.Len(); i++ {
-			newElem := DeepCopy(srcValue.Index(i).Interface())
-			newSlice.Index(i).Set(reflect.ValueOf(newElem))
-		}
-		return newSlice.Interface()
-
-	case reflect.Map:
-		// Handle maps
-		newMap := reflect.MakeMap(srcValue.Type())
-		for _, key := range srcValue.MapKeys() {
-			newKey := DeepCopy(key.Interface())
-			newValue := DeepCopy(srcValue.MapIndex(key).Interface())
-			newMap.SetMapIndex(reflect.ValueOf(newKey), reflect.ValueOf(newValue))
-		}
-		return newMap.Interface()
-
-	case reflect.Struct:
-		// Handle structs
-		newStruct := reflect.New(srcValue.Type()).Elem()
-		for i := 0; i < srcValue.NumField(); i++ {
-			newField := DeepCopy(srcValue.Field(i).Interface())
-			newStruct.Field(i).Set(reflect.ValueOf(newField))
-		}
-		return newStruct.Interface()
-
-	default:
-		// For all other types, return a shallow copy
-		return src
-	}
-}
-
 func loadDefaultsToObject(obj interface{}) error {
 	var t = reflect.TypeOf(obj)
 	var v = reflect.ValueOf(obj)
@@ -318,6 +277,11 @@ func loadDefaultsToObject(obj interface{}) error {
 		} else if fieldInfo.Type.Kind() == reflect.Map {
 			for _, key := range fieldValue.MapKeys() {
 				val := fieldValue.MapIndex(key)
+
+				if val.Type().Kind() != reflect.Struct {
+					continue
+				}
+
 				newVal := reflect.New(val.Type())
 				pointerValue := newVal.Elem()
 				pointerValue.Set(val)

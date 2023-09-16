@@ -43,6 +43,15 @@ type TaskPool struct {
 	resourceLocker chan *resourceLock
 }
 
+func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
+	for _, task := range p.runningTasks {
+		if task.RunnerID == runnerID {
+			res++
+		}
+	}
+	return
+}
+
 func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
 	for _, task := range p.runningTasks {
 		res = append(res, task)
