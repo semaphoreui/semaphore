@@ -169,7 +169,7 @@ type ConfigType struct {
 	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
 	RunnerRegistrationToken string `json:"runner_registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
