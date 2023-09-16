@@ -200,8 +200,10 @@ func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
 }
 
 type loginMetadataOidcProvider struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color"`
+	Icon  string `json:"icon"`
 }
 
 type loginMetadata struct {
@@ -219,8 +221,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		i := 0
 		for k, v := range util.Config.OidcProviders {
 			config.OidcProviders[i] = loginMetadataOidcProvider{
-				ID:   k,
-				Name: v.DisplayName,
+				ID:    k,
+				Name:  v.DisplayName,
+				Color: v.Color,
+				Icon:  v.Icon,
 			}
 			i++
 		}
@@ -385,7 +389,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
-		log.Error(fmt.Errorf("No such provider: %s", pid))
+		log.Error(fmt.Errorf("no such provider: %s", pid))
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
@@ -427,30 +431,32 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(provider.UsernameClaim) == 0 {
-		provider.UsernameClaim = "preferred_username"
-	}
+	//if len(provider.UsernameClaim) == 0 {
+	//	provider.UsernameClaim = "preferred_username"
+	//}
 	usernameClaim, ok := claims[provider.UsernameClaim].(string)
 	if !ok {
-		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.UsernameClaim))
+		log.Error(fmt.Errorf("claim '%s' missing from id_token or not a string", provider.UsernameClaim))
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
-	if len(provider.NameClaim) == 0 {
-		provider.NameClaim = "preferred_username"
-	}
+
+	//if len(provider.NameClaim) == 0 {
+	//	provider.NameClaim = "preferred_username"
+	//}
 	nameClaim, ok := claims[provider.NameClaim].(string)
 	if !ok {
-		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.NameClaim))
+		log.Error(fmt.Errorf("claim '%s' missing from id_token or not a string", provider.NameClaim))
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
-	if len(provider.EmailClaim) == 0 {
-		provider.EmailClaim = "email"
-	}
+
+	//if len(provider.EmailClaim) == 0 {
+	//	provider.EmailClaim = "email"
+	//}
 	emailClaim, ok := claims[provider.EmailClaim].(string)
 	if !ok {
-		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.EmailClaim))
+		log.Error(fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim))
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}

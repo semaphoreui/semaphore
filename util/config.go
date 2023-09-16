@@ -65,11 +65,13 @@ type oidcProvider struct {
 	RedirectURL   string       `json:"redirect_url"`
 	Scopes        []string     `json:"scopes"`
 	DisplayName   string       `json:"display_name"`
+	Color         string       `json:"color"`
+	Icon          string       `json:"icon"`
 	AutoDiscovery string       `json:"provider_url"`
 	Endpoint      oidcEndpoint `json:"endpoint"`
-	UsernameClaim string       `json:"username_claim"`
-	NameClaim     string       `json:"name_claim"`
-	EmailClaim    string       `json:"email_claim"`
+	UsernameClaim string       `json:"username_claim" default:"preferred_username"`
+	NameClaim     string       `json:"name_claim" default:"preferred_username"`
+	EmailClaim    string       `json:"email_claim" default:"email"`
 }
 
 const (
@@ -247,6 +249,49 @@ func loadConfigFile(configPath string) {
 	}
 }
 
+func DeepCopy(src interface{}) interface{} {
+	srcValue := reflect.ValueOf(src)
+
+	// Handle pointers
+	if srcValue.Kind() == reflect.Ptr {
+		srcValue = srcValue.Elem()
+	}
+
+	switch srcValue.Kind() {
+	case reflect.Array, reflect.Slice:
+		// Handle arrays and slices
+		newSlice := reflect.MakeSlice(srcValue.Type(), srcValue.Len(), srcValue.Len())
+		for i := 0; i < srcValue.Len(); i++ {
+			newElem := DeepCopy(srcValue.Index(i).Interface())
+			newSlice.Index(i).Set(reflect.ValueOf(newElem))
+		}
+		return newSlice.Interface()
+
+	case reflect.Map:
+		// Handle maps
+		newMap := reflect.MakeMap(srcValue.Type())
+		for _, key := range srcValue.MapKeys() {
+			newKey := DeepCopy(key.Interface())
+			newValue := DeepCopy(srcValue.MapIndex(key).Interface())
+			newMap.SetMapIndex(reflect.ValueOf(newKey), reflect.ValueOf(newValue))
+		}
+		return newMap.Interface()
+
+	case reflect.Struct:
+		// Handle structs
+		newStruct := reflect.New(srcValue.Type()).Elem()
+		for i := 0; i < srcValue.NumField(); i++ {
+			newField := DeepCopy(srcValue.Field(i).Interface())
+			newStruct.Field(i).Set(reflect.ValueOf(newField))
+		}
+		return newStruct.Interface()
+
+	default:
+		// For all other types, return a shallow copy
+		return src
+	}
+}
+
 func loadDefaultsToObject(obj interface{}) error {
 	var t = reflect.TypeOf(obj)
 	var v = reflect.ValueOf(obj)
@@ -257,22 +302,37 @@ func loadDefaultsToObject(obj interface{}) error {
 	}
 
 	for i := 0; i < t.NumField(); i++ {
-		fieldType := t.Field(i)
+		fieldInfo := t.Field(i)
 		fieldValue := v.Field(i)
 
-		if !fieldValue.IsZero() {
+		if !fieldValue.IsZero() && fieldInfo.Type.Kind() != reflect.Struct && fieldInfo.Type.Kind() != reflect.Map {
 			continue
 		}
 
-		if fieldType.Type.Kind() == reflect.Struct {
-			err := loadDefaultsToObject(fieldValue.Addr())
+		if fieldInfo.Type.Kind() == reflect.Struct {
+			err := loadDefaultsToObject(fieldValue.Addr().Interface())
 			if err != nil {
 				return err
 			}
 			continue
+		} else if fieldInfo.Type.Kind() == reflect.Map {
+			for _, key := range fieldValue.MapKeys() {
+				val := fieldValue.MapIndex(key)
+				newVal := reflect.New(val.Type())
+				pointerValue := newVal.Elem()
+				pointerValue.Set(val)
+
+				err := loadDefaultsToObject(newVal.Interface())
+				if err != nil {
+					return err
+				}
+
+				fieldValue.SetMapIndex(key, newVal.Elem())
+			}
+			continue
 		}
 
-		defaultVar := fieldType.Tag.Get("default")
+		defaultVar := fieldInfo.Tag.Get("default")
 		if defaultVar == "" {
 			continue
 		}

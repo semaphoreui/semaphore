@@ -33,8 +33,12 @@
             color="info"
             style="font-family: monospace;"
           >
-            {{ $t('semaphoreUserChangebyloginLoginUser123Password', {makePasswordExample:
-              makePasswordExample()}) }}
+            {{
+              $t('semaphoreUserChangebyloginLoginUser123Password', {
+                makePasswordExample:
+                  makePasswordExample()
+              })
+            }}
           </v-alert>
           <p class="text-body-1">
             {{ $t('orCreateNewAdminUser') }}
@@ -116,17 +120,26 @@
         </v-btn>
 
         <v-btn
-            v-for="provider in oidcProviders"
-            color="secondary"
-            class="mt-2"
-            @click="oidcSignIn(provider.id)"
-            block
-            :key="provider.id"
+          v-for="provider in oidcProviders"
+          :color="provider.color || 'secondary'"
+          dark
+          class="mt-2"
+          @click="oidcSignIn(provider.id)"
+          block
+          :key="provider.id"
         >
-            {{ provider.name }}
+          <v-icon
+            left
+            dark
+            v-if="provider.icon"
+          >
+            mdi-{{ provider.icon }}
+          </v-icon>
+
+          {{ provider.name }}
         </v-btn>
 
-        <div class="text-center mt-6">
+        <div class="text-center mt-6" v-if="loginWithPassword">
           <a @click="loginHelpDialog = true">{{ $t('dontHaveAccountOrCantSignIn') }}</a>
         </div>
       </v-form>
