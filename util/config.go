@@ -59,7 +59,7 @@ type oidcEndpoint struct {
 	Algorithms  []string `json:"algorithms"`
 }
 
-type oidcProvider struct {
+type OidcProvider struct {
 	ClientID      string       `json:"client_id"`
 	ClientSecret  string       `json:"client_secret"`
 	RedirectURL   string       `json:"redirect_url"`
@@ -164,7 +164,7 @@ type ConfigType struct {
 	SlackUrl      string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
 
 	// oidc settings
-	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
 
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
