@@ -114,7 +114,7 @@ type ConfigType struct {
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port" default:":3000" rule:"^:([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string `json:"port" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
