@@ -55,6 +55,8 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+
 	var resp *http.Response
 	resp, err = client.Do(req)
 	if err != nil {
