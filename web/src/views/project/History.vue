@@ -16,6 +16,7 @@
         :to="`/project/${projectId}/settings`"
       >{{ $t('settings') }}
       </v-tab>
+      <v-tab key="history" :to="`/project/${projectId}/billing`">{{ $t('billing') }}</v-tab>
     </v-tabs>
 
     <v-data-table

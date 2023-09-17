@@ -178,7 +178,7 @@ func (p *TaskPool) Run() {
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
 
-	if len(p.runningTasks) >= util.Config.MaxParallelTasks {
+	if util.Config.MaxParallelTasks > 0 && len(p.runningTasks) >= util.Config.MaxParallelTasks {
 		return true
 	}
 
