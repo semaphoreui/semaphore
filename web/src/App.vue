@@ -325,7 +325,7 @@
                 </v-list-item-content>
 
                 <v-list-item-action>
-                  <v-chip color="red" small>admin</v-chip>
+                  <v-chip color="red" v-if="user.admin" small>admin</v-chip>
                 </v-list-item-action>
               </v-list-item>
             </template>
