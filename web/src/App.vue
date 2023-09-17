@@ -261,17 +261,52 @@
       </v-list>
 
       <template v-slot:append>
-        <v-menu top max-width="235" nudge-top="12">
-          <template v-slot:activator="{ on, attrs }">
-            <v-list class="pa-0">
-              <v-list-item>
-                <v-switch
-                  v-model="darkMode"
-                  inset
-                  :label="$t('darkMode')"
-                  persistent-hint
-                ></v-switch>
-              </v-list-item>
+        <v-list class="pa-0">
+          <v-list-item>
+            <v-switch
+              v-model="darkMode"
+              inset
+              :label="$t('darkMode')"
+              persistent-hint
+            ></v-switch>
+
+            <v-spacer />
+
+            <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
+              <template v-slot:activator="{on, attrs}">
+                <v-btn
+                  icon
+                  x-large
+                  v-bind="attrs"
+                  v-on="on"
+                >
+                  <span style="font-size: 30px;">{{ lang.flag }}</span>
+                </v-btn>
+              </template>
+
+              <v-list dense>
+                <v-list-item
+                  v-for="lang in languages"
+                  :key="lang.id"
+                  @click="selectLanguage(lang.id)"
+                >
+
+                  <v-list-item-icon>
+                    {{ lang.flag }}
+                  </v-list-item-icon>
+
+                  <v-list-item-content>
+                    <v-list-item-title>{{ lang.title }}</v-list-item-title>
+                  </v-list-item-content>
+
+                </v-list-item>
+              </v-list>
+            </v-menu>
+
+          </v-list-item>
+
+          <v-menu top max-width="235" nudge-top="12">
+            <template v-slot:activator="{ on, attrs }">
               <v-list-item
                 key="project"
                 v-bind="attrs"
@@ -285,72 +320,43 @@
                   <v-list-item-title>{{ user.name }}</v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
+            </template>
+
+            <v-list>
+              <v-list-item key="users" to="/users" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-account-multiple</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('users') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="edit" @click="userDialog = true">
+                <v-list-item-icon>
+                  <v-icon>mdi-pencil</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('editAccount') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="sign_out" @click="signOut()">
+                <v-list-item-icon>
+                  <v-icon>mdi-exit-to-app</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('signOut') }}
+                </v-list-item-content>
+              </v-list-item>
             </v-list>
-          </template>
+          </v-menu>
 
-          <v-list>
-            <v-list-item key="users" to="/users" v-if="user.admin">
-              <v-list-item-icon>
-                <v-icon>mdi-account-multiple</v-icon>
-              </v-list-item-icon>
+        </v-list>
 
-              <v-list-item-content>
-                {{ $t('users') }}
-              </v-list-item-content>
-            </v-list-item>
-
-            <v-list-item key="edit" @click="userDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-pencil</v-icon>
-              </v-list-item-icon>
-
-              <v-list-item-content>
-                {{ $t('editAccount') }}
-              </v-list-item-content>
-            </v-list-item>
-
-            <!--
-                        <v-list-item key="password" @click="passwordDialog = true">
-                          <v-list-item-icon>
-                            <v-icon>mdi-information</v-icon>
-                          </v-list-item-icon>
-
-                          <v-list-item-content>
-                            System Information
-                          </v-list-item-content>
-                        </v-list-item>
-
-                        <v-list-item key="password" @click="passwordDialog = true">
-                          <v-list-item-icon>
-                            <v-icon>mdi-tune</v-icon>
-                          </v-list-item-icon>
-
-                          <v-list-item-content>
-                            System Settings
-                          </v-list-item-content>
-                        </v-list-item>
-
-                                    <v-list-item key="password" @click="passwordDialog = true">-->
-            <!--              <v-list-item-icon>-->
-            <!--                <v-icon>mdi-lock</v-icon>-->
-            <!--              </v-list-item-icon>-->
-
-            <!--              <v-list-item-content>-->
-            <!--                Change Password-->
-            <!--              </v-list-item-content>-->
-            <!--            </v-list-item>-->
-
-            <v-list-item key="sign_out" @click="signOut()">
-              <v-list-item-icon>
-                <v-icon>mdi-exit-to-app</v-icon>
-              </v-list-item-icon>
-
-              <v-list-item-content>
-                {{ $t('signOut') }}
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-menu>
       </template>
     </v-navigation-drawer>
 
@@ -546,6 +552,49 @@ const PROJECT_COLORS = [
   'green',
 ];
 
+const LANGUAGES = {
+  en: {
+    flag: '🇺🇸',
+    title: 'English',
+  },
+  ru: {
+    flag: '🇷🇺',
+    title: 'Russian',
+  },
+  de: {
+    flag: '🇩🇪',
+    title: 'German',
+  },
+  zh: {
+    flag: '🇨🇳',
+    title: 'Chinese',
+  },
+  fr: {
+    flag: '🇫🇷',
+    title: 'French',
+  },
+  pt: {
+    flag: '🇵🇹',
+    title: 'Portuguese',
+  },
+};
+
+function getLangInfo(locale) {
+  let res = LANGUAGES[locale];
+
+  if (!res) {
+    res = LANGUAGES.en;
+  }
+
+  return res;
+}
+
+function getSystemLang() {
+  const locale = navigator.language.split('-')[0];
+
+  return getLangInfo(locale || 'en');
+}
+
 export default {
   name: 'App',
   components: {
@@ -574,6 +623,17 @@ export default {
       task: null,
       template: null,
       darkMode: false,
+      languages: [
+        {
+          id: '',
+          flag: getSystemLang().flag,
+          title: 'System',
+        },
+        ...Object.keys(LANGUAGES).map((lang) => ({
+          id: lang,
+          ...LANGUAGES[lang],
+        })),
+      ],
     };
   },
 
@@ -608,6 +668,17 @@ export default {
   },
 
   computed: {
+
+    lang() {
+      const locale = localStorage.getItem('lang');
+
+      if (!locale) {
+        return getSystemLang();
+      }
+
+      return getLangInfo(locale || 'en');
+    },
+
     projectId() {
       return parseInt(this.$route.params.projectId, 10) || null;
     },
@@ -768,6 +839,12 @@ export default {
   },
 
   methods: {
+
+    selectLanguage(lang) {
+      localStorage.setItem('lang', lang);
+      window.location.reload();
+    },
+
     async onTaskLogDialogClosed() {
       const query = { ...this.$route.query, t: undefined };
       await this.$router.replace({ query });

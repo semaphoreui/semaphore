@@ -12,7 +12,8 @@
         v-if="can(USER_PERMISSIONS.updateProject)"
         key="settings"
         :to="`/project/${projectId}/settings`"
-      >{{ $t('settings') }}
+      >
+        {{ $t('settings') }}
       </v-tab>
     </v-tabs>
 

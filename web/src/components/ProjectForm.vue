@@ -48,6 +48,9 @@
 import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
+  props: {
+    demoProject: Boolean,
+  },
   mixins: [ItemFormBase],
   methods: {
     getItemsUrl() {
@@ -55,6 +58,9 @@ export default {
     },
     getSingleItemUrl() {
       return `/api/project/${this.itemId}`;
+    },
+    beforeSave() {
+      this.item.demo = this.demoProject;
     },
   },
 };
