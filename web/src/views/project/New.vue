@@ -13,7 +13,7 @@
 
       <div class="text-right">
         <v-btn
-          color="secondary" class="mr-3" @click="createDemoProject()"
+          color="success" class="mr-3" @click="createDemoProject()"
         >Create Demo Project</v-btn>
 
         <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
