@@ -49,7 +49,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	noneKey, err = store.CreateAccessKey(db.AccessKey{
+	vaultKey, err := store.CreateAccessKey(db.AccessKey{
 		Name:      "Vault Password",
 		Type:      db.AccessKeyLoginPassword,
 		ProjectID: &projectID,
@@ -101,6 +101,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		ProjectID: projectID,
 		Inventory: "/invs/dev/hosts",
 		Type:      "file",
+		SSHKeyID:  &noneKey.ID,
 	})
 
 	if err != nil {
@@ -112,6 +113,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		ProjectID: projectID,
 		Inventory: "/invs/prod/hosts",
 		Type:      "file",
+		SSHKeyID:  &noneKey.ID,
 	})
 
 	var desc string
@@ -163,6 +165,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		Autorun:         true,
+		VaultKeyID:      &vaultKey.ID,
 	})
 
 	if err != nil {
@@ -178,6 +181,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		EnvironmentID:   &emptyEnv.ID,
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
+		VaultKeyID:      &vaultKey.ID,
 	})
 
 	return
