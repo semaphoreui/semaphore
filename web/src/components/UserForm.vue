@@ -24,7 +24,7 @@
       :label="$t('username')"
       :rules="[v => !!v || $t('user_name_required')]"
       required
-      :disabled="formSaving"
+      :disabled="item.external || formSaving"
     ></v-text-field>
 
     <v-text-field
@@ -32,7 +32,7 @@
       :label="$t('email')"
       :rules="[v => !!v || $t('email_required')]"
       required
-      :disabled="formSaving"
+      :disabled="item.external || formSaving"
     ></v-text-field>
 
     <v-text-field
@@ -41,12 +41,13 @@
       type="password"
       :required="isNew"
       :rules="isNew ? [v => !!v || $t('password_required')] : []"
-      :disabled="formSaving"
+      :disabled="item.external || formSaving"
     ></v-text-field>
 
     <v-checkbox
       v-model="item.admin"
       :label="$t('adminUser')"
+      v-if="isAdmin"
     ></v-checkbox>
 
     <v-checkbox
@@ -59,6 +60,9 @@
 import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
+  props: {
+    isAdmin: Boolean,
+  },
   mixins: [ItemFormBase],
   methods: {
     getItemsUrl() {

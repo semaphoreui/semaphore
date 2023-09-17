@@ -20,7 +20,7 @@ const (
 
 var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
 	ProjectOwner:      CanRunProjectTasks | CanManageProjectResources | CanUpdateProject | CanManageProjectUsers,
-	ProjectManager:    CanRunProjectTasks | CanManageProjectResources | CanManageProjectUsers,
+	ProjectManager:    CanRunProjectTasks | CanManageProjectResources,
 	ProjectTaskRunner: CanRunProjectTasks,
 	ProjectGuest:      0,
 }

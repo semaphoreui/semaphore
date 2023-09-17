@@ -34,6 +34,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :is-admin="user.admin"
         />
       </template>
     </EditDialog>

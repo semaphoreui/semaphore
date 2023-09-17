@@ -14,6 +14,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :is-admin="true"
         />
       </template>
     </EditDialog>
