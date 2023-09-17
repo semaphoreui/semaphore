@@ -60,7 +60,6 @@
       <template v-slot:item.actions="{ item }">
         <v-btn
           icon
-          :disabled="!isUserAdmin()"
           @click="askDeleteItem(item.id)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
         >
@@ -136,9 +135,6 @@ export default {
     },
     getEventName() {
       return 'i-repositories';
-    },
-    isUserAdmin() {
-      return (this.items.find((x) => x.id === this.userId) || {}).admin;
     },
   },
 };
