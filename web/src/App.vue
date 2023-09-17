@@ -314,15 +314,19 @@
                 v-on="on"
               >
                 <v-list-item-icon>
-                  <v-icon :color="user.admin ? 'red' : ''">mdi-account</v-icon>
+                  <v-icon>mdi-account</v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
                   <v-list-item-title>
                     {{ user.name }}
-                    <v-chip v-if="user.admin" small color="red" class="ml-1">admin</v-chip>
                   </v-list-item-title>
+
                 </v-list-item-content>
+
+                <v-list-item-action>
+                  <v-chip color="red" small>admin</v-chip>
+                </v-list-item-action>
               </v-list-item>
             </template>
 
