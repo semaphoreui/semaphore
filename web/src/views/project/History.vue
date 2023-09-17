@@ -4,34 +4,20 @@
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
         {{ $t('dashboard2') }}
-        <!--
-        <v-btn-toggle class="ml-4" rounded>
-          <v-btn small>
-            <v-icon left>mdi-view-sequential</v-icon>
-            <span class="hidden-sm-and-down">Tasks</span>
-          </v-btn>
-
-          <v-btn small>
-            <v-icon left>mdi-pipe</v-icon>
-            <span class="hidden-sm-and-down">Pipelines</span>
-          </v-btn>
-        </v-btn-toggle>
-        -->
       </v-toolbar-title>
-      <v-spacer></v-spacer>
-      <div>
-        <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-          <v-tab
-            v-if="can(USER_PERMISSIONS.updateProject)"
-            key="settings"
-            :to="`/project/${projectId}/settings`"
-          >{{ $t('settings') }}
-          </v-tab>
-        </v-tabs>
-      </div>
     </v-toolbar>
+
+    <v-tabs show-arrows class="pl-4">
+      <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
+      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab
+        v-if="can(USER_PERMISSIONS.updateProject)"
+        key="settings"
+        :to="`/project/${projectId}/settings`"
+      >{{ $t('settings') }}
+      </v-tab>
+    </v-tabs>
+
     <v-data-table
       :headers="headers"
       :items="items"
