@@ -14,7 +14,13 @@ import (
 func GetProjects(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
-	projects, err := helpers.Store(r).GetProjects(user.ID)
+	var err error
+	var projects []db.Project
+	if user.Admin {
+		projects, err = helpers.Store(r).GetAllProjects()
+	} else {
+		projects, err = helpers.Store(r).GetProjects(user.ID)
+	}
 
 	if err != nil {
 		helpers.WriteError(w, err)

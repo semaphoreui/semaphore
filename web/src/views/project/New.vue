@@ -8,7 +8,7 @@
 
     <div class="project-settings-form">
       <div style="height: 300px;">
-        <ProjectForm item-id="new" ref="editForm" @save="onSave" :demo-project="true" />
+        <ProjectForm item-id="new" ref="editForm" @save="onSave" :demo-project="demoProject" />
       </div>
 
       <div class="text-right">

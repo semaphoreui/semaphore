@@ -73,7 +73,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	oldUser := context.Get(r, "_user").(db.User)
+	targetUser := context.Get(r, "_user").(db.User)
 	editor := context.Get(r, "user").(*db.User)
 
 	var user db.UserWithPwd
@@ -81,25 +81,25 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !editor.Admin && editor.ID != oldUser.ID {
+	if !editor.Admin && editor.ID != targetUser.ID {
 		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if editor.ID == oldUser.ID && oldUser.Admin != user.Admin {
+	if editor.ID == targetUser.ID && targetUser.Admin != user.Admin {
 		log.Warn("User can't edit his own role")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if oldUser.External && oldUser.Username != user.Username {
+	if targetUser.External && targetUser.Username != user.Username {
 		log.Warn("Username is not editable for external users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	user.ID = oldUser.ID
+	user.ID = targetUser.ID
 	if err := helpers.Store(r).UpdateUser(user); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)

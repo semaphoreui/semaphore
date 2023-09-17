@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
@@ -108,24 +109,30 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	projectUser := context.Get(r, "projectUser").(db.User)
+	me := context.Get(r, "user").(*db.User)               // logged in user
+	targetUser := context.Get(r, "projectUser").(db.User) // target user
+	targetUserRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
 
-	err := helpers.Store(r).DeleteProjectUser(project.ID, projectUser.ID)
+	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
+		helpers.WriteError(w, fmt.Errorf("owner can not left the project"))
+		return
+	}
+
+	err := helpers.Store(r).DeleteProjectUser(project.ID, targetUser.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
 	objType := db.EventUser
-	desc := "User ID " + strconv.Itoa(projectUser.ID) + " removed from team"
+	desc := "User ID " + strconv.Itoa(targetUser.ID) + " removed from team"
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
+		UserID:      &me.ID,
 		ProjectID:   &project.ID,
 		ObjectType:  &objType,
-		ObjectID:    &projectUser.ID,
+		ObjectID:    &targetUser.ID,
 		Description: &desc,
 	})
 
@@ -138,7 +145,14 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	user := context.Get(r, "projectUser").(db.User)
+	me := context.Get(r, "user").(*db.User) // logged in user
+	targetUser := context.Get(r, "projectUser").(db.User)
+	targetUserRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
+
+	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
+		helpers.WriteError(w, fmt.Errorf("owner can not change his role in the project"))
+		return
+	}
 
 	var projectUser struct {
 		Role db.ProjectUserRole `json:"role"`
@@ -154,7 +168,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{
-		UserID:    user.ID,
+		UserID:    targetUser.ID,
 		ProjectID: project.ID,
 		Role:      projectUser.Role,
 	})
