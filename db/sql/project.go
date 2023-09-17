@@ -71,6 +71,14 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 }
 
 func (d *SqlDb) DeleteProject(projectID int) error {
+
+	//tpls, err := d.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	//
+	//if err != nil {
+	//	return err
+	//}
+	// TODO: sort projects
+
 	tx, err := d.sql.Begin()
 
 	if err != nil {
@@ -90,7 +98,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		_, err = tx.Exec(d.PrepareQuery(statement), projectID)
 
 		if err != nil {
-			err = tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 	}

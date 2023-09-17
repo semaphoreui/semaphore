@@ -40,7 +40,22 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	var prodInv db.Inventory
 
 	noneKey, err = store.CreateAccessKey(db.AccessKey{
-		Name: "None",
+		Name:      "None",
+		Type:      db.AccessKeyNone,
+		ProjectID: &projectID,
+	})
+
+	if err != nil {
+		return
+	}
+
+	noneKey, err = store.CreateAccessKey(db.AccessKey{
+		Name:      "Vault Password",
+		Type:      db.AccessKeyLoginPassword,
+		ProjectID: &projectID,
+		LoginPassword: db.LoginPassword{
+			Password: "RAX6yKN7sBn2qDagRPls",
+		},
 	})
 
 	if err != nil {
@@ -48,7 +63,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	}
 
 	demoRepo, err = store.CreateRepository(db.Repository{
-		Name:      "Demo Project",
+		Name:      "Demo",
 		ProjectID: projectID,
 		GitURL:    "https://github.com/semaphoreui/demo-project.git",
 		GitBranch: "main",
@@ -72,8 +87,9 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	buildInv, err = store.CreateInventory(db.Inventory{
 		Name:      "Build",
 		ProjectID: projectID,
-		Inventory: "[builder]\nlocalhost",
+		Inventory: "[builder]\nlocalhost ansible_connection=local",
 		Type:      "static",
+		SSHKeyID:  &noneKey.ID,
 	})
 
 	if err != nil {
@@ -81,7 +97,10 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	}
 
 	devInv, err = store.CreateInventory(db.Inventory{
+		Name:      "Dev",
 		ProjectID: projectID,
+		Inventory: "/invs/dev/hosts",
+		Type:      "file",
 	})
 
 	if err != nil {
@@ -89,46 +108,76 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	}
 
 	prodInv, err = store.CreateInventory(db.Inventory{
+		Name:      "Prod",
 		ProjectID: projectID,
+		Inventory: "/invs/prod/hosts",
+		Type:      "file",
 	})
+
+	var desc string
 
 	if err != nil {
 		return
 	}
 
+	desc = "This task pings the website to provide real word example of using Semaphore."
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Build",
-		Playbook:      "build.yml",
-		ProjectID:     projectID,
-		InventoryID:   buildInv.ID,
-		EnvironmentID: &emptyEnv.ID,
-		RepositoryID:  demoRepo.ID,
-	})
-
-	if err != nil {
-		return
-	}
-
-	_, err = store.CreateTemplate(db.Template{
-		Name:          "Deploy to Dev",
-		Playbook:      "deploy.yml",
-		ProjectID:     projectID,
-		InventoryID:   devInv.ID,
-		EnvironmentID: &emptyEnv.ID,
-		RepositoryID:  demoRepo.ID,
-	})
-
-	if err != nil {
-		return
-	}
-
-	_, err = store.CreateTemplate(db.Template{
-		Name:          "Deploy to Production",
-		Playbook:      "deploy.yml",
+		Name:          "Ping Site",
+		Playbook:      "ping.yml",
+		Description:   &desc,
 		ProjectID:     projectID,
 		InventoryID:   prodInv.ID,
 		EnvironmentID: &emptyEnv.ID,
 		RepositoryID:  demoRepo.ID,
+	})
+
+	if err != nil {
+		return
+	}
+
+	desc = "Creates artifact and store it in the cache."
+
+	var startVersion = "1.0.0"
+	buildTpl, err := store.CreateTemplate(db.Template{
+		Name:          "Build",
+		Playbook:      "build.yml",
+		Type:          db.TemplateBuild,
+		ProjectID:     projectID,
+		InventoryID:   buildInv.ID,
+		EnvironmentID: &emptyEnv.ID,
+		RepositoryID:  demoRepo.ID,
+		StartVersion:  &startVersion,
+	})
+
+	if err != nil {
+		return
+	}
+
+	_, err = store.CreateTemplate(db.Template{
+		Name:            "Deploy to Dev",
+		Type:            db.TemplateDeploy,
+		Playbook:        "deploy.yml",
+		ProjectID:       projectID,
+		InventoryID:     devInv.ID,
+		EnvironmentID:   &emptyEnv.ID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
+		Autorun:         true,
+	})
+
+	if err != nil {
+		return
+	}
+
+	_, err = store.CreateTemplate(db.Template{
+		Name:            "Deploy to Production",
+		Type:            db.TemplateDeploy,
+		Playbook:        "deploy.yml",
+		ProjectID:       projectID,
+		InventoryID:     prodInv.ID,
+		EnvironmentID:   &emptyEnv.ID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
 	})
 
 	return

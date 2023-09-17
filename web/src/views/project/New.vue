@@ -8,7 +8,7 @@
 
     <div class="project-settings-form">
       <div style="height: 300px;">
-        <ProjectForm item-id="new" ref="editForm" @save="onSave" :demo-project="demoProject" />
+        <ProjectForm item-id="new" ref="editForm" @save="onSave" />
       </div>
 
       <div class="text-right">
@@ -33,7 +33,6 @@ export default {
   components: { ProjectForm },
   data() {
     return {
-      demoProject: false,
     };
   },
 
@@ -50,13 +49,13 @@ export default {
     },
 
     async createProject() {
-      this.demoProject = false;
       await this.$refs.editForm.save();
     },
 
     async createDemoProject() {
-      this.demoProject = true;
-      await this.$refs.editForm.save();
+      await this.$refs.editForm.save({
+        demo: true,
+      });
     },
   },
 };

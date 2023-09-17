@@ -63,7 +63,7 @@
 
     <YesNoDialog
       :title="$t('deleteTemplate')"
-      text="$t('askDeleteTemp')"
+      :text="$t('askDeleteTemp')"
       v-model="deleteDialog"
       @yes="remove()"
     />
