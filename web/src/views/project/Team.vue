@@ -112,11 +112,6 @@ export default {
           value: 'username',
         },
         {
-          text: this.$i18n.t('email'),
-          value: 'email',
-          width: '50%',
-        },
-        {
           text: this.$i18n.t('role'),
           value: 'role',
         },

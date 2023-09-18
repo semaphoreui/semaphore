@@ -16,7 +16,7 @@
       :label="$t('user')"
       :items="users"
       item-value="id"
-      item-text="name"
+      :item-text="(itm) => `${itm.username} (${itm.name})`"
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"

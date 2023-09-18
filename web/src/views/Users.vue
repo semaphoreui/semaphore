@@ -21,7 +21,7 @@
 
     <YesNoDialog
       :title="$t('deleteUser')"
-      text="$t('askDeleteUser')"
+      :text="$t('askDeleteUser')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />

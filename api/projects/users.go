@@ -2,13 +2,12 @@ package projects
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/gorilla/context"
 	"net/http"
 	"strconv"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/gorilla/context"
 )
 
 // UserMiddleware ensures a user exists and loads it to the context
@@ -39,6 +38,13 @@ func UserMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type projUser struct {
+	ID       int                `json:"id"`
+	Username string             `json:"username"`
+	Name     string             `json:"name"`
+	Role     db.ProjectUserRole `json:"role"`
+}
+
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -56,7 +62,18 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, users)
+	var result []projUser
+
+	for _, user := range users {
+		result = append(result, projUser{
+			ID:       user.ID,
+			Name:     user.Name,
+			Username: user.Username,
+			Role:     user.Role,
+		})
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
 // AddUser adds a user to a projects team in the database

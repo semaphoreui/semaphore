@@ -10,14 +10,35 @@ import (
 	"github.com/gorilla/context"
 )
 
+type minimalUser struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+}
+
 func getUsers(w http.ResponseWriter, r *http.Request) {
+	currentUser := context.Get(r, "user").(*db.User)
 	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
 
 	if err != nil {
 		panic(err)
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, users)
+	if currentUser.Admin {
+		helpers.WriteJSON(w, http.StatusOK, users)
+	} else {
+		var result []minimalUser
+
+		for _, user := range users {
+			result = append(result, minimalUser{
+				ID:       user.ID,
+				Name:     user.Name,
+				Username: user.Username,
+			})
+		}
+
+		helpers.WriteJSON(w, http.StatusOK, result)
+	}
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
