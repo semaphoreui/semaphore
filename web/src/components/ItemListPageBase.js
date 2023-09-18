@@ -18,6 +18,7 @@ export default {
     projectId: Number,
     userId: Number,
     userPermissions: Number,
+    userRole: String,
     isAdmin: Boolean,
   },
 

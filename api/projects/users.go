@@ -123,14 +123,13 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// RemoveUser removes a user from a project team
-func RemoveUser(w http.ResponseWriter, r *http.Request) {
+// removeUser removes a user from a project team
+func removeUser(targetUser db.User, w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	me := context.Get(r, "user").(*db.User)               // logged in user
-	targetUser := context.Get(r, "projectUser").(db.User) // target user
-	targetUserRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
+	me := context.Get(r, "user").(*db.User) // logged in user
+	myRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
 
-	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
+	if !me.Admin && targetUser.ID == me.ID && myRole == db.ProjectOwner {
 		helpers.WriteError(w, fmt.Errorf("owner can not left the project"))
 		return
 	}
@@ -158,6 +157,18 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// LeftProject removes a user from a project team
+func LeftProject(w http.ResponseWriter, r *http.Request) {
+	me := context.Get(r, "user").(*db.User) // logged in user
+	removeUser(*me, w, r)
+}
+
+// RemoveUser removes a user from a project team
+func RemoveUser(w http.ResponseWriter, r *http.Request) {
+	targetUser := context.Get(r, "projectUser").(db.User) // target user
+	removeUser(targetUser, w, r)
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {

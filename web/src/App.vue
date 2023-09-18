@@ -371,9 +371,10 @@
     <v-main>
       <router-view
         :projectId="projectId"
-        :userPermissions="userRole.permissions"
-        :userId="user ? user.id : null"
-        :isAdmin="user ? user.admin : false"
+        :userPermissions="(userRole || {}).permissions"
+        :userRole="(userRole || {}).role"
+        :userId="(user || {}).id"
+        :isAdmin="(user || {}).admin"
       ></router-view>
     </v-main>
 
@@ -617,7 +618,7 @@ export default {
     return {
       drawer: null,
       user: null,
-      userRole: 0,
+      userRole: null,
       systemInfo: null,
       state: 'loading',
       snackbar: false,

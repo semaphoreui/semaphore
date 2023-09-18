@@ -30,6 +30,13 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        color="error"
+        @click="leftProject()"
+        class="mr-2"
+        :disabled="userRole === 'owner'"
+      >Left Project
+      </v-btn>
+      <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
@@ -86,6 +93,15 @@ export default {
   },
 
   methods: {
+    async leftProject() {
+      await axios({
+        method: 'delete',
+        url: `/api/project/${this.projectId}/me`,
+        responseType: 'json',
+      });
+      window.location.reload();
+    },
+
     async updateProjectUser(user) {
       await axios({
         method: 'put',
