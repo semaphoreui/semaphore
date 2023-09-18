@@ -27,7 +27,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 	if currentUser.Admin {
 		helpers.WriteJSON(w, http.StatusOK, users)
 	} else {
-		var result []minimalUser
+		var result = make([]minimalUser, 0)
 
 		for _, user := range users {
 			result = append(result, minimalUser{

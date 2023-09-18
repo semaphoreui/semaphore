@@ -62,7 +62,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var result []projUser
+	var result = make([]projUser, 0)
 
 	for _, user := range users {
 		result = append(result, projUser{
