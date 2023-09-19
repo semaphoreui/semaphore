@@ -57,24 +57,28 @@ func (t *TaskRunner) sendMailAlert() {
 	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
 	for _, user := range t.users {
-		userObj, err := t.pool.store.GetUser(user)
+		userObj, err2 := t.pool.store.GetUser(user)
 
 		if !userObj.Alert {
 			continue
 		}
-		t.panicOnError(err, "Can't find user Email!")
 
-		t.Log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
+		if err2 != nil {
+			util.LogWarning(err2)
+			continue
+		}
 
 		if util.Config.EmailSecure {
-			err = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort,
+			err2 = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort,
 				util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword,
 				userObj.Email, mailBuffer)
 		} else {
-			err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
+			err2 = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
 		}
 
-		t.panicOnError(err, "Can't send email!")
+		if err2 != nil {
+			util.LogWarning(err2)
+		}
 	}
 }
 
@@ -90,6 +94,10 @@ func (t *TaskRunner) sendTelegramAlert() {
 	chatID := util.Config.TelegramChat
 	if t.alertChat != nil && *t.alertChat != "" {
 		chatID = *t.alertChat
+	}
+
+	if chatID == "" {
+		return
 	}
 
 	var telegramBuffer bytes.Buffer
