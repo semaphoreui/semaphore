@@ -34,7 +34,7 @@
         @click="leftProject()"
         class="mr-2"
         :disabled="userRole === 'owner'"
-      >Left Project
+      >Leave Project
       </v-btn>
       <v-btn
         color="primary"
