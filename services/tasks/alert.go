@@ -106,7 +106,10 @@ func (t *TaskRunner) sendTelegramAlert() {
 	if t.Task.Version != nil {
 		version = *t.Task.Version
 	} else if t.Task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
+		buildVer := t.Task.GetIncomingVersion(t.pool.store)
+		if buildVer != nil {
+			version = *buildVer
+		}
 	} else {
 		version = ""
 	}
