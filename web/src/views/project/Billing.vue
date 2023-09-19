@@ -21,9 +21,17 @@
         :to="`/project/${projectId}/billing`"
       >Billing <v-chip color="red" x-small dark class="ml-1">Soon</v-chip></v-tab>
     </v-tabs>
-    <div>
-      Soon
-    </div>
+
+    <v-alert
+      text
+      color="info"
+      class="ma-4"
+    >
+      <h3 class="text-h5">
+        Coming soon
+      </h3>
+      <div>The billing will be available soon.</div>
+    </v-alert>
   </div>
 </template>
 <style lang="scss">
