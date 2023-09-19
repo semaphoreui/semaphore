@@ -118,6 +118,16 @@ func (p *runningJob) Log2(msg string, now time.Time) {
 	p.logRecords = append(p.logRecords, LogRecord{Time: now, Message: msg})
 }
 
+func (p *JobPool) existsInQueue(taskID int) bool {
+	for _, j := range p.queue {
+		if j.job.Task.ID == taskID {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (p *JobPool) hasRunningJobs() bool {
 	for _, j := range p.runningJobs {
 		if !j.status.IsFinished() {
@@ -167,6 +177,18 @@ func (p *JobPool) Run() {
 	defer func() {
 		queueTicker.Stop()
 	}()
+
+	for {
+
+		if p.tryRegisterRunner() {
+
+			log.Info("Runner registered on server")
+
+			break
+		}
+
+		time.Sleep(5_000_000_000)
+	}
 
 	for {
 		select {
@@ -234,10 +256,6 @@ func (p *JobPool) Run() {
 
 func (p *JobPool) sendProgress() {
 
-	if !p.tryRegisterRunner() {
-		return
-	}
-
 	client := &http.Client{}
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
@@ -278,6 +296,8 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return true
 	}
 
+	log.Info("Trying to register on server")
+
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
 	if err == nil {
@@ -315,6 +335,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
 		Webhook:           util.Config.Runner.Webhook,
+		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
@@ -359,10 +380,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
-
-	if !p.tryRegisterRunner() {
-		return
-	}
 
 	client := &http.Client{}
 
@@ -417,6 +434,10 @@ func (p *JobPool) checkNewJobs() {
 
 	for _, newJob := range response.NewJobs {
 		if _, exists := p.runningJobs[newJob.Task.ID]; exists {
+			continue
+		}
+
+		if p.existsInQueue(newJob.Task.ID) {
 			continue
 		}
 

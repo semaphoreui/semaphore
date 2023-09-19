@@ -101,7 +101,8 @@ type RunnerSettings struct {
 	// OneOff indicates than runner runs only one job and exit
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
-	Webhook string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
