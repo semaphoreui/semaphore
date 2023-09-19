@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
 )
 
 type LocalJob struct {
@@ -132,7 +133,6 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
-			args = append(args, "--private-key="+t.Inventory.SSHKey.GetPath())
 			//args = append(args, "--extra-vars={\"ansible_ssh_private_key_file\": \""+t.inventory.SSHKey.GetPath()+"\"}")
 			if t.Inventory.SSHKey.SshKey.Login != "" {
 				args = append(args, "--extra-vars={\"ansible_user\": \""+t.Inventory.SSHKey.SshKey.Login+"\"}")
@@ -249,6 +249,24 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	environmentVariables, err := t.getEnvironmentENV()
 	if err != nil {
 		return
+	}
+
+	if t.Inventory.SSHKeyID != nil && t.Inventory.SSHKey.Type == db.AccessKeySSH {
+		socketFile := path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", time.Now().Unix(), t.Task.ID))
+		sshAgent := lib.SshAgent{
+			Logger:     t.Logger,
+			Key:        []byte(t.Inventory.SSHKey.SshKey.PrivateKey),
+			Passphrase: []byte(t.Inventory.SSHKey.SshKey.Passphrase),
+		}
+
+		err := sshAgent.Listen(socketFile)
+		if err != nil {
+			return
+		}
+
+		defer sshAgent.Close()
+
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", socketFile))
 	}
 
 	return t.Playbook.RunPlaybook(args, &environmentVariables, func(p *os.Process) {
