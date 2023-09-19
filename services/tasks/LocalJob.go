@@ -259,7 +259,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 			Passphrase: []byte(t.Inventory.SSHKey.SshKey.Passphrase),
 		}
 
-		err := sshAgent.Listen(socketFile)
+		err = sshAgent.Listen(socketFile)
 		if err != nil {
 			return
 		}
