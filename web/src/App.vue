@@ -375,6 +375,7 @@
         :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
+        :user="user"
       ></router-view>
     </v-main>
 

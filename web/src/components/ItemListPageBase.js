@@ -20,6 +20,7 @@ export default {
     userPermissions: Number,
     userRole: String,
     isAdmin: Boolean,
+    user: Object,
   },
 
   data() {
