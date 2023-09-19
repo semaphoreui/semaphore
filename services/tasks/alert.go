@@ -64,7 +64,7 @@ func (t *TaskRunner) sendMailAlert() {
 		}
 
 		if err2 != nil {
-			util.LogWarning(err2)
+			util.LogError(err2)
 			continue
 		}
 
@@ -77,7 +77,7 @@ func (t *TaskRunner) sendMailAlert() {
 		}
 
 		if err2 != nil {
-			util.LogWarning(err2)
+			util.LogError(err2)
 		}
 	}
 }
