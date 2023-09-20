@@ -1,0 +1,13 @@
+{
+ 	"bolt": {
+ 		"host": "/Users/fiftin/go/src/github.com/ansible-semaphore/semaphore/database.boltdb"
+ 	},
+
+ 	"dialect": "bolt",
+ 	"tmp_path": "/var/folders/x1/d7p_yr4j7g57_r2r8s0ll_1r0000gn/T/semaphore",
+
+	"runner": {
+		"config_file": "/tmp/semaphore-runner.json",
+		"api_url": "http://localhost:3000/api"
+	}
+}

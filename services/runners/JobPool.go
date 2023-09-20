@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -106,6 +107,9 @@ type JobPool struct {
 	queue []*job
 
 	config *RunnerConfig
+
+	checking int32
+	sending  int32
 }
 
 type RunnerRegistration struct {
@@ -256,6 +260,10 @@ func (p *JobPool) Run() {
 
 func (p *JobPool) sendProgress() {
 
+	if !atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
+		return
+	}
+
 	client := &http.Client{}
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
@@ -289,6 +297,7 @@ func (p *JobPool) sendProgress() {
 	}
 
 	defer resp.Body.Close()
+	defer atomic.StoreInt32(&p.sending, 0)
 }
 
 func (p *JobPool) tryRegisterRunner() bool {
@@ -380,6 +389,12 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
+
+	if !atomic.CompareAndSwapInt32(&p.checking, 0, 1) {
+		return
+	}
+
+	defer atomic.StoreInt32(&p.checking, 0)
 
 	client := &http.Client{}
 
