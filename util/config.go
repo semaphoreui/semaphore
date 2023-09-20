@@ -394,23 +394,32 @@ func validate(value interface{}) error {
 			continue
 		}
 
-		var value string
+		var strVal string
 
 		if fieldType.Type.Kind() == reflect.Int {
-			value = strconv.FormatInt(fieldValue.Int(), 10)
+			strVal = strconv.FormatInt(fieldValue.Int(), 10)
 		} else if fieldType.Type.Kind() == reflect.Uint {
-			value = strconv.FormatUint(fieldValue.Uint(), 10)
+			strVal = strconv.FormatUint(fieldValue.Uint(), 10)
 		} else {
-			value = fieldValue.String()
+			strVal = fieldValue.String()
 		}
 
-		match, _ := regexp.MatchString(rule, value)
-		if !match {
-			return fmt.Errorf(
-				"value of field '%v' is not valid! (Must match regex: '%v')",
-				fieldType.Name, rule,
-			)
+		match, _ := regexp.MatchString(rule, strVal)
+
+		if match {
+			continue
 		}
+
+		fieldName := strings.ToLower(fieldType.Name)
+
+		if strings.Contains(fieldName, "password") || strings.Contains(fieldName, "secret") || strings.Contains(fieldName, "key") {
+			strVal = "***"
+		}
+
+		return fmt.Errorf(
+			"value of field '%v' is not valid: %v (Must match regex: '%v')",
+			fieldType.Name, strVal, rule,
+		)
 	}
 
 	return nil
