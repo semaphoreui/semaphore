@@ -10,7 +10,7 @@ RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc g++ && \
 FROM alpine:3.18 as runner
 LABEL maintainer="Denis Gukov <denguk@gmail.com>"
 
-RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp && \
+RUN apk add --no-cache sshpass git curl mysql-client openssh-client-default tini python3 py3-pip && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
@@ -19,10 +19,16 @@ RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-defa
     chown -R semaphore:0 /etc/semaphore && \
     chown -R semaphore:0 /var/lib/semaphore
 
+# system dependencies, common jinja2-filters, common community-modules
+RUN pip3 install ansible aiohttp \
+    jmespath netaddr passlib \
+    pywinrm requests cryptography && \
+    touch /etc/semaphore/requirements.txt
+
 COPY --from=builder /usr/local/bin/runner-wrapper /usr/local/bin/
 COPY --from=builder /usr/local/bin/semaphore /usr/local/bin/
 
-RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper &&\
+RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
     chown -R semaphore:0 /usr/local/bin/semaphore
 
 WORKDIR /home/semaphore
