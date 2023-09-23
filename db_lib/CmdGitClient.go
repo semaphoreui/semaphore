@@ -20,7 +20,8 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
-		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + c.keyInstallation.GetPath()
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_AUTH_SOCK=%s", c.keyInstallation.SshAgent.SocketFile))
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 		if util.Config.SshConfigPath != "" {
 			sshCmd += " -F " + util.Config.SshConfigPath
 		}
@@ -43,7 +44,7 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 
 func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...string) error {
 	var err error
-	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit)
+	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
 
 	if err != nil {
 		return err
@@ -59,7 +60,7 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
-	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit)
+	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
 	if err != nil {
 		return
 	}

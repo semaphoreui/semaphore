@@ -216,23 +216,6 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	return
 }
 
-func (t *LocalJob) destroyKeys() {
-	err := t.sshKeyInstallation.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory user key, error: " + err.Error())
-	}
-
-	err = t.becomeKeyInstallation.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory become user key, error: " + err.Error())
-	}
-
-	err = t.vaultFileInstallation.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
-	}
-}
-
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
 	t.SetStatus(lib.TaskRunningStatus)
@@ -258,16 +241,16 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
 
-		var sshAgent lib.SshAgent
-		sshAgent, err = t.Inventory.StartSshAgent(t.Logger)
+		//var sshAgent lib.SshAgent
+		//sshAgent, err = t.Inventory.StartSshAgent(t.Logger)
+		//
+		//if err != nil {
+		//	return
+		//}
+		//
+		//defer sshAgent.Close()
 
-		if err != nil {
-			return
-		}
-
-		defer sshAgent.Close()
-
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", sshAgent.SocketFile))
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
 	}
 
 	return t.Playbook.RunPlaybook(args, &environmentVariables, func(p *os.Process) {
@@ -484,7 +467,7 @@ func (t *LocalJob) installVaultKeyFile() (err error) {
 		return nil
 	}
 
-	t.vaultFileInstallation, err = t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault)
+	t.vaultFileInstallation, err = t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
 
 	return
 }
