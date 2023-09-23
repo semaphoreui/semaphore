@@ -3,12 +3,14 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type LocalJob struct {
@@ -18,11 +20,15 @@ type LocalJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Playbook    *lib.AnsiblePlaybook
+	Playbook    *db_lib.AnsiblePlaybook
 	Logger      lib.Logger
 
 	// Internal field
 	Process *os.Process
+
+	sshKeyInstallation    db.AccessKeyInstallation
+	becomeKeyInstallation db.AccessKeyInstallation
+	vaultFileInstallation db.AccessKeyInstallation
 }
 
 func (t *LocalJob) Kill() {
@@ -39,7 +45,7 @@ func (t *LocalJob) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *LocalJob) SetStatus(status db.TaskStatus) {
+func (t *LocalJob) SetStatus(status lib.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
@@ -132,13 +138,12 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
-			args = append(args, "--private-key="+t.Inventory.SSHKey.GetPath())
 			//args = append(args, "--extra-vars={\"ansible_ssh_private_key_file\": \""+t.inventory.SSHKey.GetPath()+"\"}")
 			if t.Inventory.SSHKey.SshKey.Login != "" {
 				args = append(args, "--extra-vars={\"ansible_user\": \""+t.Inventory.SSHKey.SshKey.Login+"\"}")
 			}
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.Inventory.SSHKey.GetPath())
+			args = append(args, "--extra-vars=@"+t.sshKeyInstallation.GetPath())
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's user credentials")
@@ -149,7 +154,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.BecomeKeyID != nil {
 		switch t.Inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.Inventory.BecomeKey.GetPath())
+			args = append(args, "--extra-vars=@"+t.becomeKeyInstallation.GetPath())
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's sudo user credentials")
@@ -170,7 +175,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if t.Template.VaultKeyID != nil {
-		args = append(args, "--vault-password-file", t.Template.VaultKey.GetPath())
+		args = append(args, "--vault-password-file", t.vaultFileInstallation.GetPath())
 	}
 
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
@@ -211,26 +216,9 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	return
 }
 
-func (t *LocalJob) destroyKeys() {
-	err := t.Inventory.SSHKey.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory user key, error: " + err.Error())
-	}
-
-	err = t.Inventory.BecomeKey.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory become user key, error: " + err.Error())
-	}
-
-	err = t.Template.VaultKey.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
-	}
-}
-
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
-	t.SetStatus(db.TaskRunningStatus)
+	t.SetStatus(lib.TaskRunningStatus)
 
 	err = t.prepareRun()
 	if err != nil {
@@ -251,6 +239,20 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
+
+		//var sshAgent lib.SshAgent
+		//sshAgent, err = t.Inventory.StartSshAgent(t.Logger)
+		//
+		//if err != nil {
+		//	return
+		//}
+		//
+		//defer sshAgent.Close()
+
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
+	}
+
 	return t.Playbook.RunPlaybook(args, &environmentVariables, func(p *os.Process) {
 		t.Process = p
 	})
@@ -258,20 +260,6 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 }
 
 func (t *LocalJob) prepareRun() error {
-	defer func() {
-		//t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
-
-		//log.Info("Stopped preparing TaskRunner " + strconv.Itoa(t.task.ID))
-		//log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.task.ID))
-		//
-		//t.createTaskEvent()
-
-		err := t.Repository.SSHKey.Destroy()
-		if err != nil {
-			t.Log("Can't destroy repository access key, error: " + err.Error())
-		}
-	}()
-
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
@@ -314,11 +302,11 @@ func (t *LocalJob) prepareRun() error {
 }
 
 func (t *LocalJob) updateRepository() error {
-	repo := lib.GitRepository{
+	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(),
 	}
 
 	err := repo.ValidateRepo()
@@ -350,11 +338,11 @@ func (t *LocalJob) updateRepository() error {
 
 func (t *LocalJob) checkoutRepository() error {
 
-	repo := lib.GitRepository{
+	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(),
 	}
 
 	err := repo.ValidateRepo()
@@ -396,11 +384,11 @@ func (t *LocalJob) installRequirements() error {
 }
 
 func (t *LocalJob) getRepoPath() string {
-	repo := lib.GitRepository{
+	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(),
 	}
 
 	return repo.GetFullPath()
@@ -474,10 +462,12 @@ func (t *LocalJob) runGalaxy(args []string) error {
 	return t.Playbook.RunGalaxy(args)
 }
 
-func (t *LocalJob) installVaultKeyFile() error {
+func (t *LocalJob) installVaultKeyFile() (err error) {
 	if t.Template.VaultKeyID == nil {
 		return nil
 	}
 
-	return t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault)
+	t.vaultFileInstallation, err = t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+
+	return
 }

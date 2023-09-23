@@ -12,6 +12,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -41,7 +42,7 @@ type job struct {
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
-	status          db.TaskStatus
+	status          lib.TaskStatus
 	args            []string
 	environmentVars []string
 }
@@ -68,8 +69,8 @@ type RunnerState struct {
 }
 
 type JobState struct {
-	ID     int           `json:"id" binding:"required"`
-	Status db.TaskStatus `json:"status" binding:"required"`
+	ID     int            `json:"id" binding:"required"`
+	Status lib.TaskStatus `json:"status" binding:"required"`
 }
 
 type LogRecord struct {
@@ -83,12 +84,12 @@ type RunnerProgress struct {
 
 type JobProgress struct {
 	ID         int
-	Status     db.TaskStatus
+	Status     lib.TaskStatus
 	LogRecords []LogRecord
 }
 
 type runningJob struct {
-	status     db.TaskStatus
+	status     lib.TaskStatus
 	logRecords []LogRecord
 	job        *tasks.LocalJob
 }
@@ -143,7 +144,7 @@ func (p *runningJob) Log(msg string) {
 	p.Log2(msg, time.Now())
 }
 
-func (p *runningJob) SetStatus(status db.TaskStatus) {
+func (p *runningJob) SetStatus(status lib.TaskStatus) {
 	p.status = status
 }
 
@@ -201,7 +202,7 @@ func (p *JobPool) Run() {
 			}
 
 			t := p.queue[0]
-			if t.status == db.TaskFailStatus {
+			if t.status == lib.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
@@ -215,7 +216,7 @@ func (p *JobPool) Run() {
 			t.job.Playbook.Logger = t.job.Logger
 
 			go func(runningJob *runningJob) {
-				runningJob.SetStatus(db.TaskRunningStatus)
+				runningJob.SetStatus(lib.TaskRunningStatus)
 
 				err := runningJob.job.Run(t.username, t.incomingVersion)
 
@@ -224,13 +225,13 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
-					if runningJob.status == db.TaskStoppingStatus {
-						runningJob.SetStatus(db.TaskStoppedStatus)
+					if runningJob.status == lib.TaskStoppingStatus {
+						runningJob.SetStatus(lib.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(db.TaskFailStatus)
+						runningJob.SetStatus(lib.TaskFailStatus)
 					}
 				} else {
-					runningJob.SetStatus(db.TaskSuccessStatus)
+					runningJob.SetStatus(lib.TaskSuccessStatus)
 				}
 			}(p.runningJobs[t.job.Task.ID])
 
@@ -432,7 +433,7 @@ func (p *JobPool) checkNewJobs() {
 
 		runJob.SetStatus(currJob.Status)
 
-		if runJob.status == db.TaskStoppingStatus || runJob.status == db.TaskStoppedStatus {
+		if runJob.status == lib.TaskStoppingStatus || runJob.status == lib.TaskStoppedStatus {
 			p.runningJobs[currJob.ID].job.Kill()
 		}
 	}
@@ -462,7 +463,7 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				Playbook: &lib.AnsiblePlaybook{
+				Playbook: &db_lib.AnsiblePlaybook{
 					TemplateID: newJob.Template.ID,
 					Repository: newJob.Repository,
 				},

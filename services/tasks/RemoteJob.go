@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"net/http"
 	"time"
@@ -16,7 +17,7 @@ type RemoteJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Playbook    *lib.AnsiblePlaybook
+	Playbook    *db_lib.AnsiblePlaybook
 	Logger      lib.Logger
 
 	taskPool *TaskPool
@@ -122,9 +123,9 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 	for {
 		time.Sleep(1_000_000_000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
-		if tsk.Task.Status == db.TaskSuccessStatus ||
-			tsk.Task.Status == db.TaskStoppedStatus ||
-			tsk.Task.Status == db.TaskFailStatus {
+		if tsk.Task.Status == lib.TaskSuccessStatus ||
+			tsk.Task.Status == lib.TaskStoppedStatus ||
+			tsk.Task.Status == lib.TaskFailStatus {
 			break
 		}
 	}
@@ -135,7 +136,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
-	if tsk.Task.Status == db.TaskFailStatus {
+	if tsk.Task.Status == lib.TaskFailStatus {
 		err = fmt.Errorf("task failed")
 	}
 

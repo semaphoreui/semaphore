@@ -1,7 +1,8 @@
-package lib
+package db_lib
 
 import (
 	"errors"
+	"github.com/ansible-semaphore/semaphore/lib"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -19,7 +20,7 @@ import (
 type GoGitClient struct{}
 
 type ProgressWrapper struct {
-	Logger Logger
+	Logger lib.Logger
 }
 
 func (t ProgressWrapper) Write(p []byte) (n int, err error) {
@@ -49,7 +50,7 @@ func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	} else if r.Repository.SSHKey.Type == db.AccessKeyNone {
 		return nil, nil
 	} else {
-		return nil, errors.New("Unsupported auth method")
+		return nil, errors.New("unsupported auth method")
 	}
 }
 
