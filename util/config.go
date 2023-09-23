@@ -101,7 +101,8 @@ type RunnerSettings struct {
 	// OneOff indicates than runner runs only one job and exit
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
-	Webhook string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -393,23 +394,32 @@ func validate(value interface{}) error {
 			continue
 		}
 
-		var value string
+		var strVal string
 
 		if fieldType.Type.Kind() == reflect.Int {
-			value = strconv.FormatInt(fieldValue.Int(), 10)
+			strVal = strconv.FormatInt(fieldValue.Int(), 10)
 		} else if fieldType.Type.Kind() == reflect.Uint {
-			value = strconv.FormatUint(fieldValue.Uint(), 10)
+			strVal = strconv.FormatUint(fieldValue.Uint(), 10)
 		} else {
-			value = fieldValue.String()
+			strVal = fieldValue.String()
 		}
 
-		match, _ := regexp.MatchString(rule, value)
-		if !match {
-			return fmt.Errorf(
-				"value of field '%v' is not valid! (Must match regex: '%v')",
-				fieldType.Name, rule,
-			)
+		match, _ := regexp.MatchString(rule, strVal)
+
+		if match {
+			continue
 		}
+
+		fieldName := strings.ToLower(fieldType.Name)
+
+		if strings.Contains(fieldName, "password") || strings.Contains(fieldName, "secret") || strings.Contains(fieldName, "key") {
+			strVal = "***"
+		}
+
+		return fmt.Errorf(
+			"value of field '%v' is not valid: %v (Must match regex: '%v')",
+			fieldType.Name, strVal, rule,
+		)
 	}
 
 	return nil

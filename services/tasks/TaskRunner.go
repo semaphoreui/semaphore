@@ -65,7 +65,6 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 	switch t.Task.Status { // check old status
 	case lib.TaskRunningStatus:
 		if status == lib.TaskWaitingStatus {
-			//panic("running TaskRunner cannot be " + status)
 			return
 		}
 		break
@@ -78,7 +77,6 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 	case lib.TaskSuccessStatus:
 	case lib.TaskFailStatus:
 	case lib.TaskStoppedStatus:
-		//panic("stopped TaskRunner cannot be " + status)
 		return
 	}
 

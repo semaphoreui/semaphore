@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -100,13 +101,13 @@ type JobPool struct {
 	// register channel used to put tasks to queue.
 	register chan *job
 
-	resourceLocker chan *resourceLock
-
 	runningJobs map[int]*runningJob
 
 	queue []*job
 
 	config *RunnerConfig
+
+	processing int32
 }
 
 type RunnerRegistration struct {
@@ -117,6 +118,16 @@ type RunnerRegistration struct {
 
 func (p *runningJob) Log2(msg string, now time.Time) {
 	p.logRecords = append(p.logRecords, LogRecord{Time: now, Message: msg})
+}
+
+func (p *JobPool) existsInQueue(taskID int) bool {
+	for _, j := range p.queue {
+		if j.job.Task.ID == taskID {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *JobPool) hasRunningJobs() bool {
@@ -167,12 +178,23 @@ func (p *JobPool) Run() {
 
 	defer func() {
 		queueTicker.Stop()
+		requestTimer.Stop()
 	}()
 
 	for {
+
+		if p.tryRegisterRunner() {
+
+			log.Info("Runner registered on server")
+
+			break
+		}
+
+		time.Sleep(5_000_000_000)
+	}
+
+	for {
 		select {
-		//case j := <-p.register: // new task created by API or schedule
-		//	p.queue = append(p.queue, j)
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
 			if len(p.queue) == 0 {
@@ -186,9 +208,6 @@ func (p *JobPool) Run() {
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
 				break
 			}
-
-			//log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
-			//p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
 			p.runningJobs[t.job.Task.ID] = &runningJob{
 				job: t.job,
@@ -221,23 +240,28 @@ func (p *JobPool) Run() {
 
 		case <-requestTimer.C:
 
-			go p.sendProgress()
+			go func() {
 
-			if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
-				os.Exit(0)
-			}
+				if !atomic.CompareAndSwapInt32(&p.processing, 0, 1) {
+					return
+				}
 
-			go p.checkNewJobs()
+				defer atomic.StoreInt32(&p.processing, 0)
+
+				p.sendProgress()
+
+				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+					os.Exit(0)
+				}
+
+				p.checkNewJobs()
+			}()
 
 		}
 	}
 }
 
 func (p *JobPool) sendProgress() {
-
-	if !p.tryRegisterRunner() {
-		return
-	}
 
 	client := &http.Client{}
 
@@ -248,6 +272,7 @@ func (p *JobPool) sendProgress() {
 	}
 
 	for id, j := range p.runningJobs {
+
 		body.Jobs = append(body.Jobs, JobProgress{
 			ID:         id,
 			LogRecords: j.logRecords,
@@ -255,6 +280,10 @@ func (p *JobPool) sendProgress() {
 		})
 
 		j.logRecords = make([]LogRecord, 0)
+
+		if j.status.IsFinished() {
+			delete(p.runningJobs, id)
+		}
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -278,6 +307,8 @@ func (p *JobPool) tryRegisterRunner() bool {
 	if p.config != nil {
 		return true
 	}
+
+	log.Info("Trying to register on server")
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
@@ -316,6 +347,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
 		Webhook:           util.Config.Runner.Webhook,
+		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
@@ -360,10 +392,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
-
-	if !p.tryRegisterRunner() {
-		return
-	}
 
 	client := &http.Client{}
 
@@ -421,6 +449,10 @@ func (p *JobPool) checkNewJobs() {
 			continue
 		}
 
+		if p.existsInQueue(newJob.Task.ID) {
+			continue
+		}
+
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
@@ -453,5 +485,6 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		p.queue = append(p.queue, &taskRunner)
+		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " added from queue")
 	}
 }
