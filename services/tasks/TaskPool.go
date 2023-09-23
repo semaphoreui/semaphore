@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"regexp"
 	"strconv"
@@ -152,7 +153,7 @@ func (p *TaskPool) Run() {
 
 			//get TaskRunner from top of queue
 			t := p.queue[0]
-			if t.Task.Status == db.TaskFailStatus {
+			if t.Task.Status == lib.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.Task.ID) + " removed from queue")
@@ -225,18 +226,18 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		if err != nil {
 			return err
 		}
-		tsk.SetStatus(db.TaskStoppedStatus)
+		tsk.SetStatus(lib.TaskStoppedStatus)
 		tsk.createTaskEvent()
 	} else {
 		status := tsk.Task.Status
 
 		if forceStop {
-			tsk.SetStatus(db.TaskStoppedStatus)
+			tsk.SetStatus(lib.TaskStoppedStatus)
 		} else {
-			tsk.SetStatus(db.TaskStoppingStatus)
+			tsk.SetStatus(lib.TaskStoppingStatus)
 		}
 
-		if status == db.TaskRunningStatus {
+		if status == lib.TaskRunningStatus {
 			tsk.kill()
 		}
 	}
@@ -300,7 +301,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 
 func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask db.Task, err error) {
 	taskObj.Created = time.Now()
-	taskObj.Status = db.TaskWaitingStatus
+	taskObj.Status = lib.TaskWaitingStatus
 	taskObj.UserID = userID
 	taskObj.ProjectID = projectID
 
@@ -341,7 +342,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	err = taskRunner.populateDetails()
 	if err != nil {
 		taskRunner.Log("Error: " + err.Error())
-		taskRunner.SetStatus(db.TaskFailStatus)
+		taskRunner.SetStatus(lib.TaskFailStatus)
 		return
 	}
 
@@ -355,7 +356,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			Repository:  taskRunner.Repository,
 			Environment: taskRunner.Environment,
 			Logger:      &taskRunner,
-			Playbook: &lib.AnsiblePlaybook{
+			Playbook: &db_lib.AnsiblePlaybook{
 				Logger:     &taskRunner,
 				TemplateID: taskRunner.Template.ID,
 				Repository: taskRunner.Repository,
@@ -370,7 +371,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			Repository:  taskRunner.Repository,
 			Environment: taskRunner.Environment,
 			Logger:      &taskRunner,
-			Playbook: &lib.AnsiblePlaybook{
+			Playbook: &db_lib.AnsiblePlaybook{
 				Logger:     &taskRunner,
 				TemplateID: taskRunner.Template.ID,
 				Repository: taskRunner.Repository,

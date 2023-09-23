@@ -1,24 +1,9 @@
 package db
 
 import (
+	"github.com/ansible-semaphore/semaphore/lib"
 	"time"
 )
-
-type TaskStatus string
-
-const (
-	TaskWaitingStatus  TaskStatus = "waiting"
-	TaskStartingStatus TaskStatus = "starting"
-	TaskRunningStatus  TaskStatus = "running"
-	TaskStoppingStatus TaskStatus = "stopping"
-	TaskStoppedStatus  TaskStatus = "stopped"
-	TaskSuccessStatus  TaskStatus = "success"
-	TaskFailStatus     TaskStatus = "error"
-)
-
-func (s TaskStatus) IsFinished() bool {
-	return s == TaskStoppedStatus || s == TaskSuccessStatus || s == TaskFailStatus
-}
 
 // Task is a model of a task which will be executed by the runner
 type Task struct {
@@ -26,7 +11,7 @@ type Task struct {
 	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
 	ProjectID  int `db:"project_id" json:"project_id"`
 
-	Status TaskStatus `db:"status" json:"status"`
+	Status lib.TaskStatus `db:"status" json:"status"`
 
 	Debug  bool `db:"debug" json:"debug"`
 	DryRun bool `db:"dry_run" json:"dry_run"`

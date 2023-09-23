@@ -10,14 +10,14 @@ import (
 
 func (t *LocalJob) installInventory() (err error) {
 	if t.Inventory.SSHKeyID != nil {
-		err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser)
+		t.sshKeyInstallation, err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser)
 		if err != nil {
 			return
 		}
 	}
 
 	if t.Inventory.BecomeKeyID != nil {
-		err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser)
+		t.becomeKeyInstallation, err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser)
 		if err != nil {
 			return
 		}

@@ -5,7 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
 )
@@ -27,11 +27,11 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
-	remoteHash, err := lib.GitRepository{
+	remoteHash, err := db_lib.GitRepository{
 		Logger:     nil,
 		TemplateID: schedule.TemplateID,
 		Repository: repo,
-		Client:     lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(),
 	}.GetLastRemoteCommitHash()
 
 	if err != nil {

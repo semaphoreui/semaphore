@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"bytes"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
 	"html/template"
 	"net/http"
@@ -83,7 +83,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == db.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
 		return
 	}
 
@@ -156,7 +156,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == db.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
 		return
 	}
 
@@ -188,17 +188,17 @@ func (t *TaskRunner) sendSlackAlert() {
 	}
 
 	var color string
-	if t.Task.Status == db.TaskSuccessStatus {
+	if t.Task.Status == lib.TaskSuccessStatus {
 		color = "good"
-	} else if t.Task.Status == db.TaskFailStatus {
+	} else if t.Task.Status == lib.TaskFailStatus {
 		color = "bad"
-	} else if t.Task.Status == db.TaskRunningStatus {
+	} else if t.Task.Status == lib.TaskRunningStatus {
 		color = "#333CFF"
-	} else if t.Task.Status == db.TaskWaitingStatus {
+	} else if t.Task.Status == lib.TaskWaitingStatus {
 		color = "#FFFC33"
-	} else if t.Task.Status == db.TaskStoppingStatus {
+	} else if t.Task.Status == lib.TaskStoppingStatus {
 		color = "#BEBEBE"
-	} else if t.Task.Status == db.TaskStoppedStatus {
+	} else if t.Task.Status == lib.TaskStoppedStatus {
 		color = "#5B5B5B"
 	}
 	alert := Alert{
