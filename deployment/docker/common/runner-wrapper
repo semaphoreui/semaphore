@@ -1,36 +1,23 @@
 #!/bin/sh
 
-set -e
+echo Loading environment...
 
-echoerr() { printf "%s\n" "$*" >&2; }
+source /home/semaphore/venv/bin/activate
+
+echo Staring runner...
 
 
-SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
-SEMAPHORE_RUNNER_CONFIG_FILE="${SEMAPHORE_RUNNER_CONFIG_FILE:-/var/lib/semaphore/runner.json}"
-SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+export ANSIBLE_STDOUT_CALLBACK=yaml
+export ANSIBLE_LOAD_CALLBACK_PLUGINS=yes
+export ANSIBLE_CONFIG=/tmp/semaphore/ansible.cfg
 
-SEMAPHORE_REGISTRATION_TOKEN="${SEMAPHORE_REGISTRATION_TOKEN:-}"
-SEMAPHORE_RUNNER_API_URL="${SEMAPHORE_RUNNER_API_URL:-}"
-SEMAPHORE_RUNNER_ONE_OFF="${SEMAPHORE_RUNNER_ONE_OFF:-false}"
+tee "/tmp/semaphore/ansible.cfg" <<CONFIG
+[defaults]
+host_key_checking = False
+stdout_callback = yaml
+bin_ansible_callbacks = yes
+CONFIG
 
-# Create a config if it does not exist in the current config path
-if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
-    echoerr "Generating ${SEMAPHORE_CONFIG_PATH}/config.json ..."
 
-    cat << EOF > "${SEMAPHORE_CONFIG_PATH}/config.json"
-{
- 	"tmp_path": "${SEMAPHORE_TMP_PATH}",
-	"runner": {
-		"registration_token": "${SEMAPHORE_REGISTRATION_TOKEN}",
-		"config_file": "${SEMAPHORE_RUNNER_CONFIG_FILE}",
-		"api_url": "${SEMAPHORE_RUNNER_API_URL}",
-		"one_off": ${SEMAPHORE_RUNNER_ONE_OFF}
-	}
-}
-EOF
-
-    echoerr "Run Semaphore with semaphore runner --config ${SEMAPHORE_CONFIG_PATH}/config.json"
-fi
-
-# run our command
-exec "$@"
+/usr/local/bin/semaphore runner --config /etc/semaphore/config.json

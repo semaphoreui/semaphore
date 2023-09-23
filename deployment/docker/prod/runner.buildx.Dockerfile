@@ -10,11 +10,11 @@ ARG TARGETARCH
 RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc
 RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
-FROM alpine:3.18 as runner
-LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
+FROM alpine/ansible:latest
 
-RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp && \
-    adduser -D -u 1001 -G root semaphore && \
+RUN apk add --no-cache wget git rsync
+
+RUN adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     mkdir -p /var/lib/semaphore && \
@@ -33,5 +33,14 @@ RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper &&\
 WORKDIR /home/semaphore
 USER 1001
 
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/usr/local/bin/runner-wrapper", "/usr/local/bin/semaphore", "runner", "--config", "/etc/semaphore/config.json"]
+RUN mkdir ./venv
+
+RUN python3 -m venv ./venv --system-site-packages && \
+    source ./venv/bin/activate && \
+    pip3 install --upgrade pip
+
+RUN pip3 install boto3 botocore
+
+RUN echo '{"tmp_path": "/tmp/semaphore","dialect": "bolt", "runner": {"config_file": "/var/lib/semaphore/runner.json"}}' > /etc/semaphore/config.json
+
+CMD [ "/usr/local/bin/runner-wrapper" ]
