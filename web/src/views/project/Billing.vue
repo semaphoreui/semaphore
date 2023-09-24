@@ -148,17 +148,19 @@
               fill-dot
               icon="mdi-calendar-range"
               class="text-subtitle-1 align-center"
-            >Billing date: {{ project.planFinishDate }}</v-timeline-item>
+            >Billing date: {{ project.planFinishDate | formatDate2 }}</v-timeline-item>
             <v-timeline-item
               fill-dot
               icon="mdi-server"
               class="text-subtitle-1 align-center"
-            >Cache: {{ project.diskUsage }} / 100 Mb used</v-timeline-item>
+            >Cache: {{ project.diskUsage }} / {{ plan.diskUsage }} Mb used</v-timeline-item>
             <v-timeline-item
               fill-dot
               icon="mdi-cog"
               class="text-subtitle-1 align-center"
-            >Runner: {{ project.runnerUsage }} / 1000 minutes used</v-timeline-item>
+            >Runner:
+              {{ Math.floor(project.runnerUsage / 60) }} / {{ Math.floor(plan.runnerUsage / 60) }}
+              minutes used</v-timeline-item>
           </v-timeline>
         </v-col>
       </v-row>
@@ -251,7 +253,9 @@
                   v-if="project.plan === 'starter'"
                 >
                   Your plan
-                  {{ project.planCanceled ? `until ${project.planFinishDate}` : "" }}
+                  <span class="ml-1" v-if="project.planCanceled">
+                    until {{ project.planFinishDate | formatDate2 }}
+                  </span>
                 </v-chip>
 
 <!--                <div v-else class="mt-5 text-subtitle-1 text-center">Best for work</div>-->
@@ -291,9 +295,17 @@ import EventBus from '@/event-bus';
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 
-const PLAN_PRICES = {
-  free: 0,
-  starter: 5,
+const PLANS = {
+  free: {
+    price: 0,
+    diskUsage: 100,
+    runnerUsage: 50 * 60,
+  },
+  starter: {
+    price: 5,
+    diskUsage: 1000,
+    runnerUsage: 1000 * 60,
+  },
 };
 
 export default {
@@ -310,6 +322,7 @@ export default {
       paymentDialog: false,
       paymentProgressTimer: null,
       currencyAmount: null,
+      plan: PLANS.free,
     };
   },
 
@@ -335,12 +348,14 @@ export default {
         url: `/billing/projects/${this.projectId}`,
         responseType: 'json',
       })).data;
+
+      this.plan = PLANS[this.project.plan];
     },
 
     async selectPlan(plan) {
       await this.refreshProject();
 
-      const price = PLAN_PRICES[plan];
+      const { price } = PLANS[plan];
 
       if (this.project.plan === 'free' && this.project.balance < price) {
         this.paymentDialog = true;

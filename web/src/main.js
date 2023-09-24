@@ -14,6 +14,7 @@ axios.defaults.baseURL = document.baseURI;
 Vue.config.productionTip = false;
 
 Vue.filter('formatDate', (value) => (value ? moment(String(value)).fromNow() : '—'));
+Vue.filter('formatDate2', (value) => (value ? moment(String(value)).format('LL') : '—'));
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
 Vue.filter('formatLog', (value) => (value ? convert.toHtml(String(value)) : value));
 
