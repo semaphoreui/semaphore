@@ -61,12 +61,12 @@
         {{ $t('taskTemplates2') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="success"
-        @click="editItem('new')"
-        class="mr-2"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >Marketplace <v-chip class="ml-2" color="red" dark x-small>New</v-chip></v-btn>
+<!--      <v-btn-->
+<!--        color="success"-->
+<!--        @click="editItem('new')"-->
+<!--        class="mr-2"-->
+<!--        v-if="can(USER_PERMISSIONS.manageProjectResources)"-->
+<!--      >Marketplace <v-chip class="ml-2" color="red" dark x-small>New</v-chip></v-btn>-->
       <v-btn
         color="primary"
         @click="editItem('new')"
