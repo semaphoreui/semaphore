@@ -8,7 +8,7 @@
     >
       <v-card v-if="payment == null">
         <v-card-title class="headline text-center">
-          Add funds
+          Replenishing your wallet
           <v-spacer></v-spacer>
           <v-btn
             @click="closePaymentDialog"
@@ -18,7 +18,6 @@
           </v-btn>
         </v-card-title>
         <v-card-text class="text-xs-center pb-0">
-          lease make a payment
 
           <v-slider
             v-model="currencyAmount"
@@ -108,65 +107,178 @@
       <v-tab
         key="billing"
         :to="`/project/${projectId}/billing`"
-      >Billing <v-chip color="red" x-small dark class="ml-1">New</v-chip></v-tab>
+      >Billing
+        <v-chip color="red" x-small dark class="ml-1">New</v-chip>
+      </v-tab>
     </v-tabs>
 
     <v-container v-if="project != null">
-      <div>
-<!--        <v-icon>mdi-wallet</v-icon>-->
-        Your balance: ${{ project.balance }}
-        <v-btn
-          color="primary"
-          @click="paymentDialog = true"
-        >
-          <v-icon left>mdi-plus-circle</v-icon>
-          Add fonds
-        </v-btn>
-      </div>
-      <hr />
-      <div>
-        Billing date: {{ project.planFinishDate }}
-      </div>
-      <div>
-        Cache used: {{ project.diskUsage }} from 100 Mb
-      </div>
-      <div>
-        Runner used: {{ project.runnerUsage }} from 1000 minutes
-      </div>
-      <hr />
+      <div class="mt-7 mb-6">
+        <div class="text-h3">
+          <v-icon
+            x-large
+            color="deep-orange darken-4"
+            style="margin-top: -8px;"
+          >
+            mdi-wallet
+          </v-icon>
 
-      <v-row no-gutters>
-        <v-col md="4" lg="4">
-          <h2>Free</h2>
-          <div>100 Mb for cache</div>
-          <div>50 minutes/month</div>
-          <div>
-            <span v-if="project.plan === 'free'">Your plan</span>
-          </div>
+          ${{ project.balance }}
+
+          <v-btn
+            color="primary"
+            @click="paymentDialog = true"
+            icon
+            x-large
+            style="margin-top: -8px;"
+          >
+            <v-icon x-large>mdi-plus-circle</v-icon>
+          </v-btn>
+        </div>
+      </div>
+
+      <v-row>
+        <v-col md="8" lg="8">
+          <v-timeline
+            align-top
+            dense
+            style="margin-left: -20px;"
+          >
+            <v-timeline-item
+              fill-dot
+              icon="mdi-calendar-range"
+              class="text-subtitle-1 align-center"
+            >Billing date: {{ project.planFinishDate }}</v-timeline-item>
+            <v-timeline-item
+              fill-dot
+              icon="mdi-server"
+              class="text-subtitle-1 align-center"
+            >Cache: {{ project.diskUsage }} / 100 Mb used</v-timeline-item>
+            <v-timeline-item
+              fill-dot
+              icon="mdi-cog"
+              class="text-subtitle-1 align-center"
+            >Runner: {{ project.runnerUsage }} / 1000 minutes used</v-timeline-item>
+          </v-timeline>
         </v-col>
+      </v-row>
+
+      <v-row class="mt-0 mb-9">
         <v-col md="4" lg="4">
-          <h2>$5</h2>
-          <div>1G for cache</div>
-          <div>1000 minutes/month</div>
-          <div>
-            <span v-if="project.plan === 'starter'">Your plan</span>
-          </div>
-          <div>
-            <v-btn
-              color="primary"
-              @click="
+          <v-card
+            class="mt-4 pa-2"
+            color="grey lighten-4"
+            flat
+          >
+            <v-card-title class="text-h3">Free</v-card-title>
+            <v-card-text style="height: 200px">
+              <v-timeline
+                align-top
+                dense
+                style="margin-left: -30px;"
+              >
+                <v-timeline-item
+                  icon="mdi-server"
+                  class="text-subtitle-1 align-center"
+                  fill-dot
+                >
+                  100 Mb for cache
+                </v-timeline-item>
+
+                <v-timeline-item
+                  fill-dot
+                  icon="mdi-cog"
+                  class="text-subtitle-1 align-center"
+                >
+                  50 min/mo for tasks
+                </v-timeline-item>
+              </v-timeline>
+
+              <div>
+                <v-chip
+                  class="mt-3 text-subtitle-1 py-3 px-4 font-weight-bold"
+                  v-if="project.plan === 'free'"
+                  color="success"
+                  outlined
+                >Your plan
+                </v-chip>
+              </div>
+            </v-card-text>
+
+            <v-card-actions>
+              <div style="width: 100%; height: 44px; line-height: 44px;"
+                   class="text-subtitle-1 text-center text--secondary">&nbsp;</div>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+
+        <v-col md="4" lg="4">
+          <v-card
+            class="mt-4 pa-2"
+            color="grey lighten-4"
+            flat
+          >
+            <v-card-title class="text-h3">$5</v-card-title>
+            <v-card-text style="height: 200px">
+
+              <v-timeline
+                align-top
+                dense
+                style="margin-left: -30px;"
+              >
+                <v-timeline-item
+                  icon="mdi-server"
+                  fill-dot
+                  class="text-subtitle-1 align-center"
+                >
+                  1G for cache
+                </v-timeline-item>
+
+                <v-timeline-item
+                  fill-dot
+                  icon="mdi-cog"
+                  class="text-subtitle-1 align-center"
+                >
+                  <div>1000 min/mo for tasks</div>
+                </v-timeline-item>
+              </v-timeline>
+
+              <div>
+                <v-chip
+                  class="font-weight-bold mt-3 text-center pa-4 text-subtitle-1"
+                  color="success"
+                  :outlined="project.planCanceled"
+                  v-if="project.plan === 'starter'"
+                >
+                  Your plan
+                  {{ project.planCanceled ? `until ${project.planFinishDate}` : "" }}
+                </v-chip>
+
+<!--                <div v-else class="mt-5 text-subtitle-1 text-center">Best for work</div>-->
+              </div>
+            </v-card-text>
+
+            <v-card-actions>
+              <v-btn
+                depressed
+                :text="project.plan !== 'free' && !project.planCanceled"
+                large
+                :color="project.plan === 'free' || project.planCanceled ? 'success' : 'secondary'"
+                style="width: 100%;"
+                @click="
                 project.plan === 'free' || project.planCanceled
                   ? selectPlan('starter')
                   : selectPlan('free')
               "
-            >
-              {{
-                project.plan === 'free'
-                  ? 'Select'
-                  : (project.planCanceled ? 'Continue' : 'Cancel')
-              }}
-            </v-btn>
-          </div>
+              >
+                {{
+                  project.plan === 'free'
+                    ? 'Upgrade'
+                    : (project.planCanceled ? 'Renew' : 'Cancel')
+                }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
         </v-col>
       </v-row>
     </v-container>
