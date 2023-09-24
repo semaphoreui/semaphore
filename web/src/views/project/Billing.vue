@@ -159,7 +159,7 @@
               icon="mdi-cog"
               class="text-subtitle-1 align-center"
             >Runner:
-              {{ Math.floor(project.runnerUsage / 60) }} / {{ Math.floor(plan.runnerUsage / 60) }}
+              {{ Math.ceil(project.runnerUsage / 60) }} / {{ Math.ceil(plan.runnerUsage / 60) }}
               minutes used</v-timeline-item>
           </v-timeline>
         </v-col>
