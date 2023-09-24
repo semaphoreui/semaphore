@@ -15,11 +15,11 @@
       >
         {{ $t('settings') }}
       </v-tab>
-<!--      <v-tab-->
-<!--        v-if="(user || {}).billing && userRole === 'owner'"-->
-<!--        key="billing"-->
-<!--        :to="`/project/${projectId}/billing`"-->
-<!--      >Billing <v-badge color="red" content="1" /></v-tab>-->
+      <v-tab
+        v-if="userRole === 'owner'"
+        key="billing"
+        :to="`/project/${projectId}/billing`"
+      >Billing <v-chip color="red" x-small dark class="ml-1">New</v-chip></v-tab>
     </v-tabs>
 
     <v-data-table

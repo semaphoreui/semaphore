@@ -108,7 +108,7 @@
       <v-tab
         key="billing"
         :to="`/project/${projectId}/billing`"
-      >Billing</v-tab>
+      >Billing <v-chip color="red" x-small dark class="ml-1">New</v-chip></v-tab>
     </v-tabs>
 
     <v-container v-if="project != null">
