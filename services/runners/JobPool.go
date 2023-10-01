@@ -233,6 +233,8 @@ func (p *JobPool) Run() {
 				} else {
 					runningJob.SetStatus(lib.TaskSuccessStatus)
 				}
+
+				log.Info("Task " + strconv.Itoa(runningJob.job.Task.ID) + " finished (" + string(runningJob.status) + ")")
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
@@ -283,7 +285,7 @@ func (p *JobPool) sendProgress() {
 		j.logRecords = make([]LogRecord, 0)
 
 		if j.status.IsFinished() {
-			log.Info("Task " + strconv.Itoa(id) + " finished (" + string(j.status) + ")")
+			log.Info("Task " + strconv.Itoa(id) + " removed from running list")
 			delete(p.runningJobs, id)
 		}
 	}
