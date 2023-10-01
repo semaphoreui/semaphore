@@ -331,7 +331,7 @@ func castStringToInt(value string) int {
 func castStringToBool(value string) bool {
 
 	var valueBool bool
-	if value == "1" || strings.ToLower(value) == "true" {
+	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
 		valueBool = true
 	} else {
 		valueBool = false
