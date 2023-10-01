@@ -98,7 +98,7 @@ func (key *AccessKey) startSshAgent(logger lib.Logger) (lib.SshAgent, error) {
 				Passphrase: []byte(key.SshKey.Passphrase),
 			},
 		},
-		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", time.Now().Unix(), 0)),
+		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", key.ID, time.Now().Unix())),
 	}
 
 	return sshAgent, sshAgent.Listen()
