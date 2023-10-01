@@ -205,7 +205,7 @@ func (p *JobPool) Run() {
 			if t.status == lib.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
+				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
 				break
 			}
 
@@ -236,7 +236,8 @@ func (p *JobPool) Run() {
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
-			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " started")
 
 		case <-requestTimer.C:
 
@@ -282,6 +283,7 @@ func (p *JobPool) sendProgress() {
 		j.logRecords = make([]LogRecord, 0)
 
 		if j.status.IsFinished() {
+			log.Info("Task " + strconv.Itoa(id) + " finished (" + string(j.status) + ")")
 			delete(p.runningJobs, id)
 		}
 	}
@@ -485,6 +487,6 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		p.queue = append(p.queue, &taskRunner)
-		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " added from queue")
+		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " enqueued")
 	}
 }
