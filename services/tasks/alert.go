@@ -1,12 +1,15 @@
 package tasks
+
+import (
 	"bytes"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const emailTemplate = "Subject: Task '{{ .Name }}' failed\r\n" +
