@@ -1,6 +1,7 @@
-package lib
+package db_lib
 
 import (
+	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 
 	"github.com/ansible-semaphore/semaphore/db"
@@ -26,7 +27,7 @@ type GitClient interface {
 type GitRepository struct {
 	TemplateID int
 	Repository db.Repository
-	Logger     Logger
+	Logger     lib.Logger
 	Client     GitClient
 }
 

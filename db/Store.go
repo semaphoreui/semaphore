@@ -143,6 +143,7 @@ type Store interface {
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 
 	GetProject(projectID int) (Project, error)
+	GetAllProjects() ([]Project, error)
 	GetProjects(userID int) ([]Project, error)
 	CreateProject(project Project) (Project, error)
 	DeleteProject(projectID int) error

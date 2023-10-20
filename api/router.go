@@ -187,9 +187,14 @@ func Route() *mux.Router {
 	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
 	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
 
+	meAPI := authenticatedAPI.Path("/project/{project_id}/me").Subrouter()
+	meAPI.Use(projects.ProjectMiddleware)
+	meAPI.HandleFunc("", projects.LeftProject).Methods("DELETE")
+
 	//
 	// Manage project users
 	projectAdminUsersAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+
 	projectAdminUsersAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectUsers))
 	projectAdminUsersAPI.Path("/users").HandlerFunc(projects.AddUser).Methods("POST")
 

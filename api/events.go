@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/context"
 )
 
-//nolint: gocyclo
+// nolint: gocyclo
 func getEvents(w http.ResponseWriter, r *http.Request, limit int) {
 	user := context.Get(r, "user").(*db.User)
 	projectObj, exists := context.GetOk(r, "project")
@@ -19,7 +19,9 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit int) {
 	if exists {
 		project := projectObj.(db.Project)
 
-		_, err = helpers.Store(r).GetProjectUser(project.ID, user.ID)
+		if !user.Admin { // check permissions to view events
+			_, err = helpers.Store(r).GetProjectUser(project.ID, user.ID)
+		}
 
 		if err != nil {
 			helpers.WriteError(w, err)

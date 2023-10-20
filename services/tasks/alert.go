@@ -2,6 +2,11 @@ package tasks
 
 import (
 	"bytes"
+<<<<<<< HEAD
+=======
+	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/util"
+>>>>>>> upstream/develop
 	"html/template"
 	"net/http"
 	"net/url"
@@ -59,24 +64,28 @@ func (t *TaskRunner) sendMailAlert() {
 	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
 	for _, user := range t.users {
-		userObj, err := t.pool.store.GetUser(user)
+		userObj, err2 := t.pool.store.GetUser(user)
 
 		if !userObj.Alert {
 			continue
 		}
-		t.panicOnError(err, "Can't find user Email!")
 
-		t.Log("Sending email to " + userObj.Email + " from " + util.Config.EmailSender)
+		if err2 != nil {
+			util.LogError(err2)
+			continue
+		}
 
 		if util.Config.EmailSecure {
-			err = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort,
+			err2 = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort,
 				util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword,
 				userObj.Email, mailBuffer)
 		} else {
-			err = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
+			err2 = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
 		}
 
-		t.panicOnError(err, "Can't send email!")
+		if err2 != nil {
+			util.LogError(err2)
+		}
 	}
 }
 
@@ -85,7 +94,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == db.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
 		return
 	}
 
@@ -94,13 +103,20 @@ func (t *TaskRunner) sendTelegramAlert() {
 		chatID = *t.alertChat
 	}
 
+	if chatID == "" {
+		return
+	}
+
 	var telegramBuffer bytes.Buffer
 
 	var version string
 	if t.Task.Version != nil {
 		version = *t.Task.Version
 	} else if t.Task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
+		buildVer := t.Task.GetIncomingVersion(t.pool.store)
+		if buildVer != nil {
+			version = *buildVer
+		}
 	} else {
 		version = ""
 	}
@@ -170,7 +186,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == db.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
 		return
 	}
 
@@ -214,17 +230,17 @@ func (t *TaskRunner) sendSlackAlert() {
 	}
 
 	var color string
-	if t.Task.Status == db.TaskSuccessStatus {
+	if t.Task.Status == lib.TaskSuccessStatus {
 		color = "good"
-	} else if t.Task.Status == db.TaskFailStatus {
+	} else if t.Task.Status == lib.TaskFailStatus {
 		color = "bad"
-	} else if t.Task.Status == db.TaskRunningStatus {
+	} else if t.Task.Status == lib.TaskRunningStatus {
 		color = "#333CFF"
-	} else if t.Task.Status == db.TaskWaitingStatus {
+	} else if t.Task.Status == lib.TaskWaitingStatus {
 		color = "#FFFC33"
-	} else if t.Task.Status == db.TaskStoppingStatus {
+	} else if t.Task.Status == lib.TaskStoppingStatus {
 		color = "#BEBEBE"
-	} else if t.Task.Status == db.TaskStoppedStatus {
+	} else if t.Task.Status == lib.TaskStoppedStatus {
 		color = "#5B5B5B"
 	}
 	alert := Alert{

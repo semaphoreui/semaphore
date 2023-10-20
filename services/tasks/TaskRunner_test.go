@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"math/rand"
 	"os"
 	"path"
@@ -58,7 +58,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		Repository:  taskRunner.Repository,
 		Environment: taskRunner.Environment,
 		Logger:      &taskRunner,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &taskRunner,
 			TemplateID: taskRunner.Template.ID,
 			Repository: taskRunner.Repository,
@@ -95,7 +95,7 @@ func TestGetRepoPath(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.Template.ID,
 			Repository: tsk.Repository,
@@ -136,7 +136,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.Template.ID,
 			Repository: tsk.Repository,
@@ -223,7 +223,7 @@ func TestPopulateDetails(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.Template.ID,
 			Repository: tsk.Repository,
@@ -267,7 +267,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.Template.ID,
 			Repository: tsk.Repository,
@@ -281,7 +281,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --private-key=/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -318,7 +318,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.Template.ID,
 			Repository: tsk.Repository,
@@ -369,7 +369,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &lib.AnsiblePlaybook{
+		Playbook: &db_lib.AnsiblePlaybook{
 			Logger:     &tsk,
 			TemplateID: tsk.Template.ID,
 			Repository: tsk.Repository,

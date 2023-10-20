@@ -200,8 +200,10 @@ func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
 }
 
 type loginMetadataOidcProvider struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color"`
+	Icon  string `json:"icon"`
 }
 
 type loginMetadata struct {
@@ -219,8 +221,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		i := 0
 		for k, v := range util.Config.OidcProviders {
 			config.OidcProviders[i] = loginMetadataOidcProvider{
-				ID:   k,
-				Name: v.DisplayName,
+				ID:    k,
+				Name:  v.DisplayName,
+				Color: v.Color,
+				Icon:  v.Icon,
 			}
 			i++
 		}
@@ -367,11 +371,71 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	return oauthState
 }
 
+type oidcClaimResult struct {
+	username string
+	name     string
+	email    string
+}
+
+func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidcClaimResult, err error) {
+
+	claims := make(map[string]interface{})
+	if err = idToken.Claims(&claims); err != nil {
+		return
+	}
+
+	var ok bool
+
+	res.email, ok = claims[provider.EmailClaim].(string)
+	if !ok {
+		err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+		return
+	}
+
+	res.username = getUsernameFromEmail(res.email)
+
+	res.name, ok = claims[provider.NameClaim].(string)
+	if !ok || res.name == "" {
+		res.name = getProfileNameFromEmail(res.email)
+	}
+
+	return
+}
+
+func extractUsernameFromEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return ""
+}
+
+func getUsernameFromEmail(email string) string {
+	username := extractUsernameFromEmail(email)
+	suffix := util.RandString(12)
+	return username + "_" + suffix
+}
+
+func getProfileNameFromEmail(email string) string {
+	username := extractUsernameFromEmail(email)
+
+	runes := []rune(username)
+
+	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
+
+	return string(runes)
+}
+
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	oauthState, err := r.Cookie("oauthstate")
 	if err != nil {
 		log.Error(err.Error())
+		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	if r.FormValue("state") != oauthState.Value {
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
@@ -383,84 +447,66 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
+
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
-		log.Error(fmt.Errorf("No such provider: %s", pid))
+		log.Error(fmt.Errorf("no such provider: %s", pid))
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
+
 	verifier := _oidc.Verifier(&oidc.Config{ClientID: oauth.ClientID})
 
-	if r.FormValue("state") != oauthState.Value {
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
-		return
-	}
+	code := r.URL.Query().Get("code")
 
-	oauth2Token, err := oauth.Exchange(ctx, r.URL.Query().Get("code"))
+	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
 		log.Error(err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
+
+	var claims oidcClaimResult
 
 	// Extract the ID Token from OAuth2 token.
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
-	if !ok {
-		log.Error(fmt.Errorf("id_token is missing in token response"))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
-		return
+
+	if ok && rawIDToken != "" {
+		var idToken *oidc.IDToken
+		// Parse and verify ID Token payload.
+		idToken, err = verifier.Verify(ctx, rawIDToken)
+
+		if err == nil {
+			claims, err = claimOidcToken(idToken, provider)
+		}
+	} else {
+		var userInfo *oidc.UserInfo
+		userInfo, err = _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
+
+		if err == nil {
+			claims.email = userInfo.Email
+			claims.username = getUsernameFromEmail(claims.email)
+
+			if userInfo.Profile != "" {
+				claims.name = userInfo.Profile
+			} else {
+				claims.name = getProfileNameFromEmail(claims.email)
+			}
+		}
 	}
 
-	// Parse and verify ID Token payload.
-	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		log.Error(err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
 		return
 	}
 
-	// Extract custom claims
-	claims := make(map[string]interface{})
-	if err := idToken.Claims(&claims); err != nil {
-		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
-		return
-	}
-
-	if len(provider.UsernameClaim) == 0 {
-		provider.UsernameClaim = "preferred_username"
-	}
-	usernameClaim, ok := claims[provider.UsernameClaim].(string)
-	if !ok {
-		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.UsernameClaim))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
-		return
-	}
-	if len(provider.NameClaim) == 0 {
-		provider.NameClaim = "preferred_username"
-	}
-	nameClaim, ok := claims[provider.NameClaim].(string)
-	if !ok {
-		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.NameClaim))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
-		return
-	}
-	if len(provider.EmailClaim) == 0 {
-		provider.EmailClaim = "email"
-	}
-	emailClaim, ok := claims[provider.EmailClaim].(string)
-	if !ok {
-		log.Error(fmt.Errorf("Claim '%s' missing from id_token or not a string", provider.EmailClaim))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
-		return
-	}
-
-	user, err := helpers.Store(r).GetUserByLoginOrEmail(usernameClaim, emailClaim)
+	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email) // ignore username because it creates a lot of problems
 	if err != nil {
 		user = db.User{
-			Username: usernameClaim,
-			Name:     nameClaim,
-			Email:    emailClaim,
+			Username: claims.username,
+			Name:     claims.name,
+			Email:    claims.email,
 			External: true,
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)

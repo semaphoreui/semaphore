@@ -12,6 +12,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -20,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -40,7 +42,7 @@ type job struct {
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
-	status          db.TaskStatus
+	status          lib.TaskStatus
 	args            []string
 	environmentVars []string
 }
@@ -67,8 +69,8 @@ type RunnerState struct {
 }
 
 type JobState struct {
-	ID     int           `json:"id" binding:"required"`
-	Status db.TaskStatus `json:"status" binding:"required"`
+	ID     int            `json:"id" binding:"required"`
+	Status lib.TaskStatus `json:"status" binding:"required"`
 }
 
 type LogRecord struct {
@@ -82,12 +84,12 @@ type RunnerProgress struct {
 
 type JobProgress struct {
 	ID         int
-	Status     db.TaskStatus
+	Status     lib.TaskStatus
 	LogRecords []LogRecord
 }
 
 type runningJob struct {
-	status     db.TaskStatus
+	status     lib.TaskStatus
 	logRecords []LogRecord
 	job        *tasks.LocalJob
 }
@@ -99,21 +101,33 @@ type JobPool struct {
 	// register channel used to put tasks to queue.
 	register chan *job
 
-	resourceLocker chan *resourceLock
-
 	runningJobs map[int]*runningJob
 
 	queue []*job
 
 	config *RunnerConfig
+
+	processing int32
 }
 
 type RunnerRegistration struct {
 	RegistrationToken string `json:"registration_token" binding:"required"`
+	Webhook           string `json:"webhook"`
+	MaxParallelTasks  int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 }
 
 func (p *runningJob) Log2(msg string, now time.Time) {
 	p.logRecords = append(p.logRecords, LogRecord{Time: now, Message: msg})
+}
+
+func (p *JobPool) existsInQueue(taskID int) bool {
+	for _, j := range p.queue {
+		if j.job.Task.ID == taskID {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *JobPool) hasRunningJobs() bool {
@@ -130,7 +144,7 @@ func (p *runningJob) Log(msg string) {
 	p.Log2(msg, time.Now())
 }
 
-func (p *runningJob) SetStatus(status db.TaskStatus) {
+func (p *runningJob) SetStatus(status lib.TaskStatus) {
 	p.status = status
 }
 
@@ -164,12 +178,23 @@ func (p *JobPool) Run() {
 
 	defer func() {
 		queueTicker.Stop()
+		requestTimer.Stop()
 	}()
 
 	for {
+
+		if p.tryRegisterRunner() {
+
+			log.Info("Runner registered on server")
+
+			break
+		}
+
+		time.Sleep(5_000_000_000)
+	}
+
+	for {
 		select {
-		//case j := <-p.register: // new task created by API or schedule
-		//	p.queue = append(p.queue, j)
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
 			if len(p.queue) == 0 {
@@ -177,15 +202,12 @@ func (p *JobPool) Run() {
 			}
 
 			t := p.queue[0]
-			if t.status == db.TaskFailStatus {
+			if t.status == lib.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
+				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
 				break
 			}
-
-			//log.Info("Set resource locker with TaskRunner " + strconv.Itoa(t.id))
-			//p.resourceLocker <- &resourceLock{lock: true, holder: t}
 
 			p.runningJobs[t.job.Task.ID] = &runningJob{
 				job: t.job,
@@ -194,7 +216,7 @@ func (p *JobPool) Run() {
 			t.job.Playbook.Logger = t.job.Logger
 
 			go func(runningJob *runningJob) {
-				runningJob.SetStatus(db.TaskRunningStatus)
+				runningJob.SetStatus(lib.TaskRunningStatus)
 
 				err := runningJob.job.Run(t.username, t.incomingVersion)
 
@@ -203,38 +225,46 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
-					if runningJob.status == db.TaskStoppingStatus {
-						runningJob.SetStatus(db.TaskStoppedStatus)
+					if runningJob.status == lib.TaskStoppingStatus {
+						runningJob.SetStatus(lib.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(db.TaskFailStatus)
+						runningJob.SetStatus(lib.TaskFailStatus)
 					}
 				} else {
-					runningJob.SetStatus(db.TaskSuccessStatus)
+					runningJob.SetStatus(lib.TaskSuccessStatus)
 				}
+
+				log.Info("Task " + strconv.Itoa(runningJob.job.Task.ID) + " finished (" + string(runningJob.status) + ")")
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
-			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " started")
 
 		case <-requestTimer.C:
 
-			go p.sendProgress()
+			go func() {
 
-			if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
-				os.Exit(0)
-			}
+				if !atomic.CompareAndSwapInt32(&p.processing, 0, 1) {
+					return
+				}
 
-			go p.checkNewJobs()
+				defer atomic.StoreInt32(&p.processing, 0)
+
+				p.sendProgress()
+
+				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+					os.Exit(0)
+				}
+
+				p.checkNewJobs()
+			}()
 
 		}
 	}
 }
 
 func (p *JobPool) sendProgress() {
-
-	if !p.tryRegisterRunner() {
-		return
-	}
 
 	client := &http.Client{}
 
@@ -245,6 +275,7 @@ func (p *JobPool) sendProgress() {
 	}
 
 	for id, j := range p.runningJobs {
+
 		body.Jobs = append(body.Jobs, JobProgress{
 			ID:         id,
 			LogRecords: j.logRecords,
@@ -252,6 +283,11 @@ func (p *JobPool) sendProgress() {
 		})
 
 		j.logRecords = make([]LogRecord, 0)
+
+		if j.status.IsFinished() {
+			log.Info("Task " + strconv.Itoa(id) + " removed from running list")
+			delete(p.runningJobs, id)
+		}
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -275,6 +311,8 @@ func (p *JobPool) tryRegisterRunner() bool {
 	if p.config != nil {
 		return true
 	}
+
+	log.Info("Trying to register on server")
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
@@ -312,6 +350,8 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
+		Webhook:           util.Config.Runner.Webhook,
+		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
@@ -357,10 +397,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
-	if !p.tryRegisterRunner() {
-		return
-	}
-
 	client := &http.Client{}
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
@@ -401,7 +437,7 @@ func (p *JobPool) checkNewJobs() {
 
 		runJob.SetStatus(currJob.Status)
 
-		if runJob.status == db.TaskStoppingStatus || runJob.status == db.TaskStoppedStatus {
+		if runJob.status == lib.TaskStoppingStatus || runJob.status == lib.TaskStoppedStatus {
 			p.runningJobs[currJob.ID].job.Kill()
 		}
 	}
@@ -417,6 +453,10 @@ func (p *JobPool) checkNewJobs() {
 			continue
 		}
 
+		if p.existsInQueue(newJob.Task.ID) {
+			continue
+		}
+
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
@@ -427,7 +467,7 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				Playbook: &lib.AnsiblePlaybook{
+				Playbook: &db_lib.AnsiblePlaybook{
 					TemplateID: newJob.Template.ID,
 					Repository: newJob.Repository,
 				},
@@ -449,5 +489,6 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		p.queue = append(p.queue, &taskRunner)
+		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " enqueued")
 	}
 }

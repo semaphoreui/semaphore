@@ -59,17 +59,19 @@ type oidcEndpoint struct {
 	Algorithms  []string `json:"algorithms"`
 }
 
-type oidcProvider struct {
+type OidcProvider struct {
 	ClientID      string       `json:"client_id"`
 	ClientSecret  string       `json:"client_secret"`
 	RedirectURL   string       `json:"redirect_url"`
 	Scopes        []string     `json:"scopes"`
 	DisplayName   string       `json:"display_name"`
+	Color         string       `json:"color"`
+	Icon          string       `json:"icon"`
 	AutoDiscovery string       `json:"provider_url"`
 	Endpoint      oidcEndpoint `json:"endpoint"`
-	UsernameClaim string       `json:"username_claim"`
-	NameClaim     string       `json:"name_claim"`
-	EmailClaim    string       `json:"email_claim"`
+	UsernameClaim string       `json:"username_claim" default:"preferred_username"`
+	NameClaim     string       `json:"name_claim" default:"preferred_username"`
+	EmailClaim    string       `json:"email_claim" default:"email"`
 }
 
 const (
@@ -98,6 +100,9 @@ type RunnerSettings struct {
 	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
 	// OneOff indicates than runner runs only one job and exit
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
+
+	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -110,7 +115,7 @@ type ConfigType struct {
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port" default:":3000" rule:"^:([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string `json:"port" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -163,10 +168,10 @@ type ConfigType struct {
 	SlackUrl      string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
 
 	// oidc settings
-	OidcProviders map[string]oidcProvider `json:"oidc_providers"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
 	RunnerRegistrationToken string `json:"runner_registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
@@ -177,6 +182,8 @@ type ConfigType struct {
 	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
+
+	BillingEnabled bool `json:"billing_enabled"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -258,18 +265,42 @@ func loadDefaultsToObject(obj interface{}) error {
 	}
 
 	for i := 0; i < t.NumField(); i++ {
-		fieldType := t.Field(i)
+		fieldInfo := t.Field(i)
 		fieldValue := v.Field(i)
 
-		if fieldType.Type.Kind() == reflect.Struct {
-			err := loadDefaultsToObject(fieldValue.Addr())
+		if !fieldValue.IsZero() && fieldInfo.Type.Kind() != reflect.Struct && fieldInfo.Type.Kind() != reflect.Map {
+			continue
+		}
+
+		if fieldInfo.Type.Kind() == reflect.Struct {
+			err := loadDefaultsToObject(fieldValue.Addr().Interface())
 			if err != nil {
 				return err
 			}
 			continue
+		} else if fieldInfo.Type.Kind() == reflect.Map {
+			for _, key := range fieldValue.MapKeys() {
+				val := fieldValue.MapIndex(key)
+
+				if val.Type().Kind() != reflect.Struct {
+					continue
+				}
+
+				newVal := reflect.New(val.Type())
+				pointerValue := newVal.Elem()
+				pointerValue.Set(val)
+
+				err := loadDefaultsToObject(newVal.Interface())
+				if err != nil {
+					return err
+				}
+
+				fieldValue.SetMapIndex(key, newVal.Elem())
+			}
+			continue
 		}
 
-		defaultVar := fieldType.Tag.Get("default")
+		defaultVar := fieldInfo.Tag.Get("default")
 		if defaultVar == "" {
 			continue
 		}
@@ -301,7 +332,7 @@ func castStringToInt(value string) int {
 func castStringToBool(value string) bool {
 
 	var valueBool bool
-	if value == "1" || strings.ToLower(value) == "true" {
+	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
 		valueBool = true
 	} else {
 		valueBool = false
@@ -364,23 +395,32 @@ func validate(value interface{}) error {
 			continue
 		}
 
-		var value string
+		var strVal string
 
 		if fieldType.Type.Kind() == reflect.Int {
-			value = strconv.FormatInt(fieldValue.Int(), 10)
+			strVal = strconv.FormatInt(fieldValue.Int(), 10)
 		} else if fieldType.Type.Kind() == reflect.Uint {
-			value = strconv.FormatUint(fieldValue.Uint(), 10)
+			strVal = strconv.FormatUint(fieldValue.Uint(), 10)
 		} else {
-			value = fieldValue.String()
+			strVal = fieldValue.String()
 		}
 
-		match, _ := regexp.MatchString(rule, value)
-		if !match {
-			return fmt.Errorf(
-				"value of field '%v' is not valid! (Must match regex: '%v')",
-				fieldType.Name, rule,
-			)
+		match, _ := regexp.MatchString(rule, strVal)
+
+		if match {
+			continue
 		}
+
+		fieldName := strings.ToLower(fieldType.Name)
+
+		if strings.Contains(fieldName, "password") || strings.Contains(fieldName, "secret") || strings.Contains(fieldName, "key") {
+			strVal = "***"
+		}
+
+		return fmt.Errorf(
+			"value of field '%v' is not valid: %v (Must match regex: '%v')",
+			fieldType.Name, strVal, rule,
+		)
 	}
 
 	return nil

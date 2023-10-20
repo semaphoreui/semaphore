@@ -7,6 +7,7 @@ const (
 	ProjectManager    ProjectUserRole = "manager"
 	ProjectTaskRunner ProjectUserRole = "task_runner"
 	ProjectGuest      ProjectUserRole = "guest"
+	ProjectNone       ProjectUserRole = ""
 )
 
 type ProjectUserPermission int
@@ -20,7 +21,7 @@ const (
 
 var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
 	ProjectOwner:      CanRunProjectTasks | CanManageProjectResources | CanUpdateProject | CanManageProjectUsers,
-	ProjectManager:    CanRunProjectTasks | CanManageProjectResources | CanManageProjectUsers,
+	ProjectManager:    CanRunProjectTasks | CanManageProjectResources,
 	ProjectTaskRunner: CanRunProjectTasks,
 	ProjectGuest:      0,
 }
@@ -35,11 +36,6 @@ type ProjectUser struct {
 	ProjectID int             `db:"project_id" json:"project_id"`
 	UserID    int             `db:"user_id" json:"user_id"`
 	Role      ProjectUserRole `db:"role" json:"role"`
-}
-
-func (u *ProjectUser) Can(permissions ProjectUserPermission) bool {
-	userPermissions := rolePermissions[u.Role]
-	return (userPermissions & permissions) == permissions
 }
 
 func (r ProjectUserRole) Can(permissions ProjectUserPermission) bool {

@@ -30,6 +30,13 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        color="error"
+        @click="leftProject()"
+        class="mr-2"
+        :disabled="userRole === 'owner'"
+      >Leave Project
+      </v-btn>
+      <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
@@ -60,7 +67,6 @@
       <template v-slot:item.actions="{ item }">
         <v-btn
           icon
-          :disabled="!isUserAdmin()"
           @click="askDeleteItem(item.id)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
         >
@@ -87,6 +93,15 @@ export default {
   },
 
   methods: {
+    async leftProject() {
+      await axios({
+        method: 'delete',
+        url: `/api/project/${this.projectId}/me`,
+        responseType: 'json',
+      });
+      window.location.reload();
+    },
+
     async updateProjectUser(user) {
       await axios({
         method: 'put',
@@ -113,11 +128,6 @@ export default {
           value: 'username',
         },
         {
-          text: this.$i18n.t('email'),
-          value: 'email',
-          width: '50%',
-        },
-        {
           text: this.$i18n.t('role'),
           value: 'role',
         },
@@ -136,9 +146,6 @@ export default {
     },
     getEventName() {
       return 'i-repositories';
-    },
-    isUserAdmin() {
-      return (this.items.find((x) => x.id === this.userId) || {}).admin;
     },
   },
 };

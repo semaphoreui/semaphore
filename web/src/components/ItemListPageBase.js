@@ -18,6 +18,9 @@ export default {
     projectId: Number,
     userId: Number,
     userPermissions: Number,
+    userRole: String,
+    isAdmin: Boolean,
+    user: Object,
   },
 
   data() {
@@ -51,6 +54,9 @@ export default {
     },
 
     can(permission) {
+      if (this.isAdmin) {
+        return true;
+      }
       // eslint-disable-next-line no-bitwise
       return (this.userPermissions & permission) === permission;
     },

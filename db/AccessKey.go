@@ -7,11 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"io/ioutil"
 	"math/big"
 	"os"
+	"path"
 	"strconv"
+	"time"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -40,8 +43,6 @@ type AccessKey struct {
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
-
-	InstallationKey int64 `db:"-" json:"-"`
 }
 
 type LoginPassword struct {
@@ -64,39 +65,79 @@ const (
 	AccessKeyRoleGit
 )
 
-func (key *AccessKey) Install(usage AccessKeyRole) error {
-	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
-	if err != nil {
-		return err
+type AccessKeyInstallation struct {
+	InstallationKey int64
+	SshAgent        *lib.SshAgent
+}
+
+func (key AccessKeyInstallation) Destroy() error {
+	if key.SshAgent != nil {
+		return key.SshAgent.Close()
 	}
 
-	key.InstallationKey = rnd.Int64()
-
-	if key.Type == AccessKeyNone {
+	installPath := key.GetPath()
+	_, err := os.Stat(installPath)
+	if os.IsNotExist(err) {
 		return nil
 	}
+	return os.Remove(installPath)
+}
 
-	path := key.GetPath()
+// GetPath returns the location of the access key once written to disk
+func (key AccessKeyInstallation) GetPath() string {
+	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
+}
+
+func (key *AccessKey) startSshAgent(logger lib.Logger) (lib.SshAgent, error) {
+
+	sshAgent := lib.SshAgent{
+		Logger: logger,
+		Keys: []lib.SshAgentKey{
+			{
+				Key:        []byte(key.SshKey.PrivateKey),
+				Passphrase: []byte(key.SshKey.Passphrase),
+			},
+		},
+		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", key.ID, time.Now().Unix())),
+	}
+
+	return sshAgent, sshAgent.Listen()
+}
+
+func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installation AccessKeyInstallation, err error) {
+	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
+	if err != nil {
+		return
+	}
+
+	installation.InstallationKey = rnd.Int64()
+
+	if key.Type == AccessKeyNone {
+		return
+	}
+
+	installationPath := installation.GetPath()
 
 	err = key.DeserializeSecret()
 
 	if err != nil {
-		return err
+		return
 	}
 
 	switch usage {
 	case AccessKeyRoleGit:
 		switch key.Type {
 		case AccessKeySSH:
-			if key.SshKey.Passphrase != "" {
-				return fmt.Errorf("ssh key with passphrase not supported")
-			}
-			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+			var agent lib.SshAgent
+			agent, err = key.startSshAgent(logger)
+			installation.SshAgent = &agent
+
+			//err = ioutil.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
 		switch key.Type {
 		case AccessKeyLoginPassword:
-			return ioutil.WriteFile(path, []byte(key.LoginPassword.Password), 0600)
+			err = ioutil.WriteFile(installationPath, []byte(key.LoginPassword.Password), 0600)
 		}
 	case AccessKeyRoleAnsibleBecomeUser:
 		switch key.Type {
@@ -107,19 +148,19 @@ func (key *AccessKey) Install(usage AccessKeyRole) error {
 			var bytes []byte
 			bytes, err = json.Marshal(content)
 			if err != nil {
-				return err
+				return
 			}
-			return ioutil.WriteFile(path, bytes, 0600)
+			err = ioutil.WriteFile(installationPath, bytes, 0600)
 		default:
-			return fmt.Errorf("access key type not supported for ansible user")
+			err = fmt.Errorf("access key type not supported for ansible user")
 		}
 	case AccessKeyRoleAnsibleUser:
 		switch key.Type {
 		case AccessKeySSH:
-			if key.SshKey.Passphrase != "" {
-				return fmt.Errorf("ssh key with passphrase not supported")
-			}
-			return ioutil.WriteFile(path, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+			var agent lib.SshAgent
+			agent, err = key.startSshAgent(logger)
+			installation.SshAgent = &agent
+			//err = ioutil.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
 			content["ansible_user"] = key.LoginPassword.Login
@@ -127,33 +168,19 @@ func (key *AccessKey) Install(usage AccessKeyRole) error {
 			var bytes []byte
 			bytes, err = json.Marshal(content)
 			if err != nil {
-				return err
+				return
 			}
-			return ioutil.WriteFile(path, bytes, 0600)
+			err = ioutil.WriteFile(installationPath, bytes, 0600)
 
 		default:
-			return fmt.Errorf("access key type not supported for ansible user")
+			err = fmt.Errorf("access key type not supported for ansible user")
 		}
 	}
 
-	return nil
+	return
 }
 
-func (key AccessKey) Destroy() error {
-	path := key.GetPath()
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return os.Remove(path)
-}
-
-// GetPath returns the location of the access key once written to disk
-func (key AccessKey) GetPath() string {
-	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
-}
-
-func (key AccessKey) Validate(validateSecretFields bool) error {
+func (key *AccessKey) Validate(validateSecretFields bool) error {
 	if key.Name == "" {
 		return fmt.Errorf("name can not be empty")
 	}
@@ -250,12 +277,6 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 	}
 	return
 }
-
-//func (key *AccessKey) ClearSecret() {
-//	key.LoginPassword = LoginPassword{}
-//	key.SshKey = SshKey{}
-//	key.PAT = ""
-//}
 
 func (key *AccessKey) DeserializeSecret() error {
 	return key.DeserializeSecret2(util.Config.AccessKeyEncryption)

@@ -29,7 +29,7 @@
 
     <YesNoDialog
       :title="$t('deleteKey')"
-      text="$t('askDeleteKey')"
+      :text="$t('askDeleteKey')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />

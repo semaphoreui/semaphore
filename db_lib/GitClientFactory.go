@@ -1,4 +1,4 @@
-package lib
+package db_lib
 
 import "github.com/ansible-semaphore/semaphore/util"
 

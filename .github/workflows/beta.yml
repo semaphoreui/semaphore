@@ -1,11 +1,11 @@
-name: Release
+name: Beta
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - v*-beta
 
 jobs:
-  release:
+  pre-release:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/setup-go@v3
@@ -32,7 +32,7 @@ jobs:
       - run: GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
 
 
-  deploy-prod:
+  deploy-beta:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/setup-go@v3
@@ -61,7 +61,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           file: ./deployment/docker/prod/buildx.Dockerfile
           push: true
-          tags: semaphoreui/semaphore:latest,semaphoreui/semaphore:${{ github.ref_name }}
+          tags: semaphoreui/semaphore:beta,semaphoreui/semaphore:${{ github.ref_name }}
 
 
 
@@ -72,4 +72,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           file: ./deployment/docker/prod/runner.buildx.Dockerfile
           push: true
-          tags: semaphoreui/runner:latest,semaphoreui/runner:${{ github.ref_name }}
+          tags: semaphoreui/runner:beta,semaphoreui/runner:${{ github.ref_name }}

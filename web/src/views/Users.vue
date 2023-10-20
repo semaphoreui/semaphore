@@ -14,13 +14,14 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :is-admin="true"
         />
       </template>
     </EditDialog>
 
     <YesNoDialog
       :title="$t('deleteUser')"
-      text="$t('askDeleteUser')"
+      :text="$t('askDeleteUser')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />

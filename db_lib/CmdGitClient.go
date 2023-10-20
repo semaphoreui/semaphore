@@ -1,4 +1,4 @@
-package lib
+package db_lib
 
 import (
 	"fmt"
@@ -10,7 +10,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-type CmdGitClient struct{}
+type CmdGitClient struct {
+	keyInstallation db.AccessKeyInstallation
+}
 
 func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, args ...string) *exec.Cmd {
 	cmd := exec.Command("git") //nolint: gas
@@ -18,7 +20,8 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
-		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i " + r.Repository.SSHKey.GetPath()
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_AUTH_SOCK=%s", c.keyInstallation.SshAgent.SocketFile))
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 		if util.Config.SshConfigPath != "" {
 			sshCmd += " -F " + util.Config.SshConfigPath
 		}
@@ -40,12 +43,14 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 }
 
 func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...string) error {
-	err := r.Repository.SSHKey.Install(db.AccessKeyRoleGit)
+	var err error
+	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
+
 	if err != nil {
 		return err
 	}
 
-	defer r.Repository.SSHKey.Destroy() //nolint: errcheck
+	defer c.keyInstallation.Destroy() //nolint: errcheck
 
 	cmd := c.makeCmd(r, targetDir, args...)
 
@@ -55,12 +60,12 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
-	err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit)
+	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
 	if err != nil {
 		return
 	}
 
-	defer r.Repository.SSHKey.Destroy() //nolint: errcheck
+	defer c.keyInstallation.Destroy() //nolint: errcheck
 
 	bytes, err := c.makeCmd(r, targetDir, args...).Output()
 	if err != nil {

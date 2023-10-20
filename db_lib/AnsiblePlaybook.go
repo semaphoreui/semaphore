@@ -1,8 +1,9 @@
-package lib
+package db_lib
 
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
@@ -12,7 +13,7 @@ import (
 type AnsiblePlaybook struct {
 	TemplateID int
 	Repository db.Repository
-	Logger     Logger
+	Logger     lib.Logger
 }
 
 func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {

@@ -10,14 +10,14 @@ import (
 
 func (t *LocalJob) installInventory() (err error) {
 	if t.Inventory.SSHKeyID != nil {
-		err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser)
+		t.sshKeyInstallation, err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser, t.Logger)
 		if err != nil {
 			return
 		}
 	}
 
 	if t.Inventory.BecomeKeyID != nil {
-		err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser)
+		t.becomeKeyInstallation, err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
 		if err != nil {
 			return
 		}
@@ -40,4 +40,21 @@ func (t *LocalJob) installStaticInventory() error {
 
 	// create inventory file
 	return ioutil.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
+}
+
+func (t *LocalJob) destroyKeys() {
+	err := t.sshKeyInstallation.Destroy()
+	if err != nil {
+		t.Log("Can't destroy inventory user key, error: " + err.Error())
+	}
+
+	err = t.becomeKeyInstallation.Destroy()
+	if err != nil {
+		t.Log("Can't destroy inventory become user key, error: " + err.Error())
+	}
+
+	err = t.vaultFileInstallation.Destroy()
+	if err != nil {
+		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
+	}
 }

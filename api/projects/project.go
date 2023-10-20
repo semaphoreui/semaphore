@@ -26,7 +26,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		// check if user in project's team
 		projectUser, err := helpers.Store(r).GetProjectUser(projectID, user.ID)
 
-		if err != nil {
+		if !user.Admin && err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
@@ -48,10 +48,10 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user := context.Get(r, "user").(*db.User)
-			projectUserRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
+			me := context.Get(r, "user").(*db.User)
+			myRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
 
-			if !user.Admin && r.Method != "GET" && r.Method != "HEAD" && !projectUserRole.Can(permissions) {
+			if !me.Admin && r.Method != "GET" && r.Method != "HEAD" && !myRole.Can(permissions) {
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}

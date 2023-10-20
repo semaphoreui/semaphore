@@ -10,15 +10,18 @@
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <div>
-        <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
-        </v-tabs>
-      </div>
     </v-toolbar>
+
+    <v-tabs show-arrows class="pl-4">
+      <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
+      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
+      <v-tab
+        key="billing"
+        :to="`/project/${projectId}/billing`"
+      >Billing <v-chip color="red" x-small dark class="ml-1">Soon</v-chip></v-tab>
+    </v-tabs>
+
     <div class="project-settings-form">
       <div style="height: 300px;">
         <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>

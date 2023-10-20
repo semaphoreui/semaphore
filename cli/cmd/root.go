@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var configPath string
@@ -47,6 +48,12 @@ func runService() {
 	defer schedulePool.Destroy()
 
 	util.Config.PrintDbInfo()
+
+	port := util.Config.Port
+
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
+	}
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 	fmt.Printf("Semaphore %v\n", util.Version)
@@ -81,7 +88,7 @@ func runService() {
 		store.Close("root")
 	}
 
-	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
+	err := http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
 
 	if err != nil {
 		log.Panic(err)
