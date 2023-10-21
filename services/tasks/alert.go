@@ -65,7 +65,7 @@ const microsoftTeamsTemplate = `{
 				},
 				"backgroundImage": {
 					"horizontalAlignment": "Center",
-					"url": "data:image/jpg;base64,iVBORw0KGgoAAAANSUhEUgAABSgAAAAFCAYAAABGmwLHAAAARUlEQVR4nO3YMQEAIBDEsAM1GEErMnkZtyQSOnadd38AAAAAAAq26AAAAABAi0EJAAAAANQYlAAAAABAjUEJAAAAAHQkGWMEAh35OF6mAAAAAElFTkSuQmCC",
+					"url": "data:image/jpg;base64,iVBORw0KGgoAAAANSUhEUgAABSgAAAAFCAYAAABGmwLHAAAARklEQVR4nO3YMQEAIBDEsANPSMC/AbzwMm5JJHTseuf+AAAAAAAUbNEBAAAAgBaDEgAAAACoMSgBAAAAgBqDEgAAAADoSDL8RAJfcbcsoQAAAABJRU5ErkJggg==",
 					"fillMode": "RepeatHorizontally"
 				}
 			}
