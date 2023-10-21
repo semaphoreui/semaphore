@@ -393,10 +393,4 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send MicrosoftTeams alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	}
-
-	// Output to console
-	fmt.Println("MicrosoftTeams failed")
-	jsonString := microsoftTeamsBuffer.String()
-	fmt.Println(jsonString)
-
 }
