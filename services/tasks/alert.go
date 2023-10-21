@@ -57,7 +57,7 @@ const microsoftTeamsTemplate = `{
 					{
 						"type": "Action.OpenUrl",
 						"title": "Task URL",
-						"url": "http://localhost:3000{{ .TaskURL }}"
+						"url": "{{ .TaskURL }}"
 					}
 				],
 				"msteams": {
@@ -393,4 +393,6 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send MicrosoftTeams alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	}
+
+	t.Log("MicrosoftTeams alert sent successfully")
 }
