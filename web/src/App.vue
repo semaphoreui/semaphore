@@ -588,7 +588,7 @@ const LANGUAGES = {
     flag: '🇵🇹',
     title: 'Portuguese',
   },
-    pt: {
+  pt_br: {
     flag: '🇧🇷',
     title: 'Português do Brasil',
   },
