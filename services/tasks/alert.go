@@ -2,16 +2,18 @@ package tasks
 
 import (
 	"bytes"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
 	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 const emailTemplate = "Subject: Task '{{ .Name }}' failed\r\n" +
 	"From: {{ .From }}\r\n" +
+	"To: {{ .To }}\r\n" +
 	"\r\n" +
 	"Task {{ .TaskID }} with template '{{ .Name }}' has failed!`\n" +
 	"Task Log: {{ .TaskURL }}"
@@ -32,6 +34,7 @@ type Alert struct {
 	Author          string
 	Color           string
 	From            string
+	To              string
 }
 
 func (t *TaskRunner) sendMailAlert() {
@@ -54,8 +57,6 @@ func (t *TaskRunner) sendMailAlert() {
 	tpl, err := tpl.Parse(emailTemplate)
 	util.LogError(err)
 
-	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
-
 	for _, user := range t.users {
 		userObj, err2 := t.pool.store.GetUser(user)
 
@@ -67,6 +68,9 @@ func (t *TaskRunner) sendMailAlert() {
 			util.LogError(err2)
 			continue
 		}
+
+		alert.To = userObj.Email
+		t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
 		if util.Config.EmailSecure {
 			err2 = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort,
