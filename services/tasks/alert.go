@@ -69,6 +69,7 @@ func (t *TaskRunner) sendMailAlert() {
 			continue
 		}
 
+		mailBuffer.Reset()
 		alert.To = userObj.Email
 		t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
 
