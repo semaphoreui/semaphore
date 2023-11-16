@@ -36,14 +36,9 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import { USER_PERMISSIONS } from '@/lib/constants';
 
 export default {
-  computed: {
-    USER_PERMISSIONS() {
-      return USER_PERMISSIONS;
-    },
-  },
+
   mixins: [ItemListPageBase],
 
   methods: {
