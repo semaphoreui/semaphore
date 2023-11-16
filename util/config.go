@@ -181,8 +181,6 @@ type ConfigType struct {
 	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
-
-	BillingEnabled bool `json:"billing_enabled"`
 }
 
 // Config exposes the application configuration storage for use in the application

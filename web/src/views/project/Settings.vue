@@ -16,10 +16,6 @@
       <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
       <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
       <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
-      <v-tab
-        key="billing"
-        :to="`/project/${projectId}/billing`"
-      >Billing <v-chip color="red" x-small dark class="ml-1">Soon</v-chip></v-tab>
     </v-tabs>
 
     <div class="project-settings-form">
