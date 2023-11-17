@@ -588,6 +588,10 @@ const LANGUAGES = {
     flag: '🇵🇹',
     title: 'Portuguese',
   },
+  pt_br: {
+    flag: '🇧🇷',
+    title: 'Português do Brasil',
+  },
 };
 
 function getLangInfo(locale) {
