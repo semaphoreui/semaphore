@@ -48,6 +48,229 @@ services:
       - /path/to/data/home:/etc/semaphore # config.json location
       - /path/to/data/lib:/var/lib/semaphore # database.boltdb location (Not required if using mysql or postgres)
 ```
+### Kubernetes
+Quick start with kubernetes:
+
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: semaphore
+type: Opaque
+data:
+  # echo -n 'admin' | base64
+  semaphore.admin.name: YWRtaW4=
+  # echo -n 'changeme' | base64
+  semaphore.admin.password: Y2hhbmdlbWU=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semaphore
+  labels:
+    app: semaphore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: semaphore
+  template:
+    metadata:
+      name: semaphore
+      labels:
+        app: semaphore
+    spec:
+      containers:
+        - name: semaphore
+          image: semaphoreui/semaphore:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: SEMAPHORE_DB_DIALECT
+              value: bolt
+            - name: SEMAPHORE_ADMIN_EMAIL
+              value: admin@localhost
+            - name: SEMAPHORE_ADMIN
+              value: admin
+            - name: SEMAPHORE_ADMIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: semaphore
+                  key: semaphore.admin.name
+            - name: SEMAPHORE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: semaphore
+                  key: semaphore.admin.password
+          volumeMounts:
+            - mountPath: /var/lib/semaphore
+              name: bolt
+      volumes:
+        # volume to store semaphore data, otherwise it will be lost after pod restart
+        - name: bolt
+          emptyDir: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: semaphore
+spec:
+  selector:
+    app: semaphore
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  # you can choose NodePort instead of ClusterIP to expose the service
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semaphore
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: semaphore
+                port:
+                  number: 80
+      # use your own domain name
+      host: semaphore.localhost.com
+```
+
+Use `config.json` to configure Semaphore
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: semaphore
+type: Opaque
+data:
+  # echo -n 'admin' | base64
+  semaphore.admin.name: YWRtaW4=
+  # echo -n 'changeme' | base64
+  semaphore.admin.password: Y2hhbmdlbWU=
+  # base config file, you can add your own config here
+  # base64 -i config.json | fold -w 76
+  config.json: |
+    ewogICJib2x0IjogewogICAgImhvc3QiOiAiL2hvbWUvdWJ1bnR1L3NlbWFwaG9yZS5ib2x0Igog
+    IH0sCiAgIm15c3FsIjogewogICAgImhvc3QiOiAibG9jYWxob3N0IiwKICAgICJ1c2VyIjogInJv
+    b3QiLAogICAgInBhc3MiOiAiKioqKioiLAogICAgIm5hbWUiOiAic2VtYXBob3JlIiwKICAgICJv
+    cHRpb25zIjoge30KICB9LAogICJwb3N0Z3JlcyI6IHsKICAgICJob3N0IjogImxvY2FsaG9zdCIs
+    CiAgICAidXNlciI6ICJwb3N0Z3JlcyIsCiAgICAicGFzcyI6ICIqKioqKiIsCiAgICAibmFtZSI6
+    ICJzZW1hcGhvcmUiLAogICAgIm9wdGlvbnMiOiB7fQogIH0sCiAgImRpYWxlY3QiOiAiYm9sdCIs
+    CiAgInBvcnQiOiAiIiwKICAiaW50ZXJmYWNlIjogIiIsCiAgInRtcF9wYXRoIjogIi90bXAvc2Vt
+    YXBob3JlIiwKICAiY29va2llX2hhc2giOiAiKioqKioiLAogICJjb29raWVfZW5jcnlwdGlvbiI6
+    ICIqKioqKiIsCiAgImFjY2Vzc19rZXlfZW5jcnlwdGlvbiI6ICIqKioqKiIsCiAgImVtYWlsX3Nl
+    bmRlciI6ICIiLAogICJlbWFpbF9ob3N0IjogIiIsCiAgImVtYWlsX3BvcnQiOiAiIiwKICAid2Vi
+    X2hvc3QiOiAiIiwKICAibGRhcF9iaW5kZG4iOiAiIiwKICAibGRhcF9iaW5kcGFzc3dvcmQiOiAi
+    IiwKICAibGRhcF9zZXJ2ZXIiOiAiIiwKICAibGRhcF9zZWFyY2hkbiI6ICIiLAogICJsZGFwX3Nl
+    YXJjaGZpbHRlciI6ICIiLAogICJsZGFwX21hcHBpbmdzIjogewogICAgImRuIjogIiIsCiAgICAi
+    bWFpbCI6ICIiLAogICAgInVpZCI6ICIiLAogICAgImNuIjogIiIKICB9LAogICJ0ZWxlZ3JhbV9j
+    aGF0IjogIiIsCiAgInRlbGVncmFtX3Rva2VuIjogIiIsCiAgImNvbmN1cnJlbmN5X21vZGUiOiAi
+    IiwKICAibWF4X3BhcmFsbGVsX3Rhc2tzIjogMCwKICAiZW1haWxfYWxlcnQiOiBmYWxzZSwKICAi
+    dGVsZWdyYW1fYWxlcnQiOiBmYWxzZSwKICAic2xhY2tfYWxlcnQiOiBmYWxzZSwKICAibGRhcF9l
+    bmFibGUiOiBmYWxzZSwKICAibGRhcF9uZWVkdGxzIjogZmFsc2UKfQ==
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semaphore
+  labels:
+    app: semaphore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: semaphore
+  template:
+    metadata:
+      name: semaphore
+      labels:
+        app: semaphore
+    spec:
+      containers:
+        - name: semaphore
+          image: semaphoreui/semaphore:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: SEMAPHORE_DB_DIALECT
+              value: bolt
+            - name: SEMAPHORE_ADMIN_EMAIL
+              value: admin@localhost
+            - name: SEMAPHORE_ADMIN
+              value: admin
+            - name: SEMAPHORE_ADMIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: semaphore
+                  key: semaphore.admin.name
+            - name: SEMAPHORE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: semaphore
+                  key: semaphore.admin.password
+          volumeMounts:
+            - mountPath: /var/lib/semaphore
+              name: bolt
+            - name: config
+              mountPath: /etc/semaphore
+              readOnly: true
+      volumes:
+        # volume to store semaphore data, otherwise it will be lost after pod restart
+        - name: bolt
+          emptyDir: {}
+        # Mount 'config.json' file from the Secret into the Pod
+        - name: config
+          secret:
+            secretName: semaphore
+            items:
+              - key: config.json
+                path: config.json
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: semaphore
+spec:
+  selector:
+    app: semaphore
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  # you can choose NodePort instead of ClusterIP to expose the service
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semaphore
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: semaphore
+                port:
+                  number: 80
+      # use your own domain name
+      host: semaphore.localhost.com
+```
 
 ## Demo
 
