@@ -1,3 +1,4 @@
+
 package sql
 
 import (
@@ -207,8 +208,13 @@ func (d *SqlDb) getObjectsByReferrer(referrerID int, referringObjectProps db.Obj
   var referringColumn = referringObjectProps.ReferringColumnSuffix
 
   q := squirrel.Select("*").
-    From(props.TableName+" pe").
-    Where("pe." + referringColumn + "=?", referrerID)
+	  From(props.TableName+" pe")
+
+  if props.IsGlobal {
+      q = q.Where("pe." + referringColumn + " is null")
+  } else {
+      q = q.Where("pe." + referringColumn + "=?", referrerID)
+  }
 
   orderDirection := "ASC"
   if params.SortInverted {
@@ -235,45 +241,10 @@ func (d *SqlDb) getObjectsByReferrer(referrerID int, referringObjectProps db.Obj
   return
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
-  q := squirrel.Select("*").
-      From(props.TableName + " pe")
-
-  if props.IsGlobal {
-      q = q.Where("pe.project_id is null")
-  } else {
-      q = q.Where("pe.project_id=?", projectID)
-  }
-  
-  orderDirection := "ASC"
-
-  if params.SortInverted {
-      orderDirection = "DESC"
-  }
-
-  orderColumn := props.DefaultSortingColumn
-  if containsStr(props.SortableColumns, params.SortBy) {
-      orderColumn = params.SortBy
-  }
-
-  if orderColumn != "" {
-    q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
-  }
-
-  query, args, err := q.ToSql()
-
-  if err != nil {
-    return
-  }
-
-  _, err = d.selectAll(objects, query, args...)
-
-  return
-}
-
 func (d *SqlDb) getObject(projectID int, props db.ObjectProps,  objectID int, objects interface{}) (err error) {
   return d.getObjectByReferrer(projectID, db.ProjectProps, props, objectID, objects)
 }
+
 func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
   return d.getObjectsByReferrer(projectID, db.ProjectProps, props, params, objects);
 }

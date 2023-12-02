@@ -187,7 +187,6 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/webhooks").HandlerFunc(projects.AddWebhook).Methods("POST")
 
 	projectWebhooksAPI := projectUserAPI.PathPrefix("/webhook").Subrouter()
-	projectWebhooksAPI.Use(projects.WebhookMiddleware, projects.MustBeAdmin)
 
 	projectWebhooksAPI.Path("/{webhook_id}").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhook)
 	projectWebhooksAPI.Path("/{webhook_id}").Methods("PUT").HandlerFunc(projects.UpdateWebhook)
