@@ -584,6 +584,10 @@ const LANGUAGES = {
     flag: '🇫🇷',
     title: 'French',
   },
+  pl: {
+    flag: '🇵🇱️',
+    title: 'Polish',
+  },
   pt: {
     flag: '🇵🇹',
     title: 'Portuguese',
