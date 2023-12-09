@@ -568,6 +568,10 @@ const LANGUAGES = {
     flag: '🇺🇸',
     title: 'English',
   },
+  es: {
+	flag: '🇨🇱',
+	title: 'Español',
+  },
   ru: {
     flag: '🇷🇺',
     title: 'Russian',
