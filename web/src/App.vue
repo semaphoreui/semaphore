@@ -569,8 +569,8 @@ const LANGUAGES = {
     title: 'English',
   },
   es: {
-	flag: '🇨🇱',
-	title: 'Español',
+    flag: '🇨🇱',
+    title: 'Español',
   },
   ru: {
     flag: '🇷🇺',
