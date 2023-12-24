@@ -169,6 +169,8 @@ type ConfigType struct {
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
 
+	MaxTaskDurationSec int `json:"max_task_duration_sec" env:"MAX_TASK_DURATION_SEC"`
+
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
