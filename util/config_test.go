@@ -25,13 +25,19 @@ func TestValidate(t *testing.T) {
 
 func TestLoadEnvironmentToObject(t *testing.T) {
 	var val struct {
+		Flag     bool   `env:"TEST_FLAG"`
 		Test     string `env:"TEST_ENV_VAR"`
 		Subfield struct {
 			Value string `env:"TEST_VALUE_ENV_VAR"`
 		}
 	}
 
-	err := os.Setenv("TEST_ENV_VAR", "758478")
+	err := os.Setenv("TEST_FLAG", "yes")
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.Setenv("TEST_ENV_VAR", "758478")
 	if err != nil {
 		panic(err)
 	}
@@ -44,6 +50,10 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 	err = loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
+	}
+
+	if val.Flag != true {
+		t.Error("Invalid value")
 	}
 
 	if val.Test != "758478" {

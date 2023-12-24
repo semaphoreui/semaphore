@@ -181,8 +181,6 @@ type ConfigType struct {
 	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
-
-	BillingEnabled bool `json:"billing_enabled"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -331,7 +329,7 @@ func castStringToInt(value string) int {
 func castStringToBool(value string) bool {
 
 	var valueBool bool
-	if value == "1" || strings.ToLower(value) == "true" {
+	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
 		valueBool = true
 	} else {
 		valueBool = false
