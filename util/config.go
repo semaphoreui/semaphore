@@ -111,7 +111,7 @@ type ConfigType struct {
 	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
 
-	Dialect string `json:"dialect" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
