@@ -7,6 +7,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/util"
 	"net/http"
 	"time"
 )
@@ -120,7 +121,16 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	tsk.RunnerID = runner.ID
 
+	startTime := time.Now()
+
+	taskTimedOut := false
+
 	for {
+		if util.Config.MaxTaskDurationSec > 0 && int(time.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
+			taskTimedOut = true
+			break
+		}
+
 		time.Sleep(1_000_000_000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
 		if tsk.Task.Status == lib.TaskSuccessStatus ||
@@ -138,6 +148,8 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	if tsk.Task.Status == lib.TaskFailStatus {
 		err = fmt.Errorf("task failed")
+	} else if taskTimedOut {
+		err = fmt.Errorf("task timed out")
 	}
 
 	return
