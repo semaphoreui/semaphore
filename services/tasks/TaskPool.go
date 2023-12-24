@@ -41,6 +41,7 @@ type TaskPool struct {
 
 	store db.Store
 
+	// resourceLocker TODO: add description
 	resourceLocker chan *resourceLock
 }
 
@@ -188,7 +189,7 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	}
 
 	for _, r := range p.activeProj[t.Task.ProjectID] {
-		if r.Template.ID == t.Task.TemplateID {
+		if r.Template.ID == t.Task.TemplateID && !r.Task.Status.IsFinished() {
 			return true
 		}
 	}
