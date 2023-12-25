@@ -1,5 +1,5 @@
 # ansible-semaphore production image
-FROM golang:1.19-alpine3.18 as builder
+FROM golang:1.20-alpine3.18 as builder
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
