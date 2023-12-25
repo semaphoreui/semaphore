@@ -20,7 +20,14 @@
       class="mb-4"
     ></v-text-field>
 
-    <v-subheader>
+    <v-select
+      v-model="item.password"
+      :label="$t('dockerImage')"
+      :items="images"
+      :disabled="formSaving"
+    ></v-select>
+
+    <v-subheader class="px-0">
       {{ $t('extraVariables') }}
     </v-subheader>
 
@@ -74,6 +81,9 @@ export default {
 
   data() {
     return {
+      images: [
+        'semaphoreui/runner:v2.9.39-beta',
+      ],
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',

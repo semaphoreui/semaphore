@@ -25,11 +25,12 @@ type RemoteJob struct {
 }
 
 type runnerWebhookPayload struct {
-	Action     string `json:"action"`
-	ProjectID  int    `json:"project_id"`
-	TaskID     int    `json:"task_id"`
-	TemplateID int    `json:"template_id"`
-	RunnerID   int    `json:"runner_id"`
+	Action     string  `json:"action"`
+	ProjectID  int     `json:"project_id"`
+	TaskID     int     `json:"task_id"`
+	TemplateID int     `json:"template_id"`
+	RunnerID   int     `json:"runner_id"`
+	Image      *string `json:"image"`
 }
 
 func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err error) {
@@ -44,6 +45,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		TaskID:     tsk.Task.ID,
 		TemplateID: tsk.Template.ID,
 		RunnerID:   runner.ID,
+		Image:      tsk.Environment.Password,
 	})
 	if err != nil {
 		return

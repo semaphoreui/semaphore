@@ -63,6 +63,7 @@ export default {
   environment2: 'Environment',
   newEnvironment: 'New Environment',
   environmentName: 'Environment Name',
+  dockerImage: 'Runner Docker Image (optional)',
   extraVariables: 'Extra variables',
   enterExtraVariablesJson: 'Enter extra variables JSON...',
   environmentVariables: 'Environment variables',
