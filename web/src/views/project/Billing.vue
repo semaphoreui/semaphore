@@ -169,7 +169,7 @@
         <v-col md="4" lg="4">
           <v-card
             class="mt-4 pa-2"
-            color="grey lighten-4"
+            :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
             flat
           >
             <v-card-title class="text-h3">Free</v-card-title>
@@ -217,7 +217,7 @@
         <v-col md="4" lg="4">
           <v-card
             class="mt-4 pa-2"
-            color="grey lighten-4"
+            :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
             flat
           >
             <v-card-title class="text-h3">$5</v-card-title>
