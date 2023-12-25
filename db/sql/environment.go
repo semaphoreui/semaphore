@@ -28,10 +28,11 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 	}
 
 	_, err = d.exec(
-		"update project__environment set name=?, json=?, env=? where id=?",
+		"update project__environment set name=?, json=?, env=?, password=? where id=?",
 		env.Name,
 		env.JSON,
 		env.ENV,
+		env.Password,
 		env.ID)
 	return err
 }
