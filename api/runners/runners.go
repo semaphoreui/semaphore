@@ -102,6 +102,9 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateRunner(w http.ResponseWriter, r *http.Request) {
+
+	runner := context.Get(r, "runner").(db.Runner)
+
 	var body runners.RunnerProgress
 
 	if !helpers.Bind(w, r, &body) {
@@ -123,6 +126,11 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 
 		if tsk == nil {
 			// TODO: log
+			continue
+		}
+
+		if tsk.RunnerID != runner.ID {
+			// TODO: add error message
 			continue
 		}
 

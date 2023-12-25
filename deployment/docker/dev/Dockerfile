@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine3.18
+FROM golang:1.20-alpine3.18
 
 ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}" \
