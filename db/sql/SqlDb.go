@@ -272,7 +272,6 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) 
   			projectID,
   			objectID))
   }
-  return d.deleteByReferrer(projectID, db.ProjectProps, props, objectID)
 }
 
 func (d *SqlDb) deleteObjectByReferencedID(referencedID int, referencedProps db.ObjectProps, props db.ObjectProps, objectID int) error {

@@ -2,7 +2,6 @@ package sql
 
 import (
 	"github.com/go-gorp/gorp/v3"
-	"github.com/go-sql-driver/mysql"
 	"testing"
 )
 
