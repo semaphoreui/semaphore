@@ -86,6 +86,9 @@
 </template>
 <script>
 import axios from 'axios';
+
+import { USER_PERMISSIONS } from '@/lib/constants';
+
 import ItemListPageBase from '@/components/ItemListPageBase';
 import WebhookForm from '@/components/WebhookForm.vue';
 
@@ -107,6 +110,9 @@ export default {
   },
 
   methods: {
+    allowActions() {
+      return this.can(USER_PERMISSIONS.updateProject);
+    },
     getHeaders() {
       return [{
         text: 'Name',

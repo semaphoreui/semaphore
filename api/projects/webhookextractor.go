@@ -21,9 +21,10 @@ func WebhookExtractorMiddleware(next http.Handler) http.Handler {
 			})
 			return
 		}
-		webhook := context.Get(r, "webhook").(db.Webhook)
+
+    webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 		var extractor db.WebhookExtractor
-		extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook.ID)
+		extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook_id)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -43,8 +44,8 @@ func GetWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 
 
 func GetWebhookExtractors(w http.ResponseWriter, r *http.Request) {
-	webhook := context.Get(r, "webhook").(db.Webhook)
-	extractors, err := helpers.Store(r).GetWebhookExtractors(webhook.ID, helpers.QueryParams(r.URL))
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+	extractors, err := helpers.Store(r).GetWebhookExtractors(webhook_id, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -55,14 +56,14 @@ func GetWebhookExtractors(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddWebhookExtractor(w http.ResponseWriter, r *http.Request) {
-		webhook := context.Get(r, "webhook").(db.Webhook)
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 	var extractor db.WebhookExtractor
 
 	if !helpers.Bind(w, r, &extractor) {
 		return
 	}
 
-	if extractor.WebhookID != webhook.ID {
+	if extractor.WebhookID != webhook_id {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
 			"error": "Webhook ID in body and URL must be the same",
 		})
@@ -163,9 +164,10 @@ func GetWebhookExtractorRefs (w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	webhook := context.Get(r, "webhook").(db.Webhook)
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+
 	var extractor db.WebhookExtractor
-	extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook.ID)
+	extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook_id)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -183,23 +185,26 @@ func GetWebhookExtractorRefs (w http.ResponseWriter, r *http.Request) {
 
 func DeleteWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 	extractor_id, err := helpers.GetIntParam("extractor_id", w, r)
-	log.Info(fmt.Sprintf("Delete requested for: %v", extractor_id))
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+
+  log.Info(fmt.Sprintf("Delete requested for: %v", extractor_id))
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Extractor ID",
 		})
 	}
 
-	webhook := context.Get(r, "webhook").(db.Webhook)
 	var extractor db.WebhookExtractor
-	extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook.ID)
+  var webhook db.Webhook
+	extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook_id)
+	webhook, err = helpers.Store(r).GetWebhook(webhook_id)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	err = helpers.Store(r).DeleteWebhookExtractor(webhook.ID, extractor.ID)
+	err = helpers.Store(r).DeleteWebhookExtractor(webhook_id, extractor.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Webhook Extractor failed to be deleted",
@@ -213,7 +218,7 @@ func DeleteWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &webhook.ProjectID,
-		WebhookID:   &webhook.ID,
+		WebhookID:   &webhook_id,
 		ObjectType:  &objType,
 		Description: &desc,
 	})

@@ -65,7 +65,6 @@
       <template v-slot:item.variable="{ item }">
         <code>{{ item.variable }}</code>
       </template>
-
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -89,6 +88,8 @@
   </div>
 </template>
 <script>
+import { USER_PERMISSIONS } from '@/lib/constants';
+
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
@@ -123,35 +124,34 @@ export default {
   },
 
   methods: {
+    allowActions() {
+      return this.can(USER_PERMISSIONS.updateProject);
+    },
+
     getHeaders() {
       return [{
         text: 'Name',
         value: 'name',
-        width: '20%',
         sortable: true,
       },
       {
         text: 'Value Source',
         value: 'value_source',
-        width: '10%',
         sortable: false,
       },
       {
         text: 'Body Data Type',
         value: 'body_data_type',
-        width: '15%',
         sortable: false,
       },
       {
         text: 'Key',
         value: 'key',
-        width: '15%',
         sortable: false,
       },
       {
         text: 'Environment Variable',
         value: 'variable',
-        width: '20%',
         sortable: false,
       },
       {

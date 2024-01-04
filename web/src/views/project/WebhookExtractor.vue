@@ -5,6 +5,8 @@
   </div>
 </template>
 <script>
+import { USER_PERMISSIONS } from '@/lib/constants';
+
 import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
 import WebhookExtractorBase from '@/components/WebhookExtractorBase';
 
@@ -31,6 +33,9 @@ export default {
   },
 
   methods: {
+    allowActions() {
+      return this.can(USER_PERMISSIONS.updateProject);
+    },
   },
 };
 </script>

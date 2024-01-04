@@ -14,7 +14,7 @@ func (d *BoltDb) CreateWebhook(webhook db.Webhook) (db.Webhook, error) {
 		return db.Webhook{}, err
 	}
 
-	newWebhook, err := d.createObject(webhook.ProjectID, db.WebhookProps, webhook)
+	newWebhook, err := d.createObject(0, db.WebhookProps, webhook)
 	return newWebhook.(db.Webhook), err
 }
 
@@ -23,8 +23,8 @@ func (d *BoltDb) GetWebhooks(projectID int, params db.RetrieveQueryParams) (webh
 	return webhooks, err
 }
 
-func (d *BoltDb) GetWebhook(projectID int, webhookID int) (webhook db.Webhook, err error) {
-	err = d.getObject(projectID, db.WebhookProps, intObjectID(webhookID), &webhook)
+func (d *BoltDb) GetWebhook(webhookID int) (webhook db.Webhook, err error) {
+	err = d.getObject(0, db.WebhookProps, intObjectID(webhookID), &webhook)
 	if err != nil {
 		return
 	}

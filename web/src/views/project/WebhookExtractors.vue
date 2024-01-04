@@ -93,6 +93,8 @@
 </template>
 <script>
 /* eslint-disable vue/no-unused-components */
+import { USER_PERMISSIONS } from '@/lib/constants';
+
 import ItemListPageBase from '@/components/ItemListPageBase';
 import WebhookExtractorForm from '@/components/WebhookExtractorForm.vue';
 import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
@@ -116,6 +118,10 @@ export default {
   },
 
   methods: {
+    allowActions() {
+      return this.can(USER_PERMISSIONS.updateProject);
+    },
+
     getHeaders() {
       return [{
         text: 'Name',

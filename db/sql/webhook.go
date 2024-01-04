@@ -44,7 +44,7 @@ func (d *SqlDb) GetAllWebhooks() (webhooks []db.Webhook, err error) {
   return
 }
 
-func (d *SqlDb) GetWebhook(projectID int, webhookID int) (webhook db.Webhook, err error) {
+func (d *SqlDb) GetWebhook(webhookID int) (webhook db.Webhook, err error) {
   query, args, err := squirrel.Select("w.*").
     From("project__webhook as w").
     Where(squirrel.And{

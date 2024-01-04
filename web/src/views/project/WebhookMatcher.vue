@@ -92,6 +92,7 @@
   </div>
 </template>
 <script>
+import { USER_PERMISSIONS } from '@/lib/constants';
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
@@ -123,42 +124,39 @@ export default {
     },
   },
   methods: {
+    allowActions() {
+      return this.can(USER_PERMISSIONS.updateProject);
+    },
     getHeaders() {
       return [{
         text: 'Name',
         value: 'name',
-        width: '20%',
         sortable: true,
       },
       {
         text: 'Match Type',
         value: 'match_type',
-        width: '10%',
-        sortable: false,
+        sortable: true,
       },
       {
         text: 'Method',
         value: 'method',
-        width: '10%',
-        sortable: false,
+        sortable: true,
       },
       {
         text: 'Body Data Type',
         value: 'body_data_type',
-        width: '10%',
         sortable: false,
       },
       {
         text: 'Key',
         value: 'key',
-        width: '10%',
-        sortable: false,
+        sortable: true,
       },
       {
         text: 'Value',
         value: 'value',
-        width: '10%',
-        sortable: false,
+        sortable: true,
       },
       {
         text: 'Actions',

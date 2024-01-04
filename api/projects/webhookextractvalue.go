@@ -39,7 +39,7 @@ func GetWebhookExtractValues(w http.ResponseWriter, r *http.Request) {
 func AddWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	project := context.Get(r, "project").(db.Project)
-	webhook := context.Get(r, "webhook").(db.Webhook)
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 
 	var value db.WebhookExtractValue
 
@@ -75,7 +75,7 @@ func AddWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &project.ID,
-		WebhookID:   &webhook.ID,
+		WebhookID:   &webhook_id,
 		ExtractorID: &extractor.ID,
 		ObjectType:  &objType,
 		ObjectID:    &value.ID,
@@ -110,7 +110,7 @@ func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	webhook := context.Get(r, "webhook").(db.Webhook)
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 
 	desc := "WebhookExtractValue (" + value.String() + ") updated"
 
@@ -118,8 +118,8 @@ func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
-		ProjectID:   &webhook.ProjectID,
-		WebhookID:   &webhook.ID,
+		
+		WebhookID:   &webhook_id,
 		ExtractorID: &extractor.ID,
 		Description: &desc,
 		ObjectID:    &value.ID,
@@ -175,13 +175,13 @@ func DeleteWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
-	webhook := context.Get(r, "webhook").(db.Webhook)
+	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 
 	desc := "Webhook Extract Value (" + value.String() + ") deleted"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &project.ID,
-		WebhookID:   &webhook.ID,
+		WebhookID:   &webhook_id,
 		ExtractorID: &extractor.ID,
 		Description: &desc,
 	})

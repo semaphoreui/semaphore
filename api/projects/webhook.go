@@ -5,7 +5,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
-
+  "fmt"
 	"github.com/gorilla/context"
 )
 
@@ -19,8 +19,7 @@ func WebhookMiddleware(next http.Handler) http.Handler {
 			});
 		}
 
-		project := context.Get(r, "project").(db.Project)
-		webhook, err := helpers.Store(r).GetWebhook(project.ID, webhook_id)
+		webhook, err := helpers.Store(r).GetWebhook(webhook_id)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -173,10 +172,10 @@ func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
 
 
 func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
-	webhook := context.Get(r, "webhook").(db.Webhook)
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 	project := context.Get(r, "project").(db.Project)
 
-	err := helpers.Store(r).DeleteWebhook(project.ID, webhook.ID)
+	err = helpers.Store(r).DeleteWebhook(project.ID, webhook_id)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Webhook failed to be deleted",
@@ -185,7 +184,7 @@ func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 
-	desc := "Webhook " + webhook.Name + " deleted"
+	desc := fmt.Sprintf("Webhook %v deleted", webhook_id)
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,

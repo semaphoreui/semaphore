@@ -93,7 +93,7 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	webhook := context.Get(r, "webhook").(db.Webhook)
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 	project := context.Get(r, "project").(db.Project)
 
 	objType := db.EventWebhookMatcher
@@ -102,7 +102,7 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &project.ID,
-		WebhookID:   &webhook.ID,
+		WebhookID:   &webhook_id,
 		ExtractorID: &extractor.ID,
 		ObjectType:  &objType,
 		ObjectID:    &newMatcher.ID,
@@ -139,7 +139,7 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-	webhook := context.Get(r, "webhook").(db.Webhook)
+	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 
 	desc := "WebhookMatcher (" + matcher.String() + ") updated"
 
@@ -147,8 +147,7 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
-		ProjectID:   &webhook.ProjectID,
-		WebhookID:   &webhook.ID,
+		WebhookID:   &webhook_id,
 		ExtractorID: &extractor.ID,
 		Description: &desc,
 		ObjectID:    &matcher.ID,
@@ -185,13 +184,13 @@ func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
-	webhook := context.Get(r, "webhook").(db.Webhook)
-
+  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+  
 	desc := "Webhook Matcher (" + matcher.String() + ") deleted"
 	_, err = helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &project.ID,
-		WebhookID:   &webhook.ID,
+		WebhookID:   &webhook_id,
 		ExtractorID: &extractor.ID,
 		Description: &desc,
 	})

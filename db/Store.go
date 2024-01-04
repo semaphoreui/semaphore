@@ -141,7 +141,7 @@ type Store interface {
 
 	CreateWebhook(webhook Webhook) (newWebhook Webhook, err error)
 	GetWebhooks(projectID int, params RetrieveQueryParams) ([]Webhook, error)
-	GetWebhook(webhookID int, projectID int) (webhook Webhook, err error)
+	GetWebhook(webhookID int) (webhook Webhook, err error)
 	UpdateWebhook(webhook Webhook) error
 	GetWebhookRefs(projectID int, webhookID int) (WebhookReferrers, error)
 	DeleteWebhook(projectID int, webhookID int) error
@@ -273,6 +273,7 @@ var WebhookProps = ObjectProps{
 	TableName:             "project__webhook",
 	Type:                  reflect.TypeOf(Webhook{}),
 	PrimaryColumnName:     "id",
+  IsGlobal:              true,
 	ReferringColumnSuffix: "webhook_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
@@ -281,7 +282,8 @@ var WebhookProps = ObjectProps{
 var WebhookExtractorProps = ObjectProps{
 	TableName:             "project__webhook_extractor",
 	Type:                  reflect.TypeOf(WebhookExtractor{}),
-	PrimaryColumnName:     "id",
+  PrimaryColumnName:     "id",
+  IsGlobal:              true,
 	ReferringColumnSuffix: "extractor_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
@@ -291,6 +293,7 @@ var WebhookExtractValueProps = ObjectProps{
 	TableName:             "project__webhook_extract_value",
 	Type:                  reflect.TypeOf(WebhookExtractValue{}),
 	PrimaryColumnName:     "id",
+  IsGlobal:              true,
 	ReferringColumnSuffix: "extract_value_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
@@ -300,6 +303,7 @@ var WebhookMatcherProps = ObjectProps{
 	TableName:             "project__webhook_matcher",
 	Type:                  reflect.TypeOf(WebhookMatcher{}),
 	PrimaryColumnName:     "id",
+  IsGlobal:              true,
 	ReferringColumnSuffix: "matcher_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
