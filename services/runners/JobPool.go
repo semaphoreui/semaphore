@@ -298,6 +298,8 @@ func (p *JobPool) sendProgress() {
 		return
 	}
 
+	req.Header.Set("X-API-Token", p.config.Token)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error making request:", err)
@@ -311,6 +313,8 @@ func (p *JobPool) tryRegisterRunner() bool {
 	if p.config != nil {
 		return true
 	}
+
+	log.Info("Trying to register on server")
 
 	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
 
@@ -328,9 +332,9 @@ func (p *JobPool) tryRegisterRunner() bool {
 			RunnerID: runnerId,
 			Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
 		}
-	}
 
-	log.Info("Trying to register on server")
+		return true
+	}
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
@@ -375,14 +379,12 @@ func (p *JobPool) tryRegisterRunner() bool {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		log.Error("Error creating request:", err)
-		//fmt.Println("Error creating request:", err)
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
 		log.Error("Error making request:", err)
-		//fmt.Println("Error making request:", err)
 		return false
 	}
 
