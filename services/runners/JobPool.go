@@ -298,6 +298,8 @@ func (p *JobPool) sendProgress() {
 		return
 	}
 
+	req.Header.Set("X-API-Token", p.config.Token)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error making request:", err)
@@ -313,6 +315,26 @@ func (p *JobPool) tryRegisterRunner() bool {
 	}
 
 	log.Info("Trying to register on server")
+
+	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
+
+		runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
+
+		if err != nil {
+			panic(err)
+		}
+
+		if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
+			panic(fmt.Errorf("runner token required"))
+		}
+
+		p.config = &RunnerConfig{
+			RunnerID: runnerId,
+			Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
+		}
+
+		return true
+	}
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
@@ -356,13 +378,13 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		log.Error("Error creating request:", err)
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("Error making request:", err)
+		log.Error("Error making request:", err)
 		return false
 	}
 
@@ -403,28 +425,37 @@ func (p *JobPool) checkNewJobs() {
 
 	req, err := http.NewRequest("GET", url, nil)
 
+	req.Header.Set("X-API-Token", p.config.Token)
+
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
 	}
 
 	resp, err := client.Do(req)
+
 	if err != nil {
 		fmt.Println("Error making request:", err)
 		return
 	}
+
+	if resp.StatusCode >= 400 {
+		log.Error("Checking new jobs error, server returns code ", resp.StatusCode)
+		return
+	}
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		log.Error("Checking new jobs, error reading response body:", err)
 		return
 	}
 
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		log.Error("Checking new jobs, parsing JSON error:", err)
 		return
 	}
 

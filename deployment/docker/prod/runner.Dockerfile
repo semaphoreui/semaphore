@@ -2,7 +2,7 @@ FROM dind-ansible:latest
 
 RUN apk add --no-cache wget git rsync
 
-RUN adduser -D -u 1001 -G root semaphore && \
+RUN adduser -D -u 1001 -G root -G docker semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     mkdir -p /var/lib/semaphore && \
@@ -25,9 +25,7 @@ RUN mkdir ./venv
 
 RUN python3 -m venv ./venv --system-site-packages && \
     source ./venv/bin/activate && \
-    pip3 install --upgrade pip
-
-RUN pip3 install boto3 botocore
+    pip3 install --upgrade pip boto3 botocore requests
 
 RUN echo '{"tmp_path": "/tmp/semaphore","dialect": "bolt", "runner": {"config_file": "/var/lib/semaphore/runner.json"}}' > /etc/semaphore/config.json
 

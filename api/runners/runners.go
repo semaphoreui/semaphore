@@ -13,6 +13,15 @@ import (
 func RunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		token := r.Header.Get("X-API-Token")
+
+		if token == "" {
+			helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+				"error": "Invalid token",
+			})
+			return
+		}
+
 		runnerID, err := helpers.GetIntParam("runner_id", w, r)
 
 		if err != nil {
@@ -29,6 +38,13 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
 				"error": "Runner not found",
+			})
+			return
+		}
+
+		if runner.Token != token {
+			helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+				"error": "Invalid token",
 			})
 			return
 		}
