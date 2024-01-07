@@ -568,6 +568,10 @@ const LANGUAGES = {
     flag: '🇺🇸',
     title: 'English',
   },
+  es: {
+    flag: '🇨🇱',
+    title: 'Español',
+  },
   ru: {
     flag: '🇷🇺',
     title: 'Russian',
@@ -583,6 +587,10 @@ const LANGUAGES = {
   fr: {
     flag: '🇫🇷',
     title: 'French',
+  },
+  pl: {
+    flag: '🇵🇱️',
+    title: 'Polish',
   },
   pt: {
     flag: '🇵🇹',
