@@ -405,6 +405,8 @@ func (p *JobPool) checkNewJobs() {
 
 	req, err := http.NewRequest("GET", url, nil)
 
+	req.Header.Set("X-API-Token", p.config.Token)
+
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
