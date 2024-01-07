@@ -417,7 +417,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode >= 400 {
 		log.Error("Checking new jobs error, server returns code ", resp.StatusCode)
 		return
 	}
