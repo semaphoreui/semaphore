@@ -356,13 +356,15 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		log.Error("Error creating request:", err)
+		//fmt.Println("Error creating request:", err)
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("Error making request:", err)
+		log.Error("Error making request:", err)
+		//fmt.Println("Error making request:", err)
 		return false
 	}
 
@@ -409,22 +411,29 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	resp, err := client.Do(req)
+
 	if err != nil {
 		fmt.Println("Error making request:", err)
 		return
 	}
+
+	if resp.StatusCode != 200 {
+		log.Error("Checking new jobs error, server returns code ", resp.StatusCode)
+		return
+	}
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		log.Error("Checking new jobs, error reading response body:", err)
 		return
 	}
 
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		log.Error("Checking new jobs, parsing JSON error:", err)
 		return
 	}
 
