@@ -312,6 +312,24 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return true
 	}
 
+	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
+
+		runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
+
+		if err != nil {
+			panic(err)
+		}
+
+		if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
+			panic(fmt.Errorf("runner token required"))
+		}
+
+		p.config = &RunnerConfig{
+			RunnerID: runnerId,
+			Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
+		}
+	}
+
 	log.Info("Trying to register on server")
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
