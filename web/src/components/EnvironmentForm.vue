@@ -82,7 +82,8 @@ export default {
   data() {
     return {
       images: [
-        'semaphoreui/runner:v2.9.39-beta',
+        'semaphoreui/runner:latest',
+        'dind-runner:latest',
       ],
       cmOptions: {
         tabSize: 2,
