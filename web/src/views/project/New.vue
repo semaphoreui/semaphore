@@ -28,7 +28,6 @@
 <script>
 import EventBus from '@/event-bus';
 import ProjectForm from '@/components/ProjectForm.vue';
-import axios from 'axios';
 
 export default {
   components: { ProjectForm },
