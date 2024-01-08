@@ -30,7 +30,6 @@ export default {
       return this.$route.params.extractorId;
     },
   },
-
   methods: {
     allowActions() {
       return true;

@@ -51,7 +51,7 @@
       :items-per-page="Number.MAX_VALUE"
       >
       <template v-slot:item.name="{ item }">
-        {{ item.name }}
+        {{ item.name }} {{ item.extractorId }}
       </template>
       <template v-slot:item.value_source="{ item }">
         <code>{{ item.value_source }}</code>
@@ -106,7 +106,6 @@ export default {
       }
       return this.$route.params.projectId;
     },
-
     webhookId() {
       if (/^-?\d+$/.test(this.$route.params.webhookId)) {
         return parseInt(this.$route.params.webhookId, 10);

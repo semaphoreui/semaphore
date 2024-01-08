@@ -1,6 +1,8 @@
 package bolt
 
 import (
+	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
@@ -83,7 +85,7 @@ func (d *BoltDb) GetWebhookExtractors(webhookID int, params db.RetrieveQueryPara
 	return extractors, err
 }
 
-func (d *BoltDb) GetWebhookExtractor(extractorID int, webhookID int) (db.WebhookExtractor, error) {
+func (d *BoltDb) GetWebhookExtractor(webhookID int, extractorID int) (db.WebhookExtractor, error) {
 	var extractor db.WebhookExtractor
 	err := d.getObject(webhookID, db.WebhookExtractorProps, intObjectID(extractorID), &extractor)
 
@@ -114,6 +116,8 @@ func (d *BoltDb) GetWebhookExtractValuesByExtractorID(extractorID int) (values [
 }
 
 func (d *BoltDb) DeleteWebhookExtractValue(extractorID int, valueID int) error {
+	log.Info(fmt.Sprintf("Deleting Extract Value: %s on extractor: %s", valueID, extractorID))
+	
 	return d.deleteObject(extractorID, db.WebhookExtractValueProps, intObjectID(valueID), nil)
 }
 
@@ -161,15 +165,28 @@ func (d *BoltDb) CreateWebhookExtractValue(value db.WebhookExtractValue) (db.Web
 		return db.WebhookExtractValue{}, err
 	}
 
-	newValue, err := d.createObject(0, db.WebhookExtractValueProps, value)
+	newValue, err := d.createObject(value.ExtractorID, db.WebhookExtractValueProps, value)
 	return newValue.(db.WebhookExtractValue), err
 
 }
 
-func (d *BoltDb) GetWebhookExtractValues(extractorID int, params db.RetrieveQueryParams) ([]db.WebhookExtractValue, error) {
-	var values []db.WebhookExtractValue
-	err := d.getObjects(extractorID, db.WebhookExtractValueProps, params, nil, &values)
-	return values, err
+func (d *BoltDb) GetWebhookExtractValues(extractorID int, params db.RetrieveQueryParams) (values []db.WebhookExtractValue, err error) {
+	values = make([]db.WebhookExtractValue, 0)
+	var allValues []db.WebhookExtractValue
+
+	err = d.getObjects(extractorID, db.WebhookExtractValueProps, db.RetrieveQueryParams{}, nil, &allValues)
+
+	if err != nil {
+		return
+	}
+
+	for _, v := range allValues {
+		if v.ExtractorID == extractorID {
+			values = append(values, v)
+		}
+	}
+
+	return
 }
 
 func (d *BoltDb) GetAllWebhookExtractValues() (matchers []db.WebhookExtractValue, err error) {
@@ -206,7 +223,7 @@ func (d *BoltDb) CreateWebhookMatcher(matcher db.WebhookMatcher) (db.WebhookMatc
 	if err != nil {
 		return db.WebhookMatcher{}, err
 	}
-	newMatcher, err := d.createObject(0, db.WebhookMatcherProps, matcher)
+	newMatcher, err := d.createObject(matcher.ExtractorID, db.WebhookMatcherProps, matcher)
 	return newMatcher.(db.WebhookMatcher), err
 }
 
@@ -229,7 +246,7 @@ func (d *BoltDb) GetWebhookMatchers(extractorID int, params db.RetrieveQueryPara
 	return
 }
 
-func (d *BoltDb) GetWebhookMatcher(matcherID int, extractorID int) (matcher db.WebhookMatcher, err error) {
+func (d *BoltDb) GetWebhookMatcher(extractorID int,matcherID int) (matcher db.WebhookMatcher, err error) {
 	var matchers []db.WebhookMatcher
 	matchers, err = d.GetWebhookMatchers(extractorID, db.RetrieveQueryParams{})
 
@@ -253,7 +270,7 @@ func (d *BoltDb) UpdateWebhookMatcher(webhookMatcher db.WebhookMatcher) error {
 }
 
 func (d *BoltDb) DeleteWebhookMatcher(extractorID int, matcherID int) error {
-	return d.deleteObject(0, db.WebhookMatcherProps, intObjectID(matcherID), nil)
+	return d.deleteObject(extractorID, db.WebhookMatcherProps, intObjectID(matcherID), nil)
 }
 func (d *BoltDb) DeleteWebhook(projectID int, webhookID int) error {
 	extractors, err := d.GetWebhookExtractorsByWebhookID(webhookID)

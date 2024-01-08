@@ -282,8 +282,8 @@ var WebhookProps = ObjectProps{
 var WebhookExtractorProps = ObjectProps{
 	TableName:             "project__webhook_extractor",
 	Type:                  reflect.TypeOf(WebhookExtractor{}),
-  PrimaryColumnName:     "id",
-  IsGlobal:              true,
+	PrimaryColumnName:     "id",
+	IsGlobal:              true,
 	ReferringColumnSuffix: "extractor_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",

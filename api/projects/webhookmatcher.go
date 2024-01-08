@@ -18,11 +18,10 @@ func GetWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 			"error": "Invalid Matcher ID",
 		})
 	}
+	
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
-	matcher, err = helpers.Store(r).GetWebhookMatcher(matcher_id, extractor.ID)
-
-	log.Info(fmt.Sprintf("ExtractorID From Context %v, matcher from API %v, matcher from DB %v", extractor.ID, matcher_id, matcher.ID))
+	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
 
 	helpers.WriteJSON(w, http.StatusOK, matcher)
 }
@@ -37,7 +36,7 @@ func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
 	}
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
-	matcher, err = helpers.Store(r).GetWebhookMatcher(matcher_id, extractor.ID)
+	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
 
 	refs, err := helpers.Store(r).GetWebhookMatcherRefs(matcher.ExtractorID, matcher.ID)
 	if err != nil {
@@ -93,7 +92,7 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := context.Get(r, "user").(*db.User)
-  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 	project := context.Get(r, "project").(db.Project)
 
 	objType := db.EventWebhookMatcher
@@ -172,7 +171,7 @@ func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
-	matcher, err = helpers.Store(r).GetWebhookMatcher(matcher_id, extractor.ID)
+	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
 
 
 	err = helpers.Store(r).DeleteWebhookMatcher(extractor.ID, matcher.ID)
@@ -184,7 +183,7 @@ func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 
 	user := context.Get(r, "user").(*db.User)
 	project := context.Get(r, "project").(db.Project)
-  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
   
 	desc := "Webhook Matcher (" + matcher.String() + ") deleted"
 	_, err = helpers.Store(r).CreateEvent(db.Event{

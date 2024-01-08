@@ -167,7 +167,7 @@ func GetWebhookExtractorRefs (w http.ResponseWriter, r *http.Request) {
   webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 
 	var extractor db.WebhookExtractor
-	extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook_id)
+	extractor, err = helpers.Store(r).GetWebhookExtractor(webhook_id, extractor_id)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -196,7 +196,7 @@ func DeleteWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 
 	var extractor db.WebhookExtractor
   var webhook db.Webhook
-	extractor, err = helpers.Store(r).GetWebhookExtractor(extractor_id, webhook_id)
+	extractor, err = helpers.Store(r).GetWebhookExtractor(webhook_id, extractor_id)
 	webhook, err = helpers.Store(r).GetWebhook(webhook_id)
 
 	if err != nil {
