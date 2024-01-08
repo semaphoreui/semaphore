@@ -937,6 +937,12 @@ export default {
         return;
       }
 
+      axios({
+        method: 'get',
+        url: `/billing/projects/${projectId}`,
+        responseType: 'json',
+      }).catch(() => {});
+
       await this.$router.push({ path: `/project/${projectId}` });
     },
 
