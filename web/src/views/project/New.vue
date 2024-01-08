@@ -28,6 +28,7 @@
 <script>
 import EventBus from '@/event-bus';
 import ProjectForm from '@/components/ProjectForm.vue';
+import axios from 'axios';
 
 export default {
   components: { ProjectForm },
@@ -38,6 +39,12 @@ export default {
 
   methods: {
     onSave(e) {
+      axios({
+        method: 'get',
+        url: `/billing/projects/${e.item.id}`,
+        responseType: 'json',
+      });
+
       EventBus.$emit('i-project', {
         action: 'new',
         item: e.item,
