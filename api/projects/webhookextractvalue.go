@@ -161,14 +161,13 @@ func DeleteWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	
 	var value db.WebhookExtractValue
 	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
 
 	if err != nil {
 		log.Error(err)
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": fmt.Sprintf("Webhook Extract Value failed to be deleted %v", err),
+			"error": "Webhook Extract Value failed to be deleted",
 		})
 		return
 	}
