@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div v-if="items != null && webhook != null">
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
@@ -35,19 +35,18 @@
     />
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Extractor</v-toolbar-title>
-      <!-- <v-toolbar-title class="breadcrumbs"> -->
-      <!--   <router-link -->
-      <!--     class="breadcrumbs__item breadcrumbs__item--link" -->
-      <!--     :to="itemId -->
-      <!--         ? `/project/${projectId}/webhook/${itemID}/` -->
-      <!--         : `/project/${projectId}/webhooks/`" -->
-      <!--   > -->
-      <!--     Webhooks -->
-      <!--   </router-link> -->
-      <!--   <v-icon>mdi-chevron-right</v-icon> -->
-      <!--   <span class="breadcrumbs__item">{{ item.name }}</span> -->
-      <!-- </v-toolbar-title> -->
+      <v-toolbar-title class="breadcrumbs">
+        <router-link
+          class="breadcrumbs__item breadcrumbs__item--link"
+          :to="`/project/${projectId}/webhooks/`"
+        >
+          Webhooks
+        </router-link>
+        <v-icon>mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item">{{ webhook.name }}</span>
+        <v-icon>mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item">Extractors</span>
+      </v-toolbar-title>
 
       <v-spacer></v-spacer>
       <v-btn
@@ -93,6 +92,8 @@
 </template>
 <script>
 /* eslint-disable vue/no-unused-components */
+import axios from 'axios';
+
 import { USER_PERMISSIONS } from '@/lib/constants';
 
 import ItemListPageBase from '@/components/ItemListPageBase';
@@ -102,6 +103,20 @@ import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
 export default {
   mixins: [ItemListPageBase, WebhookExtractorsBase],
   components: { WebhookExtractorForm },
+  data() {
+    return {
+      webhook: null,
+    };
+  },
+
+  async created() {
+    this.webhook = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/webhook/${this.webhookId}`,
+      responseType: 'json',
+    })).data;
+  },
+
   computed: {
     projectId() {
       if (/^-?\d+$/.test(this.$route.params.projectId)) {

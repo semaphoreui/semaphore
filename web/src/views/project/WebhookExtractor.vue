@@ -1,22 +1,21 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div>
+    <WebhookExtractorCrumb/>
     <WebhookExtractValue/>
     <WebhookMatcher/>
   </div>
 </template>
 <script>
-import { USER_PERMISSIONS } from '@/lib/constants';
-
 import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
 import WebhookExtractorBase from '@/components/WebhookExtractorBase';
 
 import WebhookExtractValue from './WebhookExtractValue.vue';
 import WebhookMatcher from './WebhookMatcher.vue';
+import WebhookExtractorCrumb from './WebhookExtractorCrumb.vue';
 
 export default {
   mixins: [WebhookExtractorsBase, WebhookExtractorBase],
-  components: { WebhookMatcher, WebhookExtractValue },
-
+  components: { WebhookMatcher, WebhookExtractValue, WebhookExtractorCrumb },
   computed: {
     webhookId() {
       if (/^-?\d+$/.test(this.$route.params.webhookId)) {
@@ -34,7 +33,7 @@ export default {
 
   methods: {
     allowActions() {
-      return this.can(USER_PERMISSIONS.updateProject);
+      return true;
     },
   },
 };
