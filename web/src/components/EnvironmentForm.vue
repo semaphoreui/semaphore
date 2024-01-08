@@ -82,7 +82,6 @@ export default {
   data() {
     return {
       images: [
-        'semaphoreui/runner:latest',
         'dind-runner:latest',
       ],
       cmOptions: {
