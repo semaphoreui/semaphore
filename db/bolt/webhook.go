@@ -1,8 +1,6 @@
 package bolt
 
 import (
-	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
@@ -116,8 +114,6 @@ func (d *BoltDb) GetWebhookExtractValuesByExtractorID(extractorID int) (values [
 }
 
 func (d *BoltDb) DeleteWebhookExtractValue(extractorID int, valueID int) error {
-	log.Info(fmt.Sprintf("Deleting Extract Value: %s on extractor: %s", valueID, extractorID))
-	
 	return d.deleteObject(extractorID, db.WebhookExtractValueProps, intObjectID(valueID), nil)
 }
 
