@@ -5,21 +5,21 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
-  "fmt"
+	"fmt"
 	"github.com/gorilla/context"
 )
 
 func WebhookMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
-
+		project := context.Get(r, "project").(db.Project)
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "Invalid webhook ID",
 			});
 		}
 
-		webhook, err := helpers.Store(r).GetWebhook(webhook_id)
+		webhook, err := helpers.Store(r).GetWebhook(project.ID, webhook_id)
 
 		if err != nil {
 			helpers.WriteError(w, err)

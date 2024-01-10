@@ -141,7 +141,7 @@ type Store interface {
 
 	CreateWebhook(webhook Webhook) (newWebhook Webhook, err error)
 	GetWebhooks(projectID int, params RetrieveQueryParams) ([]Webhook, error)
-	GetWebhook(webhookID int) (webhook Webhook, err error)
+	GetWebhook(projectID int, webhookID int) (webhook Webhook, err error)
 	UpdateWebhook(webhook Webhook) error
 	GetWebhookRefs(projectID int, webhookID int) (WebhookReferrers, error)
 	DeleteWebhook(projectID int, webhookID int) error
