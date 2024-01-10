@@ -6,13 +6,7 @@ import (
 )
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
-	var keyObj interface{}
-	keyObj, err = d.GetObject(db.AccessKeyProps, accessKeyID)
-	key = keyObj.(db.AccessKey)
-	if err != nil {
-		return
-	}
-
+	err = d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
 	return
 }
 

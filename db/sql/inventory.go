@@ -3,9 +3,7 @@ package sql
 import "github.com/ansible-semaphore/semaphore/db"
 
 func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
-	var invObj interface{}
-	invObj, err = d.GetObject(db.InventoryProps, inventoryID)
-	inventory = invObj.(db.Inventory)
+	err = d.getObject(projectID, db.InventoryProps, inventoryID, &inventory)
 	if err != nil {
 		return
 	}
