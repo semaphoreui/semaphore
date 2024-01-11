@@ -1,12 +1,14 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"fmt"
+
+	log "github.com/Sirupsen/logrus"
+
+	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -42,7 +44,6 @@ func GetWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, extractor)
 }
 
-
 func GetWebhookExtractors(w http.ResponseWriter, r *http.Request) {
 	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 	extractors, err := helpers.Store(r).GetWebhookExtractors(webhook_id, helpers.QueryParams(r.URL))
@@ -64,41 +65,24 @@ func AddWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if extractor.WebhookID != webhook_id {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Webhook ID in body and URL must be the same",
-			})
+		})
 		return
 	}
 
 	if err := extractor.Validate(); err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
-			})
+		})
 		return
 	}
 
-	newExtractor, err := helpers.Store(r).CreateWebhookExtractor(extractor)
+	_, err = helpers.Store(r).CreateWebhookExtractor(extractor)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
-	}
-
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "WebhookExtractor (" + newExtractor.Name + ") created"
-	objType := db.EventWebhookExtractor
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &extractor.WebhookID,
-		Description: &desc,
-		ObjectID:    &extractor.ID,
-		ObjectType:  &objType,
-	})
-
-	if err != nil {
-		log.Error(err)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -133,27 +117,10 @@ func UpdateWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "WebhookExtractor (" + extractor.Name + ") updated"
-	objType := db.EventWebhookExtractor
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &extractor.WebhookID,
-		Description: &desc,
-		ObjectID:    &extractor.ID,
-		ObjectType:  &objType,
-	})
-
-	if err != nil {
-		log.Error(err)
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func GetWebhookExtractorRefs (w http.ResponseWriter, r *http.Request) {
+func GetWebhookExtractorRefs(w http.ResponseWriter, r *http.Request) {
 	extractor_id, err := helpers.GetIntParam("extractor_id", w, r)
 
 	log.Info(fmt.Sprintf("Extractor ID: %v", extractor_id))
@@ -162,6 +129,7 @@ func GetWebhookExtractorRefs (w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Extractor ID",
 		})
+		return
 	}
 
 	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
@@ -186,19 +154,17 @@ func GetWebhookExtractorRefs (w http.ResponseWriter, r *http.Request) {
 func DeleteWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 	extractor_id, err := helpers.GetIntParam("extractor_id", w, r)
 	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
-	project := context.Get(r, "project").(db.Project)
 
 	log.Info(fmt.Sprintf("Delete requested for: %v", extractor_id))
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Extractor ID",
 		})
+		return
 	}
 
 	var extractor db.WebhookExtractor
-	var webhook db.Webhook
 	extractor, err = helpers.Store(r).GetWebhookExtractor(webhook_id, extractor_id)
-	webhook, err = helpers.Store(r).GetWebhook(project.ID, webhook_id)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -210,22 +176,7 @@ func DeleteWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Webhook Extractor failed to be deleted",
 		})
-	}
-
-	user := context.Get(r, "user").(*db.User)
-	desc := "Webhook Extractor (" + extractor.Name + ") deleted"
-	objType := db.EventWebhookExtractor
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &webhook.ProjectID,
-		WebhookID:   &webhook_id,
-		ObjectType:  &objType,
-		Description: &desc,
-	})
-
-	if err != nil {
-		log.Error(err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

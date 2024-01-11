@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/snikch/goodman/hooks"
-	trans "github.com/snikch/goodman/transaction"
 	"strconv"
 	"strings"
+
+	"github.com/snikch/goodman/hooks"
+	trans "github.com/snikch/goodman/transaction"
 )
 
 const (
@@ -110,6 +111,8 @@ func main() {
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Get schedule > 200 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Updates schedule > 204 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Deletes schedule > 204 > application/json", capabilityWrapper("schedule"))
+
+	h.Before("project > /api/project/{project_id}/webhooks > Add Webhook > 204 > application/json", capabilityWrapper("webhook"))
 
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Get view > 200 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Updates view > 204 > application/json", capabilityWrapper("view"))

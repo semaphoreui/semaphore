@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/db"
-	trans "github.com/snikch/goodman/transaction"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	trans "github.com/snikch/goodman/transaction"
 )
 
 // STATE
@@ -18,23 +19,35 @@ var userKey *db.AccessKey
 var task *db.Task
 var schedule *db.Schedule
 var view *db.View
+var webhook *db.Webhook
+var webhookextractor *db.WebhookExtractor
+var webhookextractvalue *db.WebhookExtractValue
+var webhookmatch *db.WebhookMatcher
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
 var inventoryID int
 var environmentID int
 var templateID int
+var webhookID int
+var webhookExtractorID int
+var webhookExtractValueID int
+var webhookMatchID int
 
 var capabilities = map[string][]string{
-	"user":        {},
-	"project":     {"user"},
-	"repository":  {"access_key"},
-	"inventory":   {"repository"},
-	"environment": {"repository"},
-	"template":    {"repository", "inventory", "environment", "view"},
-	"task":        {"template"},
-	"schedule":    {"template"},
-	"view":        {},
+	"user":                {},
+	"project":             {"user"},
+	"repository":          {"access_key"},
+	"inventory":           {"repository"},
+	"environment":         {"repository"},
+	"template":            {"repository", "inventory", "environment", "view"},
+	"task":                {"template"},
+	"schedule":            {"template"},
+	"webhook":             {"project", "user", "template"},
+	"webhookextractor":    {"webhook"},
+	"webhookextractvalue": {"webhookextractor"},
+	"webhookmatcher":      {"webhookextractor"},
+	"view":                {},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -131,6 +144,44 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			templateID = res.ID
 		case "task":
 			task = addTask()
+		case "webhook":
+			webhook, err := store.CreateWebhook(db.Webhook{
+				ProjectID:  userProject.ID,
+				Name:       "Test Webhook",
+				TemplateID: templateID,
+			})
+			printError(err)
+			webhookID = webhook.ID
+		case "webhookextractor":
+			webhookextractor, err := store.CreateWebhookExtractor(db.WebhookExtractor{
+				WebhookID: webhookID,
+				Name:      "WebhookExtractor",
+			})
+			printError(err)
+			webhookExtractorID = webhookextractor.ID
+		case "webhookextractvalue":
+			webhookextractvalue, err := store.CreateWebhookExtractValue(db.WebhookExtractValue{
+				Name:         "Value",
+				ExtractorID:  webhookExtractorID,
+				ValueSource:  "body",
+				BodyDataType: "json",
+				Key:          "key",
+				Variable:     "var",
+			})
+			printError(err)
+			webhookExtractValueID = webhookextractvalue.ID
+		case "webhookmatcher":
+			webhookmatch, err := store.CreateWebhookMatcher(db.WebhookMatcher{
+				Name:         "matcher",
+				ExtractorID:  webhookExtractorID,
+				MatchType:    "body",
+				Method:       "equals",
+				BodyDataType: "json",
+				Key:          "key",
+				Value:        "value",
+			})
+			printError(err)
+			webhookMatchID = webhookmatch.ID
 		default:
 			panic("unknown capability " + v)
 		}
@@ -157,6 +208,10 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(task.ID) },
 	func() string { return strconv.Itoa(schedule.ID) },
 	func() string { return strconv.Itoa(view.ID) },
+	func() string { return strconv.Itoa(webhook.ID) },
+	func() string { return strconv.Itoa(webhookextractor.ID) },
+	func() string { return strconv.Itoa(webhookextractvalue.ID) },
+	func() string { return strconv.Itoa(webhookmatch.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -198,6 +253,19 @@ func alterRequestBody(t *trans.Transaction) {
 	if view != nil {
 		bodyFieldProcessor("view_id", view.ID, &request)
 	}
+	if webhook != nil {
+		bodyFieldProcessor("webhook_id", webhookID, &request)
+	}
+	if webhookextractor != nil {
+		bodyFieldProcessor("extractor_id", webhookExtractorID, &request)
+	}
+	if webhookextractvalue != nil {
+		bodyFieldProcessor("value_id", webhookExtractValueID, &request)
+	}
+	if webhookmatch != nil {
+		bodyFieldProcessor("matcher_id", webhookMatchID, &request)
+	}
+
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?$`)

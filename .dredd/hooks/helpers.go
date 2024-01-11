@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
+	"os"
+	"time"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/db/factory"
@@ -10,9 +14,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/snikch/goodman/transaction"
-	"math/rand"
-	"os"
-	"time"
 )
 
 // Test Runner User
@@ -59,6 +60,10 @@ func truncateAll() {
 		"project__user",
 		"user",
 		"project__view",
+		"project__webhook",
+		"project__webhook_extractor",
+		"project__webhook_extract_value",
+		"project__webhook_matcher",
 	}
 
 	switch store.(type) {

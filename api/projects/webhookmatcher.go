@@ -3,10 +3,11 @@ package projects
 import (
 	//	"strconv"
 	"fmt"
+	"net/http"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
 	"github.com/gorilla/context"
 )
 
@@ -17,8 +18,9 @@ func GetWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Matcher ID",
 		})
+		return
 	}
-	
+
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
 	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
@@ -33,6 +35,7 @@ func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Matcher ID",
 		})
+		return
 	}
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
@@ -46,7 +49,6 @@ func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
 
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
-
 
 func GetWebhookMatchers(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
@@ -69,7 +71,7 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if matcher.ExtractorID != extractor.ID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Extractor ID in body and URL must be the same",
 		})
 		return
@@ -78,9 +80,9 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	err := matcher.Validate()
 
 	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
-	    })
+		})
 		return
 	}
 
@@ -90,23 +92,6 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
-
-	user := context.Get(r, "user").(*db.User)
-	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
-	project := context.Get(r, "project").(db.Project)
-
-	objType := db.EventWebhookMatcher
-	desc := "Webhook Matcher " + matcher.Name + " created"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		WebhookID:   &webhook_id,
-		ExtractorID: &extractor.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newMatcher.ID,
-		Description: &desc,
-	})
 
 	helpers.WriteJSON(w, http.StatusOK, newMatcher)
 }
@@ -118,6 +103,7 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Matcher ID",
 		})
+		return
 	}
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 
@@ -137,26 +123,6 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
-
-	desc := "WebhookMatcher (" + matcher.String() + ") updated"
-
-	objType := db.EventWebhookMatcher
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		WebhookID:   &webhook_id,
-		ExtractorID: &extractor.ID,
-		Description: &desc,
-		ObjectID:    &matcher.ID,
-		ObjectType:  &objType,
-	})
-
-	if err != nil {
-		log.Error(err)
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -167,36 +133,19 @@ func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Matcher ID",
 		})
+		return
 	}
 
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
 	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
 
-
 	err = helpers.Store(r).DeleteWebhookMatcher(extractor.ID, matcher.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Webhook Matcher failed to be deleted",
 		})
+		return
 	}
-
-	user := context.Get(r, "user").(*db.User)
-	project := context.Get(r, "project").(db.Project)
-	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
-  
-	desc := "Webhook Matcher (" + matcher.String() + ") deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		WebhookID:   &webhook_id,
-		ExtractorID: &extractor.ID,
-		Description: &desc,
-	})
-
-	if err != nil {
-		log.Error(err)
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -2,10 +2,11 @@ package api
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/runners"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/api/runners"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
@@ -187,7 +188,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/webhooks").HandlerFunc(projects.AddWebhook).Methods("POST")
 
 	projectWebhooksAPI := projectUserAPI.PathPrefix("/webhook").Subrouter()
-  projectWebhooksAPI.Use(projects.ProjectMiddleware, projects.WebhookMiddleware)
+
+	projectWebhooksAPI.Use(projects.ProjectMiddleware, projects.WebhookMiddleware)
 	projectWebhooksAPI.Path("/{webhook_id}").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhook)
 	projectWebhooksAPI.Path("/{webhook_id}").Methods("PUT").HandlerFunc(projects.UpdateWebhook)
 	projectWebhooksAPI.Path("/{webhook_id}").Methods("DELETE").HandlerFunc(projects.DeleteWebhook)

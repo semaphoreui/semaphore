@@ -1,11 +1,13 @@
 package projects
 
 import (
+	"fmt"
+	"net/http"
+
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
-	"fmt"
 	"github.com/gorilla/context"
 )
 
@@ -13,10 +15,12 @@ func WebhookMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 		project := context.Get(r, "project").(db.Project)
+
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "Invalid webhook ID",
-			});
+			})
+			return
 		}
 
 		webhook, err := helpers.Store(r).GetWebhook(project.ID, webhook_id)
@@ -36,7 +40,6 @@ func GetWebhook(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, webhook)
 }
 
-
 func GetWebhooks(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	webhooks, err := helpers.Store(r).GetWebhooks(project.ID, helpers.QueryParams(r.URL))
@@ -49,13 +52,14 @@ func GetWebhooks(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, webhooks)
 }
 
-func GetWebhookRefs (w http.ResponseWriter, r *http.Request) {
+func GetWebhookRefs(w http.ResponseWriter, r *http.Request) {
 	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Webhook ID",
 		})
+		return
 	}
 
 	project := context.Get(r, "project").(db.Project)
@@ -74,52 +78,43 @@ func GetWebhookRefs (w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-
 func AddWebhook(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var webhook db.Webhook
+	log.Info(fmt.Sprintf("Found Project: %v", project.ID))
 
 	if !helpers.Bind(w, r, &webhook) {
+		log.Info("Failed to bind for webhook uploads")
 		return
 	}
 
 	if webhook.ProjectID != project.ID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
+		log.Error(fmt.Sprintf("Project ID in body and URL must be the same: %v vs. %v", webhook.ProjectID, project.ID))
+
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
 		return
 	}
 	err := webhook.Validate()
-	if  err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string {
+	if err != nil {
+		log.Error(err)
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
-	    })
+		})
 		return
 	}
 
-	newWebhook, errWebhook := helpers.Store(r).CreateWebhook(webhook)
+	_, errWebhook := helpers.Store(r).CreateWebhook(webhook)
 
 	if errWebhook != nil {
+		log.Error(errWebhook)
 		helpers.WriteError(w, errWebhook)
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventWebhook
-	desc := "Webhook " + webhook.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newWebhook.ID,
-		Description: &desc,
-	})
-
-
 	w.WriteHeader(http.StatusNoContent)
 }
-
 
 func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
 	oldWebhook := context.Get(r, "webhook").(db.Webhook)
@@ -150,29 +145,11 @@ func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Webhook (" + webhook.Name + ") updated"
-	objType := db.EventWebhook
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &webhook.ProjectID,
-		Description: &desc,
-		ObjectID:    &webhook.ID,
-		ObjectType:  &objType,
-	})
-
-	if err != nil {
-		log.Error(err)
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
-
 func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
-  webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
 	project := context.Get(r, "project").(db.Project)
 
 	err = helpers.Store(r).DeleteWebhook(project.ID, webhook_id)
@@ -180,20 +157,7 @@ func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Webhook failed to be deleted",
 		})
-	}
-
-	user := context.Get(r, "user").(*db.User)
-
-	desc := fmt.Sprintf("Webhook %v deleted", webhook_id)
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		Description: &desc,
-	})
-
-	if err != nil {
-		log.Error(err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
