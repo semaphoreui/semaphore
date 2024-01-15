@@ -87,6 +87,8 @@ func main() {
 	})
 
 	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractors > Get Webhook Extractors > 200 > application/json", capabilityWrapper("webhookextractor"))
+	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractors > Add Webhook Extractor > 204 > application/json", capabilityWrapper("webhookextractor"))
+	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id} > Updates Webhook extractor > 204 > application/json", capabilityWrapper("webhookextractor"))
 
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))

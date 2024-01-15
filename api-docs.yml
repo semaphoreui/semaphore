@@ -1304,11 +1304,10 @@ paths:
     get:
       tags:
         - project
-        - template
       summary: get all webhooks
       responses:
         200:
-          description: Webhooks
+          description: webhook
           schema:
             type: array
             items:
@@ -1317,7 +1316,6 @@ paths:
       summary: create a new webhook
       tags:
         - project
-        - template
       parameters:
         - name: Webhook
           in: body
