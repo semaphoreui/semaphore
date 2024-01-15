@@ -230,6 +230,67 @@ func addTask() *db.Task {
 	return &t
 }
 
+func addWebhook() *db.Webhook {
+	webhook, err := store.CreateWebhook(db.Webhook{
+		ProjectID:  userProject.ID,
+		Name:       "Test Webhook",
+		TemplateID: templateID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return &webhook
+}
+
+func addWebhookExtractor() *db.WebhookExtractor {
+	webhookextractor, err := store.CreateWebhookExtractor(db.WebhookExtractor{
+		WebhookID: int(webhookID),
+		Name:      "Webhook Extractor",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &webhookextractor
+}
+
+func addWebhookExtractValue() *db.WebhookExtractValue {
+	webhookextractvalue, err := store.CreateWebhookExtractValue(db.WebhookExtractValue{
+		Name:         "Value",
+		ExtractorID:  webhookExtractorID,
+		ValueSource:  db.WebhookExtractBodyValue,
+		BodyDataType: db.WebhookBodyDataJSON,
+		Key:          "key",
+		Variable:     "var",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &webhookextractvalue
+}
+
+func addWebhookMatcher() *db.WebhookMatcher {
+	webhookmatch, err := store.CreateWebhookMatcher(db.WebhookMatcher{
+		Name:         "matcher",
+		ExtractorID:  webhookExtractorID,
+		MatchType:    "body",
+		Method:       "equals",
+		BodyDataType: "json",
+		Key:          "key",
+		Value:        "value",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &webhookmatch
+}
+
 // Token Handling
 func addToken(tok string, user int) {
 	_, err := store.CreateAPIToken(db.APIToken{

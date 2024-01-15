@@ -78,6 +78,14 @@ func main() {
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
+	h.Before("project > /api/project/{project_id}/webhooks > get all webhooks > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook"})
+	})
+
+	h.Before("project > /api/project/{project_id}/webhook/{webhook_id} > Get Webhook > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook"})
+	})
+
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
 
@@ -111,8 +119,6 @@ func main() {
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Get schedule > 200 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Updates schedule > 204 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Deletes schedule > 204 > application/json", capabilityWrapper("schedule"))
-
-	h.Before("project > /api/project/{project_id}/webhooks > Add Webhook > 204 > application/json", capabilityWrapper("webhook"))
 
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Get view > 200 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Updates view > 204 > application/json", capabilityWrapper("view"))

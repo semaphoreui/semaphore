@@ -95,9 +95,9 @@ tasks:
     desc: Runs Packr for static assets
     sources:
       - web/dist/*
-      - db/migrations/*
+      - db/sql/migrations/*
     generates:
-      - db/db-packr.go
+      - db/sql/db-packr.go
       - api/api-packr.go
     cmds:
       - mkdir -p web/dist

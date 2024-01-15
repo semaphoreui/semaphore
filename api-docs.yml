@@ -1,3 +1,4 @@
+---
 swagger: '2.0'
 info:
   title: SEMAPHORE
@@ -191,7 +192,7 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none,ssh,login_password]
+        enum: [none, ssh, login_password]
         x-example: none
       project_id:
         type: integer
@@ -230,7 +231,7 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none,ssh,login_password]
+        enum: [none, ssh, login_password]
       project_id:
         type: integer
       login_password:
@@ -296,25 +297,26 @@ definitions:
         example: '{}'
 
   InventoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-          minimum: 1
-        inventory:
-          type: string
-        ssh_key_id:
-          type: integer
-          minimum: 1
-        become_key_id:
-          type: integer
-          minimum: 1
-        type:
-          type: string
-          enum: [static, static-yaml, file]
+    type: object
+    properties:
+      name:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+        minimum: 1
+      inventory:
+        type: string
+      ssh_key_id:
+        type: integer
+        minimum: 1
+      become_key_id:
+        type: integer
+        minimum: 1
+      type:
+        type: string
+        enum: [static, static-yaml, file]
+
   Inventory:
     type: object
     properties:
@@ -335,9 +337,11 @@ definitions:
         type: string
         enum: [static, static-yaml, file]
 
-  WebhookRequest:
+  Webhook:
     type: object
     properties:
+      id:
+        type: integer
       name:
         type: string
         example: deploy
@@ -348,13 +352,12 @@ definitions:
         type: integer
         minimum: 1
 
-  Webhook:
+  WebhookRequest:
     type: object
     properties:
-      id:
-        type: integer
       name:
         type: string
+        example: deploy
       project_id:
         type: integer
       template_id:
@@ -368,7 +371,6 @@ definitions:
         example: deploy
       webhook_id:
         type: integer
-        minimum: 1
   WebhookExtractor:
     type: object
     properties:
@@ -819,25 +821,25 @@ parameters:
     x-example: 11
   extractor_id:
     name: extractor_id
-    description: Extractor ID
+    description: extractor ID
     in: path
     type: integer
     required: true
     x-example: 12
   extractvalue_id:
     name: extractvalue_id
-    description: ExtractValue ID
+    description: extractValue ID
     in: path
     type: integer
     required: true
-    x-example: 12
+    x-example: 13
   matcher_id:
     name: matcher_id
-    description: Matcher ID
+    description: matcher ID
     in: path
     type: integer
     required: true
-    x-example: 12
+    x-example: 14
 
 paths:
   /ping:
@@ -1263,7 +1265,7 @@ paths:
                 minimum: 2
               role:
                 type: string
-                enum: [owner,manager,task_runner,guest]
+                enum: [owner, manager, task_runner, guest]
                 example: owner
       responses:
         204:
@@ -1289,7 +1291,7 @@ paths:
             properties:
               role:
                 type: string
-                enum: [owner,manager,task_runner,guest]
+                enum: [owner, manager, task_runner, guest]
                 example: owner
       summary: Update user role
       responses:
@@ -1302,7 +1304,8 @@ paths:
     get:
       tags:
         - project
-      summary: Get Webhooks linked to project
+        - template
+      summary: get all webhooks
       responses:
         200:
           description: Webhooks
@@ -1311,20 +1314,21 @@ paths:
             items:
               $ref: "#/definitions/Webhook"
     post:
+      summary: create a new webhook
       tags:
         - project
-      summary: Add Webhook
+        - template
       parameters:
         - name: Webhook
           in: body
           required: true
           schema:
-            $ref: "#/definitions/Webhook"
+            $ref: "#/definitions/WebhookRequest"
       responses:
         204:
           description: Webhook Created
-        400:
-          description: Bad Webhook params
+          schema:
+            $ref: "#/definitions/Webhook"
   /project/{project_id}/webhook/{webhook_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1332,7 +1336,7 @@ paths:
     put:
       tags:
         - project
-      summary: Updates Webhook
+      summary: Update Webhook
       parameters:
         - name: Webhook
           in: body
@@ -1342,12 +1346,10 @@ paths:
       responses:
         204:
           description: Webhook updated
-        400:
-          description: Bad webhook parameter
     delete:
       tags:
         - project
-      summary: Removes webhook
+      summary: Remove webhook
       responses:
         204:
           description: webhook removed
@@ -1358,7 +1360,7 @@ paths:
     get:
       tags:
         - webhook
-      summary: Get Webhook Extractors linked to project
+      summary: Get Webhook Extractors
       responses:
         200:
           description: Webhook Extractors
@@ -1379,8 +1381,6 @@ paths:
       responses:
         204:
           description: Webhook Extractor Created
-        400:
-          description: Bad Webhook Extractor params
   /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1399,8 +1399,6 @@ paths:
       responses:
         204:
           description: Webhook Extractor updated
-        400:
-          description: Bad webhook extractor parameter
     delete:
       tags:
         - webhook
@@ -1541,7 +1539,7 @@ paths:
           in: query
           required: false
           type: string
-          enum: [none,ssh,login_password]
+          enum: [none, ssh, login_password]
           description: Filter by key type
           x-example: none
         - name: sort
@@ -1718,7 +1716,7 @@ paths:
         201:
           description: inventory created
           schema:
-              $ref: "#/definitions/Inventory"
+            $ref: "#/definitions/Inventory"
   /project/{project_id}/inventory/{inventory_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1900,11 +1898,11 @@ paths:
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
     parameters:
-    - $ref: "#/parameters/project_id"
-    - $ref: "#/parameters/schedule_id"
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/schedule_id"
     get:
       tags:
-      - schedule
+        - schedule
       summary: Get schedule
       responses:
         200:
@@ -1913,38 +1911,38 @@ paths:
             $ref: "#/definitions/Schedule"
     delete:
       tags:
-      - schedule
+        - schedule
       summary: Deletes schedule
       responses:
         204:
           description: schedule deleted
     put:
       tags:
-      - schedule
+        - schedule
       summary: Updates schedule
       parameters:
-      - name: schedule
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/ScheduleRequest"
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
       responses:
         204:
           description: schedule updated
 
   /project/{project_id}/schedules:
     parameters:
-    - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/project_id"
     post:
       tags:
-      - schedule
+        - schedule
       summary: create schedule
       parameters:
-      - name: schedule
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/ScheduleRequest"
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
       responses:
         201:
           description: schedule created

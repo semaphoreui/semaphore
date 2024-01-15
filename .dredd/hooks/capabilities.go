@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -43,7 +44,7 @@ var capabilities = map[string][]string{
 	"template":            {"repository", "inventory", "environment", "view"},
 	"task":                {"template"},
 	"schedule":            {"template"},
-	"webhook":             {"project", "user", "template"},
+	"webhook":             {"project", "template"},
 	"webhookextractor":    {"webhook"},
 	"webhookextractvalue": {"webhookextractor"},
 	"webhookmatcher":      {"webhookextractor"},
@@ -145,42 +146,16 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "task":
 			task = addTask()
 		case "webhook":
-			webhook, err := store.CreateWebhook(db.Webhook{
-				ProjectID:  userProject.ID,
-				Name:       "Test Webhook",
-				TemplateID: templateID,
-			})
-			printError(err)
+			webhook = addWebhook()
 			webhookID = webhook.ID
 		case "webhookextractor":
-			webhookextractor, err := store.CreateWebhookExtractor(db.WebhookExtractor{
-				WebhookID: webhookID,
-				Name:      "WebhookExtractor",
-			})
-			printError(err)
+			webhookextractor = addWebhookExtractor()
 			webhookExtractorID = webhookextractor.ID
 		case "webhookextractvalue":
-			webhookextractvalue, err := store.CreateWebhookExtractValue(db.WebhookExtractValue{
-				Name:         "Value",
-				ExtractorID:  webhookExtractorID,
-				ValueSource:  "body",
-				BodyDataType: "json",
-				Key:          "key",
-				Variable:     "var",
-			})
-			printError(err)
+			webhookextractvalue = addWebhookExtractValue()
 			webhookExtractValueID = webhookextractvalue.ID
 		case "webhookmatcher":
-			webhookmatch, err := store.CreateWebhookMatcher(db.WebhookMatcher{
-				Name:         "matcher",
-				ExtractorID:  webhookExtractorID,
-				MatchType:    "body",
-				Method:       "equals",
-				BodyDataType: "json",
-				Key:          "key",
-				Value:        "value",
-			})
-			printError(err)
+			webhookmatch = addWebhookMatcher()
 			webhookMatchID = webhookmatch.ID
 		default:
 			panic("unknown capability " + v)
@@ -220,8 +195,10 @@ func alterRequestPath(t *trans.Transaction) {
 	exploded := make([]string, len(pathArgs))
 	copy(exploded, pathArgs)
 	for k, v := range pathSubPatterns {
+
 		pos, exists := stringInSlice(strconv.Itoa(k+1), exploded)
 		if exists {
+			fmt.Println(fmt.Sprintf("Current: %v, %v", pos, exploded))
 			pathArgs[pos] = v()
 		}
 	}
@@ -253,17 +230,18 @@ func alterRequestBody(t *trans.Transaction) {
 	if view != nil {
 		bodyFieldProcessor("view_id", view.ID, &request)
 	}
+
 	if webhook != nil {
-		bodyFieldProcessor("webhook_id", webhookID, &request)
+		bodyFieldProcessor("webhook_id", webhook.ID, &request)
 	}
 	if webhookextractor != nil {
-		bodyFieldProcessor("extractor_id", webhookExtractorID, &request)
+		bodyFieldProcessor("extractor_id", webhookextractor.ID, &request)
 	}
 	if webhookextractvalue != nil {
-		bodyFieldProcessor("value_id", webhookExtractValueID, &request)
+		bodyFieldProcessor("value_id", webhookextractvalue.ID, &request)
 	}
 	if webhookmatch != nil {
-		bodyFieldProcessor("matcher_id", webhookMatchID, &request)
+		bodyFieldProcessor("matcher_id", webhookmatch.ID, &request)
 	}
 
 	// Inject object ID to body for PUT requests
