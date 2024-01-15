@@ -100,6 +100,8 @@ func main() {
 	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Update environment > 204 > application/json", capabilityWrapper("environment"))
 	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Removes environment > 204 > application/json", capabilityWrapper("environment"))
 
+	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractors", capabilityWrapper("webhookextractor"))
+
 	h.Before("project > /api/project/{project_id}/templates > create template > 201 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"repository", "inventory", "environment", "view"})
 	})
