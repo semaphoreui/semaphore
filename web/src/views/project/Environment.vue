@@ -28,7 +28,7 @@
 
     <YesNoDialog
       :title="$t('deleteEnvironment')"
-      text="$t('askDeleteEnv')"
+      :text="$t('askDeleteEnv')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
