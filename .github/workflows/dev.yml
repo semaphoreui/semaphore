@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - develop
+      - install-tasks-via-go
   pull_request:
     branches: [develop]
 
@@ -74,7 +75,6 @@ jobs:
           \n\t},\n\t\"dialect\": \"bolt\",\n\t\"email_alert\": false\n}\nEOF\n"
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
-
 
   test-integration:
     runs-on: [ubuntu-latest]
