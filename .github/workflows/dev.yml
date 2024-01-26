@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - develop
-      - install-tasks-via-go
   pull_request:
     branches: [develop]
 
