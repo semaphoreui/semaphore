@@ -3,7 +3,7 @@
 #
 # Tasks without a `desc:` field are intended mainly to be called
 # internally by other tasks and therefore are not listed when running `task` or `task -l`
-version: '2'
+version: '3'
 
 vars:
   docker_namespace: semaphoreui
