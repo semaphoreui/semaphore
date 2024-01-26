@@ -143,7 +143,9 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 		switch key.Type {
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
-			content["ansible_become_user"] = key.LoginPassword.Login
+			if len(key.LoginPassword.Login) > 0 {
+				content["ansible_become_user"] = key.LoginPassword.Login
+			}
 			content["ansible_become_password"] = key.LoginPassword.Password
 			var bytes []byte
 			bytes, err = json.Marshal(content)
