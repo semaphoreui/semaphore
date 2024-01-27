@@ -588,6 +588,10 @@ const LANGUAGES = {
     flag: '🇫🇷',
     title: 'French',
   },
+  it: {
+    flag: '🇮🇹',
+    title: 'Italian',
+  },
   pl: {
     flag: '🇵🇱️',
     title: 'Polish',
