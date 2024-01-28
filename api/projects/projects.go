@@ -99,7 +99,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	devInv, err = store.CreateInventory(db.Inventory{
 		Name:      "Dev",
 		ProjectID: projectID,
-		Inventory: "/invs/dev/hosts",
+		Inventory: "invs/dev/hosts",
 		Type:      "file",
 		SSHKeyID:  &noneKey.ID,
 	})
@@ -111,7 +111,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 	prodInv, err = store.CreateInventory(db.Inventory{
 		Name:      "Prod",
 		ProjectID: projectID,
-		Inventory: "/invs/prod/hosts",
+		Inventory: "invs/prod/hosts",
 		Type:      "file",
 		SSHKeyID:  &noneKey.ID,
 	})

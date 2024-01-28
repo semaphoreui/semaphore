@@ -75,7 +75,6 @@ jobs:
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-
   test-integration:
     runs-on: [ubuntu-latest]
     needs: [test-db-migration]

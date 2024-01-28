@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+	"errors"
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
@@ -17,7 +18,7 @@ func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, 
 
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(projectID, db.AccessKeyProps, params, &keys)
+	err := d.getProjectObjects(projectID, db.AccessKeyProps, params, &keys)
 	return keys, err
 }
 
@@ -84,7 +85,42 @@ func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
 }
 
-func (d *SqlDb) RekeyAccessKeys(oldKey string) error {
+const RekeyBatchSize = 100
 
-	return nil
+func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
+
+	var globalProps = db.AccessKeyProps
+	globalProps.IsGlobal = true
+
+	for i := 0; ; i++ {
+
+		var keys []db.AccessKey
+		err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, &keys, true)
+
+		if err != nil {
+			return
+		}
+
+		if len(keys) == 0 {
+			break
+		}
+
+		for _, key := range keys {
+
+			err = key.DeserializeSecret2(oldKey)
+
+			if err != nil {
+				return err
+			}
+
+			key.OverrideSecret = true
+			err = d.UpdateAccessKey(key)
+
+			if err != nil && !errors.Is(err, db.ErrNotFound) {
+				return err
+			}
+		}
+	}
+
+	return
 }
