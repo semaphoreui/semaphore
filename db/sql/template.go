@@ -112,6 +112,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.allow_override_args_in_task",
 		"pt.vault_key_id",
 		"pt.view_id",
+		"pt.start_version",
 		"pt.`type`").
 		From("project__template pt")
 
