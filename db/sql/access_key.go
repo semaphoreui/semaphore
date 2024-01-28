@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+	"errors"
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
@@ -115,7 +116,7 @@ func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
 			key.OverrideSecret = true
 			err = d.UpdateAccessKey(key)
 
-			if err != nil {
+			if err != nil && !errors.Is(err, db.ErrNotFound) {
 				return err
 			}
 		}

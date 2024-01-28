@@ -235,6 +235,14 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 		q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
 	}
 
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
+	}
+
+	if params.Offset > 0 {
+		q = q.Offset(uint64(params.Offset))
+	}
+
 	query, args, err := q.ToSql()
 
 	if err != nil {
