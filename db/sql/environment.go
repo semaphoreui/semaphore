@@ -16,7 +16,7 @@ func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectR
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
 	var environment []db.Environment
-	err := d.getObjects(projectID, db.EnvironmentProps, params, &environment)
+	err := d.getProjectObjects(projectID, db.EnvironmentProps, params, &environment)
 	return environment, err
 }
 
