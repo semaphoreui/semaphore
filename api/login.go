@@ -475,13 +475,38 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		userInfo, err = _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
 
 		if err == nil {
-			claims.email = userInfo.Email
-			claims.username = getRandomUsername()
+			switch pid {
+			case "github":
+				type githubClaims struct {
+					Login string `json:"login"`
+					Email string `json:"email"`
+					Name  string `json:"name"`
+				}
 
-			if userInfo.Profile != "" {
-				claims.name = userInfo.Profile
-			} else {
-				claims.name = getRandomProfileName()
+				var rawClaims githubClaims
+
+				if err := userInfo.Claims(&rawClaims); err != nil {
+					log.Error(err.Error())
+					http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+					return
+				}
+
+				claims.email = rawClaims.Email
+				claims.username = rawClaims.Login
+				claims.name = rawClaims.Name
+
+				if claims.email == "" {
+					claims.email = fmt.Sprintf("%s@users.noreply.github.com", rawClaims.Login)
+				}
+			default:
+				claims.email = userInfo.Email
+				claims.username = getRandomUsername()
+
+				if userInfo.Profile != "" {
+					claims.name = userInfo.Profile
+				} else {
+					claims.name = getRandomProfileName()
+				}
 			}
 		}
 	}
