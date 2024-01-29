@@ -584,6 +584,10 @@ const LANGUAGES = {
     flag: '🇨🇳',
     title: '简体中文',
   },
+  zh_hant: {
+    flag: '🇹🇼',
+    title: '繁體中文',
+  },
   fr: {
     flag: '🇫🇷',
     title: 'French',
