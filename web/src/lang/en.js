@@ -232,5 +232,7 @@ export default {
   Build: 'Build',
   Deploy: 'Deploy',
   Run: 'Run',
+  CreateDemoProject: 'Create Demo Project',
+  LeaveProject: 'Leave Project'
 
 };

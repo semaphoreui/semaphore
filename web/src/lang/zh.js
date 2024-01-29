@@ -133,6 +133,7 @@ export default {
   author: '关联用户',
   duration: '说明',
   stop: '停止',
+  forceStop: '强制删除',
   deleteTeamMember: '删除团队成员',
   team2: '团队',
   newTeamMember: '新增团队成员',
@@ -231,5 +232,7 @@ export default {
   Build: '编译',
   Deploy: '部署',
   Run: '运行',
+  CreateDemoProject: '创建模板项目',
+  LeaveProject: '离开项目'
 
 };
