@@ -580,9 +580,9 @@ const LANGUAGES = {
     flag: '🇩🇪',
     title: 'German',
   },
-  zh: {
+  zh_cn: {
     flag: '🇨🇳',
-    title: 'Chinese',
+    title: 'Simplified Chinese',
   },
   fr: {
     flag: '🇫🇷',

@@ -6,7 +6,7 @@ export default {
   askDeleteInv: '您确实要删除此主机配置吗？',
   askDeleteKey: '您确定要删除此密钥吗？',
   askDeleteRepo: '您确定要删除此存储库吗？',
-  askDeleteProj: '您确定要删除此项目吗?',
+  askDeleteProj: '您确定要删除此项目吗？',
   askDeleteTMem: '您确定要删除此团队成员吗？',
   edit: '编辑',
   nnew: '新建',
