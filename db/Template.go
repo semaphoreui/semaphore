@@ -15,7 +15,7 @@ const (
 type TemplateApp string
 
 const (
-	TemplateAnsible   = ""
+	TemplateAnsible   = "ansible"
 	TemplateTerraform = "terraform"
 )
 
