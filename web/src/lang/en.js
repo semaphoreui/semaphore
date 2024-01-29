@@ -233,6 +233,6 @@ export default {
   Deploy: 'Deploy',
   Run: 'Run',
   CreateDemoProject: 'Create Demo Project',
-  LeaveProject: 'Leave Project'
+  LeaveProject: 'Leave Project',
 
 };

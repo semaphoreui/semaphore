@@ -233,6 +233,6 @@ export default {
   Deploy: '部署',
   Run: '运行',
   CreateDemoProject: '创建模板项目',
-  LeaveProject: '离开项目'
+  LeaveProject: '离开项目',
 
 };
