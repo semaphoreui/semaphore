@@ -12,7 +12,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-type LocalJobApp interface {
+type LocalApp interface {
 	SetLogger(logger lib.Logger)
 	InstallRequirements() error
 	Run(args []string, environmentVars *[]string, cb func(*os.Process)) error
@@ -27,7 +27,7 @@ type LocalJob struct {
 	Environment db.Environment
 	Logger      lib.Logger
 
-	App LocalJobApp
+	App LocalApp
 
 	// Internal field
 	Process *os.Process
