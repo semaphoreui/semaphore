@@ -480,6 +480,8 @@ definitions:
         example: false
       suppress_success_alerts:
         type: boolean
+      app:
+        type: string
   TemplateSurveyVar:
     type: object
     properties:
