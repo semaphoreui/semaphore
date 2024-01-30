@@ -63,7 +63,13 @@ func (t *TerraformApp) SetLogger(logger lib.Logger) {
 }
 
 func (t *TerraformApp) InstallRequirements() error {
-	return nil
+	cmd := t.makeCmd("terraform", []string{"init"}, nil)
+	t.Logger.LogCmd(cmd)
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+	return cmd.Wait()
 }
 
 func (t *TerraformApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
