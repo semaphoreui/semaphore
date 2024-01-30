@@ -10,19 +10,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
-	"github.com/ansible-semaphore/semaphore/util"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
+	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type jobLogRecord struct {
@@ -157,7 +158,6 @@ func (p *runningJob) LogCmd(cmd *exec.Cmd) {
 }
 
 func (p *runningJob) logPipe(reader *bufio.Reader) {
-
 	line, err := tasks.Readln(reader)
 	for err == nil {
 		p.Log(line)
@@ -165,10 +165,9 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 	}
 
 	if err != nil && err.Error() != "EOF" {
-		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
+		// don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
 		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read TaskRunner output"})
 	}
-
 }
 
 func (p *JobPool) Run() {
@@ -203,7 +202,7 @@ func (p *JobPool) Run() {
 
 			t := p.queue[0]
 			if t.status == lib.TaskFailStatus {
-				//delete failed TaskRunner from queue
+				// delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
 				break
@@ -244,7 +243,6 @@ func (p *JobPool) Run() {
 		case <-requestTimer.C:
 
 			go func() {
-
 				if !atomic.CompareAndSwapInt32(&p.processing, 0, 1) {
 					return
 				}
@@ -265,7 +263,6 @@ func (p *JobPool) Run() {
 }
 
 func (p *JobPool) sendProgress() {
-
 	client := &http.Client{}
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
@@ -319,7 +316,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
 
 		runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
-
 		if err != nil {
 			panic(err)
 		}
@@ -388,7 +384,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return false
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return false
@@ -402,7 +398,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 	}
 
 	configBytes, err := json.Marshal(config)
-
 	if err != nil {
 		panic("cannot save runner config")
 	}
@@ -418,7 +413,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
-
 	client := &http.Client{}
 
 	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
@@ -433,7 +427,6 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	resp, err := client.Do(req)
-
 	if err != nil {
 		fmt.Println("Error making request:", err)
 		return
@@ -446,7 +439,7 @@ func (p *JobPool) checkNewJobs() {
 
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error("Checking new jobs, error reading response body:", err)
 		return

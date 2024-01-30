@@ -28,7 +28,7 @@ var h = hub{
 	connections: make(map[*connection]bool),
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (h *hub) run() {
 	for {
 		select {

@@ -10,7 +10,7 @@ type userArgs struct {
 	name     string
 	email    string
 	password string
-	admin	 bool
+	admin    bool
 }
 
 var targetUserArgs userArgs

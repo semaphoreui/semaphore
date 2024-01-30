@@ -1,9 +1,10 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"io/ioutil"
+	"os"
 	"strconv"
+
+	"github.com/ansible-semaphore/semaphore/db"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -39,7 +40,7 @@ func (t *LocalJob) installStaticInventory() error {
 	}
 
 	// create inventory file
-	return ioutil.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
+	return os.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
 }
 
 func (t *LocalJob) destroyKeys() {

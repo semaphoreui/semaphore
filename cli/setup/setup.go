@@ -2,7 +2,6 @@ package setup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -151,7 +150,7 @@ func SaveConfig(config *util.ConfigType) (configPath string) {
 	}
 
 	configPath = filepath.Join(configDirectory, "config.json")
-	if err = ioutil.WriteFile(configPath, bytes, 0644); err != nil {
+	if err = os.WriteFile(configPath, bytes, 0644); err != nil {
 		panic(err)
 	}
 

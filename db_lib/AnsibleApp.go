@@ -3,12 +3,12 @@ package db_lib
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/lib"
 )
 
 func getMD5Hash(filepath string) (string, error) {
@@ -26,7 +26,7 @@ func getMD5Hash(filepath string) (string, error) {
 }
 
 func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
-	oldFileMD5HashBytes, err := ioutil.ReadFile(requirementsHashFilePath)
+	oldFileMD5HashBytes, err := os.ReadFile(requirementsHashFilePath)
 	if err != nil {
 		return true
 	}
@@ -45,7 +45,7 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
+	return os.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
 }
 
 type AnsibleApp struct {
