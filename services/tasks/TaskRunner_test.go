@@ -58,10 +58,15 @@ func TestTaskRunnerRun(t *testing.T) {
 		Repository:  taskRunner.Repository,
 		Environment: taskRunner.Environment,
 		Logger:      &taskRunner,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &taskRunner,
-			TemplateID: taskRunner.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   taskRunner.Template,
 			Repository: taskRunner.Repository,
+			Logger:     &taskRunner,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &taskRunner,
+				TemplateID: taskRunner.Template.ID,
+				Repository: taskRunner.Repository,
+			},
 		},
 	}
 	taskRunner.run()
@@ -95,14 +100,19 @@ func TestGetRepoPath(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &tsk,
-			TemplateID: tsk.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
 			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
 		},
 	}
 
-	dir := tsk.job.(*LocalJob).getPlaybookDir()
+	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -136,14 +146,19 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &tsk,
-			TemplateID: tsk.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
 			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
 		},
 	}
 
-	dir := tsk.job.(*LocalJob).getPlaybookDir()
+	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
 	if dir != "/tmp/repository_0_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -223,10 +238,15 @@ func TestPopulateDetails(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &tsk,
-			TemplateID: tsk.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
 			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
 		},
 	}
 
@@ -267,10 +287,15 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &tsk,
-			TemplateID: tsk.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
 			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
 		},
 	}
 
@@ -318,10 +343,15 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &tsk,
-			TemplateID: tsk.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
 			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
 		},
 	}
 
@@ -369,10 +399,15 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		Repository:  tsk.Repository,
 		Environment: tsk.Environment,
 		Logger:      &tsk,
-		Playbook: &db_lib.AnsiblePlaybook{
-			Logger:     &tsk,
-			TemplateID: tsk.Template.ID,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
 			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
 		},
 	}
 

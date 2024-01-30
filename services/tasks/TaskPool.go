@@ -351,17 +351,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 
 	if util.Config.UseRemoteRunner {
 		job = &RemoteJob{
-			Task:        taskRunner.Task,
-			Template:    taskRunner.Template,
-			Inventory:   taskRunner.Inventory,
-			Repository:  taskRunner.Repository,
-			Environment: taskRunner.Environment,
-			Logger:      &taskRunner,
-			Playbook: &db_lib.AnsiblePlaybook{
-				Logger:     &taskRunner,
-				TemplateID: taskRunner.Template.ID,
-				Repository: taskRunner.Repository,
-			},
+			Task:     taskRunner.Task,
 			taskPool: p,
 		}
 	} else {
@@ -372,10 +362,15 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			Repository:  taskRunner.Repository,
 			Environment: taskRunner.Environment,
 			Logger:      &taskRunner,
-			Playbook: &db_lib.AnsiblePlaybook{
-				Logger:     &taskRunner,
-				TemplateID: taskRunner.Template.ID,
+			App: &db_lib.AnsibleApp{
+				Template:   taskRunner.Template,
 				Repository: taskRunner.Repository,
+				Logger:     &taskRunner,
+				Playbook: &db_lib.AnsiblePlaybook{
+					Logger:     &taskRunner,
+					TemplateID: taskRunner.Template.ID,
+					Repository: taskRunner.Repository,
+				},
 			},
 		}
 	}
