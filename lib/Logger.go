@@ -8,13 +8,15 @@ import (
 type TaskStatus string
 
 const (
-	TaskWaitingStatus  TaskStatus = "waiting"
-	TaskStartingStatus TaskStatus = "starting"
-	TaskRunningStatus  TaskStatus = "running"
-	TaskStoppingStatus TaskStatus = "stopping"
-	TaskStoppedStatus  TaskStatus = "stopped"
-	TaskSuccessStatus  TaskStatus = "success"
-	TaskFailStatus     TaskStatus = "error"
+	TaskWaitingStatus       TaskStatus = "waiting"
+	TaskStartingStatus      TaskStatus = "starting"
+	TaskWaitingConfirmation TaskStatus = "waiting_confirmation"
+	TaskConfirmed           TaskStatus = "confirmed"
+	TaskRunningStatus       TaskStatus = "running"
+	TaskStoppingStatus      TaskStatus = "stopping"
+	TaskStoppedStatus       TaskStatus = "stopped"
+	TaskSuccessStatus       TaskStatus = "success"
+	TaskFailStatus          TaskStatus = "error"
 )
 
 func (s TaskStatus) IsFinished() bool {

@@ -15,7 +15,8 @@ const (
 type TemplateApp string
 
 const (
-	TemplateAnsible = ""
+	TemplateAnsible   = ""
+	TemplateTerraform = "terraform"
 )
 
 type SurveyVarType string

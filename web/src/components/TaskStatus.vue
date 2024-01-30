@@ -11,6 +11,8 @@ import IndeterminateProgressCircular from '@/components/IndeterminateProgressCir
 const TaskStatus = Object.freeze({
   WAITING: 'waiting',
   STARTING: 'starting',
+  WAITING_CONFIRMATION: 'waiting_confirmation',
+  CONFIRMED: 'confirmed',
   RUNNING: 'running',
   SUCCESS: 'success',
   ERROR: 'error',
