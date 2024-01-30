@@ -16,6 +16,8 @@ type ScheduleRunner struct {
 	pool       *SchedulePool
 }
 
+var singleConnectionScheduleLocker sync.Locker
+
 func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updated bool, err error) {
 	repo, err := r.pool.store.GetRepository(schedule.ProjectID, *schedule.RepositoryID)
 	if err != nil {
@@ -53,7 +55,9 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 
 func (r ScheduleRunner) Run() {
 	if !r.pool.store.PermanentConnection() {
+		singleConnectionScheduleLocker.Lock()
 		r.pool.store.Connect("schedule")
+		defer singleConnectionScheduleLocker.Unlock()
 		defer r.pool.store.Close("schedule")
 	}
 
@@ -155,6 +159,7 @@ func CreateSchedulePool(store db.Store, taskPool *tasks.TaskPool) SchedulePool {
 		store:    store,
 		taskPool: taskPool,
 	}
+	singleConnectionScheduleLocker = &sync.Mutex{}
 	pool.init()
 	pool.Refresh()
 	return pool
