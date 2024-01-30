@@ -17,8 +17,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
 			"name, playbook, arguments, allow_override_args_in_task, description, vault_key_id, `type`, start_version,"+
-			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts, app)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -35,7 +35,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.ViewID,
 		template.Autorun,
 		db.ObjectToJSON(template.SurveyVars),
-		template.SuppressSuccessAlerts)
+		template.SuppressSuccessAlerts,
+		template.App)
 
 	if err != nil {
 		return
@@ -76,7 +77,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"view_id=?, "+
 		"autorun=?, "+
 		"survey_vars=?, "+
-		"suppress_success_alerts=? "+
+		"suppress_success_alerts=?, "+
+		"app=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -94,6 +96,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.Autorun,
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
+		template.App,
 		template.ID,
 		template.ProjectID,
 	)
@@ -112,6 +115,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.allow_override_args_in_task",
 		"pt.vault_key_id",
 		"pt.view_id",
+		"pt.`app`",
 		"pt.start_version",
 		"pt.`type`").
 		From("project__template pt")
