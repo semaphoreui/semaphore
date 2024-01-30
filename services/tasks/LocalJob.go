@@ -12,12 +12,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-type LocalApp interface {
-	SetLogger(logger lib.Logger)
-	InstallRequirements() error
-	Run(args []string, environmentVars *[]string, cb func(*os.Process)) error
-}
-
 type LocalJob struct {
 	// Received constant fields
 	Task        db.Task
@@ -27,7 +21,7 @@ type LocalJob struct {
 	Environment db.Environment
 	Logger      lib.Logger
 
-	App LocalApp
+	App db_lib.LocalApp
 
 	// Internal field
 	Process *os.Process
@@ -55,7 +49,45 @@ func (t *LocalJob) SetStatus(status lib.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
-func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (str string, err error) {
+func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]interface{}, err error) {
+
+	extraVars = make(map[string]interface{})
+
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
+		if err != nil {
+			return
+		}
+	}
+
+	taskDetails := make(map[string]interface{})
+
+	taskDetails["id"] = t.Task.ID
+
+	if t.Task.Message != "" {
+		taskDetails["message"] = t.Task.Message
+	}
+
+	taskDetails["username"] = username
+
+	if t.Template.Type != db.TemplateTask {
+		taskDetails["type"] = t.Template.Type
+		if incomingVersion != nil {
+			taskDetails["incoming_version"] = incomingVersion
+		}
+		if t.Template.Type == db.TemplateBuild {
+			taskDetails["target_version"] = t.Task.Version
+		}
+	}
+
+	vars := make(map[string]interface{})
+	vars["task_details"] = taskDetails
+	extraVars["semaphore_vars"] = vars
+
+	return
+}
+
+func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]interface{})
 
 	if t.Environment.JSON != "" {
@@ -111,6 +143,32 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 
 	for key, val := range environmentVars {
 		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	return
+}
+
+// nolint: gocyclo
+func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, err error) {
+
+	args = []string{}
+
+	if t.Task.DryRun {
+		args = append(args, "plan")
+	} else {
+		args = append(args, "apply")
+	}
+
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+
+	if err != nil {
+		t.Log(err.Error())
+		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		return
+	}
+
+	for v := range extraVars {
+		args = append(args, "-var", v)
 	}
 
 	return
@@ -184,7 +242,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--vault-password-file", t.vaultFileInstallation.GetPath())
 	}
 
-	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
 	if err != nil {
 		t.Log(err.Error())
 		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
@@ -235,7 +293,15 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		t.destroyKeys()
 	}()
 
-	args, err := t.getPlaybookArgs(username, incomingVersion)
+	var args []string
+
+	switch t.Template.App {
+	case db.TemplateAnsible:
+		args, err = t.getPlaybookArgs(username, incomingVersion)
+	default:
+		panic("unknown template app")
+	}
+
 	if err != nil {
 		return
 	}

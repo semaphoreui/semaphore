@@ -498,14 +498,7 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				App: &db_lib.AnsibleApp{
-					Template:   newJob.Template,
-					Repository: newJob.Repository,
-					Playbook: &db_lib.AnsiblePlaybook{
-						TemplateID: newJob.Template.ID,
-						Repository: newJob.Repository,
-					},
-				},
+				App:         db_lib.CreateApp(newJob.Template, newJob.Repository),
 			},
 		}
 
