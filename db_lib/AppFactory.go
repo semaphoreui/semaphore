@@ -15,6 +15,15 @@ func CreateApp(template db.Template, repository db.Repository) LocalApp {
 				Repository: repository,
 			},
 		}
+	case db.TemplateTerraform:
+		return &TerraformApp{
+			Template:   template,
+			Repository: repository,
+			Playbook: &AnsiblePlaybook{
+				TemplateID: template.ID,
+				Repository: repository,
+			},
+		}
 	default:
 		panic("unknown app")
 	}

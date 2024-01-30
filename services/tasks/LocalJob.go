@@ -298,6 +298,8 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	switch t.Template.App {
 	case db.TemplateAnsible:
 		args, err = t.getPlaybookArgs(username, incomingVersion)
+	case db.TemplateTerraform:
+		args, err = t.getTerraformArgs(username, incomingVersion)
 	default:
 		panic("unknown template app")
 	}
