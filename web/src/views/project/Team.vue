@@ -34,7 +34,7 @@
         @click="leftProject()"
         class="mr-2"
         :disabled="userRole === 'owner'"
-      >Leave Project
+      >{{ $t('LeaveProject') }}
       </v-btn>
       <v-btn
         color="primary"
