@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -377,13 +378,7 @@ type oidcClaimResult struct {
 	email    string
 }
 
-func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidcClaimResult, err error) {
-
-	claims := make(map[string]interface{})
-	if err = idToken.Claims(&claims); err != nil {
-		return
-	}
-
+func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
 	var ok bool
 
 	res.email, ok = claims[provider.EmailClaim].(string)
@@ -393,17 +388,22 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 
 		if provider.EmailSuffix == "" {
 			err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+			return
 		}
 
-		username, ok = claims[provider.UsernameClaim].(string)
-
-		if !ok {
-			err = fmt.Errorf("claim '%s' and '%s' missing from id_token or not a string", provider.EmailClaim, provider.UsernameClaim)
+		switch claims[provider.UsernameClaim].(type) {
+		case float64:
+			username = strconv.FormatFloat(claims[provider.UsernameClaim].(float64), 'f', -1, 64)
+		case string:
+			username = claims[provider.UsernameClaim].(string)
+		default:
+			err = fmt.Errorf("claim '%s' missing from id_token or not a string or an number", provider.UsernameClaim)
+			b, _ := json.MarshalIndent(claims, "", "  ")
+			fmt.Print(string(b))
+			return
 		}
 
 		res.email = username + "@" + provider.EmailSuffix
-
-		return
 	}
 
 	res.username = getRandomUsername()
@@ -414,6 +414,26 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 	}
 
 	return
+}
+
+func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res oidcClaimResult, err error) {
+
+	claims := make(map[string]interface{})
+	if err = userInfo.Claims(&claims); err != nil {
+		return
+	}
+
+	return parseClaims(claims, provider)
+}
+
+func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidcClaimResult, err error) {
+
+	claims := make(map[string]interface{})
+	if err = idToken.Claims(&claims); err != nil {
+		return
+	}
+
+	return parseClaims(claims, provider)
 }
 
 func getRandomUsername() string {
@@ -489,14 +509,18 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		userInfo, err = _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
 
 		if err == nil {
-			claims.email = userInfo.Email
-			claims.username = getRandomUsername()
 
-			if userInfo.Profile != "" {
-				claims.name = userInfo.Profile
+			if userInfo.Email == "" {
+				claims, err = claimOidcUserInfo(userInfo, provider)
 			} else {
-				claims.name = getRandomProfileName()
+				claims.email = userInfo.Email
+				claims.name = userInfo.Profile
 			}
+		}
+
+		claims.username = getRandomUsername()
+		if userInfo.Profile == "" {
+			claims.name = getRandomProfileName()
 		}
 	}
 
