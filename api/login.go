@@ -388,42 +388,47 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 
 	res.email, ok = claims[provider.EmailClaim].(string)
 	if !ok {
-		err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+
+		var username string
+
+		if provider.EmailSuffix == "" {
+			err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+		}
+
+		username, ok = claims[provider.UsernameClaim].(string)
+
+		if !ok {
+			err = fmt.Errorf("claim '%s' and '%s' missing from id_token or not a string", provider.EmailClaim, provider.UsernameClaim)
+		}
+
+		res.email = username + "@" + provider.EmailSuffix
+
 		return
 	}
 
-	res.username = getUsernameFromEmail(res.email)
+	res.username = getRandomUsername()
 
 	res.name, ok = claims[provider.NameClaim].(string)
 	if !ok || res.name == "" {
-		res.name = getProfileNameFromEmail(res.email)
+		res.name = getRandomProfileName()
 	}
 
 	return
 }
 
-func extractUsernameFromEmail(email string) string {
-	parts := strings.Split(email, "@")
-	if len(parts) > 0 {
-		return parts[0]
+func getRandomUsername() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := ""
+	for i := 0; i < 16; i++ {
+		index := r.Intn(len(chars))
+		result += chars[index : index+1]
 	}
-	return ""
+	return result
 }
 
-func getUsernameFromEmail(email string) string {
-	username := extractUsernameFromEmail(email)
-	suffix := util.RandString(12)
-	return username + "_" + suffix
-}
-
-func getProfileNameFromEmail(email string) string {
-	username := extractUsernameFromEmail(email)
-
-	runes := []rune(username)
-
-	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
-
-	return string(runes)
+func getRandomProfileName() string {
+	return "Anonymous"
 }
 
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
@@ -485,12 +490,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil {
 			claims.email = userInfo.Email
-			claims.username = getUsernameFromEmail(claims.email)
+			claims.username = getRandomUsername()
 
 			if userInfo.Profile != "" {
 				claims.name = userInfo.Profile
 			} else {
-				claims.name = getProfileNameFromEmail(claims.email)
+				claims.name = getRandomProfileName()
 			}
 		}
 	}
