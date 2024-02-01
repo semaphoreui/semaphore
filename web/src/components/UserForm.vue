@@ -33,7 +33,12 @@
       :rules="[v => !!v || $t('email_required')]"
       required
       :disabled="item.external || formSaving"
-    ></v-text-field>
+    >
+
+      <template v-slot:append>
+        <v-chip outlined color="green" disabled small style="opacity: 1">private</v-chip>
+      </template>
+    </v-text-field>
 
     <v-text-field
       v-model="item.password"
