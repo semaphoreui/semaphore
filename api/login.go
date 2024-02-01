@@ -388,7 +388,24 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 
 	res.email, ok = claims[provider.EmailClaim].(string)
 	if !ok {
-		err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+
+		var username string
+		var emailSuffix string
+
+		emailSuffix, ok = claims[provider.UsernameClaim].(string)
+
+		if provider.EmailSuffix == "" {
+			err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+		}
+
+		username, ok = claims[provider.UsernameClaim].(string)
+
+		if !ok {
+			err = fmt.Errorf("claim '%s' and '%s' missing from id_token or not a string", provider.EmailClaim, provider.UsernameClaim)
+		}
+
+		res.email = username + "@" + emailSuffix
+
 		return
 	}
 
