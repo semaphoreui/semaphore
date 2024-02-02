@@ -191,7 +191,7 @@ export default {
   status: 'Status',
   start: 'Start',
   actions: 'Aktionen',
-  alert: 'Aarm',
+  alert: 'Alarm',
   admin: 'Admin',
   role: 'Rolle',
   external: 'Extern',

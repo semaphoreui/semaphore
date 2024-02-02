@@ -74,6 +74,7 @@ type OidcProvider struct {
 	UsernameClaim    string       `json:"username_claim" default:"preferred_username"`
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
+	EmailSuffix      string       `json:"email_suffix"`
 }
 
 const (
@@ -113,7 +114,7 @@ type ConfigType struct {
 	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
 
-	Dialect string `json:"dialect" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -171,6 +172,8 @@ type ConfigType struct {
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
 
+	MaxTaskDurationSec int `json:"max_task_duration_sec" env:"MAX_TASK_DURATION_SEC"`
+
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
@@ -183,8 +186,6 @@ type ConfigType struct {
 	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
-
-	BillingEnabled bool `json:"billing_enabled"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -333,7 +334,7 @@ func castStringToInt(value string) int {
 func castStringToBool(value string) bool {
 
 	var valueBool bool
-	if value == "1" || strings.ToLower(value) == "true" {
+	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
 		valueBool = true
 	} else {
 		valueBool = false

@@ -2,7 +2,6 @@ import Vue from 'vue';
 import VueRouter from 'vue-router';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
-import Billing from '../views/project/Billing.vue';
 import Settings from '../views/project/Settings.vue';
 import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
@@ -37,10 +36,6 @@ const routes = [
   {
     path: '/project/:projectId/settings',
     component: Settings,
-  },
-  {
-    path: '/project/:projectId/billing',
-    component: Billing,
   },
   {
     path: '/project/:projectId/templates',

@@ -22,12 +22,10 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	var user struct {
 		db.User
 		CanCreateProject bool `json:"can_create_project"`
-		Billing          bool `json:"billing"`
 	}
 
 	user.User = *context.Get(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
-	user.Billing = util.Config.BillingEnabled
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }

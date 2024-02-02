@@ -15,11 +15,6 @@
       >
         {{ $t('settings') }}
       </v-tab>
-      <v-tab
-        v-if="(user || {}).billing && userRole === 'owner'"
-        key="billing"
-        :to="`/project/${projectId}/billing`"
-      >Billing <v-chip color="red" x-small dark class="ml-1">Soon</v-chip></v-tab>
     </v-tabs>
 
     <v-data-table
@@ -36,14 +31,9 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import { USER_PERMISSIONS } from '@/lib/constants';
 
 export default {
-  computed: {
-    USER_PERMISSIONS() {
-      return USER_PERMISSIONS;
-    },
-  },
+
   mixins: [ItemListPageBase],
 
   methods: {

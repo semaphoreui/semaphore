@@ -98,7 +98,7 @@ func (key *AccessKey) startSshAgent(logger lib.Logger) (lib.SshAgent, error) {
 				Passphrase: []byte(key.SshKey.Passphrase),
 			},
 		},
-		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", time.Now().Unix(), 0)),
+		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", key.ID, time.Now().Unix())),
 	}
 
 	return sshAgent, sshAgent.Listen()
@@ -143,7 +143,9 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 		switch key.Type {
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
-			content["ansible_become_user"] = key.LoginPassword.Login
+			if len(key.LoginPassword.Login) > 0 {
+				content["ansible_become_user"] = key.LoginPassword.Login
+			}
 			content["ansible_become_password"] = key.LoginPassword.Password
 			var bytes []byte
 			bytes, err = json.Marshal(content)

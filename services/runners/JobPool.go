@@ -205,7 +205,7 @@ func (p *JobPool) Run() {
 			if t.status == lib.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
+				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
 				break
 			}
 
@@ -213,7 +213,7 @@ func (p *JobPool) Run() {
 				job: t.job,
 			}
 			t.job.Logger = p.runningJobs[t.job.Task.ID]
-			t.job.Playbook.Logger = t.job.Logger
+			t.job.App.SetLogger(t.job.Logger)
 
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(lib.TaskRunningStatus)
@@ -233,10 +233,13 @@ func (p *JobPool) Run() {
 				} else {
 					runningJob.SetStatus(lib.TaskSuccessStatus)
 				}
+
+				log.Info("Task " + strconv.Itoa(runningJob.job.Task.ID) + " finished (" + string(runningJob.status) + ")")
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
-			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " removed from queue")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued")
+			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " started")
 
 		case <-requestTimer.C:
 
@@ -282,6 +285,7 @@ func (p *JobPool) sendProgress() {
 		j.logRecords = make([]LogRecord, 0)
 
 		if j.status.IsFinished() {
+			log.Info("Task " + strconv.Itoa(id) + " removed from running list")
 			delete(p.runningJobs, id)
 		}
 	}
@@ -293,6 +297,8 @@ func (p *JobPool) sendProgress() {
 		fmt.Println("Error creating request:", err)
 		return
 	}
+
+	req.Header.Set("X-API-Token", p.config.Token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -309,6 +315,26 @@ func (p *JobPool) tryRegisterRunner() bool {
 	}
 
 	log.Info("Trying to register on server")
+
+	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
+
+		runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
+
+		if err != nil {
+			panic(err)
+		}
+
+		if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
+			panic(fmt.Errorf("runner token required"))
+		}
+
+		p.config = &RunnerConfig{
+			RunnerID: runnerId,
+			Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
+		}
+
+		return true
+	}
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
@@ -352,13 +378,13 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		log.Error("Error creating request:", err)
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("Error making request:", err)
+		log.Error("Error making request:", err)
 		return false
 	}
 
@@ -399,28 +425,37 @@ func (p *JobPool) checkNewJobs() {
 
 	req, err := http.NewRequest("GET", url, nil)
 
+	req.Header.Set("X-API-Token", p.config.Token)
+
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
 	}
 
 	resp, err := client.Do(req)
+
 	if err != nil {
 		fmt.Println("Error making request:", err)
 		return
 	}
+
+	if resp.StatusCode >= 400 {
+		log.Error("Checking new jobs error, server returns code ", resp.StatusCode)
+		return
+	}
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		log.Error("Checking new jobs, error reading response body:", err)
 		return
 	}
 
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		log.Error("Checking new jobs, parsing JSON error:", err)
 		return
 	}
 
@@ -463,10 +498,7 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				Playbook: &db_lib.AnsiblePlaybook{
-					TemplateID: newJob.Template.ID,
-					Repository: newJob.Repository,
-				},
+				App:         db_lib.CreateApp(newJob.Template, newJob.Repository),
 			},
 		}
 
@@ -485,6 +517,6 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		p.queue = append(p.queue, &taskRunner)
-		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " added from queue")
+		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " enqueued")
 	}
 }

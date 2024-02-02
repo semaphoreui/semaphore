@@ -209,14 +209,16 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 	return
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}, ignoreProjectId bool) (err error) {
 	q := squirrel.Select("*").
 		From(props.TableName + " pe")
 
-	if props.IsGlobal {
-		q = q.Where("pe.project_id is null")
-	} else {
-		q = q.Where("pe.project_id=?", projectID)
+	if !ignoreProjectId {
+		if props.IsGlobal {
+			q = q.Where("pe.project_id is null")
+		} else {
+			q = q.Where("pe.project_id=?", projectID)
+		}
 	}
 
 	orderDirection := "ASC"
@@ -233,6 +235,14 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 		q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
 	}
 
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
+	}
+
+	if params.Offset > 0 {
+		q = q.Offset(uint64(params.Offset))
+	}
+
 	query, args, err := q.ToSql()
 
 	if err != nil {
@@ -242,6 +252,10 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 	_, err = d.selectAll(objects, query, args...)
 
 	return
+}
+
+func (d *SqlDb) getProjectObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+	return d.getObjects(projectID, props, params, objects, false)
 }
 
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {

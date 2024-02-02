@@ -1,12 +1,8 @@
 package tasks
 
 import (
-	"crypto/md5"
 	"encoding/json"
-	"fmt"
 	"github.com/ansible-semaphore/semaphore/lib"
-	"io"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -41,20 +37,6 @@ type TaskRunner struct {
 	RunnerID        int
 	Username        string
 	IncomingVersion *string
-}
-
-func getMD5Hash(filepath string) (string, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
@@ -336,29 +318,6 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	return nil
-}
-
-func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
-	oldFileMD5HashBytes, err := ioutil.ReadFile(requirementsHashFilePath)
-	if err != nil {
-		return true
-	}
-
-	newFileMD5Hash, err := getMD5Hash(requirementsFilePath)
-	if err != nil {
-		return true
-	}
-
-	return string(oldFileMD5HashBytes) != newFileMD5Hash
-}
-
-func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
-	newFileMD5Hash, err := getMD5Hash(requirementsFile)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
 }
 
 // checkTmpDir checks to see if the temporary directory exists

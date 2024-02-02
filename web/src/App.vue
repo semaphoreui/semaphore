@@ -568,6 +568,10 @@ const LANGUAGES = {
     flag: '🇺🇸',
     title: 'English',
   },
+  es: {
+    flag: '🇨🇱',
+    title: 'Español',
+  },
   ru: {
     flag: '🇷🇺',
     title: 'Russian',
@@ -576,17 +580,33 @@ const LANGUAGES = {
     flag: '🇩🇪',
     title: 'German',
   },
-  zh: {
+  zh_hans: {
     flag: '🇨🇳',
-    title: 'Chinese',
+    title: '简体中文',
+  },
+  zh_hant: {
+    flag: '🇹🇼',
+    title: '繁體中文',
   },
   fr: {
     flag: '🇫🇷',
     title: 'French',
   },
+  it: {
+    flag: '🇮🇹',
+    title: 'Italian',
+  },
+  pl: {
+    flag: '🇵🇱️',
+    title: 'Polish',
+  },
   pt: {
     flag: '🇵🇹',
     title: 'Portuguese',
+  },
+  pt_br: {
+    flag: '🇧🇷',
+    title: 'Português do Brasil',
   },
 };
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
-	"path"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
@@ -20,8 +19,9 @@ type LocalJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Playbook    *db_lib.AnsiblePlaybook
 	Logger      lib.Logger
+
+	App db_lib.LocalApp
 
 	// Internal field
 	Process *os.Process
@@ -49,7 +49,45 @@ func (t *LocalJob) SetStatus(status lib.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
-func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (str string, err error) {
+func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]interface{}, err error) {
+
+	extraVars = make(map[string]interface{})
+
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
+		if err != nil {
+			return
+		}
+	}
+
+	taskDetails := make(map[string]interface{})
+
+	taskDetails["id"] = t.Task.ID
+
+	if t.Task.Message != "" {
+		taskDetails["message"] = t.Task.Message
+	}
+
+	taskDetails["username"] = username
+
+	if t.Template.Type != db.TemplateTask {
+		taskDetails["type"] = t.Template.Type
+		if incomingVersion != nil {
+			taskDetails["incoming_version"] = incomingVersion
+		}
+		if t.Template.Type == db.TemplateBuild {
+			taskDetails["target_version"] = t.Task.Version
+		}
+	}
+
+	vars := make(map[string]interface{})
+	vars["task_details"] = taskDetails
+	extraVars["semaphore_vars"] = vars
+
+	return
+}
+
+func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]interface{})
 
 	if t.Environment.JSON != "" {
@@ -105,6 +143,32 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 
 	for key, val := range environmentVars {
 		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	return
+}
+
+// nolint: gocyclo
+func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, err error) {
+
+	args = []string{}
+
+	if t.Task.DryRun {
+		args = append(args, "plan")
+	} else {
+		args = append(args, "apply")
+	}
+
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+
+	if err != nil {
+		t.Log(err.Error())
+		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		return
+	}
+
+	for v := range extraVars {
+		args = append(args, "-var", v)
 	}
 
 	return
@@ -178,7 +242,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--vault-password-file", t.vaultFileInstallation.GetPath())
 	}
 
-	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
 	if err != nil {
 		t.Log(err.Error())
 		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
@@ -229,7 +293,15 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		t.destroyKeys()
 	}()
 
-	args, err := t.getPlaybookArgs(username, incomingVersion)
+	var args []string
+
+	switch t.Template.App {
+	case db.TemplateAnsible:
+		args, err = t.getPlaybookArgs(username, incomingVersion)
+	default:
+		panic("unknown template app")
+	}
+
 	if err != nil {
 		return
 	}
@@ -253,7 +325,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
 	}
 
-	return t.Playbook.RunPlaybook(args, &environmentVariables, func(p *os.Process) {
+	return t.App.Run(args, &environmentVariables, func(p *os.Process) {
 		t.Process = p
 	})
 
@@ -288,7 +360,7 @@ func (t *LocalJob) prepareRun() error {
 		return err
 	}
 
-	if err := t.installRequirements(); err != nil {
+	if err := t.App.InstallRequirements(); err != nil {
 		t.Log("Running galaxy failed: " + err.Error())
 		return err
 	}
@@ -371,95 +443,6 @@ func (t *LocalJob) checkoutRepository() error {
 	//
 	//return t.pool.store.UpdateTask(t.task)
 	return nil
-}
-
-func (t *LocalJob) installRequirements() error {
-	if err := t.installCollectionsRequirements(); err != nil {
-		return err
-	}
-	if err := t.installRolesRequirements(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (t *LocalJob) getRepoPath() string {
-	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(),
-	}
-
-	return repo.GetFullPath()
-}
-
-func (t *LocalJob) installRolesRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
-	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
-
-	if _, err := os.Stat(requirementsFilePath); err != nil {
-		t.Log("No roles/requirements.yml file found. Skip galaxy install process.\n")
-		return nil
-	}
-
-	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy([]string{
-			"role",
-			"install",
-			"-r",
-			requirementsFilePath,
-			"--force",
-		}); err != nil {
-			return err
-		}
-		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
-			return err
-		}
-	} else {
-		t.Log("roles/requirements.yml has no changes. Skip galaxy install process.\n")
-	}
-
-	return nil
-}
-
-func (t *LocalJob) getPlaybookDir() string {
-	playbookPath := path.Join(t.getRepoPath(), t.Template.Playbook)
-
-	return path.Dir(playbookPath)
-}
-
-func (t *LocalJob) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.getPlaybookDir(), "collections", "requirements.yml")
-	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
-
-	if _, err := os.Stat(requirementsFilePath); err != nil {
-		t.Log("No collections/requirements.yml file found. Skip galaxy install process.\n")
-		return nil
-	}
-
-	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy([]string{
-			"collection",
-			"install",
-			"-r",
-			requirementsFilePath,
-			"--force",
-		}); err != nil {
-			return err
-		}
-		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
-			return err
-		}
-	} else {
-		t.Log("collections/requirements.yml has no changes. Skip galaxy install process.\n")
-	}
-
-	return nil
-}
-
-func (t *LocalJob) runGalaxy(args []string) error {
-	return t.Playbook.RunGalaxy(args)
 }
 
 func (t *LocalJob) installVaultKeyFile() (err error) {

@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine3.18
+FROM golang:1.20-alpine3.18
 
 ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}" \
@@ -27,7 +27,7 @@ RUN adduser -D -u 1002 -g 0 semaphore && \
     ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""       && \
     ssh-keyscan -H github.com > /root/.ssh/known_hosts
 
-RUN cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
+RUN cd $(go env GOPATH) && go install github.com/go-task/task/v3/cmd/task@latest
 
 RUN git config --global --add safe.directory /go/src/github.com/ansible-semaphore/semaphore
 
