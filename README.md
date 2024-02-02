@@ -16,7 +16,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 ## Installation
 
 ### Full documentation
-https://docs.ansible-semaphore.com/administration-guide/installation
+https://docs.semui.co/administration-guide/installation
 
 ### Snap
 
@@ -52,17 +52,17 @@ services:
 
 ## Demo
 
-You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
+You can test latest version of Semaphore on https://demo.semui.co.
 
 ## Docs
 
-Admin and user docs: https://docs.ansible-semaphore.com
+Admin and user docs: https://docs.semui.co.
 
-API description: https://ansible-semaphore.com/api-docs/
+API description: https://semui.co/api-docs/.
 
 ## Contributing
 
-If you want to write an article about Ansible or Semaphore, contact [@fiftin](https://github.com/fiftin) and we will place your article in our [Blog](https://www.ansible-semaphore.com/blog/) with link to your profile.
+If you want to write an article about Ansible or Semaphore, contact [@fiftin](https://github.com/fiftin) and we will place your article in our [Blog](https://semui.co/blog/) with link to your profile.
 
 PR's & UX reviews are welcome!
 
