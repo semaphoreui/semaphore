@@ -26,7 +26,7 @@ sudo semaphore user add --admin --name "Your Name" --login your_login --email yo
 ```
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
 
-### Docker 
+### Docker
 
 https://hub.docker.com/r/semaphoreui/semaphore
 
@@ -44,6 +44,7 @@ services:
       SEMAPHORE_ADMIN_NAME: admin
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ADMIN: admin
+      TZ: Europe/Berlin
     volumes:
       - /path/to/data/home:/etc/semaphore # config.json location
       - /path/to/data/lib:/var/lib/semaphore # database.boltdb location (Not required if using mysql or postgres)
