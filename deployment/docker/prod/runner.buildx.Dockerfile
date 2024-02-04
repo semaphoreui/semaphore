@@ -12,7 +12,7 @@ RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
 FROM alpine/ansible:latest
 
-RUN apk add --no-cache wget git rsync
+RUN apk add --no-cache wget git rsync tzdata
 
 RUN adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \

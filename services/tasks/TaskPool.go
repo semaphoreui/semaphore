@@ -361,7 +361,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			Repository:  taskRunner.Repository,
 			Environment: taskRunner.Environment,
 			Logger:      &taskRunner,
-			App:         db_lib.CreateApp(taskRunner.Template, taskRunner.Repository),
+			App:         db_lib.CreateApp(taskRunner.Template, taskRunner.Repository, &taskRunner),
 		}
 	}
 

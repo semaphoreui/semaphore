@@ -5,7 +5,7 @@ ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     APP_ROOT="/go/src/github.com/ansible-semaphore/semaphore/"
 
 # hadolint ignore=DL3013
-RUN apk add --no-cache gcc g++ sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client-default tini nodejs npm bash rsync && \
+RUN apk add --no-cache gcc g++ sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client-default tini nodejs npm bash rsync tzdata && \
     apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base &&\
     rm -rf /var/cache/apk/*
 
