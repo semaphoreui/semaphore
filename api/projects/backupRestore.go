@@ -26,14 +26,23 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 
 func Restore(w http.ResponseWriter, r *http.Request) {
 	var backup projectService.BackupFormat
+	var p *db.Project
+	var err error
+
 	if !helpers.Bind(w, r, &backup) {
 		helpers.WriteJSON(w, http.StatusBadRequest, backup)
 		return
 	}
-	if err := projectService.Restore(backup); err != nil {
-		log.Error(*err)
-		helpers.WriteError(w, (*err))
+	store := helpers.Store(r)
+	if err = backup.Verify(); err != nil {
+		log.Error(err)
+		helpers.WriteError(w, (err))
 		return
 	}
-	helpers.WriteJSON(w, http.StatusOK, nil)
+	if p, err = backup.Restore(store); err != nil {
+		log.Error(err)
+		helpers.WriteError(w, (err))
+		return
+	}
+	helpers.WriteJSON(w, http.StatusOK, p)
 }
