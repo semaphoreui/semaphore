@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -326,10 +327,24 @@ func getOidcProvider(id string, ctx context.Context) (*oidc.Provider, *oauth2.Co
 		}
 	}
 
+	clientID := provider.ClientID
+	if provider.ClientIDFile != "" {
+		if clientID, err = getSecretFromFile(provider.ClientIDFile); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	clientSecret := provider.ClientSecret
+	if provider.ClientSecretFile != "" {
+		if clientSecret, err = getSecretFromFile(provider.ClientSecretFile); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	oauthConfig := oauth2.Config{
 		Endpoint:     oidcProvider.Endpoint(),
-		ClientID:     provider.ClientID,
-		ClientSecret: provider.ClientSecret,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 		RedirectURL:  provider.RedirectURL,
 		Scopes:       provider.Scopes,
 	}
@@ -449,6 +464,16 @@ func getRandomUsername() string {
 
 func getRandomProfileName() string {
 	return "Anonymous"
+}
+
+func getSecretFromFile(source string) (string, error) {
+	content, err := os.ReadFile(source)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
 }
 
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {

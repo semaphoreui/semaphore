@@ -16,7 +16,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 ## Installation
 
 ### Full documentation
-https://docs.ansible-semaphore.com/administration-guide/installation
+https://docs.semui.co/administration-guide/installation
 
 ### Snap
 
@@ -26,7 +26,7 @@ sudo semaphore user add --admin --name "Your Name" --login your_login --email yo
 ```
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
 
-### Docker 
+### Docker
 
 https://hub.docker.com/r/semaphoreui/semaphore
 
@@ -44,6 +44,7 @@ services:
       SEMAPHORE_ADMIN_NAME: admin
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ADMIN: admin
+      TZ: Europe/Berlin
     volumes:
       - /path/to/data/home:/etc/semaphore # config.json location
       - /path/to/data/lib:/var/lib/semaphore # database.boltdb location (Not required if using mysql or postgres)
@@ -51,17 +52,17 @@ services:
 
 ## Demo
 
-You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
+You can test latest version of Semaphore on https://demo.semui.co.
 
 ## Docs
 
-Admin and user docs: https://docs.ansible-semaphore.com
+Admin and user docs: https://docs.semui.co.
 
-API description: https://ansible-semaphore.com/api-docs/
+API description: https://semui.co/api-docs/.
 
 ## Contributing
 
-If you want to write an article about Ansible or Semaphore, contact [@fiftin](https://github.com/fiftin) and we will place your article in our [Blog](https://www.ansible-semaphore.com/blog/) with link to your profile.
+If you want to write an article about Ansible or Semaphore, contact [@fiftin](https://github.com/fiftin) and we will place your article in our [Blog](https://semui.co/blog/) with link to your profile.
 
 PR's & UX reviews are welcome!
 
