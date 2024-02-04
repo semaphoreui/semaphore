@@ -131,6 +131,128 @@ definitions:
       username:
         type: string
 
+  ProjectBackup:
+    type: object
+    properties:
+      meta:
+        type: object
+        properties:
+          name:
+            type: string
+          alert:
+            type: boolean
+          alert_chat:
+            type: string
+          max_parallel_tasks:
+            type: integer
+      templates:
+        type: array
+        items:
+          type: object
+          properties:
+            inventory:
+              type: string
+            repository:
+              type: string
+            environment:
+              type: string
+            view:
+              type: string
+            name:
+              type: string
+              example: Test
+            playbook:
+              type: string
+              example: test.yml
+            arguments:
+              type: string
+              example: '[]'
+            description:
+              type: string
+              example: Hello, World!
+            allow_override_args_in_task:
+              type: boolean
+              example: false
+            suppress_success_alerts:
+              type: boolean
+            cron:
+              type: string
+            build_template:
+              type: string
+            autorun:
+              type: boolean
+            survey_vars:
+              type: string
+            start_version:
+              type: string
+            type:
+              type: string
+            vault_key:
+              type: string
+      repositories:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            git_url:
+              type: string
+            git_branch:
+              type: string
+            ssh_key:
+              type: string
+      keys:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            type:
+              type: string
+      views:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            position:
+              type: integer
+      inventories:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Test
+            inventory:
+              type: string
+            ssh_key:
+              type: string
+            become_key:
+              type: string
+            type:
+              type: string
+              enum: [static, static-yaml, file]
+      environments:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            password:
+              type: string
+            json:
+              type: string
+              example: '{}'
+            env:
+              type: string
+              example: '{}'
+
   APIToken:
     type: object
     properties:
@@ -953,6 +1075,24 @@ paths:
       responses:
         201:
           description: Created project
+  /projects/restore:
+    post:
+      tags:
+        - projects
+      summary: Restore Project
+      consumes:
+        - application/json
+      parameters:
+        - name: Backup
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/ProjectBackup'
+      responses:
+        200:
+          description: Created project
+          schema:
+            $ref: "#/definitions/Project"
 
   /events:
     get:
@@ -1011,6 +1151,18 @@ paths:
         204:
           description: Project deleted
 
+  /project/{project_id}/backup:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Backup A Project
+      responses:
+        200:
+          description: Backup
+          schema:
+            $ref: '#/definitions/ProjectBackup'
 
   /project/{project_id}/role:
     parameters:
