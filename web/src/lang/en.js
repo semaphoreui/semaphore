@@ -1,4 +1,6 @@
 export default {
+  backup: 'Backup',
+  downloadTheProjectBackupFile: 'Download the project backup file (in json)',
   incorrectUsrPwd: 'Incorrect login or password',
   askDeleteUser: 'Do you really want to delete this user?',
   askDeleteTemp: 'Do you really want to delete this template?',

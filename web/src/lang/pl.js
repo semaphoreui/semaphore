@@ -1,4 +1,6 @@
 export default {
+  backup: 'Kopia zapasowa',
+  downloadTheProjectBackupFile: 'Pobierz plik kopii zapasowej projektu (w formacie json)',
   incorrectUsrPwd: 'Nieprawidłowa nazwa użytkownika lub hasło.',
   askDeleteUser: 'Czy na pewno chcesz usunąć tego użytkownika?',
   askDeleteTemp: 'Czy na pewno chcesz usunąć ten szablon?',

@@ -1,4 +1,6 @@
 export default {
+  backup: 'Cópia de segurança',
+  downloadTheProjectBackupFile: 'Baixe o arquivo de backup do projeto (em json)',
   incorrectUsrPwd: 'Usuário ou senha incorretos',
   askDeleteUser: 'Você realmente deseja excluir este usuário?',
   askDeleteTemp: 'Você realmente deseja excluir este modelo?',
