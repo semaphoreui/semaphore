@@ -173,6 +173,16 @@
               {{ $t('newProject2') }}
             </v-list-item-content>
           </v-list-item>
+
+          <v-list-item @click="restoreProject" v-if="user.can_create_project">
+            <v-list-item-icon>
+              <v-icon>mdi-file-restore</v-icon>
+            </v-list-item-icon>
+
+            <v-list-item-content>
+              {{ $t('restore') }}
+            </v-list-item-content>
+          </v-list-item>
         </v-list>
       </v-menu>
 
@@ -986,6 +996,37 @@ export default {
         return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
       }
       return parts[0].substr(0, 2).toUpperCase();
+    },
+
+    async restoreProject() {
+      const f = document.createElement('input');
+      f.setAttribute('type', 'file');
+      f.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            const fileContent = ev.target.result;
+            console.log(fileContent);
+            try {
+              await axios
+                .post('/api/projects/restore', fileContent)
+                .then(async (payload) => {
+                  this.$router.push({ path: `/project/${payload.data.id}/history` });
+                  this.state = 'success';
+                  await this.loadProjects();
+                });
+            } catch (err) {
+              EventBus.$emit('i-snackbar', {
+                color: 'error',
+                text: getErrorMessage(err),
+              });
+            }
+          };
+          reader.readAsText(file);
+        }
+      });
+      f.click();
     },
 
     async signOut() {

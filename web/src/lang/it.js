@@ -1,6 +1,7 @@
 export default {
-  backup: 'backup',
+  backup: 'Backup',
   downloadTheProjectBackupFile: 'Scarica il file di backup del progetto (in json)',
+  restore: 'Ristabilire',
   incorrectUsrPwd: 'Nome utente o password errati',
   askDeleteUser: 'Vuoi davvero eliminare questo utente?',
   askDeleteTemp: 'Vuoi davvero eliminare questo modello?',
