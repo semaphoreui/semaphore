@@ -139,6 +139,7 @@ definitions:
         properties:
           name:
             type: string
+            example: demo
           alert:
             type: boolean
           alert_chat:
@@ -152,21 +153,25 @@ definitions:
           properties:
             inventory:
               type: string
+              example: Build
             repository:
               type: string
+              example: Demo
             environment:
               type: string
+              example: Empty
             view:
               type: string
+              example: null
             name:
               type: string
-              example: Test
+              example: Build
             playbook:
               type: string
-              example: test.yml
+              example: build.yml
             arguments:
               type: string
-              example: '[]'
+              example: null
             description:
               type: string
               example: Hello, World!
@@ -175,20 +180,26 @@ definitions:
               example: false
             suppress_success_alerts:
               type: boolean
+              example: true
             cron:
               type: string
+              example: null
             build_template:
               type: string
+              example: null
             autorun:
               type: boolean
             survey_vars:
               type: string
             start_version:
               type: string
+              example: '1.0.0'
             type:
               type: string
+              example: build
             vault_key:
               type: string
+              example: null
       repositories:
         type: array
         items:
@@ -196,12 +207,16 @@ definitions:
           properties:
             name:
               type: string
+              example: Demo
             git_url:
               type: string
+              example: https://github.com/semaphoreui/demo-project.git
             git_branch:
               type: string
+              example: main
             ssh_key:
               type: string
+              example: None
       keys:
         type: array
         items:
@@ -209,8 +224,11 @@ definitions:
           properties:
             name:
               type: string
+              example: None
             type:
               type: string
+              enum: [ssh, login_password, none]
+              example: none
       views:
         type: array
         items:
@@ -218,8 +236,10 @@ definitions:
           properties:
             name:
               type: string
+              example: Build
             position:
               type: integer
+              example: 0
       inventories:
         type: array
         items:
@@ -230,6 +250,7 @@ definitions:
               example: Test
             inventory:
               type: string
+              example: ""
             ssh_key:
               type: string
             become_key:
@@ -244,14 +265,16 @@ definitions:
           properties:
             name:
               type: string
+              example: Empty
             password:
               type: string
+              example: null
             json:
               type: string
               example: '{}'
             env:
               type: string
-              example: '{}'
+              example: null
 
   APIToken:
     type: object
