@@ -326,7 +326,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		path = "/index.html"
 	}
 
-	path = strings.Replace(path, webPath+"/", "", 1)
+	path = strings.Replace(path, webPath, "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 
