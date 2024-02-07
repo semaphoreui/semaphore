@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/services/schedules"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -194,6 +195,10 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if buildTemplate := getEntryByName[BackupTemplate](e.BuildTemplate, backup.Templates); string(e.Type) == "deploy" && buildTemplate == nil {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
+	err := schedules.ValidateCronFormat(*e.Cron)
+	if e.Cron != nil && err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -251,6 +256,19 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		return err
 	}
 	b.templates = append(b.templates, template)
+	if e.Cron != nil {
+		_, err := store.CreateSchedule(
+			db.Schedule{
+				ProjectID:    b.meta.ID,
+				TemplateID:   template.ID,
+				CronFormat:   *e.Cron,
+				RepositoryID: &RepositoryID,
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
