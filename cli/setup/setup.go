@@ -190,7 +190,11 @@ func askValue(prompt string, defaultValue string, item interface{}, stdin *bufio
 		value = defaultValue
 	}
 
-	// Set the value of the pointer item to the input value.
+	// This code block dynamically assigns a new value to the variable pointed to by 'item', based on the variable's type.
+	// It first checks if 'item' is a non-nil pointer. If it is, the block then checks the type of the value that 'item' points to.
+	// - If the pointed-to value is a string, it sets the value to the 'value' parameter directly as a string.
+	// - If the pointed-to value is an integer, it attempts to convert the 'value' parameter from a string to an integer before setting it.
+	// This dynamic assignment is made possible using the reflect package, allowing for type introspection and modification at runtime.
 	v := reflect.ValueOf(item)
 	if v.Kind() == reflect.Ptr && !v.IsNil() {
 		if v.Elem().Kind() == reflect.String {
