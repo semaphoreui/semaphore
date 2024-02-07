@@ -295,7 +295,7 @@ func (backup *BackupFormat) Restore(store db.Store) (*db.Project, error) {
 			Name:             backup.Meta.Name,
 			Alert:            backup.Meta.Alert,
 			MaxParallelTasks: backup.Meta.MaxParallelTasks,
-			AlertChat:        b.meta.AlertChat,
+			AlertChat:        backup.Meta.AlertChat,
 		},
 	)
 	if err != nil {
