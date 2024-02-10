@@ -88,10 +88,28 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
+	makeUniqueNames(b.inventories, func(item *db.Inventory) string {
+		return item.Name
+	}, func(item *db.Inventory, name string) {
+		item.Name = name
+	})
+
+	makeUniqueNames(b.environments, func(item *db.Environment) string {
+		return item.Name
+	}, func(item *db.Environment, name string) {
+		item.Name = name
+	})
+
 	makeUniqueNames(b.keys, func(item *db.AccessKey) string {
 		return item.Name
 	}, func(item *db.AccessKey, name string) {
 		item.Name = name
+	})
+
+	makeUniqueNames(b.views, func(item *db.View) string {
+		return item.Title
+	}, func(item *db.View, name string) {
+		item.Title = name
 	})
 }
 
