@@ -195,10 +195,13 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if buildTemplate := getEntryByName[BackupTemplate](e.BuildTemplate, backup.Templates); string(e.Type) == "deploy" && buildTemplate == nil {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
-	err := schedules.ValidateCronFormat(*e.Cron)
-	if e.Cron != nil && err != nil {
-		return err
+
+	if e.Cron != nil {
+		if err := schedules.ValidateCronFormat(*e.Cron); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
