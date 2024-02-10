@@ -79,6 +79,15 @@ export default {
     codemirror,
   },
 
+  created() {
+    if (!this.item.env) {
+      this.item.env = '{}';
+    }
+    if (!this.item.json) {
+      this.item.json = '{}';
+    }
+  },
+
   data() {
     return {
       images: [

@@ -15,6 +15,7 @@ func CreateApp(template db.Template, repository db.Repository, logger lib.Logger
 			Playbook: &AnsiblePlaybook{
 				TemplateID: template.ID,
 				Repository: repository,
+				Logger:     logger,
 			},
 		}
 	case db.TemplateTerraform:

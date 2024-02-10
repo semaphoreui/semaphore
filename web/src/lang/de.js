@@ -1,4 +1,7 @@
 export default {
+  backup: 'Sicherung',
+  downloadTheProjectBackupFile: 'Laden Sie die Projektsicherungsdatei (in JSON) herunter.',
+  restore: 'Wiederherstellen',
   incorrectUsrPwd: 'Falscher Benutzername oder falsches Passwort',
   askDeleteUser: 'Soll dieser Benutzer gelöscht werden?',
   askDeleteTemp: 'Soll diese Vorlage gelöscht werden?',

@@ -1,4 +1,7 @@
 export default {
+  backup: 'Cópia de segurança',
+  downloadTheProjectBackupFile: 'Baixe o arquivo de backup do projeto (em json)',
+  restore: 'Restaurar',
   incorrectUsrPwd: 'Nome de utilizador ou palavra-passe incorretos',
   askDeleteUser: 'Tem a certeza de que deseja eliminar este utilizador?',
   askDeleteTemp: 'Tem a certeza de que deseja eliminar este modelo?',

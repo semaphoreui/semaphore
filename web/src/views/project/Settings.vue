@@ -31,8 +31,20 @@
         <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
       </div>
     </div>
-
-    <div class="project-delete-form">
+    <div class="project-backup project-settings-button">
+      <v-row align="center">
+        <v-col class="shrink">
+          <v-btn color="primary" @click="backupProject" >{{ $t('backup') }}
+          </v-btn>
+        </v-col>
+        <v-col class="grow">
+          <div style="font-size: 14px;">
+            {{ $t('downloadTheProjectBackupFile') }}
+          </div>
+        </v-col>
+      </v-row>
+    </div>
+    <div class="project-delete-form project-settings-button">
       <v-row align="center">
         <v-col class="shrink">
           <v-btn color="error" @click="deleteProjectDialog = true">{{ $t('deleteProject2') }}
@@ -48,14 +60,13 @@
   </div>
 </template>
 <style lang="scss">
-  .project-settings-form {
+.project-settings-form {
+  max-width: 400px;
+  margin: 40px auto;
+}
+  .project-settings-button {
     max-width: 400px;
-    margin: 80px auto auto;
-  }
-
-  .project-delete-form {
-    max-width: 400px;
-    margin: 80px auto auto;
+    margin: 20px auto auto;
   }
 </style>
 <script>
@@ -98,6 +109,28 @@ export default {
 
     async saveProject() {
       await this.$refs.form.save();
+    },
+
+    async backupProject() {
+      try {
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/backup`,
+          transformResponse: (res) => res, // Necessary to not parse json
+          responseType: 'json',
+        }).then((backup) => {
+          const a = document.createElement('a');
+          const blob = new Blob([backup.data], { type: 'application/json' });
+          a.download = `backup_${this.projectId}_${Date.now()}.json`;
+          a.href = URL.createObjectURL(blob);
+          a.click();
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
     },
 
     async deleteProject() {
