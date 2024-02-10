@@ -2,8 +2,8 @@ package project
 
 import (
 	"fmt"
-
 	"github.com/ansible-semaphore/semaphore/db"
+	"math/rand"
 )
 
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
@@ -44,6 +44,55 @@ func getScheduleByTemplate(templateID int, schedules []db.Schedule) *string {
 		}
 	}
 	return nil
+}
+
+func getRandomName(name string) string {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	suffix := ""
+	for i := 0; i < 10; i++ {
+		index := rand.Intn(len(chars))
+		suffix += chars[index : index+1]
+	}
+	return name + " - " + suffix
+}
+
+func makeUniqueNames[T any](items []T, getter func(item *T) string, setter func(item *T, name string)) {
+	for i := len(items) - 1; i >= 0; i-- {
+		for k, other := range items {
+			if k == i {
+				break
+			}
+
+			name := getter(&items[i])
+
+			if name == getter(&other) {
+				randomName := getRandomName(name)
+				setter(&items[i], randomName)
+				break
+			}
+		}
+	}
+}
+
+func (b *BackupDB) makeUniqueNames() {
+
+	makeUniqueNames(b.templates, func(item *db.Template) string {
+		return item.Name
+	}, func(item *db.Template, name string) {
+		item.Name = name
+	})
+
+	makeUniqueNames(b.repositories, func(item *db.Repository) string {
+		return item.Name
+	}, func(item *db.Repository, name string) {
+		item.Name = name
+	})
+
+	makeUniqueNames(b.keys, func(item *db.AccessKey) string {
+		return item.Name
+	}, func(item *db.AccessKey, name string) {
+		item.Name = name
+	})
 }
 
 func (b *BackupDB) new(projectID int, store db.Store) (*BackupDB, error) {
@@ -87,6 +136,9 @@ func (b *BackupDB) new(projectID int, store db.Store) (*BackupDB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	b.makeUniqueNames()
+
 	return b, nil
 }
 
