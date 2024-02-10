@@ -110,6 +110,7 @@
 
 .task-log-records__output {
   width: 100%;
+  white-space: pre;
 }
 
 @media #{map-get($display-breakpoints, 'sm-and-down')} {

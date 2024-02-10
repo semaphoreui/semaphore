@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/snikch/goodman/hooks"
-	trans "github.com/snikch/goodman/transaction"
 	"strconv"
 	"strings"
+
+	"github.com/snikch/goodman/hooks"
+	trans "github.com/snikch/goodman/transaction"
 )
 
 const (
@@ -114,6 +115,10 @@ func main() {
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Get view > 200 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Updates view > 204 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Removes view > 204 > application/json", capabilityWrapper("view"))
+
+	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
+	})
 
 	//Add these last as they normalize the requests and path values after hook processing
 	h.BeforeAll(func(transactions []*trans.Transaction) {
