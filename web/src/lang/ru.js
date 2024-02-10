@@ -1,4 +1,7 @@
 export default {
+  backup: 'Бэкап',
+  downloadTheProjectBackupFile: 'Загрузите файл резервной копии проекта (в формате JSON)',
+  restore: 'восстановить',
   incorrectUsrPwd: 'Некорректный логин или пароль',
   askDeleteUser: 'Вы действительно хотите удалить этого пользователя?',
   askDeleteTemp: 'Вы действительно хотите удалить этот шаблон?',

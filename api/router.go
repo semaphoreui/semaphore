@@ -2,13 +2,13 @@ package api
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/runners"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
+	"github.com/ansible-semaphore/semaphore/api/runners"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -106,6 +106,7 @@ func Route() *mux.Router {
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.AddProject).Methods("POST")
+	authenticatedAPI.Path("/projects/restore").HandlerFunc(projects.Restore).Methods("POST")
 	authenticatedAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
@@ -179,6 +180,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
+
+	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
 
 	//
 	// Updating and deleting project
