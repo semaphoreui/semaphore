@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/masterminds/squirrel"
 )
@@ -114,8 +115,11 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.arguments",
 		"pt.allow_override_args_in_task",
 		"pt.vault_key_id",
+		"pt.build_template_id",
+		"pt.start_version",
 		"pt.view_id",
 		"pt.`app`",
+		"pt.survey_vars",
 		"pt.start_version",
 		"pt.`type`").
 		From("project__template pt")

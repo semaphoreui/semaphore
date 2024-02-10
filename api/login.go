@@ -80,15 +80,6 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	// Ensure authentication and verify itself with whoami operation
-	var res *ldap.WhoAmIResult
-	if res, err = l.WhoAmI(nil); err != nil {
-		return nil, err
-	}
-	if len(res.AuthzID) <= 0 {
-		return nil, fmt.Errorf("error while doing whoami operation")
-	}
-
 	// Second time bind as read only user
 	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
 		return nil, err
