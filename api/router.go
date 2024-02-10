@@ -187,40 +187,6 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/webhooks").HandlerFunc(projects.GetWebhooks).Methods("GET", "HEAD")
 	projectUserAPI.Path("/webhooks").HandlerFunc(projects.AddWebhook).Methods("POST")
 
-	projectWebhooksAPI := projectUserAPI.PathPrefix("/webhook").Subrouter()
-
-	projectWebhooksAPI.Use(projects.ProjectMiddleware, projects.WebhookMiddleware)
-	projectWebhooksAPI.Path("/{webhook_id}").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhook)
-	projectWebhooksAPI.Path("/{webhook_id}").Methods("PUT").HandlerFunc(projects.UpdateWebhook)
-	projectWebhooksAPI.Path("/{webhook_id}").Methods("DELETE").HandlerFunc(projects.DeleteWebhook)
-
-	projectWebhooksAPI.Path("/{webhook_id}/extractors").HandlerFunc(projects.GetWebhookExtractors).Methods("GET", "HEAD")
-	projectWebhooksAPI.Path("/{webhook_id}/extractors").HandlerFunc(projects.AddWebhookExtractor).Methods("POST")
-	projectWebhooksAPI.Path("/{webhook_id}/refs").HandlerFunc(projects.GetWebhookRefs).Methods("GET")
-
-	projectWebhookExtractorAPI := projectWebhooksAPI.PathPrefix("/{webhook_id}/extractor").Subrouter()
-	projectWebhookExtractorAPI.Use(projects.WebhookExtractorMiddleware)
-
-	projectWebhookExtractorAPI.Path("/{extractor_id}/refs").HandlerFunc(projects.GetWebhookExtractorRefs).Methods("GET")
-	projectWebhookExtractorAPI.Path("/{extractor_id}/matchers").HandlerFunc(projects.GetWebhookMatchers).Methods("GET", "HEAD")
-	projectWebhookExtractorAPI.Path("/{extractor_id}/matchers").HandlerFunc(projects.AddWebhookMatcher).Methods("POST")
-	projectWebhookExtractorAPI.Path("/{extractor_id}/values").HandlerFunc(projects.GetWebhookExtractValues).Methods("GET", "HEAD")
-	projectWebhookExtractorAPI.Path("/{extractor_id}/values").HandlerFunc(projects.AddWebhookExtractValue).Methods("POST")
-
-	projectWebhookExtractorAPI.Path("/{extractor_id}/matcher/{matcher_id}").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhookMatcher)
-	projectWebhookExtractorAPI.Path("/{extractor_id}/matcher/{matcher_id}").Methods("PUT").HandlerFunc(projects.UpdateWebhookMatcher)
-	projectWebhookExtractorAPI.Path("/{extractor_id}/matcher/{matcher_id}").Methods("DELETE").HandlerFunc(projects.DeleteWebhookMatcher)
-	projectWebhookExtractorAPI.Path("/{extractor_id}/matcher/{matcher_id}/refs").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhookMatcherRefs)
-
-	projectWebhookExtractorAPI.Path("/{extractor_id}/value/{value_id}").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhookExtractValue)
-	projectWebhookExtractorAPI.Path("/{extractor_id}/value/{value_id}").Methods("PUT").HandlerFunc(projects.UpdateWebhookExtractValue)
-	projectWebhookExtractorAPI.Path("/{extractor_id}/value/{value_id}").Methods("DELETE").HandlerFunc(projects.DeleteWebhookExtractValue)
-	projectWebhookExtractorAPI.Path("/{extractor_id}/value/{value_id}/refs").Methods("GET").HandlerFunc(projects.GetWebhookExtractValueRefs)
-
-	projectWebhookExtractorAPI.Path("/{extractor_id}").Methods("GET", "HEAD").HandlerFunc(projects.GetWebhookExtractor)
-	projectWebhookExtractorAPI.Path("/{extractor_id}").Methods("PUT").HandlerFunc(projects.UpdateWebhookExtractor)
-	projectWebhookExtractorAPI.Path("/{extractor_id}").Methods("DELETE").HandlerFunc(projects.DeleteWebhookExtractor)
-
 	//
 	// Updating and deleting project
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
@@ -310,6 +276,39 @@ func Route() *mux.Router {
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
+
+	projectWebhooksAPI := projectUserAPI.PathPrefix("/webhook").Subrouter()
+
+	projectWebhooksAPI.Use(projects.ProjectMiddleware, projects.WebhookMiddleware)
+	projectWebhooksAPI.HandleFunc("/{webhook_id}", projects.UpdateWebhook).Methods("PUT")
+	projectWebhooksAPI.HandleFunc("/{webhook_id}", projects.DeleteWebhook).Methods("DELETE")
+	projectWebhooksAPI.HandleFunc("/{webhook_id}", projects.GetWebhook).Methods("GET")
+	projectWebhooksAPI.HandleFunc("/{webhook_id}/refs", projects.GetWebhookRefs).Methods("GET", "HEAD")
+	projectWebhooksAPI.HandleFunc("/{webhook_id}/extractors", projects.GetWebhookExtractors).Methods("GET")
+	projectWebhooksAPI.HandleFunc("/{webhook_id}/extractors", projects.AddWebhookExtractor).Methods("POST")
+
+	projectWebhookExtractorAPI := projectWebhooksAPI.PathPrefix("/{webhook_id}/extractor").Subrouter()
+	projectWebhookExtractorAPI.Use(projects.WebhookExtractorMiddleware)
+
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}", projects.GetWebhookExtractor).Methods("GET", "HEAD")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}", projects.UpdateWebhookExtractor).Methods("PUT")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}", projects.DeleteWebhookExtractor).Methods("DELETE")
+
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/refs", projects.GetWebhookExtractorRefs).Methods("GET")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/matchers", projects.GetWebhookMatchers).Methods("GET", "HEAD")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/matchers", projects.AddWebhookMatcher).Methods("POST")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/values", projects.GetWebhookExtractValues).Methods("GET", "HEAD")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/values", projects.AddWebhookExtractValue).Methods("POST")
+
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}", projects.GetWebhookMatcher).Methods("GET", "HEAD")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}", projects.UpdateWebhookMatcher).Methods("PUT")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}", projects.DeleteWebhookMatcher).Methods("DELETE")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}/refs", projects.GetWebhookMatcherRefs).Methods("GET", "HEAD")
+
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}", projects.GetWebhookExtractValue).Methods("GET", "HEAD")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}", projects.UpdateWebhookExtractValue).Methods("PUT")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}", projects.DeleteWebhookExtractValue).Methods("DELETE")
+	projectWebhookExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}/refs", projects.GetWebhookExtractValueRefs).Methods("GET")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

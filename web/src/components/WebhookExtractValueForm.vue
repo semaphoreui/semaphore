@@ -117,10 +117,10 @@ export default {
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.extractorId}/values`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/values`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.extractorId}/value/${this.itemId}`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/value/${this.itemId}`;
     },
   },
 };

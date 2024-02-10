@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -44,11 +43,11 @@ var capabilities = map[string][]string{
 	"template":            {"repository", "inventory", "environment", "view"},
 	"task":                {"template"},
 	"schedule":            {"template"},
+	"view":                {},
 	"webhook":             {"project", "template"},
 	"webhookextractor":    {"webhook"},
 	"webhookextractvalue": {"webhookextractor"},
 	"webhookmatcher":      {"webhookextractor"},
-	"view":                {},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -198,11 +197,11 @@ func alterRequestPath(t *trans.Transaction) {
 
 		pos, exists := stringInSlice(strconv.Itoa(k+1), exploded)
 		if exists {
-			fmt.Println(fmt.Sprintf("Current: %v, %v", pos, exploded))
 			pathArgs[pos] = v()
 		}
 	}
 	t.FullPath = strings.Join(pathArgs, "/")
+
 	t.Request.URI = t.FullPath
 }
 
@@ -247,7 +246,7 @@ func alterRequestBody(t *trans.Transaction) {
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 
-		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)/?(?:\w+/\d+/|\w+/\d+)+/?$`)
+		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:webhook/\d+/|webhook/\d+/extractor/\d+)?(?:webhook/\d+/extractor/\d+/matcher/\d+)?(?:webhook/\d+/extractor/\d+/value/\d+)?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

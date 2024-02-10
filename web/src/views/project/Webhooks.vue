@@ -136,7 +136,7 @@ export default {
       return `/api/project/${this.projectId}/webhooks`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.itemId}`;
+      return `/api/project/${this.projectId}/webhooks/${this.itemId}`;
     },
     getEventName() {
       return 'w-webhook';

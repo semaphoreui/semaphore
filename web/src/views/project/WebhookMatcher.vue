@@ -164,10 +164,10 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.extractorId}/matchers`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/matchers`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.extractorId}/matcher/${this.itemId}`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/matcher/${this.itemId}`;
     },
     getEventName() {
       return 'w-webhook-matcher';

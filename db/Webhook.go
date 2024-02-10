@@ -1,21 +1,21 @@
 package db
 
 import (
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type WebhookMatchType string
 
 const (
 	WebhookMatchHeader WebhookMatchType = "header"
-	WebhookMatchBody WebhookMatchType = "body"
+	WebhookMatchBody   WebhookMatchType = "body"
 )
 
 type WebhookMatchMethodType string
 
 const (
-	WebhookMatchMethodEquals WebhookMatchMethodType = "equals"
+	WebhookMatchMethodEquals   WebhookMatchMethodType = "equals"
 	WebhookMatchMethodUnEquals WebhookMatchMethodType = "unequals"
 	WebhookMatchMethodContains WebhookMatchMethodType = "contains"
 )
@@ -23,50 +23,50 @@ const (
 type WebhookBodyDataType string
 
 const (
-	WebhookBodyDataJSON WebhookBodyDataType = "json"
-	WebhookBodyDataXML WebhookBodyDataType = "xml"
+	WebhookBodyDataJSON   WebhookBodyDataType = "json"
+	WebhookBodyDataXML    WebhookBodyDataType = "xml"
 	WebhookBodyDataString WebhookBodyDataType = "string"
 )
 
 type WebhookMatcher struct {
-	ID int `db:"id" json:"id"`
-	Name string `db:"name" json:"name"`
-	ExtractorID int `db:"extractor_id" json:"extractor_id"`
-	MatchType WebhookMatchType `db:"match_type" json:"match_type"`
-	Method WebhookMatchMethodType `db:"method" json:"method"`
-	BodyDataType WebhookBodyDataType `db:"body_data_type" json:"body_data_type"`
-	Key string `db:"key" json:"key"`
-	Value string `db:"value" json:"value"`
+	ID           int                    `db:"id" json:"id"`
+	Name         string                 `db:"name" json:"name"`
+	ExtractorID  int                    `db:"extractor_id" json:"extractor_id"`
+	MatchType    WebhookMatchType       `db:"match_type" json:"match_type"`
+	Method       WebhookMatchMethodType `db:"method" json:"method"`
+	BodyDataType WebhookBodyDataType    `db:"body_data_type" json:"body_data_type"`
+	Key          string                 `db:"key" json:"key"`
+	Value        string                 `db:"value" json:"value"`
 }
 
 type WebhookExtractValueSource string
 
 const (
-	WebhookExtractBodyValue WebhookExtractValueSource = "body"
+	WebhookExtractBodyValue   WebhookExtractValueSource = "body"
 	WebhookExtractHeaderValue WebhookExtractValueSource = "header"
 )
 
 type WebhookExtractValue struct {
-	ID int  `db:"id" json:"id"`
-	Name string `db:"name" json:"name"`
-	ExtractorID int `db:"extractor_id" json:"extractor_id"`
-	ValueSource WebhookExtractValueSource `db:"value_source" json:"value_source"`
-	BodyDataType WebhookBodyDataType `db:"body_data_type" json:"body_data_type"`
-	Key string `db:"key" json:"key"`
-	Variable string `db:"variable" json:"variable"`
+	ID           int                       `db:"id" json:"id"`
+	Name         string                    `db:"name" json:"name"`
+	ExtractorID  int                       `db:"extractor_id" json:"extractor_id"`
+	ValueSource  WebhookExtractValueSource `db:"value_source" json:"value_source"`
+	BodyDataType WebhookBodyDataType       `db:"body_data_type" json:"body_data_type"`
+	Key          string                    `db:"key" json:"key"`
+	Variable     string                    `db:"variable" json:"variable"`
 }
 
 type WebhookExtractor struct {
-	ID int `db:"id" json:"id"`
-	Name string `db:"name" json:"name"`
-	WebhookID int `db:"webhook_id" json:"webhook_id"`
+	ID        int    `db:"id" json:"id"`
+	Name      string `db:"name" json:"name"`
+	WebhookID int    `db:"webhook_id" json:"webhook_id"`
 }
 
 type Webhook struct {
-	ID int `db:"id" json:"id"`
-	Name string `db:"name" json:"name"`
-	ProjectID int `db:"project_id" json:"project_id"`
-	TemplateID int `db:"template_id" json:"template_id"`
+	ID         int    `db:"id" json:"id"`
+	Name       string `db:"name" json:"name"`
+	ProjectID  int    `db:"project_id" json:"project_id"`
+	TemplateID int    `db:"template_id" json:"template_id"`
 }
 
 func (env *Webhook) Validate() error {
@@ -103,7 +103,6 @@ func (env *WebhookExtractor) Validate() error {
 
 	return nil
 }
-
 
 func (env *WebhookExtractValue) Validate() error {
 	if env.ValueSource == "" {
@@ -146,17 +145,20 @@ func (matcher *WebhookMatcher) String() string {
 
 	builder.WriteString(" " + matcher.Key + " ")
 
-    if matcher.Method == WebhookMatchMethodEquals {
-        builder.WriteString("==")
-    } else if matcher.Method == WebhookMatchMethodUnEquals {
-        builder.WriteString("!=")
-	} else if matcher.Method == WebhookMatchMethodContains {
+	switch matcher.Method {
+	case WebhookMatchMethodEquals:
+		builder.WriteString("==")
+	case WebhookMatchMethodUnEquals:
+		builder.WriteString("!=")
+	case WebhookMatchMethodContains:
 		builder.WriteString(" contains ")
+	default:
+
 	}
 
 	builder.WriteString(matcher.Value + ", on Extractor: " + strconv.Itoa(matcher.ExtractorID))
 
-	return  builder.String()
+	return builder.String()
 }
 
 func (value *WebhookExtractValue) String() string {

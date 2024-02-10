@@ -85,6 +85,10 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 
 	if !helpers.Bind(w, r, &webhook) {
 		log.Info("Failed to bind for webhook uploads")
+
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Project ID in body and URL must be the same",
+		})
 		return
 	}
 
@@ -105,7 +109,7 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, errWebhook := helpers.Store(r).CreateWebhook(webhook)
+	newWebhook, errWebhook := helpers.Store(r).CreateWebhook(webhook)
 
 	if errWebhook != nil {
 		log.Error(errWebhook)
@@ -113,7 +117,7 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusCreated, newWebhook)
 }
 
 func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +154,11 @@ func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
 
 func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	project := context.Get(r, "project").(db.Project)
 
 	err = helpers.Store(r).DeleteWebhook(project.ID, webhook_id)

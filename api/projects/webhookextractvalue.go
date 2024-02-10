@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"fmt"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
@@ -22,6 +23,13 @@ func GetWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var value db.WebhookExtractValue
 	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("Failed to get WebhookExtractValue, %v", err),
+		})
+		return
+	}
 
 	helpers.WriteJSON(w, http.StatusOK, value)
 }
@@ -61,14 +69,14 @@ func AddWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := helpers.Store(r).CreateWebhookExtractValue(value)
+	newValue, err := helpers.Store(r).CreateWebhookExtractValue(value)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusCreated, newValue)
 }
 
 func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +92,10 @@ func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 
 	var value db.WebhookExtractValue
 	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	if !helpers.Bind(w, r, &value) {
 		return
@@ -110,6 +122,10 @@ func GetWebhookExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var value db.WebhookExtractValue
 	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	refs, err := helpers.Store(r).GetWebhookExtractValueRefs(value.ExtractorID, value.ID)
 	if err != nil {

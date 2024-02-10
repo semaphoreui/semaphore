@@ -33,10 +33,10 @@ export default {
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractors`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.itemId}`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.itemId}`;
     },
   },
 };

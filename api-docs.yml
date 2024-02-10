@@ -368,9 +368,10 @@ definitions:
     properties:
       name:
         type: string
-        example: deploy
+        example: "extractor"
       webhook_id:
         type: integer
+
   WebhookExtractor:
     type: object
     properties:
@@ -378,6 +379,7 @@ definitions:
         type: integer
       name:
         type: string
+        example: "extractor"
       webhook_id:
         type: integer
 
@@ -1323,11 +1325,11 @@ paths:
           schema:
             $ref: "#/definitions/WebhookRequest"
       responses:
-        204:
+        201:
           description: Webhook Created
           schema:
             $ref: "#/definitions/Webhook"
-  /project/{project_id}/webhook/{webhook_id}:
+  /project/{project_id}/webhooks/{webhook_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1351,7 +1353,7 @@ paths:
       responses:
         204:
           description: webhook removed
-  /project/{project_id}/webhook/{webhook_id}/extractors:
+  /project/{project_id}/webhooks/{webhook_id}/extractors:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1379,7 +1381,7 @@ paths:
       responses:
         204:
           description: Webhook Extractor Created
-  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}:
+  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1404,7 +1406,7 @@ paths:
       responses:
         204:
           description: webhook extractor removed
-  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/values:
+  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/values:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1435,7 +1437,7 @@ paths:
           description: Webhook Extract Value Created
         400:
           description: Bad Webhook Extract Value params
-  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/value/{extractvalue_id}:
+  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/value/{extractvalue_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1463,7 +1465,7 @@ paths:
       responses:
         204:
           description: webhook extract value removed
-  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/matchers:
+  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matchers:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1494,7 +1496,7 @@ paths:
           description: Webhook Matcher Created
         400:
           description: Bad Webhook Matcher params
-  /project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id}/matcher/{matcher_id}:
+  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matcher/{matcher_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/webhook_id"
@@ -1532,7 +1534,7 @@ paths:
         - project
       summary: Get access keys linked to project
       parameters:
-          # TODO - the space in this parameter name results in a dredd warning
+        # TODO - the space in this parameter name results in a dredd warning
         - name: Key type
           in: query
           required: false
@@ -2087,8 +2089,6 @@ paths:
         204:
           description: Task queued
 
-
-
   /project/{project_id}/tasks/{task_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2109,8 +2109,6 @@ paths:
       responses:
         204:
           description: task deleted
-
-
 
   /project/{project_id}/tasks/{task_id}/output:
     parameters:

@@ -38,13 +38,13 @@ export default {
   async created() {
     this.webhook = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/webhook/${this.webhookId}`,
+      url: `/api/project/${this.projectId}/webhooks/${this.webhookId}`,
       responseType: 'json',
     })).data;
 
     this.extractor = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.extractorId}`,
+      url: `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}`,
       responseType: 'json',
     })).data;
   },
@@ -77,10 +77,10 @@ export default {
       return [];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractors`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhook/${this.webhookId}/extractor/${this.extractorId}`;
+      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}`;
     },
     getEventName() {
       return 'w-webhook-matcher';

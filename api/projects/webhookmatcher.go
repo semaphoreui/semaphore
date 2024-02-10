@@ -24,6 +24,10 @@ func GetWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
 	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	helpers.WriteJSON(w, http.StatusOK, matcher)
 }
@@ -40,6 +44,10 @@ func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
 	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	refs, err := helpers.Store(r).GetWebhookMatcherRefs(matcher.ExtractorID, matcher.ID)
 	if err != nil {
@@ -139,6 +147,10 @@ func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
 	var matcher db.WebhookMatcher
 	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	err = helpers.Store(r).DeleteWebhookMatcher(extractor.ID, matcher.ID)
 	if err == db.ErrInvalidOperation {

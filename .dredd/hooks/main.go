@@ -58,6 +58,7 @@ func main() {
 		defer store.Close("")
 		addToken(expiredToken, testRunnerUser.ID)
 	})
+
 	h.After("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
 		defer store.Close("")
@@ -82,13 +83,57 @@ func main() {
 		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook"})
 	})
 
-	h.Before("project > /api/project/{project_id}/webhook/{webhook_id} > Get Webhook > 200 > application/json", func(t *trans.Transaction) {
+	h.Before("project > /api/project/{project_id}/webhooks/{webhook_id} > Get Webhook > 200 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook"})
 	})
 
-	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractors > Get Webhook Extractors > 200 > application/json", capabilityWrapper("webhookextractor"))
-	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractors > Add Webhook Extractor > 204 > application/json", capabilityWrapper("webhookextractor"))
-	h.Before("webhook > /api/project/{project_id}/webhook/{webhook_id}/extractor/{extractor_id} > Updates Webhook extractor > 204 > application/json", capabilityWrapper("webhookextractor"))
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractors > Get Webhook Extractors > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractors > Add Webhook Extractor > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id} > Updates Webhook extractor > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id} > Removes webhook extractor > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/values > Get Webhook Extracted Values linked to webhook extractor > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor", "webhookextractvalue"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/values > Add Webhook Extracted Value > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor", "webhookextractvalue"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/value/{extractvalue_id} > Removes webhook extract value > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor", "webhookextractvalue"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/values > Add Webhook Extracted Value > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/value/{extractvalue_id} > Updates Webhook ExtractValue > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor", "webhookmatcher"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matchers > Get Webhook Matcher linked to webhook extractor > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matchers > Add Webhook Matcher > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor"})
+	})
+
+	h.Before("webhook > /api/project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matcher/{matcher_id} > Updates Webhook Matcher > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "template", "webhook", "webhookextractor", "webhookmatcher"})
+	})
 
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
