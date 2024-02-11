@@ -11,53 +11,53 @@ import (
 	"github.com/gorilla/context"
 )
 
-func WebhookMiddleware(next http.Handler) http.Handler {
+func IntegrationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+		integration_id, err := helpers.GetIntParam("integration_id", w, r)
 		project := context.Get(r, "project").(db.Project)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "Invalid webhook ID",
+				"error": "Invalid integration ID",
 			})
 			return
 		}
 
-		webhook, err := helpers.Store(r).GetWebhook(project.ID, webhook_id)
+		integration, err := helpers.Store(r).GetIntegration(project.ID, integration_id)
 
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
 
-		context.Set(r, "webhook", webhook)
+		context.Set(r, "integration", integration)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func GetWebhook(w http.ResponseWriter, r *http.Request) {
-	webhook := context.Get(r, "webhook").(db.Webhook)
-	helpers.WriteJSON(w, http.StatusOK, webhook)
+func GetIntegration(w http.ResponseWriter, r *http.Request) {
+	integration := context.Get(r, "integration").(db.Integration)
+	helpers.WriteJSON(w, http.StatusOK, integration)
 }
 
-func GetWebhooks(w http.ResponseWriter, r *http.Request) {
+func GetIntegrations(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	webhooks, err := helpers.Store(r).GetWebhooks(project.ID, helpers.QueryParams(r.URL))
+	integrations, err := helpers.Store(r).GetIntegrations(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, webhooks)
+	helpers.WriteJSON(w, http.StatusOK, integrations)
 }
 
-func GetWebhookRefs(w http.ResponseWriter, r *http.Request) {
-	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+func GetIntegrationRefs(w http.ResponseWriter, r *http.Request) {
+	integration_id, err := helpers.GetIntParam("integration_id", w, r)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Webhook ID",
+			"error": "Invalid Integration ID",
 		})
 		return
 	}
@@ -68,7 +68,7 @@ func GetWebhookRefs(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
-	refs, err := helpers.Store(r).GetWebhookRefs(project.ID, webhook_id)
+	refs, err := helpers.Store(r).GetIntegrationRefs(project.ID, integration_id)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -78,13 +78,13 @@ func GetWebhookRefs(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-func AddWebhook(w http.ResponseWriter, r *http.Request) {
+func AddIntegration(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	var webhook db.Webhook
+	var integration db.Integration
 	log.Info(fmt.Sprintf("Found Project: %v", project.ID))
 
-	if !helpers.Bind(w, r, &webhook) {
-		log.Info("Failed to bind for webhook uploads")
+	if !helpers.Bind(w, r, &integration) {
+		log.Info("Failed to bind for integration uploads")
 
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
@@ -92,15 +92,15 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if webhook.ProjectID != project.ID {
-		log.Error(fmt.Sprintf("Project ID in body and URL must be the same: %v vs. %v", webhook.ProjectID, project.ID))
+	if integration.ProjectID != project.ID {
+		log.Error(fmt.Sprintf("Project ID in body and URL must be the same: %v vs. %v", integration.ProjectID, project.ID))
 
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
 		return
 	}
-	err := webhook.Validate()
+	err := integration.Validate()
 	if err != nil {
 		log.Error(err)
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -109,40 +109,40 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newWebhook, errWebhook := helpers.Store(r).CreateWebhook(webhook)
+	newIntegration, errIntegration := helpers.Store(r).CreateIntegration(integration)
 
-	if errWebhook != nil {
-		log.Error(errWebhook)
-		helpers.WriteError(w, errWebhook)
+	if errIntegration != nil {
+		log.Error(errIntegration)
+		helpers.WriteError(w, errIntegration)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, newWebhook)
+	helpers.WriteJSON(w, http.StatusCreated, newIntegration)
 }
 
-func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
-	oldWebhook := context.Get(r, "webhook").(db.Webhook)
-	var webhook db.Webhook
+func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
+	oldIntegration := context.Get(r, "integration").(db.Integration)
+	var integration db.Integration
 
-	if !helpers.Bind(w, r, &webhook) {
+	if !helpers.Bind(w, r, &integration) {
 		return
 	}
 
-	if webhook.ID != oldWebhook.ID {
+	if integration.ID != oldIntegration.ID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Webhook ID in body and URL must be the same",
+			"error": "Integration ID in body and URL must be the same",
 		})
 		return
 	}
 
-	if webhook.ProjectID != oldWebhook.ProjectID {
+	if integration.ProjectID != oldIntegration.ProjectID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
 		return
 	}
 
-	err := helpers.Store(r).UpdateWebhook(webhook)
+	err := helpers.Store(r).UpdateIntegration(integration)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -152,8 +152,8 @@ func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
-	webhook_id, err := helpers.GetIntParam("webhook_id", w, r)
+func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
+	integration_id, err := helpers.GetIntParam("integration_id", w, r)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -161,10 +161,10 @@ func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	err = helpers.Store(r).DeleteWebhook(project.ID, webhook_id)
+	err = helpers.Store(r).DeleteIntegration(project.ID, integration_id)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": "Webhook failed to be deleted",
+			"error": "Integration failed to be deleted",
 		})
 		return
 	}

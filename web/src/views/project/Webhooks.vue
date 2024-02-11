@@ -3,13 +3,13 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
-      :title="`${itemId === 'new' ? 'New' : 'Edit'} Webhook`"
+      :title="`${itemId === 'new' ? 'New' : 'Edit'} Integration`"
       :max-width="450"
       :transition="false"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <WebhookForm
+        <IntegrationForm
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -21,27 +21,27 @@
     </EditDialog>
 
     <ObjectRefsDialog
-      object-title="webhook"
+      object-title="integration"
       :object-refs="itemRefs"
       :project-id="projectId"
       v-model="itemRefsDialog"
     />
 
     <YesNoDialog
-      title="Delete Webhook"
-      text="Are you sure you want to delete this Webhook?"
+      title="Delete Integration"
+      text="Are you sure you want to delete this Integration?"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Webhooks</v-toolbar-title>
+      <v-toolbar-title>Integrations</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Webhook</v-btn>
+      >New Integration</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -52,7 +52,7 @@
       >
       <template v-slot:item.name="{ item }">
         <router-link
-          :to="`/project/${projectId}/webhook/${item.id}`"
+          :to="`/project/${projectId}/integration/${item.id}`"
         >{{ item.name }}
         </router-link>
       </template>
@@ -90,11 +90,11 @@ import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
 
 import ItemListPageBase from '@/components/ItemListPageBase';
-import WebhookForm from '@/components/WebhookForm.vue';
+import IntegrationForm from '@/components/IntegrationForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
-  components: { WebhookForm },
+  components: { IntegrationForm },
   data() {
     return {
       templates: null,
@@ -133,13 +133,13 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks`;
+      return `/api/project/${this.projectId}/integrations`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.itemId}`;
     },
     getEventName() {
-      return 'w-webhook';
+      return 'w-integration';
     },
   },
 };

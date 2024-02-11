@@ -112,7 +112,7 @@ type JobPool struct {
 
 type RunnerRegistration struct {
 	RegistrationToken string `json:"registration_token" binding:"required"`
-	Webhook           string `json:"webhook"`
+	Integration       string `json:"integration"`
 	MaxParallelTasks  int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 }
 
@@ -372,7 +372,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
-		Webhook:           util.Config.Runner.Webhook,
+		Integration:       util.Config.Runner.Integration,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 

@@ -60,10 +60,10 @@ func truncateAll() {
 		"project__user",
 		"user",
 		"project__view",
-		"project__webhook",
-		"project__webhook_extractor",
-		"project__webhook_extract_value",
-		"project__webhook_matcher",
+		"project__integration",
+		"project__integration_extractor",
+		"project__integration_extract_value",
+		"project__integration_matcher",
 	}
 
 	switch store.(type) {
@@ -230,38 +230,38 @@ func addTask() *db.Task {
 	return &t
 }
 
-func addWebhook() *db.Webhook {
-	webhook, err := store.CreateWebhook(db.Webhook{
+func addIntegration() *db.Integration {
+	integration, err := store.CreateIntegration(db.Integration{
 		ProjectID:  userProject.ID,
-		Name:       "Test Webhook",
+		Name:       "Test Integration",
 		TemplateID: templateID,
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	return &webhook
+	return &integration
 }
 
-func addWebhookExtractor() *db.WebhookExtractor {
-	webhookextractor, err := store.CreateWebhookExtractor(db.WebhookExtractor{
-		WebhookID: int(webhookID),
-		Name:      "Webhook Extractor",
+func addIntegrationExtractor() *db.IntegrationExtractor {
+	integrationextractor, err := store.CreateIntegrationExtractor(db.IntegrationExtractor{
+		IntegrationID: int(integrationID),
+		Name:          "Integration Extractor",
 	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	return &webhookextractor
+	return &integrationextractor
 }
 
-func addWebhookExtractValue() *db.WebhookExtractValue {
-	webhookextractvalue, err := store.CreateWebhookExtractValue(db.WebhookExtractValue{
+func addIntegrationExtractValue() *db.IntegrationExtractValue {
+	integrationextractvalue, err := store.CreateIntegrationExtractValue(db.IntegrationExtractValue{
 		Name:         "Value",
-		ExtractorID:  webhookExtractorID,
-		ValueSource:  db.WebhookExtractBodyValue,
-		BodyDataType: db.WebhookBodyDataJSON,
+		ExtractorID:  integrationExtractorID,
+		ValueSource:  db.IntegrationExtractBodyValue,
+		BodyDataType: db.IntegrationBodyDataJSON,
 		Key:          "key",
 		Variable:     "var",
 	})
@@ -270,13 +270,13 @@ func addWebhookExtractValue() *db.WebhookExtractValue {
 		panic(err)
 	}
 
-	return &webhookextractvalue
+	return &integrationextractvalue
 }
 
-func addWebhookMatcher() *db.WebhookMatcher {
-	webhookmatch, err := store.CreateWebhookMatcher(db.WebhookMatcher{
+func addIntegrationMatcher() *db.IntegrationMatcher {
+	integrationmatch, err := store.CreateIntegrationMatcher(db.IntegrationMatcher{
 		Name:         "matcher",
-		ExtractorID:  webhookExtractorID,
+		ExtractorID:  integrationExtractorID,
 		MatchType:    "body",
 		Method:       "equals",
 		BodyDataType: "json",
@@ -288,7 +288,7 @@ func addWebhookMatcher() *db.WebhookMatcher {
 		panic(err)
 	}
 
-	return &webhookmatch
+	return &integrationmatch
 }
 
 // Token Handling

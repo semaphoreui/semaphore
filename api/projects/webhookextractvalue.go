@@ -10,23 +10,23 @@ import (
 	"github.com/gorilla/context"
 )
 
-func GetWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
+func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	value_id, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid WebhookExtractValue ID",
+			"error": "Invalid IntegrationExtractValue ID",
 		})
 		return
 	}
 
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var value db.WebhookExtractValue
-	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var value db.IntegrationExtractValue
+	value, err = helpers.Store(r).GetIntegrationExtractValue(extractor.ID, value_id)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": fmt.Sprintf("Failed to get WebhookExtractValue, %v", err),
+			"error": fmt.Sprintf("Failed to get IntegrationExtractValue, %v", err),
 		})
 		return
 	}
@@ -34,9 +34,9 @@ func GetWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, value)
 }
 
-func GetWebhookExtractValues(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	values, err := helpers.Store(r).GetWebhookExtractValues(extractor.ID, helpers.QueryParams(r.URL))
+func GetIntegrationExtractValues(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	values, err := helpers.Store(r).GetIntegrationExtractValues(extractor.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -46,10 +46,10 @@ func GetWebhookExtractValues(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, values)
 }
 
-func AddWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
-	var value db.WebhookExtractValue
+	var value db.IntegrationExtractValue
 
 	if !helpers.Bind(w, r, &value) {
 		return
@@ -69,7 +69,7 @@ func AddWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newValue, err := helpers.Store(r).CreateWebhookExtractValue(value)
+	newValue, err := helpers.Store(r).CreateIntegrationExtractValue(value)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -79,7 +79,7 @@ func AddWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusCreated, newValue)
 }
 
-func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
+func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	value_id, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
@@ -88,10 +88,10 @@ func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
-	var value db.WebhookExtractValue
-	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
+	var value db.IntegrationExtractValue
+	value, err = helpers.Store(r).GetIntegrationExtractValue(extractor.ID, value_id)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -101,7 +101,7 @@ func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = helpers.Store(r).UpdateWebhookExtractValue(value)
+	err = helpers.Store(r).UpdateIntegrationExtractValue(value)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -110,7 +110,7 @@ func UpdateWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func GetWebhookExtractValueRefs(w http.ResponseWriter, r *http.Request) {
+func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 	value_id, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
@@ -119,15 +119,15 @@ func GetWebhookExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var value db.WebhookExtractValue
-	value, err = helpers.Store(r).GetWebhookExtractValue(extractor.ID, value_id)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var value db.IntegrationExtractValue
+	value, err = helpers.Store(r).GetIntegrationExtractValue(extractor.ID, value_id)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	refs, err := helpers.Store(r).GetWebhookExtractValueRefs(value.ExtractorID, value.ID)
+	refs, err := helpers.Store(r).GetIntegrationExtractValueRefs(value.ExtractorID, value.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -136,7 +136,7 @@ func GetWebhookExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-func DeleteWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
+func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	value_id, err := helpers.GetIntParam("value_id", w, r)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -144,20 +144,20 @@ func DeleteWebhookExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
 	if err != nil {
 		log.Error(err)
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": "Webhook Extract Value failed to be deleted",
+			"error": "Integration Extract Value failed to be deleted",
 		})
 		return
 	}
 
-	err = helpers.Store(r).DeleteWebhookExtractValue(extractor.ID, value_id)
+	err = helpers.Store(r).DeleteIntegrationExtractValue(extractor.ID, value_id)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": "Webhook Extract Value failed to be deleted",
+			"error": "Integration Extract Value failed to be deleted",
 		})
 		return
 	}

@@ -81,11 +81,11 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
-import WebhookExtractorChildValueFormBase from './WebhookExtractorChildValueFormBase';
+import IntegrationExtractorChildValueFormBase from './IntegrationExtractorChildValueFormBase';
 import { MATCHER_TYPE_ICONS, MATCHER_TYPE_TITLES } from '../lib/constants';
 
 export default {
-  mixins: [ItemFormBase, WebhookExtractorChildValueFormBase],
+  mixins: [ItemFormBase, IntegrationExtractorChildValueFormBase],
   data() {
     return {
       MATCHER_TYPE_ICONS,
@@ -123,11 +123,11 @@ export default {
       }
       return this.$route.params.projectId;
     },
-    webhookId() {
-      if (/^-?\d+$/.test(this.$route.params.webhookId)) {
-        return parseInt(this.$route.params.webhookId, 10);
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
       }
-      return this.$route.params.webhookId;
+      return this.$route.params.integrationId;
     },
     extractorId() {
       if (/^-?\d+$/.test(this.$route.params.extractorId)) {
@@ -138,10 +138,10 @@ export default {
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/matchers`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/matchers`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/matcher/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/matcher/${this.itemId}`;
     },
   },
 };

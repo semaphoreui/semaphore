@@ -24,7 +24,7 @@ type RemoteJob struct {
 	taskPool *TaskPool
 }
 
-type runnerWebhookPayload struct {
+type runnerIntegrationPayload struct {
 	Action     string `json:"action"`
 	ProjectID  int    `json:"project_id"`
 	TaskID     int    `json:"task_id"`
@@ -32,13 +32,13 @@ type runnerWebhookPayload struct {
 	RunnerID   int    `json:"runner_id"`
 }
 
-func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err error) {
-	if runner.Webhook == "" {
+func callRunnerIntegration(runner *db.Runner, tsk *TaskRunner, action string) (err error) {
+	if runner.Integration == "" {
 		return
 	}
 
 	var jsonBytes []byte
-	jsonBytes, err = json.Marshal(runnerWebhookPayload{
+	jsonBytes, err = json.Marshal(runnerIntegrationPayload{
 		Action:     action,
 		ProjectID:  tsk.Task.ProjectID,
 		TaskID:     tsk.Task.ID,
@@ -52,7 +52,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	client := &http.Client{}
 
 	var req *http.Request
-	req, err = http.NewRequest("POST", runner.Webhook, bytes.NewBuffer(jsonBytes))
+	req, err = http.NewRequest("POST", runner.Integration, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return
 	}
@@ -66,7 +66,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	}
 
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
-		err = fmt.Errorf("webhook returned incorrect status")
+		err = fmt.Errorf("integration returned incorrect status")
 		return
 	}
 
@@ -113,7 +113,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
-	err = callRunnerWebhook(runner, tsk, "start")
+	err = callRunnerIntegration(runner, tsk, "start")
 
 	if err != nil {
 		return
@@ -140,7 +140,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 		}
 	}
 
-	err = callRunnerWebhook(runner, tsk, "finish")
+	err = callRunnerIntegration(runner, tsk, "finish")
 
 	if err != nil {
 		return

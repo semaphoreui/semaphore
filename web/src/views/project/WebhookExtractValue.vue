@@ -9,7 +9,7 @@
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <WebhookExtractValueForm
+        <IntegrationExtractValueForm
           :extractor-id="extractorId"
           :item-id="itemId"
           :project-id="projectId"
@@ -29,8 +29,8 @@
     />
 
     <YesNoDialog
-      title="Delete Webhook ExtractValue"
-      text="Are you sure you want to delete this Webhook ExtractValue?"
+      title="Delete Integration ExtractValue"
+      text="Are you sure you want to delete this Integration ExtractValue?"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
@@ -90,14 +90,14 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 
-import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
-import WebhookExtractorBase from '@/components/WebhookExtractorBase';
+import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
+import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
-import WebhookExtractValueForm from '@/components/WebhookExtractValueForm.vue';
+import IntegrationExtractValueForm from '@/components/IntegrationExtractValueForm.vue';
 
 export default {
-  mixins: [ItemListPageBase, WebhookExtractorsBase, WebhookExtractorBase],
-  components: { WebhookExtractValueForm },
+  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
+  components: { IntegrationExtractValueForm },
 
   computed: {
     projectId() {
@@ -106,11 +106,11 @@ export default {
       }
       return this.$route.params.projectId;
     },
-    webhookId() {
-      if (/^-?\d+$/.test(this.$route.params.webhookId)) {
-        return parseInt(this.$route.params.webhookId, 10);
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
       }
-      return this.$route.params.webhookId;
+      return this.$route.params.integrationId;
     },
     extractorId() {
       if (/^-?\d+$/.test(this.$route.params.extractorId)) {
@@ -158,13 +158,13 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/values`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/values`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}/value/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/value/${this.itemId}`;
     },
     getEventName() {
-      return 'w-webhook-extract-value';
+      return 'w-integration-extract-value';
     },
   },
 };

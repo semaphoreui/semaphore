@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/lib/error';
 
 export default {
   props: {
-    webhookId: [Number, String],
+    integrationId: [Number, String],
   },
   methods: {
     /**
@@ -33,7 +33,7 @@ export default {
           data: {
             ...this.item,
             project_id: this.$route.params.projectId,
-            webhook_id: this.webhookId,
+            integration_id: this.integrationId,
           },
           ...(this.getRequestOptions()),
         })).data;

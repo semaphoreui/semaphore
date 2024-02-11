@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/context"
 )
 
-func GetWebhookMatcher(w http.ResponseWriter, r *http.Request) {
+func GetIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	matcher_id, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -21,9 +21,9 @@ func GetWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var matcher db.WebhookMatcher
-	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var matcher db.IntegrationMatcher
+	matcher, err = helpers.Store(r).GetIntegrationMatcher(extractor.ID, matcher_id)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -32,7 +32,7 @@ func GetWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, matcher)
 }
 
-func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
+func GetIntegrationMatcherRefs(w http.ResponseWriter, r *http.Request) {
 	matcher_id, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -41,15 +41,15 @@ func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var matcher db.WebhookMatcher
-	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var matcher db.IntegrationMatcher
+	matcher, err = helpers.Store(r).GetIntegrationMatcher(extractor.ID, matcher_id)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	refs, err := helpers.Store(r).GetWebhookMatcherRefs(matcher.ExtractorID, matcher.ID)
+	refs, err := helpers.Store(r).GetIntegrationMatcherRefs(matcher.ExtractorID, matcher.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -58,10 +58,10 @@ func GetWebhookMatcherRefs(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-func GetWebhookMatchers(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+func GetIntegrationMatchers(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
-	matchers, err := helpers.Store(r).GetWebhookMatchers(extractor.ID, helpers.QueryParams(r.URL))
+	matchers, err := helpers.Store(r).GetIntegrationMatchers(extractor.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -71,9 +71,9 @@ func GetWebhookMatchers(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, matchers)
 }
 
-func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var matcher db.WebhookMatcher
+func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var matcher db.IntegrationMatcher
 	if !helpers.Bind(w, r, &matcher) {
 		return
 	}
@@ -94,7 +94,7 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newMatcher, err := helpers.Store(r).CreateWebhookMatcher(matcher)
+	newMatcher, err := helpers.Store(r).CreateIntegrationMatcher(matcher)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -104,7 +104,7 @@ func AddWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, newMatcher)
 }
 
-func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
+func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	matcher_id, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -113,9 +113,9 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
-	var matcher db.WebhookMatcher
+	var matcher db.IntegrationMatcher
 
 	if !helpers.Bind(w, r, &matcher) {
 		return
@@ -123,7 +123,7 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Updating API Matcher %v for Extractor %v, matcher ID: %v", matcher_id, extractor.ID, matcher.ID))
 
-	err = helpers.Store(r).UpdateWebhookMatcher(matcher)
+	err = helpers.Store(r).UpdateIntegrationMatcher(matcher)
 	log.Info(fmt.Sprintf("Err %s", err))
 
 	if err != nil {
@@ -134,7 +134,7 @@ func UpdateWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
+func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	matcher_id, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -144,18 +144,18 @@ func DeleteWebhookMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var matcher db.WebhookMatcher
-	matcher, err = helpers.Store(r).GetWebhookMatcher(extractor.ID, matcher_id)
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var matcher db.IntegrationMatcher
+	matcher, err = helpers.Store(r).GetIntegrationMatcher(extractor.ID, matcher_id)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	err = helpers.Store(r).DeleteWebhookMatcher(extractor.ID, matcher.ID)
+	err = helpers.Store(r).DeleteIntegrationMatcher(extractor.ID, matcher.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": "Webhook Matcher failed to be deleted",
+			"error": "Integration Matcher failed to be deleted",
 		})
 		return
 	}

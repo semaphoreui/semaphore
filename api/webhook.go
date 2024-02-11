@@ -15,23 +15,23 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
-	log.Info(fmt.Sprintf("Receiving Webhook from: %s", r.RemoteAddr))
+func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
+	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
 	var err error
 	// var projects []db.Project
-	var extractors []db.WebhookExtractor
-	extractors, err = helpers.Store(r).GetAllWebhookExtractors()
+	var extractors []db.IntegrationExtractor
+	extractors, err = helpers.Store(r).GetAllIntegrationExtractors()
 
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	var foundExtractors = make([]db.WebhookExtractor, 0)
+	var foundExtractors = make([]db.IntegrationExtractor, 0)
 	for _, extractor := range extractors {
-		var matchers []db.WebhookMatcher
-		matchers, err = helpers.Store(r).GetWebhookMatchers(extractor.ID, db.RetrieveQueryParams{})
+		var matchers []db.IntegrationMatcher
+		matchers, err = helpers.Store(r).GetIntegrationMatchers(extractor.ID, db.RetrieveQueryParams{})
 		if err != nil {
 			log.Error(err)
 		}
@@ -54,40 +54,40 @@ func ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// Iterate over all Extractors that matched
 	if len(foundExtractors) > 0 {
-		var webhookIDs = make([]int, 0)
+		var integrationIDs = make([]int, 0)
 		var extractorIDs = make([]int, 0)
 
 		for _, extractor := range foundExtractors {
-			webhookIDs = append(webhookIDs, extractor.WebhookID)
+			integrationIDs = append(integrationIDs, extractor.IntegrationID)
 		}
 
 		for _, extractor := range foundExtractors {
 			extractorIDs = append(extractorIDs, extractor.ID)
 		}
 
-		var allWebhookExtractorIDs = make([]int, 0)
-		var webhooks []db.Webhook
-		webhooks, err = helpers.Store(r).GetAllWebhooks()
+		var allIntegrationExtractorIDs = make([]int, 0)
+		var integrations []db.Integration
+		integrations, err = helpers.Store(r).GetAllIntegrations()
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		for _, id := range webhookIDs {
-			var extractorsForWebhook []db.WebhookExtractor
-			extractorsForWebhook, err = helpers.Store(r).GetWebhookExtractors(id, db.RetrieveQueryParams{})
+		for _, id := range integrationIDs {
+			var extractorsForIntegration []db.IntegrationExtractor
+			extractorsForIntegration, err = helpers.Store(r).GetIntegrationExtractors(id, db.RetrieveQueryParams{})
 
 			if err != nil {
 				log.Error(err)
 				return
 			}
 
-			for _, extractor := range extractorsForWebhook {
-				allWebhookExtractorIDs = append(allWebhookExtractorIDs, extractor.ID)
+			for _, extractor := range extractorsForIntegration {
+				allIntegrationExtractorIDs = append(allIntegrationExtractorIDs, extractor.ID)
 			}
 
 			var found = false
-			for _, webhookExtractorID := range extractorIDs {
-				if slices.Contains(allWebhookExtractorIDs, webhookExtractorID) {
+			for _, integrationExtractorID := range extractorIDs {
+				if slices.Contains(allIntegrationExtractorIDs, integrationExtractorID) {
 					found = true
 					continue
 				} else {
@@ -96,15 +96,15 @@ func ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// if all extractors for a webhook matched during search
+			// if all extractors for a integration matched during search
 			if found {
-				webhook := FindWebhook(webhooks, id)
+				integration := FindIntegration(integrations, id)
 
-				if webhook.ID != id {
-					log.Error(fmt.Sprintf("Could not find webhook ID: %v", id))
+				if integration.ID != id {
+					log.Error(fmt.Sprintf("Could not find integration ID: %v", id))
 					continue
 				}
-				RunWebhook(webhook, r)
+				RunIntegration(integration, r)
 			}
 		}
 	}
@@ -112,23 +112,23 @@ func ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func FindWebhook(webhooks []db.Webhook, id int) (webhook db.Webhook) {
-	for _, webhook := range webhooks {
-		if webhook.ID == id {
-			return webhook
+func FindIntegration(integrations []db.Integration, id int) (integration db.Integration) {
+	for _, integration := range integrations {
+		if integration.ID == id {
+			return integration
 		}
 	}
-	return db.Webhook{}
+	return db.Integration{}
 }
 
-func UniqueWebhooks(webhooks []db.Webhook) []db.Webhook {
-	var unique []db.Webhook
-webhookLoop:
-	for _, v := range webhooks {
+func UniqueIntegrations(integrations []db.Integration) []db.Integration {
+	var unique []db.Integration
+integrationLoop:
+	for _, v := range integrations {
 		for i, u := range unique {
 			if v.ID == u.ID {
 				unique[i] = v
-				continue webhookLoop
+				continue integrationLoop
 			}
 		}
 		unique = append(unique, v)
@@ -136,14 +136,14 @@ webhookLoop:
 	return unique
 }
 
-func UniqueExtractors(extractors []db.WebhookExtractor) []db.WebhookExtractor {
-	var unique []db.WebhookExtractor
-webhookLoop:
+func UniqueExtractors(extractors []db.IntegrationExtractor) []db.IntegrationExtractor {
+	var unique []db.IntegrationExtractor
+integrationLoop:
 	for _, v := range extractors {
 		for i, u := range unique {
 			if v.ID == u.ID {
 				unique[i] = v
-				continue webhookLoop
+				continue integrationLoop
 			}
 		}
 		unique = append(unique, v)
@@ -151,13 +151,13 @@ webhookLoop:
 	return unique
 }
 
-func Match(matcher db.WebhookMatcher, r *http.Request) (matched bool) {
+func Match(matcher db.IntegrationMatcher, r *http.Request) (matched bool) {
 
 	switch matcher.MatchType {
-	case db.WebhookMatchHeader:
+	case db.IntegrationMatchHeader:
 		var header_value = r.Header.Get(matcher.Key)
 		return MatchCompare(header_value, matcher.Method, matcher.Value)
-	case db.WebhookMatchBody:
+	case db.IntegrationMatchBody:
 		bodyBytes, err := io.ReadAll(r.Body)
 
 		if err != nil {
@@ -166,7 +166,7 @@ func Match(matcher db.WebhookMatcher, r *http.Request) (matched bool) {
 		}
 		var body = string(bodyBytes)
 		switch matcher.BodyDataType {
-		case db.WebhookBodyDataJSON:
+		case db.IntegrationBodyDataJSON:
 			var jsonBytes bytes.Buffer
 			jsonq.New().FromString(body).From(matcher.Key).Writer(&jsonBytes)
 			var jsonString = jsonBytes.String()
@@ -174,9 +174,9 @@ func Match(matcher db.WebhookMatcher, r *http.Request) (matched bool) {
 				log.Error(fmt.Sprintf("Failed to marshal JSON contents of body. %v", err))
 			}
 			return MatchCompare(jsonString, matcher.Method, matcher.Value)
-		case db.WebhookBodyDataString:
+		case db.IntegrationBodyDataString:
 			return MatchCompare(body, matcher.Method, matcher.Value)
-		case db.WebhookBodyDataXML:
+		case db.IntegrationBodyDataXML:
 			// XXX: TBI
 			return false
 		}
@@ -185,21 +185,21 @@ func Match(matcher db.WebhookMatcher, r *http.Request) (matched bool) {
 	return false
 }
 
-func MatchCompare(value string, method db.WebhookMatchMethodType, expected string) bool {
+func MatchCompare(value string, method db.IntegrationMatchMethodType, expected string) bool {
 	switch method {
-	case db.WebhookMatchMethodEquals:
+	case db.IntegrationMatchMethodEquals:
 		return value == expected
-	case db.WebhookMatchMethodUnEquals:
+	case db.IntegrationMatchMethodUnEquals:
 		return value != expected
-	case db.WebhookMatchMethodContains:
+	case db.IntegrationMatchMethodContains:
 		return strings.Contains(value, expected)
 	default:
 		return false
 	}
 }
 
-func RunWebhook(webhook db.Webhook, r *http.Request) {
-	extractors, err := helpers.Store(r).GetWebhookExtractors(webhook.ID, db.RetrieveQueryParams{})
+func RunIntegration(integration db.Integration, r *http.Request) {
+	extractors, err := helpers.Store(r).GetIntegrationExtractors(integration.ID, db.RetrieveQueryParams{})
 	if err != nil {
 		log.Error(err)
 		return
@@ -210,9 +210,9 @@ func RunWebhook(webhook db.Webhook, r *http.Request) {
 		return
 	}
 
-	var extractValues = make([]db.WebhookExtractValue, 0)
+	var extractValues = make([]db.IntegrationExtractValue, 0)
 	for _, extractor := range extractors {
-		extractValuesForExtractor, errextractValuesForExtractor := helpers.Store(r).GetWebhookExtractValues(extractor.ID, db.RetrieveQueryParams{})
+		extractValuesForExtractor, errextractValuesForExtractor := helpers.Store(r).GetIntegrationExtractValues(extractor.ID, db.RetrieveQueryParams{})
 		if errextractValuesForExtractor != nil {
 			log.Error(errextractValuesForExtractor)
 			return
@@ -231,8 +231,8 @@ func RunWebhook(webhook db.Webhook, r *http.Request) {
 
 	var environmentJSONString = string(environmentJSONBytes)
 	var taskDefinition = db.Task{
-		TemplateID:  webhook.TemplateID,
-		ProjectID:   webhook.ProjectID,
+		TemplateID:  integration.TemplateID,
+		ProjectID:   integration.ProjectID,
 		Debug:       true,
 		Environment: environmentJSONString,
 	}
@@ -244,17 +244,17 @@ func RunWebhook(webhook db.Webhook, r *http.Request) {
 		return
 	}
 
-	helpers.TaskPool(r).AddTask(taskDefinition, &user.ID, webhook.ProjectID)
+	helpers.TaskPool(r).AddTask(taskDefinition, &user.ID, integration.ProjectID)
 }
 
-func Extract(extractValues []db.WebhookExtractValue, r *http.Request) (result map[string]string) {
+func Extract(extractValues []db.IntegrationExtractValue, r *http.Request) (result map[string]string) {
 	result = make(map[string]string)
 
 	for _, extractValue := range extractValues {
 		switch extractValue.ValueSource {
-		case db.WebhookExtractHeaderValue:
+		case db.IntegrationExtractHeaderValue:
 			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
-		case db.WebhookExtractBodyValue:
+		case db.IntegrationExtractBodyValue:
 			bodyBytes, err := io.ReadAll(r.Body)
 			if err != nil {
 				log.Fatal(err)
@@ -263,13 +263,13 @@ func Extract(extractValues []db.WebhookExtractValue, r *http.Request) (result ma
 			var body = string(bodyBytes)
 
 			switch extractValue.BodyDataType {
-			case db.WebhookBodyDataJSON:
+			case db.IntegrationBodyDataJSON:
 				var jsonBytes bytes.Buffer
 				jsonq.New().FromString(body).From(extractValue.Key).Writer(&jsonBytes)
 				result[extractValue.Variable] = jsonBytes.String()
-			case db.WebhookBodyDataString:
+			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = body
-			case db.WebhookBodyDataXML:
+			case db.IntegrationBodyDataXML:
 				// XXX: TBI
 			}
 		}

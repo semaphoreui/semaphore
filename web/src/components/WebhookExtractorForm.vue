@@ -21,22 +21,22 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
-import WebhookExtractorFormBase from '@/components/WebhookExtractorFormBase';
+import IntegrationExtractorFormBase from '@/components/IntegrationExtractorFormBase';
 
 export default {
-  mixins: [ItemFormBase, WebhookExtractorFormBase],
+  mixins: [ItemFormBase, IntegrationExtractorFormBase],
   data() {
     return {
       projectId: this.$route.params.projectId,
-      webhookId: this.$route.params.webhookId,
+      integrationId: this.$route.params.integrationId,
     };
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractors`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.itemId}`;
     },
   },
 };

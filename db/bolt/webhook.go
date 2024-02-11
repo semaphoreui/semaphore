@@ -5,26 +5,26 @@ import (
 )
 
 /*
-	 Webhooks
+Integrations
 */
-func (d *BoltDb) CreateWebhook(webhook db.Webhook) (db.Webhook, error) {
-	err := webhook.Validate()
+func (d *BoltDb) CreateIntegration(integration db.Integration) (db.Integration, error) {
+	err := integration.Validate()
 
 	if err != nil {
-		return db.Webhook{}, err
+		return db.Integration{}, err
 	}
 
-	newWebhook, err := d.createObject(webhook.ProjectID, db.WebhookProps, webhook)
-	return newWebhook.(db.Webhook), err
+	newIntegration, err := d.createObject(integration.ProjectID, db.IntegrationProps, integration)
+	return newIntegration.(db.Integration), err
 }
 
-func (d *BoltDb) GetWebhooks(projectID int, params db.RetrieveQueryParams) (webhooks []db.Webhook, err error) {
-	err = d.getObjects(projectID, db.WebhookProps, params, nil, &webhooks)
-	return webhooks, err
+func (d *BoltDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (integrations []db.Integration, err error) {
+	err = d.getObjects(projectID, db.IntegrationProps, params, nil, &integrations)
+	return integrations, err
 }
 
-func (d *BoltDb) GetWebhook(projectID int, webhookID int) (webhook db.Webhook, err error) {
-	err = d.getObject(projectID, db.WebhookProps, intObjectID(webhookID), &webhook)
+func (d *BoltDb) GetIntegration(projectID int, integrationID int) (integration db.Integration, err error) {
+	err = d.getObject(projectID, db.IntegrationProps, intObjectID(integrationID), &integration)
 	if err != nil {
 		return
 	}
@@ -32,145 +32,143 @@ func (d *BoltDb) GetWebhook(projectID int, webhookID int) (webhook db.Webhook, e
 	return
 }
 
-func (d *BoltDb) GetAllWebhooks() ([]db.Webhook, error) {
-	return []db.Webhook{}, nil
+func (d *BoltDb) GetAllIntegrations() ([]db.Integration, error) {
+	return []db.Integration{}, nil
 }
 
-func (d *BoltDb) UpdateWebhook(webhook db.Webhook) error {
-	err := webhook.Validate()
+func (d *BoltDb) UpdateIntegration(integration db.Integration) error {
+	err := integration.Validate()
 
 	if err != nil {
 		return err
 	}
 
-	return d.updateObject(webhook.ProjectID, db.WebhookProps, webhook)
+	return d.updateObject(integration.ProjectID, db.IntegrationProps, integration)
 
 }
 
-func (d *BoltDb) GetWebhookRefs(projectID int, webhookID int) (db.WebhookReferrers, error) {
-	//return d.getObjectRefs(projectID, db.WebhookProps, webhookID)
-	return db.WebhookReferrers{}, nil
+func (d *BoltDb) GetIntegrationRefs(projectID int, integrationID int) (db.IntegrationReferrers, error) {
+	//return d.getObjectRefs(projectID, db.IntegrationProps, integrationID)
+	return db.IntegrationReferrers{}, nil
 }
 
 /*
-	 Webhook Extractors
+Integration Extractors
 */
-func (d *BoltDb) GetWebhookExtractorsByWebhookID(webhookID int) (extractors []db.WebhookExtractor, err error) {
-	err = d.getObjects(webhookID, db.WebhookExtractorProps, db.RetrieveQueryParams{}, nil, &extractors)
+func (d *BoltDb) GetIntegrationExtractorsByIntegrationID(integrationID int) (extractors []db.IntegrationExtractor, err error) {
+	err = d.getObjects(integrationID, db.IntegrationExtractorProps, db.RetrieveQueryParams{}, nil, &extractors)
 	return extractors, err
 }
 
-func (d *BoltDb) CreateWebhookExtractor(webhookExtractor db.WebhookExtractor) (db.WebhookExtractor, error) {
-	err := webhookExtractor.Validate()
+func (d *BoltDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationExtractor) (db.IntegrationExtractor, error) {
+	err := integrationExtractor.Validate()
 
 	if err != nil {
-		return db.WebhookExtractor{}, err
+		return db.IntegrationExtractor{}, err
 	}
 
-	newWebhookExtractor, err := d.createObject(webhookExtractor.WebhookID, db.WebhookExtractorProps, webhookExtractor)
-	return newWebhookExtractor.(db.WebhookExtractor), err
+	newIntegrationExtractor, err := d.createObject(integrationExtractor.IntegrationID, db.IntegrationExtractorProps, integrationExtractor)
+	return newIntegrationExtractor.(db.IntegrationExtractor), err
 }
 
-func (d *BoltDb) GetAllWebhookExtractors() ([]db.WebhookExtractor, error) {
+func (d *BoltDb) GetAllIntegrationExtractors() ([]db.IntegrationExtractor, error) {
 
-	return []db.WebhookExtractor{}, nil
+	return []db.IntegrationExtractor{}, nil
 }
 
-func (d *BoltDb) GetWebhookExtractors(webhookID int, params db.RetrieveQueryParams) ([]db.WebhookExtractor, error) {
-	var extractors []db.WebhookExtractor
-	err := d.getObjects(webhookID, db.WebhookExtractorProps, params, nil, &extractors)
+func (d *BoltDb) GetIntegrationExtractors(integrationID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractor, error) {
+	var extractors []db.IntegrationExtractor
+	err := d.getObjects(integrationID, db.IntegrationExtractorProps, params, nil, &extractors)
 
 	return extractors, err
 }
 
-func (d *BoltDb) GetWebhookExtractor(webhookID int, extractorID int) (db.WebhookExtractor, error) {
-	var extractor db.WebhookExtractor
-	err := d.getObject(webhookID, db.WebhookExtractorProps, intObjectID(extractorID), &extractor)
+func (d *BoltDb) GetIntegrationExtractor(integrationID int, extractorID int) (db.IntegrationExtractor, error) {
+	var extractor db.IntegrationExtractor
+	err := d.getObject(integrationID, db.IntegrationExtractorProps, intObjectID(extractorID), &extractor)
 
 	return extractor, err
 
 }
 
-func (d *BoltDb) UpdateWebhookExtractor(webhookExtractor db.WebhookExtractor) error {
-	err := webhookExtractor.Validate()
+func (d *BoltDb) UpdateIntegrationExtractor(integrationExtractor db.IntegrationExtractor) error {
+	err := integrationExtractor.Validate()
 
 	if err != nil {
 		return err
 	}
 
-	return d.updateObject(webhookExtractor.WebhookID, db.WebhookExtractorProps, webhookExtractor)
+	return d.updateObject(integrationExtractor.IntegrationID, db.IntegrationExtractorProps, integrationExtractor)
 }
 
-func (d *BoltDb) GetWebhookExtractorRefs(webhookID int, extractorID int) (db.WebhookExtractorReferrers, error) {
-	return d.getWebhookExtractorRefs(webhookID, db.WebhookExtractorProps, extractorID)
+func (d *BoltDb) GetIntegrationExtractorRefs(integrationID int, extractorID int) (db.IntegrationExtractorReferrers, error) {
+	return d.getIntegrationExtractorRefs(integrationID, db.IntegrationExtractorProps, extractorID)
 }
 
 /*
-   Webhook ExtractValue
+Integration ExtractValue
 */
-func (d *BoltDb) GetWebhookExtractValuesByExtractorID(extractorID int) (values []db.WebhookExtractValue, err error) {
-	err = d.getObjects(extractorID, db.WebhookExtractValueProps, db.RetrieveQueryParams{}, nil, &values)
+func (d *BoltDb) GetIntegrationExtractValuesByExtractorID(extractorID int) (values []db.IntegrationExtractValue, err error) {
+	err = d.getObjects(extractorID, db.IntegrationExtractValueProps, db.RetrieveQueryParams{}, nil, &values)
 	return values, err
 }
 
-func (d *BoltDb) DeleteWebhookExtractValue(extractorID int, valueID int) error {
-	return d.deleteObject(extractorID, db.WebhookExtractValueProps, intObjectID(valueID), nil)
+func (d *BoltDb) DeleteIntegrationExtractValue(extractorID int, valueID int) error {
+	return d.deleteObject(extractorID, db.IntegrationExtractValueProps, intObjectID(valueID), nil)
 }
 
-func (d *BoltDb) GetWebhookMatchersByExtractorID(extractorID int) (matchers []db.WebhookMatcher, err error) {
-	err = d.getObjects(extractorID, db.WebhookMatcherProps, db.RetrieveQueryParams{}, nil, &matchers)
+func (d *BoltDb) GetIntegrationMatchersByExtractorID(extractorID int) (matchers []db.IntegrationMatcher, err error) {
+	err = d.getObjects(extractorID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, nil, &matchers)
 
 	return matchers, err
 }
 
-func (d *BoltDb) GetAllWebhookMatchers() (matchers []db.WebhookMatcher, err error) {
-	err = d.getObjects(0, db.WebhookMatcherProps, db.RetrieveQueryParams{}, nil, &matchers)
+func (d *BoltDb) GetAllIntegrationMatchers() (matchers []db.IntegrationMatcher, err error) {
+	err = d.getObjects(0, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, nil, &matchers)
 
 	return matchers, err
 }
 
-
-func (d *BoltDb) DeleteWebhookExtractor(webhookID int, extractorID int) error {
-	values, err := d.GetWebhookExtractValuesByExtractorID(extractorID)
+func (d *BoltDb) DeleteIntegrationExtractor(integrationID int, extractorID int) error {
+	values, err := d.GetIntegrationExtractValuesByExtractorID(extractorID)
 
 	if err != nil {
 		return err
 	}
 
 	for value := range values {
-		d.DeleteWebhookExtractValue(extractorID, values[value].ID)
+		d.DeleteIntegrationExtractValue(extractorID, values[value].ID)
 	}
 
-	matchers, err := d.GetWebhookMatchersByExtractorID(extractorID)
+	matchers, err := d.GetIntegrationMatchersByExtractorID(extractorID)
 
 	if err != nil {
 		return err
 	}
 
 	for matcher := range matchers {
-		d.DeleteWebhookMatcher(extractorID, matchers[matcher].ID)
+		d.DeleteIntegrationMatcher(extractorID, matchers[matcher].ID)
 	}
-	return d.deleteObject(webhookID, db.WebhookExtractorProps, intObjectID(extractorID), nil)
+	return d.deleteObject(integrationID, db.IntegrationExtractorProps, intObjectID(extractorID), nil)
 }
 
-
-func (d *BoltDb) CreateWebhookExtractValue(value db.WebhookExtractValue) (db.WebhookExtractValue, error) {
+func (d *BoltDb) CreateIntegrationExtractValue(value db.IntegrationExtractValue) (db.IntegrationExtractValue, error) {
 	err := value.Validate()
 
 	if err != nil {
-		return db.WebhookExtractValue{}, err
+		return db.IntegrationExtractValue{}, err
 	}
 
-	newValue, err := d.createObject(value.ExtractorID, db.WebhookExtractValueProps, value)
-	return newValue.(db.WebhookExtractValue), err
+	newValue, err := d.createObject(value.ExtractorID, db.IntegrationExtractValueProps, value)
+	return newValue.(db.IntegrationExtractValue), err
 
 }
 
-func (d *BoltDb) GetWebhookExtractValues(extractorID int, params db.RetrieveQueryParams) (values []db.WebhookExtractValue, err error) {
-	values = make([]db.WebhookExtractValue, 0)
-	var allValues []db.WebhookExtractValue
+func (d *BoltDb) GetIntegrationExtractValues(extractorID int, params db.RetrieveQueryParams) (values []db.IntegrationExtractValue, err error) {
+	values = make([]db.IntegrationExtractValue, 0)
+	var allValues []db.IntegrationExtractValue
 
-	err = d.getObjects(extractorID, db.WebhookExtractValueProps, db.RetrieveQueryParams{}, nil, &allValues)
+	err = d.getObjects(extractorID, db.IntegrationExtractValueProps, db.RetrieveQueryParams{}, nil, &allValues)
 
 	if err != nil {
 		return
@@ -185,49 +183,49 @@ func (d *BoltDb) GetWebhookExtractValues(extractorID int, params db.RetrieveQuer
 	return
 }
 
-func (d *BoltDb) GetAllWebhookExtractValues() (matchers []db.WebhookExtractValue, err error) {
-	err = d.getObjects(0, db.WebhookExtractValueProps, db.RetrieveQueryParams{}, nil, &matchers)
+func (d *BoltDb) GetAllIntegrationExtractValues() (matchers []db.IntegrationExtractValue, err error) {
+	err = d.getObjects(0, db.IntegrationExtractValueProps, db.RetrieveQueryParams{}, nil, &matchers)
 
 	return matchers, err
 }
 
-
-func (d *BoltDb) GetWebhookExtractValue(extractorID int, valueID int) (value db.WebhookExtractValue, err error) {
-	err = d.getObject(extractorID, db.WebhookExtractValueProps, intObjectID(valueID), &value)
+func (d *BoltDb) GetIntegrationExtractValue(extractorID int, valueID int) (value db.IntegrationExtractValue, err error) {
+	err = d.getObject(extractorID, db.IntegrationExtractValueProps, intObjectID(valueID), &value)
 	return value, err
 }
 
-func (d *BoltDb) UpdateWebhookExtractValue(webhookExtractValue db.WebhookExtractValue) error {
-	err := webhookExtractValue.Validate()
+func (d *BoltDb) UpdateIntegrationExtractValue(integrationExtractValue db.IntegrationExtractValue) error {
+	err := integrationExtractValue.Validate()
 
 	if err != nil {
 		return err
 	}
 
-	return d.updateObject(webhookExtractValue.ExtractorID, db.WebhookExtractValueProps, webhookExtractValue)
+	return d.updateObject(integrationExtractValue.ExtractorID, db.IntegrationExtractValueProps, integrationExtractValue)
 }
 
-func (d *BoltDb) GetWebhookExtractValueRefs(extractorID int, valueID int) (db.WebhookExtractorChildReferrers, error) {
-	return d.getWebhookExtractorChildrenRefs(extractorID, db.WebhookExtractValueProps, valueID)
+func (d *BoltDb) GetIntegrationExtractValueRefs(extractorID int, valueID int) (db.IntegrationExtractorChildReferrers, error) {
+	return d.getIntegrationExtractorChildrenRefs(extractorID, db.IntegrationExtractValueProps, valueID)
 }
+
 /*
-   Webhook Matcher
+Integration Matcher
 */
-func (d *BoltDb) CreateWebhookMatcher(matcher db.WebhookMatcher) (db.WebhookMatcher, error) {
+func (d *BoltDb) CreateIntegrationMatcher(matcher db.IntegrationMatcher) (db.IntegrationMatcher, error) {
 	err := matcher.Validate()
 
 	if err != nil {
-		return db.WebhookMatcher{}, err
+		return db.IntegrationMatcher{}, err
 	}
-	newMatcher, err := d.createObject(matcher.ExtractorID, db.WebhookMatcherProps, matcher)
-	return newMatcher.(db.WebhookMatcher), err
+	newMatcher, err := d.createObject(matcher.ExtractorID, db.IntegrationMatcherProps, matcher)
+	return newMatcher.(db.IntegrationMatcher), err
 }
 
-func (d *BoltDb) GetWebhookMatchers(extractorID int, params db.RetrieveQueryParams) (matchers []db.WebhookMatcher, err error) {
-	matchers = make([]db.WebhookMatcher, 0)
-	var allMatchers []db.WebhookMatcher
+func (d *BoltDb) GetIntegrationMatchers(extractorID int, params db.RetrieveQueryParams) (matchers []db.IntegrationMatcher, err error) {
+	matchers = make([]db.IntegrationMatcher, 0)
+	var allMatchers []db.IntegrationMatcher
 
-	err = d.getObjects(extractorID, db.WebhookMatcherProps, db.RetrieveQueryParams{}, nil, &allMatchers)
+	err = d.getObjects(extractorID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, nil, &allMatchers)
 
 	if err != nil {
 		return
@@ -242,9 +240,9 @@ func (d *BoltDb) GetWebhookMatchers(extractorID int, params db.RetrieveQueryPara
 	return
 }
 
-func (d *BoltDb) GetWebhookMatcher(extractorID int,matcherID int) (matcher db.WebhookMatcher, err error) {
-	var matchers []db.WebhookMatcher
-	matchers, err = d.GetWebhookMatchers(extractorID, db.RetrieveQueryParams{})
+func (d *BoltDb) GetIntegrationMatcher(extractorID int, matcherID int) (matcher db.IntegrationMatcher, err error) {
+	var matchers []db.IntegrationMatcher
+	matchers, err = d.GetIntegrationMatchers(extractorID, db.RetrieveQueryParams{})
 
 	for _, v := range matchers {
 		if v.ID == matcherID {
@@ -255,33 +253,33 @@ func (d *BoltDb) GetWebhookMatcher(extractorID int,matcherID int) (matcher db.We
 	return
 }
 
-func (d *BoltDb) UpdateWebhookMatcher(webhookMatcher db.WebhookMatcher) error {
-	err := webhookMatcher.Validate()
+func (d *BoltDb) UpdateIntegrationMatcher(integrationMatcher db.IntegrationMatcher) error {
+	err := integrationMatcher.Validate()
 
 	if err != nil {
 		return err
 	}
 
-	return d.updateObject(webhookMatcher.ExtractorID, db.WebhookMatcherProps, webhookMatcher)
+	return d.updateObject(integrationMatcher.ExtractorID, db.IntegrationMatcherProps, integrationMatcher)
 }
 
-func (d *BoltDb) DeleteWebhookMatcher(extractorID int, matcherID int) error {
-	return d.deleteObject(extractorID, db.WebhookMatcherProps, intObjectID(matcherID), nil)
+func (d *BoltDb) DeleteIntegrationMatcher(extractorID int, matcherID int) error {
+	return d.deleteObject(extractorID, db.IntegrationMatcherProps, intObjectID(matcherID), nil)
 }
-func (d *BoltDb) DeleteWebhook(projectID int, webhookID int) error {
-	extractors, err := d.GetWebhookExtractorsByWebhookID(webhookID)
+func (d *BoltDb) DeleteIntegration(projectID int, integrationID int) error {
+	extractors, err := d.GetIntegrationExtractorsByIntegrationID(integrationID)
 
 	if err != nil {
 		return err
 	}
 
 	for extractor := range extractors {
-		d.DeleteWebhookExtractor(webhookID, extractors[extractor].ID)
+		d.DeleteIntegrationExtractor(integrationID, extractors[extractor].ID)
 	}
 
-	return d.deleteObject(projectID, db.WebhookProps, intObjectID(webhookID), nil)
+	return d.deleteObject(projectID, db.IntegrationProps, intObjectID(integrationID), nil)
 }
 
-func (d *BoltDb) GetWebhookMatcherRefs(extractorID int, valueID int) (db.WebhookExtractorChildReferrers, error) {
-	return d.getWebhookExtractorChildrenRefs(extractorID, db.WebhookMatcherProps, valueID)
+func (d *BoltDb) GetIntegrationMatcherRefs(extractorID int, valueID int) (db.IntegrationExtractorChildReferrers, error) {
+	return d.getIntegrationExtractorChildrenRefs(extractorID, db.IntegrationMatcherProps, valueID)
 }

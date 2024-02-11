@@ -1,5 +1,5 @@
 <template>
-  <div class="object-refs-view webhook-refs-view">
+  <div class="object-refs-view integration-refs-view">
     <v-alert
       type="warning"
     >
@@ -15,9 +15,9 @@
       </div>
 
       <div class="ml-6">
-        <span v-for="t in webhookRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
+        <span v-for="t in integrationRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
           <router-link
-            :to="`/project/${projectId}/webhook/${t.id}`"
+            :to="`/project/${projectId}/integration/${t.id}`"
             class="object-refs-view__link">{{ t.name }}</router-link>
         </span>
       </div>

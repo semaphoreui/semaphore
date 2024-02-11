@@ -1,15 +1,15 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && webhook != null">
+  <div v-if="items != null && integration != null">
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
-      :title="`${itemId === 'new' ? 'New' : 'Edit'} Webhook Extractor`"
+      :title="`${itemId === 'new' ? 'New' : 'Edit'} Integration Extractor`"
       :max-width="450"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <WebhookExtractorForm
-          :webhook-id="webhookId"
+        <IntegrationExtractorForm
+          :integration-id="integrationId"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -23,13 +23,13 @@
     <ObjectRefsDialog
       object-title="extractor"
       :object-refs="itemRefs"
-      :webhook-id="webhookId"
+      :integration-id="integrationId"
       v-model="itemRefsDialog"
     />
 
     <YesNoDialog
-      title="Delete Webhook Extractor"
-      text="Are you sure you want to delete this Webhook Extractor?"
+      title="Delete Integration Extractor"
+      text="Are you sure you want to delete this Integration Extractor?"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
@@ -38,12 +38,12 @@
       <v-toolbar-title class="breadcrumbs">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
-          :to="`/project/${projectId}/webhooks/`"
+          :to="`/project/${projectId}/integrations/`"
         >
-          Webhooks
+          Integrations
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ webhook.name }}</span>
+        <span class="breadcrumbs__item">{{ integration.name }}</span>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">Extractors</span>
       </v-toolbar-title>
@@ -63,7 +63,7 @@
       >
       <template v-slot:item.name="{ item }">
         <router-link
-          :to="`/project/${projectId}/webhook/${webhookId}/extractor/${item.id}`"
+          :to="`/project/${projectId}/integration/${integrationId}/extractor/${item.id}`"
         >{{ item.name }}
         </router-link>
       </template>
@@ -97,22 +97,22 @@ import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
 
 import ItemListPageBase from '@/components/ItemListPageBase';
-import WebhookExtractorForm from '@/components/WebhookExtractorForm.vue';
-import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
+import IntegrationExtractorForm from '@/components/IntegrationExtractorForm.vue';
+import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
 
 export default {
-  mixins: [ItemListPageBase, WebhookExtractorsBase],
-  components: { WebhookExtractorForm },
+  mixins: [ItemListPageBase, IntegrationExtractorsBase],
+  components: { IntegrationExtractorForm },
   data() {
     return {
-      webhook: null,
+      integration: null,
     };
   },
 
   async created() {
-    this.webhook = (await axios({
+    this.integration = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/webhook/${this.webhookId}`,
+      url: `/api/project/${this.projectId}/integration/${this.integrationId}`,
       responseType: 'json',
     })).data;
   },
@@ -124,11 +124,11 @@ export default {
       }
       return this.$route.params.projectId;
     },
-    webhookId() {
-      if (/^-?\d+$/.test(this.$route.params.webhookId)) {
-        return parseInt(this.$route.params.webhookId, 10);
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
       }
-      return this.$route.params.webhookId;
+      return this.$route.params.integrationId;
     },
   },
 
@@ -151,13 +151,13 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractors`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.itemId}`;
     },
     getEventName() {
-      return 'w-webhook-extractor';
+      return 'w-integration-extractor';
     },
   },
 };

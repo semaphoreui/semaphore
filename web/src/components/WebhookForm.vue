@@ -54,10 +54,10 @@ export default {
       };
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks`;
+      return `/api/project/${this.projectId}/integrations`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.itemId}`;
     },
   },
 };

@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/context"
 )
 
-func WebhookExtractorMiddleware(next http.Handler) http.Handler {
+func IntegrationExtractorMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		extractor_id, err := helpers.GetIntParam("extractor_id", w, r)
 
@@ -24,9 +24,9 @@ func WebhookExtractorMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		webhook := context.Get(r, "webhook").(db.Webhook)
-		var extractor db.WebhookExtractor
-		extractor, err = helpers.Store(r).GetWebhookExtractor(webhook.ID, extractor_id)
+		integration := context.Get(r, "integration").(db.Integration)
+		var extractor db.IntegrationExtractor
+		extractor, err = helpers.Store(r).GetIntegrationExtractor(integration.ID, extractor_id)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -38,15 +38,15 @@ func WebhookExtractorMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func GetWebhookExtractor(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+func GetIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
 	helpers.WriteJSON(w, http.StatusOK, extractor)
 }
 
-func GetWebhookExtractors(w http.ResponseWriter, r *http.Request) {
-	webhook := context.Get(r, "webhook").(db.Webhook)
-	extractors, err := helpers.Store(r).GetWebhookExtractors(webhook.ID, helpers.QueryParams(r.URL))
+func GetIntegrationExtractors(w http.ResponseWriter, r *http.Request) {
+	integration := context.Get(r, "integration").(db.Integration)
+	extractors, err := helpers.Store(r).GetIntegrationExtractors(integration.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -56,18 +56,18 @@ func GetWebhookExtractors(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, extractors)
 }
 
-func AddWebhookExtractor(w http.ResponseWriter, r *http.Request) {
-	webhook := context.Get(r, "webhook").(db.Webhook)
+func AddIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
+	integration := context.Get(r, "integration").(db.Integration)
 
-	var extractor db.WebhookExtractor
+	var extractor db.IntegrationExtractor
 
 	if !helpers.Bind(w, r, &extractor) {
 		return
 	}
 
-	if extractor.WebhookID != webhook.ID {
+	if extractor.IntegrationID != integration.ID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Webhook ID in body and URL must be the same",
+			"error": "Integration ID in body and URL must be the same",
 		})
 		return
 	}
@@ -79,20 +79,20 @@ func AddWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newWebhookExtractor, err := helpers.Store(r).CreateWebhookExtractor(extractor)
+	newIntegrationExtractor, err := helpers.Store(r).CreateIntegrationExtractor(extractor)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, newWebhookExtractor)
+	helpers.WriteJSON(w, http.StatusCreated, newIntegrationExtractor)
 
 }
 
-func UpdateWebhookExtractor(w http.ResponseWriter, r *http.Request) {
-	oldExtractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	var extractor db.WebhookExtractor
+func UpdateIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
+	oldExtractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	var extractor db.IntegrationExtractor
 
 	if !helpers.Bind(w, r, &extractor) {
 		return
@@ -100,19 +100,19 @@ func UpdateWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 
 	if extractor.ID != oldExtractor.ID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "WebhookExtractor ID in body and URL must be the same",
+			"error": "IntegrationExtractor ID in body and URL must be the same",
 		})
 		return
 	}
 
-	if extractor.WebhookID != oldExtractor.WebhookID {
+	if extractor.IntegrationID != oldExtractor.IntegrationID {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Webhook ID in body and URL must be the same",
+			"error": "Integration ID in body and URL must be the same",
 		})
 		return
 	}
 
-	err := helpers.Store(r).UpdateWebhookExtractor(extractor)
+	err := helpers.Store(r).UpdateIntegrationExtractor(extractor)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -122,12 +122,12 @@ func UpdateWebhookExtractor(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func GetWebhookExtractorRefs(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
+func GetIntegrationExtractorRefs(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
 	log.Info(fmt.Sprintf("Extractor ID: %v", extractor.ID))
 
-	refs, err := helpers.Store(r).GetWebhookExtractorRefs(extractor.WebhookID, extractor.ID)
+	refs, err := helpers.Store(r).GetIntegrationExtractorRefs(extractor.IntegrationID, extractor.ID)
 	log.Info(fmt.Sprintf("References found: %v", refs))
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -137,16 +137,16 @@ func GetWebhookExtractorRefs(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-func DeleteWebhookExtractor(w http.ResponseWriter, r *http.Request) {
-	extractor := context.Get(r, "extractor").(db.WebhookExtractor)
-	webhook := context.Get(r, "webhook").(db.Webhook)
+func DeleteIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
+	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
+	integration := context.Get(r, "integration").(db.Integration)
 
 	log.Info(fmt.Sprintf("Delete requested for: %v", extractor.ID))
 
-	err := helpers.Store(r).DeleteWebhookExtractor(webhook.ID, extractor.ID)
+	err := helpers.Store(r).DeleteIntegrationExtractor(integration.ID, extractor.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": "Webhook Extractor failed to be deleted",
+			"error": "Integration Extractor failed to be deleted",
 		})
 		return
 	}

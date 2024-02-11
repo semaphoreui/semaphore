@@ -19,35 +19,35 @@ var userKey *db.AccessKey
 var task *db.Task
 var schedule *db.Schedule
 var view *db.View
-var webhook *db.Webhook
-var webhookextractor *db.WebhookExtractor
-var webhookextractvalue *db.WebhookExtractValue
-var webhookmatch *db.WebhookMatcher
+var integration *db.Integration
+var integrationextractor *db.IntegrationExtractor
+var integrationextractvalue *db.IntegrationExtractValue
+var integrationmatch *db.IntegrationMatcher
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
 var inventoryID int
 var environmentID int
 var templateID int
-var webhookID int
-var webhookExtractorID int
-var webhookExtractValueID int
-var webhookMatchID int
+var integrationID int
+var integrationExtractorID int
+var integrationExtractValueID int
+var integrationMatchID int
 
 var capabilities = map[string][]string{
-	"user":                {},
-	"project":             {"user"},
-	"repository":          {"access_key"},
-	"inventory":           {"repository"},
-	"environment":         {"repository"},
-	"template":            {"repository", "inventory", "environment", "view"},
-	"task":                {"template"},
-	"schedule":            {"template"},
-	"view":                {},
-	"webhook":             {"project", "template"},
-	"webhookextractor":    {"webhook"},
-	"webhookextractvalue": {"webhookextractor"},
-	"webhookmatcher":      {"webhookextractor"},
+	"user":                    {},
+	"project":                 {"user"},
+	"repository":              {"access_key"},
+	"inventory":               {"repository"},
+	"environment":             {"repository"},
+	"template":                {"repository", "inventory", "environment", "view"},
+	"task":                    {"template"},
+	"schedule":                {"template"},
+	"view":                    {},
+	"integration":             {"project", "template"},
+	"integrationextractor":    {"integration"},
+	"integrationextractvalue": {"integrationextractor"},
+	"integrationmatcher":      {"integrationextractor"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -144,18 +144,18 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			templateID = res.ID
 		case "task":
 			task = addTask()
-		case "webhook":
-			webhook = addWebhook()
-			webhookID = webhook.ID
-		case "webhookextractor":
-			webhookextractor = addWebhookExtractor()
-			webhookExtractorID = webhookextractor.ID
-		case "webhookextractvalue":
-			webhookextractvalue = addWebhookExtractValue()
-			webhookExtractValueID = webhookextractvalue.ID
-		case "webhookmatcher":
-			webhookmatch = addWebhookMatcher()
-			webhookMatchID = webhookmatch.ID
+		case "integration":
+			integration = addIntegration()
+			integrationID = integration.ID
+		case "integrationextractor":
+			integrationextractor = addIntegrationExtractor()
+			integrationExtractorID = integrationextractor.ID
+		case "integrationextractvalue":
+			integrationextractvalue = addIntegrationExtractValue()
+			integrationExtractValueID = integrationextractvalue.ID
+		case "integrationmatcher":
+			integrationmatch = addIntegrationMatcher()
+			integrationMatchID = integrationmatch.ID
 		default:
 			panic("unknown capability " + v)
 		}
@@ -182,10 +182,10 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(task.ID) },
 	func() string { return strconv.Itoa(schedule.ID) },
 	func() string { return strconv.Itoa(view.ID) },
-	func() string { return strconv.Itoa(webhook.ID) },
-	func() string { return strconv.Itoa(webhookextractor.ID) },
-	func() string { return strconv.Itoa(webhookextractvalue.ID) },
-	func() string { return strconv.Itoa(webhookmatch.ID) },
+	func() string { return strconv.Itoa(integration.ID) },
+	func() string { return strconv.Itoa(integrationextractor.ID) },
+	func() string { return strconv.Itoa(integrationextractvalue.ID) },
+	func() string { return strconv.Itoa(integrationmatch.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -230,23 +230,23 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("view_id", view.ID, &request)
 	}
 
-	if webhook != nil {
-		bodyFieldProcessor("webhook_id", webhook.ID, &request)
+	if integration != nil {
+		bodyFieldProcessor("integration_id", integration.ID, &request)
 	}
-	if webhookextractor != nil {
-		bodyFieldProcessor("extractor_id", webhookextractor.ID, &request)
+	if integrationextractor != nil {
+		bodyFieldProcessor("extractor_id", integrationextractor.ID, &request)
 	}
-	if webhookextractvalue != nil {
-		bodyFieldProcessor("value_id", webhookextractvalue.ID, &request)
+	if integrationextractvalue != nil {
+		bodyFieldProcessor("value_id", integrationextractvalue.ID, &request)
 	}
-	if webhookmatch != nil {
-		bodyFieldProcessor("matcher_id", webhookmatch.ID, &request)
+	if integrationmatch != nil {
+		bodyFieldProcessor("matcher_id", integrationmatch.ID, &request)
 	}
 
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 
-		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:webhook/\d+/|webhook/\d+/extractor/\d+)?(?:webhook/\d+/extractor/\d+/matcher/\d+)?(?:webhook/\d+/extractor/\d+/value/\d+)?$`)
+		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:integration/\d+/|integration/\d+/extractor/\d+)?(?:integration/\d+/extractor/\d+/matcher/\d+)?(?:integration/\d+/extractor/\d+/value/\d+)?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

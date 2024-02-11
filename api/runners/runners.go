@@ -178,7 +178,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runner, err := helpers.Store(r).CreateRunner(db.Runner{
-		Webhook:          register.Webhook,
+		Integration:      register.Integration,
 		MaxParallelTasks: register.MaxParallelTasks,
 	})
 

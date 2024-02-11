@@ -20,8 +20,8 @@ tags:
     description: Everything related to a project
   - name: user
     description: User-related API
-  - name: webhook
-    description: Webhook API
+  - name: integration
+    description: Integration API
 
 schemes:
   - http
@@ -337,7 +337,7 @@ definitions:
         type: string
         enum: [static, static-yaml, file]
 
-  Webhook:
+  Integration:
     type: object
     properties:
       id:
@@ -352,7 +352,7 @@ definitions:
         type: integer
         minimum: 1
 
-  WebhookRequest:
+  IntegrationRequest:
     type: object
     properties:
       name:
@@ -363,16 +363,16 @@ definitions:
       template_id:
         type: integer
 
-  WebhookExtractorRequest:
+  IntegrationExtractorRequest:
     type: object
     properties:
       name:
         type: string
         example: "extractor"
-      webhook_id:
+      integration_id:
         type: integer
 
-  WebhookExtractor:
+  IntegrationExtractor:
     type: object
     properties:
       id:
@@ -380,10 +380,10 @@ definitions:
       name:
         type: string
         example: "extractor"
-      webhook_id:
+      integration_id:
         type: integer
 
-  WebhookExtractValueRequest:
+  IntegrationExtractValueRequest:
     type: object
     properties:
       name:
@@ -405,7 +405,7 @@ definitions:
         type: string
         example: variable
 
-  WebhookExtractValue:
+  IntegrationExtractValue:
     type: object
     properties:
       id:
@@ -429,7 +429,7 @@ definitions:
         type: string
         example: variable
 
-  WebhookMatcherRequest:
+  IntegrationMatcherRequest:
     type: object
     properties:
       name:
@@ -454,7 +454,7 @@ definitions:
         type: string
         example: value
 
-  WebhookMatcher:
+  IntegrationMatcher:
     type: object
     properties:
       id:
@@ -814,9 +814,9 @@ parameters:
     type: integer
     required: true
     x-example: 10
-  webhook_id:
-    name: webhook_id
-    description: webhook ID
+  integration_id:
+    name: integration_id
+    description: integration ID
     in: path
     type: integer
     required: true
@@ -1300,230 +1300,230 @@ paths:
         204:
           description: User updated
 
-  /project/{project_id}/webhooks:
+  /project/{project_id}/integrations:
     parameters:
       - $ref: "#/parameters/project_id"
     get:
       tags:
         - project
-      summary: get all webhooks
+      summary: get all integrations
       responses:
         200:
-          description: webhook
+          description: integration
           schema:
             type: array
             items:
-              $ref: "#/definitions/Webhook"
+              $ref: "#/definitions/Integration"
     post:
-      summary: create a new webhook
+      summary: create a new integration
       tags:
         - project
       parameters:
-        - name: Webhook
+        - name: Integration
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookRequest"
+            $ref: "#/definitions/IntegrationRequest"
       responses:
         201:
-          description: Webhook Created
+          description: Integration Created
           schema:
-            $ref: "#/definitions/Webhook"
-  /project/{project_id}/webhooks/{webhook_id}:
+            $ref: "#/definitions/Integration"
+  /project/{project_id}/integrations/{integration_id}:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
     put:
       tags:
         - project
-      summary: Update Webhook
+      summary: Update Integration
       parameters:
-        - name: Webhook
+        - name: Integration
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookRequest"
+            $ref: "#/definitions/IntegrationRequest"
       responses:
         204:
-          description: Webhook updated
+          description: Integration updated
     delete:
       tags:
         - project
-      summary: Remove webhook
+      summary: Remove integration
       responses:
         204:
-          description: webhook removed
-  /project/{project_id}/webhooks/{webhook_id}/extractors:
+          description: integration removed
+  /project/{project_id}/integrations/{integration_id}/extractors:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
     get:
       tags:
-        - webhook
-      summary: Get Webhook Extractors
+        - integration
+      summary: Get Integration Extractors
       responses:
         200:
-          description: Webhook Extractors
+          description: Integration Extractors
           schema:
             type: array
             items:
-              $ref: "#/definitions/WebhookExtractor"
+              $ref: "#/definitions/IntegrationExtractor"
     post:
       tags:
         - project
-      summary: Add Webhook Extractor
+      summary: Add Integration Extractor
       parameters:
-        - name: Webhook Extractor
+        - name: Integration Extractor
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookExtractor"
+            $ref: "#/definitions/IntegrationExtractor"
       responses:
         204:
-          description: Webhook Extractor Created
-  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}:
+          description: Integration Extractor Created
+  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
       - $ref: "#/parameters/extractor_id"
     put:
       tags:
-        - webhook
-      summary: Updates Webhook extractor
+        - integration
+      summary: Updates Integration extractor
       parameters:
-        - name: Webhook Extractor
+        - name: Integration Extractor
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookExtractorRequest"
+            $ref: "#/definitions/IntegrationExtractorRequest"
       responses:
         204:
-          description: Webhook Extractor updated
+          description: Integration Extractor updated
     delete:
       tags:
-        - webhook
-      summary: Removes webhook extractor
+        - integration
+      summary: Removes integration extractor
       responses:
         204:
-          description: webhook extractor removed
-  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/values:
+          description: integration extractor removed
+  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/values:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
       - $ref: "#/parameters/extractor_id"
     get:
       tags:
-        - webhook
-      summary: Get Webhook Extracted Values linked to webhook extractor
+        - integration
+      summary: Get Integration Extracted Values linked to integration extractor
       responses:
         200:
-          description: Webhook Extracted Value
+          description: Integration Extracted Value
           schema:
             type: array
             items:
-              $ref: "#/definitions/WebhookExtractValue"
+              $ref: "#/definitions/IntegrationExtractValue"
     post:
       tags:
         - project
-      summary: Add Webhook Extracted Value
+      summary: Add Integration Extracted Value
       parameters:
-        - name: Webhook Extracted Value
+        - name: Integration Extracted Value
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookExtractValue"
+            $ref: "#/definitions/IntegrationExtractValue"
       responses:
         204:
-          description: Webhook Extract Value Created
+          description: Integration Extract Value Created
         400:
-          description: Bad Webhook Extract Value params
-  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/value/{extractvalue_id}:
+          description: Bad Integration Extract Value params
+  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/value/{extractvalue_id}:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
       - $ref: "#/parameters/extractor_id"
       - $ref: "#/parameters/extractvalue_id"
     put:
       tags:
-        - webhook
-      summary: Updates Webhook ExtractValue
+        - integration
+      summary: Updates Integration ExtractValue
       parameters:
-        - name: Webhook ExtractValue
+        - name: Integration ExtractValue
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookExtractValueRequest"
+            $ref: "#/definitions/IntegrationExtractValueRequest"
       responses:
         204:
-          description: Webhook Extract Value updated
+          description: Integration Extract Value updated
         400:
-          description: Bad webhook extract value parameter
+          description: Bad integration extract value parameter
     delete:
       tags:
-        - webhook
-      summary: Removes webhook extract value
+        - integration
+      summary: Removes integration extract value
       responses:
         204:
-          description: webhook extract value removed
-  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matchers:
+          description: integration extract value removed
+  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matchers:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
       - $ref: "#/parameters/extractor_id"
     get:
       tags:
-        - webhook
-      summary: Get Webhook Matcher linked to webhook extractor
+        - integration
+      summary: Get Integration Matcher linked to integration extractor
       responses:
         200:
-          description: Webhook Matcher
+          description: Integration Matcher
           schema:
             type: array
             items:
-              $ref: "#/definitions/WebhookMatcher"
+              $ref: "#/definitions/IntegrationMatcher"
     post:
       tags:
         - project
-      summary: Add Webhook Matcher
+      summary: Add Integration Matcher
       parameters:
-        - name: Webhook Matcher
+        - name: Integration Matcher
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookMatcher"
+            $ref: "#/definitions/IntegrationMatcher"
       responses:
         204:
-          description: Webhook Matcher Created
+          description: Integration Matcher Created
         400:
-          description: Bad Webhook Matcher params
-  /project/{project_id}/webhooks/{webhook_id}/extractor/{extractor_id}/matcher/{matcher_id}:
+          description: Bad Integration Matcher params
+  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matcher/{matcher_id}:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/webhook_id"
+      - $ref: "#/parameters/integration_id"
       - $ref: "#/parameters/extractor_id"
       - $ref: "#/parameters/matcher_id"
     put:
       tags:
-        - webhook
-      summary: Updates Webhook Matcher
+        - integration
+      summary: Updates Integration Matcher
       parameters:
-        - name: Webhook Matcher
+        - name: Integration Matcher
           in: body
           required: true
           schema:
-            $ref: "#/definitions/WebhookMatcherRequest"
+            $ref: "#/definitions/IntegrationMatcherRequest"
       responses:
         204:
-          description: Webhook Matcher updated
+          description: Integration Matcher updated
         400:
-          description: Bad webhook matcher parameter
+          description: Bad integration matcher parameter
     delete:
       tags:
-        - webhook
-      summary: Removes webhook matcher
+        - integration
+      summary: Removes integration matcher
       responses:
         204:
-          description: webhook matcher removed
+          description: integration matcher removed
 
   # project access keys
   /project/{project_id}/keys:

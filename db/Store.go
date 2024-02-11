@@ -51,17 +51,17 @@ type ObjectReferrers struct {
 	Repositories []ObjectReferrer `json:"repositories"`
 }
 
-type WebhookReferrers struct {
-	WebhookExtractors []ObjectReferrer `json:"extractors"`
+type IntegrationReferrers struct {
+	IntegrationExtractors []ObjectReferrer `json:"extractors"`
 }
 
-type WebhookExtractorReferrers struct {
-	WebhookMatchers []ObjectReferrer `json:"matchers"`
-	WebhookExtractValues []ObjectReferrer `json:"values"`
+type IntegrationExtractorReferrers struct {
+	IntegrationMatchers      []ObjectReferrer `json:"matchers"`
+	IntegrationExtractValues []ObjectReferrer `json:"values"`
 }
 
-type WebhookExtractorChildReferrers struct {
-	WebhookExtractors []ObjectReferrer `json:"extracors"`
+type IntegrationExtractorChildReferrers struct {
+	IntegrationExtractors []ObjectReferrer `json:"extracors"`
 }
 
 // ObjectProps describe database entities.
@@ -139,40 +139,40 @@ type Store interface {
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
 	RekeyAccessKeys(oldKey string) error
 
-	CreateWebhook(webhook Webhook) (newWebhook Webhook, err error)
-	GetWebhooks(projectID int, params RetrieveQueryParams) ([]Webhook, error)
-	GetWebhook(projectID int, webhookID int) (webhook Webhook, err error)
-	UpdateWebhook(webhook Webhook) error
-	GetWebhookRefs(projectID int, webhookID int) (WebhookReferrers, error)
-	DeleteWebhook(projectID int, webhookID int) error
-	GetAllWebhooks() ([]Webhook, error)
+	CreateIntegration(integration Integration) (newIntegration Integration, err error)
+	GetIntegrations(projectID int, params RetrieveQueryParams) ([]Integration, error)
+	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
+	UpdateIntegration(integration Integration) error
+	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
+	DeleteIntegration(projectID int, integrationID int) error
+	GetAllIntegrations() ([]Integration, error)
 
-	CreateWebhookExtractor(webhookExtractor WebhookExtractor) (newWebhookExtractor WebhookExtractor, err error)
-	GetWebhookExtractors(webhookID int, params RetrieveQueryParams) ([]WebhookExtractor, error)
-	GetWebhookExtractor(extractorID int, webhookID int) (extractor WebhookExtractor, err error)
-	UpdateWebhookExtractor(webhookExtractor WebhookExtractor) error
-	GetWebhookExtractorRefs(webhookID int, extractorID int) (WebhookExtractorReferrers, error)
-	DeleteWebhookExtractor(webhookID int, extractorID int) error
-	GetWebhookExtractorsByWebhookID(webhookID int) ([]WebhookExtractor, error)
-	GetAllWebhookExtractors() ([]WebhookExtractor, error)
+	CreateIntegrationExtractor(integrationExtractor IntegrationExtractor) (newIntegrationExtractor IntegrationExtractor, err error)
+	GetIntegrationExtractors(integrationID int, params RetrieveQueryParams) ([]IntegrationExtractor, error)
+	GetIntegrationExtractor(extractorID int, integrationID int) (extractor IntegrationExtractor, err error)
+	UpdateIntegrationExtractor(integrationExtractor IntegrationExtractor) error
+	GetIntegrationExtractorRefs(integrationID int, extractorID int) (IntegrationExtractorReferrers, error)
+	DeleteIntegrationExtractor(integrationID int, extractorID int) error
+	GetIntegrationExtractorsByIntegrationID(integrationID int) ([]IntegrationExtractor, error)
+	GetAllIntegrationExtractors() ([]IntegrationExtractor, error)
 
-	CreateWebhookExtractValue(value WebhookExtractValue) (newValue WebhookExtractValue, err error)
-	GetWebhookExtractValues(extractorID int, params RetrieveQueryParams) ([]WebhookExtractValue, error)
-	GetWebhookExtractValue(valueID int, extractorID int) (value WebhookExtractValue, err error)
-	UpdateWebhookExtractValue(webhookExtractValue WebhookExtractValue) error
-	GetWebhookExtractValueRefs(extractorID int, valueID int) (WebhookExtractorChildReferrers, error)
-	DeleteWebhookExtractValue(extractorID int, valueID int) error
-	GetWebhookExtractValuesByExtractorID(extractorID int) ([]WebhookExtractValue, error)
-	GetAllWebhookExtractValues() ([]WebhookExtractValue, error)
+	CreateIntegrationExtractValue(value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
+	GetIntegrationExtractValues(extractorID int, params RetrieveQueryParams) ([]IntegrationExtractValue, error)
+	GetIntegrationExtractValue(valueID int, extractorID int) (value IntegrationExtractValue, err error)
+	UpdateIntegrationExtractValue(integrationExtractValue IntegrationExtractValue) error
+	GetIntegrationExtractValueRefs(extractorID int, valueID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationExtractValue(extractorID int, valueID int) error
+	GetIntegrationExtractValuesByExtractorID(extractorID int) ([]IntegrationExtractValue, error)
+	GetAllIntegrationExtractValues() ([]IntegrationExtractValue, error)
 
-	CreateWebhookMatcher(matcher WebhookMatcher) (newMatcher WebhookMatcher, err error)
-	GetWebhookMatchers(extractorID int, params RetrieveQueryParams) ([]WebhookMatcher, error)
-	GetAllWebhookMatchers() ([]WebhookMatcher, error)
-	GetWebhookMatcher(matcherID int, extractorID int) (matcher WebhookMatcher, err error)
-	UpdateWebhookMatcher(webhookMatcher WebhookMatcher) error
-	GetWebhookMatcherRefs(extractorID int, matcherID int) (WebhookExtractorChildReferrers, error)
-	DeleteWebhookMatcher(extractorID int, matcherID int) error
-	GetWebhookMatchersByExtractorID(extractorID int) ([]WebhookMatcher, error)
+	CreateIntegrationMatcher(matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
+	GetIntegrationMatchers(extractorID int, params RetrieveQueryParams) ([]IntegrationMatcher, error)
+	GetAllIntegrationMatchers() ([]IntegrationMatcher, error)
+	GetIntegrationMatcher(matcherID int, extractorID int) (matcher IntegrationMatcher, err error)
+	UpdateIntegrationMatcher(integrationMatcher IntegrationMatcher) error
+	GetIntegrationMatcherRefs(extractorID int, matcherID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationMatcher(extractorID int, matcherID int) error
+	GetIntegrationMatchersByExtractorID(extractorID int) ([]IntegrationMatcher, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
@@ -269,19 +269,19 @@ var AccessKeyProps = ObjectProps{
 	DefaultSortingColumn:  "name",
 }
 
-var WebhookProps = ObjectProps{
-	TableName:             "project__webhook",
-	Type:                  reflect.TypeOf(Webhook{}),
+var IntegrationProps = ObjectProps{
+	TableName:             "project__integration",
+	Type:                  reflect.TypeOf(Integration{}),
 	PrimaryColumnName:     "id",
-  IsGlobal:              true,
-	ReferringColumnSuffix: "webhook_id",
+	IsGlobal:              true,
+	ReferringColumnSuffix: "integration_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
 
-var WebhookExtractorProps = ObjectProps{
-	TableName:             "project__webhook_extractor",
-	Type:                  reflect.TypeOf(WebhookExtractor{}),
+var IntegrationExtractorProps = ObjectProps{
+	TableName:             "project__integration_extractor",
+	Type:                  reflect.TypeOf(IntegrationExtractor{}),
 	PrimaryColumnName:     "id",
 	IsGlobal:              true,
 	ReferringColumnSuffix: "extractor_id",
@@ -289,21 +289,21 @@ var WebhookExtractorProps = ObjectProps{
 	DefaultSortingColumn:  "name",
 }
 
-var WebhookExtractValueProps = ObjectProps{
-	TableName:             "project__webhook_extract_value",
-	Type:                  reflect.TypeOf(WebhookExtractValue{}),
+var IntegrationExtractValueProps = ObjectProps{
+	TableName:             "project__integration_extract_value",
+	Type:                  reflect.TypeOf(IntegrationExtractValue{}),
 	PrimaryColumnName:     "id",
-  IsGlobal:              true,
+	IsGlobal:              true,
 	ReferringColumnSuffix: "extract_value_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
 
-var WebhookMatcherProps = ObjectProps{
-	TableName:             "project__webhook_matcher",
-	Type:                  reflect.TypeOf(WebhookMatcher{}),
+var IntegrationMatcherProps = ObjectProps{
+	TableName:             "project__integration_matcher",
+	Type:                  reflect.TypeOf(IntegrationMatcher{}),
 	PrimaryColumnName:     "id",
-  IsGlobal:              true,
+	IsGlobal:              true,
 	ReferringColumnSuffix: "matcher_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
@@ -357,12 +357,12 @@ var ProjectUserProps = ObjectProps{
 }
 
 var ProjectProps = ObjectProps{
-	TableName:            "project",
-	Type:                 reflect.TypeOf(Project{}),
-	PrimaryColumnName:    "id",
+	TableName:             "project",
+	Type:                  reflect.TypeOf(Project{}),
+	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "project_id",
-	DefaultSortingColumn: "name",
-	IsGlobal:             true,
+	DefaultSortingColumn:  "name",
+	IsGlobal:              true,
 }
 
 var UserProps = ObjectProps{

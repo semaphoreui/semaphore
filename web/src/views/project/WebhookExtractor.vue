@@ -1,27 +1,27 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div>
-    <WebhookExtractorCrumb/>
-    <WebhookExtractValue/>
-    <WebhookMatcher/>
+    <IntegrationExtractorCrumb/>
+    <IntegrationExtractValue/>
+    <IntegrationMatcher/>
   </div>
 </template>
 <script>
-import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
-import WebhookExtractorBase from '@/components/WebhookExtractorBase';
+import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
+import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
-import WebhookExtractValue from './WebhookExtractValue.vue';
-import WebhookMatcher from './WebhookMatcher.vue';
-import WebhookExtractorCrumb from './WebhookExtractorCrumb.vue';
+import IntegrationExtractValue from './IntegrationExtractValue.vue';
+import IntegrationMatcher from './IntegrationMatcher.vue';
+import IntegrationExtractorCrumb from './IntegrationExtractorCrumb.vue';
 
 export default {
-  mixins: [WebhookExtractorsBase, WebhookExtractorBase],
-  components: { WebhookMatcher, WebhookExtractValue, WebhookExtractorCrumb },
+  mixins: [IntegrationExtractorsBase, IntegrationExtractorBase],
+  components: { IntegrationMatcher, IntegrationExtractValue, IntegrationExtractorCrumb },
   computed: {
-    webhookId() {
-      if (/^-?\d+$/.test(this.$route.params.webhookId)) {
-        return parseInt(this.$route.params.webhookId, 10);
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
       }
-      return this.$route.params.webhookId;
+      return this.$route.params.integrationId;
     },
     extractorId() {
       if (/^-?\d+$/.test(this.$route.params.extractorId)) {

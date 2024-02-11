@@ -1,6 +1,6 @@
 export default {
   props: {
-    webhookId: Number,
+    integrationId: Number,
     projectId: Number,
   },
 };

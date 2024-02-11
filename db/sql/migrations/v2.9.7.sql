@@ -1,4 +1,4 @@
-create table project__webhook (
+create table project__integration (
   `id` integer primary key autoincrement,
   `name` varchar(255) not null,
   `project_id` int not null,
@@ -8,15 +8,15 @@ create table project__webhook (
   foreign key (`template_id`) references project__template(`id`) on delete cascade
 );
 
-create table project__webhook_extractor (
+create table project__integration_extractor (
   `id` integer primary key autoincrement,
   `name` varchar(255) not null,
-  `webhook_id` int not null,
+  `integration_id` int not null,
 
-  foreign key (`webhook_id`) references project__webhook(`id`) on delete cascade
+  foreign key (`integration_id`) references project__integration(`id`) on delete cascade
 );
 
-create table project__webhook_extract_value (
+create table project__integration_extract_value (
   `id` integer primary key autoincrement,
   `name` varchar(255) not null,
   `extractor_id` int not null,
@@ -25,10 +25,10 @@ create table project__webhook_extract_value (
   `key` varchar(255) null,
   `variable` varchar(255) null,
 
-  foreign key (`extractor_id`) references project__webhook_extractor(`id`) on delete cascade
+  foreign key (`extractor_id`) references project__integration_extractor(`id`) on delete cascade
 );
 
-create table project__webhook_matcher (
+create table project__integration_matcher (
   `id` integer primary key autoincrement,
   `name` varchar(255) not null,
   `extractor_id` int not null,
@@ -38,5 +38,5 @@ create table project__webhook_matcher (
   `key` varchar(510) null,
   `value` varchar(510) null,
 
-  foreign key (`extractor_id`) references project__webhook_extractor(`id`) on delete cascade
+  foreign key (`extractor_id`) references project__integration_extractor(`id`) on delete cascade
 );

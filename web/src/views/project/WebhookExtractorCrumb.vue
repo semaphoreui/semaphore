@@ -5,9 +5,9 @@
       <v-toolbar-title class="breadcrumbs">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
-          :to="`/project/${projectId}/webhook/${this.webhookId}`"
+          :to="`/project/${projectId}/integration/${this.integrationId}`"
           >
-          {{ webhook.name }}
+          {{ integration.name }}
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ extractor.name }}</span>
@@ -23,28 +23,28 @@ import axios from 'axios';
 
 import ItemListPageBase from '@/components/ItemListPageBase';
 
-import WebhookExtractorsBase from '@/components/WebhookExtractorsBase';
-import WebhookExtractorBase from '@/components/WebhookExtractorBase';
+import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
+import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
 export default {
-  mixins: [ItemListPageBase, WebhookExtractorsBase, WebhookExtractorBase],
+  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
   components: { },
   data() {
     return {
-      webhook: null,
+      integration: null,
       extractor: null,
     };
   },
   async created() {
-    this.webhook = (await axios({
+    this.integration = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/webhooks/${this.webhookId}`,
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
       responseType: 'json',
     })).data;
 
     this.extractor = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}`,
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}`,
       responseType: 'json',
     })).data;
   },
@@ -56,11 +56,11 @@ export default {
       }
       return this.$route.params.projectId;
     },
-    webhookId() {
-      if (/^-?\d+$/.test(this.$route.params.webhookId)) {
-        return parseInt(this.$route.params.webhookId, 10);
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
       }
-      return this.$route.params.webhookId;
+      return this.$route.params.integrationId;
     },
     extractorId() {
       if (/^-?\d+$/.test(this.$route.params.extractorId)) {
@@ -77,13 +77,13 @@ export default {
       return [];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractors`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/webhooks/${this.webhookId}/extractor/${this.extractorId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}`;
     },
     getEventName() {
-      return 'w-webhook-matcher';
+      return 'w-integration-matcher';
     },
   },
 };

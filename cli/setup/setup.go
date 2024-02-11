@@ -67,7 +67,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 
 	askConfirmation("Enable slack alerts?", false, &conf.SlackAlert)
 	if conf.SlackAlert {
-		askValue("Slack Webhook URL", "", &conf.SlackUrl)
+		askValue("Slack Integration URL", "", &conf.SlackUrl)
 	}
 
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)

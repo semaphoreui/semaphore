@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/lib/error';
 
 export default {
   props: {
-    webhookId: [Number, String],
+    integrationId: [Number, String],
     extractorId: [Number, String],
   },
   methods: {
@@ -33,7 +33,7 @@ export default {
           responseType: 'json',
           data: {
             ...this.item,
-            webhook_id: this.webhookId,
+            integration_id: this.integrationId,
             extractor_id: this.extractorId,
           },
           ...(this.getRequestOptions()),
