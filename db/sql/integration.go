@@ -144,7 +144,7 @@ func (d *SqlDb) GetAllIntegrationExtractors() (extractors []db.IntegrationExtrac
 
 func (d *SqlDb) GetIntegrationExtractors(integrationID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractor, error) {
 	var extractors []db.IntegrationExtractor
-	err := d.getObjectsByReferrer(integrationID, db.IntegrationProps, db.IntegrationExtractorProps, params, &extractors)
+	err := d.getObjectsByReferrer(integrationID, db.IntegrationExtractorProps, db.IntegrationExtractorProps, params, &extractors)
 
 	return extractors, err
 }
@@ -329,7 +329,9 @@ func (d *SqlDb) CreateIntegrationMatcher(matcher db.IntegrationMatcher) (newMatc
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__integration_matcher (match_type, method, body_data_type, key, value, extractor_id, name) values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__integration_matcher "+
+			"(match_type, `method`, body_data_type, `key`, `value`, extractor_id, `name`) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		matcher.MatchType,
 		matcher.Method,
 		matcher.BodyDataType,

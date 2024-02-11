@@ -273,8 +273,7 @@ var IntegrationProps = ObjectProps{
 	TableName:             "project__integration",
 	Type:                  reflect.TypeOf(Integration{}),
 	PrimaryColumnName:     "id",
-	IsGlobal:              true,
-	ReferringColumnSuffix: "integration_id",
+	ReferringColumnSuffix: "project_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
@@ -283,8 +282,7 @@ var IntegrationExtractorProps = ObjectProps{
 	TableName:             "project__integration_extractor",
 	Type:                  reflect.TypeOf(IntegrationExtractor{}),
 	PrimaryColumnName:     "id",
-	IsGlobal:              true,
-	ReferringColumnSuffix: "extractor_id",
+	ReferringColumnSuffix: "integration_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
@@ -293,8 +291,7 @@ var IntegrationExtractValueProps = ObjectProps{
 	TableName:             "project__integration_extract_value",
 	Type:                  reflect.TypeOf(IntegrationExtractValue{}),
 	PrimaryColumnName:     "id",
-	IsGlobal:              true,
-	ReferringColumnSuffix: "extract_value_id",
+	ReferringColumnSuffix: "extractor_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
@@ -303,8 +300,7 @@ var IntegrationMatcherProps = ObjectProps{
 	TableName:             "project__integration_matcher",
 	Type:                  reflect.TypeOf(IntegrationMatcher{}),
 	PrimaryColumnName:     "id",
-	IsGlobal:              true,
-	ReferringColumnSuffix: "matcher_id",
+	ReferringColumnSuffix: "extractor_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }

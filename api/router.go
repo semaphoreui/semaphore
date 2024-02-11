@@ -279,7 +279,7 @@ func Route() *mux.Router {
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
 
-	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integration").Subrouter()
+	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 
 	projectIntegrationsAPI.Use(projects.ProjectMiddleware, projects.IntegrationMiddleware)
 	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.UpdateIntegration).Methods("PUT")

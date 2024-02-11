@@ -215,7 +215,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 
 	if !ignoreProjectId {
 		if props.IsGlobal {
-			q = q.Where("pe.project_id is null")
+			q = q.Where("pe." + props.ReferringColumnSuffix + " is null")
 		} else {
 			q = q.Where("pe.project_id=?", projectID)
 		}

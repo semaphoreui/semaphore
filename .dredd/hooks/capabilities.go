@@ -246,7 +246,7 @@ func alterRequestBody(t *trans.Transaction) {
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 
-		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:integration/\d+/|integration/\d+/extractor/\d+)?(?:integration/\d+/extractor/\d+/matcher/\d+)?(?:integration/\d+/extractor/\d+/value/\d+)?$`)
+		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:integrations/\d+/|integrations/\d+/extractor/\d+)?(?:integration/\d+/extractor/\d+/matcher/\d+)?(?:integration/\d+/extractor/\d+/value/\d+)?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

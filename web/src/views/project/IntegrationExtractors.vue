@@ -112,7 +112,7 @@ export default {
   async created() {
     this.integration = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/integration/${this.integrationId}`,
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
       responseType: 'json',
     })).data;
   },
