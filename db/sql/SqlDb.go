@@ -478,3 +478,300 @@ func (d *SqlDb) IsInitialized() (bool, error) {
 	_, err := d.sql.SelectInt(d.PrepareQuery("select count(1) from migrations"))
 	return err == nil, nil
 }
+
+func (d *SqlDb) getObjectByReferrer(referrerID int, referringObjectProps db.ObjectProps, props db.ObjectProps, objectID int, object interface{}) (err error) {
+	query, args, err := squirrel.Select("*").
+		From(props.TableName).
+		Where("id=?", objectID).
+		Where(referringObjectProps.ReferringColumnSuffix+"=?", referrerID).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.selectOne(object, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+func (d *SqlDb) getObjectsByReferrer(referrerID int, referringObjectProps db.ObjectProps, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+	var referringColumn = referringObjectProps.ReferringColumnSuffix
+
+	q := squirrel.Select("*").
+		From(props.TableName + " pe")
+
+	if props.IsGlobal {
+		q = q.Where("pe." + referringColumn + " is null")
+	} else {
+		q = q.Where("pe."+referringColumn+"=?", referrerID)
+	}
+
+	orderDirection := "ASC"
+	if params.SortInverted {
+		orderDirection = "DESC"
+	}
+
+	orderColumn := props.DefaultSortingColumn
+	if containsStr(props.SortableColumns, params.SortBy) {
+		orderColumn = params.SortBy
+	}
+
+	if orderColumn != "" {
+		q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(objects, query, args...)
+
+	return
+}
+
+func (d *SqlDb) deleteByReferrer(referrerID int, referringObjectProps db.ObjectProps, props db.ObjectProps, objectID int) error {
+	var referringColumn = referringObjectProps.ReferringColumnSuffix
+
+	return validateMutationResult(
+		d.exec(
+			"delete from "+props.TableName+" where "+referringColumn+"=? and id=?",
+			referrerID,
+			objectID))
+}
+
+func (d *SqlDb) deleteObjectByReferencedID(referencedID int, referencedProps db.ObjectProps, props db.ObjectProps, objectID int) error {
+	field := referencedProps.ReferringColumnSuffix
+
+	return validateMutationResult(
+		d.exec("delete from "+props.TableName+" t where t."+field+"=? and t.id=?", referencedID, objectID))
+}
+
+/**
+  GENERIC IMPLEMENTATION
+  **/
+
+func InsertTemplateFromType(typeInstance interface{}) (string, []interface{}) {
+	val := reflect.Indirect(reflect.ValueOf(typeInstance))
+	typeFieldSize := val.Type().NumField()
+
+	fields := ""
+	values := ""
+	args := make([]interface{}, 0)
+
+	if typeFieldSize > 1 {
+		fields += "("
+		values += "("
+	}
+
+	for i := 0; i < typeFieldSize; i++ {
+		if val.Type().Field(i).Name == "ID" {
+			continue
+		}
+		fields += val.Type().Field(i).Tag.Get("db")
+		values += "?"
+		args = append(args, val.Field(i))
+		if i != (typeFieldSize - 1) {
+			fields += ", "
+			values += ", "
+		}
+	}
+
+	if typeFieldSize > 1 {
+		fields += ")"
+		values += ")"
+	}
+
+	return fields + " values " + values, args
+}
+
+func AddParams(params db.RetrieveQueryParams, q *squirrel.SelectBuilder, props db.ObjectProps) {
+	orderDirection := "ASC"
+	if params.SortInverted {
+		orderDirection = "DESC"
+	}
+
+	orderColumn := props.DefaultSortingColumn
+	if containsStr(props.SortableColumns, params.SortBy) {
+		orderColumn = params.SortBy
+	}
+
+	if orderColumn != "" {
+		q.OrderBy("t." + orderColumn + " " + orderDirection)
+	}
+}
+
+func (d *SqlDb) GetObject(props db.ObjectProps, ID int) (object interface{}, err error) {
+	query, args, err := squirrel.Select("t.*").
+		From(props.TableName + " as t").
+		Where(squirrel.Eq{"t.id": ID}).
+		OrderBy("t.id").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+	err = d.selectOne(&object, query, args...)
+
+	return
+}
+
+func (d *SqlDb) CreateObject(props db.ObjectProps, object interface{}) (newObject interface{}, err error) {
+	//err = newObject.Validate()
+
+	if err != nil {
+		return
+	}
+
+	template, args := InsertTemplateFromType(newObject)
+	insertID, err := d.insert(
+		"id",
+		"insert into "+props.TableName+" "+template, args...)
+
+	if err != nil {
+		return
+	}
+
+	newObject = object
+
+	v := reflect.ValueOf(newObject)
+	field := v.FieldByName("ID")
+	field.SetInt(int64(insertID))
+
+	return
+}
+
+func (d *SqlDb) GetObjectsByForeignKeyQuery(props db.ObjectProps, foreignID int, foreignProps db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+	q := squirrel.Select("*").
+		From(props.TableName+" as t").
+		Where(foreignProps.ReferringColumnSuffix+"=?", foreignID)
+
+	AddParams(params, &q, props)
+
+	query, args, err := q.
+		OrderBy("t.id").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+	err = d.selectOne(&objects, query, args...)
+
+	return
+}
+
+func (d *SqlDb) GetAllObjectsByForeignKey(props db.ObjectProps, foreignID int, foreignProps db.ObjectProps) (objects interface{}, err error) {
+	query, args, err := squirrel.Select("*").
+		From(props.TableName+" as t").
+		Where(foreignProps.ReferringColumnSuffix+"=?", foreignID).
+		OrderBy("t.id").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	results, errQuery := d.selectAll(&objects, query, args...)
+
+	return results, errQuery
+}
+
+func (d *SqlDb) GetAllObjects(props db.ObjectProps) (objects interface{}, err error) {
+	query, args, err := squirrel.Select("*").
+		From(props.TableName + " as t").
+		OrderBy("t.id").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+	var results []interface{}
+	results, err = d.selectAll(&objects, query, args...)
+
+	return results, err
+
+}
+
+// Retrieve the Matchers & Values referncing `id' from WebhookExtractor
+// --
+// Examples:
+// referrerCollection := db.ObjectReferrers{}
+//
+//	d.GetReferencesForForeignKey(db.ProjectProps, id, map[string]db.ObjectProps{
+//	  'Templates': db.TemplateProps,
+//	  'Inventories': db.InventoryProps,
+//	  'Repositories': db.RepositoryProps
+//	}, &referrerCollection)
+//
+// //
+//
+// referrerCollection := db.WebhookExtractorReferrers{}
+//
+//	d.GetReferencesForForeignKey(db.WebhookProps, id, map[string]db.ObjectProps{
+//	  "Matchers": db.WebhookMatcherProps,
+//	  "Values": db.WebhookExtractValueProps
+//	}, &referrerCollection)
+func (d *SqlDb) GetReferencesForForeignKey(objectProps db.ObjectProps, objectID int, referrerMapping map[string]db.ObjectProps, referrerCollection *interface{}) (err error) {
+
+	for key, value := range referrerMapping {
+		//v := reflect.ValueOf(referrerCollection)
+		referrers, errRef := d.GetObjectReferences(objectProps, value, objectID)
+
+		if errRef != nil {
+			return errRef
+		}
+		reflect.ValueOf(referrerCollection).FieldByName(key).Set(reflect.ValueOf(referrers))
+	}
+
+	return
+}
+
+// Find Object Referrers for objectID based on referring column taken from referringObjectProps
+// Example:
+// GetObjectReferences(db.WebhookMatchers, db.WebhookExtractorProps, extractorID)
+func (d *SqlDb) GetObjectReferences(objectProps db.ObjectProps, referringObjectProps db.ObjectProps, objectID int) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
+
+	fields, err := objectProps.GetReferringFieldsFrom(objectProps.Type)
+
+	cond := ""
+	vals := []interface{}{}
+
+	for _, f := range fields {
+		if cond != "" {
+			cond += " or "
+		}
+
+		cond += f + " = ?"
+
+		vals = append(vals, objectID)
+	}
+
+	if cond == "" {
+		return
+	}
+
+	referringObjects := reflect.New(reflect.SliceOf(referringObjectProps.Type))
+	_, err = d.selectAll(
+		referringObjects.Interface(),
+		"select id, name from "+referringObjectProps.TableName+" where "+objectProps.ReferringColumnSuffix+" = ? and "+cond,
+		vals...)
+
+	if err != nil {
+		return
+	}
+
+	for i := 0; i < referringObjects.Elem().Len(); i++ {
+		id := int(referringObjects.Elem().Index(i).FieldByName("ID").Int())
+		name := referringObjects.Elem().Index(i).FieldByName("Name").String()
+		referringObjs = append(referringObjs, db.ObjectReferrer{ID: id, Name: name})
+	}
+
+	return
+}
