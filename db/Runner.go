@@ -12,6 +12,6 @@ type Runner struct {
 	Token     string `db:"token" json:"-"`
 	ProjectID *int   `db:"project_id" json:"project_id"`
 	//State            RunnerState `db:"state" json:"state"`
-	Integration      string `db:"integration" json:"integration"`
+	Webhook          string `db:"webhook" json:"webhook"`
 	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 }
