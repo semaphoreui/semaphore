@@ -372,7 +372,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
-		Webhook:           util.Config.Runner.Integration,
+		Webhook:           util.Config.Runner.Webhook,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 
