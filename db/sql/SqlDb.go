@@ -23,9 +23,9 @@ type SqlDb struct {
 
 var initialSQL = `
 create table ` + "`migrations`" + ` (
-  ` + "`version`" + ` varchar(255) not null primary key,
-  ` + "`upgraded_date`" + ` datetime null,
-  ` + "`notes`" + ` text null
+	` + "`version`" + ` varchar(255) not null primary key,
+	` + "`upgraded_date`" + ` datetime null,
+	` + "`notes`" + ` text null
 );
 `
 var dbAssets = packr.NewBox("./migrations")
@@ -240,22 +240,79 @@ func (d *SqlDb) getObjectsByReferrer(referrerID int, referringObjectProps db.Obj
 	return
 }
 
-func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, objects interface{}) (err error) {
-	return d.getObjectByReferrer(projectID, db.ProjectProps, props, objectID, objects)
+func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, object interface{}) (err error) {
+	q := squirrel.Select("*").
+		From(props.TableName).
+		Where("id=?", objectID)
+
+	if props.IsGlobal {
+		q = q.Where("project_id is null")
+	} else {
+		q = q.Where("project_id=?", projectID)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.selectOne(object, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
-	return d.getObjectsByReferrer(projectID, db.ProjectProps, props, params, objects)
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}, ignoreProjectId bool) (err error) {
+	q := squirrel.Select("*").
+		From(props.TableName + " pe")
+
+	if !ignoreProjectId {
+		if props.IsGlobal {
+			q = q.Where("pe.project_id is null")
+		} else {
+			q = q.Where("pe.project_id=?", projectID)
+		}
+	}
+
+	orderDirection := "ASC"
+	if params.SortInverted {
+		orderDirection = "DESC"
+	}
+
+	orderColumn := props.DefaultSortingColumn
+	if containsStr(props.SortableColumns, params.SortBy) {
+		orderColumn = params.SortBy
+	}
+
+	if orderColumn != "" {
+		q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
+	}
+
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
+	}
+
+	if params.Offset > 0 {
+		q = q.Offset(uint64(params.Offset))
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(objects, query, args...)
+
+	return
 }
 
-func (d *SqlDb) deleteByReferrer(referrerID int, referringObjectProps db.ObjectProps, props db.ObjectProps, objectID int) error {
-	var referringColumn = referringObjectProps.ReferringColumnSuffix
-
-	return validateMutationResult(
-		d.exec(
-			"delete from "+props.TableName+" where "+referringColumn+"=? and id=?",
-			referrerID,
-			objectID))
+func (d *SqlDb) getProjectObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+	return d.getObjects(projectID, props, params, objects, false)
 }
 
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {

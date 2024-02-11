@@ -14,7 +14,7 @@ func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inven
 
 func (d *SqlDb) GetInventories(projectID int, params db.RetrieveQueryParams) ([]db.Inventory, error) {
 	var inventories []db.Inventory
-	err := d.getObjects(projectID, db.InventoryProps, params, &inventories)
+	err := d.getProjectObjects(projectID, db.InventoryProps, params, &inventories)
 	return inventories, err
 }
 

@@ -16,7 +16,7 @@ func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, 
 
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(projectID, db.AccessKeyProps, params, &keys)
+	err := d.getProjectObjects(projectID, db.AccessKeyProps, params, &keys)
 	return keys, err
 }
 

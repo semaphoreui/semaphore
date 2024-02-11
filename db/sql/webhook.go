@@ -33,7 +33,7 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 }
 
 func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (integrations []db.Integration, err error) {
-	err = d.getObjects(projectID, db.IntegrationProps, params, &integrations)
+	err = d.getProjectObjects(projectID, db.IntegrationProps, params, &integrations)
 	return integrations, err
 }
 
