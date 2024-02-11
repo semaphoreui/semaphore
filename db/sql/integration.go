@@ -116,7 +116,7 @@ func (d *SqlDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationEx
 	return
 }
 
-func (d *SqlDb) GetIntegrationExtractor(extractorID int, integrationID int) (extractor db.IntegrationExtractor, err error) {
+func (d *SqlDb) GetIntegrationExtractor(integrationID int, extractorID int) (extractor db.IntegrationExtractor, err error) {
 	query, args, err := squirrel.Select("e.*").
 		From("project__integration_extractor as e").
 		Where(squirrel.And{
@@ -245,7 +245,9 @@ func (d *SqlDb) CreateIntegrationExtractValue(value db.IntegrationExtractValue) 
 	}
 
 	insertID, err := d.insert("id",
-		"insert into project__integration_extract_value (value_source, body_data_type, key, variable, name, extractor_id) values (?, ?, ?, ?, ?, ?)",
+		"insert into project__integration_extract_value "+
+			"(value_source, body_data_type, `key`, `variable`, `name`, extractor_id) values "+
+			"(?, ?, ?, ?, ?, ?)",
 		value.ValueSource,
 		value.BodyDataType,
 		value.Key,
@@ -265,7 +267,7 @@ func (d *SqlDb) CreateIntegrationExtractValue(value db.IntegrationExtractValue) 
 
 func (d *SqlDb) GetIntegrationExtractValues(extractorID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractValue, error) {
 	var values []db.IntegrationExtractValue
-	err := d.getObjectsByReferrer(extractorID, db.IntegrationExtractorProps, db.IntegrationExtractValueProps, params, &values)
+	err := d.getObjectsByReferrer(extractorID, db.IntegrationExtractValueProps, db.IntegrationExtractValueProps, params, &values)
 	return values, err
 }
 
@@ -276,7 +278,7 @@ func (d *SqlDb) GetAllIntegrationExtractValues() (values []db.IntegrationExtract
 	return
 }
 
-func (d *SqlDb) GetIntegrationExtractValue(valueID int, extractorID int) (value db.IntegrationExtractValue, err error) {
+func (d *SqlDb) GetIntegrationExtractValue(extractorID int, valueID int) (value db.IntegrationExtractValue, err error) {
 	query, args, err := squirrel.Select("v.*").
 		From("project__integration_extract_value as v").
 		Where(squirrel.Eq{"id": valueID}).
@@ -374,7 +376,7 @@ func (d *SqlDb) GetAllIntegrationMatchers() (matchers []db.IntegrationMatcher, e
 	return
 }
 
-func (d *SqlDb) GetIntegrationMatcher(matcherID int, extractorID int) (matcher db.IntegrationMatcher, err error) {
+func (d *SqlDb) GetIntegrationMatcher(extractorID int, matcherID int) (matcher db.IntegrationMatcher, err error) {
 	query, args, err := squirrel.Select("m.*").
 		From("project__integration_matcher as m").
 		Where(squirrel.Eq{"id": matcherID}).

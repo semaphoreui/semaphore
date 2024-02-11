@@ -149,7 +149,7 @@ type Store interface {
 
 	CreateIntegrationExtractor(integrationExtractor IntegrationExtractor) (newIntegrationExtractor IntegrationExtractor, err error)
 	GetIntegrationExtractors(integrationID int, params RetrieveQueryParams) ([]IntegrationExtractor, error)
-	GetIntegrationExtractor(extractorID int, integrationID int) (extractor IntegrationExtractor, err error)
+	GetIntegrationExtractor(integrationID int, extractorID int) (extractor IntegrationExtractor, err error)
 	UpdateIntegrationExtractor(integrationExtractor IntegrationExtractor) error
 	GetIntegrationExtractorRefs(integrationID int, extractorID int) (IntegrationExtractorReferrers, error)
 	DeleteIntegrationExtractor(integrationID int, extractorID int) error
@@ -158,7 +158,7 @@ type Store interface {
 
 	CreateIntegrationExtractValue(value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
 	GetIntegrationExtractValues(extractorID int, params RetrieveQueryParams) ([]IntegrationExtractValue, error)
-	GetIntegrationExtractValue(valueID int, extractorID int) (value IntegrationExtractValue, err error)
+	GetIntegrationExtractValue(extractorID int, valueID int) (value IntegrationExtractValue, err error)
 	UpdateIntegrationExtractValue(integrationExtractValue IntegrationExtractValue) error
 	GetIntegrationExtractValueRefs(extractorID int, valueID int) (IntegrationExtractorChildReferrers, error)
 	DeleteIntegrationExtractValue(extractorID int, valueID int) error
@@ -168,7 +168,7 @@ type Store interface {
 	CreateIntegrationMatcher(matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
 	GetIntegrationMatchers(extractorID int, params RetrieveQueryParams) ([]IntegrationMatcher, error)
 	GetAllIntegrationMatchers() ([]IntegrationMatcher, error)
-	GetIntegrationMatcher(matcherID int, extractorID int) (matcher IntegrationMatcher, err error)
+	GetIntegrationMatcher(extractorID int, matcherID int) (matcher IntegrationMatcher, err error)
 	UpdateIntegrationMatcher(integrationMatcher IntegrationMatcher) error
 	GetIntegrationMatcherRefs(extractorID int, matcherID int) (IntegrationExtractorChildReferrers, error)
 	DeleteIntegrationMatcher(extractorID int, matcherID int) error
