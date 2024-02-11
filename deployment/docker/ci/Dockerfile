@@ -5,7 +5,7 @@ ENV SEMAPHORE_VERSION="development" SEMAPHORE_ARCH="linux_amd64" \
     APP_ROOT="/go/src/github.com/ansible-semaphore/semaphore/"
 
 # hadolint ignore=DL3013
-RUN apk add --no-cache gcc g++ sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client-default tini nodejs npm bash rsync && \
+RUN apk add --no-cache gcc g++ sshpass git mysql-client python3 py3-pip py-openssl openssl ca-certificates curl curl-dev openssh-client-default tini nodejs npm bash rsync tzdata && \
     apk --update add --virtual build-dependencies python3-dev libffi-dev openssl-dev build-base &&\
     rm -rf /var/cache/apk/*
 
@@ -27,7 +27,7 @@ RUN adduser -D -u 1002 -g 0 semaphore && \
     ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""       && \
     ssh-keyscan -H github.com > /root/.ssh/known_hosts
 
-RUN cd $(go env GOPATH) && curl -sL https://taskfile.dev/install.sh | sh
+RUN cd $(go env GOPATH) && go install github.com/go-task/task/v3/cmd/task@latest
 
 RUN git config --global --add safe.directory /go/src/github.com/ansible-semaphore/semaphore
 

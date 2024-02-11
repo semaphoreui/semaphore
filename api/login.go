@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,15 +78,6 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	userdn := sr.Entries[0].DN
 	if err = l.Bind(userdn, password); err != nil {
 		return nil, err
-	}
-
-	// Ensure authentication and verify itself with whoami operation
-	var res *ldap.WhoAmIResult
-	if res, err = l.WhoAmI(nil); err != nil {
-		return nil, err
-	}
-	if len(res.AuthzID) <= 0 {
-		return nil, fmt.Errorf("error while doing whoami operation")
 	}
 
 	// Second time bind as read only user
@@ -325,10 +318,24 @@ func getOidcProvider(id string, ctx context.Context) (*oidc.Provider, *oauth2.Co
 		}
 	}
 
+	clientID := provider.ClientID
+	if provider.ClientIDFile != "" {
+		if clientID, err = getSecretFromFile(provider.ClientIDFile); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	clientSecret := provider.ClientSecret
+	if provider.ClientSecretFile != "" {
+		if clientSecret, err = getSecretFromFile(provider.ClientSecretFile); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	oauthConfig := oauth2.Config{
 		Endpoint:     oidcProvider.Endpoint(),
-		ClientID:     provider.ClientID,
-		ClientSecret: provider.ClientSecret,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 		RedirectURL:  provider.RedirectURL,
 		Scopes:       provider.Scopes,
 	}
@@ -377,6 +384,54 @@ type oidcClaimResult struct {
 	email    string
 }
 
+func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
+	var ok bool
+
+	res.email, ok = claims[provider.EmailClaim].(string)
+	if !ok {
+
+		var username string
+
+		if provider.EmailSuffix == "" {
+			err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
+			return
+		}
+
+		switch claims[provider.UsernameClaim].(type) {
+		case float64:
+			username = strconv.FormatFloat(claims[provider.UsernameClaim].(float64), 'f', -1, 64)
+		case string:
+			username = claims[provider.UsernameClaim].(string)
+		default:
+			err = fmt.Errorf("claim '%s' missing from id_token or not a string or an number", provider.UsernameClaim)
+			b, _ := json.MarshalIndent(claims, "", "  ")
+			fmt.Print(string(b))
+			return
+		}
+
+		res.email = username + "@" + provider.EmailSuffix
+	}
+
+	res.username = getRandomUsername()
+
+	res.name, ok = claims[provider.NameClaim].(string)
+	if !ok || res.name == "" {
+		res.name = getRandomProfileName()
+	}
+
+	return
+}
+
+func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res oidcClaimResult, err error) {
+
+	claims := make(map[string]interface{})
+	if err = userInfo.Claims(&claims); err != nil {
+		return
+	}
+
+	return parseClaims(claims, provider)
+}
+
 func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidcClaimResult, err error) {
 
 	claims := make(map[string]interface{})
@@ -384,46 +439,32 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 		return
 	}
 
-	var ok bool
-
-	res.email, ok = claims[provider.EmailClaim].(string)
-	if !ok {
-		err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
-		return
-	}
-
-	res.username = getUsernameFromEmail(res.email)
-
-	res.name, ok = claims[provider.NameClaim].(string)
-	if !ok || res.name == "" {
-		res.name = getProfileNameFromEmail(res.email)
-	}
-
-	return
+	return parseClaims(claims, provider)
 }
 
-func extractUsernameFromEmail(email string) string {
-	parts := strings.Split(email, "@")
-	if len(parts) > 0 {
-		return parts[0]
+func getRandomUsername() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := ""
+	for i := 0; i < 16; i++ {
+		index := r.Intn(len(chars))
+		result += chars[index : index+1]
 	}
-	return ""
+	return result
 }
 
-func getUsernameFromEmail(email string) string {
-	username := extractUsernameFromEmail(email)
-	suffix := util.RandString(12)
-	return username + "_" + suffix
+func getRandomProfileName() string {
+	return "Anonymous"
 }
 
-func getProfileNameFromEmail(email string) string {
-	username := extractUsernameFromEmail(email)
+func getSecretFromFile(source string) (string, error) {
+	content, err := os.ReadFile(source)
 
-	runes := []rune(username)
+	if err != nil {
+		return "", err
+	}
 
-	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
-
-	return string(runes)
+	return string(content), nil
 }
 
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
@@ -484,14 +525,18 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		userInfo, err = _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
 
 		if err == nil {
-			claims.email = userInfo.Email
-			claims.username = getUsernameFromEmail(claims.email)
 
-			if userInfo.Profile != "" {
-				claims.name = userInfo.Profile
+			if userInfo.Email == "" {
+				claims, err = claimOidcUserInfo(userInfo, provider)
 			} else {
-				claims.name = getProfileNameFromEmail(claims.email)
+				claims.email = userInfo.Email
+				claims.name = userInfo.Profile
 			}
+		}
+
+		claims.username = getRandomUsername()
+		if userInfo.Profile == "" {
+			claims.name = getRandomProfileName()
 		}
 	}
 

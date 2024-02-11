@@ -110,6 +110,7 @@ func Route() *mux.Router {
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.AddProject).Methods("POST")
+	authenticatedAPI.Path("/projects/restore").HandlerFunc(projects.Restore).Methods("POST")
 	authenticatedAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
@@ -186,6 +187,7 @@ func Route() *mux.Router {
 
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
+	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
 
 	//
 	// Updating and deleting project
@@ -366,7 +368,7 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		path = "/index.html"
 	}
 
-	path = strings.Replace(path, webPath+"/", "", 1)
+	path = strings.Replace(path, webPath, "", 1)
 	split := strings.Split(path, ".")
 	suffix := split[len(split)-1]
 

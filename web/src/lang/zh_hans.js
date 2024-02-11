@@ -1,4 +1,7 @@
 export default {
+  backup: '备份',
+  downloadTheProjectBackupFile: '下载项目备份文件（json格式）',
+  restore: '恢复',
   incorrectUsrPwd: '用户名或密码错误',
   askDeleteUser: '您确定要删除此用户吗？',
   askDeleteTemp: '您确实要删除此模板吗？',
@@ -6,7 +9,7 @@ export default {
   askDeleteInv: '您确实要删除此主机配置吗？',
   askDeleteKey: '您确定要删除此密钥吗？',
   askDeleteRepo: '您确定要删除此存储库吗？',
-  askDeleteProj: '您确定要删除此项目吗?',
+  askDeleteProj: '您确定要删除此项目吗？',
   askDeleteTMem: '您确定要删除此团队成员吗？',
   edit: '编辑',
   nnew: '新建',
@@ -133,6 +136,7 @@ export default {
   author: '关联用户',
   duration: '说明',
   stop: '停止',
+  forceStop: '强制删除',
   deleteTeamMember: '删除团队成员',
   team2: '团队',
   newTeamMember: '新增团队成员',
@@ -231,5 +235,7 @@ export default {
   Build: '编译',
   Deploy: '部署',
   Run: '运行',
+  CreateDemoProject: '创建模板项目',
+  LeaveProject: '离开项目',
 
 };

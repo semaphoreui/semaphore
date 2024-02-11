@@ -213,7 +213,7 @@ func (p *JobPool) Run() {
 				job: t.job,
 			}
 			t.job.Logger = p.runningJobs[t.job.Task.ID]
-			t.job.Playbook.Logger = t.job.Logger
+			t.job.App.SetLogger(t.job.Logger)
 
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(lib.TaskRunningStatus)
@@ -498,10 +498,7 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				Playbook: &db_lib.AnsiblePlaybook{
-					TemplateID: newJob.Template.ID,
-					Repository: newJob.Repository,
-				},
+				App:         db_lib.CreateApp(newJob.Template, newJob.Repository, nil),
 			},
 		}
 

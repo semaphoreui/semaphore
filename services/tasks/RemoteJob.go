@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
 	"net/http"
@@ -13,14 +12,7 @@ import (
 )
 
 type RemoteJob struct {
-	Task        db.Task
-	Template    db.Template
-	Inventory   db.Inventory
-	Repository  db.Repository
-	Environment db.Environment
-	Playbook    *db_lib.AnsiblePlaybook
-	Logger      lib.Logger
-
+	Task     db.Task
 	taskPool *TaskPool
 }
 
