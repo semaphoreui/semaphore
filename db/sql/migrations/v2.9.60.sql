@@ -5,6 +5,7 @@ create table project__integration (
   `template_id` int not null,
   `auth_method` varchar(15) not null default 'none',
   `auth_secret_id` int,
+  `auth_header` varchar(255),
 
   foreign key (`project_id`) references project(`id`) on delete cascade,
   foreign key (`template_id`) references project__template(`id`) on delete cascade,

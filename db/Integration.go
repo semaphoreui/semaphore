@@ -77,6 +77,7 @@ type Integration struct {
 	TemplateID   int                   `db:"template_id" json:"template_id"`
 	AuthMethod   IntegrationAuthMethod `db:"auth_method" json:"auth_method"`
 	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id"`
+	AuthHeader   string                `db:"auth_header" json:"auth_header"`
 	AuthSecret   AccessKey             `db:"-" json:"-"`
 }
 
