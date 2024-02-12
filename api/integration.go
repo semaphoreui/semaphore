@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/context"
 	"io"
 	"net/http"
 	"strings"
@@ -43,7 +44,38 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	var err error
 	// var projects []db.Project
 	var extractors []db.IntegrationExtractor
-	extractors, err = helpers.Store(r).GetAllIntegrationExtractors()
+
+	if context.Get(r, "integration") != nil {
+		integration := context.Get(r, "integration").(db.Integration)
+		switch integration.AuthMethod {
+		case db.IntegrationAuthHmac:
+			var payload []byte
+			_, err = r.Body.Read(payload)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			if IsValidPayload(integration.AuthSecret.LoginPassword.Password, r.Header.Get(integration.AuthHeader), payload) {
+				log.Error(err)
+				return
+			}
+		case db.IntegrationAuthToken:
+			if integration.AuthSecret.LoginPassword.Password != r.Header.Get(integration.AuthHeader) {
+				log.Error("Invalid verification token")
+				return
+			}
+		case db.IntegrationAuthNone:
+		default:
+			log.Error("Unknown verification method: " + integration.AuthMethod)
+			return
+		}
+
+		extractors, err = helpers.Store(r).GetIntegrationExtractors(integration.ID, db.RetrieveQueryParams{})
+	} else {
+		// TODO: remove
+		extractors, err = helpers.Store(r).GetAllIntegrationExtractors()
+	}
 
 	if err != nil {
 		log.Error(err)
