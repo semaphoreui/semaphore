@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 
+type IntegrationAuthMethod string
+
+const (
+	IntegrationAuthNone  = "none"
+	IntegrationAuthToken = "token"
+	IntegrationAuthHmac  = "hmac"
+)
+
 type IntegrationMatchType string
 
 const (
@@ -63,10 +71,13 @@ type IntegrationExtractor struct {
 }
 
 type Integration struct {
-	ID         int    `db:"id" json:"id"`
-	Name       string `db:"name" json:"name"`
-	ProjectID  int    `db:"project_id" json:"project_id"`
-	TemplateID int    `db:"template_id" json:"template_id"`
+	ID           int                   `db:"id" json:"id"`
+	Name         string                `db:"name" json:"name"`
+	ProjectID    int                   `db:"project_id" json:"project_id"`
+	TemplateID   int                   `db:"template_id" json:"template_id"`
+	AuthMethod   IntegrationAuthMethod `db:"auth_method" json:"auth_method"`
+	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id"`
+	AuthSecret   AccessKey             `db:"-" json:"-"`
 }
 
 func (env *Integration) Validate() error {
