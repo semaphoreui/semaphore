@@ -176,7 +176,7 @@
 
           <v-list-item @click="restoreProject" v-if="user.can_create_project">
             <v-list-item-icon>
-              <v-icon>mdi-file-restore</v-icon>
+              <v-icon>mdi-backup-restore</v-icon>
             </v-list-item-icon>
 
             <v-list-item-content>
