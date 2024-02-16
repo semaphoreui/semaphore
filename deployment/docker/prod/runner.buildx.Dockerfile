@@ -7,7 +7,7 @@ WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc
+RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc zip unzip tar
 RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
 FROM alpine/ansible:latest
