@@ -1019,7 +1019,6 @@ export default {
           const reader = new FileReader();
           reader.onload = async (ev) => {
             const fileContent = ev.target.result;
-            console.log(fileContent);
             try {
               await axios
                 .post('/api/projects/restore', fileContent)
