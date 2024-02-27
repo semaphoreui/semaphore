@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"

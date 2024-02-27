@@ -3,7 +3,7 @@ package sql
 import (
 	"database/sql"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
+	"github.com/Masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )

@@ -3,14 +3,14 @@ package sql
 import (
 	"database/sql"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	"github.com/gobuffalo/packr"
 	_ "github.com/lib/pq"
-	"github.com/masterminds/squirrel"
+	"github.com/Masterminds/squirrel"
 	"reflect"
 	"regexp"
 	"strconv"

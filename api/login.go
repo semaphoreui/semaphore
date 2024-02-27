@@ -23,7 +23,7 @@ import (
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gorilla/mux"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
