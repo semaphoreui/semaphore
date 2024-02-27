@@ -2,23 +2,20 @@ package tasks
 
 import (
 	"bytes"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
-	"html/template"
+	"embed"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
+
+	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/ansible-semaphore/semaphore/util/mailer"
 )
 
-const emailTemplate = "Subject: Task '{{ .Name }}' failed\r\n" +
-	"From: {{ .From }}\r\n" +
-	"\r\n" +
-	"Task {{ .TaskID }} with template '{{ .Name }}' has failed!`\n" +
-	"Task Log: {{ .TaskURL }}"
-
-const telegramTemplate = `{"chat_id": "{{ .ChatID }}","parse_mode":"HTML","text":"<code>{{ .Name }}</code>\n#{{ .TaskID }} <b>{{ .TaskResult }}</b> <code>{{ .TaskVersion }}</code> {{ .TaskDescription }}\nby {{ .Author }}\n{{ .TaskURL }}"}`
-
-const slackTemplate = `{ "attachments": [ { "title": "Task: {{ .Name }}", "title_link": "{{ .TaskURL }}", "text": "execution ID #{{ .TaskID }}, status: {{ .TaskResult }}!", "color": "{{ .Color }}", "mrkdwn_in": ["text"], "fields": [ { "title": "Author", "value": "{{ .Author }}", "short": true }] } ]}`
+//go:embed templates/*.tmpl
+var templates embed.FS
 
 const microsoftTeamsTemplate = `{
 	"type": "message",
@@ -75,16 +72,23 @@ const microsoftTeamsTemplate = `{
 
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
-	TaskID          string
-	Name            string
-	TaskURL         string
-	ChatID          string
-	TaskResult      string
-	TaskDescription string
-	TaskVersion     string
-	Author          string
-	Color           string
-	From            string
+	Name   string
+	Author string
+	Color  string
+	Task   alertTask
+	Chat   alertChat
+}
+
+type alertTask struct {
+	ID      string
+	URL     string
+	Result  string
+	Desc    string
+	Version string
+}
+
+type alertChat struct {
+	ID string
 }
 
 func (t *TaskRunner) sendMailAlert() {
@@ -92,45 +96,58 @@ func (t *TaskRunner) sendMailAlert() {
 		return
 	}
 
-	mailHost := util.Config.EmailHost + ":" + util.Config.EmailPort
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
 
-	var mailBuffer bytes.Buffer
 	alert := Alert{
-		TaskID: strconv.Itoa(t.Task.ID),
 		Name:   t.Template.Name,
-		TaskURL: util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) +
-			"/templates/" + strconv.Itoa(t.Template.ID) +
-			"?t=" + strconv.Itoa(t.Task.ID),
-		From: util.Config.EmailSender,
+		Author: author,
+		Color:  t.alertColor("email"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  strings.ToUpper(string(t.Task.Status)),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
 	}
-	tpl := template.New("mail body template")
-	tpl, err := tpl.Parse(emailTemplate)
-	util.LogError(err)
 
-	t.panicOnError(tpl.Execute(&mailBuffer, alert), "Can't generate alert template!")
+	tpl, err := template.ParseFS(templates, "templates/email.tmpl")
 
-	for _, user := range t.users {
-		userObj, err2 := t.pool.store.GetUser(user)
+	if err != nil {
+		t.Log("Can't parse email alert template!")
+		panic(err)
+	}
 
-		if !userObj.Alert {
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate email alert template!")
+		panic(err)
+	}
+
+	for _, uid := range t.users {
+		user, err := t.pool.store.GetUser(uid)
+
+		if !user.Alert {
 			continue
 		}
 
-		if err2 != nil {
-			util.LogError(err2)
+		if err != nil {
+			util.LogError(err)
 			continue
 		}
 
-		if util.Config.EmailSecure {
-			err2 = util.SendSecureMail(util.Config.EmailHost, util.Config.EmailPort,
-				util.Config.EmailSender, util.Config.EmailUsername, util.Config.EmailPassword,
-				userObj.Email, mailBuffer)
-		} else {
-			err2 = util.SendMail(mailHost, util.Config.EmailSender, userObj.Email, mailBuffer)
-		}
-
-		if err2 != nil {
-			util.LogError(err2)
+		if err := mailer.Send(
+			util.Config.EmailSecure,
+			util.Config.EmailHost,
+			util.Config.EmailPort,
+			util.Config.EmailUsername,
+			util.Config.EmailPassword,
+			util.Config.EmailSender,
+			user.Email,
+			fmt.Sprintf("Task '%s' failed", t.Template.Name),
+			body.String(),
+		); err != nil {
+			util.LogError(err)
 		}
 	}
 }
@@ -153,60 +170,45 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	var telegramBuffer bytes.Buffer
-
-	var version string
-	if t.Task.Version != nil {
-		version = *t.Task.Version
-	} else if t.Task.BuildTaskID != nil {
-		buildVer := t.Task.GetIncomingVersion(t.pool.store)
-		if buildVer != nil {
-			version = *buildVer
-		}
-	} else {
-		version = ""
-	}
-
-	var message string
-	if t.Task.Message != "" {
-		message = "- " + t.Task.Message
-	}
-
-	var author string
-	if t.Task.UserID != nil {
-		user, err := t.pool.store.GetUser(*t.Task.UserID)
-		if err != nil {
-			panic(err)
-		}
-		author = user.Name
-	}
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
 
 	alert := Alert{
-		TaskID:          strconv.Itoa(t.Task.ID),
-		Name:            t.Template.Name,
-		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) + "/templates/" + strconv.Itoa(t.Template.ID) + "?t=" + strconv.Itoa(t.Task.ID),
-		ChatID:          chatID,
-		TaskResult:      strings.ToUpper(string(t.Task.Status)),
-		TaskVersion:     version,
-		TaskDescription: message,
-		Author:          author,
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("telegram"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  strings.ToUpper(string(t.Task.Status)),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+		Chat: alertChat{
+			ID: chatID,
+		},
 	}
 
-	tpl := template.New("telegram body template")
+	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
 
-	tpl, err := tpl.Parse(telegramTemplate)
 	if err != nil {
-		t.Log("Can't parse telegram template!")
+		t.Log("Can't parse telegram alert template!")
 		panic(err)
 	}
 
-	err = tpl.Execute(&telegramBuffer, alert)
-	if err != nil {
-		t.Log("Can't generate alert template!")
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate telegram alert template!")
 		panic(err)
 	}
 
-	resp, err := http.Post("https://api.telegram.org/bot"+util.Config.TelegramToken+"/sendMessage", "application/json", &telegramBuffer)
+	resp, err := http.Post(
+		fmt.Sprintf(
+			"https://api.telegram.org/bot%s/sendMessage",
+			util.Config.TelegramToken,
+		),
+		"application/json",
+		body,
+	)
 
 	if err != nil {
 		t.Log("Can't send telegram alert! Error: " + err.Error())
@@ -224,11 +226,50 @@ func (t *TaskRunner) sendSlackAlert() {
 		return
 	}
 
-	slackUrl := util.Config.SlackUrl
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
 
-	var slackBuffer bytes.Buffer
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("slack"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  strings.ToUpper(string(t.Task.Status)),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
 
-	var version string
+	tpl, err := template.ParseFS(templates, "templates/slack.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse slack alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate slack alert template!")
+		panic(err)
+	}
+
+	resp, err := http.Post(
+		util.Config.SlackUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send slack alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send slack alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	}
+}
+
+func (t *TaskRunner) alertInfos() (string, string) {
+	version := ""
+
 	if t.Task.Version != nil {
 		version = *t.Task.Version
 	} else if t.Task.BuildTaskID != nil {
@@ -237,65 +278,51 @@ func (t *TaskRunner) sendSlackAlert() {
 		version = ""
 	}
 
-	var message string
-	if t.Task.Message != "" {
-		message = "- " + t.Task.Message
-	}
+	author := ""
 
-	var author string
 	if t.Task.UserID != nil {
 		user, err := t.pool.store.GetUser(*t.Task.UserID)
+
 		if err != nil {
 			panic(err)
 		}
+
 		author = user.Name
 	}
 
-	var color string
-	if t.Task.Status == lib.TaskSuccessStatus {
-		color = "good"
-	} else if t.Task.Status == lib.TaskFailStatus {
-		color = "danger"
-	} else if t.Task.Status == lib.TaskRunningStatus {
-		color = "#333CFF"
-	} else if t.Task.Status == lib.TaskWaitingStatus {
-		color = "#FFFC33"
-	} else if t.Task.Status == lib.TaskStoppingStatus {
-		color = "#BEBEBE"
-	} else if t.Task.Status == lib.TaskStoppedStatus {
-		color = "#5B5B5B"
-	}
-	alert := Alert{
-		TaskID:          strconv.Itoa(t.Task.ID),
-		Name:            t.Template.Name,
-		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) + "/templates/" + strconv.Itoa(t.Template.ID) + "?t=" + strconv.Itoa(t.Task.ID),
-		TaskResult:      strings.ToUpper(string(t.Task.Status)),
-		TaskVersion:     version,
-		TaskDescription: message,
-		Author:          author,
-		Color:           color,
+	return version, author
+}
+
+func (t *TaskRunner) alertColor(kind string) string {
+	switch kind {
+	case "slack":
+		switch t.Task.Status {
+		case lib.TaskSuccessStatus:
+			return "good"
+		case lib.TaskFailStatus:
+			return "danger"
+		case lib.TaskRunningStatus:
+			return "#333CFF"
+		case lib.TaskWaitingStatus:
+			return "#FFFC33"
+		case lib.TaskStoppingStatus:
+			return "#BEBEBE"
+		case lib.TaskStoppedStatus:
+			return "#5B5B5B"
+		}
 	}
 
-	tpl := template.New("slack body template")
+	return ""
+}
 
-	tpl, err := tpl.Parse(slackTemplate)
-	if err != nil {
-		t.Log("Can't parse slack template!")
-		panic(err)
-	}
-
-	err = tpl.Execute(&slackBuffer, alert)
-	if err != nil {
-		t.Log("Can't generate alert template!")
-		panic(err)
-	}
-	resp, err := http.Post(slackUrl, "application/json", &slackBuffer)
-
-	if err != nil {
-		t.Log("Can't send slack alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
-		t.Log("Can't send slack alert! Response code: " + strconv.Itoa(resp.StatusCode))
-	}
+func (t *TaskRunner) taskLink() string {
+	return fmt.Sprintf(
+		"%s/project/%d/templates/%d?t=%d",
+		util.Config.WebHost,
+		t.Template.ProjectID,
+		t.Template.ID,
+		t.Task.ID,
+	)
 }
 
 func (t *TaskRunner) sendMicrosoftTeamsAlert() {
