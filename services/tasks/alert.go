@@ -202,7 +202,7 @@ func (t *TaskRunner) sendSlackAlert() {
 	if t.Task.Status == lib.TaskSuccessStatus {
 		color = "good"
 	} else if t.Task.Status == lib.TaskFailStatus {
-		color = "bad"
+		color = "danger"
 	} else if t.Task.Status == lib.TaskRunningStatus {
 		color = "#333CFF"
 	} else if t.Task.Status == lib.TaskWaitingStatus {
