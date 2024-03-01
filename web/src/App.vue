@@ -341,6 +341,18 @@
             </template>
 
             <v-list>
+              <v-list-item key="version">
+                <v-list-item-icon>
+                  <v-icon>mdi-information-variant</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ systemInfo.version }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-divider/>
+
               <v-list-item key="users" to="/users" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
@@ -1007,7 +1019,6 @@ export default {
           const reader = new FileReader();
           reader.onload = async (ev) => {
             const fileContent = ev.target.result;
-            console.log(fileContent);
             try {
               await axios
                 .post('/api/projects/restore', fileContent)
