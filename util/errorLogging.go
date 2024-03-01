@@ -1,7 +1,7 @@
 package util
 
 import (
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // LogWarning logs a warning with arbitrary field if error
