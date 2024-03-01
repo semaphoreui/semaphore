@@ -238,4 +238,3 @@ export default {
   CreateDemoProject: 'Demo-project aanmaken',
   LeaveProject: 'Project verlaten',
 };
-
