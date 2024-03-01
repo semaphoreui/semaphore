@@ -163,6 +163,7 @@ type ConfigType struct {
 	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// telegram and slack alerting
+	AlertUrlProxy string `json:"alert_url_proxy" env:"SEMAPHORE_ALERT_PROXY_URL"`
 	TelegramAlert bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat  string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
