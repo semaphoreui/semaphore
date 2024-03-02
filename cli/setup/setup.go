@@ -70,6 +70,11 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("Slack Webhook URL", "", &conf.SlackUrl)
 	}
 
+	askConfirmation("Enable Microsoft Team Channel alerts?", false, &conf.MicrosoftTeamsAlert)
+	if conf.MicrosoftTeamsAlert {
+		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
+	}
+
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
