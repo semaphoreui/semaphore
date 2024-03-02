@@ -2,19 +2,20 @@ package sql
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/go-gorp/gorp/v3"
-	_ "github.com/go-sql-driver/mysql" // imports mysql driver
-	"github.com/gobuffalo/packr"
-	_ "github.com/lib/pq"
-	"github.com/Masterminds/squirrel"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-gorp/gorp/v3"
+	_ "github.com/go-sql-driver/mysql" // imports mysql driver
+	_ "github.com/lib/pq"
+	"github.com/Masterminds/squirrel"
+	log "github.com/sirupsen/logrus"
 )
 
 type SqlDb struct {
@@ -28,7 +29,9 @@ create table ` + "`migrations`" + ` (
 	` + "`notes`" + ` text null
 );
 `
-var dbAssets = packr.NewBox("./migrations")
+
+//go:embed migrations/*.sql
+var dbAssets embed.FS
 
 func containsStr(arr []string, str string) bool {
 	for _, a := range arr {
