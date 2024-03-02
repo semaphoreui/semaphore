@@ -78,6 +78,7 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 	if status == lib.TaskSuccessStatus || status == lib.TaskFailStatus {
 		t.sendTelegramAlert()
 		t.sendSlackAlert()
+		t.sendMicrosoftTeamsAlert()
 	}
 }
 
