@@ -164,10 +164,10 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/matchers`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/matcher/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers/${this.itemId}`;
     },
     getEventName() {
       return 'w-integration-matcher';

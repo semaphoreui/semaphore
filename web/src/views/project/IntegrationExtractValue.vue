@@ -158,10 +158,10 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/values`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/values`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}/value/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/values/${this.itemId}`;
     },
     getEventName() {
       return 'w-integration-extract-value';

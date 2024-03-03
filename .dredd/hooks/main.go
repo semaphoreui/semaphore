@@ -79,61 +79,23 @@ func main() {
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
-	h.Before("project > /api/project/{project_id}/integrations > get all integrations > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration"})
-	})
+	h.Before("project > /api/project/{project_id}/integrations > get all integrations > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Get Integration > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Update Integration > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Remove integration > 204 > application/json", capabilityWrapper("integration"))
 
-	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Get Integration > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Get Integration Extractors > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Add Integration Extractor > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id} > Updates Integration extractor > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id} > Removes integration extractor > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/values > Get Integration Extracted Values linked to integration extractor > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor", "integrationextractvalue"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/values > Add Integration Extracted Value > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor", "integrationextractvalue"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/value/{extractvalue_id} > Removes integration extract value > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor", "integrationextractvalue"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/values > Add Integration Extracted Value > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/value/{extractvalue_id} > Updates Integration ExtractValue > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor", "integrationmatcher"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matchers > Get Integration Matcher linked to integration extractor > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matchers > Add Integration Matcher > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor"})
-	})
-
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matcher/{matcher_id} > Updates Integration Matcher > 204 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "template", "integration", "integrationextractor", "integrationmatcher"})
-	})
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Get Integration Extractors > 200 > application/json", capabilityWrapper("integrationextractor"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Add Integration Extractor > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id} > Updates Integration extractor > 204 > application/json", capabilityWrapper("integrationextractor"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id} > Removes integration extractor > 204 > application/json", capabilityWrapper("integrationextractor"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values > Get Integration Extracted Values linked to integration extractor > 200 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values > Add Integration Extracted Value > 204 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values/{extractvalue_id} > Removes integration extract value > 204 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values > Add Integration Extracted Value > 204 > application/json", capabilityWrapper("integrationextractor"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values/{extractvalue_id} > Updates Integration ExtractValue > 204 > application/json", capabilityWrapper("integrationmatcher"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers > Get Integration Matcher linked to integration extractor > 200 > application/json", capabilityWrapper("integrationextractor"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers > Add Integration Matcher > 204 > application/json", capabilityWrapper("integrationextractor"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers/{matcher_id} > Updates Integration Matcher > 204 > application/json", capabilityWrapper("integrationmatcher"))
 
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))

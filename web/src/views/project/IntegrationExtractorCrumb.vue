@@ -44,7 +44,7 @@ export default {
 
     this.extractor = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}`,
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`,
       responseType: 'json',
     })).data;
   },
@@ -80,7 +80,7 @@ export default {
       return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.extractorId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`;
     },
     getEventName() {
       return 'w-integration-matcher';

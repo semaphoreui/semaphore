@@ -1553,7 +1553,7 @@ paths:
       responses:
         204:
           description: Integration Extractor Created
-  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}:
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
@@ -1578,7 +1578,7 @@ paths:
       responses:
         204:
           description: integration extractor removed
-  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/values:
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
@@ -1609,7 +1609,7 @@ paths:
           description: Integration Extract Value Created
         400:
           description: Bad Integration Extract Value params
-  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/value/{extractvalue_id}:
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values/{extractvalue_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
@@ -1637,7 +1637,7 @@ paths:
       responses:
         204:
           description: integration extract value removed
-  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matchers:
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
@@ -1668,7 +1668,7 @@ paths:
           description: Integration Matcher Created
         400:
           description: Bad Integration Matcher params
-  /project/{project_id}/integrations/{integration_id}/extractor/{extractor_id}/matcher/{matcher_id}:
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers/{matcher_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"

@@ -286,7 +286,7 @@ func Route() *mux.Router {
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/extractors", projects.GetIntegrationExtractors).Methods("GET")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/extractors", projects.AddIntegrationExtractor).Methods("POST")
 
-	projectIntegrationExtractorAPI := projectIntegrationsAPI.PathPrefix("/{integration_id}/extractor").Subrouter()
+	projectIntegrationExtractorAPI := projectIntegrationsAPI.PathPrefix("/{integration_id}/extractors").Subrouter()
 	projectIntegrationExtractorAPI.Use(projects.IntegrationExtractorMiddleware)
 
 	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}", projects.GetIntegrationExtractor).Methods("GET", "HEAD")
@@ -299,15 +299,15 @@ func Route() *mux.Router {
 	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values", projects.GetIntegrationExtractValues).Methods("GET", "HEAD")
 	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values", projects.AddIntegrationExtractValue).Methods("POST")
 
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}", projects.UpdateIntegrationMatcher).Methods("PUT")
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}", projects.DeleteIntegrationMatcher).Methods("DELETE")
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matcher/{matcher_id}/refs", projects.GetIntegrationMatcherRefs).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}", projects.UpdateIntegrationMatcher).Methods("PUT")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}", projects.DeleteIntegrationMatcher).Methods("DELETE")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}/refs", projects.GetIntegrationMatcherRefs).Methods("GET", "HEAD")
 
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}", projects.GetIntegrationExtractValue).Methods("GET", "HEAD")
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}", projects.UpdateIntegrationExtractValue).Methods("PUT")
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}", projects.DeleteIntegrationExtractValue).Methods("DELETE")
-	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/value/{value_id}/refs", projects.GetIntegrationExtractValueRefs).Methods("GET")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}", projects.GetIntegrationExtractValue).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}", projects.UpdateIntegrationExtractValue).Methods("PUT")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}", projects.DeleteIntegrationExtractValue).Methods("DELETE")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}/refs", projects.GetIntegrationExtractValueRefs).Methods("GET")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

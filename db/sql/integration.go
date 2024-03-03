@@ -19,7 +19,7 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 		"id",
 		"insert into project__integration "+
 			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header) values "+
-			"(?, ?, ?)",
+			"(?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
@@ -319,7 +319,7 @@ func (d *SqlDb) UpdateIntegrationExtractValue(integrationExtractValue db.Integra
 	}
 
 	_, err = d.exec(
-		"update project__integration_extract_value set value_source=?, body_data_type=?, key=?, variable=?, name=? where id=?",
+		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=? where `id`=?",
 		integrationExtractValue.ValueSource,
 		integrationExtractValue.BodyDataType,
 		integrationExtractValue.Key,
@@ -418,7 +418,7 @@ func (d *SqlDb) UpdateIntegrationMatcher(integrationMatcher db.IntegrationMatche
 	}
 
 	_, err = d.exec(
-		"update project__integration_matcher set match_type=?, method=?, body_data_type=?, key=?, value=?, name=? where id=?",
+		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where `id`=?",
 		integrationMatcher.MatchType,
 		integrationMatcher.Method,
 		integrationMatcher.BodyDataType,

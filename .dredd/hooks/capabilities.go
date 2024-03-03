@@ -234,6 +234,7 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("integration_id", integration.ID, &request)
 	}
 	if integrationextractor != nil {
+		//bodyFieldProcessor("integration_id", integrationextractor.IntegrationID, &request)
 		bodyFieldProcessor("extractor_id", integrationextractor.ID, &request)
 	}
 	if integrationextractvalue != nil {
@@ -246,7 +247,7 @@ func alterRequestBody(t *trans.Transaction) {
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
 
-		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:integrations/\d+/|integrations/\d+/extractor/\d+)?(?:integration/\d+/extractor/\d+/matcher/\d+)?(?:integration/\d+/extractor/\d+/value/\d+)?$`)
+		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?(?:integrations/\d+/|integrations/\d+/extractors/\d+)?(?:integrations/\d+/extractors/\d+/matchers/\d+)?(?:integrations/\d+/extractors/\d+/values/\d+)?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

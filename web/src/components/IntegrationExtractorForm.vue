@@ -36,7 +36,7 @@ export default {
       return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractor/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.itemId}`;
     },
   },
 };
