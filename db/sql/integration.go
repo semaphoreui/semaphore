@@ -84,7 +84,7 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
 	}
 
 	_, err = d.exec(
-		"update project__integration set name=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=? where id=?",
+		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=? where `id`=?",
 		integration.Name,
 		integration.TemplateID,
 		integration.ID,
@@ -104,7 +104,7 @@ func (d *SqlDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationEx
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__integration_extractor (name, integration_id) values (?, ?)",
+		"insert into project__integration_extractor (`name`, integration_id) values (?, ?)",
 		integrationExtractor.Name,
 		integrationExtractor.IntegrationID)
 
