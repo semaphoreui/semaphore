@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -68,6 +68,11 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askConfirmation("Enable slack alerts?", false, &conf.SlackAlert)
 	if conf.SlackAlert {
 		askValue("Slack Webhook URL", "", &conf.SlackUrl)
+	}
+
+	askConfirmation("Enable Microsoft Team Channel alerts?", false, &conf.MicrosoftTeamsAlert)
+	if conf.MicrosoftTeamsAlert {
+		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
 	}
 
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
