@@ -139,14 +139,14 @@ func (d *SqlDb) GetIntegrationExtractor(integrationID int, extractorID int) (ext
 
 func (d *SqlDb) GetIntegrationExtractors(integrationID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractor, error) {
 	var extractors []db.IntegrationExtractor
-	err := d.getObjectsByReferrer(integrationID, db.IntegrationExtractorProps, db.IntegrationExtractorProps, params, &extractors)
+	err := d.getObjectsByReferrer(integrationID, db.IntegrationProps, db.IntegrationExtractorProps, params, &extractors)
 
 	return extractors, err
 }
 
 func (d *SqlDb) GetIntegrationExtractorRefs(integrationID int, extractorID int) (refs db.IntegrationExtractorReferrers, err error) {
-	refs.IntegrationMatchers, err = d.GetObjectReferences(db.IntegrationMatcherProps, db.IntegrationExtractorProps, extractorID)
-	refs.IntegrationExtractValues, err = d.GetObjectReferences(db.IntegrationExtractValueProps, db.IntegrationExtractorProps, extractorID)
+	refs.IntegrationMatchers, err = d.GetObjectReferences(db.IntegrationExtractorProps, db.IntegrationMatcherProps, extractorID)
+	refs.IntegrationExtractValues, err = d.GetObjectReferences(db.IntegrationExtractorProps, db.IntegrationExtractValueProps, extractorID)
 
 	return
 }
@@ -262,7 +262,7 @@ func (d *SqlDb) CreateIntegrationExtractValue(value db.IntegrationExtractValue) 
 
 func (d *SqlDb) GetIntegrationExtractValues(extractorID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractValue, error) {
 	var values []db.IntegrationExtractValue
-	err := d.getObjectsByReferrer(extractorID, db.IntegrationExtractValueProps, db.IntegrationExtractValueProps, params, &values)
+	err := d.getObjectsByReferrer(extractorID, db.IntegrationExtractorProps, db.IntegrationExtractValueProps, params, &values)
 	return values, err
 }
 
