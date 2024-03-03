@@ -1,10 +1,14 @@
 package api
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"strings"
+	"time"
 
 	"github.com/ansible-semaphore/semaphore/api/runners"
 
@@ -13,11 +17,13 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 )
 
-var publicAssets2 = packr.NewBox("../web/dist")
+var startTime = time.Now().UTC()
+
+//go:embed public/*
+var publicAssets embed.FS
 
 // StoreMiddleware WTF?
 func StoreMiddleware(next http.Handler) http.Handler {
@@ -50,15 +56,6 @@ func plainTextMiddleware(next http.Handler) http.Handler {
 func pongHandler(w http.ResponseWriter, r *http.Request) {
 	//nolint: errcheck
 	w.Write([]byte("pong"))
-}
-
-func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.WriteHeader(http.StatusNotFound)
-	//nolint: errcheck
-	w.Write([]byte("404 not found"))
-	fmt.Println(r.Method, ":", r.URL.String(), "--> 404 Not Found")
 }
 
 // Route declares all routes
@@ -350,75 +347,86 @@ func debugPrintRoutes(r *mux.Router) {
 	}
 }
 
-// nolint: gocyclo
 func servePublic(w http.ResponseWriter, r *http.Request) {
 	webPath := "/"
 	if util.WebHostURL != nil {
-		webPath = util.WebHostURL.RequestURI()
+		webPath = util.WebHostURL.Path
+		if !strings.HasSuffix(webPath, "/") {
+			webPath += "/"
+		}
 	}
 
-	path := r.URL.Path
+	reqPath := r.URL.Path
+	apiPath := path.Join(webPath, "api")
 
-	if path == webPath+"api" || strings.HasPrefix(path, webPath+"api/") {
-		w.WriteHeader(http.StatusNotFound)
+	if reqPath == apiPath || strings.HasPrefix(reqPath, apiPath) {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
 
-	if !strings.Contains(path, ".") {
-		path = "/index.html"
+	if !strings.Contains(reqPath, ".") {
+		serveFile(w, r, "index.html")
+		return
 	}
 
-	path = strings.Replace(path, webPath, "", 1)
-	split := strings.Split(path, ".")
-	suffix := split[len(split)-1]
+	newPath := strings.Replace(
+		reqPath,
+		webPath,
+		"",
+		1,
+	)
 
-	var res []byte
-	var err error
+	serveFile(w, r, newPath)
+}
 
-	res, err = publicAssets2.MustBytes(path)
+func serveFile(w http.ResponseWriter, r *http.Request, name string) {
+	res, err := publicAssets.ReadFile(
+		fmt.Sprintf("public/%s", name),
+	)
 
 	if err != nil {
-		notFoundHandler(w, r)
+		http.Error(
+			w,
+			http.StatusText(http.StatusNotFound),
+			http.StatusNotFound,
+		)
+
 		return
 	}
 
-	// replace base path
-	if util.WebHostURL != nil && path == "/index.html" {
+	if util.WebHostURL != nil && name == "index.html" {
 		baseURL := util.WebHostURL.String()
+
 		if !strings.HasSuffix(baseURL, "/") {
 			baseURL += "/"
 		}
-		res = []byte(strings.Replace(string(res),
-			"<base href=\"/\">",
-			"<base href=\""+baseURL+"\">",
-			1))
+
+		res = []byte(
+			strings.Replace(
+				string(res),
+				`<base href="/">`,
+				fmt.Sprintf(`<base href="%s">`, baseURL),
+				1,
+			),
+		)
 	}
 
-	contentType := "text/plain"
-	switch suffix {
-	case "png":
-		contentType = "image/png"
-	case "jpg", "jpeg":
-		contentType = "image/jpeg"
-	case "gif":
-		contentType = "image/gif"
-	case "js":
-		contentType = "application/javascript"
-	case "css":
-		contentType = "text/css"
-	case "woff":
-		contentType = "application/x-font-woff"
-	case "ttf":
-		contentType = "application/x-font-ttf"
-	case "otf":
-		contentType = "application/x-font-otf"
-	case "html":
-		contentType = "text/html"
+	if !strings.HasSuffix(name, ".html") {
+		w.Header().Add(
+			"Cache-Control",
+			fmt.Sprintf("max-age=%d, public, must-revalidate, proxy-revalidate", 24*time.Hour),
+		)
 	}
 
-	w.Header().Set("content-type", contentType)
-	_, err = w.Write(res)
-	util.LogWarning(err)
+	http.ServeContent(
+		w,
+		r,
+		name,
+		startTime,
+		bytes.NewReader(
+			res,
+		),
+	)
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {

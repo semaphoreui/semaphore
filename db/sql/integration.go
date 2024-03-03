@@ -1,11 +1,11 @@
 package sql
 
 import (
+	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
 	"strings"
 	// fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db.Integration, err error) {

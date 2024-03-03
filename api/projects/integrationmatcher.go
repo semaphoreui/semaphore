@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 )
 
 func GetIntegrationMatcher(w http.ResponseWriter, r *http.Request) {

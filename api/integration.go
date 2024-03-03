@@ -11,9 +11,9 @@ import (
 	"net/http"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	jsonq "github.com/thedevsaddam/gojsonq/v2"
 	"golang.org/x/exp/slices"
 )

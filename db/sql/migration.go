@@ -2,12 +2,14 @@ package sql
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/go-gorp/gorp/v3"
+	"path"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -32,16 +34,14 @@ func getVersionErrPath(version db.Migration) string {
 	return version.HumanoidVersion() + ".err.sql"
 }
 
-// getVersionSQL takes a path to an SQL file and returns it from packr as
+// getVersionSQL takes a path to an SQL file and returns it from embed.FS
 // a slice of strings separated by newlines
-func getVersionSQL(path string) (queries []string) {
-	log.Info(fmt.Sprintf("GetVersionSQL: %s", path))
-
-	sql, err := dbAssets.MustString(path)
+func getVersionSQL(name string) (queries []string) {
+	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
 	if err != nil {
 		panic(err)
 	}
-	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
+	queries = strings.Split(strings.ReplaceAll(string(sql), ";\r\n", ";\n"), ";\n")
 	for i := range queries {
 		queries[i] = strings.Trim(queries[i], "\r\n\t ")
 	}
@@ -188,7 +188,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) TryRollbackMigration(version db.Migration) {
-	data := dbAssets.Bytes(getVersionErrPath(version))
+	data, _ := dbAssets.ReadFile(getVersionErrPath(version))
 	if len(data) == 0 {
 		fmt.Println("Rollback SQL does not exist.")
 		fmt.Println()

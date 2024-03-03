@@ -1,72 +1,72 @@
 package sql
 
 import (
-  "github.com/ansible-semaphore/semaphore/db"
-  "github.com/masterminds/squirrel"
-  "time"
+	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
+	"time"
 )
 
 func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParams) (events []db.Event, err error) {
 
-  if params.Count > 0 {
-    q = q.Limit(uint64(params.Count))
-  }
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
+	}
 
-  query, args, err := q.ToSql()
+	query, args, err := q.ToSql()
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-  _, err = d.selectAll(&events, query, args...)
+	_, err = d.selectAll(&events, query, args...)
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-  err = db.FillEvents(d, events)
+	err = db.FillEvents(d, events)
 
-  return
+	return
 }
 
 func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
-  var created = time.Now()
+	var created = time.Now()
 
-  _, err = d.exec(
-    "insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",
-    evt.UserID,
-    evt.ProjectID,
-    evt.ObjectID,
-    evt.ObjectType,
-    evt.Description,
-    created)
+	_, err = d.exec(
+		"insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",
+		evt.UserID,
+		evt.ProjectID,
+		evt.ObjectID,
+		evt.ObjectType,
+		evt.Description,
+		created)
 
-  if err != nil {
-    return
-  }
+	if err != nil {
+		return
+	}
 
-  newEvent = evt
-  newEvent.Created = created
-  return
+	newEvent = evt
+	newEvent.Created = created
+	return
 }
 
 func (d *SqlDb) GetUserEvents(userID int, params db.RetrieveQueryParams) ([]db.Event, error) {
-  q := squirrel.Select("event.*, p.name as project_name").
-    From("event").
-    LeftJoin("project as p on event.project_id=p.id").
-    OrderBy("created desc").
-    LeftJoin("project__user as pu on pu.project_id=p.id").
-    Where("p.id IS NULL or pu.user_id=?", userID)
+	q := squirrel.Select("event.*, p.name as project_name").
+		From("event").
+		LeftJoin("project as p on event.project_id=p.id").
+		OrderBy("created desc").
+		LeftJoin("project__user as pu on pu.project_id=p.id").
+		Where("p.id IS NULL or pu.user_id=?", userID)
 
-  return d.getEvents(q, params)
+	return d.getEvents(q, params)
 }
 
 func (d *SqlDb) GetEvents(projectID int, params db.RetrieveQueryParams) ([]db.Event, error) {
-  q := squirrel.Select("event.*, p.name as project_name").
-    From("event").
-    LeftJoin("project as p on event.project_id=p.id").
-    OrderBy("created desc").
-    Where("event.project_id=?", projectID)
+	q := squirrel.Select("event.*, p.name as project_name").
+		From("event").
+		LeftJoin("project as p on event.project_id=p.id").
+		OrderBy("created desc").
+		Where("event.project_id=?", projectID)
 
-  return d.getEvents(q, params)
+	return d.getEvents(q, params)
 }

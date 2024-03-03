@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
+	"github.com/Masterminds/squirrel"
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {

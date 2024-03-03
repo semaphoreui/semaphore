@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -78,6 +78,7 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 	if status == lib.TaskSuccessStatus || status == lib.TaskFailStatus {
 		t.sendTelegramAlert()
 		t.sendSlackAlert()
+		t.sendMicrosoftTeamsAlert()
 	}
 }
 

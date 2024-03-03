@@ -3,7 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 	"time"

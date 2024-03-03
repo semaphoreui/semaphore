@@ -21,4 +21,5 @@ module.exports = {
     'vuetify',
   ],
   publicPath: './',
+  outputDir: '../api/public',
 };
