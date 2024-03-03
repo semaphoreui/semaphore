@@ -1,7 +1,7 @@
 export default {
   backup: '备份',
   downloadTheProjectBackupFile: '下载项目备份文件（json格式）',
-  restore: '恢复',
+  restore: '恢复...',
   incorrectUsrPwd: '用户名或密码错误',
   askDeleteUser: '您确定要删除此用户吗？',
   askDeleteTemp: '您确实要删除此模板吗？',

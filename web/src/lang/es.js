@@ -1,7 +1,7 @@
 export default {
   backup: 'Respaldo',
   downloadTheProjectBackupFile: 'Descargue el archivo de copia de seguridad del proyecto (en json)',
-  restore: 'Restaurar',
+  restore: 'Restaurar...',
   incorrectUsrPwd: 'Usuario o contraseña incorrecta',
   askDeleteUser: '¿Realmente desea eliminar este usuario?',
   askDeleteTemp: '¿Realmente desea eliminar esta plantilla?',

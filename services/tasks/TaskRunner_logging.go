@@ -3,7 +3,7 @@ package tasks
 import (
 	"bufio"
 	"encoding/json"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os/exec"

@@ -1,5 +1,5 @@
 # ansible-semaphore production image
-FROM --platform=$BUILDPLATFORM golang:1.20-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.21-alpine3.18 as builder
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
@@ -7,7 +7,7 @@ WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc
+RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc zip unzip tar
 RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
 FROM alpine/ansible:latest

@@ -37,7 +37,6 @@ then
     PATH="$HOME/go/bin:$PATH"
 fi
 export PATH
-##go install github.com/gobuffalo/packr/v2@latest
 go-task all
 
 cat > ansible-semaphore.service <<EOF

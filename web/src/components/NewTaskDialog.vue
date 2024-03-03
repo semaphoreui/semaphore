@@ -41,7 +41,7 @@ export default {
   props: {
     value: Boolean,
     projectId: Number,
-    templateId: Number,
+    templateId: [Number, String],
     templateType: String,
     templateAlias: String,
   },

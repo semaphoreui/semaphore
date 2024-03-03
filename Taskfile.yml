@@ -56,7 +56,6 @@ tasks:
       GORELEASER_VERSION: "0.183.0"
       GOLINTER_VERSION: "1.46.2"
     cmds:
-      - go install github.com/gobuffalo/packr/...@v1.10.4
       - go install github.com/snikch/goodman/cmd/goodman@latest
       - go install github.com/go-swagger/go-swagger/cmd/swagger@v0.29.0
       - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
@@ -84,25 +83,17 @@ tasks:
       - babel.config.js
       - vue.config.js
     generates:
-      - dist/css/*.css
-      - dist/js/*.js
-      - dist/index.html
-      - dist/favicon.ico
+      - ../api/public/css/*.css
+      - ../api/public/js/*.js
+      - ../api/public/index.html
+      - ../api/public/favicon.ico
     cmds:
       - npm run build
 
   compile:be:
-    desc: Runs Packr for static assets
-    sources:
-      - web/dist/*
-      - db/migrations/*
-    generates:
-      - db/db-packr.go
-      - api/api-packr.go
+    desc: Generate the version
     cmds:
-      - mkdir -p web/dist
       - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
-      - packr
     vars:
       TAG:
         sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null | sed -n 's/^\([^^~]\{1,\}\)\(\^0\)\{0,1\}$/\1/p'
@@ -148,7 +139,7 @@ tasks:
   lint:be:
     # --errors
     cmds:
-      - golangci-lint run --skip-files "\w*(-packr.go)" --disable goconst --timeout 240s ./...
+      - golangci-lint run --disable goconst --timeout 240s ./...
 
   test:
     cmds:

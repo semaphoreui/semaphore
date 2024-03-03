@@ -3,7 +3,7 @@ package projects
 import (
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	projectService "github.com/ansible-semaphore/semaphore/services/project"

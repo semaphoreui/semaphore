@@ -2,7 +2,7 @@ package sql
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
+	"github.com/Masterminds/squirrel"
 	"time"
 )
 

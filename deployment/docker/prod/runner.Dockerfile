@@ -1,6 +1,6 @@
 FROM dind-ansible:latest
 
-RUN apk add --no-cache wget git rsync tzdata
+RUN apk add --no-cache wget git rsync tzdata zip unzip tar
 
 RUN adduser -D -u 1001 -G root -G docker semaphore && \
     mkdir -p /tmp/semaphore && \
