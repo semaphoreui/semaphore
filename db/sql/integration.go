@@ -63,14 +63,8 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 	return
 }
 
-func (d *SqlDb) GetIntegrationExtractorsByIntegrationID(integrationID int) ([]db.IntegrationExtractor, error) {
-	var extractors []db.IntegrationExtractor
-	err := d.GetObjectsByForeignKeyQuery(db.IntegrationExtractorProps, integrationID, db.IntegrationProps, db.RetrieveQueryParams{}, &extractors)
-	return extractors, err
-}
-
 func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	extractors, err := d.GetIntegrationExtractorsByIntegrationID(integrationID)
+	extractors, err := d.GetIntegrationExtractors(integrationID, db.RetrieveQueryParams{})
 
 	if err != nil {
 		return err
@@ -141,13 +135,6 @@ func (d *SqlDb) GetIntegrationExtractor(integrationID int, extractorID int) (ext
 	err = d.selectOne(&extractor, query, args...)
 
 	return extractor, err
-}
-
-func (d *SqlDb) GetAllIntegrationExtractors() (extractors []db.IntegrationExtractor, err error) {
-	var extractorObjects interface{}
-	extractorObjects, err = d.GetAllObjects(db.IntegrationExtractorProps)
-	extractors = extractorObjects.([]db.IntegrationExtractor)
-	return
 }
 
 func (d *SqlDb) GetIntegrationExtractors(integrationID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractor, error) {

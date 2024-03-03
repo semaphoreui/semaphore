@@ -153,8 +153,6 @@ type Store interface {
 	UpdateIntegrationExtractor(integrationExtractor IntegrationExtractor) error
 	GetIntegrationExtractorRefs(integrationID int, extractorID int) (IntegrationExtractorReferrers, error)
 	DeleteIntegrationExtractor(integrationID int, extractorID int) error
-	GetIntegrationExtractorsByIntegrationID(integrationID int) ([]IntegrationExtractor, error)
-	GetAllIntegrationExtractors() ([]IntegrationExtractor, error)
 
 	CreateIntegrationExtractValue(value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
 	GetIntegrationExtractValues(extractorID int, params RetrieveQueryParams) ([]IntegrationExtractValue, error)
@@ -273,7 +271,7 @@ var IntegrationProps = ObjectProps{
 	TableName:             "project__integration",
 	Type:                  reflect.TypeOf(Integration{}),
 	PrimaryColumnName:     "id",
-	ReferringColumnSuffix: "project_id",
+	ReferringColumnSuffix: "integration_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
@@ -282,27 +280,27 @@ var IntegrationExtractorProps = ObjectProps{
 	TableName:             "project__integration_extractor",
 	Type:                  reflect.TypeOf(IntegrationExtractor{}),
 	PrimaryColumnName:     "id",
-	ReferringColumnSuffix: "integration_id",
+	ReferringColumnSuffix: "extractor_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
 
 var IntegrationExtractValueProps = ObjectProps{
-	TableName:             "project__integration_extract_value",
-	Type:                  reflect.TypeOf(IntegrationExtractValue{}),
-	PrimaryColumnName:     "id",
-	ReferringColumnSuffix: "extractor_id",
-	SortableColumns:       []string{"name"},
-	DefaultSortingColumn:  "name",
+	TableName:         "project__integration_extract_value",
+	Type:              reflect.TypeOf(IntegrationExtractValue{}),
+	PrimaryColumnName: "id",
+	//ReferringColumnSuffix: "extractor_id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
 }
 
 var IntegrationMatcherProps = ObjectProps{
-	TableName:             "project__integration_matcher",
-	Type:                  reflect.TypeOf(IntegrationMatcher{}),
-	PrimaryColumnName:     "id",
-	ReferringColumnSuffix: "extractor_id",
-	SortableColumns:       []string{"name"},
-	DefaultSortingColumn:  "name",
+	TableName:         "project__integration_matcher",
+	Type:              reflect.TypeOf(IntegrationMatcher{}),
+	PrimaryColumnName: "id",
+	//ReferringColumnSuffix: "extractor_id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
 }
 
 var EnvironmentProps = ObjectProps{

@@ -91,8 +91,8 @@ func Route() *mux.Router {
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 
-	publicWebHookRouter := r.PathPrefix(webPath + "integration").Subrouter()
-	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
+	publicWebHookRouter := r.PathPrefix(webPath + "integration/{project_id}").Subrouter()
+	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware, projects.IntegrationMiddleware)
 	publicWebHookRouter.HandleFunc("/endpoint", ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
