@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -151,13 +150,6 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integrationextractor":
 			integrationextractor = addIntegrationExtractor()
 			integrationExtractorID = integrationextractor.ID
-
-			fmt.Println("******************************")
-			fmt.Println("******************************")
-			fmt.Println(integrationExtractorID)
-			fmt.Println("******************************")
-			fmt.Println("******************************")
-
 		case "integrationextractvalue":
 			integrationextractvalue = addIntegrationExtractValue()
 			integrationExtractValueID = integrationextractvalue.ID

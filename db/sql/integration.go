@@ -87,10 +87,10 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
 		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=? where `id`=?",
 		integration.Name,
 		integration.TemplateID,
-		integration.ID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
-		integration.AuthHeader)
+		integration.AuthHeader,
+		integration.ID)
 
 	return err
 }
