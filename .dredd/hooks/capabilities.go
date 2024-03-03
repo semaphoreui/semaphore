@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -150,6 +151,13 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integrationextractor":
 			integrationextractor = addIntegrationExtractor()
 			integrationExtractorID = integrationextractor.ID
+
+			fmt.Println("******************************")
+			fmt.Println("******************************")
+			fmt.Println(integrationExtractorID)
+			fmt.Println("******************************")
+			fmt.Println("******************************")
+
 		case "integrationextractvalue":
 			integrationextractvalue = addIntegrationExtractValue()
 			integrationExtractValueID = integrationextractvalue.ID
@@ -234,7 +242,6 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("integration_id", integration.ID, &request)
 	}
 	if integrationextractor != nil {
-		//bodyFieldProcessor("integration_id", integrationextractor.IntegrationID, &request)
 		bodyFieldProcessor("extractor_id", integrationextractor.ID, &request)
 	}
 	if integrationextractvalue != nil {

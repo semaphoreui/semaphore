@@ -85,7 +85,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Remove integration > 204 > application/json", capabilityWrapper("integration"))
 
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Get Integration Extractors > 200 > application/json", capabilityWrapper("integrationextractor"))
-	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Add Integration Extractor > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors > Add Integration Extractor > 201 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id} > Updates Integration extractor > 204 > application/json", capabilityWrapper("integrationextractor"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id} > Removes integration extractor > 204 > application/json", capabilityWrapper("integrationextractor"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values > Get Integration Extracted Values linked to integration extractor > 200 > application/json", capabilityWrapper("integrationextractvalue"))

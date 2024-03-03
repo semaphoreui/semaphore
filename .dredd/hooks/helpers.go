@@ -245,7 +245,7 @@ func addIntegration() *db.Integration {
 
 func addIntegrationExtractor() *db.IntegrationExtractor {
 	integrationextractor, err := store.CreateIntegrationExtractor(db.IntegrationExtractor{
-		IntegrationID: int(integrationID),
+		IntegrationID: integrationID,
 		Name:          "Integration Extractor",
 	})
 
