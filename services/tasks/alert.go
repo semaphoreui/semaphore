@@ -17,59 +17,6 @@ import (
 //go:embed templates/*.tmpl
 var templates embed.FS
 
-const microsoftTeamsTemplate = `{
-	"type": "message",
-	"attachments": [
-		{
-			"contentType": "application/vnd.microsoft.card.adaptive",
-			"content": {
-				"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-				"type": "AdaptiveCard",
-				"version": "1.5",
-				"body": [
-					{
-						"type": "TextBlock",
-						"text": "Ansible Task Template Execution by: {{ .Author }}",
-					},
-					{
-						"type": "FactSet",
-						"facts": [
-						  {
-							"title": "Task:",
-							"value": "{{ .Name }}"
-						  },
-						  {
-							"title": "Status:",
-							"value": "{{ .TaskResult }}"
-						  },
-						  {
-							"title": "Task ID:",
-							"value": "{{ .TaskID }}"
-						  }
-						],
-						"separator": true
-					}
-				],
-				"actions": [
-					{
-						"type": "Action.OpenUrl",
-						"title": "Task URL",
-						"url": "{{ .TaskURL }}"
-					}
-				],
-				"msteams": {
-					"width": "Full"
-				},
-				"backgroundImage": {
-					"horizontalAlignment": "Center",
-					"url": "data:image/jpg;base64,iVBORw0KGgoAAAANSUhEUgAABSgAAAAFCAYAAABGmwLHAAAARklEQVR4nO3YMQEAIBDEsANPSMC/AbzwMm5JJHTseuf+AAAAAAAUbNEBAAAAgBaDEgAAAACoMSgBAAAAgBqDEgAAAADoSDL8RAJfcbcsoQAAAABJRU5ErkJggg==",
-					"fillMode": "RepeatHorizontally"
-				}
-			}
-		}
-	]
-}`
-
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
 	Name   string
@@ -124,6 +71,11 @@ func (t *TaskRunner) sendMailAlert() {
 		panic(err)
 	}
 
+	if body.Len() == 0 {
+		t.Log("Buffer for email alert is empty")
+		return
+	}
+
 	for _, uid := range t.users {
 		user, err := t.pool.store.GetUser(uid)
 
@@ -135,6 +87,8 @@ func (t *TaskRunner) sendMailAlert() {
 			util.LogError(err)
 			continue
 		}
+
+		t.Logf("Attempting to send email alert to %s", user.Email)
 
 		if err := mailer.Send(
 			util.Config.EmailSecure,
@@ -148,7 +102,10 @@ func (t *TaskRunner) sendMailAlert() {
 			body.String(),
 		); err != nil {
 			util.LogError(err)
+			continue
 		}
+
+		t.Logf("Sent successfully email alert to %s", user.Email)
 	}
 }
 
@@ -201,6 +158,13 @@ func (t *TaskRunner) sendTelegramAlert() {
 		panic(err)
 	}
 
+	if body.Len() == 0 {
+		t.Log("Buffer for telegram alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send telegram alert")
+
 	resp, err := http.Post(
 		fmt.Sprintf(
 			"https://api.telegram.org/bot%s/sendMessage",
@@ -215,6 +179,8 @@ func (t *TaskRunner) sendTelegramAlert() {
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	}
+
+	t.Log("Sent successfully telegram alert")
 }
 
 func (t *TaskRunner) sendSlackAlert() {
@@ -254,6 +220,13 @@ func (t *TaskRunner) sendSlackAlert() {
 		panic(err)
 	}
 
+	if body.Len() == 0 {
+		t.Log("Buffer for slack alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send slack alert")
+
 	resp, err := http.Post(
 		util.Config.SlackUrl,
 		"application/json",
@@ -265,6 +238,67 @@ func (t *TaskRunner) sendSlackAlert() {
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send slack alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	}
+
+	t.Log("Sent successfully slack alert")
+}
+
+func (t *TaskRunner) sendMicrosoftTeamsAlert() {
+	if !util.Config.MicrosoftTeamsAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("micorsoft-teams"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  strings.ToUpper(string(t.Task.Status)),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/microsoft-teams.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse microsoft teams alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate microsoft teams alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for microsoft teams alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send microsoft teams alert")
+
+	resp, err := http.Post(
+		util.Config.MicrosoftTeamsUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send microsoft teams alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send microsoft teams alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	}
+
+	t.Log("Sent successfully microsoft teams alert")
 }
 
 func (t *TaskRunner) alertInfos() (string, string) {
@@ -323,103 +357,4 @@ func (t *TaskRunner) taskLink() string {
 		t.Template.ID,
 		t.Task.ID,
 	)
-}
-
-func (t *TaskRunner) sendMicrosoftTeamsAlert() {
-	if !util.Config.MicrosoftTeamsAlert || !t.alert {
-		return
-	}
-
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
-		return
-	}
-
-	MicrosoftTeamsUrl := util.Config.MicrosoftTeamsUrl
-
-	var microsoftTeamsBuffer bytes.Buffer
-
-	var version string
-	if t.Task.Version != nil {
-		version = *t.Task.Version
-	} else if t.Task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
-	} else {
-		version = ""
-	}
-
-	var message string
-	if t.Task.Message != "" {
-		message = "- " + t.Task.Message
-	}
-
-	var author string
-	if t.Task.UserID != nil {
-		user, err := t.pool.store.GetUser(*t.Task.UserID)
-		if err != nil {
-			panic(err)
-		}
-		author = user.Name
-	}
-
-	var color string
-	if t.Task.Status == lib.TaskSuccessStatus {
-		color = "good"
-	} else if t.Task.Status == lib.TaskFailStatus {
-		color = "bad"
-	} else if t.Task.Status == lib.TaskRunningStatus {
-		color = "#333CFF"
-	} else if t.Task.Status == lib.TaskWaitingStatus {
-		color = "#FFFC33"
-	} else if t.Task.Status == lib.TaskStoppingStatus {
-		color = "#BEBEBE"
-	} else if t.Task.Status == lib.TaskStoppedStatus {
-		color = "#5B5B5B"
-	}
-
-	// Instantiate an alert object
-	alert := Alert{
-		TaskID:          strconv.Itoa(t.Task.ID),
-		Name:            t.Template.Name,
-		TaskURL:         util.Config.WebHost + "/project/" + strconv.Itoa(t.Template.ProjectID) + "/templates/" + strconv.Itoa(t.Template.ID) + "?t=" + strconv.Itoa(t.Task.ID),
-		TaskResult:      strings.ToUpper(string(t.Task.Status)),
-		TaskVersion:     version,
-		TaskDescription: message,
-		Author:          author,
-		Color:           color,
-	}
-
-	tpl := template.New("MicrosoftTeams body template")
-
-	tpl, err := tpl.Parse(microsoftTeamsTemplate)
-	if err != nil {
-		t.Log("Can't parse MicrosoftTeams template!")
-		panic(err)
-	}
-
-	// The tpl.Execute(&microsoftTeamsBuffer, alert) line is used to apply the data from the alert struct to the template.
-	// This operation fills in the placeholders in the template with the corresponding values from the alert struct
-	// and writes the result to the microsoftTeamsBuffer. In essence, it generates a JSON message based on the template and the data in the alert struct.
-	err = tpl.Execute(&microsoftTeamsBuffer, alert)
-	if err != nil {
-		t.Log("Can't generate alert template!")
-		panic(err)
-	}
-
-	// test if buffer is empty
-	if microsoftTeamsBuffer.Len() == 0 {
-		t.Log("MicrosoftTeams buffer is empty!")
-		return
-	}
-
-	t.Log("Attempting to send MicrosoftTeams alert")
-
-	resp, err := http.Post(MicrosoftTeamsUrl, "application/json", &microsoftTeamsBuffer)
-
-	if err != nil {
-		t.Log("Can't send MicrosoftTeams alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
-		t.Log("Can't send MicrosoftTeams alert! Response code: " + strconv.Itoa(resp.StatusCode))
-	}
-
-	t.Log("MicrosoftTeams alert sent successfully")
 }

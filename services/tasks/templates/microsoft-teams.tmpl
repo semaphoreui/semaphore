@@ -1,0 +1,52 @@
+{
+    "type": "message",
+    "attachments": [
+        {
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "type": "AdaptiveCard",
+                "version": "1.5",
+                "body": [
+                    {
+                        "type": "TextBlock",
+                        "text": "Ansible Task Template Execution by: {{ .Author }}"
+                    },
+                    {
+                        "type": "FactSet",
+                        "facts": [
+                            {
+                                "title": "Task:",
+                                "value": "{{ .Name }}"
+                            },
+                            {
+                                "title": "Status:",
+                                "value": "{{ .Task.Result }}"
+                            },
+                            {
+                                "title": "Task ID:",
+                                "value": "{{ .Task.ID }}"
+                            }
+                        ],
+                        "separator": true
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "Action.OpenUrl",
+                        "title": "Task URL",
+                        "url": "{{ .Task.URL }}"
+                    }
+                ],
+                "msteams": {
+                    "width": "Full"
+                },
+                "backgroundImage": {
+                    "horizontalAlignment": "Center",
+                    "url": "data:image/jpg;base64,iVBORw0KGgoAAAANSUhEUgAABSgAAAAFCAYAAABGmwLHAAAARklEQVR4nO3YMQEAIBDEsANPSMC/AbzwMm5JJHTseuf+AAAAAAAUbNEBAAAAgBaDEgAAAACoMSgBAAAAgBqDEgAAAADoSDL8RAJfcbcsoQAAAABJRU5ErkJggg==",
+                    "fillMode": "RepeatHorizontally"
+                }
+            }
+        }
+    ]
+}
