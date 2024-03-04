@@ -260,6 +260,16 @@
           </v-list-item-content>
         </v-list-item>
 
+        <v-list-item key="integrations" :to="`/project/${projectId}/integrations`">
+          <v-list-item-icon>
+            <v-icon>mdi-connection</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Integrations</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
         <v-list-item key="team" :to="`/project/${projectId}/team`">
           <v-list-item-icon>
             <v-icon>mdi-account-multiple</v-icon>

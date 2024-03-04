@@ -57,16 +57,18 @@ jobs:
         with:
           name: semaphore
 
-      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
-          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
-          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
-          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
-
-      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+      - run: sleep 5
 
       - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
           ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
           \n\t},\n\t\"dialect\": \"mysql\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
+          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 

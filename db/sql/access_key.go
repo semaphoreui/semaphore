@@ -8,7 +8,6 @@ import (
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
 	err = d.getObject(projectID, db.AccessKeyProps, accessKeyID, &key)
-
 	return
 }
 

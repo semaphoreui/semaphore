@@ -1,0 +1,90 @@
+<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+  <div v-if="extractor != null">
+    <v-toolbar flat>
+      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+      <v-toolbar-title class="breadcrumbs">
+        <router-link
+          class="breadcrumbs__item breadcrumbs__item--link"
+          :to="`/project/${projectId}/integration/${this.integrationId}`"
+          >
+          {{ integration.name }}
+        </router-link>
+        <v-icon>mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item">{{ extractor.name }}</span>
+        <v-icon>mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item">Extractor Configuration</span>
+      </v-toolbar-title>
+      <v-spacer></v-spacer>
+    </v-toolbar>
+  </div>
+</template>
+<script>
+import axios from 'axios';
+
+import ItemListPageBase from '@/components/ItemListPageBase';
+
+import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
+import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
+
+export default {
+  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
+  components: { },
+  data() {
+    return {
+      integration: null,
+      extractor: null,
+    };
+  },
+  async created() {
+    this.integration = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
+      responseType: 'json',
+    })).data;
+
+    this.extractor = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`,
+      responseType: 'json',
+    })).data;
+  },
+
+  computed: {
+    projectId() {
+      if (/^-?\d+$/.test(this.$route.params.projectId)) {
+        return parseInt(this.$route.params.projectId, 10);
+      }
+      return this.$route.params.projectId;
+    },
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
+      }
+      return this.$route.params.integrationId;
+    },
+    extractorId() {
+      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
+        return parseInt(this.$route.params.extractorId, 10);
+      }
+      return this.$route.params.extractorId;
+    },
+  },
+  methods: {
+    allowActions() {
+      return true;
+    },
+    getHeaders() {
+      return [];
+    },
+    getItemsUrl() {
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
+    },
+    getSingleItemUrl() {
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`;
+    },
+    getEventName() {
+      return 'w-integration-matcher';
+    },
+  },
+};
+</script>
