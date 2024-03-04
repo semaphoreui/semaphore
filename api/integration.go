@@ -160,7 +160,8 @@ func MatchCompare(value string, method db.IntegrationMatchMethodType, expected s
 }
 
 func RunIntegration(integration db.Integration, r *http.Request) {
-	extractors, err := helpers.Store(r).GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integration.ID)
+	project := context.Get(r, "project").(db.Project)
+	extractors, err := helpers.Store(r).GetIntegrationExtractors(project.ID, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
 		log.Error(err)
 		return
@@ -168,7 +169,7 @@ func RunIntegration(integration db.Integration, r *http.Request) {
 
 	var extractValues = make([]db.IntegrationExtractValue, 0)
 	for _, extractor := range extractors {
-		extractValuesForExtractor, err2 := helpers.Store(r).GetIntegrationExtractValues(0, db.RetrieveQueryParams{}, extractor.ID)
+		extractValuesForExtractor, err2 := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, extractor.ID)
 		if err2 != nil {
 			log.Error(err2)
 			return

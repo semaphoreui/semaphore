@@ -11,7 +11,8 @@ import (
 )
 
 func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	value_id, err := helpers.GetIntParam("value_id", w, r)
+	project := context.Get(r, "project").(db.Project)
+	valueId, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -22,7 +23,7 @@ func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(0, value_id, extractor.ID)
+	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, extractor.ID)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -82,7 +83,8 @@ func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	value_id, err := helpers.GetIntParam("value_id", w, r)
+	project := context.Get(r, "project").(db.Project)
+	valueId, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -93,7 +95,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
 	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(0, value_id, extractor.ID)
+	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, extractor.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -103,7 +105,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = helpers.Store(r).UpdateIntegrationExtractValue(0, value)
+	err = helpers.Store(r).UpdateIntegrationExtractValue(project.ID, value)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -113,7 +115,8 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
-	value_id, err := helpers.GetIntParam("value_id", w, r)
+	project := context.Get(r, "project").(db.Project)
+	valueId, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -123,13 +126,13 @@ func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 	}
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(0, value_id, extractor.ID)
+	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, extractor.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	refs, err := helpers.Store(r).GetIntegrationExtractValueRefs(0, value.ID, value.ExtractorID)
+	refs, err := helpers.Store(r).GetIntegrationExtractValueRefs(project.ID, value.ID, value.ExtractorID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -139,7 +142,8 @@ func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	value_id, err := helpers.GetIntParam("value_id", w, r)
+	project := context.Get(r, "project").(db.Project)
+	valueId, err := helpers.GetIntParam("value_id", w, r)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid Value ID",
@@ -156,7 +160,7 @@ func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = helpers.Store(r).DeleteIntegrationExtractValue(0, value_id, extractor.ID)
+	err = helpers.Store(r).DeleteIntegrationExtractValue(project.ID, valueId, extractor.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Integration Extract Value failed to be deleted",
