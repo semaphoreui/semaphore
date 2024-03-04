@@ -15,7 +15,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	log "github.com/sirupsen/logrus"
 	jsonq "github.com/thedevsaddam/gojsonq/v2"
-	"golang.org/x/exp/slices"
 )
 
 // IsValidPayload checks if the github payload's hash fits with
@@ -78,7 +77,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var foundExtractors = make([]db.IntegrationExtractor, 0)
+	var matchedExtractors = make([]db.IntegrationExtractor, 0)
 	for _, extractor := range extractors {
 		var matchers []db.IntegrationMatcher
 		matchers, err = helpers.Store(r).GetIntegrationMatchers(project.ID, db.RetrieveQueryParams{}, extractor.ID)
@@ -98,110 +97,19 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 		// If all Matched...
 		if matched {
-			foundExtractors = append(foundExtractors, extractor)
+			matchedExtractors = append(matchedExtractors, extractor)
 		}
 	}
 
 	// Iterate over all Extractors that matched
-	if len(foundExtractors) > 0 {
-		var integrationIDs = make([]int, 0)
-		var extractorIDs = make([]int, 0)
-
-		for _, extractor := range foundExtractors {
-			integrationIDs = append(integrationIDs, extractor.IntegrationID)
-		}
-
-		for _, extractor := range foundExtractors {
-			extractorIDs = append(extractorIDs, extractor.ID)
-		}
-
-		var allIntegrationExtractorIDs = make([]int, 0)
-
-		var integrations []db.Integration
-		integrations, err = helpers.Store(r).GetAllIntegrations()
-
-		if err != nil {
-			log.Error(err)
-			return
-		}
-
-		for _, id := range integrationIDs {
-			var extractorsForIntegration []db.IntegrationExtractor
-			extractorsForIntegration, err = helpers.Store(r).GetIntegrationExtractors(project.ID, db.RetrieveQueryParams{}, id)
-
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			for _, extractor := range extractorsForIntegration {
-				allIntegrationExtractorIDs = append(allIntegrationExtractorIDs, extractor.ID)
-			}
-
-			var found = false
-			for _, integrationExtractorID := range extractorIDs {
-				if slices.Contains(allIntegrationExtractorIDs, integrationExtractorID) {
-					found = true
-					continue
-				} else {
-					found = false
-					break
-				}
-			}
-
-			// if all extractors for a integration matched during search
-			if found {
-				integration := FindIntegration(integrations, id)
-
-				if integration.ID != id {
-					log.Error(fmt.Sprintf("Could not find integration ID: %v", id))
-					continue
-				}
-				RunIntegration(integration, r)
-			}
-		}
+	if len(matchedExtractors) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
+
+	RunIntegration(integration, r)
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func FindIntegration(integrations []db.Integration, id int) (integration db.Integration) {
-	for _, integration := range integrations {
-		if integration.ID == id {
-			return integration
-		}
-	}
-	return db.Integration{}
-}
-
-func UniqueIntegrations(integrations []db.Integration) []db.Integration {
-	var unique []db.Integration
-integrationLoop:
-	for _, v := range integrations {
-		for i, u := range unique {
-			if v.ID == u.ID {
-				unique[i] = v
-				continue integrationLoop
-			}
-		}
-		unique = append(unique, v)
-	}
-	return unique
-}
-
-func UniqueExtractors(extractors []db.IntegrationExtractor) []db.IntegrationExtractor {
-	var unique []db.IntegrationExtractor
-integrationLoop:
-	for _, v := range extractors {
-		for i, u := range unique {
-			if v.ID == u.ID {
-				unique[i] = v
-				continue integrationLoop
-			}
-		}
-		unique = append(unique, v)
-	}
-	return unique
 }
 
 func Match(matcher db.IntegrationMatcher, r *http.Request) (matched bool) {
@@ -258,11 +166,6 @@ func RunIntegration(integration db.Integration, r *http.Request) {
 		return
 	}
 
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
 	var extractValues = make([]db.IntegrationExtractValue, 0)
 	for _, extractor := range extractors {
 		extractValuesForExtractor, errextractValuesForExtractor := helpers.Store(r).GetIntegrationExtractValues(0, db.RetrieveQueryParams{}, extractor.ID)
@@ -297,7 +200,11 @@ func RunIntegration(integration db.Integration, r *http.Request) {
 		return
 	}
 
-	helpers.TaskPool(r).AddTask(taskDefinition, &user.ID, integration.ProjectID)
+	_, err = helpers.TaskPool(r).AddTask(taskDefinition, &user.ID, integration.ProjectID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 }
 
 func Extract(extractValues []db.IntegrationExtractValue, r *http.Request) (result map[string]string) {
