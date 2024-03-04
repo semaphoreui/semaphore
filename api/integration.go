@@ -44,6 +44,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var extractors []db.IntegrationExtractor
 
+	project := context.Get(r, "project").(db.Project)
 	integration := context.Get(r, "integration").(db.Integration)
 
 	switch integration.AuthMethod {
@@ -70,7 +71,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extractors, err = helpers.Store(r).GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integration.ID)
+	extractors, err = helpers.Store(r).GetIntegrationExtractors(project.ID, db.RetrieveQueryParams{}, integration.ID)
 
 	if err != nil {
 		log.Error(err)
@@ -80,7 +81,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	var foundExtractors = make([]db.IntegrationExtractor, 0)
 	for _, extractor := range extractors {
 		var matchers []db.IntegrationMatcher
-		matchers, err = helpers.Store(r).GetIntegrationMatchers(0, db.RetrieveQueryParams{}, extractor.ID)
+		matchers, err = helpers.Store(r).GetIntegrationMatchers(project.ID, db.RetrieveQueryParams{}, extractor.ID)
 		if err != nil {
 			log.Error(err)
 		}
@@ -115,15 +116,18 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var allIntegrationExtractorIDs = make([]int, 0)
+
 		var integrations []db.Integration
 		integrations, err = helpers.Store(r).GetAllIntegrations()
+
 		if err != nil {
 			log.Error(err)
 			return
 		}
+
 		for _, id := range integrationIDs {
 			var extractorsForIntegration []db.IntegrationExtractor
-			extractorsForIntegration, err = helpers.Store(r).GetIntegrationExtractors(0, db.RetrieveQueryParams{}, id)
+			extractorsForIntegration, err = helpers.Store(r).GetIntegrationExtractors(project.ID, db.RetrieveQueryParams{}, id)
 
 			if err != nil {
 				log.Error(err)
