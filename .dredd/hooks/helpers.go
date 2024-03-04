@@ -244,7 +244,7 @@ func addIntegration() *db.Integration {
 }
 
 func addIntegrationExtractor() *db.IntegrationExtractor {
-	integrationextractor, err := store.CreateIntegrationExtractor(db.IntegrationExtractor{
+	integrationextractor, err := store.CreateIntegrationExtractor(0, db.IntegrationExtractor{
 		IntegrationID: integrationID,
 		Name:          "Integration Extractor",
 	})
@@ -274,7 +274,7 @@ func addIntegrationExtractValue() *db.IntegrationExtractValue {
 }
 
 func addIntegrationMatcher() *db.IntegrationMatcher {
-	integrationmatch, err := store.CreateIntegrationMatcher(db.IntegrationMatcher{
+	integrationmatch, err := store.CreateIntegrationMatcher(0, db.IntegrationMatcher{
 		Name:         "matcher",
 		ExtractorID:  integrationExtractorID,
 		MatchType:    "body",

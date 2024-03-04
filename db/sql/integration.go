@@ -64,14 +64,14 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 }
 
 func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	extractors, err := d.GetIntegrationExtractors(integrationID, db.RetrieveQueryParams{})
+	extractors, err := d.GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integrationID)
 
 	if err != nil {
 		return err
 	}
 
 	for extractor := range extractors {
-		d.DeleteIntegrationExtractor(integrationID, extractors[extractor].ID)
+		d.DeleteIntegrationExtractor(0, extractors[extractor].ID, integrationID)
 	}
 	return d.deleteObject(projectID, db.IntegrationProps, integrationID)
 }
@@ -95,7 +95,7 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
 	return err
 }
 
-func (d *SqlDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationExtractor) (newIntegrationExtractor db.IntegrationExtractor, err error) {
+func (d *SqlDb) CreateIntegrationExtractor(projectID int, integrationExtractor db.IntegrationExtractor) (newIntegrationExtractor db.IntegrationExtractor, err error) {
 	err = integrationExtractor.Validate()
 
 	if err != nil {
@@ -118,7 +118,7 @@ func (d *SqlDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationEx
 	return
 }
 
-func (d *SqlDb) GetIntegrationExtractor(integrationID int, extractorID int) (extractor db.IntegrationExtractor, err error) {
+func (d *SqlDb) GetIntegrationExtractor(projectID int, extractorID int, integrationID int) (extractor db.IntegrationExtractor, err error) {
 	query, args, err := squirrel.Select("e.*").
 		From("project__integration_extractor as e").
 		Where(squirrel.And{
@@ -137,14 +137,14 @@ func (d *SqlDb) GetIntegrationExtractor(integrationID int, extractorID int) (ext
 	return extractor, err
 }
 
-func (d *SqlDb) GetIntegrationExtractors(integrationID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractor, error) {
+func (d *SqlDb) GetIntegrationExtractors(projectID int, params db.RetrieveQueryParams, integrationID int) ([]db.IntegrationExtractor, error) {
 	var extractors []db.IntegrationExtractor
 	err := d.getObjectsByReferrer(integrationID, db.IntegrationProps, db.IntegrationExtractorProps, params, &extractors)
 
 	return extractors, err
 }
 
-func (d *SqlDb) GetIntegrationExtractorRefs(integrationID int, extractorID int) (refs db.IntegrationExtractorReferrers, err error) {
+func (d *SqlDb) GetIntegrationExtractorRefs(projectID int, extractorID int, integrationID int) (refs db.IntegrationExtractorReferrers, err error) {
 	refs.IntegrationMatchers, err = d.GetObjectReferences(db.IntegrationExtractorProps, db.IntegrationMatcherProps, extractorID)
 	refs.IntegrationExtractValues, err = d.GetObjectReferences(db.IntegrationExtractorProps, db.IntegrationExtractValueProps, extractorID)
 
@@ -185,7 +185,7 @@ func (d *SqlDb) GetIntegrationMatchersByExtractorID(extractorID int) (matchers [
 	return matchers, err
 }
 
-func (d *SqlDb) DeleteIntegrationExtractor(integrationID int, extractorID int) error {
+func (d *SqlDb) DeleteIntegrationExtractor(projectID int, extractorID int, integrationID int) error {
 	values, err := d.GetIntegrationExtractValuesByExtractorID(extractorID)
 	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
 		return err
@@ -207,7 +207,7 @@ func (d *SqlDb) DeleteIntegrationExtractor(integrationID int, extractorID int) e
 	}
 
 	for matcher := range matchers {
-		err = d.DeleteIntegrationMatcher(extractorID, matchers[matcher].ID)
+		err = d.DeleteIntegrationMatcher(0, matchers[matcher].ID, extractorID)
 		if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
 			log.Error(err)
 			return err
@@ -217,7 +217,7 @@ func (d *SqlDb) DeleteIntegrationExtractor(integrationID int, extractorID int) e
 	return d.deleteObjectByReferencedID(integrationID, db.IntegrationProps, db.IntegrationExtractorProps, extractorID)
 }
 
-func (d *SqlDb) UpdateIntegrationExtractor(integrationExtractor db.IntegrationExtractor) error {
+func (d *SqlDb) UpdateIntegrationExtractor(projectID int, integrationExtractor db.IntegrationExtractor) error {
 	err := integrationExtractor.Validate()
 
 	if err != nil {
@@ -317,7 +317,7 @@ func (d *SqlDb) UpdateIntegrationExtractValue(projectID int, integrationExtractV
 	return err
 }
 
-func (d *SqlDb) CreateIntegrationMatcher(matcher db.IntegrationMatcher) (newMatcher db.IntegrationMatcher, err error) {
+func (d *SqlDb) CreateIntegrationMatcher(projectID int, matcher db.IntegrationMatcher) (newMatcher db.IntegrationMatcher, err error) {
 	err = matcher.Validate()
 
 	if err != nil {
@@ -347,7 +347,7 @@ func (d *SqlDb) CreateIntegrationMatcher(matcher db.IntegrationMatcher) (newMatc
 	return
 }
 
-func (d *SqlDb) GetIntegrationMatchers(extractorID int, params db.RetrieveQueryParams) (matchers []db.IntegrationMatcher, err error) {
+func (d *SqlDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryParams, extractorID int) (matchers []db.IntegrationMatcher, err error) {
 	query, args, err := squirrel.Select("m.*").
 		From("project__integration_matcher as m").
 		Where(squirrel.Eq{"extractor_id": extractorID}).
@@ -371,7 +371,7 @@ func (d *SqlDb) GetAllIntegrationMatchers() (matchers []db.IntegrationMatcher, e
 	return
 }
 
-func (d *SqlDb) GetIntegrationMatcher(extractorID int, matcherID int) (matcher db.IntegrationMatcher, err error) {
+func (d *SqlDb) GetIntegrationMatcher(projectID int, matcherID int, extractorID int) (matcher db.IntegrationMatcher, err error) {
 	query, args, err := squirrel.Select("m.*").
 		From("project__integration_matcher as m").
 		Where(squirrel.Eq{"id": matcherID}).
@@ -387,17 +387,17 @@ func (d *SqlDb) GetIntegrationMatcher(extractorID int, matcherID int) (matcher d
 	return matcher, err
 }
 
-func (d *SqlDb) GetIntegrationMatcherRefs(extractorID int, matcherID int) (refs db.IntegrationExtractorChildReferrers, err error) {
+func (d *SqlDb) GetIntegrationMatcherRefs(projectID int, matcherID int, extractorID int) (refs db.IntegrationExtractorChildReferrers, err error) {
 	refs.IntegrationExtractors, err = d.GetObjectReferences(db.IntegrationExtractorProps, db.IntegrationMatcherProps, matcherID)
 
 	return
 }
 
-func (d *SqlDb) DeleteIntegrationMatcher(extractorID int, matcherID int) error {
+func (d *SqlDb) DeleteIntegrationMatcher(projectID int, matcherID int, extractorID int) error {
 	return d.deleteObjectByReferencedID(extractorID, db.IntegrationExtractorProps, db.IntegrationMatcherProps, matcherID)
 }
 
-func (d *SqlDb) UpdateIntegrationMatcher(integrationMatcher db.IntegrationMatcher) error {
+func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.IntegrationMatcher) error {
 	err := integrationMatcher.Validate()
 
 	if err != nil {

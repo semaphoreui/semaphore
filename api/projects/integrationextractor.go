@@ -26,7 +26,7 @@ func IntegrationExtractorMiddleware(next http.Handler) http.Handler {
 
 		integration := context.Get(r, "integration").(db.Integration)
 		var extractor db.IntegrationExtractor
-		extractor, err = helpers.Store(r).GetIntegrationExtractor(integration.ID, extractor_id)
+		extractor, err = helpers.Store(r).GetIntegrationExtractor(0, extractor_id, integration.ID)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -46,7 +46,7 @@ func GetIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
 
 func GetIntegrationExtractors(w http.ResponseWriter, r *http.Request) {
 	integration := context.Get(r, "integration").(db.Integration)
-	extractors, err := helpers.Store(r).GetIntegrationExtractors(integration.ID, helpers.QueryParams(r.URL))
+	extractors, err := helpers.Store(r).GetIntegrationExtractors(0, helpers.QueryParams(r.URL), integration.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -79,7 +79,7 @@ func AddIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newIntegrationExtractor, err := helpers.Store(r).CreateIntegrationExtractor(extractor)
+	newIntegrationExtractor, err := helpers.Store(r).CreateIntegrationExtractor(0, extractor)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -112,7 +112,7 @@ func UpdateIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateIntegrationExtractor(extractor)
+	err := helpers.Store(r).UpdateIntegrationExtractor(0, extractor)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -127,7 +127,7 @@ func GetIntegrationExtractorRefs(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Extractor ID: %v", extractor.ID))
 
-	refs, err := helpers.Store(r).GetIntegrationExtractorRefs(extractor.IntegrationID, extractor.ID)
+	refs, err := helpers.Store(r).GetIntegrationExtractorRefs(0, extractor.ID, extractor.IntegrationID)
 	log.Info(fmt.Sprintf("References found: %v", refs))
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -143,7 +143,7 @@ func DeleteIntegrationExtractor(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Delete requested for: %v", extractor.ID))
 
-	err := helpers.Store(r).DeleteIntegrationExtractor(integration.ID, extractor.ID)
+	err := helpers.Store(r).DeleteIntegrationExtractor(0, extractor.ID, integration.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Integration Extractor failed to be deleted",

@@ -56,7 +56,7 @@ func (d *BoltDb) GetIntegrationRefs(projectID int, integrationID int) (db.Integr
 Integration Extractors
 */
 
-func (d *BoltDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationExtractor) (db.IntegrationExtractor, error) {
+func (d *BoltDb) CreateIntegrationExtractor(projectID int, integrationExtractor db.IntegrationExtractor) (db.IntegrationExtractor, error) {
 	err := integrationExtractor.Validate()
 
 	if err != nil {
@@ -67,14 +67,14 @@ func (d *BoltDb) CreateIntegrationExtractor(integrationExtractor db.IntegrationE
 	return newIntegrationExtractor.(db.IntegrationExtractor), err
 }
 
-func (d *BoltDb) GetIntegrationExtractors(integrationID int, params db.RetrieveQueryParams) ([]db.IntegrationExtractor, error) {
+func (d *BoltDb) GetIntegrationExtractors(projectID int, params db.RetrieveQueryParams, integrationID int) ([]db.IntegrationExtractor, error) {
 	var extractors []db.IntegrationExtractor
 	err := d.getObjects(integrationID, db.IntegrationExtractorProps, params, nil, &extractors)
 
 	return extractors, err
 }
 
-func (d *BoltDb) GetIntegrationExtractor(integrationID int, extractorID int) (db.IntegrationExtractor, error) {
+func (d *BoltDb) GetIntegrationExtractor(projectID int, extractorID int, integrationID int) (db.IntegrationExtractor, error) {
 	var extractor db.IntegrationExtractor
 	err := d.getObject(integrationID, db.IntegrationExtractorProps, intObjectID(extractorID), &extractor)
 
@@ -82,7 +82,7 @@ func (d *BoltDb) GetIntegrationExtractor(integrationID int, extractorID int) (db
 
 }
 
-func (d *BoltDb) UpdateIntegrationExtractor(integrationExtractor db.IntegrationExtractor) error {
+func (d *BoltDb) UpdateIntegrationExtractor(projectID int, integrationExtractor db.IntegrationExtractor) error {
 	err := integrationExtractor.Validate()
 
 	if err != nil {
@@ -92,7 +92,7 @@ func (d *BoltDb) UpdateIntegrationExtractor(integrationExtractor db.IntegrationE
 	return d.updateObject(integrationExtractor.IntegrationID, db.IntegrationExtractorProps, integrationExtractor)
 }
 
-func (d *BoltDb) GetIntegrationExtractorRefs(integrationID int, extractorID int) (db.IntegrationExtractorReferrers, error) {
+func (d *BoltDb) GetIntegrationExtractorRefs(projectID int, extractorID int, integrationID int) (db.IntegrationExtractorReferrers, error) {
 	return d.getIntegrationExtractorRefs(integrationID, db.IntegrationExtractorProps, extractorID)
 }
 
@@ -120,7 +120,7 @@ func (d *BoltDb) GetAllIntegrationMatchers() (matchers []db.IntegrationMatcher, 
 	return matchers, err
 }
 
-func (d *BoltDb) DeleteIntegrationExtractor(integrationID int, extractorID int) error {
+func (d *BoltDb) DeleteIntegrationExtractor(projectID int, extractorID int, integrationID int) error {
 	values, err := d.GetIntegrationExtractValuesByExtractorID(extractorID)
 
 	if err != nil {
@@ -138,7 +138,7 @@ func (d *BoltDb) DeleteIntegrationExtractor(integrationID int, extractorID int) 
 	}
 
 	for matcher := range matchers {
-		d.DeleteIntegrationMatcher(extractorID, matchers[matcher].ID)
+		d.DeleteIntegrationMatcher(0, matchers[matcher].ID, extractorID)
 	}
 	return d.deleteObject(integrationID, db.IntegrationExtractorProps, intObjectID(extractorID), nil)
 }
@@ -202,7 +202,7 @@ func (d *BoltDb) GetIntegrationExtractValueRefs(projectID int, valueID int, extr
 /*
 Integration Matcher
 */
-func (d *BoltDb) CreateIntegrationMatcher(matcher db.IntegrationMatcher) (db.IntegrationMatcher, error) {
+func (d *BoltDb) CreateIntegrationMatcher(projectID int, matcher db.IntegrationMatcher) (db.IntegrationMatcher, error) {
 	err := matcher.Validate()
 
 	if err != nil {
@@ -212,7 +212,7 @@ func (d *BoltDb) CreateIntegrationMatcher(matcher db.IntegrationMatcher) (db.Int
 	return newMatcher.(db.IntegrationMatcher), err
 }
 
-func (d *BoltDb) GetIntegrationMatchers(extractorID int, params db.RetrieveQueryParams) (matchers []db.IntegrationMatcher, err error) {
+func (d *BoltDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryParams, extractorID int) (matchers []db.IntegrationMatcher, err error) {
 	matchers = make([]db.IntegrationMatcher, 0)
 	var allMatchers []db.IntegrationMatcher
 
@@ -231,9 +231,9 @@ func (d *BoltDb) GetIntegrationMatchers(extractorID int, params db.RetrieveQuery
 	return
 }
 
-func (d *BoltDb) GetIntegrationMatcher(extractorID int, matcherID int) (matcher db.IntegrationMatcher, err error) {
+func (d *BoltDb) GetIntegrationMatcher(projectID int, matcherID int, extractorID int) (matcher db.IntegrationMatcher, err error) {
 	var matchers []db.IntegrationMatcher
-	matchers, err = d.GetIntegrationMatchers(extractorID, db.RetrieveQueryParams{})
+	matchers, err = d.GetIntegrationMatchers(0, db.RetrieveQueryParams{}, extractorID)
 
 	for _, v := range matchers {
 		if v.ID == matcherID {
@@ -244,7 +244,7 @@ func (d *BoltDb) GetIntegrationMatcher(extractorID int, matcherID int) (matcher 
 	return
 }
 
-func (d *BoltDb) UpdateIntegrationMatcher(integrationMatcher db.IntegrationMatcher) error {
+func (d *BoltDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.IntegrationMatcher) error {
 	err := integrationMatcher.Validate()
 
 	if err != nil {
@@ -254,23 +254,23 @@ func (d *BoltDb) UpdateIntegrationMatcher(integrationMatcher db.IntegrationMatch
 	return d.updateObject(integrationMatcher.ExtractorID, db.IntegrationMatcherProps, integrationMatcher)
 }
 
-func (d *BoltDb) DeleteIntegrationMatcher(extractorID int, matcherID int) error {
+func (d *BoltDb) DeleteIntegrationMatcher(projectID int, matcherID int, extractorID int) error {
 	return d.deleteObject(extractorID, db.IntegrationMatcherProps, intObjectID(matcherID), nil)
 }
 func (d *BoltDb) DeleteIntegration(projectID int, integrationID int) error {
-	extractors, err := d.GetIntegrationExtractors(integrationID, db.RetrieveQueryParams{})
+	extractors, err := d.GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integrationID)
 
 	if err != nil {
 		return err
 	}
 
 	for extractor := range extractors {
-		d.DeleteIntegrationExtractor(integrationID, extractors[extractor].ID)
+		d.DeleteIntegrationExtractor(0, extractors[extractor].ID, integrationID)
 	}
 
 	return d.deleteObject(projectID, db.IntegrationProps, intObjectID(integrationID), nil)
 }
 
-func (d *BoltDb) GetIntegrationMatcherRefs(extractorID int, valueID int) (db.IntegrationExtractorChildReferrers, error) {
+func (d *BoltDb) GetIntegrationMatcherRefs(projectID int, matcherID int, extractorID int) (db.IntegrationExtractorChildReferrers, error) {
 	return d.getIntegrationExtractorChildrenRefs(extractorID, db.IntegrationMatcherProps, valueID)
 }

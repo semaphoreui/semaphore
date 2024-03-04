@@ -147,12 +147,12 @@ type Store interface {
 	DeleteIntegration(projectID int, integrationID int) error
 	GetAllIntegrations() ([]Integration, error)
 
-	CreateIntegrationExtractor(integrationExtractor IntegrationExtractor) (newIntegrationExtractor IntegrationExtractor, err error)
-	GetIntegrationExtractors(integrationID int, params RetrieveQueryParams) ([]IntegrationExtractor, error)
-	GetIntegrationExtractor(integrationID int, extractorID int) (extractor IntegrationExtractor, err error)
-	UpdateIntegrationExtractor(integrationExtractor IntegrationExtractor) error
-	GetIntegrationExtractorRefs(integrationID int, extractorID int) (IntegrationExtractorReferrers, error)
-	DeleteIntegrationExtractor(integrationID int, extractorID int) error
+	CreateIntegrationExtractor(projectID int, integrationExtractor IntegrationExtractor) (newIntegrationExtractor IntegrationExtractor, err error)
+	GetIntegrationExtractors(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationExtractor, error)
+	GetIntegrationExtractor(projectID int, extractorID int, integrationID int) (extractor IntegrationExtractor, err error)
+	UpdateIntegrationExtractor(projectID int, integrationExtractor IntegrationExtractor) error
+	GetIntegrationExtractorRefs(projectID int, extractorID int, integrationID int) (IntegrationExtractorReferrers, error)
+	DeleteIntegrationExtractor(projectID int, extractorID int, integrationID int) error
 
 	CreateIntegrationExtractValue(projectId int, value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
 	GetIntegrationExtractValues(projectID int, params RetrieveQueryParams, extractorID int) ([]IntegrationExtractValue, error)
@@ -163,13 +163,13 @@ type Store interface {
 	GetIntegrationExtractValuesByExtractorID(extractorID int) ([]IntegrationExtractValue, error)
 	GetAllIntegrationExtractValues() ([]IntegrationExtractValue, error)
 
-	CreateIntegrationMatcher(matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
-	GetIntegrationMatchers(extractorID int, params RetrieveQueryParams) ([]IntegrationMatcher, error)
+	CreateIntegrationMatcher(projectID int, matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
+	GetIntegrationMatchers(projectID int, params RetrieveQueryParams, extractorID int) ([]IntegrationMatcher, error)
 	GetAllIntegrationMatchers() ([]IntegrationMatcher, error)
-	GetIntegrationMatcher(extractorID int, matcherID int) (matcher IntegrationMatcher, err error)
-	UpdateIntegrationMatcher(integrationMatcher IntegrationMatcher) error
-	GetIntegrationMatcherRefs(extractorID int, matcherID int) (IntegrationExtractorChildReferrers, error)
-	DeleteIntegrationMatcher(extractorID int, matcherID int) error
+	GetIntegrationMatcher(projectID int, matcherID int, extractorID int) (matcher IntegrationMatcher, err error)
+	UpdateIntegrationMatcher(projectID int, integrationMatcher IntegrationMatcher) error
+	GetIntegrationMatcherRefs(projectID int, matcherID int, extractorID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationMatcher(projectID int, matcherID int, extractorID int) error
 	GetIntegrationMatchersByExtractorID(extractorID int) ([]IntegrationMatcher, error)
 
 	UpdateAccessKey(accessKey AccessKey) error

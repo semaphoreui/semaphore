@@ -70,7 +70,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extractors, err = helpers.Store(r).GetIntegrationExtractors(integration.ID, db.RetrieveQueryParams{})
+	extractors, err = helpers.Store(r).GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integration.ID)
 
 	if err != nil {
 		log.Error(err)
@@ -80,7 +80,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	var foundExtractors = make([]db.IntegrationExtractor, 0)
 	for _, extractor := range extractors {
 		var matchers []db.IntegrationMatcher
-		matchers, err = helpers.Store(r).GetIntegrationMatchers(extractor.ID, db.RetrieveQueryParams{})
+		matchers, err = helpers.Store(r).GetIntegrationMatchers(0, db.RetrieveQueryParams{}, extractor.ID)
 		if err != nil {
 			log.Error(err)
 		}
@@ -123,7 +123,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, id := range integrationIDs {
 			var extractorsForIntegration []db.IntegrationExtractor
-			extractorsForIntegration, err = helpers.Store(r).GetIntegrationExtractors(id, db.RetrieveQueryParams{})
+			extractorsForIntegration, err = helpers.Store(r).GetIntegrationExtractors(0, db.RetrieveQueryParams{}, id)
 
 			if err != nil {
 				log.Error(err)
@@ -248,7 +248,7 @@ func MatchCompare(value string, method db.IntegrationMatchMethodType, expected s
 }
 
 func RunIntegration(integration db.Integration, r *http.Request) {
-	extractors, err := helpers.Store(r).GetIntegrationExtractors(integration.ID, db.RetrieveQueryParams{})
+	extractors, err := helpers.Store(r).GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
 		log.Error(err)
 		return

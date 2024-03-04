@@ -23,7 +23,7 @@ func GetIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 	var matcher db.IntegrationMatcher
-	matcher, err = helpers.Store(r).GetIntegrationMatcher(extractor.ID, matcher_id)
+	matcher, err = helpers.Store(r).GetIntegrationMatcher(0, matcher_id, extractor.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -43,13 +43,13 @@ func GetIntegrationMatcherRefs(w http.ResponseWriter, r *http.Request) {
 	}
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 	var matcher db.IntegrationMatcher
-	matcher, err = helpers.Store(r).GetIntegrationMatcher(extractor.ID, matcher_id)
+	matcher, err = helpers.Store(r).GetIntegrationMatcher(0, matcher_id, extractor.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	refs, err := helpers.Store(r).GetIntegrationMatcherRefs(matcher.ExtractorID, matcher.ID)
+	refs, err := helpers.Store(r).GetIntegrationMatcherRefs(0, matcher.ID, matcher.ExtractorID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -61,7 +61,7 @@ func GetIntegrationMatcherRefs(w http.ResponseWriter, r *http.Request) {
 func GetIntegrationMatchers(w http.ResponseWriter, r *http.Request) {
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 
-	matchers, err := helpers.Store(r).GetIntegrationMatchers(extractor.ID, helpers.QueryParams(r.URL))
+	matchers, err := helpers.Store(r).GetIntegrationMatchers(0, helpers.QueryParams(r.URL), extractor.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -94,7 +94,7 @@ func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newMatcher, err := helpers.Store(r).CreateIntegrationMatcher(matcher)
+	newMatcher, err := helpers.Store(r).CreateIntegrationMatcher(0, matcher)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -123,7 +123,7 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Updating API Matcher %v for Extractor %v, matcher ID: %v", matcher_id, extractor.ID, matcher.ID))
 
-	err = helpers.Store(r).UpdateIntegrationMatcher(matcher)
+	err = helpers.Store(r).UpdateIntegrationMatcher(0, matcher)
 	log.Info(fmt.Sprintf("Err %s", err))
 
 	if err != nil {
@@ -146,13 +146,13 @@ func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
 	var matcher db.IntegrationMatcher
-	matcher, err = helpers.Store(r).GetIntegrationMatcher(extractor.ID, matcher_id)
+	matcher, err = helpers.Store(r).GetIntegrationMatcher(0, matcher_id, extractor.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	err = helpers.Store(r).DeleteIntegrationMatcher(extractor.ID, matcher.ID)
+	err = helpers.Store(r).DeleteIntegrationMatcher(0, matcher.ID, extractor.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Integration Matcher failed to be deleted",
