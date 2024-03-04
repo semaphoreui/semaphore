@@ -105,6 +105,13 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if value.ID != valueId {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Value ID in body and URL must be the same",
+		})
+		return
+	}
+
 	err = helpers.Store(r).UpdateIntegrationExtractValue(project.ID, value)
 
 	if err != nil {
