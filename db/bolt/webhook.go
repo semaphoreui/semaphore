@@ -79,7 +79,7 @@ func (d *BoltDb) GetIntegrationExtractors(projectID int, params db.RetrieveQuery
 		}
 	}
 
-	return projectExtractors, err
+	return extractors, err
 }
 
 func (d *BoltDb) GetIntegrationExtractor(projectID int, extractorID int, integrationID int) (db.IntegrationExtractor, error) {
