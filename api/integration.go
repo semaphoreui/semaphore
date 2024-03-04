@@ -261,7 +261,7 @@ func RunIntegration(integration db.Integration, r *http.Request) {
 
 	var extractValues = make([]db.IntegrationExtractValue, 0)
 	for _, extractor := range extractors {
-		extractValuesForExtractor, errextractValuesForExtractor := helpers.Store(r).GetIntegrationExtractValues(extractor.ID, db.RetrieveQueryParams{})
+		extractValuesForExtractor, errextractValuesForExtractor := helpers.Store(r).GetIntegrationExtractValues(0, db.RetrieveQueryParams{}, extractor.ID)
 		if errextractValuesForExtractor != nil {
 			log.Error(errextractValuesForExtractor)
 			return

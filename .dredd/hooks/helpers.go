@@ -257,7 +257,7 @@ func addIntegrationExtractor() *db.IntegrationExtractor {
 }
 
 func addIntegrationExtractValue() *db.IntegrationExtractValue {
-	integrationextractvalue, err := store.CreateIntegrationExtractValue(db.IntegrationExtractValue{
+	integrationextractvalue, err := store.CreateIntegrationExtractValue(0, db.IntegrationExtractValue{
 		Name:         "Value",
 		ExtractorID:  integrationExtractorID,
 		ValueSource:  db.IntegrationExtractBodyValue,

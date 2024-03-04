@@ -154,12 +154,12 @@ type Store interface {
 	GetIntegrationExtractorRefs(integrationID int, extractorID int) (IntegrationExtractorReferrers, error)
 	DeleteIntegrationExtractor(integrationID int, extractorID int) error
 
-	CreateIntegrationExtractValue(value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
-	GetIntegrationExtractValues(extractorID int, params RetrieveQueryParams) ([]IntegrationExtractValue, error)
-	GetIntegrationExtractValue(extractorID int, valueID int) (value IntegrationExtractValue, err error)
-	UpdateIntegrationExtractValue(integrationExtractValue IntegrationExtractValue) error
-	GetIntegrationExtractValueRefs(extractorID int, valueID int) (IntegrationExtractorChildReferrers, error)
-	DeleteIntegrationExtractValue(extractorID int, valueID int) error
+	CreateIntegrationExtractValue(projectId int, value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
+	GetIntegrationExtractValues(projectID int, params RetrieveQueryParams, extractorID int) ([]IntegrationExtractValue, error)
+	GetIntegrationExtractValue(projectID int, valueID int, extractorID int) (value IntegrationExtractValue, err error)
+	UpdateIntegrationExtractValue(projectID int, integrationExtractValue IntegrationExtractValue) error
+	GetIntegrationExtractValueRefs(projectID int, valueID int, extractorID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationExtractValue(projectID int, valueID int, extractorID int) error
 	GetIntegrationExtractValuesByExtractorID(extractorID int) ([]IntegrationExtractValue, error)
 	GetAllIntegrationExtractValues() ([]IntegrationExtractValue, error)
 
