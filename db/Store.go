@@ -161,11 +161,9 @@ type Store interface {
 	GetIntegrationExtractValueRefs(projectID int, valueID int, extractorID int) (IntegrationExtractorChildReferrers, error)
 	DeleteIntegrationExtractValue(projectID int, valueID int, extractorID int) error
 	GetIntegrationExtractValuesByExtractorID(extractorID int) ([]IntegrationExtractValue, error)
-	GetAllIntegrationExtractValues() ([]IntegrationExtractValue, error)
 
 	CreateIntegrationMatcher(projectID int, matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
 	GetIntegrationMatchers(projectID int, params RetrieveQueryParams, extractorID int) ([]IntegrationMatcher, error)
-	GetAllIntegrationMatchers() ([]IntegrationMatcher, error)
 	GetIntegrationMatcher(projectID int, matcherID int, extractorID int) (matcher IntegrationMatcher, err error)
 	UpdateIntegrationMatcher(projectID int, integrationMatcher IntegrationMatcher) error
 	GetIntegrationMatcherRefs(projectID int, matcherID int, extractorID int) (IntegrationExtractorChildReferrers, error)
