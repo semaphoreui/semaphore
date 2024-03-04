@@ -161,7 +161,7 @@ func (d *BoltDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQu
 	values = make([]db.IntegrationExtractValue, 0)
 	var allValues []db.IntegrationExtractValue
 
-	err = d.getObjects(projectID, db.IntegrationExtractValueProps, db.RetrieveQueryParams{}, nil, &allValues)
+	err = d.getObjects(projectID, db.IntegrationExtractValueProps, params, nil, &allValues)
 
 	if err != nil {
 		return

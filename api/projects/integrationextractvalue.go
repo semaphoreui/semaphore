@@ -35,8 +35,9 @@ func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationExtractValues(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
 	extractor := context.Get(r, "extractor").(db.IntegrationExtractor)
-	values, err := helpers.Store(r).GetIntegrationExtractValues(0, helpers.QueryParams(r.URL), extractor.ID)
+	values, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, helpers.QueryParams(r.URL), extractor.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
