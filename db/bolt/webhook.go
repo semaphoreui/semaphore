@@ -32,10 +32,6 @@ func (d *BoltDb) GetIntegration(projectID int, integrationID int) (integration d
 	return
 }
 
-func (d *BoltDb) GetAllIntegrations() ([]db.Integration, error) {
-	return []db.Integration{}, nil
-}
-
 func (d *BoltDb) UpdateIntegration(integration db.Integration) error {
 	err := integration.Validate()
 

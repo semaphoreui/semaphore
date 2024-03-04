@@ -145,7 +145,6 @@ type Store interface {
 	UpdateIntegration(integration Integration) error
 	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
 	DeleteIntegration(projectID int, integrationID int) error
-	GetAllIntegrations() ([]Integration, error)
 
 	CreateIntegrationExtractor(projectID int, integrationExtractor IntegrationExtractor) (newIntegrationExtractor IntegrationExtractor, err error)
 	GetIntegrationExtractors(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationExtractor, error)
