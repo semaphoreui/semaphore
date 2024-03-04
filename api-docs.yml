@@ -1558,19 +1558,19 @@ paths:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
       - $ref: "#/parameters/extractor_id"
-#    put:
-#      tags:
-#        - integration
-#      summary: Updates Integration extractor
-#      parameters:
-#        - name: Integration Extractor
-#          in: body
-#          required: true
-#          schema:
-#            $ref: "#/definitions/IntegrationExtractorRequest"
-#      responses:
-#        204:
-#          description: Integration Extractor updated
+    put:
+      tags:
+        - integration
+      summary: Updates Integration extractor
+      parameters:
+        - name: Integration Extractor
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractorRequest"
+      responses:
+        204:
+          description: Integration Extractor updated
     delete:
       tags:
         - integration
