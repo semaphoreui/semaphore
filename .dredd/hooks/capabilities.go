@@ -20,7 +20,6 @@ var task *db.Task
 var schedule *db.Schedule
 var view *db.View
 var integration *db.Integration
-var integrationextractor *db.IntegrationExtractor
 var integrationextractvalue *db.IntegrationExtractValue
 var integrationmatch *db.IntegrationMatcher
 
@@ -45,9 +44,8 @@ var capabilities = map[string][]string{
 	"schedule":                {"template"},
 	"view":                    {},
 	"integration":             {"project", "template"},
-	"integrationextractor":    {"integration"},
-	"integrationextractvalue": {"integrationextractor"},
-	"integrationmatcher":      {"integrationextractor"},
+	"integrationextractvalue": {"integration"},
+	"integrationmatcher":      {"integration"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -147,9 +145,6 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integration":
 			integration = addIntegration()
 			integrationID = integration.ID
-		case "integrationextractor":
-			integrationextractor = addIntegrationExtractor()
-			integrationExtractorID = integrationextractor.ID
 		case "integrationextractvalue":
 			integrationextractvalue = addIntegrationExtractValue()
 			integrationExtractValueID = integrationextractvalue.ID
@@ -183,7 +178,6 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(schedule.ID) },
 	func() string { return strconv.Itoa(view.ID) },
 	func() string { return strconv.Itoa(integration.ID) },
-	func() string { return strconv.Itoa(integrationextractor.ID) },
 	func() string { return strconv.Itoa(integrationextractvalue.ID) },
 	func() string { return strconv.Itoa(integrationmatch.ID) },
 }
@@ -232,9 +226,6 @@ func alterRequestBody(t *trans.Transaction) {
 
 	if integration != nil {
 		bodyFieldProcessor("integration_id", integration.ID, &request)
-	}
-	if integrationextractor != nil {
-		bodyFieldProcessor("extractor_id", integrationextractor.ID, &request)
 	}
 	if integrationextractvalue != nil {
 		bodyFieldProcessor("value_id", integrationextractvalue.ID, &request)
