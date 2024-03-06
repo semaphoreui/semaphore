@@ -542,6 +542,8 @@ definitions:
       variable:
         type: string
         example: variable
+      integration_id:
+        type: integer
 
   IntegrationMatcherRequest:
     type: object
@@ -569,6 +571,8 @@ definitions:
     type: object
     properties:
       id:
+        type: integer
+      integration_id:
         type: integer
       name:
         type: string
@@ -937,14 +941,14 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 13
+    x-example: 12
   matcher_id:
     name: matcher_id
     description: matcher ID
     in: path
     type: integer
     required: true
-    x-example: 14
+    x-example: 13
 
 paths:
   /ping:
