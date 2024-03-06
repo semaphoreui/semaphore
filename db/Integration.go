@@ -37,14 +37,14 @@ const (
 )
 
 type IntegrationMatcher struct {
-	ID           int                        `db:"id" json:"id"`
-	Name         string                     `db:"name" json:"name"`
-	ExtractorID  int                        `db:"extractor_id" json:"extractor_id"`
-	MatchType    IntegrationMatchType       `db:"match_type" json:"match_type"`
-	Method       IntegrationMatchMethodType `db:"method" json:"method"`
-	BodyDataType IntegrationBodyDataType    `db:"body_data_type" json:"body_data_type"`
-	Key          string                     `db:"key" json:"key"`
-	Value        string                     `db:"value" json:"value"`
+	ID            int                        `db:"id" json:"id"`
+	Name          string                     `db:"name" json:"name"`
+	IntegrationID int                        `db:"integration_id" json:"integration_id"`
+	MatchType     IntegrationMatchType       `db:"match_type" json:"match_type"`
+	Method        IntegrationMatchMethodType `db:"method" json:"method"`
+	BodyDataType  IntegrationBodyDataType    `db:"body_data_type" json:"body_data_type"`
+	Key           string                     `db:"key" json:"key"`
+	Value         string                     `db:"value" json:"value"`
 }
 
 type IntegrationExtractValueSource string
@@ -55,19 +55,13 @@ const (
 )
 
 type IntegrationExtractValue struct {
-	ID           int                           `db:"id" json:"id"`
-	Name         string                        `db:"name" json:"name"`
-	ExtractorID  int                           `db:"extractor_id" json:"extractor_id"`
-	ValueSource  IntegrationExtractValueSource `db:"value_source" json:"value_source"`
-	BodyDataType IntegrationBodyDataType       `db:"body_data_type" json:"body_data_type"`
-	Key          string                        `db:"key" json:"key"`
-	Variable     string                        `db:"variable" json:"variable"`
-}
-
-type IntegrationExtractor struct {
-	ID            int    `db:"id" json:"id"`
-	Name          string `db:"name" json:"name"`
-	IntegrationID int    `db:"integration_id" json:"integration_id"`
+	ID            int                           `db:"id" json:"id"`
+	Name          string                        `db:"name" json:"name"`
+	IntegrationID int                           `db:"integration_id" json:"integration_id"`
+	ValueSource   IntegrationExtractValueSource `db:"value_source" json:"value_source"`
+	BodyDataType  IntegrationBodyDataType       `db:"body_data_type" json:"body_data_type"`
+	Key           string                        `db:"key" json:"key"`
+	Variable      string                        `db:"variable" json:"variable"`
 }
 
 type Integration struct {
@@ -101,14 +95,6 @@ func (env *IntegrationMatcher) Validate() error {
 
 	}
 
-	if env.Name == "" {
-		return &ValidationError{"No Name set for integration"}
-	}
-
-	return nil
-}
-
-func (env *IntegrationExtractor) Validate() error {
 	if env.Name == "" {
 		return &ValidationError{"No Name set for integration"}
 	}
@@ -168,7 +154,7 @@ func (matcher *IntegrationMatcher) String() string {
 
 	}
 
-	builder.WriteString(matcher.Value + ", on Extractor: " + strconv.Itoa(matcher.ExtractorID))
+	builder.WriteString(matcher.Value + ", on Extractor: " + strconv.Itoa(matcher.IntegrationID))
 
 	return builder.String()
 }
