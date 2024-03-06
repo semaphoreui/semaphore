@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/db"
-	trans "github.com/snikch/goodman/transaction"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	trans "github.com/snikch/goodman/transaction"
 )
 
 // STATE
@@ -18,23 +19,35 @@ var userKey *db.AccessKey
 var task *db.Task
 var schedule *db.Schedule
 var view *db.View
+var integration *db.Integration
+var integrationextractor *db.IntegrationExtractor
+var integrationextractvalue *db.IntegrationExtractValue
+var integrationmatch *db.IntegrationMatcher
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
 var inventoryID int
 var environmentID int
 var templateID int
+var integrationID int
+var integrationExtractorID int
+var integrationExtractValueID int
+var integrationMatchID int
 
 var capabilities = map[string][]string{
-	"user":        {},
-	"project":     {"user"},
-	"repository":  {"access_key"},
-	"inventory":   {"repository"},
-	"environment": {"repository"},
-	"template":    {"repository", "inventory", "environment", "view"},
-	"task":        {"template"},
-	"schedule":    {"template"},
-	"view":        {},
+	"user":                    {},
+	"project":                 {"user"},
+	"repository":              {"access_key"},
+	"inventory":               {"repository"},
+	"environment":             {"repository"},
+	"template":                {"repository", "inventory", "environment", "view"},
+	"task":                    {"template"},
+	"schedule":                {"template"},
+	"view":                    {},
+	"integration":             {"project", "template"},
+	"integrationextractor":    {"integration"},
+	"integrationextractvalue": {"integrationextractor"},
+	"integrationmatcher":      {"integrationextractor"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -131,6 +144,18 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			templateID = res.ID
 		case "task":
 			task = addTask()
+		case "integration":
+			integration = addIntegration()
+			integrationID = integration.ID
+		case "integrationextractor":
+			integrationextractor = addIntegrationExtractor()
+			integrationExtractorID = integrationextractor.ID
+		case "integrationextractvalue":
+			integrationextractvalue = addIntegrationExtractValue()
+			integrationExtractValueID = integrationextractvalue.ID
+		case "integrationmatcher":
+			integrationmatch = addIntegrationMatcher()
+			integrationMatchID = integrationmatch.ID
 		default:
 			panic("unknown capability " + v)
 		}
@@ -157,6 +182,10 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(task.ID) },
 	func() string { return strconv.Itoa(schedule.ID) },
 	func() string { return strconv.Itoa(view.ID) },
+	func() string { return strconv.Itoa(integration.ID) },
+	func() string { return strconv.Itoa(integrationextractor.ID) },
+	func() string { return strconv.Itoa(integrationextractvalue.ID) },
+	func() string { return strconv.Itoa(integrationmatch.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -165,12 +194,14 @@ func alterRequestPath(t *trans.Transaction) {
 	exploded := make([]string, len(pathArgs))
 	copy(exploded, pathArgs)
 	for k, v := range pathSubPatterns {
+
 		pos, exists := stringInSlice(strconv.Itoa(k+1), exploded)
 		if exists {
 			pathArgs[pos] = v()
 		}
 	}
 	t.FullPath = strings.Join(pathArgs, "/")
+
 	t.Request.URI = t.FullPath
 }
 
@@ -198,9 +229,24 @@ func alterRequestBody(t *trans.Transaction) {
 	if view != nil {
 		bodyFieldProcessor("view_id", view.ID, &request)
 	}
+
+	if integration != nil {
+		bodyFieldProcessor("integration_id", integration.ID, &request)
+	}
+	if integrationextractor != nil {
+		bodyFieldProcessor("extractor_id", integrationextractor.ID, &request)
+	}
+	if integrationextractvalue != nil {
+		bodyFieldProcessor("value_id", integrationextractvalue.ID, &request)
+	}
+	if integrationmatch != nil {
+		bodyFieldProcessor("matcher_id", integrationmatch.ID, &request)
+	}
+
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
-		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?$`)
+
+		putRequestPathRE := regexp.MustCompile(`\w+/(\d+)/?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

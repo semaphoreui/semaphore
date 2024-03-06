@@ -1,3 +1,4 @@
+---
 swagger: '2.0'
 info:
   title: SEMAPHORE
@@ -19,6 +20,8 @@ tags:
     description: Everything related to a project
   - name: user
     description: User-related API
+  - name: integration
+    description: Integration API
 
 schemes:
   - http
@@ -320,7 +323,6 @@ definitions:
         type: integer
         minimum: 0
 
-
   AccessKeyRequest:
     type: object
     properties:
@@ -330,7 +332,7 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none,ssh,login_password]
+        enum: [none, ssh, login_password]
         x-example: none
       project_id:
         type: integer
@@ -369,7 +371,7 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none,ssh,login_password]
+        enum: [none, ssh, login_password]
       project_id:
         type: integer
       login_password:
@@ -435,25 +437,26 @@ definitions:
         example: '{}'
 
   InventoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-          minimum: 1
-        inventory:
-          type: string
-        ssh_key_id:
-          type: integer
-          minimum: 1
-        become_key_id:
-          type: integer
-          minimum: 1
-        type:
-          type: string
-          enum: [static, static-yaml, file]
+    type: object
+    properties:
+      name:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+        minimum: 1
+      inventory:
+        type: string
+      ssh_key_id:
+        type: integer
+        minimum: 1
+      become_key_id:
+        type: integer
+        minimum: 1
+      type:
+        type: string
+        enum: [static, static-yaml, file]
+
   Inventory:
     type: object
     properties:
@@ -474,22 +477,166 @@ definitions:
         type: string
         enum: [static, static-yaml, file]
 
+  Integration:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: deploy
+      project_id:
+        type: integer
+        minimum: 1
+      template_id:
+        type: integer
+        minimum: 1
+
+  IntegrationRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
+  IntegrationExtractorRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: "extractor"
+      integration_id:
+        type: integer
+
+  IntegrationExtractor:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: "extractor"
+      integration_id:
+        type: integer
+
+  IntegrationExtractValueRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      extractor_id:
+        type: integer
+        minimum: 1
+      value_source:
+        type: string
+        enum: [body, header]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      variable:
+        type: string
+        example: variable
+
+  IntegrationExtractValue:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: extract this value
+      extractor_id:
+        type: integer
+        minimum: 1
+      value_source:
+        type: string
+        enum: [body, header]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      variable:
+        type: string
+        example: variable
+
+  IntegrationMatcherRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      extractor_id:
+        type: integer
+        minimum: 1
+      match_type:
+        type: string
+        enum: [body, header]
+      method:
+        type: string
+        enum: [equals, unequals, contains]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      value:
+        type: string
+        example: value
+
+  IntegrationMatcher:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: deploy
+      extractor_id:
+        type: integer
+        minimum: 1
+      match_type:
+        type: string
+        enum: [body, header]
+      method:
+        type: string
+        enum: [equals, unequals, contains]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      value:
+        type: string
+        example: value
+
   RepositoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-        git_url:
-          type: string
-          example: git@example.com
-        git_branch:
-          type: string
-          example: master
-        ssh_key_id:
-          type: integer
+    type: object
+    properties:
+      name:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+      git_url:
+        type: string
+        example: git@example.com
+      git_branch:
+        type: string
+        example: master
+      ssh_key_id:
+        type: integer
   Repository:
     type: object
     properties:
@@ -663,19 +810,18 @@ definitions:
       template_id:
         type: integer
 
-
   ViewRequest:
-      type: object
-      properties:
-        title:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-          minimum: 1
-        position:
-          type: integer
-          minimum: 1
+    type: object
+    properties:
+      title:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+        minimum: 1
+      position:
+        type: integer
+        minimum: 1
   View:
     type: object
     properties:
@@ -810,6 +956,35 @@ parameters:
     type: integer
     required: true
     x-example: 10
+  integration_id:
+    name: integration_id
+    description: integration ID
+    in: path
+    type: integer
+    required: true
+    x-example: 11
+  extractor_id:
+    name: extractor_id
+    description: extractor ID
+    in: path
+    type: integer
+    required: true
+    x-example: 12
+  extractvalue_id:
+    name: extractvalue_id
+    description: extractValue ID
+    in: path
+    type: integer
+    required: true
+    x-example: 13
+  matcher_id:
+    name: matcher_id
+    description: matcher ID
+    in: path
+    type: integer
+    required: true
+    x-example: 14
+
 paths:
   /ping:
     get:
@@ -1264,7 +1439,7 @@ paths:
                 minimum: 2
               role:
                 type: string
-                enum: [owner,manager,task_runner,guest]
+                enum: [owner, manager, task_runner, guest]
                 example: owner
       responses:
         204:
@@ -1290,12 +1465,237 @@ paths:
             properties:
               role:
                 type: string
-                enum: [owner,manager,task_runner,guest]
+                enum: [owner, manager, task_runner, guest]
                 example: owner
       summary: Update user role
       responses:
         204:
           description: User updated
+
+  /project/{project_id}/integrations:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: get all integrations
+      responses:
+        200:
+          description: integration
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Integration"
+    post:
+      summary: create a new integration
+      tags:
+        - project
+      parameters:
+        - name: Integration
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationRequest"
+      responses:
+        201:
+          description: Integration Created
+          schema:
+            $ref: "#/definitions/Integration"
+  /project/{project_id}/integrations/{integration_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    put:
+      tags:
+        - project
+      summary: Update Integration
+      parameters:
+        - name: Integration
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationRequest"
+      responses:
+        204:
+          description: Integration updated
+    delete:
+      tags:
+        - project
+      summary: Remove integration
+      responses:
+        204:
+          description: integration removed
+  /project/{project_id}/integrations/{integration_id}/extractors:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration Extractors
+      responses:
+        200:
+          description: Integration Extractors
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationExtractor"
+    post:
+      tags:
+        - project
+      summary: Add Integration Extractor
+      parameters:
+        - name: Integration Extractor
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractor"
+      responses:
+        201:
+          description: Integration Extractor Created
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/extractor_id"
+    put:
+      tags:
+        - integration
+      summary: Updates Integration extractor
+      parameters:
+        - name: Integration Extractor
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractorRequest"
+      responses:
+        204:
+          description: Integration Extractor updated
+    delete:
+      tags:
+        - integration
+      summary: Removes integration extractor
+      responses:
+        204:
+          description: integration extractor removed
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/extractor_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration Extracted Values linked to integration extractor
+      responses:
+        200:
+          description: Integration Extracted Value
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationExtractValue"
+    post:
+      tags:
+        - project
+      summary: Add Integration Extracted Value
+      parameters:
+        - name: Integration Extracted Value
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractValue"
+      responses:
+        201:
+          description: Integration Extract Value Created
+        400:
+          description: Bad Integration Extract Value params
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values/{extractvalue_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/extractor_id"
+      - $ref: "#/parameters/extractvalue_id"
+    put:
+      tags:
+        - integration
+      summary: Updates Integration ExtractValue
+      parameters:
+        - name: Integration ExtractValue
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractValueRequest"
+      responses:
+        204:
+          description: Integration Extract Value updated
+        400:
+          description: Bad integration extract value parameter
+    delete:
+      tags:
+        - integration
+      summary: Removes integration extract value
+      responses:
+        204:
+          description: integration extract value removed
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/extractor_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration Matcher linked to integration extractor
+      responses:
+        200:
+          description: Integration Matcher
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationMatcher"
+    post:
+      tags:
+        - project
+      summary: Add Integration Matcher
+      parameters:
+        - name: Integration Matcher
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationMatcher"
+      responses:
+        200:
+          description: Integration Matcher Created
+        400:
+          description: Bad Integration Matcher params
+  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers/{matcher_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/extractor_id"
+      - $ref: "#/parameters/matcher_id"
+    put:
+      tags:
+        - integration
+      summary: Updates Integration Matcher
+      parameters:
+        - name: Integration Matcher
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationMatcherRequest"
+      responses:
+        204:
+          description: Integration Matcher updated
+        400:
+          description: Bad integration matcher parameter
+    delete:
+      tags:
+        - integration
+      summary: Removes integration matcher
+      responses:
+        204:
+          description: integration matcher removed
 
   # project access keys
   /project/{project_id}/keys:
@@ -1306,12 +1706,12 @@ paths:
         - project
       summary: Get access keys linked to project
       parameters:
-          # TODO - the space in this parameter name results in a dredd warning
+        # TODO - the space in this parameter name results in a dredd warning
         - name: Key type
           in: query
           required: false
           type: string
-          enum: [none,ssh,login_password]
+          enum: [none, ssh, login_password]
           description: Filter by key type
           x-example: none
         - name: sort
@@ -1488,7 +1888,7 @@ paths:
         201:
           description: inventory created
           schema:
-              $ref: "#/definitions/Inventory"
+            $ref: "#/definitions/Inventory"
   /project/{project_id}/inventory/{inventory_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1670,11 +2070,11 @@ paths:
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
     parameters:
-    - $ref: "#/parameters/project_id"
-    - $ref: "#/parameters/schedule_id"
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/schedule_id"
     get:
       tags:
-      - schedule
+        - schedule
       summary: Get schedule
       responses:
         200:
@@ -1683,38 +2083,38 @@ paths:
             $ref: "#/definitions/Schedule"
     delete:
       tags:
-      - schedule
+        - schedule
       summary: Deletes schedule
       responses:
         204:
           description: schedule deleted
     put:
       tags:
-      - schedule
+        - schedule
       summary: Updates schedule
       parameters:
-      - name: schedule
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/ScheduleRequest"
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
       responses:
         204:
           description: schedule updated
 
   /project/{project_id}/schedules:
     parameters:
-    - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/project_id"
     post:
       tags:
-      - schedule
+        - schedule
       summary: create schedule
       parameters:
-      - name: schedule
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/ScheduleRequest"
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
       responses:
         201:
           description: schedule created
@@ -1861,8 +2261,6 @@ paths:
         204:
           description: Task queued
 
-
-
   /project/{project_id}/tasks/{task_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1883,8 +2281,6 @@ paths:
       responses:
         204:
           description: task deleted
-
-
 
   /project/{project_id}/tasks/{task_id}/output:
     parameters:

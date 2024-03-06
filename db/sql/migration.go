@@ -2,13 +2,13 @@ package sql
 
 import (
 	"fmt"
+	"github.com/go-gorp/gorp/v3"
 	"path"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/go-gorp/gorp/v3"
 	log "github.com/sirupsen/logrus"
 )
 

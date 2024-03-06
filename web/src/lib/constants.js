@@ -36,3 +36,39 @@ export const USER_ROLES = [{
   slug: 'guest',
   title: 'Guest',
 }];
+
+export const MATCHER_TYPE_TITLES = {
+  '': 'Matcher',
+  body: 'Body',
+  header: 'Header',
+};
+
+export const MATCHER_TYPE_ICONS = {
+  '': 'Matcher',
+  body: 'mdi-page-layout-body',
+  header: 'mdi-web',
+};
+
+export const EXTRACT_VALUE_TYPE_TITLES = {
+  '': 'ExtractValue',
+  body: 'Body',
+  header: 'Header',
+};
+
+export const EXTRACT_VALUE_TYPE_ICONS = {
+  '': 'ExtractValue',
+  body: 'mdi-page-layout-body',
+  header: 'mdi-web',
+};
+
+export const EXTRACT_VALUE_BODY_DATA_TYPE_TITLES = {
+  '': 'BodyDataType',
+  json: 'JSON',
+  str: 'String',
+};
+
+export const EXTRACT_VALUE_BODY_DATA_TYPE_ICONS = {
+  '': 'BodyDataType',
+  json: 'mdi-code-json',
+  str: 'mdi-text',
+};

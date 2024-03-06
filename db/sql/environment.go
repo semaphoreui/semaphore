@@ -4,10 +4,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
-	var environment db.Environment
-	err := d.getObject(projectID, db.EnvironmentProps, environmentID, &environment)
-	return environment, err
+func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
+	err = d.getObject(projectID, db.EnvironmentProps, environmentID, &environment)
+	return
 }
 
 func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectReferrers, error) {
