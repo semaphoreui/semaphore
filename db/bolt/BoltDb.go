@@ -548,6 +548,57 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interfa
 	return object, err
 }
 
+func (d *BoltDb) getIntegrationRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationReferrers, err error) {
+	refs.IntegrationExtractors, err = d.getReferringObjectByParentID(projectID, objectProps, objectID, db.IntegrationExtractorProps)
+
+	return
+}
+
+func (d *BoltDb) getIntegrationExtractorRefs(integrationID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorReferrers, err error) {
+	refs.IntegrationMatchers, err = d.getReferringObjectByParentID(integrationID, objectProps, objectID, db.IntegrationMatcherProps)
+	if err != nil {
+		return
+	}
+
+	refs.IntegrationExtractValues, err = d.getReferringObjectByParentID(integrationID, objectProps, objectID, db.IntegrationExtractValueProps)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (d *BoltDb) getIntegrationExtractorChildrenRefs(extractorID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorChildReferrers, err error) {
+	refs.IntegrationExtractors, err = d.getReferringObjectByParentID(objectID, objectProps, extractorID, db.IntegrationExtractorProps)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (d *BoltDb) getReferringObjectByParentID(parentID int, objProps db.ObjectProps, objID int, referringObjectProps db.ObjectProps) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
+
+	var referringObjectOfType reflect.Value = reflect.New(reflect.SliceOf(referringObjectProps.Type))
+	err = d.getObjects(parentID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		return isObjectReferredBy(objProps, intObjectID(objID), referringObj)
+	}, referringObjectOfType.Interface())
+
+	if err != nil {
+		return
+	}
+
+	for i := 0; i < referringObjectOfType.Elem().Len(); i++ {
+		referringObjs = append(referringObjs, db.ObjectReferrer{
+			ID:   int(referringObjectOfType.Elem().Index(i).FieldByName("ID").Int()),
+			Name: referringObjectOfType.Elem().Index(i).FieldByName("Name").String(),
+		})
+	}
+
+	return
+}
+
 func (d *BoltDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.ObjectReferrers, err error) {
 	refs.Templates, err = d.getObjectRefsFrom(projectID, objectProps, intObjectID(objectID), db.TemplateProps)
 	if err != nil {

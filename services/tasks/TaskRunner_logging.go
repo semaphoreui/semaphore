@@ -3,11 +3,13 @@ package tasks
 import (
 	"bufio"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/util"
+	"fmt"
 	"os/exec"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 func (t *TaskRunner) Log2(msg string, now time.Time) {
@@ -34,6 +36,10 @@ func (t *TaskRunner) Log2(msg string, now time.Time) {
 
 func (t *TaskRunner) Log(msg string) {
 	t.Log2(msg, time.Now())
+}
+
+func (t *TaskRunner) Logf(format string, a ...any) {
+	t.Log2(fmt.Sprintf(format, a...), time.Now())
 }
 
 // Readln reads from the pipe

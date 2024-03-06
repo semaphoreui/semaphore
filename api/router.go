@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ansible-semaphore/semaphore/api/runners"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
-	"github.com/ansible-semaphore/semaphore/api/runners"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -77,7 +78,6 @@ func Route() *mux.Router {
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
-
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
@@ -90,6 +90,10 @@ func Route() *mux.Router {
 	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+
+	publicWebHookRouter := r.PathPrefix(webPath + "integration/{project_id}").Subrouter()
+	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware, projects.IntegrationMiddleware)
+	publicWebHookRouter.HandleFunc("/endpoint", ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
@@ -178,6 +182,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
 
+	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
+	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
 
 	//
@@ -269,6 +275,39 @@ func Route() *mux.Router {
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
+
+	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
+
+	projectIntegrationsAPI.Use(projects.ProjectMiddleware, projects.IntegrationMiddleware)
+	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.UpdateIntegration).Methods("PUT")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.DeleteIntegration).Methods("DELETE")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.GetIntegration).Methods("GET")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/refs", projects.GetIntegrationRefs).Methods("GET", "HEAD")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/extractors", projects.GetIntegrationExtractors).Methods("GET")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/extractors", projects.AddIntegrationExtractor).Methods("POST")
+
+	projectIntegrationExtractorAPI := projectIntegrationsAPI.PathPrefix("/{integration_id}/extractors").Subrouter()
+	projectIntegrationExtractorAPI.Use(projects.IntegrationExtractorMiddleware)
+
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}", projects.GetIntegrationExtractor).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}", projects.UpdateIntegrationExtractor).Methods("PUT")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}", projects.DeleteIntegrationExtractor).Methods("DELETE")
+
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/refs", projects.GetIntegrationExtractorRefs).Methods("GET")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers", projects.GetIntegrationMatchers).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers", projects.AddIntegrationMatcher).Methods("POST")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values", projects.GetIntegrationExtractValues).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values", projects.AddIntegrationExtractValue).Methods("POST")
+
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}", projects.UpdateIntegrationMatcher).Methods("PUT")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}", projects.DeleteIntegrationMatcher).Methods("DELETE")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/matchers/{matcher_id}/refs", projects.GetIntegrationMatcherRefs).Methods("GET", "HEAD")
+
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}", projects.GetIntegrationExtractValue).Methods("GET", "HEAD")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}", projects.UpdateIntegrationExtractValue).Methods("PUT")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}", projects.DeleteIntegrationExtractValue).Methods("DELETE")
+	projectIntegrationExtractorAPI.HandleFunc("/{extractor_id}/values/{value_id}/refs", projects.GetIntegrationExtractValueRefs).Methods("GET")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

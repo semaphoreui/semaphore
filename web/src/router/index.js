@@ -14,6 +14,11 @@ import Team from '../views/project/Team.vue';
 import Users from '../views/Users.vue';
 import Auth from '../views/Auth.vue';
 import New from '../views/project/New.vue';
+import Integrations from '../views/project/Integrations.vue';
+
+import IntegrationExtractors from '../views/project/IntegrationExtractors.vue';
+
+import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
 
 Vue.use(VueRouter);
 
@@ -69,6 +74,18 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/integrations',
+    component: Integrations,
+  },
+  {
+    path: '/project/:projectId/integration/:integrationId',
+    component: IntegrationExtractors,
+  },
+  {
+    path: '/project/:projectId/integration/:integrationId/extractor/:extractorId',
+    component: IntegrationExtractor,
   },
   {
     path: '/project/:projectId/repositories',
