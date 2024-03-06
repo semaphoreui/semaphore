@@ -42,7 +42,8 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	project := context.Get(r, "project").(db.Project)
+	//project := context.Get(r, "project").(db.Project)
+	projectId, err := helpers.GetIntParam("project_id", w, r)
 	integration := context.Get(r, "integration").(db.Integration)
 
 	switch integration.AuthMethod {
@@ -70,7 +71,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var matchers []db.IntegrationMatcher
-	matchers, err = helpers.Store(r).GetIntegrationMatchers(project.ID, db.RetrieveQueryParams{}, integration.ID)
+	matchers, err = helpers.Store(r).GetIntegrationMatchers(projectId, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
 		log.Error(err)
 	}
@@ -86,7 +87,6 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Iterate over all Extractors that matched
 	if !matched {
 		w.WriteHeader(http.StatusNoContent)
 		return
