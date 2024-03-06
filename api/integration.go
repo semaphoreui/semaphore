@@ -41,7 +41,6 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
 	var err error
-	var extractors []db.IntegrationExtractor
 
 	project := context.Get(r, "project").(db.Project)
 	integration := context.Get(r, "integration").(db.Integration)
@@ -70,39 +69,25 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	extractors, err = helpers.Store(r).GetIntegrationExtractors(project.ID, db.RetrieveQueryParams{}, integration.ID)
-
+	var matchers []db.IntegrationMatcher
+	matchers, err = helpers.Store(r).GetIntegrationMatchers(project.ID, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
 		log.Error(err)
-		return
 	}
+	var matched = false
 
-	var matchedExtractors = make([]db.IntegrationExtractor, 0)
-	for _, extractor := range extractors {
-		var matchers []db.IntegrationMatcher
-		matchers, err = helpers.Store(r).GetIntegrationMatchers(project.ID, db.RetrieveQueryParams{}, extractor.ID)
-		if err != nil {
-			log.Error(err)
-		}
-		var matched = false
-
-		for _, matcher := range matchers {
-			if Match(matcher, r) {
-				matched = true
-				continue
-			} else {
-				matched = false
-				break
-			}
-		}
-		// If all Matched...
-		if matched {
-			matchedExtractors = append(matchedExtractors, extractor)
+	for _, matcher := range matchers {
+		if Match(matcher, r) {
+			matched = true
+			continue
+		} else {
+			matched = false
+			break
 		}
 	}
 
 	// Iterate over all Extractors that matched
-	if len(matchedExtractors) == 0 {
+	if !matched {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -161,21 +146,15 @@ func MatchCompare(value string, method db.IntegrationMatchMethodType, expected s
 
 func RunIntegration(integration db.Integration, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	extractors, err := helpers.Store(r).GetIntegrationExtractors(project.ID, db.RetrieveQueryParams{}, integration.ID)
-	if err != nil {
-		log.Error(err)
-		return
-	}
 
 	var extractValues = make([]db.IntegrationExtractValue, 0)
-	for _, extractor := range extractors {
-		extractValuesForExtractor, err2 := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, extractor.ID)
-		if err2 != nil {
-			log.Error(err2)
-			return
-		}
-		extractValues = append(extractValues, extractValuesForExtractor...)
+
+	extractValuesForExtractor, err2 := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
+	if err2 != nil {
+		log.Error(err2)
+		return
 	}
+	extractValues = append(extractValues, extractValuesForExtractor...)
 
 	var extractedResults = Extract(extractValues, r)
 
