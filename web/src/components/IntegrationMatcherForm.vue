@@ -132,10 +132,10 @@ export default {
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers/${this.itemId}`;
     },
   },
 };

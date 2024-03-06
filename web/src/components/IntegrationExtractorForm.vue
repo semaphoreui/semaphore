@@ -33,10 +33,10 @@ export default {
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
+      return `/api/project/${this.projectId}/integrations`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}`;
     },
   },
 };

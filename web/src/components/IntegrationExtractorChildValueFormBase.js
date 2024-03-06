@@ -4,7 +4,6 @@ import { getErrorMessage } from '@/lib/error';
 export default {
   props: {
     integrationId: [Number, String],
-    extractorId: [Number, String],
   },
   methods: {
     /**

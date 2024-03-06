@@ -108,19 +108,13 @@ export default {
       }
       return this.$route.params.integrationId;
     },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
-    },
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/values`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/values`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/values/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/values/${this.itemId}`;
     },
   },
 };

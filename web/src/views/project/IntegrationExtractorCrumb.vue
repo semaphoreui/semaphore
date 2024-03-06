@@ -24,10 +24,9 @@ import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
+  mixins: [ItemListPageBase, IntegrationExtractorsBase],
   components: { },
   data() {
     return {
@@ -44,7 +43,7 @@ export default {
 
     this.extractor = (await axios({
       method: 'get',
-      url: `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`,
+      url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
       responseType: 'json',
     })).data;
   },
@@ -80,7 +79,7 @@ export default {
       return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}`;
     },
     getEventName() {
       return 'w-integration-matcher';
