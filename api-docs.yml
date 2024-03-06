@@ -503,35 +503,12 @@ definitions:
       template_id:
         type: integer
 
-  IntegrationExtractorRequest:
-    type: object
-    properties:
-      name:
-        type: string
-        example: "extractor"
-      integration_id:
-        type: integer
-
-  IntegrationExtractor:
-    type: object
-    properties:
-      id:
-        type: integer
-      name:
-        type: string
-        example: "extractor"
-      integration_id:
-        type: integer
-
   IntegrationExtractValueRequest:
     type: object
     properties:
       name:
         type: string
         example: deploy
-      extractor_id:
-        type: integer
-        minimum: 1
       value_source:
         type: string
         enum: [body, header]
@@ -553,9 +530,6 @@ definitions:
       name:
         type: string
         example: extract this value
-      extractor_id:
-        type: integer
-        minimum: 1
       value_source:
         type: string
         enum: [body, header]
@@ -568,6 +542,8 @@ definitions:
       variable:
         type: string
         example: variable
+      integration_id:
+        type: integer
 
   IntegrationMatcherRequest:
     type: object
@@ -575,9 +551,6 @@ definitions:
       name:
         type: string
         example: deploy
-      extractor_id:
-        type: integer
-        minimum: 1
       match_type:
         type: string
         enum: [body, header]
@@ -599,12 +572,11 @@ definitions:
     properties:
       id:
         type: integer
+      integration_id:
+        type: integer
       name:
         type: string
         example: deploy
-      extractor_id:
-        type: integer
-        minimum: 1
       match_type:
         type: string
         enum: [body, header]
@@ -963,27 +935,20 @@ parameters:
     type: integer
     required: true
     x-example: 11
-  extractor_id:
-    name: extractor_id
-    description: extractor ID
-    in: path
-    type: integer
-    required: true
-    x-example: 12
   extractvalue_id:
     name: extractvalue_id
     description: extractValue ID
     in: path
     type: integer
     required: true
-    x-example: 13
+    x-example: 12
   matcher_id:
     name: matcher_id
     description: matcher ID
     in: path
     type: integer
     required: true
-    x-example: 14
+    x-example: 13
 
 paths:
   /ping:
@@ -1525,64 +1490,10 @@ paths:
       responses:
         204:
           description: integration removed
-  /project/{project_id}/integrations/{integration_id}/extractors:
+  /project/{project_id}/integrations/{integration_id}/values:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
-    get:
-      tags:
-        - integration
-      summary: Get Integration Extractors
-      responses:
-        200:
-          description: Integration Extractors
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/IntegrationExtractor"
-    post:
-      tags:
-        - project
-      summary: Add Integration Extractor
-      parameters:
-        - name: Integration Extractor
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/IntegrationExtractor"
-      responses:
-        201:
-          description: Integration Extractor Created
-  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/integration_id"
-      - $ref: "#/parameters/extractor_id"
-    put:
-      tags:
-        - integration
-      summary: Updates Integration extractor
-      parameters:
-        - name: Integration Extractor
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/IntegrationExtractorRequest"
-      responses:
-        204:
-          description: Integration Extractor updated
-    delete:
-      tags:
-        - integration
-      summary: Removes integration extractor
-      responses:
-        204:
-          description: integration extractor removed
-  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/integration_id"
-      - $ref: "#/parameters/extractor_id"
     get:
       tags:
         - integration
@@ -1609,11 +1520,10 @@ paths:
           description: Integration Extract Value Created
         400:
           description: Bad Integration Extract Value params
-  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/values/{extractvalue_id}:
+  /project/{project_id}/integrations/{integration_id}/values/{extractvalue_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
-      - $ref: "#/parameters/extractor_id"
       - $ref: "#/parameters/extractvalue_id"
     put:
       tags:
@@ -1637,11 +1547,10 @@ paths:
       responses:
         204:
           description: integration extract value removed
-  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers:
+  /project/{project_id}/integrations/{integration_id}/matchers:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
-      - $ref: "#/parameters/extractor_id"
     get:
       tags:
         - integration
@@ -1668,11 +1577,10 @@ paths:
           description: Integration Matcher Created
         400:
           description: Bad Integration Matcher params
-  /project/{project_id}/integrations/{integration_id}/extractors/{extractor_id}/matchers/{matcher_id}:
+  /project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
-      - $ref: "#/parameters/extractor_id"
       - $ref: "#/parameters/matcher_id"
     put:
       tags:

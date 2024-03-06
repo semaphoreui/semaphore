@@ -10,7 +10,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <IntegrationExtractValueForm
-          :extractor-id="extractorId"
+          :integration-id="integrationId"
           :item-id="itemId"
           :project-id="projectId"
           @save="onSave"
@@ -24,7 +24,7 @@
     <ObjectRefsDialog
       object-title="extractvalue"
       :object-refs="itemRefs"
-      :extractor-id="extractorId"
+      :integration-id="integrationId"
       v-model="itemRefsDialog"
     />
 
@@ -91,12 +91,11 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
 import IntegrationExtractValueForm from '@/components/IntegrationExtractValueForm.vue';
 
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
+  mixins: [ItemListPageBase, IntegrationExtractorsBase],
   components: { IntegrationExtractValueForm },
 
   computed: {
@@ -111,12 +110,6 @@ export default {
         return parseInt(this.$route.params.integrationId, 10);
       }
       return this.$route.params.integrationId;
-    },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
     },
   },
 
@@ -158,10 +151,10 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/values`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/values`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/values/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/values/${this.itemId}`;
     },
     getEventName() {
       return 'w-integration-extract-value';

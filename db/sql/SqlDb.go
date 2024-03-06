@@ -733,7 +733,7 @@ func (d *SqlDb) GetReferencesForForeignKey(objectProps db.ObjectProps, objectID 
 
 // Find Object Referrers for objectID based on referring column taken from referringObjectProps
 // Example:
-// GetObjectReferences(db.WebhookMatchers, db.WebhookExtractorProps, extractorID)
+// GetObjectReferences(db.WebhookMatchers, db.WebhookExtractorProps, integrationID)
 func (d *SqlDb) GetObjectReferences(objectProps db.ObjectProps, referringObjectProps db.ObjectProps, objectID int) (referringObjs []db.ObjectReferrer, err error) {
 	referringObjs = make([]db.ObjectReferrer, 0)
 

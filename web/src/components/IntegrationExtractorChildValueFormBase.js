@@ -4,7 +4,6 @@ import { getErrorMessage } from '@/lib/error';
 export default {
   props: {
     integrationId: [Number, String],
-    extractorId: [Number, String],
   },
   methods: {
     /**
@@ -34,7 +33,6 @@ export default {
           data: {
             ...this.item,
             integration_id: this.integrationId,
-            extractor_id: this.extractorId,
           },
           ...(this.getRequestOptions()),
         })).data;

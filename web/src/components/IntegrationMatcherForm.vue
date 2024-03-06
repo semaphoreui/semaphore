@@ -129,19 +129,13 @@ export default {
       }
       return this.$route.params.integrationId;
     },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
-    },
   },
   methods: {
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers/${this.itemId}`;
     },
   },
 };
