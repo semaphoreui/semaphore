@@ -73,6 +73,7 @@ type Integration struct {
 	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id"`
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
 	AuthSecret   AccessKey             `db:"-" json:"-"`
+	Searchable   bool                  `db:"searchable" json:"searchable"`
 }
 
 func (env *Integration) Validate() error {
