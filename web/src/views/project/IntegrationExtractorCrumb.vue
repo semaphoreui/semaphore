@@ -1,19 +1,19 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="extractor != null">
+  <div v-if="integration != null">
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+
       <v-toolbar-title class="breadcrumbs">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
-          :to="`/project/${projectId}/integration/${this.integrationId}`"
-          >
-          {{ integration.name }}
+          :to="`/project/${projectId}/integrations/`"
+        >
+          Integrations
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ extractor.name }}</span>
-        <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">Extractor Configuration</span>
+        <span class="breadcrumbs__item">{{ integration.name }}</span>
       </v-toolbar-title>
+
       <v-spacer></v-spacer>
     </v-toolbar>
   </div>
@@ -24,10 +24,9 @@ import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
+  mixins: [ItemListPageBase, IntegrationExtractorsBase],
   components: { },
   data() {
     return {
@@ -39,12 +38,6 @@ export default {
     this.integration = (await axios({
       method: 'get',
       url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
-      responseType: 'json',
-    })).data;
-
-    this.extractor = (await axios({
-      method: 'get',
-      url: `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`,
       responseType: 'json',
     })).data;
   },
@@ -62,12 +55,6 @@ export default {
       }
       return this.$route.params.integrationId;
     },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
-    },
   },
   methods: {
     allowActions() {
@@ -77,10 +64,10 @@ export default {
       return [];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
+      return `/api/project/${this.projectId}/integrations`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}`;
     },
     getEventName() {
       return 'w-integration-matcher';

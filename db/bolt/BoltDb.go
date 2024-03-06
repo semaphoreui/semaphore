@@ -549,30 +549,16 @@ func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interfa
 }
 
 func (d *BoltDb) getIntegrationRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationReferrers, err error) {
-	refs.IntegrationExtractors, err = d.getReferringObjectByParentID(projectID, objectProps, objectID, db.IntegrationExtractorProps)
+	//refs.IntegrationExtractors, err = d.getReferringObjectByParentID(projectID, objectProps, objectID, db.IntegrationExtractorProps)
 
 	return
 }
 
-func (d *BoltDb) getIntegrationExtractorRefs(integrationID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorReferrers, err error) {
-	refs.IntegrationMatchers, err = d.getReferringObjectByParentID(integrationID, objectProps, objectID, db.IntegrationMatcherProps)
-	if err != nil {
-		return
-	}
-
-	refs.IntegrationExtractValues, err = d.getReferringObjectByParentID(integrationID, objectProps, objectID, db.IntegrationExtractValueProps)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func (d *BoltDb) getIntegrationExtractorChildrenRefs(extractorID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorChildReferrers, err error) {
-	refs.IntegrationExtractors, err = d.getReferringObjectByParentID(objectID, objectProps, extractorID, db.IntegrationExtractorProps)
-	if err != nil {
-		return
-	}
+func (d *BoltDb) getIntegrationExtractorChildrenRefs(integrationID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorChildReferrers, err error) {
+	//refs.IntegrationExtractors, err = d.getReferringObjectByParentID(objectID, objectProps, integrationID, db.IntegrationExtractorProps)
+	//if err != nil {
+	//	return
+	//}
 
 	return
 }
