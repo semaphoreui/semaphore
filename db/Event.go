@@ -10,7 +10,6 @@ type Event struct {
 	UserID        *int `db:"user_id" json:"user_id"`
 	ProjectID     *int `db:"project_id" json:"project_id"`
 	IntegrationID *int `db:"integration_id" json:"integration_id"`
-	ExtractorID   *int `db:"extractor_id" json:"extractor_id"`
 
 	ObjectID    *int             `db:"object_id" json:"object_id"`
 	ObjectType  *EventObjectType `db:"object_type" json:"object_type"`

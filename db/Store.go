@@ -261,19 +261,17 @@ var IntegrationProps = ObjectProps{
 }
 
 var IntegrationExtractValueProps = ObjectProps{
-	TableName:         "project__integration_extract_value",
-	Type:              reflect.TypeOf(IntegrationExtractValue{}),
-	PrimaryColumnName: "id",
-	//ReferringColumnSuffix: "extractor_id",
+	TableName:            "project__integration_extract_value",
+	Type:                 reflect.TypeOf(IntegrationExtractValue{}),
+	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",
 }
 
 var IntegrationMatcherProps = ObjectProps{
-	TableName:         "project__integration_matcher",
-	Type:              reflect.TypeOf(IntegrationMatcher{}),
-	PrimaryColumnName: "id",
-	//ReferringColumnSuffix: "extractor_id",
+	TableName:            "project__integration_matcher",
+	Type:                 reflect.TypeOf(IntegrationMatcher{}),
+	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",
 }

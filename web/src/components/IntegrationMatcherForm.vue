@@ -129,12 +129,6 @@ export default {
       }
       return this.$route.params.integrationId;
     },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
-    },
   },
   methods: {
     getItemsUrl() {

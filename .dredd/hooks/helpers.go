@@ -61,7 +61,6 @@ func truncateAll() {
 		"user",
 		"project__view",
 		"project__integration",
-		"project__integration_extractor",
 		"project__integration_extract_value",
 		"project__integration_matcher",
 	}
@@ -241,19 +240,6 @@ func addIntegration() *db.Integration {
 	}
 
 	return &integration
-}
-
-func addIntegrationExtractor() *db.IntegrationExtractor {
-	integrationextractor, err := store.CreateIntegrationExtractor(userProject.ID, db.IntegrationExtractor{
-		IntegrationID: integrationID,
-		Name:          "Integration Extractor",
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	return &integrationextractor
 }
 
 func addIntegrationExtractValue() *db.IntegrationExtractValue {

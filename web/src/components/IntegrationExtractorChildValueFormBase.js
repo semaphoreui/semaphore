@@ -34,7 +34,6 @@ export default {
           data: {
             ...this.item,
             integration_id: this.integrationId,
-            extractor_id: this.extractorId,
           },
           ...(this.getRequestOptions()),
         })).data;
