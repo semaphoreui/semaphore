@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	_ "github.com/lib/pq"
-	"github.com/Masterminds/squirrel"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -212,16 +212,12 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 	return
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}, ignoreProjectId bool) (err error) {
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
 	q := squirrel.Select("*").
 		From(props.TableName + " pe")
 
-	if !ignoreProjectId {
-		if props.IsGlobal {
-			q = q.Where("pe." + props.ReferringColumnSuffix + " is null")
-		} else {
-			q = q.Where("pe.project_id=?", projectID)
-		}
+	if !props.IsGlobal {
+		q = q.Where("pe.project_id=?", projectID)
 	}
 
 	orderDirection := "ASC"
@@ -258,7 +254,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 }
 
 func (d *SqlDb) getProjectObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
-	return d.getObjects(projectID, props, params, objects, false)
+	return d.getObjects(projectID, props, params, objects)
 }
 
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {

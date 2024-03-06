@@ -94,7 +94,7 @@ func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
 	for i := 0; ; i++ {
 
 		var keys []db.AccessKey
-		err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, &keys, true)
+		err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, &keys)
 
 		if err != nil {
 			return
