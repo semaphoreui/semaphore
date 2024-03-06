@@ -2,18 +2,18 @@
   <div v-if="extractor != null">
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+
       <v-toolbar-title class="breadcrumbs">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
-          :to="`/project/${projectId}/integration/${this.integrationId}`"
-          >
-          {{ integration.name }}
+          :to="`/project/${projectId}/integrations/`"
+        >
+          Integrations
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ extractor.name }}</span>
-        <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">Extractor Configuration</span>
+        <span class="breadcrumbs__item">{{ integration.name }}</span>
       </v-toolbar-title>
+
       <v-spacer></v-spacer>
     </v-toolbar>
   </div>
