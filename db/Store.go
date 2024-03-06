@@ -52,16 +52,12 @@ type ObjectReferrers struct {
 }
 
 type IntegrationReferrers struct {
-	IntegrationExtractors []ObjectReferrer `json:"extractors"`
-}
-
-type IntegrationExtractorReferrers struct {
 	IntegrationMatchers      []ObjectReferrer `json:"matchers"`
 	IntegrationExtractValues []ObjectReferrer `json:"values"`
 }
 
 type IntegrationExtractorChildReferrers struct {
-	IntegrationExtractors []ObjectReferrer `json:"extracors"`
+	Integrations []ObjectReferrer `json:"integrations"`
 }
 
 // ObjectProps describe database entities.
@@ -146,28 +142,19 @@ type Store interface {
 	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
 	DeleteIntegration(projectID int, integrationID int) error
 
-	CreateIntegrationExtractor(projectID int, integrationExtractor IntegrationExtractor) (newIntegrationExtractor IntegrationExtractor, err error)
-	GetIntegrationExtractors(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationExtractor, error)
-	GetIntegrationExtractor(projectID int, extractorID int, integrationID int) (extractor IntegrationExtractor, err error)
-	UpdateIntegrationExtractor(projectID int, integrationExtractor IntegrationExtractor) error
-	GetIntegrationExtractorRefs(projectID int, extractorID int, integrationID int) (IntegrationExtractorReferrers, error)
-	DeleteIntegrationExtractor(projectID int, extractorID int, integrationID int) error
-
 	CreateIntegrationExtractValue(projectId int, value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
-	GetIntegrationExtractValues(projectID int, params RetrieveQueryParams, extractorID int) ([]IntegrationExtractValue, error)
-	GetIntegrationExtractValue(projectID int, valueID int, extractorID int) (value IntegrationExtractValue, err error)
+	GetIntegrationExtractValues(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationExtractValue, error)
+	GetIntegrationExtractValue(projectID int, valueID int, integrationID int) (value IntegrationExtractValue, err error)
 	UpdateIntegrationExtractValue(projectID int, integrationExtractValue IntegrationExtractValue) error
-	GetIntegrationExtractValueRefs(projectID int, valueID int, extractorID int) (IntegrationExtractorChildReferrers, error)
-	DeleteIntegrationExtractValue(projectID int, valueID int, extractorID int) error
-	GetIntegrationExtractValuesByExtractorID(extractorID int) ([]IntegrationExtractValue, error)
+	GetIntegrationExtractValueRefs(projectID int, valueID int, integrationID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationExtractValue(projectID int, valueID int, integrationID int) error
 
 	CreateIntegrationMatcher(projectID int, matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
-	GetIntegrationMatchers(projectID int, params RetrieveQueryParams, extractorID int) ([]IntegrationMatcher, error)
-	GetIntegrationMatcher(projectID int, matcherID int, extractorID int) (matcher IntegrationMatcher, err error)
+	GetIntegrationMatchers(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationMatcher, error)
+	GetIntegrationMatcher(projectID int, matcherID int, integrationID int) (matcher IntegrationMatcher, err error)
 	UpdateIntegrationMatcher(projectID int, integrationMatcher IntegrationMatcher) error
-	GetIntegrationMatcherRefs(projectID int, matcherID int, extractorID int) (IntegrationExtractorChildReferrers, error)
-	DeleteIntegrationMatcher(projectID int, matcherID int, extractorID int) error
-	GetIntegrationMatchersByExtractorID(extractorID int) ([]IntegrationMatcher, error)
+	GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
@@ -269,15 +256,6 @@ var IntegrationProps = ObjectProps{
 	Type:                  reflect.TypeOf(Integration{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "integration_id",
-	SortableColumns:       []string{"name"},
-	DefaultSortingColumn:  "name",
-}
-
-var IntegrationExtractorProps = ObjectProps{
-	TableName:             "project__integration_extractor",
-	Type:                  reflect.TypeOf(IntegrationExtractor{}),
-	PrimaryColumnName:     "id",
-	ReferringColumnSuffix: "extractor_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
