@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"io"
 	"net/http"
@@ -38,6 +39,12 @@ func HashPayload(secret string, playloadBody []byte) string {
 }
 
 func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
+
+	if !util.Config.IntegrationsEnable {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
 	var err error
