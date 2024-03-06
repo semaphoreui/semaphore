@@ -10,7 +10,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <IntegrationMatcherForm
-          :extractor-id="extractorId"
+          :integration-id="integrationId"
           :item-id="itemId"
           @save="onSave"
           @error="onError"
@@ -23,7 +23,7 @@
     <ObjectRefsDialog
       object-title="matcher"
       :object-refs="itemRefs"
-      :extractor-id="extractorId"
+      :integration-id="integrationId"
       v-model="itemRefsDialog"
     />
 
@@ -95,12 +95,11 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-import IntegrationExtractorBase from '@/components/IntegrationExtractorBase';
 
 import IntegrationMatcherForm from '@/components/IntegrationMatcherForm.vue';
 
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase, IntegrationExtractorBase],
+  mixins: [ItemListPageBase, IntegrationExtractorsBase],
   components: { IntegrationMatcherForm },
   computed: {
     projectId() {
@@ -114,12 +113,6 @@ export default {
         return parseInt(this.$route.params.integrationId, 10);
       }
       return this.$route.params.integrationId;
-    },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
     },
   },
   methods: {
@@ -164,10 +157,10 @@ export default {
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors/${this.extractorId}/matchers/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers/${this.itemId}`;
     },
     getEventName() {
       return 'w-integration-matcher';

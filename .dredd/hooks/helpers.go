@@ -61,7 +61,6 @@ func truncateAll() {
 		"user",
 		"project__view",
 		"project__integration",
-		"project__integration_extractor",
 		"project__integration_extract_value",
 		"project__integration_matcher",
 	}
@@ -243,27 +242,14 @@ func addIntegration() *db.Integration {
 	return &integration
 }
 
-func addIntegrationExtractor() *db.IntegrationExtractor {
-	integrationextractor, err := store.CreateIntegrationExtractor(userProject.ID, db.IntegrationExtractor{
-		IntegrationID: integrationID,
-		Name:          "Integration Extractor",
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	return &integrationextractor
-}
-
 func addIntegrationExtractValue() *db.IntegrationExtractValue {
 	integrationextractvalue, err := store.CreateIntegrationExtractValue(userProject.ID, db.IntegrationExtractValue{
-		Name:         "Value",
-		ExtractorID:  integrationExtractorID,
-		ValueSource:  db.IntegrationExtractBodyValue,
-		BodyDataType: db.IntegrationBodyDataJSON,
-		Key:          "key",
-		Variable:     "var",
+		Name:          "Value",
+		IntegrationID: integrationID,
+		ValueSource:   db.IntegrationExtractBodyValue,
+		BodyDataType:  db.IntegrationBodyDataJSON,
+		Key:           "key",
+		Variable:      "var",
 	})
 
 	if err != nil {
@@ -275,13 +261,13 @@ func addIntegrationExtractValue() *db.IntegrationExtractValue {
 
 func addIntegrationMatcher() *db.IntegrationMatcher {
 	integrationmatch, err := store.CreateIntegrationMatcher(userProject.ID, db.IntegrationMatcher{
-		Name:         "matcher",
-		ExtractorID:  integrationExtractorID,
-		MatchType:    "body",
-		Method:       "equals",
-		BodyDataType: "json",
-		Key:          "key",
-		Value:        "value",
+		Name:          "matcher",
+		IntegrationID: integrationID,
+		MatchType:     "body",
+		Method:        "equals",
+		BodyDataType:  "json",
+		Key:           "key",
+		Value:         "value",
 	})
 
 	if err != nil {
