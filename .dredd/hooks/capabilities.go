@@ -29,7 +29,6 @@ var inventoryID int
 var environmentID int
 var templateID int
 var integrationID int
-var integrationExtractorID int
 var integrationExtractValueID int
 var integrationMatchID int
 

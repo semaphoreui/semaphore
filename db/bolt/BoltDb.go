@@ -554,8 +554,8 @@ func (d *BoltDb) getIntegrationRefs(projectID int, objectProps db.ObjectProps, o
 	return
 }
 
-func (d *BoltDb) getIntegrationExtractorChildrenRefs(extractorID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorChildReferrers, err error) {
-	//refs.IntegrationExtractors, err = d.getReferringObjectByParentID(objectID, objectProps, extractorID, db.IntegrationExtractorProps)
+func (d *BoltDb) getIntegrationExtractorChildrenRefs(integrationID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorChildReferrers, err error) {
+	//refs.IntegrationExtractors, err = d.getReferringObjectByParentID(objectID, objectProps, integrationID, db.IntegrationExtractorProps)
 	//if err != nil {
 	//	return
 	//}

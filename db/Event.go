@@ -35,7 +35,6 @@ const (
 	EventUser                    EventObjectType = "user"
 	EventView                    EventObjectType = "view"
 	EventIntegration             EventObjectType = "integration"
-	EventIntegrationExtractor    EventObjectType = "integrationextractor"
 	EventIntegrationExtractValue EventObjectType = "integrationextractvalue"
 	EventIntegrationMatcher      EventObjectType = "integrationmatcher"
 )

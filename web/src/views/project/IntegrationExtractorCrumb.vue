@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="extractor != null">
+  <div v-if="integration != null">
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
 
@@ -40,12 +40,6 @@ export default {
       url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
       responseType: 'json',
     })).data;
-
-    this.extractor = (await axios({
-      method: 'get',
-      url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
-      responseType: 'json',
-    })).data;
   },
 
   computed: {
@@ -61,12 +55,6 @@ export default {
       }
       return this.$route.params.integrationId;
     },
-    extractorId() {
-      if (/^-?\d+$/.test(this.$route.params.extractorId)) {
-        return parseInt(this.$route.params.extractorId, 10);
-      }
-      return this.$route.params.extractorId;
-    },
   },
   methods: {
     allowActions() {
@@ -76,7 +64,7 @@ export default {
       return [];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}/extractors`;
+      return `/api/project/${this.projectId}/integrations`;
     },
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/integrations/${this.integrationId}`;
