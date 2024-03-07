@@ -460,92 +460,98 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object interfa
 	})
 }
 
-func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (interface{}, error) {
-	err := d.db.Update(func(tx *bbolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
+func (d *BoltDb) createObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object interface{}) (interface{}, error) {
+	b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
 
-		if err != nil {
-			return err
+	if err != nil {
+		return nil, err
+	}
+
+	objPtr := reflect.ValueOf(&object).Elem()
+
+	tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
+	tmpObj.Set(objPtr.Elem())
+
+	var objID objectID
+
+	if props.PrimaryColumnName != "" {
+		idFieldName, err2 := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+		if err2 != nil {
+			return nil, err2
 		}
 
-		objPtr := reflect.ValueOf(&object).Elem()
+		idValue := tmpObj.FieldByName(idFieldName)
 
-		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
-		tmpObj.Set(objPtr.Elem())
-
-		var objID objectID
-
-		if props.PrimaryColumnName != "" {
-			idFieldName, err2 := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-			if err2 != nil {
-				return err2
-			}
-
-			idValue := tmpObj.FieldByName(idFieldName)
-
-			switch idValue.Kind() {
-			case reflect.Int,
-				reflect.Int8,
-				reflect.Int16,
-				reflect.Int32,
-				reflect.Int64,
-				reflect.Uint,
-				reflect.Uint8,
-				reflect.Uint16,
-				reflect.Uint32,
-				reflect.Uint64:
-				if idValue.Int() == 0 {
-					id, err3 := b.NextSequence()
-					if err3 != nil {
-						return err3
-					}
-					if props.SortInverted {
-						id = MaxID - id
-					}
-					idValue.SetInt(int64(id))
-				}
-
-				objID = intObjectID(idValue.Int())
-			case reflect.String:
-				if idValue.String() == "" {
-					return fmt.Errorf("object ID can not be empty string")
-				}
-				objID = strObjectID(idValue.String())
-			case reflect.Invalid:
+		switch idValue.Kind() {
+		case reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64:
+			if idValue.Int() == 0 {
 				id, err3 := b.NextSequence()
 				if err3 != nil {
-					return err3
+					return nil, err3
 				}
-				objID = intObjectID(id)
-			default:
-				return fmt.Errorf("unsupported ID type")
+				if props.SortInverted {
+					id = MaxID - id
+				}
+				idValue.SetInt(int64(id))
 			}
-		} else {
-			id, err2 := b.NextSequence()
-			if err2 != nil {
-				return err2
+
+			objID = intObjectID(idValue.Int())
+		case reflect.String:
+			if idValue.String() == "" {
+				return nil, fmt.Errorf("object ID can not be empty string")
 			}
-			if props.SortInverted {
-				id = MaxID - id
+			objID = strObjectID(idValue.String())
+		case reflect.Invalid:
+			id, err3 := b.NextSequence()
+			if err3 != nil {
+				return nil, err3
 			}
 			objID = intObjectID(id)
+		default:
+			return nil, fmt.Errorf("unsupported ID type")
 		}
-
-		if objID == nil {
-			return fmt.Errorf("object ID can not be nil")
+	} else {
+		id, err2 := b.NextSequence()
+		if err2 != nil {
+			return nil, err2
 		}
-
-		objPtr.Set(tmpObj)
-		str, err := marshalObject(object)
-		if err != nil {
-			return err
+		if props.SortInverted {
+			id = MaxID - id
 		}
+		objID = intObjectID(id)
+	}
 
-		return b.Put(objID.ToBytes(), str)
+	if objID == nil {
+		return nil, fmt.Errorf("object ID can not be nil")
+	}
+
+	objPtr.Set(tmpObj)
+	str, err := marshalObject(object)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, b.Put(objID.ToBytes(), str)
+}
+
+func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (res interface{}, err error) {
+
+	_ = d.db.Update(func(tx *bbolt.Tx) error {
+		res, err = d.createObjectTx(tx, bucketID, props, object)
+		return err
 	})
 
-	return object, err
+	return
 }
 
 func (d *BoltDb) getIntegrationRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationReferrers, err error) {
