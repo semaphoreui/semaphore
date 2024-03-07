@@ -42,3 +42,16 @@ create table project__integration_matcher (
 
   foreign key (`integration_id`) references project__integration(`id`) on delete cascade
 );
+
+create table project__integration_alias (
+  `id` integer primary key autoincrement,
+  `alias` varchar(50) not null,
+  `project_id` int not null,
+  `integration_id` int,
+
+  foreign key (`project_id`) references project(`id`) on delete cascade,
+  foreign key (`integration_id`) references project__integration(`id`) on delete cascade,
+
+  unique (`alias`),
+  unique (`project_id`)
+);
