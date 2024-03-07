@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"reflect"
 )
 
 /*
@@ -48,26 +49,8 @@ func (d *BoltDb) GetIntegrationRefs(projectID int, integrationID int) (db.Integr
 	return db.IntegrationReferrers{}, nil
 }
 
-/*
-Integration Extractors
-*/
-
-/*
-Integration ExtractValue
-*/
-func (d *BoltDb) GetIntegrationExtractValuesByExtractorID(integrationID int) (values []db.IntegrationExtractValue, err error) {
-	err = d.getObjects(integrationID, db.IntegrationExtractValueProps, db.RetrieveQueryParams{}, nil, &values)
-	return values, err
-}
-
 func (d *BoltDb) DeleteIntegrationExtractValue(projectID int, valueID int, integrationID int) error {
 	return d.deleteObject(projectID, db.IntegrationExtractValueProps, intObjectID(valueID), nil)
-}
-
-func (d *BoltDb) GetIntegrationMatchersByExtractorID(integrationID int) (matchers []db.IntegrationMatcher, err error) {
-	err = d.getObjects(integrationID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, nil, &matchers)
-
-	return matchers, err
 }
 
 func (d *BoltDb) CreateIntegrationExtractValue(projectId int, value db.IntegrationExtractValue) (db.IntegrationExtractValue, error) {
@@ -194,4 +177,38 @@ func (d *BoltDb) DeleteIntegration(projectID int, integrationID int) error {
 
 func (d *BoltDb) GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (db.IntegrationExtractorChildReferrers, error) {
 	return d.getIntegrationExtractorChildrenRefs(projectID, db.IntegrationMatcherProps, matcherID)
+}
+
+var integrationAliasProps = db.ObjectProps{
+	TableName:         "integration_alias",
+	Type:              reflect.TypeOf(db.IntegrationAlias{}),
+	PrimaryColumnName: "alias",
+}
+
+func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
+	return
+}
+
+func (d *BoltDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.IntegrationAlias, err error) {
+	if integrationID == nil {
+		projectLevelIntegrationId := -1
+		integrationID = &projectLevelIntegrationId
+	}
+	err = d.getObject(projectID, db.IntegrationAliasProps, intObjectID(*integrationID), &res)
+	return
+}
+
+func (d *BoltDb) GetIntegrationAliasByAlias(alias string) (res db.IntegrationAlias, err error) {
+
+	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &res)
+
+	return
+}
+
+func (d *BoltDb) UpdateIntegrationAlias(alias db.IntegrationAlias) error {
+	return nil
+}
+
+func (d *BoltDb) DeleteIntegrationAlias(projectID int, integrationID *int) error {
+	return nil
 }
