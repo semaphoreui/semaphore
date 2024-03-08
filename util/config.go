@@ -163,14 +163,13 @@ type ConfigType struct {
 	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// Telegram, Slack and Microsoft Teams alerting
-	TelegramAlert bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
-	TelegramChat  string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
-	TelegramToken string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
-	SlackAlert    bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
-	SlackUrl      string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
+	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
+	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
+	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
+	SlackAlert          bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
+	SlackUrl            string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
 	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
-
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
@@ -186,7 +185,8 @@ type ConfigType struct {
 	PasswordLoginDisable     bool `json:"password_login_disable" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
-	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
+	UseRemoteRunner    bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
+	IntegrationsEnable bool `json:"integrations_enable" env:"SEMAPHORE_INTEGRATIONS_ENABLE"`
 
 	Runner RunnerSettings `json:"runner"`
 }

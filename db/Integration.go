@@ -64,6 +64,13 @@ type IntegrationExtractValue struct {
 	Variable      string                        `db:"variable" json:"variable"`
 }
 
+type IntegrationAlias struct {
+	ID            int    `db:"id" json:"id"`
+	Alias         string `db:"alias" json:"alias"`
+	ProjectID     int    `db:"project_id" json:"project_id"`
+	IntegrationID *int   `db:"integration_id" json:"integration_id"`
+}
+
 type Integration struct {
 	ID           int                   `db:"id" json:"id"`
 	Name         string                `db:"name" json:"name"`
@@ -73,6 +80,7 @@ type Integration struct {
 	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id"`
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
 	AuthSecret   AccessKey             `db:"-" json:"-"`
+	Searchable   bool                  `db:"searchable" json:"searchable"`
 }
 
 func (env *Integration) Validate() error {

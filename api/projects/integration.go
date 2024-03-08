@@ -13,8 +13,8 @@ import (
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		integration_id, err := helpers.GetIntParam("integration_id", w, r)
-		project := context.Get(r, "project").(db.Project)
+		integrationId, err := helpers.GetIntParam("integration_id", w, r)
+		projectId, err := helpers.GetIntParam("project_id", w, r)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -23,7 +23,7 @@ func IntegrationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		integration, err := helpers.Store(r).GetIntegration(project.ID, integration_id)
+		integration, err := helpers.Store(r).GetIntegration(projectId, integrationId)
 
 		if err != nil {
 			helpers.WriteError(w, err)
