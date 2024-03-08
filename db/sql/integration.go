@@ -15,14 +15,15 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration "+
-			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header) values "+
-			"(?, ?, ?, ?, ?, ?)",
+			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
-		integration.AuthHeader)
+		integration.AuthHeader,
+		integration.Searchable)
 
 	if err != nil {
 		return
@@ -81,97 +82,17 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
 	}
 
 	_, err = d.exec(
-		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=? where `id`=?",
+		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=?, searchable=? where `id`=?",
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
+		integration.Searchable,
 		integration.ID)
 
 	return err
 }
-
-func (d *SqlDb) GetIntegrationExtractValuesByExtractorID(integrationID int) (values []db.IntegrationExtractValue, err error) {
-	var sqlError error
-	query, args, sqlError := squirrel.Select("v.*").
-		From("project__integration_extract_value as v").
-		Where(squirrel.Eq{"integration_id": integrationID}).
-		OrderBy("v.id").
-		ToSql()
-
-	if sqlError != nil {
-		return []db.IntegrationExtractValue{}, sqlError
-	}
-
-	err = d.selectOne(&values, query, args...)
-
-	return values, err
-}
-
-func (d *SqlDb) GetIntegrationMatchersByExtractorID(integrationID int) (matchers []db.IntegrationMatcher, err error) {
-	var sqlError error
-	query, args, sqlError := squirrel.Select("m.*").
-		From("project__integration_matcher as m").
-		Where(squirrel.Eq{"integration_id": integrationID}).
-		OrderBy("m.id").
-		ToSql()
-
-	if sqlError != nil {
-		return []db.IntegrationMatcher{}, sqlError
-	}
-
-	err = d.selectOne(&matchers, query, args...)
-
-	return matchers, err
-}
-
-//func (d *SqlDb) DeleteIntegrationExtractor(projectID int, integrationID int, integrationID int) error {
-//	values, err := d.GetIntegrationExtractValuesByExtractorID(integrationID)
-//	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
-//		return err
-//	}
-//
-//	for value := range values {
-//
-//		err = d.DeleteIntegrationExtractValue(0, values[value].ID, integrationID)
-//		if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
-//			log.Error(err)
-//			return err
-//		}
-//	}
-//
-//	matchers, errExtractor := d.GetIntegrationMatchersByExtractorID(integrationID)
-//	if errExtractor != nil && !strings.Contains(errExtractor.Error(), "no rows in result set") {
-//		log.Error(errExtractor)
-//		return errExtractor
-//	}
-//
-//	for matcher := range matchers {
-//		err = d.DeleteIntegrationMatcher(0, matchers[matcher].ID, integrationID)
-//		if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
-//			log.Error(err)
-//			return err
-//		}
-//	}
-//
-//	return d.deleteObjectByReferencedID(integrationID, db.IntegrationProps, db.IntegrationExtractorProps, integrationID)
-//}
-//
-//func (d *SqlDb) UpdateIntegrationExtractor(projectID int, integrationExtractor db.IntegrationExtractor) error {
-//	err := integrationExtractor.Validate()
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	_, err = d.exec(
-//		"update project__integration_extractor set name=? where id=?",
-//		integrationExtractor.Name,
-//		integrationExtractor.ID)
-//
-//	return err
-//}
 
 func (d *SqlDb) CreateIntegrationExtractValue(projectId int, value db.IntegrationExtractValue) (newValue db.IntegrationExtractValue, err error) {
 	err = value.Validate()
@@ -356,4 +277,24 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 		integrationMatcher.ID)
 
 	return err
+}
+
+func (d *SqlDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
+	return
+}
+
+func (d *SqlDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.IntegrationAlias, err error) {
+	return
+}
+
+func (d *SqlDb) GetIntegrationAliasByAlias(alias string) (res db.IntegrationAlias, err error) {
+	return
+}
+
+func (d *SqlDb) UpdateIntegrationAlias(alias db.IntegrationAlias) error {
+	return nil
+}
+
+func (d *SqlDb) DeleteIntegrationAlias(projectID int, integrationID *int) error {
+	return nil
 }

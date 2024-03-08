@@ -260,7 +260,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="integrations" :to="`/project/${projectId}/integrations`">
+        <v-list-item
+          v-if="user.integartions_enable"
+          key="integrations"
+          :to="`/project/${projectId}/integrations`"
+        >
           <v-list-item-icon>
             <v-icon>mdi-connection</v-icon>
           </v-list-item-icon>
@@ -291,7 +295,7 @@
               persistent-hint
             ></v-switch>
 
-            <v-spacer />
+            <v-spacer/>
 
             <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
               <template v-slot:activator="{on, attrs}">
@@ -537,7 +541,7 @@
   }
 
   & > td:first-child {
-  //font-weight: bold !important;
+    //font-weight: bold !important;
   }
 }
 

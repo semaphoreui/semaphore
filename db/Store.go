@@ -156,6 +156,12 @@ type Store interface {
 	GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (IntegrationExtractorChildReferrers, error)
 	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
 
+	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
+	GetIntegrationAlias(projectID int, integrationID *int) (IntegrationAlias, error)
+	GetIntegrationAliasByAlias(alias string) (IntegrationAlias, error)
+	UpdateIntegrationAlias(alias IntegrationAlias) error
+	DeleteIntegrationAlias(projectID int, integrationID *int) error
+
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
@@ -274,6 +280,12 @@ var IntegrationMatcherProps = ObjectProps{
 	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",
+}
+
+var IntegrationAliasProps = ObjectProps{
+	TableName:         "project__integration_alias",
+	Type:              reflect.TypeOf(IntegrationAlias{}),
+	PrimaryColumnName: "id",
 }
 
 var EnvironmentProps = ObjectProps{
