@@ -261,7 +261,7 @@
         </v-list-item>
 
         <v-list-item
-          v-if="user.integartions_enable"
+          v-if="user.integrations_enable || user.admin"
           key="integrations"
           :to="`/project/${projectId}/integrations`"
         >
