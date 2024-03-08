@@ -541,7 +541,7 @@ func (d *BoltDb) createObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps
 		return nil, err
 	}
 
-	return nil, b.Put(objID.ToBytes(), str)
+	return object, b.Put(objID.ToBytes(), str)
 }
 
 func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (res interface{}, err error) {
