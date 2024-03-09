@@ -1,9 +1,9 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"os"
@@ -82,7 +82,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile:
+	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile, db.InventoryTerraformWorkspace:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
