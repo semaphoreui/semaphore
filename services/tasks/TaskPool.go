@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
@@ -216,6 +217,14 @@ func CreateTaskPool(store db.Store) TaskPool {
 }
 
 func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
+	tsk := p.GetTask(targetTask.ID)
+
+	if tsk == nil { // task not active, but exists in database
+		return fmt.Errorf("task is not active")
+	}
+
+	tsk.SetStatus(lib.TaskConfirmed)
+
 	return nil
 }
 

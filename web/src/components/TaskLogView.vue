@@ -13,7 +13,7 @@
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
-                <div>
+                <div class="pr-4">
                   <TaskStatus :status="item.status"/>
                 </div>
               </v-list-item-content>
