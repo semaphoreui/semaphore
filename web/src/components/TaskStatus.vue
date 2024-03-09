@@ -43,6 +43,10 @@ export default {
           return 'mdi-stop-circle';
         case TaskStatus.STOPPED:
           return 'mdi-stop-circle';
+        case TaskStatus.CONFIRMED:
+          return 'mdi-check-circle';
+        case TaskStatus.WAITING_CONFIRMATION:
+          return 'mdi-pause-circle';
         default:
           throw new Error(`Unknown task status ${status}`);
       }
@@ -64,6 +68,10 @@ export default {
           return 'Stopping...';
         case TaskStatus.STOPPED:
           return 'Stopped';
+        case TaskStatus.CONFIRMED:
+          return 'Confirmed';
+        case TaskStatus.WAITING_CONFIRMATION:
+          return 'Waiting confirmation';
         default:
           throw new Error(`Unknown task status ${status}`);
       }
@@ -85,6 +93,10 @@ export default {
           return '';
         case TaskStatus.STOPPED:
           return '';
+        case TaskStatus.CONFIRMED:
+          return 'warning';
+        case TaskStatus.WAITING_CONFIRMATION:
+          return 'warning';
         default:
           throw new Error(`Unknown task status ${status}`);
       }

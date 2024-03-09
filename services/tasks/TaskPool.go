@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
@@ -9,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type logRecord struct {
@@ -213,6 +214,18 @@ func CreateTaskPool(store db.Store) TaskPool {
 		store:          store,
 		resourceLocker: make(chan *resourceLock),
 	}
+}
+
+func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
+	tsk := p.GetTask(targetTask.ID)
+
+	if tsk == nil { // task not active, but exists in database
+		return fmt.Errorf("task is not active")
+	}
+
+	tsk.SetStatus(lib.TaskConfirmed)
+
+	return nil
 }
 
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
