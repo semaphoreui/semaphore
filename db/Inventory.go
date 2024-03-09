@@ -1,9 +1,12 @@
 package db
 
+type InventoryType string
+
 const (
-	InventoryStatic     = "static"
-	InventoryStaticYaml = "static-yaml"
-	InventoryFile       = "file"
+	InventoryStatic     InventoryType = "static"
+	InventoryStaticYaml InventoryType = "static-yaml"
+	// InventoryFile means that it is path to the Ansible inventory file
+	InventoryFile InventoryType = "file"
 )
 
 // Inventory is the model of an ansible inventory file
@@ -21,7 +24,7 @@ type Inventory struct {
 	BecomeKey   AccessKey `db:"-" json:"-"`
 
 	// static/file
-	Type string `db:"type" json:"type"`
+	Type InventoryType `db:"type" json:"type"`
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
