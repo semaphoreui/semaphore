@@ -134,7 +134,7 @@
 
         <v-text-field
           v-model="item.playbook"
-          :label="$t('playbookFilename')"
+          label="Path"
           :rules="[v => !!v || $t('playbook_filename_required')]"
           outlined
           dense
@@ -182,34 +182,9 @@
           :disabled="formSaving"
         ></v-select>
 
-        <v-select
-          v-if="itemTypeIndex === 0"
-          v-model="item.vault_key_id"
-          :label="$t('vaultPassword')"
-          clearable
-          :items="loginPasswordKeys"
-          item-value="id"
-          item-text="name"
-          :disabled="formSaving"
-          outlined
-          dense
-        ></v-select>
       </v-col>
 
       <v-col cols="12" md="6" class="pb-0">
-
-        <v-select
-          v-if="itemTypeIndex > 0"
-          v-model="item.vault_key_id"
-          :label="$t('vaultPassword2')"
-          clearable
-          :items="loginPasswordKeys"
-          item-value="id"
-          item-text="name"
-          :disabled="formSaving"
-          outlined
-          dense
-        ></v-select>
 
         <SurveyVars style="margin-top: -10px;" :vars="item.survey_vars" @change="setSurveyVars"/>
 
