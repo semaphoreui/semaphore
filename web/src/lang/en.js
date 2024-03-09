@@ -137,6 +137,7 @@ export default {
   duration: 'Duration',
   stop: 'Stop',
   forceStop: 'Force Stop',
+  confirmTask: 'Confirm',
   deleteTeamMember: 'Delete team member',
   team2: 'Team',
   newTeamMember: 'New Team Member',

@@ -1,9 +1,9 @@
 <template>
   <div class="task-log-view" :class="{'task-log-view--with-message': item.message}">
     <v-alert
-        type="info"
-        text
-        v-if="item.message"
+      type="info"
+      text
+      v-if="item.message"
     >{{ item.message }}
     </v-alert>
 
@@ -25,7 +25,7 @@
             <v-list-item class="pa-0">
               <v-list-item-content>
                 <v-list-item-title>{{ $t('author') }}</v-list-item-title>
-                <v-list-item-subtitle>{{ user.name }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ user.name || '-' }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -34,7 +34,7 @@
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
-                <v-list-item-title>{{ $t('started') }}</v-list-item-title>
+                <v-list-item-title>{{ $t('started') || '-' }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ item.start | formatDate }}
                 </v-list-item-subtitle>
@@ -45,7 +45,7 @@
         <v-col>
           <v-list-item class="pa-0">
             <v-list-item-content>
-              <v-list-item-title>{{ $t('duration') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('duration') || '-' }}</v-list-item-title>
               <v-list-item-subtitle>
                 {{ [item.start, item.end] | formatMilliseconds }}
               </v-list-item-subtitle>
@@ -64,11 +64,37 @@
       </div>
     </div>
 
+    <div
+      v-if="item.status === 'waiting_confirmation'"
+      class="pl-4"
+      style="
+        background: white;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 55px;
+        display: flex;
+        align-items: center;
+      "
+    >
+      Please confirm this task.
+    </div>
+
     <v-btn
-        color="error"
-        style="position: absolute; bottom: 10px; right: 10px;"
-        v-if="canStop"
-        @click="stopTask(item.status === 'stopping')"
+      color="warning"
+      style="position: absolute; bottom: 10px; right: 170px; width: 150px;"
+      v-if="item.status === 'waiting_confirmation'"
+      @click="confirmTask()"
+    >
+      {{ $t('confirmTask') }}
+    </v-btn>
+
+    <v-btn
+      color="error"
+      style="position: absolute; bottom: 10px; right: 10px; width: 150px;"
+      v-if="canStop"
+      @click="stopTask(item.status === 'stopping')"
     >
       {{ item.status === 'stopping' ? $t('forceStop') : $t('stop') }}
     </v-btn>
@@ -90,7 +116,7 @@
   overflow: auto;
   font-family: monospace;
   margin: 0 -24px;
-  padding: 5px 10px;
+  padding: 5px 10px 50px;
 }
 
 .task-log-view--with-message .task-log-records {
@@ -156,7 +182,7 @@ export default {
 
   computed: {
     canStop() {
-      return ['running', 'stopping', 'waiting', 'starting'].includes(this.item.status);
+      return ['running', 'stopping', 'waiting', 'starting', 'waiting_confirmation', 'confirmed'].includes(this.item.status);
     },
   },
 
@@ -166,6 +192,15 @@ export default {
   },
 
   methods: {
+    async confirmTask() {
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/tasks/${this.itemId}/confirm`,
+        responseType: 'json',
+        data: {},
+      });
+    },
+
     async stopTask(force) {
       await axios({
         method: 'post',
