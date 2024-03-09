@@ -144,6 +144,7 @@ func Route() *mux.Router {
 	projectTaskStop := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectTaskStop.Use(projects.ProjectMiddleware, projects.GetTaskMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
 	projectTaskStop.HandleFunc("/tasks/{task_id}/stop", projects.StopTask).Methods("POST")
+	projectTaskStop.HandleFunc("/tasks/{task_id}/confirm", projects.StopTask).Methods("POST")
 
 	//
 	// Project resources CRUD
