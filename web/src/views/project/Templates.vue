@@ -30,11 +30,32 @@
       :max-width="700"
       v-model="editDialog"
       :save-button-text="$t('create')"
-      :title="$t('newTemplate')"
+      :icon="(itemTemplateType || {}).icon"
+      :icon-color="(itemTemplateType || {}).color"
+      :title="$t('newTemplate') + ' \'' + (itemTemplateType || {}).title + '\''"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
+          v-if="(itemTemplateType || {}).slug === ''"
+          :project-id="projectId"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+        <TerraformTemplateForm
+          v-if="(itemTemplateType || {}).slug === 'terraform'"
+          :project-id="projectId"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+        <BashTemplateForm
+          v-if="(itemTemplateType || {}).slug === 'bash'"
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -61,13 +82,35 @@
         {{ $t('taskTemplates2') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        class="mr-1"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newTemplate') }}
-      </v-btn>
+
+      <v-menu
+        open-on-hover
+        offset-y
+      >
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            class="mr-1"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >{{ $t('newTemplate') }}
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item
+            v-for="item in templateTypes"
+            :key="item.slug"
+            link
+            @click="editItem('new'); itemTemplateType = item;"
+          >
+            <v-list-item-icon>
+              <v-icon :color="item.color">{{ item.icon }}</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn icon @click="settingsSheet = true">
         <v-icon>mdi-cog</v-icon>
@@ -234,10 +277,14 @@ import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
+import TerraformTemplateForm from '@/components/TerraformTemplateForm.vue';
+import BashTemplateForm from '@/components/BashTemplateForm.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
 
 export default {
   components: {
+    BashTemplateForm,
+    TerraformTemplateForm,
     TemplateForm,
     TableSettingsSheet,
     TaskStatus,
@@ -267,6 +314,23 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
+      templateTypes: [{
+        slug: '',
+        title: 'Ansible Playbook',
+        icon: 'mdi-ansible',
+        color: 'black',
+      }, {
+        slug: 'terraform',
+        title: 'Terraform',
+        icon: 'mdi-terraform',
+        color: '#7b42bc',
+      }, {
+        slug: 'bash',
+        title: 'Bash Script',
+        icon: 'mdi-bash',
+        color: 'black',
+      }],
+      itemTemplateType: null,
     };
   },
   computed: {
