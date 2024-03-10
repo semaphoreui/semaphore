@@ -30,14 +30,14 @@
       :max-width="700"
       v-model="editDialog"
       :save-button-text="$t('create')"
-      :icon="(itemTemplateType || {}).icon"
-      :icon-color="(itemTemplateType || {}).color"
-      :title="$t('newTemplate') + ' \'' + (itemTemplateType || {}).title + '\''"
+      :icon="(itemApp || {}).icon"
+      :icon-color="(itemApp || {}).color"
+      :title="$t('newTemplate') + ' \'' + (itemApp || {}).title + '\''"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TemplateForm
-          v-if="(itemTemplateType || {}).slug === ''"
+          v-if="(itemApp || {}).slug === ''"
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -46,7 +46,7 @@
           :need-reset="needReset"
         />
         <TerraformTemplateForm
-          v-if="(itemTemplateType || {}).slug === 'terraform'"
+          v-if="(itemApp || {}).slug === 'terraform'"
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -55,7 +55,7 @@
           :need-reset="needReset"
         />
         <BashTemplateForm
-          v-if="(itemTemplateType || {}).slug === 'bash'"
+          v-if="(itemApp || {}).slug === 'bash'"
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -99,10 +99,10 @@
         </template>
         <v-list>
           <v-list-item
-            v-for="item in templateTypes"
+            v-for="item in templateApps"
             :key="item.slug"
             link
-            @click="editItem('new'); itemTemplateType = item;"
+            @click="editItem('new'); itemApp = item;"
           >
             <v-list-item-icon>
               <v-icon :color="item.color">{{ item.icon }}</v-icon>
@@ -314,7 +314,7 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateTypes: [{
+      templateApps: [{
         slug: '',
         title: 'Ansible Playbook',
         icon: 'mdi-ansible',
@@ -330,7 +330,7 @@ export default {
         icon: 'mdi-bash',
         color: 'black',
       }],
-      itemTemplateType: null,
+      itemApp: null,
     };
   },
   computed: {

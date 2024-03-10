@@ -3,7 +3,9 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Inventory`"
+      :icon="(itemApp || {}).icon"
+      :icon-color="(itemApp || {}).color"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${(itemApp || {}).title}`"
       :max-width="450"
       @save="loadItems"
     >
@@ -37,11 +39,34 @@
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newInventory') }}</v-btn>
+
+      <v-menu
+        open-on-hover
+        offset-y
+      >
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >{{ $t('newInventory') }}</v-btn>
+        </template>
+        <v-list>
+          <v-list-item
+            v-for="item in templateApps"
+            :key="item.slug"
+            link
+            @click="editItem('new'); itemApp = item;"
+          >
+            <v-list-item-icon>
+              <v-icon :color="item.color">{{ item.icon }}</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+
     </v-toolbar>
 
     <v-data-table
@@ -87,6 +112,24 @@ import InventoryForm from '@/components/InventoryForm.vue';
 export default {
   mixins: [ItemListPageBase],
   components: { InventoryForm },
+
+  data() {
+    return {
+      templateApps: [{
+        slug: '',
+        title: 'Ansible Inventory',
+        icon: 'mdi-ansible',
+        color: 'black',
+      }, {
+        slug: 'terraform',
+        title: 'Terraform Workspace',
+        icon: 'mdi-terraform',
+        color: '#7b42bc',
+      }],
+      itemApp: null,
+    };
+  },
+
   methods: {
     getHeaders() {
       return [{
