@@ -46,7 +46,7 @@
           :need-reset="needReset"
         />
         <TerraformTemplateForm
-          v-if="(itemApp || {}).slug === 'terraform'"
+          v-else-if="(itemApp || {}).slug === 'terraform'"
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -55,7 +55,7 @@
           :need-reset="needReset"
         />
         <BashTemplateForm
-          v-if="(itemApp || {}).slug === 'bash'"
+          v-else-if="(itemApp || {}).slug === 'bash'"
           :project-id="projectId"
           item-id="new"
           @save="onSave"

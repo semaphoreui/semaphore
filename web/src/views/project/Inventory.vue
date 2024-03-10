@@ -3,14 +3,24 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="(itemApp || {}).icon"
-      :icon-color="(itemApp || {}).color"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${(itemApp || {}).title}`"
+      :icon="itemApp.icon"
+      :icon-color="itemApp.color"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemApp.title}`"
       :max-width="450"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TerraformInventoryForm
+          v-if="itemApp.slug === 'terraform'"
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
         <InventoryForm
+          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -57,7 +67,7 @@
             v-for="item in templateApps"
             :key="item.slug"
             link
-            @click="editItem('new'); itemApp = item;"
+            @click="itemApp = item; editItem('new');"
           >
             <v-list-item-icon>
               <v-icon :color="item.color">{{ item.icon }}</v-icon>
@@ -108,10 +118,11 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
+import TerraformInventoryForm from '@/components/TerraformInventoryForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
-  components: { InventoryForm },
+  components: { TerraformInventoryForm, InventoryForm },
 
   data() {
     return {
@@ -126,7 +137,7 @@ export default {
         icon: 'mdi-terraform',
         color: '#7b42bc',
       }],
-      itemApp: null,
+      itemApp: {},
     };
   },
 
