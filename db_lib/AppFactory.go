@@ -23,11 +23,6 @@ func CreateApp(template db.Template, repository db.Repository, logger lib.Logger
 			Template:   template,
 			Repository: repository,
 			Logger:     logger,
-			//Playbook: &AnsiblePlaybook{
-			//	TemplateID: template.ID,
-			//	Repository: repository,
-			//	Logger:     logger,
-			//},
 		}
 	default:
 		panic("unknown app")
