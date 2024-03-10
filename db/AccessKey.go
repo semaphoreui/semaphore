@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -132,12 +131,12 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			agent, err = key.startSshAgent(logger)
 			installation.SshAgent = &agent
 
-			//err = ioutil.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+			//err = os.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
 		switch key.Type {
 		case AccessKeyLoginPassword:
-			err = ioutil.WriteFile(installationPath, []byte(key.LoginPassword.Password), 0600)
+			err = os.WriteFile(installationPath, []byte(key.LoginPassword.Password), 0600)
 		}
 	case AccessKeyRoleAnsibleBecomeUser:
 		switch key.Type {
@@ -152,7 +151,7 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			if err != nil {
 				return
 			}
-			err = ioutil.WriteFile(installationPath, bytes, 0600)
+			err = os.WriteFile(installationPath, bytes, 0600)
 		default:
 			err = fmt.Errorf("access key type not supported for ansible user")
 		}
@@ -162,7 +161,7 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			var agent lib.SshAgent
 			agent, err = key.startSshAgent(logger)
 			installation.SshAgent = &agent
-			//err = ioutil.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
+			//err = os.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
 			content["ansible_user"] = key.LoginPassword.Login
@@ -172,7 +171,7 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			if err != nil {
 				return
 			}
-			err = ioutil.WriteFile(installationPath, bytes, 0600)
+			err = os.WriteFile(installationPath, bytes, 0600)
 
 		default:
 			err = fmt.Errorf("access key type not supported for ansible user")
