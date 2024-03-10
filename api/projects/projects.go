@@ -1,10 +1,10 @@
 package projects
 
 import (
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -128,7 +128,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Playbook:      "ping.yml",
 		Description:   &desc,
 		ProjectID:     projectID,
-		InventoryID:   &prodInv.ID,
+		InventoryID:   prodInv.ID,
 		EnvironmentID: &emptyEnv.ID,
 		RepositoryID:  demoRepo.ID,
 	})
@@ -145,7 +145,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Playbook:      "build.yml",
 		Type:          db.TemplateBuild,
 		ProjectID:     projectID,
-		InventoryID:   &buildInv.ID,
+		InventoryID:   buildInv.ID,
 		EnvironmentID: &emptyEnv.ID,
 		RepositoryID:  demoRepo.ID,
 		StartVersion:  &startVersion,
@@ -160,7 +160,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
-		InventoryID:     &devInv.ID,
+		InventoryID:     devInv.ID,
 		EnvironmentID:   &emptyEnv.ID,
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
@@ -177,7 +177,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
-		InventoryID:     &prodInv.ID,
+		InventoryID:     prodInv.ID,
 		EnvironmentID:   &emptyEnv.ID,
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,

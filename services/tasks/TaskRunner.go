@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
-	log "github.com/sirupsen/logrus"
 )
 
 type Job interface {
@@ -265,11 +265,9 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	if t.Template.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
-		if err != nil {
-			return t.prepareError(err, "Template Inventory not found!")
-		}
+	t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, t.Template.InventoryID)
+	if err != nil {
+		return t.prepareError(err, "Template Inventory not found!")
 	}
 
 	// get repository
