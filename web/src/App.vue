@@ -180,7 +180,7 @@
             </v-list-item-icon>
 
             <v-list-item-content>
-              {{ $t('restore') }}
+              {{ $t('restoreProject') }}
             </v-list-item-content>
           </v-list-item>
         </v-list>

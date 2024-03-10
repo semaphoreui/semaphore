@@ -134,26 +134,14 @@
 
         <v-text-field
           v-model="item.playbook"
-          label="Subdirectory path (optional)"
+          label="Script Filename"
+          :rules="[v => !!v || $t('playbook_filename_required')]"
           outlined
           dense
           required
           :disabled="formSaving"
-          placeholder="Example: path/to/terraform/dir"
+          :placeholder="$t('exampleSiteyml')"
         ></v-text-field>
-
-        <v-select
-          v-model="item.inventory_id"
-          label="Workspace"
-          :items="inventory"
-          item-value="id"
-          item-text="name"
-          :rules="[v => !!v || $t('inventory_required')]"
-          outlined
-          dense
-          required
-          :disabled="formSaving"
-        ></v-select>
 
         <v-select
           v-model="item.repository_id"
@@ -180,7 +168,6 @@
           required
           :disabled="formSaving"
         ></v-select>
-
       </v-col>
 
       <v-col cols="12" md="6" class="pb-0">
@@ -270,7 +257,6 @@
 import axios from 'axios';
 
 import ItemFormBase from '@/components/ItemFormBase';
-
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
 import SurveyVars from './SurveyVars';
 
@@ -349,6 +335,13 @@ export default {
         && this.schedules != null
         && this.views != null;
     },
+
+    loginPasswordKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => key.type === 'login_password');
+    },
   },
 
   methods: {
@@ -388,7 +381,7 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/inventory`,
         responseType: 'json',
-      })).data.filter((inv) => inv.type === 'terraform-workspace' && inv.holder_id == null);
+      })).data.filter((inv) => inv.type === 'none');
 
       this.environment = (await axios({
         keys: 'get',
@@ -457,7 +450,8 @@ export default {
     },
 
     async beforeSave() {
-      this.item.app = 'terraform';
+      this.item.app = 'bash';
+      this.item.inventory_id = this.inventory[0].id;
 
       if (this.cronFormat == null || this.cronFormat === '') {
         return;

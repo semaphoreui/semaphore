@@ -61,23 +61,9 @@
 
     <v-row no-gutters class="mt-6">
       <v-col cols="12" sm="6">
-        <v-checkbox class="mt-0" v-model="item.debug">
-          <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('debug') }} <code>--vvvv</code></div>
-          </template>
-        </v-checkbox>
-      </v-col>
-      <v-col cols="12" sm="6">
         <v-checkbox class="mt-0" v-model="item.dry_run">
           <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
-          </template>
-        </v-checkbox>
-      </v-col>
-      <v-col cols="12" sm="6">
-        <v-checkbox class="mt-0" v-model="item.diff">
-          <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
+            <div class="text-no-wrap">Plan</div>
           </template>
         </v-checkbox>
       </v-col>

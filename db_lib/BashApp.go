@@ -10,14 +10,14 @@ import (
 	"strings"
 )
 
-type TerraformApp struct {
+type BashApp struct {
 	Logger lib.Logger
 	//Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
 }
 
-func (t *TerraformApp) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
+func (t *BashApp) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
@@ -47,33 +47,27 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars *[
 	return cmd
 }
 
-func (t *TerraformApp) runCmd(command string, args []string) error {
+func (t *BashApp) runCmd(command string, args []string) error {
 	cmd := t.makeCmd(command, args, nil)
 	t.Logger.LogCmd(cmd)
 	return cmd.Run()
 }
 
-func (t *TerraformApp) GetFullPath() (path string) {
+func (t *BashApp) GetFullPath() (path string) {
 	path = t.Repository.GetFullPath(t.Template.ID)
 	return
 }
 
-func (t *TerraformApp) SetLogger(logger lib.Logger) {
+func (t *BashApp) SetLogger(logger lib.Logger) {
 	t.Logger = logger
 }
 
-func (t *TerraformApp) InstallRequirements() error {
-	cmd := t.makeCmd("terraform", []string{"init"}, nil)
-	t.Logger.LogCmd(cmd)
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
-	return cmd.Wait()
+func (t *BashApp) InstallRequirements() error {
+	return nil
 }
 
-func (t *TerraformApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
-	cmd := t.makeCmd("terraform", args, environmentVars)
+func (t *BashApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+	cmd := t.makeCmd("bash", args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()

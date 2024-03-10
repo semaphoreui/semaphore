@@ -1,7 +1,7 @@
 export default {
   backup: 'Backup',
   downloadTheProjectBackupFile: 'Download the project backup file (in json)',
-  restore: 'Restore...',
+  restoreProject: 'Restore Project...',
   incorrectUsrPwd: 'Incorrect login or password',
   askDeleteUser: 'Do you really want to delete this user?',
   askDeleteTemp: 'Do you really want to delete this template?',
@@ -138,6 +138,7 @@ export default {
   duration: 'Duration',
   stop: 'Stop',
   forceStop: 'Force Stop',
+  confirmTask: 'Confirm',
   deleteTeamMember: 'Delete team member',
   team2: 'Team',
   newTeamMember: 'New Team Member',

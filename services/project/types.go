@@ -50,11 +50,11 @@ type BackupView struct {
 }
 
 type BackupInventory struct {
-	Name      string  `json:"name"`
-	Inventory string  `json:"inventory"`
-	SSHKey    *string `json:"ssh_key"`
-	BecomeKey *string `json:"become_key"`
-	Type      string  `json:"type"`
+	Name      string           `json:"name"`
+	Inventory string           `json:"inventory"`
+	SSHKey    *string          `json:"ssh_key"`
+	BecomeKey *string          `json:"become_key"`
+	Type      db.InventoryType `json:"type"`
 }
 
 type BackupRepository struct {

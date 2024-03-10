@@ -1,10 +1,10 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -218,6 +218,17 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = store.CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Role: db.ProjectOwner})
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	_, err = store.CreateInventory(db.Inventory{
+		Name:      "None",
+		ProjectID: body.ID,
+		Type:      "none",
+	})
+
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

@@ -28,12 +28,13 @@ func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 	_, err := d.exec(
-		"update project__inventory set name=?, type=?, ssh_key_id=?, inventory=?, become_key_id=? where id=?",
+		"update project__inventory set name=?, type=?, ssh_key_id=?, inventory=?, become_key_id=?, holder_id=? where id=?",
 		inventory.Name,
 		inventory.Type,
 		inventory.SSHKeyID,
 		inventory.Inventory,
 		inventory.BecomeKeyID,
+		inventory.HolderID,
 		inventory.ID)
 
 	return err
@@ -42,13 +43,15 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__inventory (project_id, name, type, ssh_key_id, inventory, become_key_id) values (?, ?, ?, ?, ?, ?)",
+		"insert into project__inventory (project_id, name, type, ssh_key_id, inventory, become_key_id, holder_id) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		inventory.ProjectID,
 		inventory.Name,
 		inventory.Type,
 		inventory.SSHKeyID,
 		inventory.Inventory,
-		inventory.BecomeKeyID)
+		inventory.BecomeKeyID,
+		inventory.HolderID)
 
 	if err != nil {
 		return
