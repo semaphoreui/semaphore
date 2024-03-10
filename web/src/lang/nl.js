@@ -1,7 +1,7 @@
 export default {
   backup: 'Back-up',
   downloadTheProjectBackupFile: 'Download het back-upbestand van het project (in json)',
-  restore: 'Herstellen...',
+  restoreProject: 'Herstellen...',
   incorrectUsrPwd: 'Onjuiste gebruikersnaam of wachtwoord',
   askDeleteUser: 'Wilt u deze gebruiker echt verwijderen?',
   askDeleteTemp: 'Wilt u deze sjabloon echt verwijderen?',
