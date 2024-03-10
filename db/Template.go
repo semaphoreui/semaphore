@@ -46,7 +46,7 @@ type Template struct {
 	ID int `db:"id" json:"id"`
 
 	ProjectID     int  `db:"project_id" json:"project_id"`
-	InventoryID   *int `db:"inventory_id" json:"inventory_id"`
+	InventoryID   int  `db:"inventory_id" json:"inventory_id"`
 	RepositoryID  int  `db:"repository_id" json:"repository_id"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id"`
 
