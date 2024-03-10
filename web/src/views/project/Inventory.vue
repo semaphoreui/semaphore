@@ -51,16 +51,17 @@
       <v-spacer></v-spacer>
 
       <v-menu
-        open-on-hover
         offset-y
       >
         <template v-slot:activator="{ on, attrs }">
           <v-btn
+            class="pr-2"
             v-bind="attrs"
             v-on="on"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
           >{{ $t('newInventory') }}
+            <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
         <v-list>

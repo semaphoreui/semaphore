@@ -30,23 +30,14 @@
       :max-width="700"
       v-model="editDialog"
       :save-button-text="$t('create')"
-      :icon="(itemApp || {}).icon"
-      :icon-color="(itemApp || {}).color"
-      :title="$t('newTemplate') + ' \'' + (itemApp || {}).title + '\''"
+      :icon="APP_ICONS[itemApp].icon"
+      :icon-color="$vuetify.theme.dark ? APP_ICONS[itemApp].darkColor : APP_ICONS[itemApp].color"
+      :title="$t('newTemplate') + ' \'' + APP_TITLE[itemApp] + '\''"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TemplateForm
-          v-if="(itemApp || {}).slug === ''"
-          :project-id="projectId"
-          item-id="new"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
         <TerraformTemplateForm
-          v-else-if="(itemApp || {}).slug === 'terraform'"
+          v-if="itemApp === 'terraform'"
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -55,7 +46,16 @@
           :need-reset="needReset"
         />
         <BashTemplateForm
-          v-else-if="(itemApp || {}).slug === 'bash'"
+          v-else-if="itemApp === 'bash'"
+          :project-id="projectId"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+        <TemplateForm
+          v-else
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -85,7 +85,6 @@
       <v-spacer></v-spacer>
 
       <v-menu
-        open-on-hover
         offset-y
       >
         <template v-slot:activator="{ on, attrs }">
@@ -93,22 +92,28 @@
             v-bind="attrs"
             v-on="on"
             color="primary"
-            class="mr-1"
+            class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
-          >{{ $t('newTemplate') }}
+          >
+            {{ $t('newTemplate') }}
+            <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
         <v-list>
           <v-list-item
             v-for="item in templateApps"
-            :key="item.slug"
+            :key="item"
             link
             @click="editItem('new'); itemApp = item;"
           >
             <v-list-item-icon>
-              <v-icon :color="item.color">{{ item.icon }}</v-icon>
+              <v-icon
+                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
+              >
+                {{ APP_ICONS[item].icon }}
+              </v-icon>
             </v-list-item-icon>
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
+            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -280,7 +285,12 @@ import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 import TerraformTemplateForm from '@/components/TerraformTemplateForm.vue';
 import BashTemplateForm from '@/components/BashTemplateForm.vue';
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
+import {
+  APP_ICONS,
+  APP_TITLE,
+  TEMPLATE_TYPE_ACTION_TITLES,
+  TEMPLATE_TYPE_ICONS,
+} from '@/lib/constants';
 
 export default {
   components: {
@@ -302,6 +312,8 @@ export default {
   },
   data() {
     return {
+      APP_TITLE,
+      APP_ICONS,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_ACTION_TITLES,
       inventory: null,
@@ -315,23 +327,8 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateApps: [{
-        slug: '',
-        title: 'Ansible Playbook',
-        icon: 'mdi-ansible',
-        color: 'black',
-      }, {
-        slug: 'terraform',
-        title: 'Terraform',
-        icon: 'mdi-terraform',
-        color: '#7b42bc',
-      }, {
-        slug: 'bash',
-        title: 'Bash Script',
-        icon: 'mdi-bash',
-        color: 'black',
-      }],
-      itemApp: null,
+      templateApps: ['', 'terraform', 'bash'],
+      itemApp: '',
     };
   },
   computed: {

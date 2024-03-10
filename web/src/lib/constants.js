@@ -84,11 +84,17 @@ export const APP_ICONS = {
     color: '#7b42bc',
     darkColor: '#7b42bc',
   },
+  bash: {
+    icon: 'mdi-bash',
+    color: 'black',
+    darkColor: 'white',
+  },
 };
 
 export const APP_TITLE = {
-  '': 'Ansible',
-  terraform: 'Terraform',
+  '': 'Ansible Playbook',
+  terraform: 'Terraform Code',
+  bash: 'Bash Script',
 };
 
 export const APP_INVENTORY_TITLE = {
