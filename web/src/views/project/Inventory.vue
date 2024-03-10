@@ -3,15 +3,15 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="itemApp.icon"
-      :icon-color="itemApp.color"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemApp.title}`"
+      :icon="APP_ICONS[itemApp].icon"
+      :icon-color="$vuetify.theme.dark ? APP_ICONS[itemApp].darkColor : APP_ICONS[itemApp].color"
+      :title="`${itemId === 'new' ? $t('new') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
       :max-width="450"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TerraformInventoryForm
-          v-if="itemApp.slug === 'terraform'"
+          v-if="itemApp === 'terraform'"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -45,7 +45,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -60,19 +60,23 @@
             v-on="on"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
-          >{{ $t('newInventory') }}</v-btn>
+          >{{ $t('newInventory') }}
+          </v-btn>
         </template>
         <v-list>
           <v-list-item
-            v-for="item in templateApps"
-            :key="item.slug"
+            v-for="item in apps"
+            :key="item"
             link
             @click="itemApp = item; editItem('new');"
           >
             <v-list-item-icon>
-              <v-icon :color="item.color">{{ item.icon }}</v-icon>
+              <v-icon
+                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
+              >{{ APP_ICONS[item].icon }}
+              </v-icon>
             </v-list-item-icon>
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
+            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -86,11 +90,19 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.name="{ item }">
+        <v-icon class="mr-3" small>
+          {{ APP_ICONS[getAppByType(item.type)].icon }}
+        </v-icon>
+
+        {{ item.name }}
+      </template>
+
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>
       </template>
       <template v-slot:item.inventory="{ item }">
-        {{ item.type === 'file' ? item.inventory : '&mdash;' }}
+        {{ ['file', 'terraform-workspace'].includes(item.type) ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
@@ -105,7 +117,7 @@
           <v-btn
             icon
             class="mr-1"
-            @click="editItem(item.id)"
+            @click="itemApp = getAppByType(item.type); editItem(item.id)"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -119,29 +131,36 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
 import TerraformInventoryForm from '@/components/TerraformInventoryForm.vue';
+import { APP_ICONS, APP_INVENTORY_TITLE, APP_TITLE } from '@/lib/constants';
 
 export default {
+  computed: {
+    APP_INVENTORY_TITLE() {
+      return APP_INVENTORY_TITLE;
+    },
+  },
   mixins: [ItemListPageBase],
   components: { TerraformInventoryForm, InventoryForm },
 
   data() {
     return {
-      templateApps: [{
-        slug: '',
-        title: 'Ansible Inventory',
-        icon: 'mdi-ansible',
-        color: 'black',
-      }, {
-        slug: 'terraform',
-        title: 'Terraform Workspace',
-        icon: 'mdi-terraform',
-        color: '#7b42bc',
-      }],
-      itemApp: {},
+      APP_TITLE,
+      APP_ICONS,
+      apps: ['', 'terraform'],
+      itemApp: '',
     };
   },
 
   methods: {
+    getAppByType(type) {
+      switch (type) {
+        case 'terraform-workspace':
+          return 'terraform';
+        default:
+          return '';
+      }
+    },
+
     getHeaders() {
       return [{
         text: this.$i18n.t('name'),

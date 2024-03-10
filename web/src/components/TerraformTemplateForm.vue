@@ -134,13 +134,12 @@
 
         <v-text-field
           v-model="item.playbook"
-          label="Path"
-          :rules="[v => !!v || $t('playbook_filename_required')]"
+          label="Subdirectory path (optional)"
           outlined
           dense
           required
           :disabled="formSaving"
-          :placeholder="$t('exampleSiteyml')"
+          placeholder="Example: path/to/terraform/dir"
         ></v-text-field>
 
         <v-select
@@ -396,7 +395,7 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/inventory`,
         responseType: 'json',
-      })).data;
+      })).data.filter((inv) => inv.type === 'terraform-workspace');
 
       this.environment = (await axios({
         keys: 'get',
@@ -465,6 +464,8 @@ export default {
     },
 
     async beforeSave() {
+      this.item.app = 'terraform';
+
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
       }

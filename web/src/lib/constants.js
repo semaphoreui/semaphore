@@ -72,3 +72,26 @@ export const EXTRACT_VALUE_BODY_DATA_TYPE_ICONS = {
   json: 'mdi-code-json',
   str: 'mdi-text',
 };
+
+export const APP_ICONS = {
+  '': {
+    icon: 'mdi-ansible',
+    color: 'black',
+    darkColor: 'white',
+  },
+  terraform: {
+    icon: 'mdi-terraform',
+    color: '#7b42bc',
+    darkColor: '#7b42bc',
+  },
+};
+
+export const APP_TITLE = {
+  '': 'Ansible',
+  terraform: 'Terraform',
+};
+
+export const APP_INVENTORY_TITLE = {
+  '': 'Ansible Inventory',
+  terraform: 'Terraform Workspace',
+};

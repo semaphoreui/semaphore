@@ -11,8 +11,8 @@ import (
 )
 
 type TerraformApp struct {
-	Logger     lib.Logger
-	Playbook   *AnsiblePlaybook
+	Logger lib.Logger
+	//Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
 }
