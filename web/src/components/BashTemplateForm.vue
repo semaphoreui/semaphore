@@ -381,7 +381,7 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/inventory`,
         responseType: 'json',
-      })).data;
+      })).data.filter((inv) => inv.type === 'none');
 
       this.environment = (await axios({
         keys: 'get',
@@ -451,6 +451,7 @@ export default {
 
     async beforeSave() {
       this.item.app = 'bash';
+      this.item.inventory_id = this.inventory[0].id;
 
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
