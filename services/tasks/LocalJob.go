@@ -325,7 +325,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		args, err = t.getPlaybookArgs(username, incomingVersion)
 	case db.TemplateTerraform:
 		args, err = t.getTerraformArgs(username, incomingVersion)
-	case db.BashTerraform:
+	case db.TemplateBash:
 		args, err = t.getBashArgs(username, incomingVersion)
 	default:
 		panic("unknown template app")

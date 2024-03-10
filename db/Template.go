@@ -17,7 +17,7 @@ type TemplateApp string
 const (
 	TemplateAnsible   = ""
 	TemplateTerraform = "terraform"
-	BashTerraform     = "bash"
+	TemplateBash      = "bash"
 )
 
 type SurveyVarType string

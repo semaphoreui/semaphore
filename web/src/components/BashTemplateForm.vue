@@ -450,6 +450,8 @@ export default {
     },
 
     async beforeSave() {
+      this.item.app = 'bash';
+
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
       }
