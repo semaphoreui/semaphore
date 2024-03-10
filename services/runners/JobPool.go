@@ -10,13 +10,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
-	"io/ioutil"
+	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -388,7 +388,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return false
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return false
@@ -446,7 +446,7 @@ func (p *JobPool) checkNewJobs() {
 
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error("Checking new jobs, error reading response body:", err)
 		return
