@@ -26,6 +26,8 @@ type Inventory struct {
 
 	// static/file
 	Type InventoryType `db:"type" json:"type"`
+
+	HolderID *int `db:"holder_id" json:"holder_id"`
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
