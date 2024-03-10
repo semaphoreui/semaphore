@@ -1,10 +1,10 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 )
@@ -76,6 +76,22 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if newTemplate.App == db.TemplateTerraform {
+		var inv db.Inventory
+		inv, err = helpers.Store(r).GetInventory(project.ID, newTemplate.InventoryID)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		inv.HolderID = &newTemplate.ID
+		err = helpers.Store(r).UpdateInventory(inv)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
 	}
 
 	user := context.Get(r, "user").(*db.User)

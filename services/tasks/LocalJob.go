@@ -167,8 +167,11 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		return
 	}
 
-	for v := range extraVars {
-		args = append(args, "-var", v)
+	for name, value := range extraVars {
+		if name == "semaphore_vars" {
+			continue
+		}
+		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
 
 	return

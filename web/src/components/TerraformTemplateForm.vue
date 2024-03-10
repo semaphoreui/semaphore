@@ -349,13 +349,6 @@ export default {
         && this.schedules != null
         && this.views != null;
     },
-
-    loginPasswordKeys() {
-      if (this.keys == null) {
-        return null;
-      }
-      return this.keys.filter((key) => key.type === 'login_password');
-    },
   },
 
   methods: {
@@ -395,7 +388,7 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/inventory`,
         responseType: 'json',
-      })).data.filter((inv) => inv.type === 'terraform-workspace');
+      })).data.filter((inv) => inv.type === 'terraform-workspace' && inv.holder_id == null);
 
       this.environment = (await axios({
         keys: 'get',
