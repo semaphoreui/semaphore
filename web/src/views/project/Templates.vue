@@ -74,6 +74,7 @@
       :template-id="itemId"
       :template-alias="templateAlias"
       :template-type="templateType"
+      :template-app="templateApp"
     />
 
     <v-toolbar flat>
@@ -353,6 +354,13 @@ export default {
         return '';
       }
       return this.items.find((x) => x.id === this.itemId).name;
+    },
+
+    templateApp() {
+      if (this.itemId == null || this.itemId === 'new') {
+        return '';
+      }
+      return this.items.find((x) => x.id === this.itemId).app;
     },
 
     isLoaded() {

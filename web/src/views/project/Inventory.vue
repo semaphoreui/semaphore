@@ -5,7 +5,7 @@
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="APP_ICONS[itemApp].icon"
       :icon-color="$vuetify.theme.dark ? APP_ICONS[itemApp].darkColor : APP_ICONS[itemApp].color"
-      :title="`${itemId === 'new' ? $t('new') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
       :max-width="450"
       @save="loadItems"
     >
@@ -76,7 +76,7 @@
               >{{ APP_ICONS[item].icon }}
               </v-icon>
             </v-list-item-icon>
-            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
+            <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
