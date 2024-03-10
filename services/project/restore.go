@@ -241,7 +241,7 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	template, err := store.CreateTemplate(
 		db.Template{
 			ProjectID:               b.meta.ID,
-			InventoryID:             InventoryID,
+			InventoryID:             &InventoryID,
 			EnvironmentID:           &EnvironmentID,
 			RepositoryID:            RepositoryID,
 			ViewID:                  ViewID,

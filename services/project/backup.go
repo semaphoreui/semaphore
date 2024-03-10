@@ -236,7 +236,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			BuildTemplate, _ = findNameByID[db.Template](*o.BuildTemplateID, b.templates)
 		}
 		Repository, _ := findNameByID[db.Repository](o.RepositoryID, b.repositories)
-		Inventory, _ := findNameByID[db.Inventory](o.InventoryID, b.inventories)
+		var Inventory *string = nil
+		if o.InventoryID != nil {
+			Inventory, _ = findNameByID[db.Inventory](*o.InventoryID, b.inventories)
+		}
 
 		templates[i] = BackupTemplate{
 			Name:                    o.Name,
