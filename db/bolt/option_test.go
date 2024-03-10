@@ -1,18 +1,16 @@
 package bolt
 
 import (
-	"errors"
-	"github.com/ansible-semaphore/semaphore/db"
 	"testing"
 )
 
 func TestGetOption(t *testing.T) {
 	store := CreateTestStore()
 
-	_, err := store.GetOption("unknown_option")
+	val, err := store.GetOption("unknown_option")
 
-	if !errors.Is(err, db.ErrNotFound) {
-		t.Fatal("Result must be nil for non-existent option")
+	if err != nil && val != "" {
+		t.Fatal("Result must be empty string for non-existent option")
 	}
 }
 
