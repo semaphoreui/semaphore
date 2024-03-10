@@ -109,6 +109,9 @@ type Store interface {
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
 
+	GetOption(key string) (string, error)
+	SetOption(key string, value string) error
+
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
@@ -387,6 +390,13 @@ var GlobalRunnerProps = ObjectProps{
 	TableName:         "runner",
 	Type:              reflect.TypeOf(Runner{}),
 	PrimaryColumnName: "id",
+	IsGlobal:          true,
+}
+
+var OptionProps = ObjectProps{
+	TableName:         "option",
+	Type:              reflect.TypeOf(Option{}),
+	PrimaryColumnName: "key",
 	IsGlobal:          true,
 }
 
