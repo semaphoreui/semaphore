@@ -219,7 +219,7 @@ export default {
             password: this.password,
           },
         });
-        document.location = document.baseURI;
+        document.location = document.baseURI + window.location.search;
       } catch (err) {
         if (err.response.status === 401) {
           this.signInError = this.$t('incorrectUsrPwd');
@@ -232,7 +232,7 @@ export default {
     },
 
     async oidcSignIn(provider) {
-      document.location = `/api/auth/oidc/${provider}/login`;
+      document.location = `/api/auth/oidc/${provider}/login${window.location.search}`;
     },
   },
 };
