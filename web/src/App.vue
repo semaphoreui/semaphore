@@ -295,7 +295,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Support</v-list-item-title>
+            <v-list-item-title>Support Chat</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 

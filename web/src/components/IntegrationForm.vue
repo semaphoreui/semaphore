@@ -113,7 +113,7 @@ export default {
 
     async afterLoadData() {
       this.keys = (await axios({
-        keys: 'get',
+        method: 'get',
         url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
