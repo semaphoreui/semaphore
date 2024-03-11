@@ -8,7 +8,11 @@
     </v-toolbar>
 
     <v-tabs show-arrows class="pl-4">
-      <v-tab key="history" :to="`/project/${projectId}/history`">{{ $t('history') }}</v-tab>
+      <v-tab
+        v-if="projectType === ''"
+        key="history"
+        :to="`/project/${projectId}/history`"
+      >{{ $t('history') }}</v-tab>
       <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
       <v-tab
         v-if="can(USER_PERMISSIONS.updateProject)"
