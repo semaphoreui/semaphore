@@ -1018,7 +1018,7 @@ export default {
 
       switch (e.action) {
         case 'new':
-          await this.selectProject(e.item.id);
+          await this.selectProject(e.item.id, { new_project: undefined });
           break;
         case 'delete':
           if (this.projectId === e.item.id && this.projects.length > 0) {
@@ -1113,7 +1113,7 @@ export default {
       }
     },
 
-    async selectProject(projectId) {
+    async selectProject(projectId, overriderQuery = {}) {
       this.userRole = (await axios({
         method: 'get',
         url: `/api/project/${projectId}/role`,
@@ -1132,7 +1132,7 @@ export default {
       }).catch(() => {
       });
 
-      const query = {};
+      let query = {};
 
       switch (this.$route.path) {
         case '/project/new':
@@ -1144,6 +1144,11 @@ export default {
         default:
           break;
       }
+
+      query = {
+        ...query,
+        ...overriderQuery,
+      };
 
       await this.$router.push({
         path: `/project/${projectId}${window.location.search}`,
