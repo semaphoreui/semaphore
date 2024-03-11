@@ -79,20 +79,21 @@
       <template v-slot:title="{}">
         <v-icon
           v-if="newProjectType === 'premium'" color="#FFCA28" class="mr-2"
-        >mdi-license</v-icon>
+        >mdi-license
+        </v-icon>
         {{ newProjectType === 'premium' ? 'Buy Premium License' : $t('newProject') }}
       </template>
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <ProjectForm
-          v-if="newProjectType === ''"
+        <PremiumLicenseProjectForm
+          v-if="newProjectType === 'premium'"
           item-id="new"
           @save="onSave"
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
         />
-        <PremiumLicenseProjectForm
-          v-else-if="newProjectType === 'premium'"
+        <ProjectForm
+          v-else
           item-id="new"
           @save="onSave"
           @error="onError"
@@ -188,7 +189,7 @@
           <v-divider v-if="user.can_create_project"/>
 
           <v-list-item
-            @click="newProjectDialog = true; newProjectType = '';"
+            @click="showNewProjectDialogue()"
             v-if="user.can_create_project"
           >
             <v-list-item-icon>
@@ -213,7 +214,7 @@
           <v-divider v-if="user.can_create_project"/>
 
           <v-list-item
-            @click="buyPremiumLicense"
+            @click="showNewProjectDialogue('premium')"
             v-if="user.can_create_project"
           >
             <v-list-item-icon>
@@ -236,9 +237,19 @@
 
           <v-list-item-content>
             <v-list-item-title>
-              {{
-                $route.query.new_project === 'premium' ? 'Buy Premium License' : $t('newProject')
-              }}
+              {{ $t('newProject') }}
+            </v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="new_premium_license" :to="`/project/premium`">
+          <v-list-item-icon>
+            <v-icon color="#FFCA28">mdi-license</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>
+              Buy Premium License
             </v-list-item-title>
           </v-list-item-content>
         </v-list-item>
@@ -795,17 +806,18 @@ export default {
     async projects(val) {
       if (val.length === 0
         && this.$route.path.startsWith('/project/')
-        && this.$route.path !== '/project/new') {
-        await this.$router.push({ path: `/project/new${window.location.search}` });
+        && this.$route.path !== '/project/new'
+        && this.$route.path !== '/project/premium'
+      ) {
+        if (this.$route.query.new_project === 'premium') {
+          await this.$router.push({ path: '/project/premium' });
+        } else {
+          await this.$router.push({ path: '/project/new' });
+        }
       }
     },
 
     async $route(val) {
-      if (val.query.new_project != null) {
-        this.newProjectType = val.query.new_project;
-        this.newProjectDialog = true;
-      }
-
       if (val.query.t == null) {
         this.taskLogDialog = false;
       } else {
@@ -813,6 +825,10 @@ export default {
         if (taskId) {
           EventBus.$emit('i-show-task', { taskId });
         }
+      }
+
+      if (this.projects.length > 0 && this.$route.query.new_project) {
+        this.showNewProjectDialogue('premium');
       }
 
       if ((this.project || {}).type === 'premium' && val.path.endsWith('/history')) {
@@ -894,11 +910,6 @@ export default {
       socket.stop();
     }
 
-    if (this.$route.query.new_project != null) {
-      this.newProjectType = this.$route.query.new_project;
-      this.newProjectDialog = true;
-    }
-
     if ((this.project || {}).type === 'premium' && this.$route.path.endsWith('/history')) {
       await this.$router.replace({ path: `/project/${this.projectId}/billing` });
     }
@@ -917,6 +928,12 @@ export default {
 
     EventBus.$on('i-show-drawer', async () => {
       this.drawer = true;
+    });
+
+    EventBus.$on('i-new-project', (e) => {
+      setTimeout(() => {
+        this.showNewProjectDialogue(e.projectType);
+      }, 500);
     });
 
     EventBus.$on('i-show-task', async (e) => {
@@ -1015,9 +1032,9 @@ export default {
 
   methods: {
 
-    buyPremiumLicense() {
+    showNewProjectDialogue(projectType = '') {
       this.newProjectDialog = true;
-      this.newProjectType = 'premium';
+      this.newProjectType = projectType;
     },
 
     selectLanguage(lang) {
@@ -1052,12 +1069,20 @@ export default {
           EventBus.$emit('i-show-task', { taskId });
         }
       }
+
+      if (this.projects.length > 0 && this.$route.query.new_project != null) {
+        EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
+      }
     },
 
     async trySelectMostSuitableProject() {
       if (this.projects.length === 0) {
-        if (this.$route.path !== '/project/new') {
-          await this.$router.push({ path: `/project/new${window.location.search}` });
+        if (this.$route.path !== '/project/new' && this.$route.path !== '/project/premium') {
+          if (this.$route.query.new_project === 'premium') {
+            await this.$router.push({ path: '/project/premium' });
+          } else {
+            await this.$router.push({ path: '/project/new' });
+          }
         }
         return;
       }

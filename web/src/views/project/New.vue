@@ -50,10 +50,8 @@ export default {
     };
   },
 
-  computed: {
-    projectType() {
-      return this.$route.query.new_project;
-    },
+  props: {
+    projectType: String,
   },
 
   methods: {

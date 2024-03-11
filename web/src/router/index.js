@@ -25,6 +25,16 @@ const routes = [
   {
     path: '/project/new',
     component: New,
+    props: {
+      projectType: '',
+    },
+  },
+  {
+    path: '/project/premium',
+    component: New,
+    props: {
+      projectType: 'premium',
+    },
   },
   {
     path: '/project/:projectId',
