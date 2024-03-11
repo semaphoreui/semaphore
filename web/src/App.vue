@@ -123,7 +123,11 @@
               v-on="on"
             >
               <v-list-item-icon>
+
+                <v-icon v-if="project.type === 'premium'" color="#FFCA28">mdi-license</v-icon>
+
                 <v-avatar
+                  v-else
                   :color="getProjectColor(project)"
                   size="24"
                   style="font-size: 13px; font-weight: bold;"
