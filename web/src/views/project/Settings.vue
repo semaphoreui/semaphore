@@ -7,7 +7,7 @@
       @yes="deleteProject()"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
@@ -17,17 +17,27 @@
         v-if="projectType === ''"
         key="history"
         :to="`/project/${projectId}/history`"
-      >{{ $t('history') }}</v-tab>
+      >{{ $t('history') }}
+      </v-tab>
       <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
       <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
       <v-tab
         key="billing"
         :to="`/project/${projectId}/billing`"
-      >Billing <v-chip color="red" x-small dark class="ml-1">New</v-chip></v-tab>
+      >Billing
+        <v-chip color="red" x-small dark class="ml-1">New</v-chip>
+      </v-tab>
     </v-tabs>
 
     <div class="project-settings-form">
-      <div style="height: 300px;">
+      <div style="height: 150px;" v-if="projectType === 'premium'">
+        <PremiumLicenseProjectForm
+          :item-id="projectId"
+          ref="form"
+          @error="onError"
+          @save="onSave"/>
+      </div>
+      <div style="height: 300px;" v-else>
         <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
       </div>
 
@@ -35,10 +45,10 @@
         <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
       </div>
     </div>
-    <div class="project-backup project-settings-button">
+    <div class="project-backup project-settings-button" v-if="projectType === ''">
       <v-row align="center">
         <v-col class="shrink">
-          <v-btn color="primary" @click="backupProject" >{{ $t('backup') }}
+          <v-btn color="primary" @click="backupProject">{{ $t('backup') }}
           </v-btn>
         </v-col>
         <v-col class="grow">
@@ -51,7 +61,8 @@
     <div class="project-delete-form project-settings-button">
       <v-row align="center">
         <v-col class="shrink">
-          <v-btn color="error" @click="deleteProjectDialog = true">{{ $t('deleteProject2') }}
+          <v-btn color="error" @click="deleteProjectDialog = true">
+            {{ projectType === 'premium' ? 'Delete License' : $t('deleteProject2') }}
           </v-btn>
         </v-col>
         <v-col class="grow">
@@ -68,10 +79,11 @@
   max-width: 400px;
   margin: 40px auto;
 }
-  .project-settings-button {
-    max-width: 400px;
-    margin: 20px auto auto;
-  }
+
+.project-settings-button {
+  max-width: 400px;
+  margin: 20px auto auto;
+}
 </style>
 <script>
 import EventBus from '@/event-bus';
@@ -79,9 +91,10 @@ import ProjectForm from '@/components/ProjectForm.vue';
 import { getErrorMessage } from '@/lib/error';
 import axios from 'axios';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import PremiumLicenseProjectForm from '@/components/PremiumLicenseProjectForm.vue';
 
 export default {
-  components: { YesNoDialog, ProjectForm },
+  components: { PremiumLicenseProjectForm, YesNoDialog, ProjectForm },
   props: {
     projectId: Number,
     projectType: String,
