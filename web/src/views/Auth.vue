@@ -77,8 +77,18 @@
         ref="signInForm"
         lazy-validation
         v-model="signInFormValid"
-        style="width: 300px; height: 300px;"
+        style="width: 300px;"
       >
+
+        <v-img
+          width="80"
+          height="80"
+          transition="0"
+          src="favicon.png"
+          style="margin: auto;"
+          class="mb-4"
+        />
+
         <h3
           class="text-center"
           :class="{'mb-8': $route.query.new_proect !== 'premium'}"

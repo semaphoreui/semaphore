@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -212,6 +213,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			LoginWithPassword: !util.Config.PasswordLoginDisable,
 		}
 		i := 0
+
 		for k, v := range util.Config.OidcProviders {
 			config.OidcProviders[i] = loginMetadataOidcProvider{
 				ID:    k,
@@ -221,6 +223,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 			}
 			i++
 		}
+
+		sort.Slice(config.OidcProviders, func(i, j int) bool {
+			a := util.Config.OidcProviders[config.OidcProviders[i].ID]
+			b := util.Config.OidcProviders[config.OidcProviders[j].ID]
+			return a.Order < b.Order
+		})
+
 		helpers.WriteJSON(w, http.StatusOK, config)
 		return
 	}
