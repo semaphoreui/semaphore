@@ -210,7 +210,7 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="templates" :to="templatesUrl">
+        <v-list-item v-if="project.type === ''" key="templates" :to="templatesUrl">
           <v-list-item-icon>
             <v-icon>mdi-check-all</v-icon>
           </v-list-item-icon>
@@ -220,7 +220,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="inventory" :to="`/project/${projectId}/inventory`">
+        <v-list-item
+          v-if="project.type === ''"
+          key="inventory"
+          :to="`/project/${projectId}/inventory`"
+        >
           <v-list-item-icon>
             <v-icon>mdi-monitor-multiple</v-icon>
           </v-list-item-icon>
@@ -230,7 +234,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="environment" :to="`/project/${projectId}/environment`">
+        <v-list-item
+          v-if="project.type === ''"
+          key="environment"
+          :to="`/project/${projectId}/environment`"
+        >
           <v-list-item-icon>
             <v-icon>mdi-code-braces</v-icon>
           </v-list-item-icon>
@@ -240,7 +248,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="keys" :to="`/project/${projectId}/keys`">
+        <v-list-item
+          v-if="project.type === ''"
+          key="keys"
+          :to="`/project/${projectId}/keys`"
+        >
           <v-list-item-icon>
             <v-icon>mdi-key-change</v-icon>
           </v-list-item-icon>
@@ -250,7 +262,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="repositories" :to="`/project/${projectId}/repositories`">
+        <v-list-item
+          v-if="project.type === ''"
+          key="repositories"
+          :to="`/project/${projectId}/repositories`"
+        >
           <v-list-item-icon>
             <v-icon>mdi-git</v-icon>
           </v-list-item-icon>
@@ -261,7 +277,7 @@
         </v-list-item>
 
         <v-list-item
-          v-if="user.integartions_enable"
+          v-if="project.type === '' && user.integartions_enable"
           key="integrations"
           :to="`/project/${projectId}/integrations`"
         >
