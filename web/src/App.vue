@@ -180,7 +180,7 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
-          <v-divider v-if="user.can_create_project" />
+          <v-divider v-if="user.can_create_project"/>
 
           <v-list-item
             @click="newProjectDialog = true; newProjectType = '';"
@@ -205,7 +205,7 @@
             </v-list-item-content>
           </v-list-item>
 
-          <v-divider v-if="user.can_create_project" />
+          <v-divider v-if="user.can_create_project"/>
 
           <v-list-item
             @click="buyPremiumLicense"
@@ -242,7 +242,13 @@
 
       <v-list class="pt-0" v-if="project">
 
-        <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
+        <v-list-item
+          key="dashboard"
+          :to="
+            project.type === 'premium'
+            ? `/project/${projectId}/billing`
+            : `/project/${projectId}/history`"
+        >
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
           </v-list-item-icon>
@@ -790,6 +796,11 @@ export default {
     },
 
     async $route(val) {
+      if (val.query.new_project != null) {
+        this.newProjectType = val.query.new_project;
+        this.newProjectDialog = true;
+      }
+
       if (val.query.t == null) {
         this.taskLogDialog = false;
       } else {
@@ -797,6 +808,10 @@ export default {
         if (taskId) {
           EventBus.$emit('i-show-task', { taskId });
         }
+      }
+
+      if ((this.project || {}).type === 'premium' && val.path.endsWith('/history')) {
+        await this.$router.replace({ path: `/project/${this.projectId}/billing` });
       }
     },
 
@@ -827,6 +842,9 @@ export default {
     },
 
     project() {
+      if (this.projects == null) {
+        return null;
+      }
       return this.projects.find((x) => x.id === this.projectId);
     },
 
@@ -869,6 +887,15 @@ export default {
       });
       this.state = 'error';
       socket.stop();
+    }
+
+    if (this.$route.query.new_project != null) {
+      this.newProjectType = this.$route.query.new_project;
+      this.newProjectDialog = true;
+    }
+
+    if ((this.project || {}).type === 'premium' && this.$route.path.endsWith('/history')) {
+      await this.$router.replace({ path: `/project/${this.projectId}/billing` });
     }
   },
 
@@ -1066,7 +1093,8 @@ export default {
         method: 'get',
         url: `/billing/projects/${projectId}`,
         responseType: 'json',
-      }).catch(() => {});
+      }).catch(() => {
+      });
 
       await this.$router.push({ path: `/project/${projectId}` });
     },

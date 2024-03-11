@@ -174,7 +174,8 @@ export default {
 
   async created() {
     if (this.isAuthenticated()) {
-      document.location = document.baseURI;
+      document.location = document.baseURI + window.location.search;
+      return;
     }
     await axios({
       method: 'get',

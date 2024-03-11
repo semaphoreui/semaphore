@@ -22,9 +22,9 @@
           <v-slider
             v-model="currencyAmount"
             always-dirty
-            :min="5"
-            :max="50"
-            :step="5"
+            :min="projectType === 'premium' ? 50 : 5"
+            :max="projectType === 'premium' ? 500 : 50"
+            :step="projectType === 'premium' ? 50 : 5"
             thumb-label="always"
             thumb-size="60"
             style="margin-top: 90px; margin-left: 15px; margin-right: 15px;"
@@ -153,12 +153,29 @@
               icon="mdi-calendar-range"
               class="text-subtitle-1 align-center"
             >Billing date: {{ project.planFinishDate | formatDate2 }}</v-timeline-item>
+
             <v-timeline-item
+              v-if="projectType === 'premium'"
+              fill-dot
+              icon="mdi-server"
+              class="text-subtitle-1 align-center"
+            >Servers: {{ project.servers || 0 }} / 3 used</v-timeline-item>
+
+            <v-timeline-item
+              v-if="projectType === 'premium'"
+              fill-dot
+              icon="mdi-license"
+              class="text-subtitle-1 align-center"
+            >License Key: &mdash;</v-timeline-item>
+
+            <v-timeline-item
+              v-if="projectType === ''"
               fill-dot
               icon="mdi-server"
               class="text-subtitle-1 align-center"
             >Cache: {{ project.diskUsage }} / {{ plan.diskUsage }} Mb used</v-timeline-item>
             <v-timeline-item
+              v-if="projectType === ''"
               fill-dot
               icon="mdi-cog"
               class="text-subtitle-1 align-center"
@@ -170,7 +187,7 @@
       </v-row>
 
       <v-row class="mt-0 mb-9">
-        <v-col md="4" lg="4">
+        <v-col md="4" lg="4" v-if="projectType === ''">
           <v-card
             class="mt-4 pa-2"
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
@@ -217,8 +234,7 @@
             </v-card-actions>
           </v-card>
         </v-col>
-
-        <v-col md="4" lg="4">
+        <v-col md="4" lg="4" v-if="projectType === ''">
           <v-card
             class="mt-4 pa-2"
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
@@ -288,7 +304,140 @@
             </v-card-actions>
           </v-card>
         </v-col>
+
+        <v-col md="4" lg="4" v-if="projectType === 'premium'">
+          <v-card
+            class="mt-4 pa-2"
+            :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
+            flat
+          >
+            <v-card-title class="text-h3">Trial</v-card-title>
+            <v-card-text style="height: 200px">
+              <v-timeline
+                align-top
+                dense
+                style="margin-left: -30px;"
+              >
+                <v-timeline-item
+                  icon="mdi-server"
+                  fill-dot
+                  class="text-subtitle-1 align-center"
+                >
+                  1 server
+                </v-timeline-item>
+
+                <v-timeline-item
+                  fill-dot
+                  icon="mdi-cog"
+                  class="text-subtitle-1 align-center"
+                >
+                  <div>1 runner</div>
+                </v-timeline-item>
+
+                <v-timeline-item
+                  fill-dot
+                  icon="mdi-account-multiple"
+                  class="text-subtitle-1 align-center"
+                >
+                  <div>1 user</div>
+                </v-timeline-item>
+              </v-timeline>
+
+              <div>
+                <v-chip
+                  class="mt-3 text-subtitle-1 py-3 px-4 font-weight-bold"
+                  v-if="project.plan === 'free'"
+                  color="success"
+                  outlined
+                >Your plan
+                </v-chip>
+              </div>
+            </v-card-text>
+
+            <v-card-actions>
+              <div style="width: 100%; height: 44px; line-height: 44px;"
+                   class="text-subtitle-1 text-center text--secondary">&nbsp;</div>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+        <v-col md="4" lg="4" v-if="projectType === 'premium'">
+          <v-card
+            class="mt-4 pa-2"
+            :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
+            flat
+          >
+            <v-card-title class="text-h3">$50</v-card-title>
+            <v-card-text style="height: 200px">
+
+              <v-timeline
+                align-top
+                dense
+                style="margin-left: -30px;"
+              >
+                <v-timeline-item
+                  icon="mdi-server"
+                  fill-dot
+                  class="text-subtitle-1 align-center"
+                >
+                  3 servers
+                </v-timeline-item>
+
+                <v-timeline-item
+                  fill-dot
+                  icon="mdi-cog"
+                  class="text-subtitle-1 align-center"
+                >
+                  <div>20 runners</div>
+                </v-timeline-item>
+
+                <v-timeline-item
+                  fill-dot
+                  icon="mdi-account-multiple"
+                  class="text-subtitle-1 align-center"
+                >
+                  <div>15 users</div>
+                </v-timeline-item>
+              </v-timeline>
+
+              <div>
+                <v-chip
+                  class="font-weight-bold mt-3 text-center pa-4 text-subtitle-1"
+                  color="success"
+                  :outlined="project.planCanceled"
+                  v-if="project.plan === 'starter'"
+                >
+                  Your plan
+                  <span class="ml-1" v-if="project.planCanceled">
+                    until {{ project.planFinishDate | formatDate2 }}
+                  </span>
+                </v-chip>
+              </div>
+            </v-card-text>
+
+            <v-card-actions>
+              <v-btn
+                depressed
+                :text="project.plan !== 'free' && !project.planCanceled"
+                large
+                :color="project.plan === 'free' || project.planCanceled ? 'success' : 'secondary'"
+                style="width: 100%;"
+                @click="
+                project.plan === 'free' || project.planCanceled
+                  ? selectPlan('premium')
+                  : selectPlan('free')
+              "
+              >
+                {{
+                  project.plan === 'free'
+                    ? 'Buy'
+                    : (project.planCanceled ? 'Renew' : 'Cancel')
+                }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-col>
       </v-row>
+
     </v-container>
   </div>
 </template>
