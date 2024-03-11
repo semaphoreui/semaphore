@@ -79,6 +79,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <ProjectForm
+          v-if="newProjectType === ''"
           item-id="new"
           @save="onSave"
           @error="onError"
@@ -168,7 +169,10 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="newProjectDialog = true" v-if="user.can_create_project">
+          <v-list-item
+            @click="newProjectDialog = true; newProjectType = '';"
+            v-if="user.can_create_project"
+          >
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
             </v-list-item-icon>
@@ -736,6 +740,7 @@ export default {
       snackbarColor: '',
       projects: null,
       newProjectDialog: null,
+      newProjectType: '',
       userDialog: null,
       passwordDialog: null,
 
