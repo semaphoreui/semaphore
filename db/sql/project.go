@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
 	"time"
 )
 
@@ -11,8 +11,8 @@ func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err er
 
 	insertId, err := d.insert(
 		"id",
-		"insert into project(name, created) values (?, ?)",
-		project.Name, project.Created)
+		"insert into project(name, created, type) values (?, ?, ?)",
+		project.Name, project.Created, project.Type)
 
 	if err != nil {
 		return
