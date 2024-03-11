@@ -305,7 +305,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func getOidcProvider(id string, ctx context.Context, redirectQueryString string) (*oidc.Provider, *oauth2.Config, error) {
+func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc.Provider, *oauth2.Config, error) {
 	provider, ok := util.Config.OidcProviders[id]
 	if !ok {
 		return nil, nil, fmt.Errorf("No such provider: %s", id)
@@ -341,11 +341,17 @@ func getOidcProvider(id string, ctx context.Context, redirectQueryString string)
 		}
 	}
 
+	if redirectPath != "" {
+		if !strings.HasPrefix(redirectPath, "/") {
+			redirectPath = "/" + redirectPath
+		}
+	}
+
 	oauthConfig := oauth2.Config{
 		Endpoint:     oidcProvider.Endpoint(),
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		RedirectURL:  provider.RedirectURL,
+		RedirectURL:  provider.RedirectURL + redirectPath,
 		Scopes:       provider.Scopes,
 	}
 	if len(oauthConfig.RedirectURL) == 0 {
@@ -353,13 +359,7 @@ func getOidcProvider(id string, ctx context.Context, redirectQueryString string)
 		if err != nil {
 			return nil, nil, err
 		}
-		if redirectQueryString != "" {
-			if !strings.HasPrefix(redirectQueryString, "?") {
-				rurl += "?"
-			}
-			rurl += redirectQueryString
-		}
-		oauthConfig.RedirectURL = rurl
+		oauthConfig.RedirectURL = rurl + redirectPath
 	}
 	if len(oauthConfig.Scopes) == 0 {
 		oauthConfig.Scopes = []string{"openid", "profile", "email"}
@@ -371,7 +371,14 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	ctx := context.Background()
 
-	_, oauth, err := getOidcProvider(pid, ctx, r.URL.RawQuery)
+	redirectPath := ""
+
+	if r.URL.Query()["redirect"] != nil {
+		// TODO: validate path
+		redirectPath = r.URL.Query()["redirect"][0]
+	}
+
+	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
@@ -586,5 +593,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	createSession(w, r, user)
 
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	redirectPath := mux.Vars(r)["redirect_path"]
+
+	http.Redirect(w, r, "/"+redirectPath, http.StatusTemporaryRedirect)
 }
