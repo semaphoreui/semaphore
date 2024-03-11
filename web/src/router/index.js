@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
+import SupportChat from '@/views/project/SupportChat.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
 import Billing from '../views/project/Billing.vue';
@@ -72,6 +73,10 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/support',
+    component: SupportChat,
   },
   {
     path: '/project/:projectId/integrations',
