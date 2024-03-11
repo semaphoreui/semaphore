@@ -828,11 +828,11 @@ export default {
       }
 
       if (this.projects.length > 0 && this.$route.query.new_project) {
-        this.showNewProjectDialogue('premium');
+        EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
       }
 
       if ((this.project || {}).type === 'premium' && val.path.endsWith('/history')) {
-        await this.$router.replace({ path: `/project/${this.projectId}/billing` });
+        await this.$router.replace({ path: `/project/${this.projectId}/billing/${window.location.search}` });
       }
     },
 
@@ -1126,7 +1126,7 @@ export default {
       }).catch(() => {
       });
 
-      await this.$router.push({ path: `/project/${projectId}` });
+      await this.$router.push({ path: `/project/${projectId}${window.location.search}` });
     },
 
     async loadProjects() {
