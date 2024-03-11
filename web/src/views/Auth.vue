@@ -257,7 +257,13 @@ export default {
     },
 
     async oidcSignIn(provider) {
-      document.location = `/api/auth/oidc/${provider}/login${window.location.search}`;
+      let query = '';
+
+      if (this.$route.query.new_project === 'premium') {
+        query = '?redirect=/project/premium';
+      }
+
+      document.location = `/api/auth/oidc/${provider}/login${query}`;
     },
   },
 };

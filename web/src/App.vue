@@ -1126,7 +1126,23 @@ export default {
       }).catch(() => {
       });
 
-      await this.$router.push({ path: `/project/${projectId}${window.location.search}` });
+      const query = {};
+
+      switch (this.$route.path) {
+        case '/project/new':
+          query.new_project = '';
+          break;
+        case '/project/premium':
+          query.new_project = 'premium';
+          break;
+        default:
+          break;
+      }
+
+      await this.$router.push({
+        path: `/project/${projectId}${window.location.search}`,
+        query,
+      });
     },
 
     async loadProjects() {
