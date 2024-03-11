@@ -73,13 +73,21 @@
 
     <EditDialog
       v-model="newProjectDialog"
-      save-button-text="Create"
-      :title="$t('newProject')"
+      :save-button-text="newProjectType === 'premium' ? 'Continue' : 'Create'"
+      :title="newProjectType === 'premium' ? 'Buy Premium License' : $t('newProject')"
       event-name="i-project"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <ProjectForm
           v-if="newProjectType === ''"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+        <PremiumLicenseProjectForm
+          v-else-if="newProjectType === 'premium'"
           item-id="new"
           @save="onSave"
           @error="onError"
@@ -158,7 +166,10 @@
             @click="selectProject(item.id)"
           >
             <v-list-item-icon>
+              <v-icon v-if="item.type === 'premium'" color="#FFCA28">mdi-license</v-icon>
+
               <v-avatar
+                v-else
                 :color="getProjectColor(item)"
                 size="24"
                 style="font-size: 13px; font-weight: bold;"
@@ -168,6 +179,8 @@
             </v-list-item-icon>
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
+
+          <v-divider v-if="user.can_create_project" />
 
           <v-list-item
             @click="newProjectDialog = true; newProjectType = '';"
@@ -192,14 +205,17 @@
             </v-list-item-content>
           </v-list-item>
 
-          <v-divider/>
+          <v-divider v-if="user.can_create_project" />
 
-          <v-list-item @click="buyPremiumLicense" v-if="user.can_create_project">
+          <v-list-item
+            @click="buyPremiumLicense"
+            v-if="user.can_create_project"
+          >
             <v-list-item-icon>
               <v-icon color="#FFCA28">mdi-license</v-icon>
             </v-list-item-icon>
 
-            <v-list-item-content style="font-weight: bold;">
+            <v-list-item-content style="font-weight: bold; color: #FFCA28;">
               Buy Premium License
             </v-list-item-content>
           </v-list-item>
@@ -648,6 +664,7 @@ import UserForm from '@/components/UserForm.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
+import PremiumLicenseProjectForm from '@/components/PremiumLicenseProjectForm.vue';
 
 const PROJECT_COLORS = [
   'red',
@@ -722,6 +739,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    PremiumLicenseProjectForm,
     ChangePasswordForm,
     UserForm,
     EditDialog,
@@ -966,7 +984,8 @@ export default {
   methods: {
 
     buyPremiumLicense() {
-
+      this.newProjectDialog = true;
+      this.newProjectType = 'premium';
     },
 
     selectLanguage(lang) {

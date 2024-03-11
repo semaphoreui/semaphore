@@ -26,6 +26,9 @@ import ItemFormBase from '@/components/ItemFormBase';
 export default {
   mixins: [ItemFormBase],
   methods: {
+    beforeSave() {
+      this.item.type = 'premium';
+    },
     getItemsUrl() {
       return '/api/projects';
     },
