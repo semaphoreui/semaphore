@@ -223,10 +223,22 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	noneKey, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "None",
+		Type:      db.AccessKeyNone,
+		ProjectID: &body.ID,
+	})
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	_, err = store.CreateInventory(db.Inventory{
 		Name:      "None",
 		ProjectID: body.ID,
 		Type:      "none",
+		SSHKeyID:  &noneKey.ID,
 	})
 
 	if err != nil {
