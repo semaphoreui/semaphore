@@ -2,11 +2,23 @@
   <div>
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('newProject') }}</v-toolbar-title>
+      <v-toolbar-title>
+        {{ projectType === 'premium' ? 'Buy Premium License' : $t('newProject') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
-    <div class="project-settings-form">
+    <div v-if="projectType === 'premium'" class="project-settings-form">
+      <div style="height: 150px;">
+        <PremiumLicenseProjectForm item-id="new" ref="editForm" @save="onSave" />
+      </div>
+
+      <div class="text-right">
+        <v-btn color="primary" @click="createProject()">Continue</v-btn>
+      </div>
+    </div>
+
+    <div v-else class="project-settings-form">
       <div style="height: 300px;">
         <ProjectForm item-id="new" ref="editForm" @save="onSave" />
       </div>
@@ -28,12 +40,20 @@
 <script>
 import EventBus from '@/event-bus';
 import ProjectForm from '@/components/ProjectForm.vue';
+import PremiumLicenseProjectForm from '@/components/PremiumLicenseProjectForm.vue';
 
 export default {
-  components: { ProjectForm },
+  components: { PremiumLicenseProjectForm, ProjectForm },
+
   data() {
     return {
     };
+  },
+
+  computed: {
+    projectType() {
+      return this.$route.query.new_project;
+    },
   },
 
   methods: {
@@ -49,6 +69,7 @@ export default {
     },
 
     async createProject() {
+      this.$refs.editForm.item.type = this.projectType;
       await this.$refs.editForm.save();
     },
 

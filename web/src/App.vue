@@ -183,19 +183,37 @@
               {{ $t('restoreProject') }}
             </v-list-item-content>
           </v-list-item>
+
+          <v-divider/>
+
+          <v-list-item @click="buyPremiumLicense" v-if="user.can_create_project">
+            <v-list-item-icon>
+              <v-icon color="#FFCA28">mdi-license</v-icon>
+            </v-list-item-icon>
+
+            <v-list-item-content style="font-weight: bold;">
+              Buy Premium License
+            </v-list-item-content>
+          </v-list-item>
         </v-list>
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
+
         <v-list-item key="new_project" :to="`/project/new`">
           <v-list-item-icon>
             <v-icon>mdi-plus</v-icon>
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>{{ $t('newProject') }}</v-list-item-title>
+            <v-list-item-title>
+              {{
+                $route.query.new_project === 'premium' ? 'Buy Premium License' : $t('newProject')
+              }}
+            </v-list-item-title>
           </v-list-item-content>
         </v-list-item>
+
       </v-list>
 
       <v-list class="pt-0" v-if="project">
@@ -709,7 +727,7 @@ export default {
       if (val.length === 0
         && this.$route.path.startsWith('/project/')
         && this.$route.path !== '/project/new') {
-        await this.$router.push({ path: '/project/new' });
+        await this.$router.push({ path: `/project/new${window.location.search}` });
       }
     },
 
@@ -907,6 +925,10 @@ export default {
 
   methods: {
 
+    buyPremiumLicense() {
+
+    },
+
     selectLanguage(lang) {
       localStorage.setItem('lang', lang);
       window.location.reload();
@@ -944,7 +966,7 @@ export default {
     async trySelectMostSuitableProject() {
       if (this.projects.length === 0) {
         if (this.$route.path !== '/project/new') {
-          await this.$router.push({ path: '/project/new' });
+          await this.$router.push({ path: `/project/new${window.location.search}` });
         }
         return;
       }

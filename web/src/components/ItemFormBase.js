@@ -146,6 +146,8 @@ export default {
       try {
         await this.beforeSave();
 
+        console.log(this.item);
+
         item = (await axios({
           method: this.isNew ? 'post' : 'put',
           url: this.isNew
