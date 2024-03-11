@@ -42,14 +42,12 @@
   </v-form>
 </template>
 <style>
-.CodeMirror {
-  height: 160px !important;
-}
 </style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
 import ItemFormBase from '@/components/ItemFormBase';
+import axios from 'axios';
 
 export default {
   mixins: [ItemFormBase],
@@ -66,6 +64,7 @@ export default {
         line: true,
         lint: true,
         indentWithTabs: false,
+        noneKey: null,
       },
       keys: null,
       inventoryTypes: [{
@@ -81,9 +80,30 @@ export default {
     };
   },
 
+  async created() {
+    this.noneKey = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/keys`,
+      responseType: 'json',
+    })).data.filter((key) => key.type === 'none')[0];
+  },
+
   methods: {
     async beforeSave() {
+      if (!this.noneKey) {
+        this.noneKey = (await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/keys`,
+          responseType: 'json',
+          data: {
+            name: 'None',
+            type: 'none',
+            project_id: this.projectId,
+          },
+        })).data;
+      }
       this.item.type = 'terraform-workspace';
+      this.item.ssh_key_id = this.noneKey.id;
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/inventory`;
