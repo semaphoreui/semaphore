@@ -345,6 +345,18 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 		if !strings.HasPrefix(redirectPath, "/") {
 			redirectPath = "/" + redirectPath
 		}
+
+		providerUrl, err := url.Parse(provider.RedirectURL)
+
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if redirectPath == providerUrl.Path {
+			redirectPath = ""
+		} else if strings.HasPrefix(redirectPath, providerUrl.Path+"/") {
+			redirectPath = redirectPath[len(providerUrl.Path):]
+		}
 	}
 
 	oauthConfig := oauth2.Config{
@@ -359,7 +371,12 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 		if err != nil {
 			return nil, nil, err
 		}
-		oauthConfig.RedirectURL = rurl + redirectPath
+
+		oauthConfig.RedirectURL = rurl
+
+		if rurl != redirectPath {
+			oauthConfig.RedirectURL += redirectPath
+		}
 	}
 	if len(oauthConfig.Scopes) == 0 {
 		oauthConfig.Scopes = []string{"openid", "profile", "email"}
@@ -505,7 +522,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.RawQuery)
+
+	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
 		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
