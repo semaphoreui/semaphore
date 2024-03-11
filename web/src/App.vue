@@ -74,9 +74,14 @@
     <EditDialog
       v-model="newProjectDialog"
       :save-button-text="newProjectType === 'premium' ? 'Continue' : 'Create'"
-      :title="newProjectType === 'premium' ? 'Buy Premium License' : $t('newProject')"
       event-name="i-project"
     >
+      <template v-slot:title="{}">
+        <v-icon
+          v-if="newProjectType === 'premium'" color="#FFCA28" class="mr-2"
+        >mdi-license</v-icon>
+        {{ newProjectType === 'premium' ? 'Buy Premium License' : $t('newProject') }}
+      </template>
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <ProjectForm
           v-if="newProjectType === ''"

@@ -79,7 +79,20 @@
         v-model="signInFormValid"
         style="width: 300px; height: 300px;"
       >
-        <h3 class="text-center mb-8">{{ $t('semaphore') }}</h3>
+        <h3
+          class="text-center"
+          :class="{'mb-8': $route.query.new_proect !== 'premium'}"
+        >
+          {{ $t('semaphore') }}
+        </h3>
+
+        <h4
+          class="text-center mb-8"
+          v-if="$route.query.new_proect === 'premium'"
+          style="color: gold;"
+        >
+          PREMIUM LICENSE
+        </h4>
 
         <v-alert
           :value="signInError != null"

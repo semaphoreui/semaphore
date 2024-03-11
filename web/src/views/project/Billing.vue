@@ -360,6 +360,7 @@
             </v-card-actions>
           </v-card>
         </v-col>
+
         <v-col md="4" lg="4" v-if="projectType === 'premium'">
           <v-card
             class="mt-4 pa-2"
@@ -458,6 +459,9 @@ const PLANS = {
     price: 5,
     diskUsage: 1000,
     runnerUsage: 1000 * 60,
+  },
+  premium: {
+    price: 50,
   },
 };
 
