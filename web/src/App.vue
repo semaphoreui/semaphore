@@ -239,6 +239,20 @@
         </v-list-item>
 
         <v-list-item
+          v-if="project.type === 'premium'"
+          key="support"
+          :to="`/project/${projectId}/support`"
+        >
+          <v-list-item-icon>
+            <v-icon>mdi-chat</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Support</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item
           v-if="project.type === ''"
           key="inventory"
           :to="`/project/${projectId}/inventory`"
