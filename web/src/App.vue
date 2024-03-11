@@ -773,6 +773,9 @@ export default {
     },
 
     project() {
+      if (this.projects == null) {
+        return null;
+      }
       return this.projects.find((x) => x.id === this.projectId);
     },
 
