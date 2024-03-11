@@ -16,6 +16,7 @@ export default {
 
   props: {
     projectId: Number,
+    projectType: String,
     userId: Number,
     userPermissions: Number,
     userRole: String,
