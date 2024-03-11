@@ -423,6 +423,7 @@
     <v-main>
       <router-view
         :projectId="projectId"
+        :projectType="(project || {}).type || ''"
         :userPermissions="(userRole || {}).permissions"
         :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
