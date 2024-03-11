@@ -101,6 +101,7 @@
           v-if="$route.query.new_project === 'premium'"
           style="color: gold;"
         >
+          <v-icon color="#FFCA28">mdi-license</v-icon>
           PREMIUM LICENSE
         </h4>
 
