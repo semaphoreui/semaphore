@@ -91,14 +91,14 @@
 
         <h3
           class="text-center"
-          :class="{'mb-8': $route.query.new_proect !== 'premium'}"
+          :class="{'mb-8': $route.query.new_project !== 'premium'}"
         >
           {{ $t('semaphore') }}
         </h3>
 
         <h4
           class="text-center mb-8"
-          v-if="$route.query.new_proect === 'premium'"
+          v-if="$route.query.new_project === 'premium'"
           style="color: gold;"
         >
           PREMIUM LICENSE
