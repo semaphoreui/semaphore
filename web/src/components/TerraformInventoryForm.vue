@@ -64,7 +64,6 @@ export default {
         line: true,
         lint: true,
         indentWithTabs: false,
-        noneKey: null,
       },
       keys: null,
       inventoryTypes: [{
@@ -80,18 +79,20 @@ export default {
     };
   },
 
-  async created() {
-    this.noneKey = (await axios({
-      method: 'get',
-      url: `/api/project/${this.projectId}/keys`,
-      responseType: 'json',
-    })).data.filter((key) => key.type === 'none')[0];
-  },
-
   methods: {
+    async getNoneKey() {
+      return (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/keys`,
+        responseType: 'json',
+      })).data.filter((key) => key.type === 'none')[0];
+    },
+
     async beforeSave() {
-      if (!this.noneKey) {
-        this.noneKey = (await axios({
+      let noneKey = await this.getNoneKey();
+
+      if (!noneKey) {
+        await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/keys`,
           responseType: 'json',
@@ -100,10 +101,12 @@ export default {
             type: 'none',
             project_id: this.projectId,
           },
-        })).data;
+        });
+        noneKey = await this.getNoneKey();
       }
+
       this.item.type = 'terraform-workspace';
-      this.item.ssh_key_id = this.noneKey.id;
+      this.item.ssh_key_id = noneKey.id;
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/inventory`;
