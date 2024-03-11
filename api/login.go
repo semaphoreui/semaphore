@@ -374,6 +374,7 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	redirectPath := ""
 
 	if r.URL.Query()["redirect"] != nil {
+		// TODO: validate path
 		redirectPath = r.URL.Query()["redirect"][0]
 	}
 
