@@ -75,6 +75,7 @@
       v-model="newProjectDialog"
       :save-button-text="newProjectType === 'premium' ? 'Continue' : 'Create'"
       event-name="i-project"
+      @close="onNewProjectDialogueClosed()"
     >
       <template v-slot:title="{}">
         <v-icon
@@ -1040,6 +1041,11 @@ export default {
     selectLanguage(lang) {
       localStorage.setItem('lang', lang);
       window.location.reload();
+    },
+
+    async onNewProjectDialogueClosed() {
+      const query = { ...this.$route.query, new_project: undefined };
+      await this.$router.replace({ query });
     },
 
     async onTaskLogDialogClosed() {
