@@ -471,11 +471,30 @@ func (p *JobPool) checkNewJobs() {
 			continue
 		}
 
-		runJob.SetStatus(currJob.Status)
-
 		if runJob.status == lib.TaskStoppingStatus || runJob.status == lib.TaskStoppedStatus {
 			p.runningJobs[currJob.ID].job.Kill()
 		}
+
+		if runJob.status.IsFinished() {
+			continue
+		}
+
+		switch runJob.status {
+		case lib.TaskRunningStatus:
+			if currJob.Status == lib.TaskStartingStatus || currJob.Status == lib.TaskWaitingStatus {
+				continue
+			}
+		case lib.TaskStoppingStatus:
+			if !currJob.Status.IsFinished() {
+				continue
+			}
+		case lib.TaskConfirmed:
+			if currJob.Status == lib.TaskWaitingConfirmation {
+				continue
+			}
+		}
+
+		runJob.SetStatus(currJob.Status)
 	}
 
 	if util.Config.Runner.OneOff {
