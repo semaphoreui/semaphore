@@ -307,8 +307,6 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
-	t.SetStatus(lib.TaskRunningStatus)
-
 	err = t.prepareRun()
 	if err != nil {
 		return err
@@ -341,16 +339,6 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-
-		//var sshAgent lib.SshAgent
-		//sshAgent, err = t.Inventory.StartSshAgent(t.Logger)
-		//
-		//if err != nil {
-		//	return
-		//}
-		//
-		//defer sshAgent.Close()
-
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
 	}
 

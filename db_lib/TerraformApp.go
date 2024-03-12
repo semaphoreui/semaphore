@@ -32,6 +32,12 @@ type terraformReader struct {
 }
 
 func (r *terraformReader) Read(p []byte) (n int, err error) {
+
+	if r.confirmed {
+		copy(p, "\n")
+		return 1, nil
+	}
+
 	r.logger.SetStatus(lib.TaskWaitingConfirmation)
 
 	for {
@@ -42,6 +48,9 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 	}
 
 	copy(p, "yes\n")
+
+	r.logger.SetStatus(lib.TaskRunningStatus)
+
 	return 4, nil
 }
 
@@ -102,7 +111,7 @@ func (t *TerraformApp) GetFullPath() (path string) {
 	return
 }
 
-func (t *TerraformApp) SetLogger(logger lib.Logger) {
+func (t *TerraformApp) SetLogger(logger lib.Logger) lib.Logger {
 	internalLogger := &terraformLogger{
 		logger: logger,
 		reader: &t.reader,
@@ -110,6 +119,7 @@ func (t *TerraformApp) SetLogger(logger lib.Logger) {
 
 	t.reader.logger = internalLogger
 	t.Logger = internalLogger
+	return internalLogger
 }
 
 func (t *TerraformApp) InstallRequirements() error {

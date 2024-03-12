@@ -146,6 +146,7 @@ func (p *runningJob) Log(msg string) {
 
 func (p *runningJob) SetStatus(status lib.TaskStatus) {
 	p.status = status
+	p.job.SetStatus(status)
 }
 
 func (p *runningJob) LogCmd(cmd *exec.Cmd) {
@@ -212,8 +213,8 @@ func (p *JobPool) Run() {
 			p.runningJobs[t.job.Task.ID] = &runningJob{
 				job: t.job,
 			}
-			t.job.Logger = p.runningJobs[t.job.Task.ID]
-			t.job.App.SetLogger(t.job.Logger)
+
+			t.job.Logger = t.job.App.SetLogger(p.runningJobs[t.job.Task.ID])
 
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(lib.TaskRunningStatus)
