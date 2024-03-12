@@ -58,8 +58,9 @@ func (t *BashApp) GetFullPath() (path string) {
 	return
 }
 
-func (t *BashApp) SetLogger(logger lib.Logger) {
+func (t *BashApp) SetLogger(logger lib.Logger) lib.Logger {
 	t.Logger = logger
+	return logger
 }
 
 func (t *BashApp) InstallRequirements() error {
