@@ -54,6 +54,7 @@
           </router-link>
         </div>
       </template>
+
       <template v-slot:item.version="{ item }">
         <TaskLink
           :disabled="item.tpl_type === 'build'"
