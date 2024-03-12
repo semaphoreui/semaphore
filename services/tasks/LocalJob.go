@@ -307,6 +307,8 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
+	t.SetStatus(lib.TaskRunningStatus) // It is required for local mode. Don't delete
+
 	err = t.prepareRun()
 	if err != nil {
 		return err
