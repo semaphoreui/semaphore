@@ -158,9 +158,17 @@
         }"
     >
       <template v-slot:item.name="{ item }">
+        <v-icon
+          class="mr-3"
+          small
+        >
+          {{ APP_ICONS[item.app].icon }}
+        </v-icon>
+
         <v-icon class="mr-3" small>
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
+
         <router-link
           :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
