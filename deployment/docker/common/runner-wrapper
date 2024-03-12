@@ -1,0 +1,23 @@
+#!/bin/sh
+
+echo Loading environment...
+
+source /home/semaphore/venv/bin/activate
+
+echo Staring runner...
+
+
+export ANSIBLE_HOST_KEY_CHECKING=False
+export ANSIBLE_STDOUT_CALLBACK=yaml
+export ANSIBLE_LOAD_CALLBACK_PLUGINS=yes
+export ANSIBLE_CONFIG=/tmp/semaphore/ansible.cfg
+
+tee "/tmp/semaphore/ansible.cfg" <<CONFIG
+[defaults]
+host_key_checking = False
+stdout_callback = yaml
+bin_ansible_callbacks = yes
+CONFIG
+
+
+/usr/local/bin/semaphore runner --config /etc/semaphore/config.json

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"io"
@@ -18,7 +19,17 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "user"))
+	var user struct {
+		db.User
+		CanCreateProject   bool `json:"can_create_project"`
+		IntegrationsEnable bool `json:"integrations_enable"`
+	}
+
+	user.User = *context.Get(r, "user").(*db.User)
+	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
+	user.IntegrationsEnable = util.Config.IntegrationsEnable
+
+	helpers.WriteJSON(w, http.StatusOK, user)
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {

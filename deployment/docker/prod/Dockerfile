@@ -1,5 +1,5 @@
 # ansible-semaphore production image
-FROM golang:1.18.3-alpine3.16 as builder
+FROM golang:1.21-alpine3.18 as builder
 
 COPY ./ /go/src/github.com/ansible-semaphore/semaphore
 WORKDIR /go/src/github.com/ansible-semaphore/semaphore
@@ -7,10 +7,10 @@ WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc g++ && \
   ./deployment/docker/prod/bin/install
 
-FROM alpine:3.16 as runner
+FROM alpine:3.18 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
 
-RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp py3-pip && \
+RUN apk add --no-cache sshpass git curl ansible mysql-client openssh-client-default tini py3-aiohttp tzdata zip unzip tar py3-pip && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \

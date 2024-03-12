@@ -18,8 +18,8 @@
     <EditDialog
       :max-width="700"
       v-model="editDialog"
-      save-button-text="Save"
-      title="Edit Template"
+      :save-button-text="$t('save')"
+      :title="$t('editTemplate')"
       @save="loadData()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -37,8 +37,8 @@
     <EditDialog
       :max-width="700"
       v-model="copyDialog"
-      save-button-text="Create"
-      title="New Template"
+      :save-button-text="$t('create')"
+      :title="$t('newTemplate2')"
       @save="onTemplateCopied"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -62,13 +62,13 @@
     />
 
     <YesNoDialog
-      title="Delete template"
-      text="Are you really want to delete this template?"
+      :title="$t('deleteTemplate')"
+      :text="$t('askDeleteTemp')"
       v-model="deleteDialog"
       @yes="remove()"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
         <router-link
@@ -77,7 +77,7 @@
               ? `/project/${projectId}/views/${viewId}/templates/`
               : `/project/${projectId}/templates/`"
         >
-          Task Templates
+          {{ $t('taskTemplates2') }}
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.name }}</span>
@@ -86,13 +86,14 @@
       <v-spacer></v-spacer>
 
       <v-btn color="primary" depressed class="mr-3" @click="newTaskDialog = true">
-        {{ TEMPLATE_TYPE_ACTION_TITLES[item.type] }}
+        {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
 
       <v-btn
         icon
         color="error"
         @click="askDelete()"
+        v-if="canUpdate"
       >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
@@ -100,6 +101,7 @@
       <v-btn
         icon
         @click="copyDialog = true"
+        v-if="canUpdate"
       >
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
@@ -107,6 +109,7 @@
       <v-btn
         icon
         @click="editDialog = true"
+        v-if="canUpdate"
       >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
@@ -130,7 +133,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title>Playbook</v-list-item-title>
+                <v-list-item-title>{{ $t('playbook') }}</v-list-item-title>
                 <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
@@ -144,8 +147,9 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title>Type</v-list-item-title>
-                <v-list-item-subtitle>{{ TEMPLATE_TYPE_TITLES[item.type] }}</v-list-item-subtitle>
+                <v-list-item-title>{{ $t('type') }}</v-list-item-title>
+                <v-list-item-subtitle>{{ $t(TEMPLATE_TYPE_TITLES[item.type]) }}
+                </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
           </v-list>
@@ -158,7 +162,7 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title>Inventory</v-list-item-title>
+                <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ inventory.find((x) => x.id === item.inventory_id).name }}
                 </v-list-item-subtitle>
@@ -173,7 +177,7 @@
                 <v-icon>mdi-code-braces</v-icon>
               </v-list-item-icon>
               <v-list-item-content>
-                <v-list-item-title>Environment</v-list-item-title>
+                <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ environment.find((x) => x.id === item.environment_id).name }}
                 </v-list-item-subtitle>
@@ -188,7 +192,7 @@
                 <v-icon>mdi-git</v-icon>
               </v-list-item-icon>
               <v-list-item-content>
-                <v-list-item-title>Repository</v-list-item-title>
+                <v-list-item-title>{{ $t('repository2') }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ repositories.find((x) => x.id === item.repository_id).name }}
                 </v-list-item-subtitle>
@@ -213,7 +217,12 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import EditDialog from '@/components/EditDialog.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
 import TaskList from '@/components/TaskList.vue';
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
+import {
+  TEMPLATE_TYPE_ACTION_TITLES,
+  TEMPLATE_TYPE_ICONS,
+  TEMPLATE_TYPE_TITLES,
+  USER_PERMISSIONS,
+} from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
@@ -224,6 +233,7 @@ export default {
 
   props: {
     projectId: Number,
+    userPermissions: Number,
   },
 
   data() {
@@ -241,10 +251,17 @@ export default {
       itemRefs: null,
       itemRefsDialog: null,
       newTaskDialog: null,
+      USER_PERMISSIONS,
     };
   },
 
   computed: {
+    canUpdate() {
+      const perm = USER_PERMISSIONS.manageProjectResources;
+      // eslint-disable-next-line no-bitwise
+      return (this.userPermissions & perm) === perm;
+    },
+
     viewId() {
       if (/^-?\d+$/.test(this.$route.params.viewId)) {
         return parseInt(this.$route.params.viewId, 10);

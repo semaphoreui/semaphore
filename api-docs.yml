@@ -1,3 +1,4 @@
+---
 swagger: '2.0'
 info:
   title: SEMAPHORE
@@ -19,6 +20,8 @@ tags:
     description: Everything related to a project
   - name: user
     description: User-related API
+  - name: integration
+    description: Integration API
 
 schemes:
   - http
@@ -43,6 +46,24 @@ definitions:
         type: string
         format: password
         description: Password
+
+  LoginMetadata:
+    type: object
+    properties:
+      oidc_providers:
+        type: array
+        description: List of OIDC providers
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+              description: ID of the provider, used in the login URL
+              x-example: mysso
+            name:
+              type: string
+              description: Text to show on the login button
+              x-example: Sign in with MySSO
 
   UserRequest:
     type: object
@@ -97,11 +118,161 @@ definitions:
         type: string
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
       admin:
         type: boolean
+
+  ProjectUser:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      name:
+        type: string
+      username:
+        type: string
+
+  ProjectBackup:
+    type: object
+    example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":"null","suppress_success_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/demo-project.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"name":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
+    properties:
+      meta:
+        type: object
+        properties:
+          name:
+            type: string
+          alert:
+            type: boolean
+          alert_chat:
+            type: 
+              - string
+              - 'null'
+          max_parallel_tasks:
+            type: integer
+            minimum: 0
+      templates:
+        type: array
+        items:
+          type: object
+          properties:
+            inventory:
+              type: string
+            repository:
+              type: string
+            environment:
+              type: string
+            view:
+              type: string
+            name:
+              type: string
+            playbook:
+              type: string
+            arguments:
+              type:
+                - string
+                - 'null'
+            description:
+              type: string
+            allow_override_args_in_task:
+              type: boolean
+            suppress_success_alerts:
+              type: boolean
+            cron:
+              type:
+                - string
+                - 'null'
+            build_template:
+              type:
+                - string
+                - 'null'
+            autorun:
+              type: boolean
+            survey_vars:
+              type:
+                - string
+                - 'null'
+            start_version:
+              type:
+                - string
+                - 'null'
+            type:
+              type: string
+            vault_key:
+              type:
+                - string
+                - 'null'
+      repositories:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            git_url:
+              type: string
+            git_branch:
+              type: string
+            ssh_key:
+              type: string
+      keys:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            type:
+              type: string
+              enum: [ssh, login_password, none]
+      views:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            position:
+              type: integer
+              minimum: 0
+      inventories:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            inventory:
+              type: string
+            ssh_key:
+              type:
+                - string
+                - 'null'
+            become_key:
+              type:
+                - string
+                - 'null'
+            type:
+              type: string
+              enum: [static, static-yaml, file]
+      environments:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            password:
+              type:
+                - string
+                - 'null'
+            json:
+              type: string
+            env:
+              type:
+                - string
+                - 'null'
 
   APIToken:
     type: object
@@ -152,7 +323,6 @@ definitions:
         type: integer
         minimum: 0
 
-
   AccessKeyRequest:
     type: object
     properties:
@@ -162,12 +332,34 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none,ssh,login_password]
+        enum: [none, ssh, login_password]
         x-example: none
       project_id:
         type: integer
         minimum: 1
         x-example: 2
+      login_password:
+        type: object
+        properties:
+          password:
+            type: string
+            x-example: password
+            example: password
+          login:
+            type: string
+            x-example: username
+            example: username
+      ssh:
+        type: object
+        properties:
+          login:
+            type: string
+            x-example: user
+            example: user
+          private_key:
+            type: string
+            x-example: private key
+            example: private key
 
   AccessKey:
     type: object
@@ -179,9 +371,31 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none,ssh,login_password]
+        enum: [none, ssh, login_password]
       project_id:
         type: integer
+      login_password:
+        type: object
+        properties:
+          password:
+            type: string
+            x-example: password
+            example: password
+          login:
+            type: string
+            x-example: username
+            example: username
+      ssh:
+        type: object
+        properties:
+          login:
+            type: string
+            x-example: user
+            example: user
+          private_key:
+            type: string
+            x-example: private key
+            example: private key
 
   EnvironmentRequest:
     type: object
@@ -223,25 +437,26 @@ definitions:
         example: '{}'
 
   InventoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-          minimum: 1
-        inventory:
-          type: string
-        ssh_key_id:
-          type: integer
-          minimum: 1
-        become_key_id:
-          type: integer
-          minimum: 1
-        type:
-          type: string
-          enum: [static, static-yaml, file]
+    type: object
+    properties:
+      name:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+        minimum: 1
+      inventory:
+        type: string
+      ssh_key_id:
+        type: integer
+        minimum: 1
+      become_key_id:
+        type: integer
+        minimum: 1
+      type:
+        type: string
+        enum: [static, static-yaml, file]
+
   Inventory:
     type: object
     properties:
@@ -262,22 +477,138 @@ definitions:
         type: string
         enum: [static, static-yaml, file]
 
+  Integration:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: deploy
+      project_id:
+        type: integer
+        minimum: 1
+      template_id:
+        type: integer
+        minimum: 1
+
+  IntegrationRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+
+  IntegrationExtractValueRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      value_source:
+        type: string
+        enum: [body, header]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      variable:
+        type: string
+        example: variable
+
+  IntegrationExtractValue:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+        example: extract this value
+      value_source:
+        type: string
+        enum: [body, header]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      variable:
+        type: string
+        example: variable
+      integration_id:
+        type: integer
+
+  IntegrationMatcherRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        example: deploy
+      match_type:
+        type: string
+        enum: [body, header]
+      method:
+        type: string
+        enum: [equals, unequals, contains]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      value:
+        type: string
+        example: value
+
+  IntegrationMatcher:
+    type: object
+    properties:
+      id:
+        type: integer
+      integration_id:
+        type: integer
+      name:
+        type: string
+        example: deploy
+      match_type:
+        type: string
+        enum: [body, header]
+      method:
+        type: string
+        enum: [equals, unequals, contains]
+      body_data_type:
+        type: string
+        enum: [json, xml, string]
+      key:
+        type: string
+        example: key
+      value:
+        type: string
+        example: value
+
   RepositoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-        git_url:
-          type: string
-          example: git@example.com
-        git_branch:
-          type: string
-          example: master
-        ssh_key_id:
-          type: integer
+    type: object
+    properties:
+      name:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+      git_url:
+        type: string
+        example: git@example.com
+      git_branch:
+        type: string
+        example: master
+      ssh_key_id:
+        type: integer
   Repository:
     type: object
     properties:
@@ -365,6 +696,12 @@ definitions:
       limit:
         type: string
         example: ''
+      suppress_success_alerts:
+        type: boolean
+      survey_vars:
+        type: array
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
   Template:
     type: object
     properties:
@@ -400,6 +737,24 @@ definitions:
       allow_override_args_in_task:
         type: boolean
         example: false
+      suppress_success_alerts:
+        type: boolean
+      app:
+        type: string
+  TemplateSurveyVar:
+    type: object
+    properties:
+      name:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      type:
+        type: string
+        example: String => "", Integer => "int"
+      required:
+        type: boolean
 
   ScheduleRequest:
     type: object
@@ -427,19 +782,18 @@ definitions:
       template_id:
         type: integer
 
-
   ViewRequest:
-      type: object
-      properties:
-        title:
-          type: string
-          example: Test
-        project_id:
-          type: integer
-          minimum: 1
-        position:
-          type: integer
-          minimum: 1
+    type: object
+    properties:
+      title:
+        type: string
+        example: Test
+      project_id:
+        type: integer
+        minimum: 1
+      position:
+        type: integer
+        minimum: 1
   View:
     type: object
     properties:
@@ -452,6 +806,11 @@ definitions:
       position:
         type: integer
 
+  Runner:
+    type: object
+    properties:
+      token:
+        type: string
 
   Event:
     type: object
@@ -569,6 +928,28 @@ parameters:
     type: integer
     required: true
     x-example: 10
+  integration_id:
+    name: integration_id
+    description: integration ID
+    in: path
+    type: integer
+    required: true
+    x-example: 11
+  extractvalue_id:
+    name: extractvalue_id
+    description: extractValue ID
+    in: path
+    type: integer
+    required: true
+    x-example: 12
+  matcher_id:
+    name: matcher_id
+    description: matcher ID
+    in: path
+    type: integer
+    required: true
+    x-example: 13
+
 paths:
   /ping:
     get:
@@ -610,6 +991,17 @@ paths:
 
   # Authentication
   /auth/login:
+    get:
+      tags:
+        - authentication
+      summary: Fetches login metadata
+      description: Fetches metadata for login, such as available OIDC providers
+      security: []
+      responses:
+        200:
+          description: Login metadata
+          schema:
+            $ref: "#/definitions/LoginMetadata"
     post:
       tags:
         - authentication
@@ -636,6 +1028,38 @@ paths:
       responses:
         204:
           description: Your session was successfully nuked
+
+  /auth/oidc/{provider_id}/login:
+    parameters:
+      - name: provider_id
+        in: path
+        type: string
+        required: true
+        x-example: "mysso"
+    get:
+      tags:
+        - authentication
+      summary: Begin OIDC authentication flow and redirect to OIDC provider
+      description: The user agent is redirected to this endpoint when chosing to sign in via OIDC
+      responses:
+        302:
+          description: Redirection to the OIDC provider on success, or to the login page on error
+
+  /auth/oidc/{provider_id}/redirect:
+    parameters:
+      - name: provider_id
+        in: path
+        type: string
+        required: true
+        x-example: "mysso"
+    get:
+      tags:
+        - authentication
+      summary: Finish OIDC authentication flow, upon succes you will be logged in
+      description: The user agent is redirected here by the OIDC provider to complete authentication
+      responses:
+        302:
+          description: Redirection to the Semaphore root URL on success, or to the login page on error
 
   # User Tokens
   /user/:
@@ -809,6 +1233,24 @@ paths:
       responses:
         201:
           description: Created project
+  /projects/restore:
+    post:
+      tags:
+        - projects
+      summary: Restore Project
+      consumes:
+        - application/json
+      parameters:
+        - name: Backup
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/ProjectBackup'
+      responses:
+        200:
+          description: Created project
+          schema:
+            $ref: "#/definitions/Project"
 
   /events:
     get:
@@ -867,6 +1309,40 @@ paths:
         204:
           description: Project deleted
 
+  /project/{project_id}/backup:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Backup A Project
+      responses:
+        200:
+          description: Backup
+          schema:
+            $ref: '#/definitions/ProjectBackup'
+
+  /project/{project_id}/role:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Fetch permissions of the current user for project
+      responses:
+        200:
+          description: Permissions
+          schema:
+            type: object
+            properties:
+              role:
+                type: string
+                example: owner
+              permissions:
+                type: number
+                example: 0
+
+
   /project/{project_id}/events:
     parameters:
       - $ref: '#/parameters/project_id'
@@ -895,7 +1371,7 @@ paths:
           in: query
           required: true
           type: string
-          enum: [name, username, email, admin]
+          enum: [name, username, email, role]
           description: sorting name
           x-example: email
         - name: order
@@ -911,7 +1387,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: "#/definitions/User"
+              $ref: "#/definitions/ProjectUser"
     post:
       tags:
         - project
@@ -926,8 +1402,10 @@ paths:
               user_id:
                 type: integer
                 minimum: 2
-              admin:
-                type: boolean
+              role:
+                type: string
+                enum: [owner, manager, task_runner, guest]
+                example: owner
       responses:
         204:
           description: User added
@@ -942,24 +1420,190 @@ paths:
       responses:
         204:
           description: User removed
-  /project/{project_id}/users/{user_id}/admin:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/user_id"
-    post:
-      tags:
-        - project
-      summary: Makes user admin
+    put:
+      parameters:
+        - name: Project User
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [owner, manager, task_runner, guest]
+                example: owner
+      summary: Update user role
       responses:
         204:
-          description: User made administrator
+          description: User updated
+
+  /project/{project_id}/integrations:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: get all integrations
+      responses:
+        200:
+          description: integration
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Integration"
+    post:
+      summary: create a new integration
+      tags:
+        - project
+      parameters:
+        - name: Integration
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationRequest"
+      responses:
+        201:
+          description: Integration Created
+          schema:
+            $ref: "#/definitions/Integration"
+  /project/{project_id}/integrations/{integration_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    put:
+      tags:
+        - project
+      summary: Update Integration
+      parameters:
+        - name: Integration
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationRequest"
+      responses:
+        204:
+          description: Integration updated
     delete:
       tags:
         - project
-      summary: Revoke admin privileges
+      summary: Remove integration
       responses:
         204:
-          description: User admin privileges revoked
+          description: integration removed
+  /project/{project_id}/integrations/{integration_id}/values:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration Extracted Values linked to integration extractor
+      responses:
+        200:
+          description: Integration Extracted Value
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationExtractValue"
+    post:
+      tags:
+        - project
+      summary: Add Integration Extracted Value
+      parameters:
+        - name: Integration Extracted Value
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractValue"
+      responses:
+        201:
+          description: Integration Extract Value Created
+        400:
+          description: Bad Integration Extract Value params
+  /project/{project_id}/integrations/{integration_id}/values/{extractvalue_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/extractvalue_id"
+    put:
+      tags:
+        - integration
+      summary: Updates Integration ExtractValue
+      parameters:
+        - name: Integration ExtractValue
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationExtractValueRequest"
+      responses:
+        204:
+          description: Integration Extract Value updated
+        400:
+          description: Bad integration extract value parameter
+    delete:
+      tags:
+        - integration
+      summary: Removes integration extract value
+      responses:
+        204:
+          description: integration extract value removed
+  /project/{project_id}/integrations/{integration_id}/matchers:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration Matcher linked to integration extractor
+      responses:
+        200:
+          description: Integration Matcher
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationMatcher"
+    post:
+      tags:
+        - project
+      summary: Add Integration Matcher
+      parameters:
+        - name: Integration Matcher
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationMatcher"
+      responses:
+        200:
+          description: Integration Matcher Created
+        400:
+          description: Bad Integration Matcher params
+  /project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/matcher_id"
+    put:
+      tags:
+        - integration
+      summary: Updates Integration Matcher
+      parameters:
+        - name: Integration Matcher
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationMatcherRequest"
+      responses:
+        204:
+          description: Integration Matcher updated
+        400:
+          description: Bad integration matcher parameter
+    delete:
+      tags:
+        - integration
+      summary: Removes integration matcher
+      responses:
+        204:
+          description: integration matcher removed
 
   # project access keys
   /project/{project_id}/keys:
@@ -970,12 +1614,12 @@ paths:
         - project
       summary: Get access keys linked to project
       parameters:
-          # TODO - the space in this parameter name results in a dredd warning
+        # TODO - the space in this parameter name results in a dredd warning
         - name: Key type
           in: query
           required: false
           type: string
-          enum: [none,ssh,login_password]
+          enum: [none, ssh, login_password]
           description: Filter by key type
           x-example: none
         - name: sort
@@ -1087,6 +1731,21 @@ paths:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/repository_id"
+    put:
+      tags:
+        - project
+      summary: Updates repository
+      parameters:
+        - name: Repository
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RepositoryRequest"
+      responses:
+        204:
+          description: Repository updated
+        400:
+          description: Bad request
     delete:
       tags:
         - project
@@ -1137,7 +1796,7 @@ paths:
         201:
           description: inventory created
           schema:
-              $ref: "#/definitions/Inventory"
+            $ref: "#/definitions/Inventory"
   /project/{project_id}/inventory/{inventory_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1259,12 +1918,19 @@ paths:
             type: array
             items:
               $ref: "#/definitions/Template"
+              properties:
+                survey_vars:
+                  type: array
+                  items:
+                    $ref: "#/definitions/TemplateSurveyVar"
+                last_task:
+                  $ref: "#/definitions/Task"
     post:
       tags:
         - project
       summary: create template
       parameters:
-        - name: template
+        - name: templateyes
           in: body
           required: true
           schema:
@@ -1273,7 +1939,7 @@ paths:
         201:
           description: template created
           schema:
-            $ref: "#/definitions/Template"
+            $ref: "#/definitions/TemplateRequest"
   /project/{project_id}/templates/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1312,11 +1978,11 @@ paths:
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
     parameters:
-    - $ref: "#/parameters/project_id"
-    - $ref: "#/parameters/schedule_id"
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/schedule_id"
     get:
       tags:
-      - schedule
+        - schedule
       summary: Get schedule
       responses:
         200:
@@ -1325,38 +1991,38 @@ paths:
             $ref: "#/definitions/Schedule"
     delete:
       tags:
-      - schedule
+        - schedule
       summary: Deletes schedule
       responses:
         204:
           description: schedule deleted
     put:
       tags:
-      - schedule
+        - schedule
       summary: Updates schedule
       parameters:
-      - name: schedule
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/ScheduleRequest"
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
       responses:
         204:
           description: schedule updated
 
   /project/{project_id}/schedules:
     parameters:
-    - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/project_id"
     post:
       tags:
-      - schedule
+        - schedule
       summary: create schedule
       parameters:
-      - name: schedule
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/ScheduleRequest"
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
       responses:
         201:
           description: schedule created
@@ -1428,7 +2094,6 @@ paths:
           description: view removed
 
 
-
   # tasks
   /project/{project_id}/tasks:
     parameters:
@@ -1474,6 +2139,8 @@ paths:
           description: Task queued
           schema:
             $ref: "#/definitions/Task"
+
+
   /project/{project_id}/tasks/last:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1488,6 +2155,20 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Task'
+
+
+  /project/{project_id}/tasks/{task_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: '#/parameters/task_id'
+    post:
+      tags:
+        - project
+      summary: Stop a job
+      responses:
+        204:
+          description: Task queued
+
   /project/{project_id}/tasks/{task_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1508,6 +2189,7 @@ paths:
       responses:
         204:
           description: task deleted
+
   /project/{project_id}/tasks/{task_id}/output:
     parameters:
       - $ref: '#/parameters/project_id'
@@ -1523,3 +2205,24 @@ paths:
             type: array
             items:
               $ref: "#/definitions/TaskOutput"
+
+#  /runners:
+#    post:
+#      tags:
+#        - project
+#      summary: Starts a job
+#      parameters:
+#        - name: task
+#          in: body
+#          required: true
+#          schema:
+#            type: object
+#            properties:
+#              registration_token:
+#                type: string
+#                example: test123
+#      responses:
+#        201:
+#          description: Task queued
+#          schema:
+#            $ref: "#/definitions/Runner"

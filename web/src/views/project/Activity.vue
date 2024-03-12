@@ -1,17 +1,25 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items">
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Dashboard</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <div>
-        <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
-        </v-tabs>
-      </div>
+      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
+
+    <v-tabs show-arrows class="pl-4">
+      <v-tab
+        v-if="projectType === ''"
+        key="history"
+        :to="`/project/${projectId}/history`"
+      >{{ $t('history') }}</v-tab>
+      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab
+        v-if="can(USER_PERMISSIONS.updateProject)"
+        key="settings"
+        :to="`/project/${projectId}/settings`"
+      >
+        {{ $t('settings') }}
+      </v-tab>
+    </v-tabs>
 
     <v-data-table
       :headers="headers"
@@ -29,25 +37,26 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 
 export default {
+
   mixins: [ItemListPageBase],
 
   methods: {
     getHeaders() {
       return [
         {
-          text: 'Time',
+          text: this.$i18n.t('time'),
           value: 'created',
           sortable: false,
           width: '20%',
         },
         {
-          text: 'User',
+          text: this.$i18n.t('user'),
           value: 'username',
           sortable: false,
           width: '10%',
         },
         {
-          text: 'Description',
+          text: this.$i18n.t('description'),
           value: 'description',
           sortable: false,
           width: '70%',

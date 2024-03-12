@@ -1,11 +1,11 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 )
@@ -121,6 +121,24 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
+func ConfirmTask(w http.ResponseWriter, r *http.Request) {
+	targetTask := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	if targetTask.ProjectID != project.ID {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err := helpers.TaskPool(r).ConfirmTask(targetTask)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func StopTask(w http.ResponseWriter, r *http.Request) {
 	targetTask := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
@@ -130,7 +148,15 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.TaskPool(r).StopTask(targetTask)
+	var stopObj struct {
+		Force bool `json:"force"`
+	}
+
+	if !helpers.Bind(w, r, &stopObj) {
+		return
+	}
+
+	err := helpers.TaskPool(r).StopTask(targetTask, stopObj.Force)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

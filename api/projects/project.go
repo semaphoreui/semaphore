@@ -3,6 +3,7 @@ package projects
 import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/gorilla/mux"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -22,10 +23,10 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// check if user it project's team
-		_, err = helpers.Store(r).GetProjectUser(projectID, user.ID)
+		// check if user in project's team
+		projectUser, err := helpers.Store(r).GetProjectUser(projectID, user.ID)
 
-		if err != nil {
+		if !user.Admin && err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
@@ -37,41 +38,42 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		context.Set(r, "projectUserRole", projectUser.Role)
 		context.Set(r, "project", project)
 		next.ServeHTTP(w, r)
 	})
 }
 
-// MustBeAdmin ensures that the user has administrator rights
-func MustBeAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
-		user := context.Get(r, "user").(*db.User)
+// GetMustCanMiddleware ensures that the user has administrator rights
+func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			me := context.Get(r, "user").(*db.User)
+			myRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
 
-		projectUser, err := helpers.Store(r).GetProjectUser(project.ID, user.ID)
+			if !me.Admin && r.Method != "GET" && r.Method != "HEAD" && !myRole.Can(permissions) {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
 
-		if err == db.ErrNotFound {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
-
-		if !projectUser.Admin {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
-//GetProject returns a project details
+// GetProject returns a project details
 func GetProject(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+}
+
+func GetUserRole(w http.ResponseWriter, r *http.Request) {
+	var permissions struct {
+		Role        db.ProjectUserRole       `json:"role"`
+		Permissions db.ProjectUserPermission `json:"permissions"`
+	}
+	permissions.Role = context.Get(r, "projectUserRole").(db.ProjectUserRole)
+	permissions.Permissions = permissions.Role.GetPermissions()
+	helpers.WriteJSON(w, http.StatusOK, permissions)
 }
 
 // UpdateProject saves updated project details to the database

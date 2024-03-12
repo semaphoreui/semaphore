@@ -2,14 +2,14 @@
   <div v-if="tasks != null">
     <EditDialog
         v-model="newTaskDialog"
-        :save-button-text="'Re' + getActionButtonTitle()"
+        :save-button-text="$t('re', {getActionButtonTitle: getActionButtonTitle()})"
         @save="onTaskCreated"
     >
       <template v-slot:title={}>
         <v-icon class="mr-4">{{ TEMPLATE_TYPE_ICONS[template.type] }}</v-icon>
         <span class="breadcrumbs__item">{{ template.name }}</span>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">New Task</span>
+        <span class="breadcrumbs__item">{{ $t('newTask') }}</span>
       </template>
 
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -97,37 +97,37 @@ export default {
     return {
       headers: [
         {
-          text: 'Task ID',
+          text: this.$i18n.t('taskId'),
           value: 'id',
           sortable: false,
         },
         {
-          text: 'Version',
+          text: this.$i18n.t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: 'Status',
+          text: this.$i18n.t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: 'User',
+          text: this.$i18n.t('user'),
           value: 'user_name',
           sortable: false,
         },
         {
-          text: 'Start',
+          text: this.$i18n.t('start'),
           value: 'start',
           sortable: false,
         },
         {
-          text: 'Duration',
+          text: this.$i18n.t('duration'),
           value: 'end',
           sortable: false,
         },
         {
-          text: 'Actions',
+          text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
           width: '0%',
@@ -158,7 +158,7 @@ export default {
       })).data;
     },
     getActionButtonTitle() {
-      return TEMPLATE_TYPE_ACTION_TITLES[this.template.type];
+      return this.$i18n.t(TEMPLATE_TYPE_ACTION_TITLES[this.template.type]);
     },
 
     onTaskCreated(e) {

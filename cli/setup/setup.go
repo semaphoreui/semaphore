@@ -2,12 +2,11 @@ package setup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -50,7 +49,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askValue("Playbook path", defaultPlaybookPath, &conf.TmpPath)
 	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
-	askValue("Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
+	askValue("Public URL (optional, example: https://example.com/semaphore)", "", &conf.WebHost)
 
 	askConfirmation("Enable email alerts?", false, &conf.EmailAlert)
 	if conf.EmailAlert {
@@ -68,6 +67,11 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askConfirmation("Enable slack alerts?", false, &conf.SlackAlert)
 	if conf.SlackAlert {
 		askValue("Slack Webhook URL", "", &conf.SlackUrl)
+	}
+
+	askConfirmation("Enable Microsoft Team Channel alerts?", false, &conf.MicrosoftTeamsAlert)
+	if conf.MicrosoftTeamsAlert {
+		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
 	}
 
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
@@ -151,7 +155,7 @@ func SaveConfig(config *util.ConfigType) (configPath string) {
 	}
 
 	configPath = filepath.Join(configDirectory, "config.json")
-	if err = ioutil.WriteFile(configPath, bytes, 0644); err != nil {
+	if err = os.WriteFile(configPath, bytes, 0644); err != nil {
 		panic(err)
 	}
 

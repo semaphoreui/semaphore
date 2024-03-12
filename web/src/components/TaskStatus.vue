@@ -10,6 +10,9 @@ import IndeterminateProgressCircular from '@/components/IndeterminateProgressCir
 
 const TaskStatus = Object.freeze({
   WAITING: 'waiting',
+  STARTING: 'starting',
+  WAITING_CONFIRMATION: 'waiting_confirmation',
+  CONFIRMED: 'confirmed',
   RUNNING: 'running',
   SUCCESS: 'success',
   ERROR: 'error',
@@ -28,6 +31,8 @@ export default {
       switch (status) {
         case TaskStatus.WAITING:
           return 'mdi-alarm';
+        case TaskStatus.STARTING:
+          return 'mdi-play-circle';
         case TaskStatus.RUNNING:
           return '';
         case TaskStatus.SUCCESS:
@@ -38,6 +43,10 @@ export default {
           return 'mdi-stop-circle';
         case TaskStatus.STOPPED:
           return 'mdi-stop-circle';
+        case TaskStatus.CONFIRMED:
+          return 'mdi-check-circle';
+        case TaskStatus.WAITING_CONFIRMATION:
+          return 'mdi-pause-circle';
         default:
           throw new Error(`Unknown task status ${status}`);
       }
@@ -47,6 +56,8 @@ export default {
       switch (status) {
         case TaskStatus.WAITING:
           return 'Waiting';
+        case TaskStatus.STARTING:
+          return 'Starting...';
         case TaskStatus.RUNNING:
           return 'Running';
         case TaskStatus.SUCCESS:
@@ -57,6 +68,10 @@ export default {
           return 'Stopping...';
         case TaskStatus.STOPPED:
           return 'Stopped';
+        case TaskStatus.CONFIRMED:
+          return 'Confirmed';
+        case TaskStatus.WAITING_CONFIRMATION:
+          return 'Waiting confirmation';
         default:
           throw new Error(`Unknown task status ${status}`);
       }
@@ -66,6 +81,8 @@ export default {
       switch (status) {
         case TaskStatus.WAITING:
           return '';
+        case TaskStatus.STARTING:
+          return 'warning';
         case TaskStatus.RUNNING:
           return 'primary';
         case TaskStatus.SUCCESS:
@@ -76,6 +93,10 @@ export default {
           return '';
         case TaskStatus.STOPPED:
           return '';
+        case TaskStatus.CONFIRMED:
+          return 'warning';
+        case TaskStatus.WAITING_CONFIRMATION:
+          return 'warning';
         default:
           throw new Error(`Unknown task status ${status}`);
       }

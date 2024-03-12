@@ -6,15 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/go-github/github"
 	"io"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
 )
 
@@ -24,21 +27,19 @@ var Cookie *securecookie.SecureCookie
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
 
-type DbDriver string
-
 const (
-	DbDriverMySQL    DbDriver = "mysql"
-	DbDriverBolt     DbDriver = "bolt"
-	DbDriverPostgres DbDriver = "postgres"
+	DbDriverMySQL    = "mysql"
+	DbDriverBolt     = "bolt"
+	DbDriverPostgres = "postgres"
 )
 
 type DbConfig struct {
-	Dialect DbDriver `json:"-"`
+	Dialect string `json:"-"`
 
-	Hostname string            `json:"host"`
-	Username string            `json:"user"`
-	Password string            `json:"pass"`
-	DbName   string            `json:"name"`
+	Hostname string            `json:"host" env:"SEMAPHORE_DB_HOST"`
+	Username string            `json:"user" env:"SEMAPHORE_DB_USER"`
+	Password string            `json:"pass" env:"SEMAPHORE_DB_PASS"`
+	DbName   string            `json:"name" env:"SEMAPHORE_DB"`
 	Options  map[string]string `json:"options"`
 }
 
@@ -49,77 +50,146 @@ type ldapMappings struct {
 	CN   string `json:"cn"`
 }
 
+type oidcEndpoint struct {
+	IssuerURL   string   `json:"issuer"`
+	AuthURL     string   `json:"auth"`
+	TokenURL    string   `json:"token"`
+	UserInfoURL string   `json:"userinfo"`
+	JWKSURL     string   `json:"jwks"`
+	Algorithms  []string `json:"algorithms"`
+}
+
+type OidcProvider struct {
+	ClientID         string       `json:"client_id"`
+	ClientIDFile     string       `json:"client_id_file"`
+	ClientSecret     string       `json:"client_secret"`
+	ClientSecretFile string       `json:"client_secret_file"`
+	RedirectURL      string       `json:"redirect_url"`
+	Scopes           []string     `json:"scopes"`
+	DisplayName      string       `json:"display_name"`
+	Color            string       `json:"color"`
+	Icon             string       `json:"icon"`
+	AutoDiscovery    string       `json:"provider_url"`
+	Endpoint         oidcEndpoint `json:"endpoint"`
+	UsernameClaim    string       `json:"username_claim" default:"preferred_username"`
+	NameClaim        string       `json:"name_claim" default:"preferred_username"`
+	EmailClaim       string       `json:"email_claim" default:"email"`
+	EmailSuffix      string       `json:"email_suffix"`
+	Order            int          `json:"order"`
+}
+
+const (
+	// GoGitClientId is builtin Git client. It is not require external dependencies and is preferred.
+	// Use it if you don't need external SSH authorization.
+	GoGitClientId = "go_git"
+	// CmdGitClientId is external Git client.
+	// Default Git client. It is use external Git binary to clone repositories.
+	CmdGitClientId = "cmd_git"
+)
+
+// // basic config validation using regex
+// /* NOTE: other basic regex could be used:
+//
+//	ipv4: ^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$
+//	ipv6: ^(?:[A-Fa-f0-9]{1,4}:|:){3,7}[A-Fa-f0-9]{1,4}$
+//	domain: ^([a-zA-Z0-9]+(-[a-zA-Z0-9]+)*\.)+[a-zA-Z]{2,}$
+//	path+filename: ^([\\/[a-zA-Z0-9_\\-${}:~]*]*\\/)?[a-zA-Z0-9\\.~_${}\\-:]*$
+//	email address: ^(|.*@[A-Za-z0-9-\\.]*)$
+//
+// */
+
+type RunnerSettings struct {
+	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
+	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
+	// OneOff indicates than runner runs only one job and exit
+	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
+
+	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
 	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
 
-	Dialect DbDriver `json:"dialect"`
+	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port"`
+	Port string `json:"port" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
-	Interface string `json:"interface"`
+	Interface string `json:"interface" env:"SEMAPHORE_INTERFACE"`
 
 	// semaphore stores ephemeral projects here
-	TmpPath string `json:"tmp_path"`
+	TmpPath string `json:"tmp_path" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
-	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash"`
-	CookieEncryption string `json:"cookie_encryption"`
-	// AccessKeyEncryption is BASE64 encoded byte array used
-	// for encrypting and decrypting access keys stored in database.
-	// Do not use it! Use method GetAccessKeyEncryption instead of it.
-	AccessKeyEncryption string `json:"access_key_encryption"`
+	// SshConfigPath is a path to the custom SSH config file.
+	// Default path is ~/.ssh/config.
+	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_TMP_PATH"`
 
-	// email alerting
-	EmailSender   string `json:"email_sender"`
-	EmailHost     string `json:"email_host"`
-	EmailPort     string `json:"email_port"`
-	EmailUsername string `json:"email_username"`
-	EmailPassword string `json:"email_password"`
+	GitClientId string `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
 	// web host
-	WebHost string `json:"web_host"`
+	WebHost string `json:"web_host" env:"SEMAPHORE_WEB_ROOT"`
+
+	// cookie hashing & encryption
+	CookieHash       string `json:"cookie_hash" env:"SEMAPHORE_COOKIE_HASH"`
+	CookieEncryption string `json:"cookie_encryption" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
+	// AccessKeyEncryption is BASE64 encoded byte array used
+	// for encrypting and decrypting access keys stored in database.
+	AccessKeyEncryption string `json:"access_key_encryption" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
+
+	// email alerting
+	EmailAlert    bool   `json:"email_alert" env:"SEMAPHORE_EMAIL_ALERT"`
+	EmailSender   string `json:"email_sender" env:"SEMAPHORE_EMAIL_SENDER"`
+	EmailHost     string `json:"email_host" env:"SEMAPHORE_EMAIL_HOST"`
+	EmailPort     string `json:"email_port" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
+	EmailUsername string `json:"email_username" env:"SEMAPHORE_EMAIL_USERNAME"`
+	EmailPassword string `json:"email_password" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailSecure   bool   `json:"email_secure" env:"SEMAPHORE_EMAIL_SECURE"`
 
 	// ldap settings
-	LdapBindDN       string       `json:"ldap_binddn"`
-	LdapBindPassword string       `json:"ldap_bindpassword"`
-	LdapServer       string       `json:"ldap_server"`
-	LdapSearchDN     string       `json:"ldap_searchdn"`
-	LdapSearchFilter string       `json:"ldap_searchfilter"`
+	LdapEnable       bool         `json:"ldap_enable" env:"SEMAPHORE_LDAP_ENABLE"`
+	LdapBindDN       string       `json:"ldap_binddn" env:"SEMAPHORE_LDAP_BIND_DN"`
+	LdapBindPassword string       `json:"ldap_bindpassword" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
+	LdapServer       string       `json:"ldap_server" env:"SEMAPHORE_LDAP_SERVER"`
+	LdapSearchDN     string       `json:"ldap_searchdn" env:"SEMAPHORE_LDAP_SEARCH_DN"`
+	LdapSearchFilter string       `json:"ldap_searchfilter" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
+	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// telegram alerting
-	TelegramChat  string `json:"telegram_chat"`
-	TelegramToken string `json:"telegram_token"`
+	// Telegram, Slack and Microsoft Teams alerting
+	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
+	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
+	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
+	SlackAlert          bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
+	SlackUrl            string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
+	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
+	MicrosoftTeamsUrl   string `json:"microsoft_teams_url" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
 
-	// slack alerting
-	SlackUrl string `json:"slack_url"`
+	// oidc settings
+	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
+
+	MaxTaskDurationSec int `json:"max_task_duration_sec" env:"MAX_TASK_DURATION_SEC"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks"`
+	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
-	// configType field ordering with bools at end reduces struct size
-	// (maligned check)
+	RunnerRegistrationToken string `json:"runner_registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	// feature switches
-	EmailAlert    bool `json:"email_alert"`
-	EmailSecure   bool `json:"email_secure"`
-	TelegramAlert bool `json:"telegram_alert"`
-	SlackAlert    bool `json:"slack_alert"`
-	LdapEnable    bool `json:"ldap_enable"`
-	LdapNeedTLS   bool `json:"ldap_needtls"`
+	PasswordLoginDisable     bool `json:"password_login_disable" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	NonAdminCanCreateProject bool `json:"non_admin_can_create_project" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
-	SshConfigPath string `json:"ssh_config_path"`
+	UseRemoteRunner    bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
+	IntegrationsEnable bool `json:"integrations_enable" env:"SEMAPHORE_INTEGRATIONS_ENABLE"`
 
-	DemoMode bool `json:"demo_mode"`
-
-	GitClient string `json:"git_client"`
+	Runner RunnerSettings `json:"runner"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -130,19 +200,14 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
 }
 
-func (conf *ConfigType) GetAccessKeyEncryption() string {
-	ret := os.Getenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION")
-
-	if ret == "" {
-		ret = conf.AccessKeyEncryption
-	}
-
-	return ret
-}
-
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit(configPath string) {
-	loadConfig(configPath)
+	fmt.Println("Loading config")
+	loadConfigFile(configPath)
+	loadConfigEnvironment()
+	loadConfigDefaults()
+
+	fmt.Println("Validating config")
 	validateConfig()
 
 	var encryption []byte
@@ -159,7 +224,7 @@ func ConfigInit(configPath string) {
 	}
 }
 
-func loadConfig(configPath string) {
+func loadConfigFile(configPath string) {
 	if configPath == "" {
 		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
 	}
@@ -169,7 +234,7 @@ func loadConfig(configPath string) {
 
 	if configPath == "" {
 		cwd, err := os.Getwd()
-		exitOnConfigError(err)
+		exitOnConfigFileError(err)
 		paths := []string{
 			path.Join(cwd, "config.json"),
 			"/usr/local/etc/semaphore/config.json",
@@ -187,46 +252,248 @@ func loadConfig(configPath string) {
 			decodeConfig(file)
 			break
 		}
-		exitOnConfigError(err)
+		exitOnConfigFileError(err)
 	} else {
 		p := configPath
 		file, err := os.Open(p)
-		exitOnConfigError(err)
+		exitOnConfigFileError(err)
 		decodeConfig(file)
 	}
 }
 
+func loadDefaultsToObject(obj interface{}) error {
+	var t = reflect.TypeOf(obj)
+	var v = reflect.ValueOf(obj)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		v = reflect.Indirect(v)
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		fieldInfo := t.Field(i)
+		fieldValue := v.Field(i)
+
+		if !fieldValue.IsZero() && fieldInfo.Type.Kind() != reflect.Struct && fieldInfo.Type.Kind() != reflect.Map {
+			continue
+		}
+
+		if fieldInfo.Type.Kind() == reflect.Struct {
+			err := loadDefaultsToObject(fieldValue.Addr().Interface())
+			if err != nil {
+				return err
+			}
+			continue
+		} else if fieldInfo.Type.Kind() == reflect.Map {
+			for _, key := range fieldValue.MapKeys() {
+				val := fieldValue.MapIndex(key)
+
+				if val.Type().Kind() != reflect.Struct {
+					continue
+				}
+
+				newVal := reflect.New(val.Type())
+				pointerValue := newVal.Elem()
+				pointerValue.Set(val)
+
+				err := loadDefaultsToObject(newVal.Interface())
+				if err != nil {
+					return err
+				}
+
+				fieldValue.SetMapIndex(key, newVal.Elem())
+			}
+			continue
+		}
+
+		defaultVar := fieldInfo.Tag.Get("default")
+		if defaultVar == "" {
+			continue
+		}
+
+		setConfigValue(fieldValue, defaultVar)
+	}
+
+	return nil
+}
+
+func loadConfigDefaults() {
+
+	err := loadDefaultsToObject(Config)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func castStringToInt(value string) int {
+
+	valueInt, err := strconv.Atoi(value)
+	if err != nil {
+		panic(err)
+	}
+	return valueInt
+
+}
+
+func castStringToBool(value string) bool {
+
+	var valueBool bool
+	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
+		valueBool = true
+	} else {
+		valueBool = false
+	}
+	return valueBool
+
+}
+
+func setConfigValue(attribute reflect.Value, value interface{}) {
+
+	if attribute.IsValid() {
+		switch attribute.Kind() {
+		case reflect.Int:
+			if reflect.ValueOf(value).Kind() != reflect.Int {
+				value = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
+			}
+		case reflect.Bool:
+			if reflect.ValueOf(value).Kind() != reflect.Bool {
+				value = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
+			}
+		}
+		attribute.Set(reflect.ValueOf(value))
+	} else {
+		panic(fmt.Errorf("got non-existent config attribute"))
+	}
+
+}
+
+func getConfigValue(path string) string {
+
+	attribute := reflect.ValueOf(Config)
+	nested_path := strings.Split(path, ".")
+
+	for i, nested := range nested_path {
+		attribute = reflect.Indirect(attribute).FieldByName(nested)
+		lastDepth := len(nested_path) == i+1
+		if !lastDepth && attribute.Kind() != reflect.Struct || lastDepth && attribute.Kind() == reflect.Invalid {
+			panic(fmt.Errorf("got non-existent config attribute '%v'", path))
+		}
+	}
+
+	return fmt.Sprintf("%v", attribute)
+}
+
+func validate(value interface{}) error {
+	var t = reflect.TypeOf(value)
+	var v = reflect.ValueOf(value)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		v = reflect.Indirect(v)
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		fieldType := t.Field(i)
+		fieldValue := v.Field(i)
+
+		rule := fieldType.Tag.Get("rule")
+		if rule == "" {
+			continue
+		}
+
+		var strVal string
+
+		if fieldType.Type.Kind() == reflect.Int {
+			strVal = strconv.FormatInt(fieldValue.Int(), 10)
+		} else if fieldType.Type.Kind() == reflect.Uint {
+			strVal = strconv.FormatUint(fieldValue.Uint(), 10)
+		} else {
+			strVal = fieldValue.String()
+		}
+
+		match, _ := regexp.MatchString(rule, strVal)
+
+		if match {
+			continue
+		}
+
+		fieldName := strings.ToLower(fieldType.Name)
+
+		if strings.Contains(fieldName, "password") || strings.Contains(fieldName, "secret") || strings.Contains(fieldName, "key") {
+			strVal = "***"
+		}
+
+		return fmt.Errorf(
+			"value of field '%v' is not valid: %v (Must match regex: '%v')",
+			fieldType.Name, strVal, rule,
+		)
+	}
+
+	return nil
+}
+
 func validateConfig() {
 
-	validatePort()
+	err := validate(Config)
 
-	if len(Config.TmpPath) == 0 {
-		Config.TmpPath = "/tmp/semaphore"
-	}
-
-	if Config.MaxParallelTasks < 1 {
-		Config.MaxParallelTasks = 10
-	}
-}
-
-func validatePort() {
-
-	//TODO - why do we do this only with this variable?
-	if len(os.Getenv("PORT")) > 0 {
-		Config.Port = ":" + os.Getenv("PORT")
-	}
-	if len(Config.Port) == 0 {
-		Config.Port = ":3000"
-	}
-	if !strings.HasPrefix(Config.Port, ":") {
-		Config.Port = ":" + Config.Port
-	}
-}
-
-func exitOnConfigError(err error) {
 	if err != nil {
-		fmt.Println("Cannot Find configuration! Use --config parameter to point to a JSON file generated by `semaphore setup`.")
-		os.Exit(1)
+		panic(err)
+	}
+}
+
+func loadEnvironmentToObject(obj interface{}) error {
+	var t = reflect.TypeOf(obj)
+	var v = reflect.ValueOf(obj)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		v = reflect.Indirect(v)
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		fieldType := t.Field(i)
+		fieldValue := v.Field(i)
+
+		if fieldType.Type.Kind() == reflect.Struct {
+			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		envVar := fieldType.Tag.Get("env")
+		if envVar == "" {
+			continue
+		}
+
+		envValue, exists := os.LookupEnv(envVar)
+
+		if !exists {
+			continue
+		}
+
+		setConfigValue(fieldValue, envValue)
+	}
+
+	return nil
+}
+
+func loadConfigEnvironment() {
+	err := loadEnvironmentToObject(Config)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func exitOnConfigError(msg string) {
+	fmt.Println(msg)
+	os.Exit(1)
+}
+
+func exitOnConfigFileError(err error) {
+	if err != nil {
+		exitOnConfigError("Cannot Find configuration! Use --config parameter to point to a JSON file generated by `semaphore setup`.")
 	}
 }
 
@@ -286,11 +553,6 @@ func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	}
 
 	return
-}
-
-// String returns dialect name for GORP.
-func (d DbDriver) String() string {
-	return string(d)
 }
 
 func (d *DbConfig) IsPresent() bool {
@@ -404,7 +666,7 @@ func (conf *ConfigType) PrintDbInfo() {
 	}
 }
 
-func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
+func (conf *ConfigType) GetDialect() (dialect string, err error) {
 	if conf.Dialect == "" {
 		switch {
 		case conf.MySQL.IsPresent():
@@ -424,7 +686,7 @@ func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
 }
 
 func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
-	var dialect DbDriver
+	var dialect string
 	dialect, err = conf.GetDialect()
 
 	if err != nil {

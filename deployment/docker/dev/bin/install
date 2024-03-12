@@ -11,5 +11,6 @@ EOF
 
 echo "--> Install Semaphore entrypoint wrapper script"
 mv ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
+mv ./deployment/docker/common/runner-wrapper /usr/local/bin/runner-wrapper
 task deps
 chmod -R 0777 /go

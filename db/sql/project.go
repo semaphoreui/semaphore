@@ -1,8 +1,8 @@
 package sql
 
 import (
+	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
 	"time"
 )
 
@@ -11,8 +11,8 @@ func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err er
 
 	insertId, err := d.insert(
 		"id",
-		"insert into project(name, created) values (?, ?)",
-		project.Name, project.Created)
+		"insert into project(name, created, type) values (?, ?, ?)",
+		project.Name, project.Created, project.Type)
 
 	if err != nil {
 		return
@@ -20,6 +20,21 @@ func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err er
 
 	newProject = project
 	newProject.ID = insertId
+	return
+}
+
+func (d *SqlDb) GetAllProjects() (projects []db.Project, err error) {
+	query, args, err := squirrel.Select("p.*").
+		From("project as p").
+		OrderBy("p.name").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&projects, query, args...)
+
 	return
 }
 
@@ -56,6 +71,14 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 }
 
 func (d *SqlDb) DeleteProject(projectID int) error {
+
+	//tpls, err := d.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	//
+	//if err != nil {
+	//	return err
+	//}
+	// TODO: sort projects
+
 	tx, err := d.sql.Begin()
 
 	if err != nil {
@@ -75,7 +98,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		_, err = tx.Exec(d.PrepareQuery(statement), projectID)
 
 		if err != nil {
-			err = tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 	}

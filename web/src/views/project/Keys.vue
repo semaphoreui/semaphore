@@ -2,8 +2,8 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
-      :title="`${itemId === 'new' ? 'New' : 'Edit'} Key`"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
       position="top"
       @save="loadItems()"
@@ -28,20 +28,21 @@
     />
 
     <YesNoDialog
-      title="Delete key"
-      text="Are you really want to delete this key?"
+      :title="$t('deleteKey')"
+      :text="$t('askDeleteKey')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Key Store</v-toolbar-title>
+      <v-toolbar-title>{{ $t('keyStore') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Key</v-btn>
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+      >{{ $t('newKey') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -87,17 +88,17 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: 'Name',
+        text: this.$i18n.t('name'),
         value: 'name',
         width: '50%',
       },
       {
-        text: 'Type',
+        text: this.$i18n.t('type'),
         value: 'type',
         width: '50%',
       },
       {
-        text: 'Actions',
+        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

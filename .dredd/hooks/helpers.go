@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
+	"os"
+	"time"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/db/factory"
@@ -10,9 +14,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/snikch/goodman/transaction"
-	"math/rand"
-	"os"
-	"time"
 )
 
 // Test Runner User
@@ -59,6 +60,9 @@ func truncateAll() {
 		"project__user",
 		"user",
 		"project__view",
+		"project__integration",
+		"project__integration_extract_value",
+		"project__integration_matcher",
 	}
 
 	switch store.(type) {
@@ -107,7 +111,7 @@ func addUserProjectRelation(pid int, user int) {
 	_, err := store.CreateProjectUser(db.ProjectUser{
 		ProjectID: pid,
 		UserID:    user,
-		Admin:     true,
+		Role:      db.ProjectOwner,
 	})
 	if err != nil {
 		panic(err)
@@ -223,6 +227,54 @@ func addTask() *db.Task {
 		panic(err)
 	}
 	return &t
+}
+
+func addIntegration() *db.Integration {
+	integration, err := store.CreateIntegration(db.Integration{
+		ProjectID:  userProject.ID,
+		Name:       "Test Integration",
+		TemplateID: templateID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return &integration
+}
+
+func addIntegrationExtractValue() *db.IntegrationExtractValue {
+	integrationextractvalue, err := store.CreateIntegrationExtractValue(userProject.ID, db.IntegrationExtractValue{
+		Name:          "Value",
+		IntegrationID: integrationID,
+		ValueSource:   db.IntegrationExtractBodyValue,
+		BodyDataType:  db.IntegrationBodyDataJSON,
+		Key:           "key",
+		Variable:      "var",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &integrationextractvalue
+}
+
+func addIntegrationMatcher() *db.IntegrationMatcher {
+	integrationmatch, err := store.CreateIntegrationMatcher(userProject.ID, db.IntegrationMatcher{
+		Name:          "matcher",
+		IntegrationID: integrationID,
+		MatchType:     "body",
+		Method:        "equals",
+		BodyDataType:  "json",
+		Key:           "key",
+		Value:         "value",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &integrationmatch
 }
 
 // Token Handling

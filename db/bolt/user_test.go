@@ -34,14 +34,14 @@ func TestBoltDb_UpdateProjectUser(t *testing.T) {
 	projUser, err := store.CreateProjectUser(db.ProjectUser{
 		ProjectID: proj1.ID,
 		UserID:    usr.ID,
-		Admin:     true,
+		Role:      db.ProjectOwner,
 	})
 
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	projUser.Admin = true
+	projUser.Role = db.ProjectOwner
 	err = store.UpdateProjectUser(projUser)
 
 	if err != nil {

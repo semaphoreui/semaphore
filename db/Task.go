@@ -1,29 +1,19 @@
 package db
 
 import (
+	"github.com/ansible-semaphore/semaphore/lib"
 	"time"
 )
 
-type TaskStatus string
-
-const (
-	TaskRunningStatus  TaskStatus = "running"
-	TaskWaitingStatus  TaskStatus = "waiting"
-	TaskStoppingStatus TaskStatus = "stopping"
-	TaskStoppedStatus  TaskStatus = "stopped"
-	TaskSuccessStatus  TaskStatus = "success"
-	TaskFailStatus     TaskStatus = "error"
-)
-
-//Task is a model of a task which will be executed by the runner
+// Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`
 	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
 	ProjectID  int `db:"project_id" json:"project_id"`
 
-	Status TaskStatus `db:"status" json:"status"`
-	Debug  bool       `db:"debug" json:"debug"`
+	Status lib.TaskStatus `db:"status" json:"status"`
 
+	Debug  bool `db:"debug" json:"debug"`
 	DryRun bool `db:"dry_run" json:"dry_run"`
 	Diff   bool `db:"diff" json:"diff"`
 
@@ -54,6 +44,8 @@ type Task struct {
 	Version *string `db:"version" json:"version"`
 
 	Arguments *string `db:"arguments" json:"arguments"`
+
+	InventoryID *int `db:"inventory_id" json:"inventory_id"`
 }
 
 func (task *Task) GetIncomingVersion(d Store) *string {
