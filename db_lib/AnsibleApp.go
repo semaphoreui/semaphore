@@ -54,8 +54,9 @@ type AnsibleApp struct {
 	Repository db.Repository
 }
 
-func (t *AnsibleApp) SetLogger(logger lib.Logger) {
+func (t *AnsibleApp) SetLogger(logger lib.Logger) lib.Logger {
 	t.Logger = logger
+	return logger
 }
 
 func (t *AnsibleApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
