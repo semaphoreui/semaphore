@@ -145,6 +145,10 @@ func (p *runningJob) Log(msg string) {
 }
 
 func (p *runningJob) SetStatus(status lib.TaskStatus) {
+	if p.status == status {
+		return
+	}
+
 	p.status = status
 	p.job.SetStatus(status)
 }

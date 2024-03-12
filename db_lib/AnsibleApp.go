@@ -56,6 +56,7 @@ type AnsibleApp struct {
 
 func (t *AnsibleApp) SetLogger(logger lib.Logger) lib.Logger {
 	t.Logger = logger
+	t.Playbook.Logger = logger
 	return logger
 }
 
