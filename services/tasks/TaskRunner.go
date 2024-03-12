@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type Job interface {
@@ -70,6 +70,10 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 	}
 
 	t.saveStatus()
+
+	if localJob, ok := t.job.(*LocalJob); ok {
+		localJob.SetStatus(status)
+	}
 
 	if status == lib.TaskFailStatus {
 		t.sendMailAlert()

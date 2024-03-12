@@ -6,7 +6,7 @@ import (
 )
 
 type LocalApp interface {
-	SetLogger(logger lib.Logger)
+	SetLogger(logger lib.Logger) lib.Logger
 	InstallRequirements() error
 	Run(args []string, environmentVars *[]string, cb func(*os.Process)) error
 }
