@@ -22,9 +22,9 @@
           <v-slider
             v-model="currencyAmount"
             always-dirty
-            :min="projectType === 'premium' ? 50 : 5"
-            :max="projectType === 'premium' ? 500 : 50"
-            :step="projectType === 'premium' ? 50 : 5"
+            :min="projectType === 'premium' ? 25 : 5"
+            :max="projectType === 'premium' ? 250 : 50"
+            :step="projectType === 'premium' ? 25 : 5"
             thumb-label="always"
             thumb-size="60"
             style="margin-top: 90px; margin-left: 15px; margin-right: 15px;"
@@ -293,9 +293,8 @@
             <v-card-actions>
               <v-btn
                 depressed
-                :text="project.plan !== 'free' && !project.planCanceled"
                 large
-                :color="project.plan === 'free' || project.planCanceled ? 'success' : 'secondary'"
+                :color="project.plan === 'free' || project.planCanceled ? 'success' : 'error'"
                 style="width: 100%;"
                 @click="
                 project.plan === 'free' || project.planCanceled
