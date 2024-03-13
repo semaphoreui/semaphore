@@ -154,9 +154,7 @@
               icon="mdi-calendar-range"
               class="text-subtitle-1 align-center"
             >
-              Billing date: {{
-                planFinishDate ? (project.planFinishDate | formatDate2) : '&mdash;'
-              }}
+              Billing date: {{ project.planFinishDate | formatDate2 }}
             </v-timeline-item>
 
             <v-timeline-item
@@ -173,7 +171,16 @@
               fill-dot
               icon="mdi-license"
               class="text-subtitle-1 align-center"
-            >License Key: &mdash;
+            >
+              License Key: <code>{{ project.licenseKey || '&mdash;' }}</code>
+              <v-btn
+                v-if="project.licenseKey"
+                class="ml-2"
+                icon
+                @click="copyToClipboard(project.licenseKey)"
+              >
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
             </v-timeline-item>
 
             <v-timeline-item
@@ -205,7 +212,7 @@
           >
             <v-card-title class="text-h3">
               Free
-
+              <v-spacer />
               <v-chip
                 class="ml-4 mt-1 text-subtitle-1 py-3 px-4 font-weight-bold"
                 v-if="project.plan === 'free'"
@@ -253,6 +260,7 @@
             <v-card-title class="text-h3">
               $5
 
+              <v-spacer />
               <v-chip
                 class="ml-4 mt-1 font-weight-bold text-center pa-4 text-subtitle-1"
                 color="success"
@@ -451,6 +459,21 @@ export default {
   },
 
   methods: {
+    async copyToClipboard(text) {
+      try {
+        await window.navigator.clipboard.writeText(text);
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'The license key has been copied to the clipboard.',
+        });
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Can't copy the license key: ${e.message}`,
+        });
+      }
+    },
+
     getActivePremiumButtonTitle(planId) {
       if (this.project.plan === 'free') {
         return 'Activate';
