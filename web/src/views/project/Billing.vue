@@ -105,7 +105,8 @@
         v-if="projectType === ''"
         key="history"
         :to="`/project/${projectId}/history`"
-      >{{ $t('history') }}</v-tab>
+      >{{ $t('history') }}
+      </v-tab>
       <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
       <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
       <v-tab
@@ -152,28 +153,36 @@
               fill-dot
               icon="mdi-calendar-range"
               class="text-subtitle-1 align-center"
-            >Billing date: {{ project.planFinishDate | formatDate2 }}</v-timeline-item>
+            >
+              Billing date: {{
+                planFinishDate ? (project.planFinishDate | formatDate2) : '&mdash;'
+              }}
+            </v-timeline-item>
 
             <v-timeline-item
               v-if="projectType === 'premium'"
               fill-dot
               icon="mdi-server"
               class="text-subtitle-1 align-center"
-            >Servers: {{ project.servers || 0 }} / 3 used</v-timeline-item>
+            >
+              Servers: {{ project.servers || 0 }} / {{ plan.servers || '&mdash;' }} used
+            </v-timeline-item>
 
             <v-timeline-item
               v-if="projectType === 'premium'"
               fill-dot
               icon="mdi-license"
               class="text-subtitle-1 align-center"
-            >License Key: &mdash;</v-timeline-item>
+            >License Key: &mdash;
+            </v-timeline-item>
 
             <v-timeline-item
               v-if="projectType === ''"
               fill-dot
               icon="mdi-server"
               class="text-subtitle-1 align-center"
-            >Cache: {{ project.diskUsage }} / {{ plan.diskUsage }} Mb used</v-timeline-item>
+            >Cache: {{ project.diskUsage }} / {{ plan.diskUsage }} Mb used
+            </v-timeline-item>
             <v-timeline-item
               v-if="projectType === ''"
               fill-dot
@@ -181,7 +190,8 @@
               class="text-subtitle-1 align-center"
             >Runner:
               {{ Math.ceil(project.runnerUsage / 60) }} / {{ Math.ceil(plan.runnerUsage / 60) }}
-              minutes used</v-timeline-item>
+              minutes used
+            </v-timeline-item>
           </v-timeline>
         </v-col>
       </v-row>
@@ -193,8 +203,19 @@
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
             flat
           >
-            <v-card-title class="text-h3">Free</v-card-title>
-            <v-card-text style="height: 200px">
+            <v-card-title class="text-h3">
+              Free
+
+              <v-chip
+                class="ml-4 mt-1 text-subtitle-1 py-3 px-4 font-weight-bold"
+                v-if="project.plan === 'free'"
+                color="success"
+                outlined
+              >Your plan
+              </v-chip>
+
+            </v-card-title>
+            <v-card-text>
               <v-timeline
                 align-top
                 dense
@@ -216,21 +237,10 @@
                   50 min/mo for tasks
                 </v-timeline-item>
               </v-timeline>
-
-              <div>
-                <v-chip
-                  class="mt-3 text-subtitle-1 py-3 px-4 font-weight-bold"
-                  v-if="project.plan === 'free'"
-                  color="success"
-                  outlined
-                >Your plan
-                </v-chip>
-              </div>
             </v-card-text>
-
             <v-card-actions>
-              <div style="width: 100%; height: 44px; line-height: 44px;"
-                   class="text-subtitle-1 text-center text--secondary">&nbsp;</div>
+              <v-btn large style="visibility: hidden;">
+              </v-btn>
             </v-card-actions>
           </v-card>
         </v-col>
@@ -240,8 +250,22 @@
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
             flat
           >
-            <v-card-title class="text-h3">$5</v-card-title>
-            <v-card-text style="height: 200px">
+            <v-card-title class="text-h3">
+              $5
+
+              <v-chip
+                class="ml-4 mt-1 font-weight-bold text-center pa-4 text-subtitle-1"
+                color="success"
+                :outlined="project.planCanceled"
+                v-if="project.plan === 'starter'"
+              >
+                Your plan
+                <span class="ml-1" v-if="project.planCanceled">
+                    until {{ project.planFinishDate | formatDate2 }}
+                  </span>
+              </v-chip>
+            </v-card-title>
+            <v-card-text>
 
               <v-timeline
                 align-top
@@ -264,22 +288,6 @@
                   <div>1000 min/mo for tasks</div>
                 </v-timeline-item>
               </v-timeline>
-
-              <div>
-                <v-chip
-                  class="font-weight-bold mt-3 text-center pa-4 text-subtitle-1"
-                  color="success"
-                  :outlined="project.planCanceled"
-                  v-if="project.plan === 'starter'"
-                >
-                  Your plan
-                  <span class="ml-1" v-if="project.planCanceled">
-                    until {{ project.planFinishDate | formatDate2 }}
-                  </span>
-                </v-chip>
-
-<!--                <div v-else class="mt-5 text-subtitle-1 text-center">Best for work</div>-->
-              </div>
             </v-card-text>
 
             <v-card-actions>
@@ -312,9 +320,19 @@
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
             flat
           >
-            <v-card-title class="text-h3">${{ plan.price }}</v-card-title>
-            <v-card-text style="height: 200px">
+            <v-card-title class="text-h3">
+              ${{ plan.price }}
+              <v-spacer/>
+              <v-chip
+                class="text-subtitle-1 py-3 px-4 font-weight-bold"
+                v-if="project.plan === plan.id"
+                color="success"
+                outlined
+              >Your plan
+              </v-chip>
+            </v-card-title>
 
+            <v-card-text>
               <v-timeline
                 align-top
                 dense
@@ -344,40 +362,21 @@
                   <div>{{ plan.users }} users</div>
                 </v-timeline-item>
               </v-timeline>
-
-              <div>
-                <v-chip
-                  class="font-weight-bold mt-3 text-center pa-4 text-subtitle-1"
-                  color="success"
-                  :outlined="project.planCanceled"
-                  v-if="project.plan === 'starter'"
-                >
-                  Your plan
-                  <span class="ml-1" v-if="project.planCanceled">
-                    until {{ project.planFinishDate | formatDate2 }}
-                  </span>
-                </v-chip>
-              </div>
             </v-card-text>
 
             <v-card-actions>
               <v-btn
                 depressed
-                :text="project.plan !== 'free' && !project.planCanceled"
                 large
-                :color="project.plan === 'free' || project.planCanceled ? 'success' : 'secondary'"
+                :color="project.plan !== plan.id || project.planCanceled ? 'success' : 'error'"
                 style="width: 100%;"
                 @click="
                 project.plan === 'free' || project.planCanceled
-                  ? selectPlan('premium')
+                  ? selectPlan(plan.id)
                   : selectPlan('free')
               "
               >
-                {{
-                  project.plan === 'free'
-                    ? 'Buy'
-                    : (project.planCanceled ? 'Renew' : 'Cancel')
-                }}
+                {{ getActivePremiumButtonTitle(plan.id) }}
               </v-btn>
             </v-card-actions>
           </v-card>
@@ -413,9 +412,15 @@ const PLANS = {
   },
   premium_plus: {
     price: 50,
+    servers: 3,
+    runners: 20,
+    users: 15,
   },
   enterprise: {
     price: 250,
+    servers: 10,
+    runners: 100,
+    users: 70,
   },
 };
 
@@ -447,6 +452,25 @@ export default {
   },
 
   methods: {
+    getActivePremiumButtonTitle(planId) {
+      if (this.project.plan === 'free') {
+        return 'Activate';
+      }
+
+      if (this.project.plan === planId) {
+        if (this.project.planCanceled) {
+          return 'Renew';
+        }
+        return 'Cancel';
+      }
+
+      if (PLANS[this.project.plan].price < PLANS[planId].price) {
+        return 'Upgrade';
+      }
+
+      return 'Downgrade';
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
@@ -473,7 +497,7 @@ export default {
 
       const { price } = PLANS[plan];
 
-      if (this.project.plan === 'free' && this.project.balance < price) {
+      if (this.project.balance < price) {
         this.paymentDialog = true;
       } else {
         await axios({
