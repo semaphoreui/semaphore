@@ -186,8 +186,8 @@
         </v-col>
       </v-row>
 
-      <v-row class="mt-0 mb-9">
-        <v-col md="4" lg="4" v-if="projectType === ''">
+      <v-row class="mt-0 mb-9" v-if="projectType === ''">
+        <v-col md="4" lg="4">
           <v-card
             class="mt-4 pa-2"
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
@@ -234,7 +234,7 @@
             </v-card-actions>
           </v-card>
         </v-col>
-        <v-col md="4" lg="4" v-if="projectType === ''">
+        <v-col md="4" lg="4">
           <v-card
             class="mt-4 pa-2"
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
@@ -304,70 +304,15 @@
             </v-card-actions>
           </v-card>
         </v-col>
-
-        <v-col md="4" lg="4" v-if="projectType === 'premium'">
+      </v-row>
+      <v-row class="mt-0 mb-9" v-else-if="projectType === 'premium'">
+        <v-col v-for="plan in premiumPlans" md="4" lg="4" :key="plan.id">
           <v-card
             class="mt-4 pa-2"
             :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
             flat
           >
-            <v-card-title class="text-h3">Trial</v-card-title>
-            <v-card-text style="height: 200px">
-              <v-timeline
-                align-top
-                dense
-                style="margin-left: -30px;"
-              >
-                <v-timeline-item
-                  icon="mdi-server"
-                  fill-dot
-                  class="text-subtitle-1 align-center"
-                >
-                  1 server
-                </v-timeline-item>
-
-                <v-timeline-item
-                  fill-dot
-                  icon="mdi-cog"
-                  class="text-subtitle-1 align-center"
-                >
-                  <div>1 runner</div>
-                </v-timeline-item>
-
-                <v-timeline-item
-                  fill-dot
-                  icon="mdi-account-multiple"
-                  class="text-subtitle-1 align-center"
-                >
-                  <div>1 user</div>
-                </v-timeline-item>
-              </v-timeline>
-
-              <div>
-                <v-chip
-                  class="mt-3 text-subtitle-1 py-3 px-4 font-weight-bold"
-                  v-if="project.plan === 'free'"
-                  color="success"
-                  outlined
-                >Your plan
-                </v-chip>
-              </div>
-            </v-card-text>
-
-            <v-card-actions>
-              <div style="width: 100%; height: 44px; line-height: 44px;"
-                   class="text-subtitle-1 text-center text--secondary">&nbsp;</div>
-            </v-card-actions>
-          </v-card>
-        </v-col>
-
-        <v-col md="4" lg="4" v-if="projectType === 'premium'">
-          <v-card
-            class="mt-4 pa-2"
-            :color="$vuetify.theme.dark ? 'blue-grey darken-4' : 'grey lighten-4'"
-            flat
-          >
-            <v-card-title class="text-h3">$50</v-card-title>
+            <v-card-title class="text-h3">${{ plan.price }}</v-card-title>
             <v-card-text style="height: 200px">
 
               <v-timeline
@@ -380,7 +325,7 @@
                   fill-dot
                   class="text-subtitle-1 align-center"
                 >
-                  3 servers
+                  {{ plan.servers }} servers
                 </v-timeline-item>
 
                 <v-timeline-item
@@ -388,7 +333,7 @@
                   icon="mdi-cog"
                   class="text-subtitle-1 align-center"
                 >
-                  <div>20 runners</div>
+                  <div>{{ plan.runners }} runners</div>
                 </v-timeline-item>
 
                 <v-timeline-item
@@ -396,7 +341,7 @@
                   icon="mdi-account-multiple"
                   class="text-subtitle-1 align-center"
                 >
-                  <div>15 users</div>
+                  <div>{{ plan.users }} users</div>
                 </v-timeline-item>
               </v-timeline>
 
@@ -461,7 +406,16 @@ const PLANS = {
     runnerUsage: 1000 * 60,
   },
   premium: {
+    price: 12,
+    servers: 1,
+    runners: 5,
+    users: 3,
+  },
+  premium_plus: {
     price: 50,
+  },
+  enterprise: {
+    price: 250,
   },
 };
 
@@ -481,6 +435,10 @@ export default {
       paymentProgressTimer: null,
       currencyAmount: null,
       plan: PLANS.free,
+      premiumPlans: ['premium', 'premium_plus', 'enterprise'].map((plan) => ({
+        ...PLANS[plan],
+        id: plan,
+      })),
     };
   },
 

@@ -6,6 +6,10 @@ module.exports = {
         '^/api': {
           target: 'http://localhost:3000',
         },
+        '^/billing': {
+          target: 'http://localhost:2500',
+          pathRewrite(path) { return path.replace('/billing/', '/'); },
+        },
       },
     },
   },
