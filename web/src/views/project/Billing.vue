@@ -371,7 +371,7 @@
                 :color="project.plan !== plan.id || project.planCanceled ? 'success' : 'error'"
                 style="width: 100%;"
                 @click="
-                project.plan === 'free' || project.planCanceled
+                project.plan !== plan.id || project.planCanceled
                   ? selectPlan(plan.id)
                   : selectPlan('free')
               "
