@@ -549,6 +549,8 @@ export default {
     },
 
     async makePayment() {
+      window.gtag_report_conversion(this.currencyAmount);
+
       try {
         this.payment = (await axios({
           method: 'post',
