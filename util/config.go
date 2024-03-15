@@ -163,12 +163,14 @@ type ConfigType struct {
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
 	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack and Microsoft Teams alerting
+	// Telegram, Slack, Rocket.Chat and Microsoft Teams alerting
 	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
 	SlackAlert          bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
 	SlackUrl            string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
+	RocketChatAlert     bool   `json:"rocketchat_alert" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
+	RocketChatUrl       string `json:"rocketchat_url" env:"SEMAPHORE_ROCKETCHAT_URL"`
 	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
 
