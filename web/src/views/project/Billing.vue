@@ -350,7 +350,7 @@
                   fill-dot
                   class="text-subtitle-1 align-center"
                 >
-                  {{ plan.servers }} servers
+                  {{ plan.servers }} instance(s)
                 </v-timeline-item>
 
                 <v-timeline-item
