@@ -81,7 +81,7 @@
 
         <v-card-text class="text-center">
           <div v-if="payment.state === 'completed'">
-            <v-icon class="ma-2" color="success" style="font-size: 86px;">check_circle</v-icon>
+            <v-icon class="ma-2" color="success" style="font-size: 86px;">mdi-check-circle</v-icon>
             <div class="title pb-1">Payment completed</div>
             <div class="">Thank you for your payment.</div>
           </div>
@@ -465,6 +465,7 @@ export default {
         id: plan,
       })),
       paypal: null,
+      paypalButton: null,
     };
   },
 
@@ -472,7 +473,9 @@ export default {
     async paymentDialog(val) {
       if (val) {
         this.currencyAmount = null;
-        await this.initPaypalButton();
+        // await this.initPaypalButton();
+      } else {
+        this.paypalButton.close();
       }
     },
   },
@@ -483,28 +486,22 @@ export default {
 
   methods: {
     async initPaypalButton() {
-      if (this.paypal) {
-        return;
+      if (!this.paypal) {
+        try {
+          this.paypal = await loadScript({ clientId: 'ATj8K7c7xzD4Z1JMozXCQGh6sUv8M9yScCeQWfVm1xaC_8UQ_0AM7IU6kr1cFbQ3FKwq0_dOz4-gkE_k' });
+        } catch (error) {
+          console.error('failed to load the PayPal JS SDK script', error);
+        }
       }
 
       try {
-        this.paypal = await loadScript({ clientId: 'Aa8YsG-Of3X1DUhKLALboAqNTYKcQerA9R7iJTDydMIx_fxpyrgwkwaRsS6PqMrah7uzLBPCqqGEq8jq' });
-      } catch (error) {
-        console.error('failed to load the PayPal JS SDK script', error);
-      }
-
-      try {
-        await this.paypal.Buttons({
-
+        this.paypalButton = await this.paypal.Buttons({
           createOrder: async () => {
             try {
               this.payment = (await axios({
                 method: 'post',
                 url: `/billing/projects/${this.projectId}/payments`,
                 responseType: 'json',
-                // headers: {
-                //   authorization: `Bearer ${localStorage.getItem('authenticationToken')}`,
-                // },
                 data: {
                   currencyAmount: this.currencyAmount,
                   currency: 'usd',
@@ -529,9 +526,7 @@ export default {
               method: 'put',
               url: `/billing/projects/${this.projectId}/payments/${this.payment.number}/refresh`,
               responseType: 'json',
-              // headers: {
-              //   authorization: `Bearer ${localStorage.getItem('authenticationToken')}`,
-              // },
+
               data: {
                 currencyAmount: this.currencyAmount,
                 currency: 'usd',
@@ -541,8 +536,9 @@ export default {
 
             await this.refreshProject();
           },
+        });
 
-        }).render('#paypal-button-container');
+        this.paypalButton.render('#paypal-button-container');
       } catch (error) {
         console.error('failed to render the PayPal Buttons', error);
       }
