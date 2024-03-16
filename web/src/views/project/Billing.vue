@@ -6,7 +6,9 @@
       persistent
       :transition="false"
     >
-      <v-card v-if="payment == null">
+      <v-card
+        v-if="payment == null || payment.gateway === 'paypal' && payment.state !== 'completed'"
+      >
         <v-card-title class="headline text-center">
           Replenishing your wallet
           <v-spacer></v-spacer>
@@ -39,17 +41,21 @@
           </v-slider>
 
         </v-card-text>
-        <v-card-actions class="pb-4 pt-0">
+        <v-card-actions class="pb-4 pt-0 d-block">
 
           <v-btn
+
             color="warning"
-            @click="makePayment('coinbase')"
+            @click="makeCoinbasePayment('coinbase')"
             large
+            depressed
             style="width: 100%"
           >
             <v-icon left>mdi-bitcoin</v-icon>
             Pay Crypto
           </v-btn>
+
+          <div class="mt-4" id="paypal-button-container"></div>
 
         </v-card-actions>
       </v-card>
@@ -102,6 +108,13 @@
 
     <v-tabs show-arrows class="pl-4">
       <v-tab
+        v-if="projectType === 'premium'"
+        key="install"
+        :to="`/project/${projectId}/install`"
+      >Install
+      </v-tab>
+
+      <v-tab
         v-if="projectType === ''"
         key="history"
         :to="`/project/${projectId}/history`"
@@ -113,7 +126,6 @@
         key="billing"
         :to="`/project/${projectId}/billing`"
       >Billing
-        <v-chip color="red" x-small dark class="ml-1">New</v-chip>
       </v-tab>
     </v-tabs>
 
@@ -398,6 +410,7 @@
 <script>
 import EventBus from '@/event-bus';
 import axios from 'axios';
+import { loadScript } from '@paypal/paypal-js';
 import { getErrorMessage } from '@/lib/error';
 
 const PLANS = {
@@ -451,7 +464,17 @@ export default {
         ...PLANS[plan],
         id: plan,
       })),
+      paypal: null,
     };
+  },
+
+  watch: {
+    async paymentDialog(val) {
+      if (val) {
+        this.currencyAmount = null;
+        await this.initPaypalButton();
+      }
+    },
   },
 
   async created() {
@@ -459,6 +482,72 @@ export default {
   },
 
   methods: {
+    async initPaypalButton() {
+      if (this.paypal) {
+        return;
+      }
+
+      try {
+        this.paypal = await loadScript({ clientId: 'Aa8YsG-Of3X1DUhKLALboAqNTYKcQerA9R7iJTDydMIx_fxpyrgwkwaRsS6PqMrah7uzLBPCqqGEq8jq' });
+      } catch (error) {
+        console.error('failed to load the PayPal JS SDK script', error);
+      }
+
+      try {
+        await this.paypal.Buttons({
+
+          createOrder: async () => {
+            try {
+              this.payment = (await axios({
+                method: 'post',
+                url: `/billing/projects/${this.projectId}/payments`,
+                responseType: 'json',
+                // headers: {
+                //   authorization: `Bearer ${localStorage.getItem('authenticationToken')}`,
+                // },
+                data: {
+                  currencyAmount: this.currencyAmount,
+                  currency: 'usd',
+                  gateway: 'paypal',
+                },
+              })).data;
+
+              console.log(this.payment);
+
+              return this.payment.gatewayTransactionId;
+            } catch (err) {
+              EventBus.$emit('i-snackbar', {
+                color: 'error',
+                text: getErrorMessage(err),
+              });
+              return undefined;
+            }
+          },
+
+          onApprove: async () => {
+            this.payment = (await axios({
+              method: 'put',
+              url: `/billing/projects/${this.projectId}/payments/${this.payment.number}/refresh`,
+              responseType: 'json',
+              // headers: {
+              //   authorization: `Bearer ${localStorage.getItem('authenticationToken')}`,
+              // },
+              data: {
+                currencyAmount: this.currencyAmount,
+                currency: 'usd',
+                gateway: 'paypal',
+              },
+            })).data;
+
+            await this.refreshProject();
+          },
+
+        }).render('#paypal-button-container');
+      } catch (error) {
+        console.error('failed to render the PayPal Buttons', error);
+      }
+    },
+
     async copyToClipboard(text) {
       try {
         await window.navigator.clipboard.writeText(text);
@@ -548,7 +637,7 @@ export default {
       this.paymentDialog = false;
     },
 
-    async makePayment() {
+    async makeCoinbasePayment() {
       window.gtag_report_conversion(this.currencyAmount);
 
       try {
@@ -556,9 +645,9 @@ export default {
           method: 'post',
           url: `/billing/projects/${this.projectId}/payments`,
           responseType: 'json',
-          headers: {
-            authorization: `Bearer ${localStorage.getItem('authenticationToken')}`,
-          },
+          // headers: {
+          //   authorization: `Bearer ${localStorage.getItem('authenticationToken')}`,
+          // },
           data: {
             currencyAmount: this.currencyAmount,
             currency: 'usd',
