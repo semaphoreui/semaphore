@@ -473,7 +473,7 @@ export default {
     async paymentDialog(val) {
       if (val) {
         this.currencyAmount = null;
-        // await this.initPaypalButton();
+        await this.initPaypalButton();
       } else {
         this.paypalButton.close();
       }
