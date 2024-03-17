@@ -1,6 +1,7 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 import SupportChat from '@/views/project/SupportChat.vue';
+import Install from '../views/project/Install.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
 import Billing from '../views/project/Billing.vue';
@@ -47,6 +48,10 @@ const routes = [
   {
     path: '/project/:projectId/activity',
     component: Activity,
+  },
+  {
+    path: '/project/:projectId/install',
+    component: Install,
   },
   {
     path: '/project/:projectId/settings',

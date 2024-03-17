@@ -7,6 +7,13 @@
 
     <v-tabs show-arrows class="pl-4">
       <v-tab
+        v-if="projectType === 'premium'"
+        key="install"
+        :to="`/project/${projectId}/install`"
+      >Install
+      </v-tab>
+
+      <v-tab
         v-if="projectType === ''"
         key="history"
         :to="`/project/${projectId}/history`"
@@ -23,7 +30,7 @@
         v-if="userRole === 'owner'"
         key="billing"
         :to="`/project/${projectId}/billing`"
-      >Billing <v-chip color="red" x-small dark class="ml-1">New</v-chip></v-tab>
+      >Billing</v-tab>
     </v-tabs>
 
     <v-data-table

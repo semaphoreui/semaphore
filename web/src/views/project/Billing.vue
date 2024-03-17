@@ -166,7 +166,9 @@
               icon="mdi-calendar-range"
               class="text-subtitle-1 align-center"
             >
-              Billing date: {{ project.planFinishDate | formatDate2 }}
+              Billing date:
+              <span v-if="project.planCanceled">&mdash;</span>
+              <span v-else>{{ project.planFinishDate | formatDate2 }}</span>
             </v-timeline-item>
 
             <v-timeline-item
@@ -276,13 +278,14 @@
               <v-chip
                 class="ml-4 mt-1 font-weight-bold text-center pa-4 text-subtitle-1"
                 color="success"
-                :outlined="project.planCanceled"
+                outlined
+                :style="{'font-size': project.planCanceled ? '12px !important' : undefined}"
                 v-if="project.plan === 'starter'"
               >
                 Your plan
                 <span class="ml-1" v-if="project.planCanceled">
-                    until {{ project.planFinishDate | formatDate2 }}
-                  </span>
+                  until {{ project.planFinishDate | formatDate2 }}
+                </span>
               </v-chip>
             </v-card-title>
             <v-card-text>
@@ -345,9 +348,13 @@
               <v-chip
                 class="text-subtitle-1 py-3 px-4 font-weight-bold"
                 v-if="project.plan === plan.id"
+                :style="{'font-size': project.planCanceled ? '12px !important' : undefined}"
                 color="success"
                 outlined
               >Your plan
+                <span class="ml-1" v-if="project.planCanceled">
+                  until {{ project.planFinishDate | formatDate2 }}
+                </span>
               </v-chip>
             </v-card-title>
 
