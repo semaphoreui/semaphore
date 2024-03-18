@@ -436,6 +436,12 @@ func StoreSession(store Store, token string, callback func()) {
 	}
 }
 
+func ValidateRepository(store Store, repo *Repository) (err error) {
+	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
+
+	return
+}
+
 func ValidateInventory(store Store, inventory *Inventory) (err error) {
 	if inventory.SSHKeyID != nil {
 		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
