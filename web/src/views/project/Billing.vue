@@ -7,6 +7,7 @@
       :transition="false"
     >
       <v-card
+        :disabled="paypalButtonRendering"
         v-if="payment == null || payment.gateway === 'paypal' && payment.state !== 'completed'"
       >
         <v-card-title class="headline text-center">
@@ -62,7 +63,7 @@
 
       <v-card v-else>
         <v-card-title class="headline text-center">
-          Add funds
+          Adding funds
           <v-spacer></v-spacer>
           <v-btn
             @click="closePaymentDialog"
@@ -111,7 +112,7 @@
         v-if="projectType === 'premium'"
         key="install"
         :to="`/project/${projectId}/install`"
-      >Install
+      >Setup
       </v-tab>
 
       <v-tab
@@ -317,7 +318,7 @@
               <v-btn
                 depressed
                 large
-                :color="project.plan === 'free' || project.planCanceled ? 'success' : 'error'"
+                :color="getPlanColor(project.plan)"
                 style="width: 100%;"
                 @click="
                 project.plan === 'free' || project.planCanceled
@@ -328,7 +329,7 @@
                 {{
                   project.plan === 'free'
                     ? 'Upgrade'
-                    : (project.planCanceled ? 'Renew' : 'Cancel')
+                    : (project.planCanceled ? 'Continue Auto Renew' : 'Cancel Auto Renew')
                 }}
               </v-btn>
             </v-card-actions>
@@ -394,7 +395,7 @@
               <v-btn
                 depressed
                 large
-                :color="project.plan !== plan.id || project.planCanceled ? 'success' : 'error'"
+                :color="getPlanColor(plan.id)"
                 style="width: 100%;"
                 @click="
                 project.plan !== plan.id || project.planCanceled
@@ -473,10 +474,15 @@ export default {
       })),
       paypal: null,
       paypalButton: null,
+      paypalButtonRendering: true,
     };
   },
 
   watch: {
+    projectId() {
+      this.refreshProject();
+    },
+
     async paymentDialog(val) {
       if (val) {
         this.currencyAmount = null;
@@ -492,6 +498,23 @@ export default {
   },
 
   methods: {
+    getPlanColor(plan) {
+      if (plan === 'free') {
+        return 'success';
+      }
+
+      if (plan !== this.project.plan) {
+        return 'success';
+      }
+
+      if (this.project.planCanceled) {
+        return 'warning';
+      }
+
+      return 'error';
+      // return project.plan === 'free' || project.planCanceled ? 'success' : 'error';
+    },
+
     async initPaypalButton() {
       if (!this.paypal) {
         try {
@@ -502,6 +525,7 @@ export default {
       }
 
       try {
+        this.paypalButtonRendering = true;
         this.paypalButton = await this.paypal.Buttons({
           createOrder: async () => {
             try {
@@ -545,9 +569,11 @@ export default {
           },
         });
 
-        this.paypalButton.render('#paypal-button-container');
+        await this.paypalButton.render('#paypal-button-container');
       } catch (error) {
         console.error('failed to render the PayPal Buttons', error);
+      } finally {
+        this.paypalButtonRendering = false;
       }
     },
 
@@ -573,9 +599,9 @@ export default {
 
       if (this.project.plan === planId) {
         if (this.project.planCanceled) {
-          return 'Renew';
+          return 'Continue Auto Renew';
         }
-        return 'Cancel';
+        return 'Cancel Auto Renew';
       }
 
       if (PLANS[this.project.plan].price < PLANS[planId].price) {

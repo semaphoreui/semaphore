@@ -11,7 +11,7 @@
         v-if="projectType === 'premium'"
         key="install"
         :to="`/project/${projectId}/install`"
-      >Install
+      >Setup
       </v-tab>
 
       <v-tab
@@ -29,8 +29,15 @@
       </v-tab>
     </v-tabs>
 
-    <div>
-      Coming soon
+    <div class="pa-4">
+      <v-alert
+        dense
+        text
+        type="warning"
+        style="display: inline-block"
+      >
+        You don't have an activated plan.
+      </v-alert>
     </div>
   </div>
 </template>
