@@ -27,6 +27,7 @@ func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
 }
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
+
 	_, err := d.exec(
 		"update project__inventory set name=?, type=?, ssh_key_id=?, inventory=?, become_key_id=?, holder_id=? where id=?",
 		inventory.Name,

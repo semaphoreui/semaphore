@@ -91,6 +91,12 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err := db.ValidateInventory(helpers.Store(r), &inventory)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newInventory, err := helpers.Store(r).CreateInventory(inventory)
 
 	if err != nil {
@@ -176,9 +182,12 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateInventory(inventory)
+	if err := db.ValidateInventory(helpers.Store(r), &inventory); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
-	if err != nil {
+	if err := helpers.Store(r).UpdateInventory(inventory); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
