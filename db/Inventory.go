@@ -27,6 +27,7 @@ type Inventory struct {
 	// static/file
 	Type InventoryType `db:"type" json:"type"`
 
+	// HolderID is an ID of template which holds the inventory
 	HolderID *int `db:"holder_id" json:"holder_id"`
 }
 

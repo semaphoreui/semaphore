@@ -435,3 +435,27 @@ func StoreSession(store Store, token string, callback func()) {
 		store.Close(token)
 	}
 }
+
+func ValidateInventory(store Store, inventory *Inventory) (err error) {
+	if inventory.SSHKeyID != nil {
+		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.BecomeKeyID != nil {
+		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.HolderID != nil {
+		_, err = store.GetTemplate(inventory.ProjectID, *inventory.HolderID)
+	}
+
+	return
+}
