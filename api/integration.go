@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"io"
 	"net/http"
@@ -40,18 +39,23 @@ func HashPayload(secret string, playloadBody []byte) string {
 
 func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
-	if !util.Config.IntegrationsEnable {
-		w.WriteHeader(http.StatusNotFound)
+	var err error
+
+	integrationAlias, err := helpers.GetStrParam("integration_alias", w, r)
+
+	if err != nil {
+		log.Error(err)
 		return
 	}
 
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
-	var err error
+	integration, err := helpers.Store(r).GetIntegrationByAlias(integrationAlias)
 
-	//project := context.Get(r, "project").(db.Project)
-	projectId, err := helpers.GetIntParam("project_id", w, r)
-	integration := context.Get(r, "integration").(db.Integration)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	switch integration.AuthMethod {
 	case db.IntegrationAuthHmac:
@@ -78,7 +82,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var matchers []db.IntegrationMatcher
-	matchers, err = helpers.Store(r).GetIntegrationMatchers(projectId, db.RetrieveQueryParams{}, integration.ID)
+	matchers, err = helpers.Store(r).GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
 		log.Error(err)
 	}

@@ -1,8 +1,9 @@
 package bolt
 
 import (
+	"errors"
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"go.etcd.io/bbolt"
 	"reflect"
 )
 
@@ -188,7 +189,50 @@ var integrationAliasProps = db.ObjectProps{
 
 var projectLevelIntegrationId = -1
 
+func (d *BoltDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
+	if integrationID == nil {
+		integrationID = &projectLevelIntegrationId
+	}
+
+	err = d.getObjects(projectID, db.IntegrationAliasProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		alias := i.(db.IntegrationAlias)
+		return alias.IntegrationID == integrationID
+	}, res)
+
+	return
+}
+
+func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err error) {
+
+	var aliasObj db.IntegrationAlias
+	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &aliasObj)
+
+	if err != nil {
+		return
+	}
+
+	if aliasObj.IntegrationID == nil {
+		err = db.ErrNotFound
+		return
+	}
+
+	res, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+
+	return
+}
+
 func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
+
+	_, err = d.GetIntegrationByAlias(alias.Alias)
+
+	if err == nil {
+		err = fmt.Errorf("alias already exists")
+	}
+
+	if !errors.Is(err, db.ErrNotFound) {
+		return
+	}
+
 	newAlias, err := d.createObject(alias.ProjectID, db.IntegrationAliasProps, alias)
 
 	if err != nil {
@@ -200,72 +244,22 @@ func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.Integ
 	_, err = d.createObject(-1, integrationAliasProps, alias)
 
 	if err != nil {
-		_ = d.DeleteIntegrationAlias(alias.ProjectID, alias.IntegrationID)
+		_ = d.DeleteIntegrationAlias(alias.ProjectID, alias.ID)
 		return
 	}
 
 	return
 }
 
-func (d *BoltDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.IntegrationAlias, err error) {
-	if integrationID == nil {
-		integrationID = &projectLevelIntegrationId
-	}
-	err = d.getObject(projectID, db.IntegrationAliasProps, intObjectID(*integrationID), &res)
-	return
-}
+func (d *BoltDb) DeleteIntegrationAlias(projectID int, aliasID int) (err error) {
 
-func (d *BoltDb) GetIntegrationAliasByAlias(alias string) (res db.IntegrationAlias, err error) {
-
-	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &res)
-
-	return
-}
-
-func (d *BoltDb) UpdateIntegrationAlias(alias db.IntegrationAlias) error {
-
-	var integrationID int
-	if alias.IntegrationID == nil {
-		integrationID = projectLevelIntegrationId
-	} else {
-		integrationID = *alias.IntegrationID
-	}
-
-	oldAlias, err := d.GetIntegrationAlias(alias.ProjectID, &integrationID)
-	if err != nil {
-		return err
-	}
-
-	err = d.db.Update(func(tx *bbolt.Tx) error {
-		err := d.updateObjectTx(tx, alias.ProjectID, db.IntegrationAliasProps, alias)
-		if err != nil {
-			return err
-		}
-
-		err = d.deleteObject(-1, integrationAliasProps, strObjectID(oldAlias.Alias), tx)
-		if err != nil {
-			return err
-		}
-
-		_, err = d.createObjectTx(tx, -1, integrationAliasProps, strObjectID(alias.Alias))
-
-		return err
-	})
-
-	return err
-}
-
-func (d *BoltDb) DeleteIntegrationAlias(projectID int, integrationID *int) (err error) {
-	if integrationID == nil {
-		integrationID = &projectLevelIntegrationId
-	}
-
-	alias, err := d.GetIntegrationAlias(projectID, integrationID)
+	var alias db.IntegrationAlias
+	err = d.getObject(projectID, db.IntegrationAliasProps, intObjectID(aliasID), &alias)
 	if err != nil {
 		return
 	}
 
-	err = d.deleteObject(projectID, db.IntegrationAliasProps, intObjectID(*integrationID), nil)
+	err = d.deleteObject(projectID, db.IntegrationAliasProps, intObjectID(aliasID), nil)
 	if err != nil {
 		return
 	}

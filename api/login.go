@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -483,14 +484,7 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 }
 
 func getRandomUsername() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := ""
-	for i := 0; i < 16; i++ {
-		index := r.Intn(len(chars))
-		result += chars[index : index+1]
-	}
-	return result
+	return lib.RandomString(16)
 }
 
 func getRandomProfileName() string {

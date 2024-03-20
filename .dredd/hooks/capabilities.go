@@ -209,6 +209,7 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("json", "{}", &request)
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
+		bodyFieldProcessor("become_key_id", userKey.ID, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)

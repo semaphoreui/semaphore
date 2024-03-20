@@ -92,9 +92,9 @@ func Route() *mux.Router {
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 
-	publicWebHookRouter := r.PathPrefix(webPath + "api/project/{project_id}/integrations/{integration_id}").Subrouter()
-	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware, projects.IntegrationMiddleware)
-	publicWebHookRouter.HandleFunc("/endpoint", ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
+	publicWebHookRouter := r.PathPrefix(webPath + "api/integrations/{integration_alias}").Subrouter()
+	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
+	publicWebHookRouter.HandleFunc("/", ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
@@ -278,18 +278,25 @@ func Route() *mux.Router {
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
 
-	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
+	projectIntegrationsAliasAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
+	projectIntegrationsAliasAPI.Use(projects.ProjectMiddleware)
+	projectIntegrationsAliasAPI.HandleFunc("/aliases", projects.GetIntegrationAlias).Methods("GET", "HEAD")
+	projectIntegrationsAliasAPI.HandleFunc("/aliases", projects.AddIntegrationAlias).Methods("POST")
+	projectIntegrationsAliasAPI.HandleFunc("/aliases/{alias_id}", projects.RemoveIntegrationAlias).Methods("DELETE")
 
+	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAPI.Use(projects.ProjectMiddleware, projects.IntegrationMiddleware)
 	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.UpdateIntegration).Methods("PUT")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.DeleteIntegration).Methods("DELETE")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.GetIntegration).Methods("GET")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/refs", projects.GetIntegrationRefs).Methods("GET", "HEAD")
-
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers", projects.GetIntegrationMatchers).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers", projects.AddIntegrationMatcher).Methods("POST")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.GetIntegrationExtractValues).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.AddIntegrationExtractValue).Methods("POST")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/aliases", projects.GetIntegrationAlias).Methods("GET", "HEAD")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/aliases", projects.AddIntegrationAlias).Methods("POST")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/aliases/{alias_id}", projects.RemoveIntegrationAlias).Methods("DELETE")
 
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.UpdateIntegrationMatcher).Methods("PUT")

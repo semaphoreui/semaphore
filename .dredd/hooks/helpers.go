@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"time"
 
@@ -291,24 +291,13 @@ func addToken(tok string, user int) {
 }
 
 // HELPERS
-var r *rand.Rand
 var randSetup = false
 
 func getUUID() string {
 	if !randSetup {
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 		randSetup = true
 	}
-	return randomString(8)
-}
-func randomString(strlen int) string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := ""
-	for i := 0; i < strlen; i++ {
-		index := r.Intn(len(chars))
-		result += chars[index : index+1]
-	}
-	return result
+	return lib.RandomString(8)
 }
 
 func loadConfig() {
