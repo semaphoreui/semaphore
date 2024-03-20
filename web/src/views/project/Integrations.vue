@@ -48,7 +48,7 @@
     <div class="px-4 py-3">
       <div v-for="alias of (aliases || [])" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
-        <v-btn icon>
+        <v-btn icon @click="copyToClipboard($vent)">
           <v-icon>mdi-content-copy</v-icon>
         </v-btn>
         <v-btn icon @click="deleteAlias(alias.id)">
@@ -109,6 +109,7 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import IntegrationForm from '@/components/IntegrationForm.vue';
 import IntegrationsBase from '@/views/project/IntegrationsBase';
+import copyToClipboard from '@/lib/copyClipboard';
 
 export default {
   mixins: [ItemListPageBase, IntegrationsBase],
@@ -128,6 +129,7 @@ export default {
   },
 
   methods: {
+    copyToClipboard,
     allowActions() {
       return this.can(USER_PERMISSIONS.updateProject);
     },
