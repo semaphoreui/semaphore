@@ -215,9 +215,21 @@ func (d *BoltDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.
 	return
 }
 
-func (d *BoltDb) GetIntegrationAliasByAlias(alias string) (res db.IntegrationAlias, err error) {
+func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err error) {
 
-	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &res)
+	var aliasObj db.IntegrationAlias
+	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &aliasObj)
+
+	if err != nil {
+		return
+	}
+
+	if aliasObj.IntegrationID == nil {
+		err = db.ErrNotFound
+		return
+	}
+
+	res, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
 
 	return
 }

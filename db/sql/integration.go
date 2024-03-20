@@ -287,7 +287,7 @@ func (d *SqlDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.I
 	return
 }
 
-func (d *SqlDb) GetIntegrationAliasByAlias(alias string) (res db.IntegrationAlias, err error) {
+func (d *SqlDb) GetIntegrationByAlias(alias string) (res db.Integration, err error) {
 	return
 }
 

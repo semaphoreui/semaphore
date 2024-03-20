@@ -161,7 +161,7 @@ type Store interface {
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
 	GetIntegrationAlias(projectID int, integrationID *int) (IntegrationAlias, error)
-	GetIntegrationAliasByAlias(alias string) (IntegrationAlias, error)
+	GetIntegrationByAlias(alias string) (Integration, error)
 	UpdateIntegrationAlias(alias IntegrationAlias) error
 	DeleteIntegrationAlias(projectID int, integrationID *int) error
 

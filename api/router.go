@@ -92,9 +92,9 @@ func Route() *mux.Router {
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 
-	publicWebHookRouter := r.PathPrefix(webPath + "api/project/{project_id}/integrations/{integration_id}").Subrouter()
-	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware, projects.IntegrationMiddleware)
-	publicWebHookRouter.HandleFunc("/endpoint", ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
+	publicWebHookRouter := r.PathPrefix(webPath + "api/integrations/{integration_alias}").Subrouter()
+	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
+	publicWebHookRouter.HandleFunc("/", ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
@@ -290,6 +290,9 @@ func Route() *mux.Router {
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers", projects.AddIntegrationMatcher).Methods("POST")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.GetIntegrationExtractValues).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.AddIntegrationExtractValue).Methods("POST")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.GetIntegrationAlias).Methods("GET", "HEAD")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.GenerateIntegrationAlias).Methods("POST")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.RemoveIntegrationAlias).Methods("DELETE")
 
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.UpdateIntegrationMatcher).Methods("PUT")
