@@ -281,7 +281,7 @@
         </v-list-item>
 
         <v-list-item
-          v-if="project.type === '' && user.integartions_enable"
+          v-if="project.type === ''"
           key="integrations"
           :to="`/project/${projectId}/integrations`"
         >

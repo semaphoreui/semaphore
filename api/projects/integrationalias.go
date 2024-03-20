@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
@@ -15,6 +16,12 @@ type publicAlias struct {
 }
 
 func getPublicAlias(alias string) publicAlias {
+
+	if alias == "" {
+		return publicAlias{
+			URL: "",
+		}
+	}
 
 	aliasURL := util.Config.WebHost
 
@@ -34,7 +41,7 @@ func GetIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 
 	alias, err := helpers.Store(r).GetIntegrationAlias(integration.ProjectID, &integration.ID)
 
-	if err != nil {
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		helpers.WriteError(w, err)
 		return
 	}

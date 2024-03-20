@@ -1,6 +1,6 @@
 export default {
   props: {
-    integrationId: Number,
+    // integrationId: Number,
     projectId: Number,
   },
 };
