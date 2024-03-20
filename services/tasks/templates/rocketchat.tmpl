@@ -1,0 +1,11 @@
+{
+    "text": "execution #{{ .Task.ID }}, status: {{ .Task.Result }}!",
+    "attachments": [
+        {
+            "title": "Task: {{ .Name }}",
+            "title_link": "{{ .Task.URL }}",
+            "text": "execution #{{ .Task.ID }}, status: {{ .Task.Result }}!",
+            "color": "{{ .Color }}"
+        }
+    ]
+}
