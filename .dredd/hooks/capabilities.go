@@ -101,11 +101,12 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			repoID = pRepo.ID
 		case "inventory":
 			res, err := store.CreateInventory(db.Inventory{
-				ProjectID: userProject.ID,
-				Name:      "ITI-" + uid,
-				Type:      "static",
-				SSHKeyID:  &userKey.ID,
-				Inventory: "Test Inventory",
+				ProjectID:   userProject.ID,
+				Name:        "ITI-" + uid,
+				Type:        "static",
+				SSHKeyID:    &userKey.ID,
+				BecomeKeyID: &userKey.ID,
+				Inventory:   "Test Inventory",
 			})
 			printError(err)
 			inventoryID = res.ID
