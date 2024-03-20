@@ -16,14 +16,15 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration "+
-			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header) values "+
+			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable) values "+
 			"(?, ?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
-		integration.AuthHeader)
+		integration.AuthHeader,
+		integration.Searchable)
 
 	if err != nil {
 		return
@@ -82,12 +83,13 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
 	}
 
 	_, err = d.exec(
-		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=? where `id`=?",
+		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=?, searchable=? where `id`=?",
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
+		integration.Searchable,
 		integration.ID)
 
 	return err

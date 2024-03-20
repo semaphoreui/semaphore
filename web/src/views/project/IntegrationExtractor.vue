@@ -16,7 +16,7 @@
       </div>
 
       <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
-        {{ aliases == null ? 'Loading aliases...' : 'Add Public Alias' }}
+        {{ aliases == null ? 'Loading aliases...' : 'Add Alias' }}
       </v-btn>
     </div>
 
