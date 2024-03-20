@@ -202,7 +202,7 @@ func (d *BoltDb) GetIntegrationAliases(projectID int, integrationID *int) (res [
 	return
 }
 
-func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err error) {
+func (d *BoltDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err error) {
 
 	var aliasObj db.IntegrationAlias
 	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &aliasObj)
@@ -216,14 +216,15 @@ func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err er
 		return
 	}
 
-	res, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+	integration, err := d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
 
+	res = append(res, integration)
 	return
 }
 
 func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
 
-	_, err = d.GetIntegrationByAlias(alias.Alias)
+	_, err = d.GetIntegrationsByAlias(alias.Alias)
 
 	if err == nil {
 		err = fmt.Errorf("alias already exists")
