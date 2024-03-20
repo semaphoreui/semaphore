@@ -5,7 +5,7 @@
       <div v-if="aliasURL == null">Loading...</div>
       <div v-else-if="aliasURL === ''">
         <span class="mr-2">No public URL</span>
-        <v-btn color="primary" @click="generateAlias()">Generate</v-btn>
+        <v-btn color="primary" @click="addAlias()">Generate</v-btn>
       </div>
       <div v-else>
         <span class="mr-2">Public URL:</span>
@@ -13,10 +13,10 @@
         <v-btn icon>
           <v-icon>mdi-content-copy</v-icon>
         </v-btn>
-        <v-btn icon>
+        <v-btn icon @click="refreshAlias()">
           <v-icon>mdi-refresh</v-icon>
         </v-btn>
-        <v-btn icon>
+        <v-btn icon @click="deleteAlias()">
           <v-icon>mdi-delete</v-icon>
         </v-btn>
       </div>
@@ -59,7 +59,24 @@ export default {
       return true;
     },
 
-    async generateAlias() {
+    async refreshAlias() {
+      this.aliasURL = (await axios({
+        method: 'put',
+        url: `/api/project/${this.projectId}/integrations/${this.integrationId}/alias`,
+        responseType: 'json',
+      })).data.url;
+    },
+
+    async deleteAlias() {
+      await axios({
+        method: 'delete',
+        url: `/api/project/${this.projectId}/integrations/${this.integrationId}/alias`,
+      });
+
+      this.aliasURL = '';
+    },
+
+    async addAlias() {
       this.aliasURL = (await axios({
         method: 'post',
         url: `/api/project/${this.projectId}/integrations/${this.integrationId}/alias`,

@@ -291,7 +291,8 @@ func Route() *mux.Router {
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.GetIntegrationExtractValues).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.AddIntegrationExtractValue).Methods("POST")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.GetIntegrationAlias).Methods("GET", "HEAD")
-	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.GenerateIntegrationAlias).Methods("POST")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.AddIntegrationAlias).Methods("POST")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.UpdateIntegrationAlias).Methods("PUT")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/alias", projects.RemoveIntegrationAlias).Methods("DELETE")
 
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")

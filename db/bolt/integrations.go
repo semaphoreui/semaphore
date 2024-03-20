@@ -1,6 +1,8 @@
 package bolt
 
 import (
+	"errors"
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
 	"go.etcd.io/bbolt"
 	"reflect"
@@ -188,25 +190,6 @@ var integrationAliasProps = db.ObjectProps{
 
 var projectLevelIntegrationId = -1
 
-func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
-	newAlias, err := d.createObject(alias.ProjectID, db.IntegrationAliasProps, alias)
-
-	if err != nil {
-		return
-	}
-
-	res = newAlias.(db.IntegrationAlias)
-
-	_, err = d.createObject(-1, integrationAliasProps, alias)
-
-	if err != nil {
-		_ = d.DeleteIntegrationAlias(alias.ProjectID, alias.IntegrationID)
-		return
-	}
-
-	return
-}
-
 func (d *BoltDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.IntegrationAlias, err error) {
 	if integrationID == nil {
 		integrationID = &projectLevelIntegrationId
@@ -230,6 +213,46 @@ func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err er
 	}
 
 	res, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+
+	return
+}
+
+func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
+
+	_, err = d.GetIntegrationAlias(alias.ProjectID, alias.IntegrationID)
+
+	if err == nil {
+		err = fmt.Errorf("alias already exists")
+	}
+
+	if !errors.Is(err, db.ErrNotFound) {
+		return
+	}
+
+	_, err = d.GetIntegrationByAlias(alias.Alias)
+
+	if err == nil {
+		err = fmt.Errorf("alias already exists")
+	}
+
+	if !errors.Is(err, db.ErrNotFound) {
+		return
+	}
+
+	newAlias, err := d.createObject(alias.ProjectID, db.IntegrationAliasProps, alias)
+
+	if err != nil {
+		return
+	}
+
+	res = newAlias.(db.IntegrationAlias)
+
+	_, err = d.createObject(-1, integrationAliasProps, alias)
+
+	if err != nil {
+		_ = d.DeleteIntegrationAlias(alias.ProjectID, alias.IntegrationID)
+		return
+	}
 
 	return
 }

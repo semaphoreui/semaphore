@@ -281,6 +281,7 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 }
 
 func (d *SqlDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration_alias (project_id, integration_id, alias) values (?, ?, ?)",
@@ -343,9 +344,17 @@ func (d *SqlDb) GetIntegrationByAlias(alias string) (res db.Integration, err err
 }
 
 func (d *SqlDb) UpdateIntegrationAlias(alias db.IntegrationAlias) error {
-	return nil
+	_, err := d.exec(
+		"update project__integration_alias set alias=? where project_id=? and integration_id=?",
+		alias.Alias, alias.ProjectID, alias.IntegrationID)
+
+	return err
 }
 
 func (d *SqlDb) DeleteIntegrationAlias(projectID int, integrationID *int) error {
-	return nil
+	return validateMutationResult(
+		d.exec(
+			"delete from "+db.IntegrationAliasProps.TableName+" where project_id=? and integration_id=?",
+			projectID,
+			integrationID))
 }

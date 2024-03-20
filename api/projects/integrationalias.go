@@ -49,13 +49,37 @@ func GetIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias.Alias))
 }
 
-func GenerateIntegrationAlias(w http.ResponseWriter, r *http.Request) {
+func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 	integration := context.Get(r, "integration").(db.Integration)
 	alias, err := helpers.Store(r).CreateIntegrationAlias(db.IntegrationAlias{
 		Alias:         lib.RandomString(16),
 		ProjectID:     integration.ProjectID,
 		IntegrationID: &integration.ID,
 	})
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias.Alias))
+}
+
+func UpdateIntegrationAlias(w http.ResponseWriter, r *http.Request) {
+	integration := context.Get(r, "integration").(db.Integration)
+
+	err := helpers.Store(r).UpdateIntegrationAlias(db.IntegrationAlias{
+		Alias:         lib.RandomString(16),
+		ProjectID:     integration.ProjectID,
+		IntegrationID: &integration.ID,
+	})
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	alias, err := helpers.Store(r).GetIntegrationAlias(integration.ProjectID, &integration.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -75,5 +99,5 @@ func RemoveIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }
