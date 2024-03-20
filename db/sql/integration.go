@@ -17,7 +17,7 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 		"id",
 		"insert into project__integration "+
 			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header) values "+
-			"(?, ?, ?, ?, ?, ?, ?)",
+			"(?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
