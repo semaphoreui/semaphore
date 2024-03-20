@@ -65,7 +65,7 @@ type IntegrationExtractValue struct {
 }
 
 type IntegrationAlias struct {
-	ID            int    `db:"id" json:"id"`
+	ID            int    `db:"id" json:"-"`
 	Alias         string `db:"alias" json:"alias"`
 	ProjectID     int    `db:"project_id" json:"project_id"`
 	IntegrationID *int   `db:"integration_id" json:"integration_id"`
