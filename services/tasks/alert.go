@@ -242,6 +242,65 @@ func (t *TaskRunner) sendSlackAlert() {
 	t.Log("Sent successfully slack alert")
 }
 
+func (t *TaskRunner) sendRocketChatAlert() {
+	if !util.Config.RocketChatAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("rocketchat"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  strings.ToUpper(string(t.Task.Status)),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/rocketchat.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse rocketchat alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate rocketchat alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for rocketchat alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send rocketchat alert")
+
+	resp, err := http.Post(
+		util.Config.RocketChatUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send rocketchat alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send rocketchat alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	}
+
+	t.Log("Sent successfully rocketchat alert")
+}
+
 func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 	if !util.Config.MicrosoftTeamsAlert || !t.alert {
 		return
@@ -335,6 +394,21 @@ func (t *TaskRunner) alertColor(kind string) string {
 			return "good"
 		case lib.TaskFailStatus:
 			return "danger"
+		case lib.TaskRunningStatus:
+			return "#333CFF"
+		case lib.TaskWaitingStatus:
+			return "#FFFC33"
+		case lib.TaskStoppingStatus:
+			return "#BEBEBE"
+		case lib.TaskStoppedStatus:
+			return "#5B5B5B"
+		}
+	case "rocketchat":
+		switch t.Task.Status {
+		case lib.TaskSuccessStatus:
+			return "#00EE00"
+		case lib.TaskFailStatus:
+			return "#EE0000"
 		case lib.TaskRunningStatus:
 			return "#333CFF"
 		case lib.TaskWaitingStatus:
