@@ -29,7 +29,7 @@ func getPublicAlias(alias string) publicAlias {
 		aliasURL += "/"
 	}
 
-	aliasURL += "integrations/" + alias
+	aliasURL += "api/integrations/" + alias
 
 	return publicAlias{
 		URL: aliasURL,
