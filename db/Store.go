@@ -160,10 +160,9 @@ type Store interface {
 	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
-	GetIntegrationAlias(projectID int, integrationID *int) (IntegrationAlias, error)
+	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
 	GetIntegrationByAlias(alias string) (Integration, error)
-	UpdateIntegrationAlias(alias IntegrationAlias) error
-	DeleteIntegrationAlias(projectID int, integrationID *int) error
+	DeleteIntegrationAlias(projectID int, aliasID int) error
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)

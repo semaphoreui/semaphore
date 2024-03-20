@@ -298,10 +298,15 @@ func (d *SqlDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.Integr
 	return
 }
 
-func (d *SqlDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.IntegrationAlias, err error) {
-	q := squirrel.Select("*").
-		From(db.IntegrationAliasProps.TableName).
-		Where("project_id=? AND integration_id=?", projectID, integrationID)
+func (d *SqlDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
+
+	q := squirrel.Select("*").From(db.IntegrationAliasProps.TableName)
+
+	if integrationID == nil {
+		q = q.Where("project_id=? AND integration_id is null", projectID)
+	} else {
+		q = q.Where("project_id=? AND integration_id=?", projectID, integrationID)
+	}
 
 	query, args, err := q.ToSql()
 
@@ -309,11 +314,7 @@ func (d *SqlDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.I
 		return
 	}
 
-	err = d.selectOne(&res, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
+	_, err = d.selectAll(&res, query, args...)
 
 	return
 }
@@ -343,18 +344,10 @@ func (d *SqlDb) GetIntegrationByAlias(alias string) (res db.Integration, err err
 	return
 }
 
-func (d *SqlDb) UpdateIntegrationAlias(alias db.IntegrationAlias) error {
-	_, err := d.exec(
-		"update project__integration_alias set alias=? where project_id=? and integration_id=?",
-		alias.Alias, alias.ProjectID, alias.IntegrationID)
-
-	return err
-}
-
-func (d *SqlDb) DeleteIntegrationAlias(projectID int, integrationID *int) error {
+func (d *SqlDb) DeleteIntegrationAlias(projectID int, aliasID int) error {
 	return validateMutationResult(
 		d.exec(
-			"delete from "+db.IntegrationAliasProps.TableName+" where project_id=? and integration_id=?",
+			"delete from "+db.IntegrationAliasProps.TableName+" where project_id=? and id=?",
 			projectID,
-			integrationID))
+			aliasID))
 }

@@ -34,22 +34,39 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Integrations</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Integration</v-btn>
+      >New Integration
+      </v-btn>
     </v-toolbar>
+
+    <div class="px-4 py-3">
+      <div v-for="alias of (aliases || [])" :key="alias.id">
+        <code class="mr-2">{{ alias.url }}</code>
+        <v-btn icon>
+          <v-icon>mdi-content-copy</v-icon>
+        </v-btn>
+        <v-btn icon @click="deleteAlias(alias.id)">
+          <v-icon>mdi-delete</v-icon>
+        </v-btn>
+      </div>
+
+      <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
+        {{ aliases == null ? 'Loading aliases...' : 'Add Alias' }}
+      </v-btn>
+    </div>
 
     <v-data-table
       :headers="headers"
       :items="items"
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
-      >
+    >
       <template v-slot:item.name="{ item }">
         <router-link
           :to="`/project/${projectId}/integration/${item.id}`"
@@ -91,9 +108,10 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 
 import ItemListPageBase from '@/components/ItemListPageBase';
 import IntegrationForm from '@/components/IntegrationForm.vue';
+import IntegrationsBase from '@/views/project/IntegrationsBase';
 
 export default {
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, IntegrationsBase],
   components: { IntegrationForm },
   data() {
     return {

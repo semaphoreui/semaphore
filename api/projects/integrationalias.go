@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
@@ -12,16 +11,11 @@ import (
 )
 
 type publicAlias struct {
+	ID  int    `json:"id"`
 	URL string `json:"url"`
 }
 
-func getPublicAlias(alias string) publicAlias {
-
-	if alias == "" {
-		return publicAlias{
-			URL: "",
-		}
-	}
+func getPublicAlias(alias db.IntegrationAlias) publicAlias {
 
 	aliasURL := util.Config.WebHost
 
@@ -29,32 +23,56 @@ func getPublicAlias(alias string) publicAlias {
 		aliasURL += "/"
 	}
 
-	aliasURL += "api/integrations/" + alias
+	aliasURL += "api/integrations/" + alias.Alias
 
 	return publicAlias{
+		ID:  alias.ID,
 		URL: aliasURL,
 	}
 }
 
+func getPublicAliases(aliases []db.IntegrationAlias) (res []publicAlias) {
+
+	res = make([]publicAlias, 0)
+	for _, alias := range aliases {
+		res = append(res, getPublicAlias(alias))
+	}
+
+	return
+}
+
 func GetIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	integration := context.Get(r, "integration").(db.Integration)
+	project := context.Get(r, "project").(db.Project)
+	integration, ok := context.Get(r, "integration").(db.Integration)
 
-	alias, err := helpers.Store(r).GetIntegrationAlias(integration.ProjectID, &integration.ID)
+	var integrationId *int
+	if ok {
+		integrationId = &integration.ID
+	}
 
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
+	aliases, err := helpers.Store(r).GetIntegrationAliases(project.ID, integrationId)
+
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias.Alias))
+	helpers.WriteJSON(w, http.StatusOK, getPublicAliases(aliases))
 }
 
 func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	integration := context.Get(r, "integration").(db.Integration)
+	project := context.Get(r, "project").(db.Project)
+	integration, ok := context.Get(r, "integration").(db.Integration)
+
+	var integrationId *int
+	if ok {
+		integrationId = &integration.ID
+	}
+
 	alias, err := helpers.Store(r).CreateIntegrationAlias(db.IntegrationAlias{
 		Alias:         lib.RandomString(16),
-		ProjectID:     integration.ProjectID,
-		IntegrationID: &integration.ID,
+		ProjectID:     project.ID,
+		IntegrationID: integrationId,
 	})
 
 	if err != nil {
@@ -62,37 +80,19 @@ func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias.Alias))
-}
-
-func UpdateIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	integration := context.Get(r, "integration").(db.Integration)
-
-	err := helpers.Store(r).UpdateIntegrationAlias(db.IntegrationAlias{
-		Alias:         lib.RandomString(16),
-		ProjectID:     integration.ProjectID,
-		IntegrationID: &integration.ID,
-	})
-
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
-	alias, err := helpers.Store(r).GetIntegrationAlias(integration.ProjectID, &integration.ID)
-
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias.Alias))
+	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias))
 }
 
 func RemoveIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	integration := context.Get(r, "integration").(db.Integration)
+	project := context.Get(r, "project").(db.Project)
+	aliasID, err := helpers.GetIntParam("alias_id", w, r)
 
-	err := helpers.Store(r).DeleteIntegrationAlias(integration.ProjectID, &integration.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = helpers.Store(r).DeleteIntegrationAlias(project.ID, aliasID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
