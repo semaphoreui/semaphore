@@ -5,7 +5,9 @@
     <div class="px-4 py-3">
       <div v-for="alias of (aliases || [])" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
-        <v-btn icon>
+        <v-btn icon
+               @click="copyToClipboard(
+                 alias.url, 'The alias URL  has been copied to the clipboard.')">
           <v-icon>mdi-content-copy</v-icon>
         </v-btn>
         <v-btn icon @click="deleteAlias(alias.id)">
@@ -25,6 +27,7 @@
 <script>
 import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
 import IntegrationsBase from '@/views/project/IntegrationsBase';
+import copyToClipboard from '@/lib/copyToClipboard';
 import IntegrationExtractValue from './IntegrationExtractValue.vue';
 import IntegrationMatcher from './IntegrationMatcher.vue';
 import IntegrationExtractorCrumb from './IntegrationExtractorCrumb.vue';
@@ -34,6 +37,7 @@ export default {
   components: { IntegrationMatcher, IntegrationExtractValue, IntegrationExtractorCrumb },
 
   methods: {
+    copyToClipboard,
     allowActions() {
       return true;
     },
