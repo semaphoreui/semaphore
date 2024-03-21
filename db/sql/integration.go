@@ -41,13 +41,6 @@ func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (i
 	return integrations, err
 }
 
-func (d *SqlDb) GetAllIntegrations() (integrations []db.Integration, err error) {
-	var integrationObjects interface{}
-	integrationObjects, err = d.GetAllObjects(db.IntegrationProps)
-	integrations = integrationObjects.([]db.Integration)
-	return
-}
-
 func (d *SqlDb) GetIntegration(projectID int, integrationID int) (integration db.Integration, err error) {
 	err = d.getObject(projectID, db.IntegrationProps, integrationID, &integration)
 	return
@@ -63,15 +56,6 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 }
 
 func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	//extractors, err := d.GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integrationID)
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//for extractor := range extractors {
-	//	d.DeleteIntegrationExtractor(0, extractors[extractor].ID, integrationID)
-	//}
 	return d.deleteObject(projectID, db.IntegrationProps, integrationID)
 }
 
@@ -268,13 +252,14 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 	}
 
 	_, err = d.exec(
-		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where `id`=?",
+		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where integration_id=? and `id`=?",
 		integrationMatcher.MatchType,
 		integrationMatcher.Method,
 		integrationMatcher.BodyDataType,
 		integrationMatcher.Key,
 		integrationMatcher.Value,
 		integrationMatcher.Name,
+		integrationMatcher.IntegrationID,
 		integrationMatcher.ID)
 
 	return err
@@ -319,7 +304,7 @@ func (d *SqlDb) GetIntegrationAliases(projectID int, integrationID *int) (res []
 	return
 }
 
-func (d *SqlDb) GetIntegrationByAlias(alias string) (res db.Integration, err error) {
+func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err error) {
 
 	var aliasObj db.IntegrationAlias
 
@@ -339,15 +324,26 @@ func (d *SqlDb) GetIntegrationByAlias(alias string) (res db.Integration, err err
 		err = db.ErrNotFound
 	}
 
-	res, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+	if aliasObj.IntegrationID == nil {
+		var projIntegrations []db.Integration
+		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{})
+		if err != nil {
+			return
+		}
+		for _, integration := range projIntegrations {
+			if integration.Searchable {
+				res = append(res, integration)
+			}
+		}
+	} else {
+		var integration db.Integration
+		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+		res = append(res, integration)
+	}
 
 	return
 }
 
 func (d *SqlDb) DeleteIntegrationAlias(projectID int, aliasID int) error {
-	return validateMutationResult(
-		d.exec(
-			"delete from "+db.IntegrationAliasProps.TableName+" where project_id=? and id=?",
-			projectID,
-			aliasID))
+	return d.deleteObject(projectID, db.IntegrationAliasProps, aliasID)
 }
