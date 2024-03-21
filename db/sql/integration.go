@@ -353,9 +353,5 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err 
 }
 
 func (d *SqlDb) DeleteIntegrationAlias(projectID int, aliasID int) error {
-	return validateMutationResult(
-		d.exec(
-			"delete from "+db.IntegrationAliasProps.TableName+" where project_id=? and id=?",
-			projectID,
-			aliasID))
+	return d.deleteObject(projectID, db.IntegrationAliasProps, aliasID)
 }
