@@ -187,22 +187,22 @@ var integrationAliasProps = db.ObjectProps{
 	PrimaryColumnName: "alias",
 }
 
-var projectLevelIntegrationId = -1
-
 func (d *BoltDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
-	if integrationID == nil {
-		integrationID = &projectLevelIntegrationId
-	}
 
 	err = d.getObjects(projectID, db.IntegrationAliasProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
 		alias := i.(db.IntegrationAlias)
-		return alias.IntegrationID == integrationID
-	}, res)
+		if alias.IntegrationID == nil && integrationID == nil {
+			return true
+		} else if alias.IntegrationID != nil && integrationID != nil {
+			return *alias.IntegrationID == *integrationID
+		}
+		return false
+	}, &res)
 
 	return
 }
 
-func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err error) {
+func (d *BoltDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err error) {
 
 	var aliasObj db.IntegrationAlias
 	err = d.getObject(-1, integrationAliasProps, strObjectID(alias), &aliasObj)
@@ -212,18 +212,30 @@ func (d *BoltDb) GetIntegrationByAlias(alias string) (res db.Integration, err er
 	}
 
 	if aliasObj.IntegrationID == nil {
-		err = db.ErrNotFound
-		return
-	}
+		err = d.getObjects(aliasObj.ProjectID, db.IntegrationProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+			integration := i.(db.Integration)
+			return integration.Searchable
+		}, &res)
 
-	res, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+		if err != nil {
+			return
+		}
+
+	} else {
+		var integration db.Integration
+		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+		if err != nil {
+			return
+		}
+		res = append(res, integration)
+	}
 
 	return
 }
 
 func (d *BoltDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
 
-	_, err = d.GetIntegrationByAlias(alias.Alias)
+	_, err = d.GetIntegrationsByAlias(alias.Alias)
 
 	if err == nil {
 		err = fmt.Errorf("alias already exists")

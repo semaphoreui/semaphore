@@ -11,6 +11,7 @@ create table project__integration (
   `auth_method` varchar(15) not null default 'none',
   `auth_secret_id` int,
   `auth_header` varchar(255),
+  `searchable` bool not null default false,
 
   foreign key (`project_id`) references project(`id`) on delete cascade,
   foreign key (`template_id`) references project__template(`id`) on delete cascade,

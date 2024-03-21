@@ -50,60 +50,61 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
-	integration, err := helpers.Store(r).GetIntegrationByAlias(integrationAlias)
+	integrations, err := helpers.Store(r).GetIntegrationsByAlias(integrationAlias)
 
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	switch integration.AuthMethod {
-	case db.IntegrationAuthHmac:
-		var payload []byte
-		_, err = r.Body.Read(payload)
+	for _, integration := range integrations {
+		switch integration.AuthMethod {
+		case db.IntegrationAuthHmac:
+			var payload []byte
+			_, err = r.Body.Read(payload)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			if IsValidPayload(integration.AuthSecret.LoginPassword.Password, r.Header.Get(integration.AuthHeader), payload) {
+				log.Error(err)
+				continue
+			}
+		case db.IntegrationAuthToken:
+			if integration.AuthSecret.LoginPassword.Password != r.Header.Get(integration.AuthHeader) {
+				log.Error("Invalid verification token")
+				continue
+			}
+		case db.IntegrationAuthNone:
+		default:
+			log.Error("Unknown verification method: " + integration.AuthMethod)
+			continue
+		}
+
+		var matchers []db.IntegrationMatcher
+		matchers, err = helpers.Store(r).GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 		if err != nil {
 			log.Error(err)
-			return
+		}
+		var matched = false
+
+		for _, matcher := range matchers {
+			if Match(matcher, r) {
+				matched = true
+				continue
+			} else {
+				matched = false
+				break
+			}
 		}
 
-		if IsValidPayload(integration.AuthSecret.LoginPassword.Password, r.Header.Get(integration.AuthHeader), payload) {
-			log.Error(err)
-			return
-		}
-	case db.IntegrationAuthToken:
-		if integration.AuthSecret.LoginPassword.Password != r.Header.Get(integration.AuthHeader) {
-			log.Error("Invalid verification token")
-			return
-		}
-	case db.IntegrationAuthNone:
-	default:
-		log.Error("Unknown verification method: " + integration.AuthMethod)
-		return
-	}
-
-	var matchers []db.IntegrationMatcher
-	matchers, err = helpers.Store(r).GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
-	if err != nil {
-		log.Error(err)
-	}
-	var matched = false
-
-	for _, matcher := range matchers {
-		if Match(matcher, r) {
-			matched = true
+		if !matched {
 			continue
-		} else {
-			matched = false
-			break
 		}
-	}
 
-	if !matched {
-		w.WriteHeader(http.StatusNoContent)
-		return
+		RunIntegration(integration, r)
 	}
-
-	RunIntegration(integration, r)
 
 	w.WriteHeader(http.StatusNoContent)
 }
