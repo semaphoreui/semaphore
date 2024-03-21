@@ -187,17 +187,17 @@ var integrationAliasProps = db.ObjectProps{
 	PrimaryColumnName: "alias",
 }
 
-var projectLevelIntegrationId = -1
-
 func (d *BoltDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
-	if integrationID == nil {
-		integrationID = &projectLevelIntegrationId
-	}
 
 	err = d.getObjects(projectID, db.IntegrationAliasProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
 		alias := i.(db.IntegrationAlias)
-		return alias.IntegrationID == integrationID
-	}, res)
+		if alias.IntegrationID == nil && integrationID == nil {
+			return true
+		} else if alias.IntegrationID != nil && integrationID != nil {
+			return *alias.IntegrationID == *integrationID
+		}
+		return false
+	}, &res)
 
 	return
 }
@@ -212,13 +212,24 @@ func (d *BoltDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err
 	}
 
 	if aliasObj.IntegrationID == nil {
-		err = db.ErrNotFound
-		return
+		err = d.getObjects(aliasObj.ProjectID, db.IntegrationProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+			integration := i.(db.Integration)
+			return integration.Searchable
+		}, &res)
+
+		if err != nil {
+			return
+		}
+
+	} else {
+		var integration db.Integration
+		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+		if err != nil {
+			return
+		}
+		res = append(res, integration)
 	}
 
-	integration, err := d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
-
-	res = append(res, integration)
 	return
 }
 

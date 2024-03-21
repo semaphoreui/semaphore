@@ -56,15 +56,6 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 }
 
 func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	//extractors, err := d.GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integrationID)
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//for extractor := range extractors {
-	//	d.DeleteIntegrationExtractor(0, extractors[extractor].ID, integrationID)
-	//}
 	return d.deleteObject(projectID, db.IntegrationProps, integrationID)
 }
 
@@ -261,13 +252,14 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 	}
 
 	_, err = d.exec(
-		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where `id`=?",
+		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where integration_id=? and `id`=?",
 		integrationMatcher.MatchType,
 		integrationMatcher.Method,
 		integrationMatcher.BodyDataType,
 		integrationMatcher.Key,
 		integrationMatcher.Value,
 		integrationMatcher.Name,
+		integrationMatcher.IntegrationID,
 		integrationMatcher.ID)
 
 	return err
