@@ -1,12 +1,10 @@
 package api
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/context"
 	"io"
 	"net/http"
 	"strings"
@@ -14,7 +12,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	log "github.com/sirupsen/logrus"
-	jsonq "github.com/thedevsaddam/gojsonq/v2"
+	"github.com/thedevsaddam/gojsonq/v2"
 )
 
 // IsValidPayload checks if the github payload's hash fits with
@@ -59,7 +57,19 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
 
+	var project db.Project
+	if len(integrations) > 0 {
+		project, err = helpers.Store(r).GetProject(integrations[0].ProjectID)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+	}
 	for _, integration := range integrations {
+		if integration.ProjectID != project.ID {
+			panic("")
+		}
+
 		switch integration.AuthMethod {
 		case db.IntegrationAuthHmac:
 			var payload []byte
@@ -79,6 +89,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		case db.IntegrationAuthNone:
+			// TODO: do nothing
 		default:
 			log.Error("Unknown verification method: " + integration.AuthMethod)
 			continue
@@ -105,7 +116,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		RunIntegration(integration, r)
+		RunIntegration(integration, project, r)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -127,39 +138,39 @@ func Match(matcher db.IntegrationMatcher, r *http.Request) (matched bool) {
 		var body = string(bodyBytes)
 		switch matcher.BodyDataType {
 		case db.IntegrationBodyDataJSON:
-			var jsonBytes bytes.Buffer
-			jsonq.New().FromString(body).From(matcher.Key).Writer(&jsonBytes)
-			var jsonString = jsonBytes.String()
-			if err != nil {
-				log.Error(fmt.Sprintf("Failed to marshal JSON contents of body. %v", err))
-			}
-			return MatchCompare(jsonString, matcher.Method, matcher.Value)
+			//var jsonBytes bytes.Buffer
+			value := gojsonq.New().JSONString(body).Find(matcher.Key)
+
+			//jsonq.New().FromString(body).From(matcher.Key).Writer(&jsonBytes)
+			//var jsonString = jsonBytes.String()
+			//if err != nil {
+			//	log.Error(fmt.Sprintf("Failed to marshal JSON contents of body. %v", err))
+			//}
+			return MatchCompare(value, matcher.Method, matcher.Value)
 		case db.IntegrationBodyDataString:
 			return MatchCompare(body, matcher.Method, matcher.Value)
-		case db.IntegrationBodyDataXML:
-			// XXX: TBI
-			return false
 		}
 	}
 
 	return false
 }
 
-func MatchCompare(value string, method db.IntegrationMatchMethodType, expected string) bool {
+func MatchCompare(value interface{}, method db.IntegrationMatchMethodType, expected string) bool {
+	strValue := fmt.Sprintf("%v", value)
+
 	switch method {
 	case db.IntegrationMatchMethodEquals:
-		return value == expected
+		return strValue == expected
 	case db.IntegrationMatchMethodUnEquals:
-		return value != expected
+		return strValue != expected
 	case db.IntegrationMatchMethodContains:
-		return strings.Contains(value, expected)
+		return strings.Contains(fmt.Sprintf("%v", value), expected)
 	default:
 		return false
 	}
 }
 
-func RunIntegration(integration db.Integration, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+func RunIntegration(integration db.Integration, project db.Project, r *http.Request) {
 
 	var extractValues = make([]db.IntegrationExtractValue, 0)
 
@@ -218,13 +229,10 @@ func Extract(extractValues []db.IntegrationExtractValue, r *http.Request) (resul
 
 			switch extractValue.BodyDataType {
 			case db.IntegrationBodyDataJSON:
-				var jsonBytes bytes.Buffer
-				jsonq.New().FromString(body).From(extractValue.Key).Writer(&jsonBytes)
-				result[extractValue.Variable] = jsonBytes.String()
+				result[extractValue.Variable] =
+					fmt.Sprintf("%v", gojsonq.New().JSONString(body).Find(extractValue.Key))
 			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = body
-			case db.IntegrationBodyDataXML:
-				// XXX: TBI
 			}
 		}
 	}
