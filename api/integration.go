@@ -2,7 +2,7 @@ package api
 
 import (
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,7 +18,14 @@ import (
 // isValidHmacPayload checks if the GitHub payload's hash fits with
 // the hash computed by GitHub sent as a header
 func isValidHmacPayload(secret, headerHash string, payload []byte, prefix string) bool {
-	hash := hmacHashPayload(secret, payload, prefix)
+	hash := hmacHashPayload(secret, payload)
+
+	if !strings.HasPrefix(headerHash, prefix) {
+		return false
+	}
+
+	headerHash = headerHash[len(prefix):]
+
 	return hmac.Equal(
 		[]byte(hash),
 		[]byte(headerHash),
@@ -28,11 +35,11 @@ func isValidHmacPayload(secret, headerHash string, payload []byte, prefix string
 // hmacHashPayload computes the hash of payload's body according to the webhook's secret token
 // see https://developer.github.com/webhooks/securing/#validating-payloads-from-github
 // returning the hash as a hexadecimal string
-func hmacHashPayload(secret string, payloadBody []byte, prefix string) string {
-	hm := hmac.New(sha1.New, []byte(secret))
+func hmacHashPayload(secret string, payloadBody []byte) string {
+	hm := hmac.New(sha256.New, []byte(secret))
 	hm.Write(payloadBody)
 	sum := hm.Sum(nil)
-	return fmt.Sprintf("%s%x", prefix, sum)
+	return fmt.Sprintf("%x", sum)
 }
 
 func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
@@ -76,14 +83,17 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		var payload []byte
+
+		payload, err = io.ReadAll(r.Body)
+
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
 		switch integration.AuthMethod {
 		case db.IntegrationAuthGitHub:
-			var payload []byte
-			_, err = r.Body.Read(payload)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
 
 			ok := isValidHmacPayload(
 				integration.AuthSecret.LoginPassword.Password,
@@ -92,17 +102,12 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				"sha256=")
 
 			if !ok {
-				log.Error(err)
-				continue
-			}
-		case db.IntegrationAuthHmac:
-			var payload []byte
-			_, err = r.Body.Read(payload)
-			if err != nil {
-				log.Error(err)
+				log.Error("Invalid HMAC signature")
 				continue
 			}
 
+			log.Info("Invalid HMAC signature")
+		case db.IntegrationAuthHmac:
 			ok := isValidHmacPayload(
 				integration.AuthSecret.LoginPassword.Password,
 				r.Header.Get(integration.AuthHeader),
@@ -110,7 +115,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				"")
 
 			if !ok {
-				log.Error(err)
+				log.Error("Invalid HMAC signature")
 				continue
 			}
 		case db.IntegrationAuthToken:
@@ -119,7 +124,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		case db.IntegrationAuthNone:
-			// TODO: do nothing
+			// Do nothing
 		default:
 			log.Error("Unknown verification method: " + integration.AuthMethod)
 			continue
@@ -130,10 +135,11 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Error(err)
 		}
+
 		var matched = false
 
 		for _, matcher := range matchers {
-			if Match(matcher, r) {
+			if Match(matcher, r.Header.Get(matcher.Key), payload) {
 				matched = true
 				continue
 			} else {
@@ -152,19 +158,12 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func Match(matcher db.IntegrationMatcher, r *http.Request) (matched bool) {
+func Match(matcher db.IntegrationMatcher, headerValue string, bodyBytes []byte) (matched bool) {
 
 	switch matcher.MatchType {
 	case db.IntegrationMatchHeader:
-		var headerValue = r.Header.Get(matcher.Key)
 		return MatchCompare(headerValue, matcher.Method, matcher.Value)
 	case db.IntegrationMatchBody:
-		bodyBytes, err := io.ReadAll(r.Body)
-
-		if err != nil {
-			log.Fatalln(err)
-			return false
-		}
 		var body = string(bodyBytes)
 		switch matcher.BodyDataType {
 		case db.IntegrationBodyDataJSON:
