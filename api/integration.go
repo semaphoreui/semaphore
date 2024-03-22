@@ -57,6 +57,8 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
+
 	for _, integration := range integrations {
 		switch integration.AuthMethod {
 		case db.IntegrationAuthHmac:
