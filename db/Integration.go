@@ -180,3 +180,17 @@ func (value *IntegrationExtractValue) String() string {
 
 	return builder.String()
 }
+
+func FillIntegration(d Store, inventory *Integration) (err error) {
+	if inventory.AuthSecretID != nil {
+		inventory.AuthSecret, err = d.GetAccessKey(inventory.ProjectID, *inventory.AuthSecretID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	err = inventory.AuthSecret.DeserializeSecret()
+
+	return
+}
