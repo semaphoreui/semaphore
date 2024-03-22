@@ -39,6 +39,13 @@
       :disabled="formSaving"
     ></v-select>
 
+    <v-text-field
+      v-if="item.auth_method !== ''"
+      v-model="item.auth_header"
+      label="Auth header"
+      :disabled="formSaving"
+    ></v-text-field>
+
     <v-select
       v-if="item.auth_method"
       v-model="item.auth_secret_id"
