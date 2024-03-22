@@ -30,9 +30,9 @@ func IsValidPayload(secret, headerHash string, payload []byte) bool {
 // HashPayload computes the hash of payload's body according to the webhook's secret token
 // see https://developer.github.com/webhooks/securing/#validating-payloads-from-github
 // returning the hash as a hexadecimal string
-func HashPayload(secret string, playloadBody []byte) string {
+func HashPayload(secret string, payloadBody []byte) string {
 	hm := hmac.New(sha1.New, []byte(secret))
-	hm.Write(playloadBody)
+	hm.Write(payloadBody)
 	sum := hm.Sum(nil)
 	return fmt.Sprintf("%x", sum)
 }
@@ -56,6 +56,8 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		return
 	}
+
+	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
 
 	for _, integration := range integrations {
 		switch integration.AuthMethod {
