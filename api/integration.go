@@ -15,24 +15,24 @@ import (
 	"github.com/thedevsaddam/gojsonq/v2"
 )
 
-// IsValidPayload checks if the github payload's hash fits with
+// isValidHmacPayload checks if the GitHub payload's hash fits with
 // the hash computed by GitHub sent as a header
-func IsValidPayload(secret, headerHash string, payload []byte) bool {
-	hash := HashPayload(secret, payload)
+func isValidHmacPayload(secret, headerHash string, payload []byte, prefix string) bool {
+	hash := hmacHashPayload(secret, payload, prefix)
 	return hmac.Equal(
 		[]byte(hash),
 		[]byte(headerHash),
 	)
 }
 
-// HashPayload computes the hash of payload's body according to the webhook's secret token
+// hmacHashPayload computes the hash of payload's body according to the webhook's secret token
 // see https://developer.github.com/webhooks/securing/#validating-payloads-from-github
 // returning the hash as a hexadecimal string
-func HashPayload(secret string, payloadBody []byte) string {
+func hmacHashPayload(secret string, payloadBody []byte, prefix string) string {
 	hm := hmac.New(sha1.New, []byte(secret))
 	hm.Write(payloadBody)
 	sum := hm.Sum(nil)
-	return fmt.Sprintf("%x", sum)
+	return fmt.Sprintf("%s%x", prefix, sum)
 }
 
 func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +77,24 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch integration.AuthMethod {
+		case db.IntegrationAuthGitHub:
+			var payload []byte
+			_, err = r.Body.Read(payload)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			ok := isValidHmacPayload(
+				integration.AuthSecret.LoginPassword.Password,
+				r.Header.Get("X-Hub-Signature-256"),
+				payload,
+				"sha256=")
+
+			if !ok {
+				log.Error(err)
+				continue
+			}
 		case db.IntegrationAuthHmac:
 			var payload []byte
 			_, err = r.Body.Read(payload)
@@ -85,7 +103,13 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			if !IsValidPayload(integration.AuthSecret.LoginPassword.Password, r.Header.Get(integration.AuthHeader), payload) {
+			ok := isValidHmacPayload(
+				integration.AuthSecret.LoginPassword.Password,
+				r.Header.Get(integration.AuthHeader),
+				payload,
+				"")
+
+			if !ok {
 				log.Error(err)
 				continue
 			}
