@@ -70,6 +70,12 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			panic("")
 		}
 
+		err = db.FillIntegration(helpers.Store(r), &integration)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
 		switch integration.AuthMethod {
 		case db.IntegrationAuthHmac:
 			var payload []byte
@@ -79,7 +85,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			if IsValidPayload(integration.AuthSecret.LoginPassword.Password, r.Header.Get(integration.AuthHeader), payload) {
+			if !IsValidPayload(integration.AuthSecret.LoginPassword.Password, r.Header.Get(integration.AuthHeader), payload) {
 				log.Error(err)
 				continue
 			}
@@ -126,8 +132,8 @@ func Match(matcher db.IntegrationMatcher, r *http.Request) (matched bool) {
 
 	switch matcher.MatchType {
 	case db.IntegrationMatchHeader:
-		var header_value = r.Header.Get(matcher.Key)
-		return MatchCompare(header_value, matcher.Method, matcher.Value)
+		var headerValue = r.Header.Get(matcher.Key)
+		return MatchCompare(headerValue, matcher.Method, matcher.Value)
 	case db.IntegrationMatchBody:
 		bodyBytes, err := io.ReadAll(r.Body)
 
@@ -138,14 +144,8 @@ func Match(matcher db.IntegrationMatcher, r *http.Request) (matched bool) {
 		var body = string(bodyBytes)
 		switch matcher.BodyDataType {
 		case db.IntegrationBodyDataJSON:
-			//var jsonBytes bytes.Buffer
 			value := gojsonq.New().JSONString(body).Find(matcher.Key)
 
-			//jsonq.New().FromString(body).From(matcher.Key).Writer(&jsonBytes)
-			//var jsonString = jsonBytes.String()
-			//if err != nil {
-			//	log.Error(fmt.Sprintf("Failed to marshal JSON contents of body. %v", err))
-			//}
 			return MatchCompare(value, matcher.Method, matcher.Value)
 		case db.IntegrationBodyDataString:
 			return MatchCompare(body, matcher.Method, matcher.Value)
@@ -172,13 +172,16 @@ func MatchCompare(value interface{}, method db.IntegrationMatchMethodType, expec
 
 func RunIntegration(integration db.Integration, project db.Project, r *http.Request) {
 
+	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+
 	var extractValues = make([]db.IntegrationExtractValue, 0)
 
-	extractValuesForExtractor, err2 := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
-	if err2 != nil {
-		log.Error(err2)
+	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
+	if err != nil {
+		log.Error(err)
 		return
 	}
+
 	extractValues = append(extractValues, extractValuesForExtractor...)
 
 	var extractedResults = Extract(extractValues, r)
@@ -198,14 +201,14 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		Environment: environmentJSONString,
 	}
 
-	var user db.User
-	user, err = helpers.Store(r).GetUser(1)
-	if err != nil {
-		log.Error(err)
-		return
-	}
+	//var user db.User
+	//user, err = helpers.Store(r).GetUser(1)
+	//if err != nil {
+	//	log.Error(err)
+	//	return
+	//}
 
-	_, err = helpers.TaskPool(r).AddTask(taskDefinition, &user.ID, integration.ProjectID)
+	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID)
 	if err != nil {
 		log.Error(err)
 		return
