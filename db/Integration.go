@@ -8,9 +8,10 @@ import (
 type IntegrationAuthMethod string
 
 const (
-	IntegrationAuthNone  = ""
-	IntegrationAuthToken = "token"
-	IntegrationAuthHmac  = "hmac"
+	IntegrationAuthNone   = ""
+	IntegrationAuthGitHub = "github"
+	IntegrationAuthToken  = "token"
+	IntegrationAuthHmac   = "hmac"
 )
 
 type IntegrationMatchType string

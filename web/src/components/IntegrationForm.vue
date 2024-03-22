@@ -40,7 +40,7 @@
     ></v-select>
 
     <v-text-field
-      v-if="item.auth_method !== ''"
+      v-if="['token', 'hmac'].includes(item.auth_method)"
       v-model="item.auth_header"
       label="Auth header"
       :disabled="formSaving"
@@ -71,6 +71,9 @@ export default {
       authMethods: [{
         id: '',
         title: 'None',
+      }, {
+        id: 'github',
+        title: 'GitHub Webhooks',
       }, {
         id: 'token',
         title: 'Token',
@@ -120,7 +123,7 @@ export default {
 
     async afterLoadData() {
       this.keys = (await axios({
-        keys: 'get',
+        method: 'get',
         url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
