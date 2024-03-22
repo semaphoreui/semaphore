@@ -32,7 +32,6 @@ type IntegrationBodyDataType string
 
 const (
 	IntegrationBodyDataJSON   IntegrationBodyDataType = "json"
-	IntegrationBodyDataXML    IntegrationBodyDataType = "xml"
 	IntegrationBodyDataString IntegrationBodyDataType = "string"
 )
 
