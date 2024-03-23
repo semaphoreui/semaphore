@@ -53,7 +53,7 @@ func (t *TaskRunner) sendMailAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
