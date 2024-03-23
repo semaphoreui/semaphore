@@ -113,13 +113,6 @@ func (d *SqlDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQue
 	return values, err
 }
 
-func (d *SqlDb) GetAllIntegrationExtractValues() (values []db.IntegrationExtractValue, err error) {
-	var valueObjects interface{}
-	valueObjects, err = d.GetAllObjects(db.IntegrationExtractValueProps)
-	values = valueObjects.([]db.IntegrationExtractValue)
-	return
-}
-
 func (d *SqlDb) GetIntegrationExtractValue(projectID int, valueID int, integrationID int) (value db.IntegrationExtractValue, err error) {
 	query, args, err := squirrel.Select("v.*").
 		From("project__integration_extract_value as v").
@@ -206,14 +199,6 @@ func (d *SqlDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryPar
 	}
 
 	_, err = d.selectAll(&matchers, query, args...)
-
-	return
-}
-
-func (d *SqlDb) GetAllIntegrationMatchers() (matchers []db.IntegrationMatcher, err error) {
-	var matcherObjects interface{}
-	matcherObjects, err = d.GetAllObjects(db.IntegrationMatcherProps)
-	matchers = matcherObjects.([]db.IntegrationMatcher)
 
 	return
 }
@@ -346,4 +331,20 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err 
 
 func (d *SqlDb) DeleteIntegrationAlias(projectID int, aliasID int) error {
 	return d.deleteObject(projectID, db.IntegrationAliasProps, aliasID)
+}
+
+func (d *SqlDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
+	q := squirrel.Select("*").From(db.IntegrationProps.TableName)
+
+	q = q.Where("searchable")
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&integrations, query, args...)
+
+	return
 }

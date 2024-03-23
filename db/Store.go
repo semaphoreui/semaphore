@@ -163,6 +163,7 @@ type Store interface {
 	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
 	GetIntegrationsByAlias(alias string) ([]Integration, error)
 	DeleteIntegrationAlias(projectID int, aliasID int) error
+	GetAllSearchableIntegrations() ([]Integration, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)

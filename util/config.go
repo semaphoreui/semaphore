@@ -191,6 +191,8 @@ type ConfigType struct {
 	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
+
+	GlobalIntegrationAlias string `json:"global_integration_alias"`
 }
 
 // Config exposes the application configuration storage for use in the application
