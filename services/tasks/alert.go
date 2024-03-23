@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"text/template"
 
 	"github.com/ansible-semaphore/semaphore/lib"
@@ -137,7 +136,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -202,7 +201,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -261,7 +260,7 @@ func (t *TaskRunner) sendRocketChatAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -320,7 +319,7 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
