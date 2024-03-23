@@ -431,6 +431,7 @@ export default {
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
           responseType: 'json',
         })).data;
+        this.item.id = null;
       }
 
       this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;
