@@ -1,12 +1,9 @@
 #!/bin/sh
 
 echo Loading environment...
-
 source /home/semaphore/venv/bin/activate
 
 echo Staring runner...
-
-
 export ANSIBLE_HOST_KEY_CHECKING=False
 export ANSIBLE_STDOUT_CALLBACK=yaml
 export ANSIBLE_LOAD_CALLBACK_PLUGINS=yes
