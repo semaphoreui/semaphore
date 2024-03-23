@@ -4,7 +4,7 @@ echo Loading environment...
 source /home/semaphore/venv/bin/activate
 
 echo "--> Turn off StrictKeyChecking"
-cat > /etc/ssh/ssh_config <<EOF
+cat > /home/semaphore/.ssh/config <<EOF
 Host *
     StrictHostKeyChecking no
     UserKnownHostsFile=/dev/null
