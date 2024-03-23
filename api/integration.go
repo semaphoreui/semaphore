@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/util"
 	"io"
 	"net/http"
 	"strings"
@@ -55,7 +56,13 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
-	integrations, err := helpers.Store(r).GetIntegrationsByAlias(integrationAlias)
+	var integrations []db.Integration
+
+	if util.Config.GlobalIntegrationAlias != "" && integrationAlias == util.Config.GlobalIntegrationAlias {
+		integrations, err = helpers.Store(r).GetAllSearchableIntegrations()
+	} else {
+		integrations, err = helpers.Store(r).GetIntegrationsByAlias(integrationAlias)
+	}
 
 	if err != nil {
 		log.Error(err)
@@ -64,15 +71,20 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
 
-	var project db.Project
-	if len(integrations) > 0 {
-		project, err = helpers.Store(r).GetProject(integrations[0].ProjectID)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
+	projects := make(map[int]db.Project)
+
 	for _, integration := range integrations {
+
+		project, ok := projects[integration.ProjectID]
+		if !ok {
+			project, err = helpers.Store(r).GetProject(integrations[0].ProjectID)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			projects[integration.ProjectID] = project
+		}
+
 		if integration.ProjectID != project.ID {
 			panic("")
 		}
