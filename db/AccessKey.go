@@ -130,8 +130,6 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			var agent lib.SshAgent
 			agent, err = key.startSshAgent(logger)
 			installation.SshAgent = &agent
-
-			//err = os.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
 		switch key.Type {
@@ -161,7 +159,6 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			var agent lib.SshAgent
 			agent, err = key.startSshAgent(logger)
 			installation.SshAgent = &agent
-			//err = os.WriteFile(installationPath, []byte(key.SshKey.PrivateKey+"\n"), 0600)
 		case AccessKeyLoginPassword:
 			content := make(map[string]string)
 			content["ansible_user"] = key.LoginPassword.Login

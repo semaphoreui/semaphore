@@ -81,7 +81,7 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 		t.sendMailAlert()
 	}
 
-	if status == lib.TaskSuccessStatus || status == lib.TaskFailStatus {
+	if status.IsNotifiable() {
 		t.sendTelegramAlert()
 		t.sendSlackAlert()
 		t.sendRocketChatAlert()

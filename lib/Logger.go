@@ -2,6 +2,7 @@ package lib
 
 import (
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -18,6 +19,27 @@ const (
 	TaskSuccessStatus       TaskStatus = "success"
 	TaskFailStatus          TaskStatus = "error"
 )
+
+func (s TaskStatus) IsNotifiable() bool {
+	return s == TaskSuccessStatus || s == TaskFailStatus || s == TaskWaitingConfirmation
+}
+
+func (s TaskStatus) Format() (res string) {
+
+	switch s {
+	case TaskFailStatus:
+		res += "❌"
+	case TaskSuccessStatus:
+		res += "✅"
+	case TaskStoppedStatus:
+		res += "⏹️"
+	case TaskWaitingConfirmation:
+		res += "⚠️"
+	}
+	res += strings.ToUpper(string(s))
+
+	return
+}
 
 func (s TaskStatus) IsFinished() bool {
 	return s == TaskStoppedStatus || s == TaskSuccessStatus || s == TaskFailStatus
