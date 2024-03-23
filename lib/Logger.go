@@ -20,6 +20,10 @@ const (
 	TaskFailStatus          TaskStatus = "error"
 )
 
+func (s TaskStatus) IsNotifiable() bool {
+	return s == TaskSuccessStatus || s == TaskFailStatus || s == TaskWaitingConfirmation
+}
+
 func (s TaskStatus) Format() (res string) {
 
 	switch s {
