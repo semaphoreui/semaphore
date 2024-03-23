@@ -283,3 +283,24 @@ func (d *BoltDb) DeleteIntegrationAlias(projectID int, aliasID int) (err error) 
 
 	return
 }
+
+func (d *BoltDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
+	integrations = make([]db.Integration, 0)
+
+	projects, err := d.GetAllProjects()
+	if err != nil {
+		return
+	}
+
+	for _, project := range projects {
+		var projectIntegrations []db.Integration
+		projectIntegrations, err = d.GetIntegrations(project.ID, db.RetrieveQueryParams{})
+		if err != nil {
+			return
+		}
+
+		integrations = append(projectIntegrations)
+	}
+
+	return
+}

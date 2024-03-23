@@ -21,7 +21,7 @@
 
       <v-checkbox
         v-model="integration.searchable"
-        label="Available by project alias"
+        label="Available by project and global alias"
         @change="updateIntegration()"
       />
     </div>
