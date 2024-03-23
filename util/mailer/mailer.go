@@ -12,7 +12,7 @@ import (
 const (
 	mailerBase = "MIME-version: 1.0\r\n" +
 		"Content-Type: text/html; charset=UTF-8\r\n" +
-		"Content-Transfer-Encoding: quoted-printable\r\n" +
+		//"Content-Transfer-Encoding: quoted-printable\r\n" +
 		"Date: {{ .Date }}\r\n" +
 		"To: {{ .To }}\r\n" +
 		"From: {{ .From }}\r\n" +
@@ -49,7 +49,7 @@ func Send(
 		return err
 	}
 
-	if err := tpl.Execute(body, struct {
+	err = tpl.Execute(body, struct {
 		Date    string
 		To      string
 		From    string
@@ -61,7 +61,9 @@ func Send(
 		From:    r.Replace(from),
 		Subject: r.Replace(subject),
 		Body:    content,
-	}); err != nil {
+	})
+
+	if err != nil {
 		return err
 	}
 
@@ -132,15 +134,11 @@ func anonymous(
 
 	defer c.Close()
 
-	if err := c.Mail(
-		r.Replace(from),
-	); err != nil {
+	if err := c.Mail(r.Replace(from)); err != nil {
 		return err
 	}
 
-	if err = c.Rcpt(
-		r.Replace(to),
-	); err != nil {
+	if err = c.Rcpt(r.Replace(to)); err != nil {
 		return err
 	}
 
