@@ -429,6 +429,8 @@ type oidcClaimResult struct {
 func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 
 	for _, s := range strings.Split(str, "|") {
+		s = strings.TrimSpace(s)
+
 		if strings.Contains(s, "{{") {
 			tpl, err := template.New("").Parse(s)
 
@@ -442,11 +444,13 @@ func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 				return "", false
 			}
 
-			return email.String(), true
+			res := email.String()
+
+			return res, res != ""
 		}
 
 		res, ok := claims[s].(string)
-		if ok {
+		if res != "" && ok {
 			return res, ok
 		}
 	}
@@ -465,12 +469,12 @@ func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res
 	}
 
 	res.username, ok = parseClaim(provider.UsernameClaim, claims)
-	if !ok || res.username == "" {
+	if !ok {
 		res.username = getRandomUsername()
 	}
 
 	res.name, ok = parseClaim(provider.NameClaim, claims)
-	if !ok || res.name == "" {
+	if !ok {
 		res.name = getRandomProfileName()
 	}
 
