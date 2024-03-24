@@ -74,7 +74,6 @@ type OidcProvider struct {
 	UsernameClaim    string       `json:"username_claim" default:"preferred_username"`
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
-	EmailSuffix      string       `json:"email_suffix"`
 	Order            int          `json:"order"`
 }
 
