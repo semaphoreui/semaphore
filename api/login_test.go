@@ -67,3 +67,19 @@ func TestParseClaim4(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestParseClaim5(t *testing.T) {
+	claims := map[string]interface{}{
+		"username": "fiftin",
+		"email":    "",
+		"id":       123456757343.0,
+	}
+
+	prepareClaims(claims)
+
+	res, ok := parseClaim("{{ .id }}", claims)
+
+	if !ok || res != "123456757343" {
+		t.Fatalf("Expected: %v, Got: %v", "123456757343", res)
+	}
+}
