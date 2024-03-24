@@ -431,6 +431,10 @@ func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 	for _, s := range strings.Split(str, "|") {
 		s = strings.TrimSpace(s)
 
+		if s == "" {
+			continue
+		}
+
 		if strings.Contains(s, "{{") {
 			tpl, err := template.New("").Parse(s)
 
@@ -438,13 +442,13 @@ func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 				return "", false
 			}
 
-			email := bytes.NewBufferString("")
+			buff := bytes.NewBufferString("")
 
-			if err = tpl.Execute(email, claims); err != nil {
+			if err = tpl.Execute(buff, claims); err != nil {
 				return "", false
 			}
 
-			res := email.String()
+			res := buff.String()
 
 			return res, res != ""
 		}
@@ -456,6 +460,25 @@ func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 	}
 
 	return "", false
+}
+
+func prepareClaims(claims map[string]interface{}) {
+	for k, v := range claims {
+		switch v.(type) {
+		case float64:
+			f := v.(float64)
+			i := int64(f)
+			if float64(i) == f {
+				claims[k] = i
+			}
+		case float32:
+			f := v.(float32)
+			i := int64(f)
+			if float32(i) == f {
+				claims[k] = i
+			}
+		}
+	}
 }
 
 func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
