@@ -511,6 +511,8 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 		return
 	}
 
+	prepareClaims(claims)
+
 	return parseClaims(claims, provider)
 }
 
@@ -520,6 +522,8 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 	if err = idToken.Claims(&claims); err != nil {
 		return
 	}
+
+	prepareClaims(claims)
 
 	return parseClaims(claims, provider)
 }
