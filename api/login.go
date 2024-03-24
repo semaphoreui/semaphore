@@ -431,6 +431,10 @@ func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 	for _, s := range strings.Split(str, "|") {
 		s = strings.TrimSpace(s)
 
+		if s == "" {
+			continue
+		}
+
 		if strings.Contains(s, "{{") {
 			tpl, err := template.New("").Parse(s)
 

@@ -53,3 +53,17 @@ func TestParseClaim3(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestParseClaim4(t *testing.T) {
+	claims := map[string]interface{}{
+		"username": "fiftin",
+		"email":    "",
+		"id":       1234567,
+	}
+
+	_, ok := parseClaim("|", claims)
+
+	if ok {
+		t.Fail()
+	}
+}
