@@ -427,24 +427,31 @@ type oidcClaimResult struct {
 }
 
 func parseClaim(str string, claims map[string]interface{}) (string, bool) {
-	if strings.Contains(str, "{{") {
-		tpl, err := template.New("").Parse(str)
 
-		if err != nil {
-			return "", false
+	for _, s := range strings.Split(str, "|") {
+		if strings.Contains(s, "{{") {
+			tpl, err := template.New("").Parse(s)
+
+			if err != nil {
+				return "", false
+			}
+
+			email := bytes.NewBufferString("")
+
+			if err = tpl.Execute(email, claims); err != nil {
+				return "", false
+			}
+
+			return email.String(), true
 		}
 
-		email := bytes.NewBufferString("")
-
-		if err = tpl.Execute(email, claims); err != nil {
-			return "", false
+		res, ok := claims[s].(string)
+		if ok {
+			return res, ok
 		}
-
-		return email.String(), true
 	}
 
-	res, ok := claims[str].(string)
-	return res, ok
+	return "", false
 }
 
 func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
