@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -12,8 +13,8 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -425,38 +426,55 @@ type oidcClaimResult struct {
 	email    string
 }
 
-func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
-	var ok bool
+func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 
-	res.email, ok = claims[provider.EmailClaim].(string)
-	if !ok {
+	for _, s := range strings.Split(str, "|") {
+		s = strings.TrimSpace(s)
 
-		var username string
+		if strings.Contains(s, "{{") {
+			tpl, err := template.New("").Parse(s)
 
-		if provider.EmailSuffix == "" {
-			err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
-			return
+			if err != nil {
+				return "", false
+			}
+
+			email := bytes.NewBufferString("")
+
+			if err = tpl.Execute(email, claims); err != nil {
+				return "", false
+			}
+
+			res := email.String()
+
+			return res, res != ""
 		}
 
-		switch claims[provider.UsernameClaim].(type) {
-		case float64:
-			username = strconv.FormatFloat(claims[provider.UsernameClaim].(float64), 'f', -1, 64)
-		case string:
-			username = claims[provider.UsernameClaim].(string)
-		default:
-			err = fmt.Errorf("claim '%s' missing from id_token or not a string or an number", provider.UsernameClaim)
-			b, _ := json.MarshalIndent(claims, "", "  ")
-			fmt.Print(string(b))
-			return
+		res, ok := claims[s].(string)
+		if res != "" && ok {
+			return res, ok
 		}
-
-		res.email = username + "@" + provider.EmailSuffix
 	}
 
-	res.username = getRandomUsername()
+	return "", false
+}
 
-	res.name, ok = claims[provider.NameClaim].(string)
-	if !ok || res.name == "" {
+func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
+
+	var ok bool
+	res.email, ok = parseClaim(provider.EmailClaim, claims)
+
+	if !ok {
+		err = fmt.Errorf("claim '%s' missing or has bad format", provider.EmailClaim)
+		return
+	}
+
+	res.username, ok = parseClaim(provider.UsernameClaim, claims)
+	if !ok {
+		res.username = getRandomUsername()
+	}
+
+	res.name, ok = parseClaim(provider.NameClaim, claims)
+	if !ok {
 		res.name = getRandomProfileName()
 	}
 
