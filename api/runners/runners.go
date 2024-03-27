@@ -189,10 +189,26 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := runners.RunnerConfig{
+	res := util.RunnerConfig{
 		RunnerID: runner.ID,
 		Token:    runner.Token,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, res)
+}
+
+func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
+
+	runner := context.Get(r, "runner").(db.Runner)
+
+	err := helpers.Store(r).DeleteGlobalRunner(runner.ID)
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Unknown error",
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

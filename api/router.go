@@ -91,6 +91,7 @@ func Route() *mux.Router {
 	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
