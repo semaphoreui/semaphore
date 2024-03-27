@@ -176,16 +176,86 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 }
 
-func (p *JobPool) Unregister() {
-	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
+func (p *JobPool) Unregister() (err error) {
 
+	if config, ok := tryGetRunnerConfigFromEnvironment(); ok {
+		p.config = &config
+	}
+
+	if config, ok := tryGetRunnerConfigFromFile(); ok {
+		p.config = &config
+	}
+
+	if p == nil {
+		return fmt.Errorf("runner is not registered")
+	}
+
+	client := &http.Client{}
+
+	url := util.Config.Runner.ApiURL + "/runners"
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
 		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
+		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
+		return
+	}
+
+	err = os.Remove(util.Config.Runner.ConfigFile)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func tryGetRunnerConfigFromEnvironment() (config RunnerConfig, ok bool) {
+	if os.Getenv("SEMAPHORE_RUNNER_ID") == "" {
+		ok = false
+		return
+	}
+
+	runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
+
+	if err != nil {
+		panic(err)
+	}
+
+	if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
+		panic(fmt.Errorf("runner token required"))
+	}
+
+	config = RunnerConfig{
+		RunnerID: runnerId,
+		Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
+	}
+
+	return
+}
+
+func tryGetRunnerConfigFromFile() (config RunnerConfig, ok bool) {
+
+	if util.Config.Runner.ConfigFile == "" {
+		panic(fmt.Errorf("the path of the configuration file is not specified"))
 	}
 
 	_, err := os.Stat(util.Config.Runner.ConfigFile)
 
-	if err != nil {
+	if os.IsNotExist(err) {
+		ok = false
 		return
+	}
+
+	if err != nil {
+		panic(err)
 	}
 
 	configBytes, err := os.ReadFile(util.Config.Runner.ConfigFile)
@@ -194,20 +264,13 @@ func (p *JobPool) Unregister() {
 		panic(err)
 	}
 
-	var config RunnerConfig
-
 	err = json.Unmarshal(configBytes, &config)
 
 	if err != nil {
 		panic(err)
 	}
 
-	p.config = &config
-
-	err = os.Remove(util.Config.Runner.ConfigFile)
-	if err != nil {
-		panic(err)
-	}
+	return
 }
 
 func (p *JobPool) Run() {
@@ -355,51 +418,17 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	log.Info("Attempting to register on the server")
 
-	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
-
-		runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
-
-		if err != nil {
-			panic(err)
-		}
-
-		if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
-			panic(fmt.Errorf("runner token required"))
-		}
-
-		p.config = &RunnerConfig{
-			RunnerID: runnerId,
-			Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
-		}
-
-		return true
-	}
-
-	_, err := os.Stat(util.Config.Runner.ConfigFile)
-
-	if err == nil {
-		configBytes, err2 := os.ReadFile(util.Config.Runner.ConfigFile)
-
-		if err2 != nil {
-			panic(err2)
-		}
-
-		var config RunnerConfig
-
-		err2 = json.Unmarshal(configBytes, &config)
-
-		if err2 != nil {
-			panic(err2)
-		}
-
+	if config, ok := tryGetRunnerConfigFromEnvironment(); ok {
 		p.config = &config
-
 		return true
 	}
 
-	if !os.IsNotExist(err) {
-		panic(err)
+	if config, ok := tryGetRunnerConfigFromFile(); ok {
+		p.config = &config
+		return true
 	}
+
+	// Can not restore runner configuration. Register new runner on the server.
 
 	if util.Config.Runner.RegistrationToken == "" {
 		panic("registration token cannot be empty")

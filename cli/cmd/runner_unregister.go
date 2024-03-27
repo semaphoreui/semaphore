@@ -14,7 +14,10 @@ func unregisterRunner() {
 	util.ConfigInit(configPath)
 
 	taskPool := runners.JobPool{}
-	taskPool.Unregister()
+	err := taskPool.Unregister()
+	if err != nil {
+		panic(err)
+	}
 }
 
 var runnerUnregisterCmd = &cobra.Command{
