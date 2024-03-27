@@ -47,11 +47,6 @@ type job struct {
 	environmentVars []string
 }
 
-type RunnerConfig struct {
-	RunnerID int    `json:"runner_id"`
-	Token    string `json:"token"`
-}
-
 type JobData struct {
 	Username        string
 	IncomingVersion *string
@@ -105,7 +100,7 @@ type JobPool struct {
 
 	queue []*job
 
-	config *RunnerConfig
+	config *util.RunnerConfig
 
 	processing int32
 }
@@ -178,15 +173,13 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 func (p *JobPool) Unregister() (err error) {
 
-	if config, ok := tryGetRunnerConfigFromEnvironment(); ok {
-		p.config = &config
+	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
+
+	if err != nil {
+		return
 	}
 
-	if config, ok := tryGetRunnerConfigFromFile(); ok {
-		p.config = &config
-	}
-
-	if p == nil {
+	if config.Token == "" {
 		return fmt.Errorf("runner is not registered")
 	}
 
@@ -217,62 +210,6 @@ func (p *JobPool) Unregister() (err error) {
 	return
 }
 
-func tryGetRunnerConfigFromEnvironment() (config RunnerConfig, ok bool) {
-	if os.Getenv("SEMAPHORE_RUNNER_ID") == "" {
-		ok = false
-		return
-	}
-
-	runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
-
-	if err != nil {
-		panic(err)
-	}
-
-	if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
-		panic(fmt.Errorf("runner token required"))
-	}
-
-	config = RunnerConfig{
-		RunnerID: runnerId,
-		Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
-	}
-
-	return
-}
-
-func tryGetRunnerConfigFromFile() (config RunnerConfig, ok bool) {
-
-	if util.Config.Runner.ConfigFile == "" {
-		panic(fmt.Errorf("the path of the configuration file is not specified"))
-	}
-
-	_, err := os.Stat(util.Config.Runner.ConfigFile)
-
-	if os.IsNotExist(err) {
-		ok = false
-		return
-	}
-
-	if err != nil {
-		panic(err)
-	}
-
-	configBytes, err := os.ReadFile(util.Config.Runner.ConfigFile)
-
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(configBytes, &config)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return
-}
-
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(1 * time.Second)
@@ -287,7 +224,7 @@ func (p *JobPool) Run() {
 
 		if p.tryRegisterRunner() {
 
-			log.Info("The runner has been registered on the server")
+			log.Info("The runner has been started")
 
 			break
 		}
@@ -418,12 +355,13 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	log.Info("Attempting to register on the server")
 
-	if config, ok := tryGetRunnerConfigFromEnvironment(); ok {
-		p.config = &config
-		return true
+	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
+
+	if err != nil {
+		panic(err)
 	}
 
-	if config, ok := tryGetRunnerConfigFromFile(); ok {
+	if config.Token != "" {
 		p.config = &config
 		return true
 	}
@@ -464,7 +402,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return false
 	}
 
-	var config RunnerConfig
 	err = json.Unmarshal(body, &config)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
