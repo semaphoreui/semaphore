@@ -176,6 +176,40 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 }
 
+func (p *JobPool) Unregister() {
+	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
+
+		return
+	}
+
+	_, err := os.Stat(util.Config.Runner.ConfigFile)
+
+	if err != nil {
+		return
+	}
+
+	configBytes, err := os.ReadFile(util.Config.Runner.ConfigFile)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var config RunnerConfig
+
+	err = json.Unmarshal(configBytes, &config)
+
+	if err != nil {
+		panic(err)
+	}
+
+	p.config = &config
+
+	err = os.Remove(util.Config.Runner.ConfigFile)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(1 * time.Second)

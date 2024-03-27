@@ -6,7 +6,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type runnerArgs struct {
+	unregister bool
+}
+
+var targetRunnerArgs runnerArgs
+
 func init() {
+	runnerCmd.PersistentFlags().BoolVar(&targetRunnerArgs.unregister, "unregister", false, "Unregister runner form the server")
 	rootCmd.AddCommand(runnerCmd)
 }
 
@@ -15,7 +22,11 @@ func runRunner() {
 
 	taskPool := runners.JobPool{}
 
-	taskPool.Run()
+	if targetRunnerArgs.unregister {
+		taskPool.Unregister()
+	} else {
+		taskPool.Run()
+	}
 }
 
 var runnerCmd = &cobra.Command{
