@@ -148,15 +148,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 		"session": newSession.ID,
 	})
 	if err != nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:   "semaphore",
-			Value:  "",
-			Path:   "/",
-			MaxAge: -1,
-		})
-
-		helpers.WriteError(w, err)
-		return
+		panic(err)
 	}
 
 	http.SetCookie(w, &http.Cookie{
