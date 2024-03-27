@@ -189,7 +189,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := runners.RunnerConfig{
+	res := util.RunnerConfig{
 		RunnerID: runner.ID,
 		Token:    runner.Token,
 	}

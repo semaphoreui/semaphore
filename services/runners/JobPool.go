@@ -47,11 +47,6 @@ type job struct {
 	environmentVars []string
 }
 
-type RunnerConfig struct {
-	RunnerID int    `json:"runner_id"`
-	Token    string `json:"token"`
-}
-
 type JobData struct {
 	Username        string
 	IncomingVersion *string
@@ -105,7 +100,7 @@ type JobPool struct {
 
 	queue []*job
 
-	config *RunnerConfig
+	config *util.RunnerConfig
 
 	processing int32
 }
@@ -176,6 +171,45 @@ func (p *runningJob) logPipe(reader *bufio.Reader) {
 
 }
 
+func (p *JobPool) Unregister() (err error) {
+
+	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
+
+	if err != nil {
+		return
+	}
+
+	if config.Token == "" {
+		return fmt.Errorf("runner is not registered")
+	}
+
+	client := &http.Client{}
+
+	url := util.Config.Runner.ApiURL + "/runners"
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
+		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
+		return
+	}
+
+	err = os.Remove(util.Config.Runner.ConfigFile)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (p *JobPool) Run() {
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(1 * time.Second)
@@ -190,7 +224,7 @@ func (p *JobPool) Run() {
 
 		if p.tryRegisterRunner() {
 
-			log.Info("The runner has been registered on the server")
+			log.Info("The runner has been started")
 
 			break
 		}
@@ -321,51 +355,18 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	log.Info("Attempting to register on the server")
 
-	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
+	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
 
-		runnerId, err := strconv.Atoi(os.Getenv("SEMAPHORE_RUNNER_ID"))
-
-		if err != nil {
-			panic(err)
-		}
-
-		if os.Getenv("SEMAPHORE_RUNNER_TOKEN") == "" {
-			panic(fmt.Errorf("runner token required"))
-		}
-
-		p.config = &RunnerConfig{
-			RunnerID: runnerId,
-			Token:    os.Getenv("SEMAPHORE_RUNNER_TOKEN"),
-		}
-
-		return true
-	}
-
-	_, err := os.Stat(util.Config.Runner.ConfigFile)
-
-	if err == nil {
-		configBytes, err2 := os.ReadFile(util.Config.Runner.ConfigFile)
-
-		if err2 != nil {
-			panic(err2)
-		}
-
-		var config RunnerConfig
-
-		err2 = json.Unmarshal(configBytes, &config)
-
-		if err2 != nil {
-			panic(err2)
-		}
-
-		p.config = &config
-
-		return true
-	}
-
-	if !os.IsNotExist(err) {
+	if err != nil {
 		panic(err)
 	}
+
+	if config.Token != "" {
+		p.config = &config
+		return true
+	}
+
+	// Can not restore runner configuration. Register new runner on the server.
 
 	if util.Config.Runner.RegistrationToken == "" {
 		panic("registration token cannot be empty")
@@ -401,7 +402,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return false
 	}
 
-	var config RunnerConfig
 	err = json.Unmarshal(body, &config)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
