@@ -322,7 +322,7 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 	}
 	oidcProvider := config.NewProvider(ctx)
 	var err error
-	if len(provider.AutoDiscovery) > 0 {
+	if provider.AutoDiscovery != "" {
 		oidcProvider, err = oidc.NewProvider(ctx, provider.AutoDiscovery)
 		if err != nil {
 			return nil, nil, err
@@ -344,20 +344,24 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 	}
 
 	if redirectPath != "" {
-		if !strings.HasPrefix(redirectPath, "/") {
-			redirectPath = "/" + redirectPath
+		//if !strings.HasPrefix(redirectPath, "/") {
+		//	redirectPath = "/" + redirectPath
+		//}
+
+		redirectPath = strings.TrimRight(redirectPath, "/")
+
+		providerUrl, err2 := url.Parse(provider.RedirectURL)
+
+		if err2 != nil {
+			return nil, nil, err2
 		}
 
-		providerUrl, err := url.Parse(provider.RedirectURL)
+		providerPath := strings.TrimRight(providerUrl.Path, "/")
 
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if redirectPath == providerUrl.Path {
+		if redirectPath == providerPath {
 			redirectPath = ""
-		} else if strings.HasPrefix(redirectPath, providerUrl.Path+"/") {
-			redirectPath = redirectPath[len(providerUrl.Path):]
+		} else if strings.HasPrefix(redirectPath, providerPath+"/") {
+			redirectPath = redirectPath[len(providerPath):]
 		}
 	}
 
