@@ -190,7 +190,7 @@ func (p *JobPool) Run() {
 
 		if p.tryRegisterRunner() {
 
-			log.Info("Runner registered on server")
+			log.Info("The runner has been registered on the server")
 
 			break
 		}
@@ -319,7 +319,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 		return true
 	}
 
-	log.Info("Trying to register on server")
+	log.Info("Attempting to register on the server")
 
 	if os.Getenv("SEMAPHORE_RUNNER_ID") != "" {
 
@@ -370,6 +370,8 @@ func (p *JobPool) tryRegisterRunner() bool {
 	if util.Config.Runner.RegistrationToken == "" {
 		panic("registration token cannot be empty")
 	}
+
+	log.Info("Registering a new runner")
 
 	client := &http.Client{}
 
@@ -445,7 +447,7 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	if resp.StatusCode >= 400 {
-		log.Error("Checking new jobs error, server returns code ", resp.StatusCode)
+		log.Error("Encountered error while checking for new jobs; server returned code ", resp.StatusCode)
 		return
 	}
 
@@ -453,7 +455,7 @@ func (p *JobPool) checkNewJobs() {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error("Checking new jobs, error reading response body:", err)
+		log.Error("Encountered error while checking for new jobs; unable to read response body:", err)
 		return
 	}
 
