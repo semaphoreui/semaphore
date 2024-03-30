@@ -9,6 +9,7 @@ api/public/**/*
 /config.json
 /.dredd/config.json
 /database.boltdb
+/database.sqlite
 /database.boltdb.lock
 /database_test.boltdb
 .DS_Store

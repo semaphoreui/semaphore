@@ -12,6 +12,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/go-gorp/gorp/v3"
 	_ "github.com/go-sql-driver/mysql" // imports mysql driver
 	_ "github.com/lib/pq"
@@ -153,7 +154,7 @@ func connect() (*sql.DB, error) {
 		return nil, err
 	}
 
-	dialect := cfg.Dialect
+	dialect := string(cfg.Dialect)
 	return sql.Open(dialect, connectionString)
 }
 
@@ -172,7 +173,7 @@ func createDb() error {
 		return err
 	}
 
-	conn, err := sql.Open(cfg.Dialect, connectionString)
+	conn, err := sql.Open(string(cfg.Dialect), connectionString)
 	if err != nil {
 		return err
 	}

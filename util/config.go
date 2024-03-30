@@ -27,14 +27,17 @@ var Cookie *securecookie.SecureCookie
 // WebHostURL is the public route to the semaphore server
 var WebHostURL *url.URL
 
+type DbDriver string
+
 const (
-	DbDriverMySQL    = "mysql"
-	DbDriverBolt     = "bolt"
-	DbDriverPostgres = "postgres"
+	DbDriverMySQL    DbDriver = "mysql"
+	DbDriverBolt     DbDriver = "bolt"
+	DbDriverPostgres DbDriver = "postgres"
+	DbDriverSQLite   DbDriver = "sqlite"
 )
 
 type DbConfig struct {
-	Dialect string `json:"-"`
+	Dialect DbDriver `json:"-"`
 
 	Hostname string            `json:"host" env:"SEMAPHORE_DB_HOST"`
 	Username string            `json:"user" env:"SEMAPHORE_DB_USER"`
@@ -118,8 +121,9 @@ type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
 	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
+	SQLite   DbConfig `json:"sqlite"`
 
-	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect DbDriver `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -652,6 +656,8 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	dbHost := d.GetHostname()
 
 	switch d.Dialect {
+	case DbDriverSQLite:
+		connectionString = dbHost
 	case DbDriverBolt:
 		connectionString = dbHost
 	case DbDriverMySQL:
@@ -709,6 +715,8 @@ func (conf *ConfigType) PrintDbInfo() {
 		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
 	case DbDriverBolt:
 		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
+	case DbDriverSQLite:
+		fmt.Printf("SQLite %v\n", conf.SQLite.GetHostname())
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
 	default:
@@ -716,11 +724,13 @@ func (conf *ConfigType) PrintDbInfo() {
 	}
 }
 
-func (conf *ConfigType) GetDialect() (dialect string, err error) {
+func (conf *ConfigType) GetDialect() (dialect DbDriver, err error) {
 	if conf.Dialect == "" {
 		switch {
 		case conf.MySQL.IsPresent():
 			dialect = DbDriverMySQL
+		case conf.SQLite.IsPresent():
+			dialect = DbDriverSQLite
 		case conf.BoltDb.IsPresent():
 			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
@@ -736,7 +746,7 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 }
 
 func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
-	var dialect string
+	var dialect DbDriver
 	dialect, err = conf.GetDialect()
 
 	if err != nil {
@@ -746,6 +756,8 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	switch dialect {
 	case DbDriverBolt:
 		dbConfig = conf.BoltDb
+	case DbDriverSQLite:
+		dbConfig = conf.SQLite
 	case DbDriverPostgres:
 		dbConfig = conf.Postgres
 	case DbDriverMySQL:

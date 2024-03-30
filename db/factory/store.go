@@ -15,6 +15,8 @@ func CreateStore() db.Store {
 	switch config.Dialect {
 	case util.DbDriverMySQL:
 		return &sql.SqlDb{}
+	case util.DbDriverSQLite:
+		return &sql.SqlDb{}
 	case util.DbDriverBolt:
 		return &bolt.BoltDb{}
 	case util.DbDriverPostgres:
