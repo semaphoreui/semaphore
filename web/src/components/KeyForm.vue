@@ -73,7 +73,7 @@
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets"
-      :rules="[v => !!v || $t('private_key_required')]"
+      :rules="[v => !canEditSecrets || !!v || $t('private_key_required')]"
       v-if="item.type === 'ssh'"
     />
 

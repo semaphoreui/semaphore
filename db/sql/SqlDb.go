@@ -61,16 +61,6 @@ func validateMutationResult(res sql.Result, err error) error {
 		return err
 	}
 
-	affected, err := res.RowsAffected()
-
-	if err != nil {
-		return err
-	}
-
-	if affected == 0 {
-		return db.ErrNotFound
-	}
-
 	return nil
 }
 
