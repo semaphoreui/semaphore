@@ -4,10 +4,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
-func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (db.Environment, error) {
-	var environment db.Environment
-	err := d.getObject(projectID, db.EnvironmentProps, environmentID, &environment)
-	return environment, err
+func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
+	err = d.getObject(projectID, db.EnvironmentProps, environmentID, &environment)
+	return
 }
 
 func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectReferrers, error) {
@@ -16,7 +15,7 @@ func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectR
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {
 	var environment []db.Environment
-	err := d.getObjects(projectID, db.EnvironmentProps, params, &environment)
+	err := d.getProjectObjects(projectID, db.EnvironmentProps, params, &environment)
 	return environment, err
 }
 
@@ -28,10 +27,11 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 	}
 
 	_, err = d.exec(
-		"update project__environment set name=?, json=?, env=? where id=?",
+		"update project__environment set name=?, json=?, env=?, password=? where id=?",
 		env.Name,
 		env.JSON,
 		env.ENV,
+		env.Password,
 		env.ID)
 	return err
 }

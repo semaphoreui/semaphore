@@ -9,6 +9,7 @@ EOF
 
 echo "--> Install Semaphore entrypoint wrapper script"
 cp ./deployment/docker/common/semaphore-wrapper /usr/local/bin/semaphore-wrapper
+cp ./deployment/docker/common/runner-wrapper /usr/local/bin/runner-wrapper
 task deps
 task compile
 task build:local GOOS= GOARCH=

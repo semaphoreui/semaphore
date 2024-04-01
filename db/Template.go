@@ -12,6 +12,12 @@ const (
 	TemplateDeploy TemplateType = "deploy"
 )
 
+type TemplateApp string
+
+const (
+	TemplateAnsible = ""
+)
+
 type SurveyVarType string
 
 const (
@@ -73,6 +79,8 @@ type Template struct {
 	SurveyVars     []SurveyVar `db:"-" json:"survey_vars"`
 
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
+
+	App TemplateApp `db:"app" json:"app"`
 }
 
 func (tpl *Template) Validate() error {
@@ -122,6 +130,15 @@ func FillTemplate(d Store, template *Template) (err error) {
 
 	if err != nil {
 		return
+	}
+
+	var tasks []TaskWithTpl
+	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})
+	if err != nil {
+		return
+	}
+	if len(tasks) > 0 {
+		template.LastTask = &tasks[0]
 	}
 
 	if template.SurveyVarsJSON != nil {

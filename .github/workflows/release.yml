@@ -2,14 +2,14 @@ name: Release
 on:
   push:
     tags:
-      - v*
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   release:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
+        with: { go-version: '1.21' }
 
       - uses: actions/setup-node@v3
         with: { node-version: '16' }
@@ -36,7 +36,7 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
+        with: { go-version: '1.21' }
 
       - run: go install github.com/go-task/task/v3/cmd/task@latest
 
@@ -62,3 +62,14 @@ jobs:
           file: ./deployment/docker/prod/buildx.Dockerfile
           push: true
           tags: semaphoreui/semaphore:latest,semaphoreui/semaphore:${{ github.ref_name }}
+
+
+
+      - name: Build and push runner
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/runner.buildx.Dockerfile
+          push: true
+          tags: semaphoreui/runner:latest,semaphoreui/runner:${{ github.ref_name }}

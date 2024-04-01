@@ -129,6 +129,8 @@ ${SEMAPHORE_WEB_ROOT}
 no
 no
 no
+no
+no
 ${SEMAPHORE_LDAP_ACTIVATED}
 EOF
 

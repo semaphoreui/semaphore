@@ -27,10 +27,8 @@ func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
 	return
 }
 
-func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) (err error) {
-	res, err := d.exec("update user__token set expired=true where id=? and user_id=?", tokenID, userID)
-
-	return validateMutationResult(res, err)
+func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) error {
+	return validateMutationResult(d.exec("update user__token set expired=true where id=? and user_id=?", tokenID, userID))
 }
 
 func (d *SqlDb) DeleteAPIToken(userID int, tokenID string) (err error) {

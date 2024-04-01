@@ -14,16 +14,16 @@
 
     <v-text-field
         v-model="item.name"
-        label="Key Name"
-        :rules="[v => !!v || 'Name is required']"
+        :label="$t('keyName')"
+        :rules="[v => !!v || $t('name_required')]"
         required
         :disabled="formSaving"
     />
 
     <v-select
         v-model="item.type"
-        label="Type"
-        :rules="[v => (!!v || !canEditSecrets) || 'Type is required']"
+        :label="$t('type')"
+        :rules="[v => (!!v || !canEditSecrets) || $t('type_required')]"
         :items="inventoryTypes"
         item-value="id"
         item-text="name"
@@ -33,47 +33,53 @@
 
     <v-text-field
         v-model="item.login_password.login"
-        label="Login (Optional)"
+        :label="$t('loginOptional')"
         v-if="item.type === 'login_password'"
         :disabled="formSaving || !canEditSecrets"
     />
 
     <v-text-field
         v-model="item.login_password.password"
-        label="Password"
-        :rules="[v => (!!v || !canEditSecrets) || 'Password is required']"
+        :append-icon="showLoginPassword ? 'mdi-eye' : 'mdi-eye-off'"
+        :label="$t('password')"
+        :rules="[v => (!!v || !canEditSecrets) || $t('password_required')]"
+        :type="showLoginPassword ? 'text' : 'password'"
         v-if="item.type === 'login_password'"
         :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
+        @click:append="showLoginPassword = !showLoginPassword"
     />
 
     <v-text-field
       v-model="item.ssh.login"
-      label="Username (Optional)"
+      :label="$t('usernameOptional')"
       v-if="item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
     />
 
-    <!--    <v-text-field-->
-    <!--        v-model="item.ssh.passphrase"-->
-    <!--        label="Passphrase (Optional)"-->
-    <!--        v-if="item.type === 'ssh'"-->
-    <!--        :disabled="formSaving || !canEditSecrets"-->
-    <!--    />-->
+    <v-text-field
+      v-model="item.ssh.passphrase"
+      :append-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
+      label="Passphrase (Optional)"
+      :type="showSSHPassphrase ? 'text' : 'password'"
+      v-if="item.type === 'ssh'"
+      :disabled="formSaving || !canEditSecrets"
+      @click:append="showSSHPassphrase = !showSSHPassphrase"
+    />
 
     <v-textarea
       outlined
       v-model="item.ssh.private_key"
-      label="Private Key"
+      :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets"
-      :rules="[v => !!v || 'Private Key is required']"
+      :rules="[v => !canEditSecrets || !!v || $t('private_key_required')]"
       v-if="item.type === 'ssh'"
     />
 
     <v-checkbox
         v-model="item.override_secret"
-        label="Override"
+        :label="$t('override')"
         v-if="!isNew"
     />
 
@@ -83,8 +89,7 @@
         type="info"
         v-if="item.type === 'none'"
     >
-      Use this type of key for HTTPS repositories and for
-      playbooks which use non-SSH connections.
+      {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
     </v-alert>
   </v-form>
 </template>
@@ -95,15 +100,17 @@ export default {
   mixins: [ItemFormBase],
   data() {
     return {
+      showLoginPassword: false,
+      showSSHPassphrase: false,
       inventoryTypes: [{
         id: 'ssh',
-        name: 'SSH Key',
+        name: `${this.$t('keyFormSshKey')}`,
       }, {
         id: 'login_password',
-        name: 'Login with password',
+        name: `${this.$t('keyFormLoginPassword')}`,
       }, {
         id: 'none',
-        name: 'None',
+        name: `${this.$t('keyFormNone')}`,
       }],
     };
   },

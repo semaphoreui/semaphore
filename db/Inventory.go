@@ -1,9 +1,13 @@
 package db
 
+type InventoryType string
+
 const (
-	InventoryStatic     = "static"
-	InventoryStaticYaml = "static-yaml"
-	InventoryFile       = "file"
+	//InventoryNone       InventoryType = "none"
+	InventoryStatic     InventoryType = "static"
+	InventoryStaticYaml InventoryType = "static-yaml"
+	// InventoryFile means that it is path to the Ansible inventory file
+	InventoryFile InventoryType = "file"
 )
 
 // Inventory is the model of an ansible inventory file
@@ -21,7 +25,10 @@ type Inventory struct {
 	BecomeKey   AccessKey `db:"-" json:"-"`
 
 	// static/file
-	Type string `db:"type" json:"type"`
+	Type InventoryType `db:"type" json:"type"`
+
+	// HolderID is an ID of template which holds the inventory
+	HolderID *int `db:"holder_id" json:"holder_id"`
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {

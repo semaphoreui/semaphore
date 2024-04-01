@@ -3,7 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 	"time"
@@ -49,6 +49,15 @@ type ObjectReferrers struct {
 	Templates    []ObjectReferrer `json:"templates"`
 	Inventories  []ObjectReferrer `json:"inventories"`
 	Repositories []ObjectReferrer `json:"repositories"`
+}
+
+type IntegrationReferrers struct {
+	IntegrationMatchers      []ObjectReferrer `json:"matchers"`
+	IntegrationExtractValues []ObjectReferrer `json:"values"`
+}
+
+type IntegrationExtractorChildReferrers struct {
+	Integrations []ObjectReferrer `json:"integrations"`
 }
 
 // ObjectProps describe database entities.
@@ -100,6 +109,9 @@ type Store interface {
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
 
+	GetOption(key string) (string, error)
+	SetOption(key string, value string) error
+
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
@@ -124,6 +136,34 @@ type Store interface {
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
+	RekeyAccessKeys(oldKey string) error
+
+	CreateIntegration(integration Integration) (newIntegration Integration, err error)
+	GetIntegrations(projectID int, params RetrieveQueryParams) ([]Integration, error)
+	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
+	UpdateIntegration(integration Integration) error
+	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
+	DeleteIntegration(projectID int, integrationID int) error
+
+	CreateIntegrationExtractValue(projectId int, value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
+	GetIntegrationExtractValues(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationExtractValue, error)
+	GetIntegrationExtractValue(projectID int, valueID int, integrationID int) (value IntegrationExtractValue, err error)
+	UpdateIntegrationExtractValue(projectID int, integrationExtractValue IntegrationExtractValue) error
+	GetIntegrationExtractValueRefs(projectID int, valueID int, integrationID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationExtractValue(projectID int, valueID int, integrationID int) error
+
+	CreateIntegrationMatcher(projectID int, matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
+	GetIntegrationMatchers(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationMatcher, error)
+	GetIntegrationMatcher(projectID int, matcherID int, integrationID int) (matcher IntegrationMatcher, err error)
+	UpdateIntegrationMatcher(projectID int, integrationMatcher IntegrationMatcher) error
+	GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
+
+	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
+	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
+	GetIntegrationsByAlias(alias string) ([]Integration, error)
+	DeleteIntegrationAlias(projectID int, aliasID int) error
+	GetAllSearchableIntegrations() ([]Integration, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
@@ -142,6 +182,7 @@ type Store interface {
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 
 	GetProject(projectID int) (Project, error)
+	GetAllProjects() ([]Project, error)
 	GetProjects(userID int) ([]Project, error)
 	CreateProject(project Project) (Project, error)
 	DeleteProject(projectID int) error
@@ -162,7 +203,7 @@ type Store interface {
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
 
-	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]User, error)
+	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
@@ -199,6 +240,15 @@ type Store interface {
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
 	SetViewPositions(projectID int, viewPositions map[int]int) error
+
+	GetRunner(projectID int, runnerID int) (Runner, error)
+	GetRunners(projectID int) ([]Runner, error)
+	DeleteRunner(projectID int, runnerID int) error
+	GetGlobalRunner(runnerID int) (Runner, error)
+	GetGlobalRunners() ([]Runner, error)
+	DeleteGlobalRunner(runnerID int) error
+	UpdateRunner(runner Runner) error
+	CreateRunner(runner Runner) (Runner, error)
 }
 
 var AccessKeyProps = ObjectProps{
@@ -208,6 +258,37 @@ var AccessKeyProps = ObjectProps{
 	ReferringColumnSuffix: "key_id",
 	SortableColumns:       []string{"name", "type"},
 	DefaultSortingColumn:  "name",
+}
+
+var IntegrationProps = ObjectProps{
+	TableName:             "project__integration",
+	Type:                  reflect.TypeOf(Integration{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "integration_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var IntegrationExtractValueProps = ObjectProps{
+	TableName:            "project__integration_extract_value",
+	Type:                 reflect.TypeOf(IntegrationExtractValue{}),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
+var IntegrationMatcherProps = ObjectProps{
+	TableName:            "project__integration_matcher",
+	Type:                 reflect.TypeOf(IntegrationMatcher{}),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
+var IntegrationAliasProps = ObjectProps{
+	TableName:         "project__integration_alias",
+	Type:              reflect.TypeOf(IntegrationAlias{}),
+	PrimaryColumnName: "id",
 }
 
 var EnvironmentProps = ObjectProps{
@@ -258,11 +339,12 @@ var ProjectUserProps = ObjectProps{
 }
 
 var ProjectProps = ObjectProps{
-	TableName:            "project",
-	Type:                 reflect.TypeOf(Project{}),
-	PrimaryColumnName:    "id",
-	DefaultSortingColumn: "name",
-	IsGlobal:             true,
+	TableName:             "project",
+	Type:                  reflect.TypeOf(Project{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "project_id",
+	DefaultSortingColumn:  "name",
+	IsGlobal:              true,
 }
 
 var UserProps = ObjectProps{
@@ -304,6 +386,20 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
+var GlobalRunnerProps = ObjectProps{
+	TableName:         "runner",
+	Type:              reflect.TypeOf(Runner{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
+}
+
+var OptionProps = ObjectProps{
+	TableName:         "option",
+	Type:              reflect.TypeOf(Option{}),
+	PrimaryColumnName: "key",
+	IsGlobal:          true,
+}
+
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
@@ -338,4 +434,34 @@ func StoreSession(store Store, token string, callback func()) {
 	if !store.PermanentConnection() {
 		store.Close(token)
 	}
+}
+
+func ValidateRepository(store Store, repo *Repository) (err error) {
+	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
+
+	return
+}
+
+func ValidateInventory(store Store, inventory *Inventory) (err error) {
+	if inventory.SSHKeyID != nil {
+		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.BecomeKeyID != nil {
+		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.HolderID != nil {
+		_, err = store.GetTemplate(inventory.ProjectID, *inventory.HolderID)
+	}
+
+	return
 }

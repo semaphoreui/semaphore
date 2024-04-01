@@ -2,8 +2,8 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      save-button-text="Save"
-      title="Edit Environment"
+      :save-button-text="$t('save')"
+      :title="$t('editEnvironment')"
       :max-width="500"
       @save="loadItems"
     >
@@ -27,20 +27,21 @@
     />
 
     <YesNoDialog
-      title="Delete environment"
-      text="Are you really want to delete this environment?"
+      :title="$t('deleteEnvironment')"
+      :text="$t('askDeleteEnv')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Environment</v-toolbar-title>
+      <v-toolbar-title>{{ $t('environment2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Environment
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+      >{{ $t('newEnvironment') }}
       </v-btn>
     </v-toolbar>
 
@@ -84,12 +85,12 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: 'Name',
+        text: this.$i18n.t('name'),
         value: 'name',
         width: '100%',
       },
       {
-        text: 'Actions',
+        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

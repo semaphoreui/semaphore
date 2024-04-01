@@ -3,13 +3,15 @@ on:
   push:
     branches:
       - develop
+  pull_request:
+    branches: [develop]
 
 jobs:
   build-local:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
+        with: { go-version: '1.21' }
 
       - uses: actions/setup-node@v3
         with: { node-version: '16' }
@@ -36,24 +38,6 @@ jobs:
           retention-days: 1
 
 
-#  test-golang:
-#    runs-on: [ubuntu-latest]
-#    needs: build-local
-#    steps:
-#      - uses: actions/setup-go@v3
-#        with: { go-version: 1.18 }
-#
-#      - run: go install github.com/go-task/task/v3/cmd/task@latest
-#
-#      - uses: actions/checkout@v3
-#
-#      - run: task deps:tools
-#      - run: task deps:be
-#      - run: task compile:be
-#      - run: task lint:be
-#      - run: task test
-
-
   test-db-migration:
     runs-on: [ubuntu-latest]
     needs: [build-local]
@@ -73,16 +57,18 @@ jobs:
         with:
           name: semaphore
 
-      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
-          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
-          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
-          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
-
-      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+      - run: sleep 5
 
       - run: "cat > config.json <<EOF\n{\n\t\"mysql\": {\n\t\t\"host\": \"127.0.0.1:3306\"\
           ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"\",\n\t\t\"name\": \"circle_test\"\
           \n\t},\n\t\"dialect\": \"mysql\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+      - run: "cat > config.json <<EOF\n{\n\t\"postgres\": {\n\t\t\"host\": \"127.0.0.1:5432\"\
+          ,\n\t\t\"options\":{\"sslmode\":\"disable\"}\
+          ,\n\t\t\"user\": \"root\",\n\t\t\"pass\": \"pwd\",\n\t\t\"name\": \"circle_test\"\
+          \n\t},\n\t\"dialect\": \"postgres\",\n\t\"email_alert\": false\n}\nEOF\n"
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
@@ -91,13 +77,12 @@ jobs:
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-
   test-integration:
     runs-on: [ubuntu-latest]
     needs: [test-db-migration]
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
+        with: { go-version: '1.21' }
 
       - run: go install github.com/go-task/task/v3/cmd/task@latest
 
@@ -110,15 +95,14 @@ jobs:
   deploy-dev:
     runs-on: [ubuntu-latest]
     needs: [test-integration]
+    if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/setup-go@v3
-        with: { go-version: 1.18 }
+        with: { go-version: '1.21' }
 
       - run: go install github.com/go-task/task/v3/cmd/task@latest
 
       - uses: actions/checkout@v3
-
-#      - run: context=prod task docker:test
 
       - uses: docker/setup-qemu-action@v2
 
@@ -139,17 +123,12 @@ jobs:
           push: true
           tags: semaphoreui/semaphore:develop
 
+      - name: Build and push runner
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/runner.buildx.Dockerfile
+          push: true
+          tags: semaphoreui/runner:develop
 
-
-
-  # test-docker:
-  #   runs-on: [ubuntu-latest]
-  #   steps:
-  #     - uses: actions/setup-go@v3
-  #       with: { go-version: 1.18 }
-
-  #     - run: go install github.com/go-task/task/v3/cmd/task@latest
-
-  #     - uses: actions/checkout@v3
-
-  #     - run: context=prod task docker:test

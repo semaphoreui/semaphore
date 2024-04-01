@@ -3,30 +3,25 @@
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
-        Dashboard
-        <!--
-        <v-btn-toggle class="ml-4" rounded>
-          <v-btn small>
-            <v-icon left>mdi-view-sequential</v-icon>
-            <span class="hidden-sm-and-down">Tasks</span>
-          </v-btn>
-
-          <v-btn small>
-            <v-icon left>mdi-pipe</v-icon>
-            <span class="hidden-sm-and-down">Pipelines</span>
-          </v-btn>
-        </v-btn-toggle>
-        -->
+        {{ $t('dashboard2') }}
       </v-toolbar-title>
-      <v-spacer></v-spacer>
-      <div>
-        <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
-        </v-tabs>
-      </div>
     </v-toolbar>
+
+    <v-tabs show-arrows class="pl-4">
+      <v-tab
+        v-if="projectType === ''"
+        key="history"
+        :to="`/project/${projectId}/history`"
+      >{{ $t('history') }}</v-tab>
+      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab
+        v-if="can(USER_PERMISSIONS.updateProject)"
+        key="settings"
+        :to="`/project/${projectId}/settings`"
+      >{{ $t('settings') }}
+      </v-tab>
+    </v-tabs>
+
     <v-data-table
       :headers="headers"
       :items="items"
@@ -145,32 +140,32 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Task',
+          text: this.$i18n.t('task2'),
           value: 'tpl_alias',
           sortable: false,
         },
         {
-          text: 'Version',
+          text: this.$i18n.t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: 'Status',
+          text: this.$i18n.t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: 'User',
+          text: this.$i18n.t('user'),
           value: 'user_name',
           sortable: false,
         },
         {
-          text: 'Start',
+          text: this.$i18n.t('start'),
           value: 'start',
           sortable: false,
         },
         {
-          text: 'Duration',
+          text: this.$i18n.t('duration'),
           value: 'end',
           sortable: false,
         },

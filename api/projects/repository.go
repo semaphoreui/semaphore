@@ -1,11 +1,12 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -76,6 +77,11 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	if err := db.ValidateRepository(helpers.Store(r), &repository); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newRepo, err := helpers.Store(r).CreateRepository(repository)
 
 	if err != nil {
@@ -126,9 +132,12 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateRepository(repository)
+	if err := db.ValidateRepository(helpers.Store(r), &repository); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
-	if err != nil {
+	if err := helpers.Store(r).UpdateRepository(repository); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -142,7 +151,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	desc := "Repository (" + repository.GitURL + ") updated"
 	objType := db.EventRepository
 
-	_, err = helpers.Store(r).CreateEvent(db.Event{
+	_, err := helpers.Store(r).CreateEvent(db.Event{
 		UserID:      &user.ID,
 		ProjectID:   &repository.ProjectID,
 		Description: &desc,
@@ -164,7 +173,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	err = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
-	if err == db.ErrInvalidOperation {
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Repository is in use by one or more templates",
 			"inUse": true,

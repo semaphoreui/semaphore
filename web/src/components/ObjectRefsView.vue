@@ -3,7 +3,7 @@
     <v-alert
       type="warning"
     >
-      The {{ objectTitle }} can't be deleted because it used by the resources below
+      {{ $t('theCantBeDeletedBecauseItUsedByTheResourcesBelow', {objectTitle: objectTitle}) }}
     </v-alert>
     <div
       v-for="s in sections"

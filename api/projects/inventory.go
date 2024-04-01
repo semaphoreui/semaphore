@@ -1,9 +1,9 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"os"
@@ -88,6 +88,12 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Not supported inventory type",
 		})
+		return
+	}
+
+	err := db.ValidateInventory(helpers.Store(r), &inventory)
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 
@@ -176,9 +182,12 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateInventory(inventory)
+	if err := db.ValidateInventory(helpers.Store(r), &inventory); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
-	if err != nil {
+	if err := helpers.Store(r).UpdateInventory(inventory); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}

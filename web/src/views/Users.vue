@@ -3,7 +3,7 @@
     <EditDialog
       v-model="editDialog"
       save-button-text="Save"
-      title="Edit User"
+      :title="$t('editUser')"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -14,13 +14,14 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :is-admin="true"
         />
       </template>
     </EditDialog>
 
     <YesNoDialog
-      title="Delete user"
-      text="Are you really want to delete this user?"
+      :title="$t('deleteUser')"
+      :text="$t('askDeleteUser')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
@@ -33,12 +34,12 @@
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>Users</v-toolbar-title>
+      <v-toolbar-title>{{ $t('users') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New User</v-btn>
+      >{{ $t('newUser') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -105,33 +106,33 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: 'Name',
+        text: this.$i18n.t('name'),
         value: 'name',
         width: '50%',
       },
       {
-        text: 'Username',
+        text: this.$i18n.t('username'),
         value: 'username',
       },
       {
-        text: 'Email',
+        text: this.$i18n.t('email'),
         value: 'email',
       },
       {
-        text: 'Alert',
+        text: this.$i18n.t('alert'),
         value: 'alert',
       },
       {
-        text: 'Admin',
+        text: this.$i18n.t('admin'),
         value: 'admin',
       },
       {
-        text: 'External',
+        text: this.$i18n.t('external'),
         value: 'external',
         width: '50%',
       },
       {
-        text: 'Actions',
+        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

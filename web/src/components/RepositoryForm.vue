@@ -14,18 +14,18 @@
 
     <v-text-field
         v-model="item.name"
-        label="Name"
-        :rules="[v => !!v || 'Name is required']"
+        :label="$t('name')"
+        :rules="[v => !!v || $t('name_required')]"
         required
         :disabled="formSaving"
     ></v-text-field>
 
     <v-text-field
         v-model="item.git_url"
-        label="URL or path"
+        :label="$t('urlOrPath')"
         :rules="[
-          v => !!v || 'Repository is required',
-          v => getTypeOfUrl(v) != null || 'Incorrect URL',
+          v => !!v || $t('repository_required'),
+          v => getTypeOfUrl(v) != null || $t('incorrectUrl'),
         ]"
         required
         :disabled="formSaving"
@@ -51,25 +51,25 @@
         @click="setType('local')"
         style="font-weight: bold;"
       >
-        abs. path
+        {{ $t('absPath') }}
       </v-chip>
     </div>
 
     <v-text-field
       v-model="item.git_branch"
-      label="Branch"
-      :rules="[v => (!!v || type === 'local') || 'Branch is required']"
+      :label="$t('branch')"
+      :rules="[v => (!!v || type === 'local') || $t('branch_required')]"
       required
       :disabled="formSaving || type === 'local'"
     ></v-text-field>
 
     <v-select
         v-model="item.ssh_key_id"
-        label="Access Key"
+        :label="$t('accessKey')"
         :items="keys"
         item-value="id"
         item-text="name"
-        :rules="[v => !!v || 'Key is required']"
+        :rules="[v => !!v || $t('key_required')]"
         required
         :disabled="formSaving"
     >
@@ -84,10 +84,10 @@
             </v-icon>
           </template>
           <div class="py-4">
-            <p>Credentials to access to the Git repository. It should be:</p>
+            <p>{{ $t('credentialsToAccessToTheGitRepositoryItShouldBe') }}</p>
             <ul>
-              <li><code>SSH</code> if you use Git or SSH URL.</li>
-              <li><code>None</code> if you use HTTPS or file URL.</li>
+              <li><code>{{ $t('ssh') }}</code> {{ $t('ifYouUseGitOrSshUrl') }}</li>
+              <li><code>{{ $t('none') }}</code> {{ $t('ifYouUseHttpsOrFileUrl') }}</li>
             </ul>
           </div>
         </v-tooltip>

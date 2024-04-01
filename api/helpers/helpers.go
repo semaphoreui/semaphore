@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
 	"net/url"
@@ -9,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/db"
 
@@ -28,6 +29,24 @@ func TaskPool(r *http.Request) *tasks.TaskPool {
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
 	accept := r.Header.Get("Accept")
 	return !strings.Contains(accept, "text/html")
+}
+
+// GetStrParam fetches a parameter from the route variables as an integer
+// redirects to a 404 or writes bad request state depending on error state
+func GetStrParam(name string, w http.ResponseWriter, r *http.Request) (string, error) {
+	strParam, ok := mux.Vars(r)[name]
+
+	if !ok {
+		if !isXHR(w, r) {
+			http.Redirect(w, r, "/404", http.StatusFound)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		return "", fmt.Errorf("parameter missed")
+	}
+
+	return strParam, nil
 }
 
 // GetIntParam fetches a parameter from the route variables as an integer
@@ -48,10 +67,10 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 	return intParam, nil
 }
 
-//H just a string-to-anything map
+// H just a string-to-anything map
 type H map[string]interface{}
 
-//Bind decodes json into object
+// Bind decodes json into object
 func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 	err := json.NewDecoder(r.Body).Decode(out)
 	if err != nil {
@@ -61,7 +80,7 @@ func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 	return err == nil
 }
 
-//WriteJSON writes object as JSON
+// WriteJSON writes object as JSON
 func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)

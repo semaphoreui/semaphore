@@ -13,33 +13,33 @@
 
     <v-text-field
       v-model="item.name"
-      label="Environment Name"
-      :rules="[v => !!v || 'Name is required']"
+      :label="$t('environmentName')"
+      :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
       class="mb-4"
     ></v-text-field>
 
     <v-subheader>
-      Extra variables
+      {{ $t('extraVariables') }}
     </v-subheader>
 
     <codemirror
         :style="{ border: '1px solid lightgray' }"
         v-model="item.json"
         :options="cmOptions"
-        placeholder="Enter extra variables JSON..."
+        :placeholder="$t('enterExtraVariablesJson')"
     />
 
     <v-subheader>
-      Environment variables
+      {{ $t('environmentVariables') }}
     </v-subheader>
 
     <codemirror
         :style="{ border: '1px solid lightgray' }"
         v-model="item.env"
         :options="cmOptions"
-        placeholder="Enter env JSON..."
+        :placeholder="$t('enterEnvJson')"
     />
 
     <v-alert
@@ -48,8 +48,7 @@
         type="info"
         class="mt-4"
     >
-      Environment and extra variables must be valid JSON.
-      Example:
+      {{ $t('environmentAndExtraVariablesMustBeValidJsonExample') }}
       <pre style="font-size: 14px;">{
   "var_available_in_playbook_1": 1245,
   "var_available_in_playbook_2": "test"
@@ -71,6 +70,15 @@ export default {
   mixins: [ItemFormBase],
   components: {
     codemirror,
+  },
+
+  created() {
+    if (!this.item.env) {
+      this.item.env = '{}';
+    }
+    if (!this.item.json) {
+      this.item.json = '{}';
+    }
   },
 
   data() {

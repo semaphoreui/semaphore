@@ -2,41 +2,57 @@
   <div>
     <YesNoDialog
       v-model="deleteProjectDialog"
-      title="Delete project"
-      text="Are you really want to delete this project?"
+      :title="$t('deleteProject')"
+      :text="$t('askDeleteProj')"
       @yes="deleteProject()"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Dashboard</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <div>
-        <v-tabs centered>
-          <v-tab key="history" :to="`/project/${projectId}/history`">History</v-tab>
-          <v-tab key="activity" :to="`/project/${projectId}/activity`">Activity</v-tab>
-          <v-tab key="settings" :to="`/project/${projectId}/settings`">Settings</v-tab>
-        </v-tabs>
-      </div>
+      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
+
+    <v-tabs show-arrows class="pl-4">
+      <v-tab
+        v-if="projectType === ''"
+        key="history"
+        :to="`/project/${projectId}/history`"
+      >{{ $t('history') }}</v-tab>
+      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
+    </v-tabs>
+
     <div class="project-settings-form">
       <div style="height: 300px;">
         <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
       </div>
 
       <div class="text-right">
-        <v-btn color="primary" @click="saveProject()">Save</v-btn>
+        <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
       </div>
     </div>
-
-    <div class="project-delete-form">
+    <div class="project-backup project-settings-button">
       <v-row align="center">
         <v-col class="shrink">
-          <v-btn color="error" @click="deleteProjectDialog = true">Delete Project</v-btn>
+          <v-btn color="primary" @click="backupProject" >{{ $t('backup') }}
+          </v-btn>
+        </v-col>
+        <v-col class="grow">
+          <div style="font-size: 14px;">
+            {{ $t('downloadTheProjectBackupFile') }}
+          </div>
+        </v-col>
+      </v-row>
+    </div>
+    <div class="project-delete-form project-settings-button">
+      <v-row align="center">
+        <v-col class="shrink">
+          <v-btn color="error" @click="deleteProjectDialog = true">{{ $t('deleteProject2') }}
+          </v-btn>
         </v-col>
         <v-col class="grow">
           <div style="font-size: 14px; color: #ff5252">
-            Once you delete a project, there is no going back. Please be certain.
+            {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
           </div>
         </v-col>
       </v-row>
@@ -44,14 +60,13 @@
   </div>
 </template>
 <style lang="scss">
-  .project-settings-form {
+.project-settings-form {
+  max-width: 400px;
+  margin: 40px auto;
+}
+  .project-settings-button {
     max-width: 400px;
-    margin: 80px auto auto;
-  }
-
-  .project-delete-form {
-    max-width: 400px;
-    margin: 80px auto auto;
+    margin: 20px auto auto;
   }
 </style>
 <script>
@@ -65,6 +80,7 @@ export default {
   components: { YesNoDialog, ProjectForm },
   props: {
     projectId: Number,
+    projectType: String,
   },
 
   data() {
@@ -94,6 +110,28 @@ export default {
 
     async saveProject() {
       await this.$refs.form.save();
+    },
+
+    async backupProject() {
+      try {
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/backup`,
+          transformResponse: (res) => res, // Necessary to not parse json
+          responseType: 'json',
+        }).then((backup) => {
+          const a = document.createElement('a');
+          const blob = new Blob([backup.data], { type: 'application/json' });
+          a.download = `backup_${this.projectId}_${Date.now()}.json`;
+          a.href = URL.createObjectURL(blob);
+          a.click();
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
     },
 
     async deleteProject() {

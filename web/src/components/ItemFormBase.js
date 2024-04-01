@@ -132,7 +132,7 @@ export default {
      * Saves or creates item via API.
      * @returns {Promise<null>} null if validation didn't pass or user data if user saved.
      */
-    async save() {
+    async save(data = {}) {
       this.formError = null;
 
       if (!this.$refs.form.validate()) {
@@ -155,6 +155,7 @@ export default {
           data: {
             ...this.item,
             project_id: this.projectId,
+            ...data,
           },
           ...(this.getRequestOptions()),
         })).data;

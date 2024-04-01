@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var configPath string
@@ -47,6 +48,12 @@ func runService() {
 	defer schedulePool.Destroy()
 
 	util.Config.PrintDbInfo()
+
+	port := util.Config.Port
+
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
+	}
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 	fmt.Printf("Semaphore %v\n", util.Version)
@@ -81,7 +88,7 @@ func runService() {
 		store.Close("root")
 	}
 
-	err := http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
+	err := http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
 
 	if err != nil {
 		log.Panic(err)
@@ -94,16 +101,6 @@ func createStore(token string) db.Store {
 	store := factory.CreateStore()
 
 	store.Connect(token)
-
-	//if err := store.Connect(token); err != nil {
-	//	switch err {
-	//	case bbolt.ErrTimeout:
-	//		fmt.Println("\n BoltDB supports only one connection at a time. You should stop Semaphore to use CLI.")
-	//	default:
-	//		fmt.Println("\n Have you run `semaphore setup`?")
-	//	}
-	//	os.Exit(1)
-	//}
 
 	err := db.Migrate(store)
 

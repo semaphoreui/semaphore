@@ -1,0 +1,75 @@
+name: Beta
+on:
+  push:
+    tags:
+      - v*-beta
+
+jobs:
+  pre-release:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/setup-go@v3
+        with: { go-version: '1.21' }
+
+      - uses: actions/setup-node@v3
+        with: { node-version: '16' }
+
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - run: sudo apt update && sudo apt-get install rpm
+
+      - uses: actions/checkout@v3
+
+      - run: task deps
+
+      - run: |
+          echo ${{ secrets.GPG_KEY }} | tr " " "\n" | base64 -d | gpg --import --batch
+          gpg --sign -u "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          rm -f unlock.sig
+
+      - run:  git reset --hard
+
+      - run: GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
+
+
+  deploy-beta:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/setup-go@v3
+        with: { go-version: '1.21' }
+
+      - run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - uses: actions/checkout@v3
+
+      - run: context=prod task docker:test
+
+      - uses: docker/setup-qemu-action@v2
+
+      - uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/buildx.Dockerfile
+          push: true
+          tags: semaphoreui/semaphore:beta,semaphoreui/semaphore:${{ github.ref_name }}
+
+
+
+      - name: Build and push runner
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ./deployment/docker/prod/runner.buildx.Dockerfile
+          push: true
+          tags: semaphoreui/runner:beta,semaphoreui/runner:${{ github.ref_name }}

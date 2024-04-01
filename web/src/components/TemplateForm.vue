@@ -19,34 +19,33 @@
       >
         <div v-if="helpKey === 'build_version'">
           <p>
-            Defines start version of your artifact.
-            Each run increments the artifact version.
+            {{ $t('definesStartVersionOfYourArtifactEachRunIncrements') }}
           </p>
           <p>
-            For more information about building, see the
+            {{ $t('forMoreInformationAboutBuildingSeeThe') }}
             <a href="https://docs.ansible-semaphore.com/user-guide/task-templates#build"
                target="_blank"
-            >Task Template reference</a>.
+            >{{ $t('taskTemplateReference') }}</a>.
           </p>
         </div>
         <div v-else-if="helpKey === 'build'">
           <p>
-            Defines what artifact should be deployed when the task run.
+            {{ $t('definesWhatArtifactShouldBeDeployedWhenTheTaskRun') }}
           </p>
           <p>
-            For more information about deploying, see the
+            {{ $t('forMoreInformationAboutDeployingSeeThe') }}
             <a href="https://docs.ansible-semaphore.com/user-guide/task-templates#build"
                target="_blank"
-            >Task Template reference</a>.
+            >{{ $t('taskTemplateReference2') }}</a>.
           </p>
         </div>
         <div v-if="helpKey === 'cron'">
-          <p>Defines autorun schedule.</p>
+          <p>{{ $t('definesAutorunSchedule') }}</p>
           <p>
-            For more information about cron, see the
-            <a href="https://pkg.go.dev/github.com/robfig/cron#hdr-CRON_Expression_Format"
+            {{ $t('forMoreInformationAboutCronSeeThe') }}
+            <a href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
                target="_blank"
-            >Cron expression format reference</a>.
+            >{{ $t('cronExpressionFormatReference') }}</a>.
           </p>
         </div>
       </v-alert>
@@ -72,7 +71,7 @@
               :key="key"
             >
               <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
-              {{ TEMPLATE_TYPE_TITLES[key] }}
+              {{ $t(TEMPLATE_TYPE_TITLES[key]) }}
             </v-tab>
           </v-tabs>
 
@@ -80,11 +79,11 @@
             <v-text-field
               v-if="item.type === 'build'"
               v-model="item.start_version"
-              label="Start Version"
-              :rules="[v => !!v || 'Start Version is required']"
+              :label="$t('startVersion')"
+              :rules="[v => !!v || $t('start_version_required')]"
               required
               :disabled="formSaving"
-              placeholder="Example: 0.0.0"
+              :placeholder="$t('example000')"
               append-outer-icon="mdi-help-circle"
               @click:append-outer="showHelpDialog('build_version')"
             ></v-text-field>
@@ -92,11 +91,11 @@
             <v-autocomplete
               v-if="item.type === 'deploy'"
               v-model="item.build_template_id"
-              label="Build Template"
+              :label="$t('buildTemplate')"
               :items="buildTemplates"
               item-value="id"
               item-text="name"
-              :rules="[v => !!v || 'Build Template is required']"
+              :rules="[v => !!v || $t('build_template_required')]"
               required
               :disabled="formSaving"
               append-outer-icon="mdi-help-circle"
@@ -106,7 +105,7 @@
             <v-checkbox
               v-if="item.type === 'deploy'"
               class="mt-0"
-              label="Autorun"
+              :label="$t('autorun')"
               v-model="item.autorun"
             />
           </div>
@@ -115,8 +114,8 @@
 
         <v-text-field
           v-model="item.name"
-          label="Name *"
-          :rules="[v => !!v || 'Name is required']"
+          :label="$t('name2')"
+          :rules="[v => !!v || $t('name_required')]"
           outlined
           dense
           required
@@ -125,7 +124,7 @@
 
         <v-textarea
           v-model="item.description"
-          label="Description"
+          :label="$t('description')"
           :disabled="formSaving"
           rows="1"
           :auto-grow="true"
@@ -135,22 +134,22 @@
 
         <v-text-field
           v-model="item.playbook"
-          label="Playbook Filename *"
-          :rules="[v => !!v || 'Playbook Filename is required']"
+          :label="$t('playbookFilename')"
+          :rules="[v => !!v || $t('playbook_filename_required')]"
           outlined
           dense
           required
           :disabled="formSaving"
-          placeholder="Example: site.yml"
+          :placeholder="$t('exampleSiteyml')"
         ></v-text-field>
 
         <v-select
           v-model="item.inventory_id"
-          label="Inventory *"
+          :label="$t('inventory2')"
           :items="inventory"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || 'Inventory is required']"
+          :rules="[v => !!v || $t('inventory_required')]"
           outlined
           dense
           required
@@ -159,11 +158,11 @@
 
         <v-select
           v-model="item.repository_id"
-          label="Repository *"
+          :label="$t('repository')"
           :items="repositories"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || 'Repository is required']"
+          :rules="[v => !!v || $t('repository_required')]"
           outlined
           dense
           required
@@ -172,11 +171,11 @@
 
         <v-select
           v-model="item.environment_id"
-          label="Environment *"
+          :label="$t('environment3')"
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || 'Environment is required']"
+          :rules="[v => !!v || $t('environment_required')]"
           outlined
           dense
           required
@@ -186,7 +185,7 @@
         <v-select
           v-if="itemTypeIndex === 0"
           v-model="item.vault_key_id"
-          label="Vault Password"
+          :label="$t('vaultPassword')"
           clearable
           :items="loginPasswordKeys"
           item-value="id"
@@ -202,7 +201,7 @@
         <v-select
           v-if="itemTypeIndex > 0"
           v-model="item.vault_key_id"
-          label="Vault Password"
+          :label="$t('vaultPassword2')"
           clearable
           :items="loginPasswordKeys"
           item-value="id"
@@ -216,7 +215,7 @@
 
         <v-select
           v-model="item.view_id"
-          label="View"
+          :label="$t('view')"
           clearable
           :items="views"
           item-value="id"
@@ -231,7 +230,7 @@
             <v-text-field
               style="font-size: 14px"
               v-model="cronFormat"
-              label="Cron"
+              :label="$t('cron')"
               :disabled="formSaving"
               placeholder="* * * * *"
               v-if="schedules == null || schedules.length <= 1"
@@ -248,15 +247,15 @@
               class="text-caption d-block"
               style="line-height: 1.1;"
             >
-              I want to run a task by the cron only for for new commits of some repository
+              {{ $t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome') }}
             </a>
 
             <v-select
               style="font-size: 14px"
               v-if="cronRepositoryIdVisible || cronRepositoryId != null"
               v-model="cronRepositoryId"
-              label="Repository"
-              placeholder="Cron checks new commit before run"
+              :label="$t('repository2')"
+              :placeholder="$t('cronChecksNewCommitBeforeRun')"
               :items="repositories"
               item-value="id"
               item-text="name"
@@ -271,14 +270,14 @@
         </v-row>
 
         <small class="mt-1 mb-4 d-block">
-          Read the
-          <a target="_blank" href="https://pkg.go.dev/github.com/robfig/cron#hdr-CRON_Expression_Format">docs</a>
-          to learn more about Cron.
+          {{ $t('readThe') }}
+          <a target="_blank" href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format">{{ $t('docs') }}</a>
+          {{ $t('toLearnMoreAboutCron') }}
         </small>
 
         <v-checkbox
           class="mt-0"
-          label="Suppress success alerts"
+          :label="$t('suppressSuccessAlerts')"
           v-model="item.suppress_success_alerts"
         />
 
@@ -299,17 +298,11 @@
           v-model="item.arguments"
           :options="cmOptions"
           :disabled="formSaving"
-          placeholder='CLI Args (JSON array). Example:
-[
-  "-i",
-  "@myinventory.sh",
-  "--private-key=/there/id_rsa",
-  "-vvvv"
-]'
+          :placeholder="$t('cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2')"
         />
 
         <v-checkbox
-          label="Allow CLI args in Task"
+          :label="$t('allowCliArgsInTask')"
           v-model="item.allow_override_args_in_task"
         />
 
@@ -438,6 +431,7 @@ export default {
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
           responseType: 'json',
         })).data;
+        this.item.id = null;
       }
 
       this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;

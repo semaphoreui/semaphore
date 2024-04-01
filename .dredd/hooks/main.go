@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/snikch/goodman/hooks"
-	trans "github.com/snikch/goodman/transaction"
 	"strconv"
 	"strings"
+
+	"github.com/snikch/goodman/hooks"
+	trans "github.com/snikch/goodman/transaction"
 )
 
 const (
@@ -57,6 +58,7 @@ func main() {
 		defer store.Close("")
 		addToken(expiredToken, testRunnerUser.ID)
 	})
+
 	h.After("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
 		defer store.Close("")
@@ -74,13 +76,28 @@ func main() {
 		dbConnect()
 		defer store.Close("")
 		deleteUserProjectRelation(userProject.ID, userPathTestUser.ID)
-		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"admin\": true}"
+		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
+
+	h.Before("project > /api/project/{project_id}/integrations > get all integrations > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Get Integration > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Update Integration > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Remove integration > 204 > application/json", capabilityWrapper("integration"))
+
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values > Get Integration Extracted Values linked to integration extractor > 200 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values > Add Integration Extracted Value > 204 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values/{extractvalue_id} > Removes integration extract value > 204 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values > Add Integration Extracted Value > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values/{extractvalue_id} > Updates Integration ExtractValue > 204 > application/json", capabilityWrapper("integrationextractvalue"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Get Integration Matcher linked to integration extractor > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Add Integration Matcher > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id} > Updates Integration Matcher > 204 > application/json", capabilityWrapper("integrationmatcher"))
 
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
 
 	h.Before("project > /api/project/{project_id}/repositories > Add repository > 204 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
 	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
 
 	h.Before("project > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
@@ -104,6 +121,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/tasks/{task_id} > Get a single task > 200 > application/json", capabilityWrapper("task"))
 	h.Before("project > /api/project/{project_id}/tasks/{task_id} > Deletes task (including output) > 204 > application/json", capabilityWrapper("task"))
 	h.Before("project > /api/project/{project_id}/tasks/{task_id}/output > Get task output > 200 > application/json", capabilityWrapper("task"))
+	h.Before("project > /api/project/{project_id}/tasks/{task_id}/stop > Stop a job > 204 > application/json", capabilityWrapper("task"))
 
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Get schedule > 200 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Updates schedule > 204 > application/json", capabilityWrapper("schedule"))
@@ -112,6 +130,10 @@ func main() {
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Get view > 200 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Updates view > 204 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Removes view > 204 > application/json", capabilityWrapper("view"))
+
+	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
+	})
 
 	//Add these last as they normalize the requests and path values after hook processing
 	h.BeforeAll(func(transactions []*trans.Transaction) {
