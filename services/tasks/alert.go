@@ -236,9 +236,9 @@ func (t *TaskRunner) sendSlackAlert() {
 		t.Log("Can't send slack alert! Error: " + err.Error())
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send slack alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully slack alert")
 	}
-
-	t.Log("Sent successfully slack alert")
 }
 
 func (t *TaskRunner) sendRocketChatAlert() {
