@@ -271,6 +271,15 @@ func (t *TaskRunner) populateDetails() error {
 		t.users = append(t.users, user.ID)
 	}
 
+	admins, err := t.pool.store.GetAllAdmins()
+	if err != nil {
+		return err
+	}
+
+	for _, user := range admins {
+		t.users = append(t.users, user.ID)
+	}
+
 	// get inventory
 	t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, t.Template.InventoryID)
 	if err != nil {
