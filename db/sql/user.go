@@ -218,7 +218,7 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser 
 }
 
 func (d *SqlDb) GetAllAdmins() (users []db.User, err error) {
-	_, err = d.selectAll(&users, "select * from "+db.UserProps.TableName+" where admin = true")
+	_, err = d.selectAll(&users, "select * from `user` where `admin` = true")
 
 	return
 }
