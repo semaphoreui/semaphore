@@ -367,25 +367,6 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
-	templates, err := d.getObjectRefsFrom(projectID, objectProps, objectID, db.ScheduleProps)
-	if err != nil {
-		return
-	}
-
-	for _, st := range templates {
-		exists := false
-		for _, tpl := range refs.Templates {
-			if tpl.ID == st.ID {
-				exists = true
-				break
-			}
-		}
-		if exists {
-			continue
-		}
-		refs.Templates = append(refs.Templates, st)
-	}
-
 	return
 }
 

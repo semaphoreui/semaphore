@@ -178,7 +178,7 @@ export default {
   taskTemplates2: '任务模板',
   all: '全部',
   notLaunched: '未启动',
-  by: 'by {user_name} {formatDate}',
+  by: 'by {user_name}',
   editTemplate: '编辑模板',
   newTemplate2: '新建模板',
   deleteTemplate: '删除模板',

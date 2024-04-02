@@ -177,7 +177,7 @@ export default {
   taskTemplates2: 'Anwendungsvorlagen',
   all: 'Alle',
   notLaunched: 'Nicht gestartet',
-  by: 'von {user_name} {formatDate}',
+  by: 'von {user_name}',
   editTemplate: 'Vorlage bearbeiten',
   newTemplate2: 'Neue Vorlage',
   deleteTemplate: 'Vorlage löschen',
