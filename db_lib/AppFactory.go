@@ -18,6 +18,18 @@ func CreateApp(template db.Template, repository db.Repository, logger lib.Logger
 				Logger:     logger,
 			},
 		}
+	case db.TemplateTerraform:
+		return &TerraformApp{
+			Template:   template,
+			Repository: repository,
+			Logger:     logger,
+		}
+	case db.TemplateBash:
+		return &BashApp{
+			Template:   template,
+			Repository: repository,
+			Logger:     logger,
+		}
 	default:
 		panic("unknown app")
 	}

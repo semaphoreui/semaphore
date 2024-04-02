@@ -78,6 +78,22 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if newTemplate.App == db.TemplateTerraform {
+		var inv db.Inventory
+		inv, err = helpers.Store(r).GetInventory(project.ID, newTemplate.InventoryID)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		inv.HolderID = &newTemplate.ID
+		err = helpers.Store(r).UpdateInventory(inv)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+	}
+
 	user := context.Get(r, "user").(*db.User)
 	objType := db.EventTemplate
 	desc := "Template ID " + strconv.Itoa(newTemplate.ID) + " created"

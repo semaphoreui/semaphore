@@ -83,7 +83,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile:
+	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile, db.InventoryTerraformWorkspace:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{

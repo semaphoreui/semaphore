@@ -15,7 +15,9 @@ const (
 type TemplateApp string
 
 const (
-	TemplateAnsible = ""
+	TemplateAnsible   = ""
+	TemplateTerraform = "terraform"
+	TemplateBash      = "bash"
 )
 
 type SurveyVarType string
@@ -88,7 +90,7 @@ func (tpl *Template) Validate() error {
 		return &ValidationError{"template name can not be empty"}
 	}
 
-	if tpl.Playbook == "" {
+	if tpl.App != TemplateTerraform && tpl.Playbook == "" {
 		return &ValidationError{"template playbook can not be empty"}
 	}
 

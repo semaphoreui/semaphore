@@ -149,6 +149,28 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 }
 
 // nolint: gocyclo
+func (t *LocalJob) getBashArgs(username string, incomingVersion *string) (args []string, err error) {
+	//extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+
+	args = append(args, t.Template.Playbook)
+
+	if err != nil {
+		t.Log(err.Error())
+		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		return
+	}
+
+	//for name, value := range extraVars {
+	//	if name == "semaphore_vars" {
+	//		continue
+	//	}
+	//	args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
+	//}
+
+	return
+}
+
+// nolint: gocyclo
 func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, err error) {
 
 	args = []string{}
@@ -167,8 +189,11 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		return
 	}
 
-	for v := range extraVars {
-		args = append(args, "-var", v)
+	for name, value := range extraVars {
+		if name == "semaphore_vars" {
+			continue
+		}
+		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
 
 	return
@@ -298,6 +323,10 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	switch t.Template.App {
 	case db.TemplateAnsible:
 		args, err = t.getPlaybookArgs(username, incomingVersion)
+	case db.TemplateTerraform:
+		args, err = t.getTerraformArgs(username, incomingVersion)
+	case db.TemplateBash:
+		args, err = t.getBashArgs(username, incomingVersion)
 	default:
 		panic("unknown template app")
 	}

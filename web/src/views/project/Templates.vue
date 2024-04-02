@@ -30,11 +30,32 @@
       :max-width="700"
       v-model="editDialog"
       :save-button-text="$t('create')"
-      :title="$t('newTemplate')"
+      :icon="APP_ICONS[itemApp].icon"
+      :icon-color="$vuetify.theme.dark ? APP_ICONS[itemApp].darkColor : APP_ICONS[itemApp].color"
+      :title="$t('newTemplate') + ' \'' + APP_TITLE[itemApp] + '\''"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <TerraformTemplateForm
+          v-if="itemApp === 'terraform'"
+          :project-id="projectId"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+        <BashTemplateForm
+          v-else-if="itemApp === 'bash'"
+          :project-id="projectId"
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
         <TemplateForm
+          v-else
           :project-id="projectId"
           item-id="new"
           @save="onSave"
@@ -53,6 +74,7 @@
       :template-id="itemId"
       :template-alias="templateAlias"
       :template-type="templateType"
+      :template-app="templateApp"
     />
 
     <v-toolbar flat>
@@ -61,13 +83,40 @@
         {{ $t('taskTemplates2') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        class="mr-1"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newTemplate') }}
-      </v-btn>
+
+      <v-menu
+        offset-y
+      >
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            class="mr-1 pr-2"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >
+            {{ $t('newTemplate') }}
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item
+            v-for="item in templateApps"
+            :key="item"
+            link
+            @click="editItem('new'); itemApp = item;"
+          >
+            <v-list-item-icon>
+              <v-icon
+                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
+              >
+                {{ APP_ICONS[item].icon }}
+              </v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn icon @click="settingsSheet = true">
         <v-icon>mdi-cog</v-icon>
@@ -109,9 +158,17 @@
         }"
     >
       <template v-slot:item.name="{ item }">
+        <v-icon
+          class="mr-3"
+          small
+        >
+          {{ APP_ICONS[item.app].icon }}
+        </v-icon>
+
         <v-icon class="mr-3" small>
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
+
         <router-link
           :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
@@ -229,10 +286,19 @@ import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
+import TerraformTemplateForm from '@/components/TerraformTemplateForm.vue';
+import BashTemplateForm from '@/components/BashTemplateForm.vue';
+import {
+  APP_ICONS,
+  APP_TITLE,
+  TEMPLATE_TYPE_ACTION_TITLES,
+  TEMPLATE_TYPE_ICONS,
+} from '@/lib/constants';
 
 export default {
   components: {
+    BashTemplateForm,
+    TerraformTemplateForm,
     TemplateForm,
     TableSettingsSheet,
     TaskStatus,
@@ -249,6 +315,8 @@ export default {
   },
   data() {
     return {
+      APP_TITLE,
+      APP_ICONS,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_ACTION_TITLES,
       inventory: null,
@@ -262,6 +330,8 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
+      templateApps: ['', 'terraform', 'bash'],
+      itemApp: '',
     };
   },
   computed: {
@@ -284,6 +354,13 @@ export default {
         return '';
       }
       return this.items.find((x) => x.id === this.itemId).name;
+    },
+
+    templateApp() {
+      if (this.itemId == null || this.itemId === 'new') {
+        return '';
+      }
+      return this.items.find((x) => x.id === this.itemId).app;
     },
 
     isLoaded() {

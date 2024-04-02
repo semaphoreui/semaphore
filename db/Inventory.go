@@ -7,7 +7,8 @@ const (
 	InventoryStatic     InventoryType = "static"
 	InventoryStaticYaml InventoryType = "static-yaml"
 	// InventoryFile means that it is path to the Ansible inventory file
-	InventoryFile InventoryType = "file"
+	InventoryFile               InventoryType = "file"
+	InventoryTerraformWorkspace InventoryType = "terraform-workspace"
 )
 
 // Inventory is the model of an ansible inventory file
