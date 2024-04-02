@@ -2,8 +2,8 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
@@ -213,6 +213,12 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
 	}
+
+	return
+}
+
+func (d *SqlDb) GetAllAdmins() (users []db.User, err error) {
+	_, err = d.selectAll(&users, "select * from "+db.UserProps.TableName+" where admin = true")
 
 	return
 }
