@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	log "github.com/sirupsen/logrus"
@@ -156,16 +157,16 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if inventory.ID != oldInventory.ID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Inventory ID in body and URL must be the same",
-		})
+		helpers.WriteErrorStatus(w,
+			"Inventory ID in body and URL must be the same",
+			http.StatusBadRequest)
 		return
 	}
 
 	if inventory.ProjectID != oldInventory.ProjectID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Project ID in body and URL must be the same",
-		})
+		helpers.WriteErrorStatus(w,
+			"project ID in body and URL must be the same",
+			http.StatusBadRequest)
 		return
 	}
 
@@ -178,7 +179,9 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		w.WriteHeader(http.StatusBadRequest)
+		helpers.WriteErrorStatus(w,
+			"unknown inventory type: %s"+string(inventory.Type),
+			http.StatusBadRequest)
 		return
 	}
 
@@ -201,7 +204,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	err = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
-	if err == db.ErrInvalidOperation {
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Inventory is in use by one or more templates",
 			"inUse": true,
