@@ -370,7 +370,7 @@ func (t *TaskRunner) alertInfos() (string, string) {
 		version = ""
 	}
 
-	author := ""
+	author := "—"
 
 	if t.Task.UserID != nil {
 		user, err := t.pool.store.GetUser(*t.Task.UserID)
