@@ -309,7 +309,7 @@ func (backup *BackupFormat) Verify() error {
 	return nil
 }
 
-func (backup *BackupFormat) Restore(store db.Store) (*db.Project, error) {
+func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, error) {
 	var b = BackupDB{}
 	project, err := store.CreateProject(
 		db.Project{
@@ -364,5 +364,14 @@ func (backup *BackupFormat) Restore(store db.Store) (*db.Project, error) {
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
+
+	if _, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    user.ID,
+		Role:      db.ProjectOwner,
+	}); err != nil {
+		return nil, err
+	}
+
 	return &project, nil
 }
