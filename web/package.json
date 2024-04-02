@@ -11,7 +11,7 @@
   "dependencies": {
     "@mdi/font": "^5.9.55",
     "ansi-to-html": "^0.7.2",
-    "axios": "^0.21.4",
+    "axios": "^0.28.0",
     "core-js": "^3.23.2",
     "moment": "^2.29.3",
     "vue": "^2.6.14",
