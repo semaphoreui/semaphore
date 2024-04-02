@@ -1,10 +1,10 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 )
@@ -124,6 +124,14 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	if template.Arguments != nil && *template.Arguments == "" {
 		template.Arguments = nil
+	}
+
+	if template.Type != db.TemplateDeploy {
+		template.BuildTemplateID = nil
+	}
+
+	if template.Type != db.TemplateBuild {
+		template.StartVersion = nil
 	}
 
 	err := helpers.Store(r).UpdateTemplate(template)

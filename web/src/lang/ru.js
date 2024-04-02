@@ -177,7 +177,7 @@ export default {
   taskTemplates2: 'Шаблоны задач',
   all: 'Все',
   notLaunched: 'Не запущен',
-  by: 'к {user_name} {formatDate}',
+  by: 'к {user_name}',
   editTemplate: 'Изменить шаблон',
   newTemplate2: 'Новый шаблон',
   deleteTemplate: 'Удалить шаблон',
