@@ -106,7 +106,6 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 		switch integration.AuthMethod {
 		case db.IntegrationAuthGitHub:
-
 			ok := isValidHmacPayload(
 				integration.AuthSecret.LoginPassword.Password,
 				r.Header.Get("X-Hub-Signature-256"),
@@ -117,8 +116,6 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				log.Error("Invalid HMAC signature")
 				continue
 			}
-
-			log.Info("Invalid HMAC signature")
 		case db.IntegrationAuthHmac:
 			ok := isValidHmacPayload(
 				integration.AuthSecret.LoginPassword.Password,
@@ -151,7 +148,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		var matched = false
 
 		for _, matcher := range matchers {
-			if Match(matcher, r.Header.Get(matcher.Key), payload) {
+			if Match(matcher, r.Header, payload) {
 				matched = true
 				continue
 			} else {
@@ -170,11 +167,11 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func Match(matcher db.IntegrationMatcher, headerValue string, bodyBytes []byte) (matched bool) {
+func Match(matcher db.IntegrationMatcher, header http.Header, bodyBytes []byte) (matched bool) {
 
 	switch matcher.MatchType {
 	case db.IntegrationMatchHeader:
-		return MatchCompare(headerValue, matcher.Method, matcher.Value)
+		return MatchCompare(header.Get(matcher.Key), matcher.Method, matcher.Value)
 	case db.IntegrationMatchBody:
 		var body = string(bodyBytes)
 		switch matcher.BodyDataType {
@@ -190,7 +187,32 @@ func Match(matcher db.IntegrationMatcher, headerValue string, bodyBytes []byte) 
 	return false
 }
 
+func convertFloatToIntIfPossible(v interface{}) (int64, bool) {
+
+	switch v.(type) {
+	case float64:
+		f := v.(float64)
+		i := int64(f)
+		if float64(i) == f {
+			return i, true
+		}
+	case float32:
+		f := v.(float32)
+		i := int64(f)
+		if float32(i) == f {
+			return i, true
+		}
+	}
+
+	return 0, false
+}
+
 func MatchCompare(value interface{}, method db.IntegrationMatchMethodType, expected string) bool {
+
+	if intValue, ok := convertFloatToIntIfPossible(value); ok {
+		value = intValue
+	}
+
 	strValue := fmt.Sprintf("%v", value)
 
 	switch method {
