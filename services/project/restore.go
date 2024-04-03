@@ -128,6 +128,7 @@ func (e BackupInventory) Restore(store db.Store, b *BackupDB) error {
 			Type:        e.Type,
 			SSHKeyID:    SSHKeyID,
 			BecomeKeyID: BecomeKeyID,
+			Inventory:   e.Inventory,
 		},
 	)
 	if err != nil {
