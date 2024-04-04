@@ -57,12 +57,12 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, i
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
 
-	inputsStr := strings.Join(inputs, "\n")
-	if inputsStr != "" {
-		inputsStr += "\n"
-	}
+	//inputsStr := strings.Join(inputs, "\n")
+	//if inputsStr != "" {
+	//	inputsStr += "\n"
+	//}
 
-	cmd.Stdin = strings.NewReader(inputsStr)
+	cmd.Stdin = strings.NewReader("")
 
 	err := cmd.Start()
 	if err != nil {
