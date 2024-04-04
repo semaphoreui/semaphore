@@ -175,7 +175,10 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, err error) {
+func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs []string, err error) {
+
+	var inputMap map[db.AccessKeyRole]string
+
 	playbookName := t.Task.Playbook
 	if playbookName == "" {
 		playbookName = t.Template.Playbook
@@ -202,12 +205,17 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
-			//args = append(args, "--extra-vars={\"ansible_ssh_private_key_file\": \""+t.inventory.SSHKey.GetPath()+"\"}")
-			if t.Inventory.SSHKey.SshKey.Login != "" {
-				args = append(args, "--extra-vars={\"ansible_user\": \""+t.Inventory.SSHKey.SshKey.Login+"\"}")
+			if t.sshKeyInstallation.Login != "" {
+				args = append(args, "--user", t.sshKeyInstallation.Login)
 			}
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.sshKeyInstallation.GetPath())
+			if t.sshKeyInstallation.Login != "" {
+				args = append(args, "--user", t.sshKeyInstallation.Login)
+			}
+			if t.sshKeyInstallation.Password != "" {
+				args = append(args, "--ask-pass")
+				inputMap[db.AccessKeyRoleAnsibleUser] = t.sshKeyInstallation.Password
+			}
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's user credentials")
@@ -218,7 +226,13 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.BecomeKeyID != nil {
 		switch t.Inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.becomeKeyInstallation.GetPath())
+			if t.sshKeyInstallation.Login != "" {
+				args = append(args, "--user", t.becomeKeyInstallation.Login)
+			}
+			if t.becomeKeyInstallation.Password != "" {
+				args = append(args, "--ask-pass")
+				inputMap[db.AccessKeyRoleAnsibleBecomeUser] = t.sshKeyInstallation.Password
+			}
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's sudo user credentials")
@@ -239,7 +253,8 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if t.Template.VaultKeyID != nil {
-		args = append(args, "--vault-password-file", t.vaultFileInstallation.GetPath())
+		args = append(args, "--ask-vault-pass")
+		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.sshKeyInstallation.Password
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
@@ -277,6 +292,18 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	args = append(args, taskExtraArgs...)
 	args = append(args, playbookName)
 
+	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
+		inputs = append(inputs, line)
+	}
+
+	if line, ok := inputMap[db.AccessKeyRoleAnsibleBecomeUser]; ok {
+		inputs = append(inputs, line)
+	}
+
+	if line, ok := inputMap[db.AccessKeyRoleAnsiblePasswordVault]; ok {
+		inputs = append(inputs, line)
+	}
+
 	return
 }
 
@@ -294,10 +321,11 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}()
 
 	var args []string
+	var inputs []string
 
 	switch t.Template.App {
 	case db.TemplateAnsible:
-		args, err = t.getPlaybookArgs(username, incomingVersion)
+		args, inputs, err = t.getPlaybookArgs(username, incomingVersion)
 	default:
 		panic("unknown template app")
 	}
@@ -315,7 +343,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
 	}
 
-	return t.App.Run(args, &environmentVariables, func(p *os.Process) {
+	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {
 		t.Process = p
 	})
 

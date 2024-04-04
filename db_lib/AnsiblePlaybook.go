@@ -53,10 +53,17 @@ func (p AnsiblePlaybook) runCmd(command string, args []string) error {
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, inputs []string, cb func(*os.Process)) error {
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
-	cmd.Stdin = strings.NewReader("")
+
+	inputsStr := strings.Join(inputs, "\n")
+	if inputsStr != "" {
+		inputsStr += "\n"
+	}
+
+	cmd.Stdin = strings.NewReader(inputsStr)
+
 	err := cmd.Start()
 	if err != nil {
 		return err
