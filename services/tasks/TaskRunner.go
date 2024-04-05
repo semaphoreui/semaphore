@@ -261,14 +261,15 @@ func (t *TaskRunner) populateDetails() error {
 	t.alertChat = project.AlertChat
 
 	// get project users
-	users, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})
+	projectUsers, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return t.prepareError(err, "Users not found!")
 	}
 
-	t.users = []int{}
-	for _, user := range users {
-		t.users = append(t.users, user.ID)
+	users := make(map[int]bool)
+
+	for _, user := range projectUsers {
+		users[user.ID] = true
 	}
 
 	admins, err := t.pool.store.GetAllAdmins()
@@ -276,8 +277,13 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	for _, user := range admins {
-		t.users = append(t.users, user.ID)
+	for _, admin := range admins {
+		users[admin.ID] = true
+	}
+
+	t.users = []int{}
+	for userID := range users {
+		t.users = append(t.users, userID)
 	}
 
 	// get inventory
