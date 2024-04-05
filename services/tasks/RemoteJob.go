@@ -150,3 +150,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 func (t *RemoteJob) Kill() {
 	// Do nothing because you can't kill remote process
 }
+
+func (t *RemoteJob) GetLastMessage() string {
+	return ""
+}

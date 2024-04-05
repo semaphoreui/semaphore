@@ -50,4 +50,5 @@ type Logger interface {
 	Log2(msg string, now time.Time)
 	LogCmd(cmd *exec.Cmd)
 	SetStatus(status TaskStatus)
+	GetLastMessage() string
 }

@@ -87,6 +87,7 @@ type runningJob struct {
 	status     lib.TaskStatus
 	logRecords []LogRecord
 	job        *tasks.LocalJob
+	stdoutBuff *bufio.Reader
 }
 
 type JobPool struct {
@@ -152,8 +153,16 @@ func (p *runningJob) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
+	p.stdoutBuff = bufio.NewReader(stdout)
+
 	go p.logPipe(bufio.NewReader(stderr))
-	go p.logPipe(bufio.NewReader(stdout))
+	go p.logPipe(p.stdoutBuff)
+}
+
+func (p *runningJob) GetLastMessage() string {
+	buff, _ := p.stdoutBuff.Peek(100)
+
+	return string(buff)
 }
 
 func (p *runningJob) logPipe(reader *bufio.Reader) {

@@ -72,11 +72,13 @@ func (t *TaskRunner) logPipe(reader *bufio.Reader) {
 }
 
 func (t *TaskRunner) LogCmd(cmd *exec.Cmd) {
-	stderr, _ := cmd.StderrPipe()
+	//stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go t.logPipe(bufio.NewReader(stderr))
-	go t.logPipe(bufio.NewReader(stdout))
+	t.stdoutReader = bufio.NewReader(stdout)
+
+	//go t.logPipe(bufio.NewReader(stderr))
+	go t.logPipe(t.stdoutReader)
 }
 
 func (t *TaskRunner) panicOnError(err error, msg string) {

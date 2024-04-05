@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"bufio"
 	"encoding/json"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
@@ -17,6 +18,7 @@ import (
 type Job interface {
 	Run(username string, incomingVersion *string) error
 	Kill()
+	GetLastMessage() string
 }
 
 type TaskRunner struct {
@@ -37,6 +39,18 @@ type TaskRunner struct {
 	RunnerID        int
 	Username        string
 	IncomingVersion *string
+
+	stdoutReader *bufio.Reader
+}
+
+func (t *TaskRunner) GetLastMessage() string {
+	n := t.stdoutReader.Buffered()
+	if n == 0 {
+		return ""
+	}
+
+	b, _ := t.stdoutReader.Peek(n)
+	return string(b)
 }
 
 func (t *TaskRunner) SetStatus(status lib.TaskStatus) {

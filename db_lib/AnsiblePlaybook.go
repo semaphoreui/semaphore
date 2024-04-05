@@ -5,9 +5,11 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/creack/pty"
+	"io"
 	"os"
 	"os/exec"
-	"strings"
+	"time"
 )
 
 type AnsiblePlaybook struct {
@@ -57,17 +59,44 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, i
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
 
-	//inputsStr := strings.Join(inputs, "\n")
-	//if inputsStr != "" {
-	//	inputsStr += "\n"
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		panic(err)
+	}
+
+	defer func() { _ = ptmx.Close() }()
+
+	for {
+		msg := p.Logger.GetLastMessage()
+
+		if msg == "Vault password:" {
+
+			// Write the password followed by a newline to simulate pressing 'Enter'
+			_, err = ptmx.Write([]byte(inputs[0] + "\n"))
+			if err != nil {
+				panic(err)
+			}
+
+			//var buffer bytes.Buffer
+			//_, err = io.Copy(&buffer, ptmx)
+
+			// It might be a good idea to copy the command's output to os.Stdout
+			// so you can see what's happening.
+			_, err = io.Copy(os.Stdout, ptmx)
+			if err != nil {
+				panic(err)
+			}
+
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	//err = cmd.Start()
+	//if err != nil {
+	//	return err
 	//}
 
-	cmd.Stdin = strings.NewReader("")
-
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
 	cb(cmd.Process)
 	return cmd.Wait()
 }

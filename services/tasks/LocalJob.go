@@ -31,6 +31,10 @@ type LocalJob struct {
 	vaultFileInstallation db.AccessKeyInstallation
 }
 
+func (t *LocalJob) GetLastMessage() string {
+	return t.Logger.GetLastMessage()
+}
+
 func (t *LocalJob) Kill() {
 	if t.Process == nil {
 		return
