@@ -61,6 +61,13 @@ func (t *TaskRunner) logPipe(reader *bufio.Reader) {
 	line, err := Readln(reader)
 	for err == nil {
 		t.Log(line)
+		fmt.Println("*************************")
+		n := reader.Buffered()
+		if n > 0 {
+			b, _ := reader.Peek(n)
+			fmt.Println(string(b))
+		}
+		fmt.Println("*************************")
 		line, err = Readln(reader)
 	}
 
