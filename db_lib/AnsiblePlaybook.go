@@ -5,6 +5,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/creack/pty"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,14 +54,41 @@ func (p AnsiblePlaybook) runCmd(command string, args []string) error {
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
-	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
+
+	ptmx, err := pty.Start(cmd)
+
 	if err != nil {
-		return err
+		panic(err)
 	}
+
+	go func() {
+
+		b := make([]byte, 100)
+
+		var e error
+
+		for {
+			var n int
+			n, e = ptmx.Read(b)
+			if e != nil {
+				break
+			}
+
+			s := strings.TrimSpace(string(b[0:n]))
+
+			for k, v := range inputs {
+				if strings.HasPrefix(s, k) {
+					_, _ = ptmx.WriteString(v + "\n")
+				}
+			}
+		}
+
+	}()
+
+	defer func() { _ = ptmx.Close() }()
 	cb(cmd.Process)
 	return cmd.Wait()
 }
