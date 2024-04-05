@@ -67,7 +67,7 @@ func (t *BashApp) InstallRequirements() error {
 	return nil
 }
 
-func (t *BashApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+func (t *BashApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	cmd := t.makeCmd("bash", args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")

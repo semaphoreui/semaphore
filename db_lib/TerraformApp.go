@@ -134,7 +134,7 @@ func (t *TerraformApp) InstallRequirements() error {
 	return cmd.Wait()
 }
 
-func (t *TerraformApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
+func (t *TerraformApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	cmd := t.makeCmd("terraform", args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	cmd.Stdin = &t.reader
