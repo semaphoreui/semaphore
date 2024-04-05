@@ -177,7 +177,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 // nolint: gocyclo
 func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs []string, err error) {
 
-	var inputMap map[db.AccessKeyRole]string
+	inputMap := make(map[db.AccessKeyRole]string)
 
 	playbookName := t.Task.Playbook
 	if playbookName == "" {
@@ -254,7 +254,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 	if t.Template.VaultKeyID != nil {
 		args = append(args, "--ask-vault-pass")
-		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.sshKeyInstallation.Password
+		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.vaultFileInstallation.Password
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
