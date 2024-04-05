@@ -5,9 +5,9 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/creack/pty"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 type AnsiblePlaybook struct {
@@ -56,11 +56,12 @@ func (p AnsiblePlaybook) runCmd(command string, args []string) error {
 func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars *[]string, cb func(*os.Process)) error {
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
 	p.Logger.LogCmd(cmd)
-	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
+	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		return err
+		panic(err)
 	}
+
+	defer func() { _ = ptmx.Close() }()
 	cb(cmd.Process)
 	return cmd.Wait()
 }

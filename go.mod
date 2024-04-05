@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.9.0
+	github.com/creack/pty v1.1.21
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-gorp/gorp/v3 v3.1.0
 	github.com/go-ldap/ldap/v3 v3.4.6
