@@ -175,9 +175,10 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs []string, err error) {
+func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
 
 	inputMap := make(map[db.AccessKeyRole]string)
+	inputs = make(map[string]string)
 
 	playbookName := t.Task.Playbook
 	if playbookName == "" {
@@ -293,15 +294,15 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	args = append(args, playbookName)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
-		inputs = append(inputs, line)
+		inputs["SSH password:"] = line
 	}
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleBecomeUser]; ok {
-		inputs = append(inputs, line)
+		inputs["BECOME password"] = line
 	}
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsiblePasswordVault]; ok {
-		inputs = append(inputs, line)
+		inputs["Vault password:"] = line
 	}
 
 	return
@@ -321,7 +322,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}()
 
 	var args []string
-	var inputs []string
+	var inputs map[string]string
 
 	switch t.Template.App {
 	case db.TemplateAnsible:

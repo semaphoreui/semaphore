@@ -60,7 +60,7 @@ func (t *AnsibleApp) SetLogger(logger lib.Logger) lib.Logger {
 	return logger
 }
 
-func (t *AnsibleApp) Run(args []string, environmentVars *[]string, inputs []string, cb func(*os.Process)) error {
+func (t *AnsibleApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	return t.Playbook.RunPlaybook(args, environmentVars, inputs, cb)
 }
 
