@@ -231,7 +231,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 				args = append(args, "--user", t.becomeKeyInstallation.Login)
 			}
 			if t.becomeKeyInstallation.Password != "" {
-				args = append(args, "--ask-pass")
+				args = append(args, "--ask-become-pass")
 				inputMap[db.AccessKeyRoleAnsibleBecomeUser] = t.sshKeyInstallation.Password
 			}
 		case db.AccessKeyNone:
