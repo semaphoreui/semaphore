@@ -67,6 +67,8 @@ const (
 type AccessKeyInstallation struct {
 	InstallationKey int64
 	SshAgent        *lib.SshAgent
+	Login           string
+	Password        string
 }
 
 func (key AccessKeyInstallation) Destroy() error {
@@ -115,8 +117,6 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 		return
 	}
 
-	installationPath := installation.GetPath()
-
 	err = key.DeserializeSecret()
 
 	if err != nil {
@@ -132,44 +132,26 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 			installation.SshAgent = &agent
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
-		switch key.Type {
-		case AccessKeyLoginPassword:
-			err = os.WriteFile(installationPath, []byte(key.LoginPassword.Password), 0600)
-		}
-	case AccessKeyRoleAnsibleBecomeUser:
-		switch key.Type {
-		case AccessKeyLoginPassword:
-			content := make(map[string]string)
-			if len(key.LoginPassword.Login) > 0 {
-				content["ansible_become_user"] = key.LoginPassword.Login
-			}
-			content["ansible_become_password"] = key.LoginPassword.Password
-			var bytes []byte
-			bytes, err = json.Marshal(content)
-			if err != nil {
-				return
-			}
-			err = os.WriteFile(installationPath, bytes, 0600)
-		default:
+		if key.Type != AccessKeyLoginPassword {
 			err = fmt.Errorf("access key type not supported for ansible user")
 		}
+		installation.Password = key.LoginPassword.Password
+	case AccessKeyRoleAnsibleBecomeUser:
+		if key.Type != AccessKeyLoginPassword {
+			err = fmt.Errorf("access key type not supported for ansible user")
+		}
+		installation.Login = key.LoginPassword.Login
+		installation.Password = key.LoginPassword.Password
 	case AccessKeyRoleAnsibleUser:
 		switch key.Type {
 		case AccessKeySSH:
 			var agent lib.SshAgent
 			agent, err = key.startSshAgent(logger)
 			installation.SshAgent = &agent
+			installation.Login = key.LoginPassword.Login
 		case AccessKeyLoginPassword:
-			content := make(map[string]string)
-			content["ansible_user"] = key.LoginPassword.Login
-			content["ansible_password"] = key.LoginPassword.Password
-			var bytes []byte
-			bytes, err = json.Marshal(content)
-			if err != nil {
-				return
-			}
-			err = os.WriteFile(installationPath, bytes, 0600)
-
+			installation.Login = key.LoginPassword.Login
+			installation.Password = key.LoginPassword.Password
 		default:
 			err = fmt.Errorf("access key type not supported for ansible user")
 		}
