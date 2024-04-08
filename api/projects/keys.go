@@ -41,25 +41,34 @@ func GetKeyRefs(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-// GetKeys retrieves sorted keys from the database
+// GetKeys retrieves sorted keys from the database, optionally filtering by name
 func GetKeys(w http.ResponseWriter, r *http.Request) {
-	if key := context.Get(r, "accessKey"); key != nil {
-		k := key.(db.AccessKey)
-		helpers.WriteJSON(w, http.StatusOK, k)
-		return
-	}
+    if key := context.Get(r, "accessKey"); key != nil {
+        k := key.(db.AccessKey)
+        helpers.WriteJSON(w, http.StatusOK, k)
+        return
+    }
 
-	project := context.Get(r, "project").(db.Project)
-	var keys []db.AccessKey
+    project := context.Get(r, "project").(db.Project)
+    var keys []db.AccessKey
+    var err error
 
-	keys, err := helpers.Store(r).GetAccessKeys(project.ID, helpers.QueryParams(r.URL))
+    queryParams := helpers.QueryParams(r.URL)
+    // Implement your logic here to filter keys by name if a "name" query parameter is provided
+    // This is just an example. You may need to adjust it based on your actual implementation
+    if name, ok := queryParams["name"]; ok && len(name) > 0 {
+        // You may need to implement this function in your storage layer
+        keys, err = helpers.Store(r).GetAccessKeysByName(project.ID, name[0])
+    } else {
+        keys, err = helpers.Store(r).GetAccessKeys(project.ID, helpers.QueryParams(r.URL))
+    }
 
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
+    if err != nil {
+        helpers.WriteError(w, err)
+        return
+    }
 
-	helpers.WriteJSON(w, http.StatusOK, keys)
+    helpers.WriteJSON(w, http.StatusOK, keys)
 }
 
 // AddKey adds a new key to the database
@@ -106,10 +115,15 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		log.Error(err)
+	    log.Error(err)
 	}
+	
+	// Instead of sending a StatusNoContent, send back the newKey with ID
+	helpers.WriteJSON(w, http.StatusCreated, map[string]interface{}{
+	    "message": "Access Key created successfully",
+	    "keyID":   newKey.ID,
+	})
 
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // UpdateKey updates key in database
