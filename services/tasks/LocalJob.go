@@ -228,7 +228,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		switch t.Inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
 			if t.becomeKeyInstallation.Login != "" {
-				args = append(args, "--user", t.becomeKeyInstallation.Login)
+				args = append(args, "--become-user", t.becomeKeyInstallation.Login)
 			}
 			if t.becomeKeyInstallation.Password != "" {
 				args = append(args, "--ask-become-pass")
