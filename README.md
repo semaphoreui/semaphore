@@ -1,11 +1,12 @@
 # Ansible Semaphore
 
+
+[![](https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![semaphore](https://snapcraft.io/semaphore/badge.svg)](https://snapcraft.io/semaphore)
-[![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://img.shields.io/gitter/room/AnsibleSemaphore/semaphore?logo=gitter)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-[![Twitter](https://img.shields.io/twitter/follow/semaphoreui?style=social&logo=twitter)](https://twitter.com/semaphoreui)
+[//]: # ([![Twitter]&#40;https://img.shields.io/twitter/follow/semaphoreui?style=social&logo=twitter&#41;]&#40;https://twitter.com/semaphoreui&#41;)
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/fiftin)
+[//]: # ([![ko-fi]&#40;https://ko-fi.com/img/githubbutton_sm.svg&#41;]&#40;https://ko-fi.com/fiftin&#41;)
 
 Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
