@@ -2,7 +2,8 @@
 
 
 [![](https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white)](https://t.me/semaphoreui)
-![YouTube Channel Views](https://img.shields.io/youtube/channel/views/UCUjzgHjyeiiKsINaM6mHVQQ)
+[![](https://img.shields.io/youtube/channel/views/UCUjzgHjyeiiKsINaM6mHVQQ)](https://www.youtube.com/@semaphoreui)
+
 
 [//]: # (![Website]&#40;https://img.shields.io/website?url=https%3A%2F%2Fsemui.co&#41;)
 
