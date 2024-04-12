@@ -1,10 +1,11 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -92,22 +93,13 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventKey
-
-	desc := "Access Key " + key.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   newKey.ProjectID,
-		ObjectType:  &objType,
-		ObjectID:    &newKey.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   *newKey.ProjectID,
+		ObjectType:  db.EventKey,
+		ObjectID:    newKey.ID,
+		Description: fmt.Sprintf("Access Key %s created", key.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -145,23 +137,13 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Access Key " + key.Name + " updated"
-	objType := db.EventKey
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   oldKey.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldKey.ID,
-		ObjectType:  &objType,
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   *oldKey.ProjectID,
+		ObjectType:  db.EventKey,
+		ObjectID:    oldKey.ID,
+		Description: fmt.Sprintf("Access Key %s updated", key.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-		return
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -170,9 +152,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := context.Get(r, "accessKey").(db.AccessKey)
 
-	var err error
-
-	err = helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
+	err := helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Access Key is in use by one or more templates",
@@ -186,19 +166,13 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Access Key " + key.Name + " deleted"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   key.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   *key.ProjectID,
+		ObjectType:  db.EventKey,
+		ObjectID:    key.ID,
+		Description: fmt.Sprintf("Access Key %s deleted", key.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
