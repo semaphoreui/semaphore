@@ -2,8 +2,9 @@ package project
 
 import (
 	"fmt"
+
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
 )
 
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
@@ -47,7 +48,7 @@ func getScheduleByTemplate(templateID int, schedules []db.Schedule) *string {
 }
 
 func getRandomName(name string) string {
-	return name + " - " + lib.RandomString(10)
+	return name + " - " + random.String(10)
 }
 
 func makeUniqueNames[T any](items []T, getter func(item *T) string, setter func(item *T, name string)) {
