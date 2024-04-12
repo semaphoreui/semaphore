@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -124,7 +124,7 @@ func (p *JobPool) Run() {
 			}
 
 			t := p.queue[0]
-			if t.status == lib.TaskFailStatus {
+			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
@@ -138,7 +138,7 @@ func (p *JobPool) Run() {
 			t.job.Logger = t.job.App.SetLogger(p.runningJobs[t.job.Task.ID])
 
 			go func(runningJob *runningJob) {
-				runningJob.SetStatus(lib.TaskRunningStatus)
+				runningJob.SetStatus(task_logger.TaskRunningStatus)
 
 				err := runningJob.job.Run(t.username, t.incomingVersion)
 
@@ -147,13 +147,13 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
-					if runningJob.status == lib.TaskStoppingStatus {
-						runningJob.SetStatus(lib.TaskStoppedStatus)
+					if runningJob.status == task_logger.TaskStoppingStatus {
+						runningJob.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(lib.TaskFailStatus)
+						runningJob.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					runningJob.SetStatus(lib.TaskSuccessStatus)
+					runningJob.SetStatus(task_logger.TaskSuccessStatus)
 				}
 
 				log.Info("Task " + strconv.Itoa(runningJob.job.Task.ID) + " finished (" + string(runningJob.status) + ")")
@@ -356,7 +356,7 @@ func (p *JobPool) checkNewJobs() {
 			continue
 		}
 
-		if runJob.status == lib.TaskStoppingStatus || runJob.status == lib.TaskStoppedStatus {
+		if runJob.status == task_logger.TaskStoppingStatus || runJob.status == task_logger.TaskStoppedStatus {
 			p.runningJobs[currJob.ID].job.Kill()
 		}
 
@@ -365,16 +365,16 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		switch runJob.status {
-		case lib.TaskRunningStatus:
-			if currJob.Status == lib.TaskStartingStatus || currJob.Status == lib.TaskWaitingStatus {
+		case task_logger.TaskRunningStatus:
+			if currJob.Status == task_logger.TaskStartingStatus || currJob.Status == task_logger.TaskWaitingStatus {
 				continue
 			}
-		case lib.TaskStoppingStatus:
+		case task_logger.TaskStoppingStatus:
 			if !currJob.Status.IsFinished() {
 				continue
 			}
-		case lib.TaskConfirmed:
-			if currJob.Status == lib.TaskWaitingConfirmation {
+		case task_logger.TaskConfirmed:
+			if currJob.Status == task_logger.TaskWaitingConfirmation {
 				continue
 			}
 		}

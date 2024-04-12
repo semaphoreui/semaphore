@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/pkg/ssh"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -90,7 +90,7 @@ func (key AccessKeyInstallation) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
 }
 
-func (key *AccessKey) startSSHAgent(logger lib.Logger) (ssh.Agent, error) {
+func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error) {
 	sshAgent := ssh.Agent{
 		Logger: logger,
 		Keys: []ssh.AgentKey{
@@ -105,7 +105,7 @@ func (key *AccessKey) startSSHAgent(logger lib.Logger) (ssh.Agent, error) {
 	return sshAgent, sshAgent.Listen()
 }
 
-func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installation AccessKeyInstallation, err error) {
+func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
 	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
 	if err != nil {
 		return

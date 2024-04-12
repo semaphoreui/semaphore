@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )
@@ -17,7 +17,7 @@ type AgentKey struct {
 
 type Agent struct {
 	Keys       []AgentKey
-	Logger     lib.Logger
+	Logger     task_logger.Logger
 	listener   net.Listener
 	SocketFile string
 	done       chan struct{}

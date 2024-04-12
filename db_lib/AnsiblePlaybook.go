@@ -2,19 +2,20 @@ package db_lib
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/creack/pty"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/creack/pty"
 )
 
 type AnsiblePlaybook struct {
 	TemplateID int
 	Repository db.Repository
-	Logger     lib.Logger
+	Logger     task_logger.Logger
 }
 
 func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {

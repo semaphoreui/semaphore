@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -54,34 +54,34 @@ func (t *TaskRunner) LogCmd(cmd *exec.Cmd) {
 	go t.logPipe(bufio.NewReader(stdout))
 }
 
-func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
+func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	if status == t.Task.Status {
 		return
 	}
 
 	switch t.Task.Status { // check old status
-	case lib.TaskConfirmed:
-		if status == lib.TaskWaitingConfirmation {
+	case task_logger.TaskConfirmed:
+		if status == task_logger.TaskWaitingConfirmation {
 			return
 		}
-	case lib.TaskRunningStatus:
-		if status == lib.TaskWaitingStatus {
+	case task_logger.TaskRunningStatus:
+		if status == task_logger.TaskWaitingStatus {
 			return
 		}
-	case lib.TaskStoppingStatus:
-		if status == lib.TaskWaitingStatus || status == lib.TaskRunningStatus {
+	case task_logger.TaskStoppingStatus:
+		if status == task_logger.TaskWaitingStatus || status == task_logger.TaskRunningStatus {
 			//panic("stopping TaskRunner cannot be " + status)
 			return
 		}
-	case lib.TaskSuccessStatus:
-	case lib.TaskFailStatus:
-	case lib.TaskStoppedStatus:
+	case task_logger.TaskSuccessStatus:
+	case task_logger.TaskFailStatus:
+	case task_logger.TaskStoppedStatus:
 		return
 	}
 
 	t.Task.Status = status
 
-	if status == lib.TaskRunningStatus {
+	if status == task_logger.TaskRunningStatus {
 		now := time.Now()
 		t.Task.Start = &now
 	}
@@ -92,7 +92,7 @@ func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
 		localJob.SetStatus(status)
 	}
 
-	if status == lib.TaskFailStatus {
+	if status == task_logger.TaskFailStatus {
 		t.sendMailAlert()
 	}
 

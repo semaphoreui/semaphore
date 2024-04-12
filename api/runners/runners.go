@@ -5,7 +5,7 @@ import (
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/services/runners"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -69,7 +69,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if tsk.Task.Status == lib.TaskStartingStatus {
+		if tsk.Task.Status == task_logger.TaskStartingStatus {
 
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:        tsk.Username,

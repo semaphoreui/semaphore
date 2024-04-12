@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 )
 
@@ -25,8 +25,8 @@ type RunnerState struct {
 }
 
 type JobState struct {
-	ID     int            `json:"id" binding:"required"`
-	Status lib.TaskStatus `json:"status" binding:"required"`
+	ID     int                    `json:"id" binding:"required"`
+	Status task_logger.TaskStatus `json:"status" binding:"required"`
 }
 
 type LogRecord struct {
@@ -40,7 +40,7 @@ type RunnerProgress struct {
 
 type JobProgress struct {
 	ID         int
-	Status     lib.TaskStatus
+	Status     task_logger.TaskStatus
 	LogRecords []LogRecord
 }
 
@@ -66,7 +66,7 @@ type job struct {
 
 	// job presents remote or local job information
 	job             *tasks.LocalJob
-	status          lib.TaskStatus
+	status          task_logger.TaskStatus
 	args            []string
 	environmentVars []string
 }

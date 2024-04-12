@@ -1,4 +1,4 @@
-package lib
+package task_logger
 
 import (
 	"os/exec"

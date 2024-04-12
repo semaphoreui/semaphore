@@ -6,14 +6,14 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
 type runningJob struct {
-	status     lib.TaskStatus
+	status     task_logger.TaskStatus
 	logRecords []LogRecord
 	job        *tasks.LocalJob
 }
@@ -48,7 +48,7 @@ func (p *runningJob) LogCmd(cmd *exec.Cmd) {
 	go p.logPipe(bufio.NewReader(stdout))
 }
 
-func (p *runningJob) SetStatus(status lib.TaskStatus) {
+func (p *runningJob) SetStatus(status task_logger.TaskStatus) {
 	if p.status == status {
 		return
 	}
