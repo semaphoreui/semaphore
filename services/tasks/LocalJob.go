@@ -3,9 +3,10 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"strconv"
+
+	"github.com/ansible-semaphore/semaphore/lib"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
@@ -341,7 +342,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
 	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {

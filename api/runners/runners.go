@@ -1,13 +1,14 @@
 package runners
 
 import (
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/lib"
 	"github.com/ansible-semaphore/semaphore/services/runners"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"net/http"
 )
 
 func RunnerMiddleware(next http.Handler) http.Handler {
@@ -151,7 +152,7 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, logRecord := range job.LogRecords {
-			tsk.Log2(logRecord.Message, logRecord.Time)
+			tsk.LogWithTime(logRecord.Time, logRecord.Message)
 		}
 
 		tsk.SetStatus(job.Status)

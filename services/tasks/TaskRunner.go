@@ -2,11 +2,12 @@ package tasks
 
 import (
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/lib"
 
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -37,56 +38,6 @@ type TaskRunner struct {
 	RunnerID        int
 	Username        string
 	IncomingVersion *string
-}
-
-func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
-	if status == t.Task.Status {
-		return
-	}
-
-	switch t.Task.Status { // check old status
-	case lib.TaskConfirmed:
-		if status == lib.TaskWaitingConfirmation {
-			return
-		}
-	case lib.TaskRunningStatus:
-		if status == lib.TaskWaitingStatus {
-			return
-		}
-	case lib.TaskStoppingStatus:
-		if status == lib.TaskWaitingStatus || status == lib.TaskRunningStatus {
-			//panic("stopping TaskRunner cannot be " + status)
-			return
-		}
-	case lib.TaskSuccessStatus:
-	case lib.TaskFailStatus:
-	case lib.TaskStoppedStatus:
-		return
-	}
-
-	t.Task.Status = status
-
-	if status == lib.TaskRunningStatus {
-		now := time.Now()
-		t.Task.Start = &now
-	}
-
-	t.saveStatus()
-
-	if localJob, ok := t.job.(*LocalJob); ok {
-		localJob.SetStatus(status)
-	}
-
-	if status == lib.TaskFailStatus {
-		t.sendMailAlert()
-	}
-
-	if status.IsNotifiable() {
-		t.sendTelegramAlert()
-		t.sendSlackAlert()
-		t.sendRocketChatAlert()
-		t.sendMicrosoftTeamsAlert()
-	}
 }
 
 func (t *TaskRunner) saveStatus() {
