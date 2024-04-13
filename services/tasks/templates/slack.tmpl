@@ -13,7 +13,14 @@
                     "title": "Author",
                     "value": "{{ .Author }}",
                     "short": true
+                },
+                {{ if .Task.Version }}
+                {
+                    "title": "Version",
+                    "value": "{{ .Task.Version }}",
+                    "short": true
                 }
+                {{ end }}
             ]
         }
     ]
