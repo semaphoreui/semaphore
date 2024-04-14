@@ -382,7 +382,7 @@ func (t *TaskRunner) alertInfos() (string, string) {
 		author = user.Name
 	}
 
-	return version, author
+	return author, version
 }
 
 func (t *TaskRunner) alertColor(kind string) string {
