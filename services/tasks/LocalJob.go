@@ -163,7 +163,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 
 	if err != nil {
 		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 		return
 	}
 
@@ -195,7 +195,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 			inventory += ".yml"
 		}
 	default:
-		err = fmt.Errorf("invalid invetory type")
+		err = fmt.Errorf("invalid inventory type")
 		return
 	}
 
@@ -261,7 +261,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
 	if err != nil {
 		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
 	}
