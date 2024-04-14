@@ -19,7 +19,7 @@ With ansible etc... installed in the container it is ~283MiB in size.
 You will need to provide environmental variables so that the configuration can be built correctly for your environment.
 See `docker-compose.yml` for an example, or look at `../common/entrypoint` to see which variables are available
         
-If you want to bulid an image with a custom tag you can optionally pass a tag to the command
+If you want to build an image with a custom tag you can optionally pass a tag to the command
 
     context=prod tag=mybranch task docker:build
     

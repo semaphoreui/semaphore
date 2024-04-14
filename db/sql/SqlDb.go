@@ -668,7 +668,7 @@ func (d *SqlDb) GetAllObjects(props db.ObjectProps) (objects interface{}, err er
 
 }
 
-// Retrieve the Matchers & Values referncing `id' from WebhookExtractor
+// Retrieve the Matchers & Values referencing `id' from WebhookExtractor
 // --
 // Examples:
 // referrerCollection := db.ObjectReferrers{}
