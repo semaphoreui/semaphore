@@ -1,12 +1,13 @@
 package projects
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -78,21 +79,13 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	objType := db.EventTemplate
-	desc := "Template ID " + strconv.Itoa(newTemplate.ID) + " created"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newTemplate.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    newTemplate.ID,
+		Description: fmt.Sprintf("Template ID %d created", newTemplate.ID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newTemplate)
 }
@@ -140,17 +133,12 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
-	objType := db.EventTemplate
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &template.ProjectID,
-		Description: &desc,
-		ObjectID:    &template.ID,
-		ObjectType:  &objType,
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldTemplate.ProjectID,
+		ObjectType:  db.EventTemplate,
+		ObjectID:    oldTemplate.ID,
+		Description: fmt.Sprintf("Template ID %d updated", template.ID),
 	})
 
 	if err != nil {
@@ -170,17 +158,13 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &tpl.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   tpl.ProjectID,
+		ObjectType:  db.EventTemplate,
+		ObjectID:    tpl.ID,
+		Description: fmt.Sprintf("Template ID %d deleted", tpl.ID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
