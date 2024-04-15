@@ -3,12 +3,12 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -19,7 +19,7 @@ type LocalJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Logger      lib.Logger
+	Logger      task_logger.Logger
 
 	App db_lib.LocalApp
 
@@ -45,7 +45,7 @@ func (t *LocalJob) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *LocalJob) SetStatus(status lib.TaskStatus) {
+func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
@@ -310,7 +310,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
-	t.SetStatus(lib.TaskRunningStatus) // It is required for local mode. Don't delete
+	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
 	err = t.prepareRun()
 	if err != nil {
@@ -341,7 +341,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
 	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {

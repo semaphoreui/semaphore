@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"strconv"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,56 +37,6 @@ type TaskRunner struct {
 	RunnerID        int
 	Username        string
 	IncomingVersion *string
-}
-
-func (t *TaskRunner) SetStatus(status lib.TaskStatus) {
-	if status == t.Task.Status {
-		return
-	}
-
-	switch t.Task.Status { // check old status
-	case lib.TaskConfirmed:
-		if status == lib.TaskWaitingConfirmation {
-			return
-		}
-	case lib.TaskRunningStatus:
-		if status == lib.TaskWaitingStatus {
-			return
-		}
-	case lib.TaskStoppingStatus:
-		if status == lib.TaskWaitingStatus || status == lib.TaskRunningStatus {
-			//panic("stopping TaskRunner cannot be " + status)
-			return
-		}
-	case lib.TaskSuccessStatus:
-	case lib.TaskFailStatus:
-	case lib.TaskStoppedStatus:
-		return
-	}
-
-	t.Task.Status = status
-
-	if status == lib.TaskRunningStatus {
-		now := time.Now()
-		t.Task.Start = &now
-	}
-
-	t.saveStatus()
-
-	if localJob, ok := t.job.(*LocalJob); ok {
-		localJob.SetStatus(status)
-	}
-
-	if status == lib.TaskFailStatus {
-		t.sendMailAlert()
-	}
-
-	if status.IsNotifiable() {
-		t.sendTelegramAlert()
-		t.sendSlackAlert()
-		t.sendRocketChatAlert()
-		t.sendMicrosoftTeamsAlert()
-	}
 }
 
 func (t *TaskRunner) saveStatus() {
@@ -151,12 +101,12 @@ func (t *TaskRunner) run() {
 	}()
 
 	// Mark task as stopped if user stopped task during preparation (before task run).
-	if t.Task.Status == lib.TaskStoppingStatus {
-		t.SetStatus(lib.TaskStoppedStatus)
+	if t.Task.Status == task_logger.TaskStoppingStatus {
+		t.SetStatus(task_logger.TaskStoppedStatus)
 		return
 	}
 
-	t.SetStatus(lib.TaskStartingStatus)
+	t.SetStatus(task_logger.TaskStartingStatus)
 
 	objType := db.EventTask
 	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " is running"
@@ -197,12 +147,12 @@ func (t *TaskRunner) run() {
 
 	if err != nil {
 		t.Log("Running playbook failed: " + err.Error())
-		t.SetStatus(lib.TaskFailStatus)
+		t.SetStatus(task_logger.TaskFailStatus)
 		return
 	}
 
-	if t.Task.Status == lib.TaskRunningStatus {
-		t.SetStatus(lib.TaskSuccessStatus)
+	if t.Task.Status == task_logger.TaskRunningStatus {
+		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
 	templates, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
@@ -234,7 +184,7 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	}
 
 	if err != nil {
-		t.SetStatus(lib.TaskFailStatus)
+		t.SetStatus(task_logger.TaskFailStatus)
 		panic(err)
 	}
 
