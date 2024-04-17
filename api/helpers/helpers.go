@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
@@ -90,22 +91,26 @@ func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	}
 }
 
+func WriteErrorStatus(w http.ResponseWriter, err string, code int) {
+	WriteJSON(w, code, map[string]string{
+		"error": err,
+	})
+}
+
 func WriteError(w http.ResponseWriter, err error) {
-	if err == db.ErrNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	if err == db.ErrInvalidOperation {
+	if errors.Is(err, db.ErrInvalidOperation) {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 
 	switch e := err.(type) {
 	case *db.ValidationError:
-		WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": e.Error(),
-		})
+		WriteErrorStatus(w, e.Error(), http.StatusBadRequest)
 	default:
 		log.Error(err)
 		debug.PrintStack()

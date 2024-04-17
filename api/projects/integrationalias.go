@@ -1,13 +1,14 @@
 package projects
 
 import (
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/gorilla/context"
 	"net/http"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/gorilla/context"
 )
 
 type publicAlias struct {
@@ -70,7 +71,7 @@ func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 	}
 
 	alias, err := helpers.Store(r).CreateIntegrationAlias(db.IntegrationAlias{
-		Alias:         lib.RandomString(16),
+		Alias:         random.String(16),
 		ProjectID:     project.ID,
 		IntegrationID: integrationId,
 	})

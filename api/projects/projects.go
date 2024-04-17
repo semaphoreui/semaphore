@@ -1,11 +1,12 @@
 package projects
 
 import (
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -247,19 +248,13 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	desc := "Project Created"
-	oType := db.EventProject
-	_, err = store.CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &body.ID,
-		Description: &desc,
-		ObjectType:  &oType,
-		ObjectID:    &body.ID,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   body.ID,
+		ObjectType:  db.EventProject,
+		ObjectID:    body.ID,
+		Description: "Project created",
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	helpers.WriteJSON(w, http.StatusCreated, body)
 }

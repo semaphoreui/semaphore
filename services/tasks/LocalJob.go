@@ -3,12 +3,12 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -19,7 +19,7 @@ type LocalJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Logger      lib.Logger
+	Logger      task_logger.Logger
 
 	App db_lib.LocalApp
 
@@ -45,7 +45,7 @@ func (t *LocalJob) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *LocalJob) SetStatus(status lib.TaskStatus) {
+func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
@@ -163,7 +163,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 
 	if err != nil {
 		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 		return
 	}
 
@@ -175,7 +175,11 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, err error) {
+func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
+
+	inputMap := make(map[db.AccessKeyRole]string)
+	inputs = make(map[string]string)
+
 	playbookName := t.Task.Playbook
 	if playbookName == "" {
 		playbookName = t.Template.Playbook
@@ -191,7 +195,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 			inventory += ".yml"
 		}
 	default:
-		err = fmt.Errorf("invalid invetory type")
+		err = fmt.Errorf("invalid inventory type")
 		return
 	}
 
@@ -202,12 +206,17 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
-			//args = append(args, "--extra-vars={\"ansible_ssh_private_key_file\": \""+t.inventory.SSHKey.GetPath()+"\"}")
-			if t.Inventory.SSHKey.SshKey.Login != "" {
-				args = append(args, "--extra-vars={\"ansible_user\": \""+t.Inventory.SSHKey.SshKey.Login+"\"}")
+			if t.sshKeyInstallation.Login != "" {
+				args = append(args, "--user", t.sshKeyInstallation.Login)
 			}
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.sshKeyInstallation.GetPath())
+			if t.sshKeyInstallation.Login != "" {
+				args = append(args, "--user", t.sshKeyInstallation.Login)
+			}
+			if t.sshKeyInstallation.Password != "" {
+				args = append(args, "--ask-pass")
+				inputMap[db.AccessKeyRoleAnsibleUser] = t.sshKeyInstallation.Password
+			}
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's user credentials")
@@ -218,7 +227,13 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if t.Inventory.BecomeKeyID != nil {
 		switch t.Inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
-			args = append(args, "--extra-vars=@"+t.becomeKeyInstallation.GetPath())
+			if t.becomeKeyInstallation.Login != "" {
+				args = append(args, "--become-user", t.becomeKeyInstallation.Login)
+			}
+			if t.becomeKeyInstallation.Password != "" {
+				args = append(args, "--ask-become-pass")
+				inputMap[db.AccessKeyRoleAnsibleBecomeUser] = t.becomeKeyInstallation.Password
+			}
 		case db.AccessKeyNone:
 		default:
 			err = fmt.Errorf("access key does not suite for inventory's sudo user credentials")
@@ -239,13 +254,14 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if t.Template.VaultKeyID != nil {
-		args = append(args, "--vault-password-file", t.vaultFileInstallation.GetPath())
+		args = append(args, "--ask-vault-pass")
+		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.vaultFileInstallation.Password
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
 	if err != nil {
 		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
 	}
@@ -277,12 +293,24 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	args = append(args, taskExtraArgs...)
 	args = append(args, playbookName)
 
+	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
+		inputs["SSH password:"] = line
+	}
+
+	if line, ok := inputMap[db.AccessKeyRoleAnsibleBecomeUser]; ok {
+		inputs["BECOME password"] = line
+	}
+
+	if line, ok := inputMap[db.AccessKeyRoleAnsiblePasswordVault]; ok {
+		inputs["Vault password:"] = line
+	}
+
 	return
 }
 
 func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
-	t.SetStatus(lib.TaskRunningStatus) // It is required for local mode. Don't delete
+	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
 	err = t.prepareRun()
 	if err != nil {
@@ -294,10 +322,11 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}()
 
 	var args []string
+	var inputs map[string]string
 
 	switch t.Template.App {
 	case db.TemplateAnsible:
-		args, err = t.getPlaybookArgs(username, incomingVersion)
+		args, inputs, err = t.getPlaybookArgs(username, incomingVersion)
 	default:
 		panic("unknown template app")
 	}
@@ -312,10 +341,10 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SshAgent.SocketFile))
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
-	return t.App.Run(args, &environmentVariables, func(p *os.Process) {
+	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {
 		t.Process = p
 	})
 

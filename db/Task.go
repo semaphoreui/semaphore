@@ -1,8 +1,9 @@
 package db
 
 import (
-	"github.com/ansible-semaphore/semaphore/lib"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 )
 
 // Task is a model of a task which will be executed by the runner
@@ -11,7 +12,7 @@ type Task struct {
 	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
 	ProjectID  int `db:"project_id" json:"project_id"`
 
-	Status lib.TaskStatus `db:"status" json:"status"`
+	Status task_logger.TaskStatus `db:"status" json:"status"`
 
 	Debug  bool `db:"debug" json:"debug"`
 	DryRun bool `db:"dry_run" json:"dry_run"`

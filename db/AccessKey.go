@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"math/big"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ansible-semaphore/semaphore/pkg/ssh"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
@@ -66,12 +67,14 @@ const (
 
 type AccessKeyInstallation struct {
 	InstallationKey int64
-	SshAgent        *lib.SshAgent
+	SSHAgent        *ssh.Agent
+	Login           string
+	Password        string
 }
 
 func (key AccessKeyInstallation) Destroy() error {
-	if key.SshAgent != nil {
-		return key.SshAgent.Close()
+	if key.SSHAgent != nil {
+		return key.SSHAgent.Close()
 	}
 
 	installPath := key.GetPath()
@@ -87,11 +90,10 @@ func (key AccessKeyInstallation) GetPath() string {
 	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
 }
 
-func (key *AccessKey) startSshAgent(logger lib.Logger) (lib.SshAgent, error) {
-
-	sshAgent := lib.SshAgent{
+func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error) {
+	sshAgent := ssh.Agent{
 		Logger: logger,
-		Keys: []lib.SshAgentKey{
+		Keys: []ssh.AgentKey{
 			{
 				Key:        []byte(key.SshKey.PrivateKey),
 				Passphrase: []byte(key.SshKey.Passphrase),
@@ -103,7 +105,7 @@ func (key *AccessKey) startSshAgent(logger lib.Logger) (lib.SshAgent, error) {
 	return sshAgent, sshAgent.Listen()
 }
 
-func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installation AccessKeyInstallation, err error) {
+func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
 	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
 	if err != nil {
 		return
@@ -115,8 +117,6 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 		return
 	}
 
-	installationPath := installation.GetPath()
-
 	err = key.DeserializeSecret()
 
 	if err != nil {
@@ -127,49 +127,31 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger lib.Logger) (installat
 	case AccessKeyRoleGit:
 		switch key.Type {
 		case AccessKeySSH:
-			var agent lib.SshAgent
-			agent, err = key.startSshAgent(logger)
-			installation.SshAgent = &agent
+			var agent ssh.Agent
+			agent, err = key.startSSHAgent(logger)
+			installation.SSHAgent = &agent
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
-		switch key.Type {
-		case AccessKeyLoginPassword:
-			err = os.WriteFile(installationPath, []byte(key.LoginPassword.Password), 0600)
-		}
-	case AccessKeyRoleAnsibleBecomeUser:
-		switch key.Type {
-		case AccessKeyLoginPassword:
-			content := make(map[string]string)
-			if len(key.LoginPassword.Login) > 0 {
-				content["ansible_become_user"] = key.LoginPassword.Login
-			}
-			content["ansible_become_password"] = key.LoginPassword.Password
-			var bytes []byte
-			bytes, err = json.Marshal(content)
-			if err != nil {
-				return
-			}
-			err = os.WriteFile(installationPath, bytes, 0600)
-		default:
+		if key.Type != AccessKeyLoginPassword {
 			err = fmt.Errorf("access key type not supported for ansible user")
 		}
+		installation.Password = key.LoginPassword.Password
+	case AccessKeyRoleAnsibleBecomeUser:
+		if key.Type != AccessKeyLoginPassword {
+			err = fmt.Errorf("access key type not supported for ansible user")
+		}
+		installation.Login = key.LoginPassword.Login
+		installation.Password = key.LoginPassword.Password
 	case AccessKeyRoleAnsibleUser:
 		switch key.Type {
 		case AccessKeySSH:
-			var agent lib.SshAgent
-			agent, err = key.startSshAgent(logger)
-			installation.SshAgent = &agent
+			var agent ssh.Agent
+			agent, err = key.startSSHAgent(logger)
+			installation.SSHAgent = &agent
+			installation.Login = key.LoginPassword.Login
 		case AccessKeyLoginPassword:
-			content := make(map[string]string)
-			content["ansible_user"] = key.LoginPassword.Login
-			content["ansible_password"] = key.LoginPassword.Password
-			var bytes []byte
-			bytes, err = json.Marshal(content)
-			if err != nil {
-				return
-			}
-			err = os.WriteFile(installationPath, bytes, 0600)
-
+			installation.Login = key.LoginPassword.Login
+			installation.Password = key.LoginPassword.Password
 		default:
 			err = fmt.Errorf("access key type not supported for ansible user")
 		}

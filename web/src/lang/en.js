@@ -179,7 +179,7 @@ export default {
   taskTemplates2: 'Task Templates',
   all: 'All',
   notLaunched: 'Not launched',
-  by: 'by {user_name} {formatDate}',
+  by: 'by {user_name}',
   editTemplate: 'Edit Template',
   newTemplate2: 'New Template',
   deleteTemplate: 'Delete template',

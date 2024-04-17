@@ -1,10 +1,11 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -95,22 +96,13 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventKey
-
-	desc := "View " + view.Title + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &newView.ProjectID,
-		ObjectType:  &objType,
-		ObjectID:    &newView.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   newView.ProjectID,
+		ObjectType:  db.EventView,
+		ObjectID:    newView.ID,
+		Description: fmt.Sprintf("View %s created", view.Title),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newView)
 }
@@ -163,22 +155,13 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "View " + view.Title + " updated"
-	objType := db.EventView
-
-	_, err := helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &oldView.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldView.ID,
-		ObjectType:  &objType,
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldView.ProjectID,
+		ObjectType:  db.EventView,
+		ObjectID:    oldView.ID,
+		Description: fmt.Sprintf("View %s updated", view.Title),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -187,28 +170,20 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 func RemoveView(w http.ResponseWriter, r *http.Request) {
 	view := context.Get(r, "view").(db.View)
 
-	var err error
-
-	err = helpers.Store(r).DeleteView(view.ProjectID, view.ID)
+	err := helpers.Store(r).DeleteView(view.ProjectID, view.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "View " + view.Title + " deleted"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &view.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   view.ProjectID,
+		ObjectType:  db.EventView,
+		ObjectID:    view.ID,
+		Description: fmt.Sprintf("View %s deleted", view.Title),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

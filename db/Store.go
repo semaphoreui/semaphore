@@ -203,6 +203,7 @@ type Store interface {
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
 
+	GetAllAdmins() ([]User, error)
 	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
 	DeleteProjectUser(projectID int, userID int) error

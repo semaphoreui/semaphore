@@ -1,11 +1,16 @@
 # Ansible Semaphore
 
-[![semaphore](https://snapcraft.io/semaphore/badge.svg)](https://snapcraft.io/semaphore)
-[![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://img.shields.io/gitter/room/AnsibleSemaphore/semaphore?logo=gitter)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-[![Twitter](https://img.shields.io/twitter/follow/semaphoreui?style=social&logo=twitter)](https://twitter.com/semaphoreui)
+[![](https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white)](https://t.me/semaphoreui)
+[![](https://img.shields.io/youtube/channel/views/UCUjzgHjyeiiKsINaM6mHVQQ)](https://www.youtube.com/@semaphoreui)
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/fiftin)
+
+[//]: # (![Website]&#40;https://img.shields.io/website?url=https%3A%2F%2Fsemui.co&#41;)
+
+
+[//]: # ([![Twitter]&#40;https://img.shields.io/twitter/follow/semaphoreui?style=social&logo=twitter&#41;]&#40;https://twitter.com/semaphoreui&#41;)
+
+[//]: # ([![ko-fi]&#40;https://ko-fi.com/img/githubbutton_sm.svg&#41;]&#40;https://ko-fi.com/fiftin&#41;)
 
 Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
@@ -20,11 +25,12 @@ https://docs.semui.co/administration-guide/installation
 
 ### Snap
 
+[![semaphore](https://snapcraft.io/semaphore/badge.svg)](https://snapcraft.io/semaphore)
+
 ```bash
 sudo snap install semaphore
 sudo semaphore user add --admin --name "Your Name" --login your_login --email your-email@examaple.com --password your_password
 ```
-[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
 
 ### Docker
 
@@ -68,10 +74,12 @@ PR's & UX reviews are welcome!
 
 Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
 
-## Release Signing
+[//]: # (## Release Signing)
 
-All releases after 2.5.1 are signed with the gpg public key
-`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
+[//]: # ()
+[//]: # (All releases after 2.5.1 are signed with the gpg public key)
+
+[//]: # (`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`)
 
 ## Support
 

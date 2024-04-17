@@ -299,7 +299,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		},
 	}
 
-	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -355,14 +355,14 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		},
 	}
 
-	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -411,14 +411,14 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 
-	args, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars=@/tmp/access_key_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }

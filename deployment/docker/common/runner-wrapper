@@ -17,4 +17,4 @@ bin_ansible_callbacks = yes
 CONFIG
 
 
-/usr/local/bin/semaphore runner --config /etc/semaphore/config.json
+/usr/local/bin/semaphore runner start --config /etc/semaphore/config.json

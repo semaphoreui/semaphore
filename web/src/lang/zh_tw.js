@@ -179,7 +179,7 @@ export default {
   taskTemplates2: '任務範本',
   all: '全部',
   notLaunched: '未啟動',
-  by: 'by {user_name} {formatDate}',
+  by: 'by {user_name}',
   editTemplate: '編輯範本',
   newTemplate2: '新建範本',
   deleteTemplate: '刪除模板',

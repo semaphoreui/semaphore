@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -17,17 +16,16 @@ import (
 	"text/template"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
-
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gorilla/mux"
-
-	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 )
 
 func tryFindLDAPUser(username, password string) (*db.User, error) {
@@ -533,7 +531,7 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 }
 
 func getRandomUsername() string {
-	return lib.RandomString(16)
+	return random.String(16)
 }
 
 func getRandomProfileName() string {
