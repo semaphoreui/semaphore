@@ -178,7 +178,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if getEntryByName[BackupRepository](&e.Repository, backup.Repositories) == nil {
 		return fmt.Errorf("repository does not exist in repositories[].name")
 	}
-	if getEntryByName[BackupInventory](&e.Inventory, backup.Inventories) == nil {
+	if getEntryByName[BackupInventory](e.Inventory, backup.Inventories) == nil {
 		return fmt.Errorf("inventory does not exist in inventories[].name")
 	}
 	if e.VaultKey != nil && getEntryByName[BackupKey](e.VaultKey, backup.Keys) == nil {
@@ -208,7 +208,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 
 func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	var InventoryID int
-	if k := findEntityByName[db.Inventory](&e.Inventory, b.inventories); k == nil {
+	if k := findEntityByName[db.Inventory](e.Inventory, b.inventories); k == nil {
 		return fmt.Errorf("inventory does not exist in inventories[].name")
 	} else {
 		InventoryID = k.GetID()
@@ -242,7 +242,7 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	template, err := store.CreateTemplate(
 		db.Template{
 			ProjectID:               b.meta.ID,
-			InventoryID:             InventoryID,
+			InventoryID:             &InventoryID,
 			EnvironmentID:           &EnvironmentID,
 			RepositoryID:            RepositoryID,
 			ViewID:                  ViewID,
