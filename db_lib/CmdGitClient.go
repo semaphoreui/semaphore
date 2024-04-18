@@ -20,7 +20,7 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_AUTH_SOCK=%s", c.keyInstallation.SshAgent.SocketFile))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_AUTH_SOCK=%s", c.keyInstallation.SSHAgent.SocketFile))
 		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 		if util.Config.SshConfigPath != "" {
 			sshCmd += " -F " + util.Config.SshConfigPath

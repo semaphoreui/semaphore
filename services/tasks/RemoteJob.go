@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
-	"github.com/ansible-semaphore/semaphore/util"
 	"net/http"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type RemoteJob struct {
@@ -125,9 +126,9 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 		time.Sleep(1_000_000_000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
-		if tsk.Task.Status == lib.TaskSuccessStatus ||
-			tsk.Task.Status == lib.TaskStoppedStatus ||
-			tsk.Task.Status == lib.TaskFailStatus {
+		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
+			tsk.Task.Status == task_logger.TaskStoppedStatus ||
+			tsk.Task.Status == task_logger.TaskFailStatus {
 			break
 		}
 	}
@@ -138,7 +139,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 		return
 	}
 
-	if tsk.Task.Status == lib.TaskFailStatus {
+	if tsk.Task.Status == task_logger.TaskFailStatus {
 		err = fmt.Errorf("task failed")
 	} else if taskTimedOut {
 		err = fmt.Errorf("task timed out")

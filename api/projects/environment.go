@@ -1,10 +1,11 @@
 package projects
 
 import (
-	log "github.com/sirupsen/logrus"
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -90,6 +91,14 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldEnv.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    oldEnv.ID,
+		Description: fmt.Sprintf("Environment %s updated", env.Name),
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -114,22 +123,13 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventEnvironment
-
-	desc := "Environment " + newEnv.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &newEnv.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newEnv.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   newEnv.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    newEnv.ID,
+		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -138,9 +138,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(db.Environment)
 
-	var err error
-
-	err = helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
+	err := helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Environment is in use by one or more templates",
@@ -154,18 +152,13 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Environment " + env.Name + " deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &env.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   env.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    env.ID,
+		Description: fmt.Sprintf("Environment %s deleted", env.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

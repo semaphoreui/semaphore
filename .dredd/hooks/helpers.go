@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/db/sql"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/snikch/goodman/transaction"
@@ -297,7 +297,7 @@ func getUUID() string {
 	if !randSetup {
 		randSetup = true
 	}
-	return lib.RandomString(8)
+	return random.String(8)
 }
 
 func loadConfig() {

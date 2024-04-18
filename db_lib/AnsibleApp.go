@@ -3,11 +3,12 @@ package db_lib
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"os"
 	"path"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 )
 
 func getMD5Hash(filepath string) (string, error) {
@@ -48,13 +49,13 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 }
 
 type AnsibleApp struct {
-	Logger     lib.Logger
+	Logger     task_logger.Logger
 	Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
 }
 
-func (t *AnsibleApp) SetLogger(logger lib.Logger) lib.Logger {
+func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	t.Logger = logger
 	t.Playbook.Logger = logger
 	return logger

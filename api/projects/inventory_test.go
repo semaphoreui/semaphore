@@ -26,4 +26,3 @@ func TestIsValidInventoryPath(t *testing.T) {
 		t.Fatal(" a path out of the cwd should be invalid")
 	}
 }
-

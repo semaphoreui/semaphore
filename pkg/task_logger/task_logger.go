@@ -1,4 +1,4 @@
-package lib
+package task_logger
 
 import (
 	"os/exec"
@@ -47,7 +47,9 @@ func (s TaskStatus) IsFinished() bool {
 
 type Logger interface {
 	Log(msg string)
-	Log2(msg string, now time.Time)
+	Logf(format string, a ...any)
+	LogWithTime(now time.Time, msg string)
+	LogfWithTime(now time.Time, format string, a ...any)
 	LogCmd(cmd *exec.Cmd)
 	SetStatus(status TaskStatus)
 }
