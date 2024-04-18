@@ -3,7 +3,7 @@ package db_lib
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
@@ -11,19 +11,23 @@ import (
 )
 
 type TerraformApp struct {
-	Logger     lib.Logger
+	Logger     task_logger.Logger
 	Template   db.Template
 	Repository db.Repository
 	reader     terraformReader
 }
 
 type terraformLogger struct {
-	logger lib.Logger
+	logger task_logger.Logger
 	reader *terraformReader
 }
 
 func (l *terraformLogger) Log(msg string) {
 	l.logger.Log(msg)
+}
+
+func (l *terraformLogger) Logf(format string, a ...any) {
+	l.logger.Logf(format, a...)
 }
 
 type terraformReader struct {
@@ -37,7 +41,7 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 		return 1, nil
 	}
 
-	r.logger.SetStatus(lib.TaskWaitingConfirmation)
+	r.logger.SetStatus(task_logger.TaskWaitingConfirmation)
 
 	for {
 		time.Sleep(time.Second * 3)
@@ -47,20 +51,24 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 	}
 
 	copy(p, "yes\n")
-	r.logger.SetStatus(lib.TaskRunningStatus)
+	r.logger.SetStatus(task_logger.TaskRunningStatus)
 	return 4, nil
 }
 
-func (l *terraformLogger) Log2(msg string, now time.Time) {
-	l.logger.Log2(msg, now)
+func (l *terraformLogger) LogWithTime(now time.Time, msg string) {
+	l.logger.LogWithTime(now, msg)
+}
+
+func (l *terraformLogger) LogfWithTime(now time.Time, format string, a ...any) {
+	l.logger.LogWithTime(now, fmt.Sprintf(format, a...))
 }
 
 func (l *terraformLogger) LogCmd(cmd *exec.Cmd) {
 	l.logger.LogCmd(cmd)
 }
 
-func (l *terraformLogger) SetStatus(status lib.TaskStatus) {
-	if status == lib.TaskConfirmed {
+func (l *terraformLogger) SetStatus(status task_logger.TaskStatus) {
+	if status == task_logger.TaskConfirmed {
 		l.reader.confirmed = true
 	}
 
@@ -108,7 +116,7 @@ func (t *TerraformApp) GetFullPath() (path string) {
 	return
 }
 
-func (t *TerraformApp) SetLogger(logger lib.Logger) lib.Logger {
+func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	internalLogger := &terraformLogger{
 		logger: logger,
 		reader: &t.reader,

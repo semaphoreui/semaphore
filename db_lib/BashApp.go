@@ -3,7 +3,7 @@ package db_lib
 import (
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
@@ -11,7 +11,7 @@ import (
 )
 
 type BashApp struct {
-	Logger lib.Logger
+	Logger task_logger.Logger
 	//Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
@@ -58,7 +58,7 @@ func (t *BashApp) GetFullPath() (path string) {
 	return
 }
 
-func (t *BashApp) SetLogger(logger lib.Logger) lib.Logger {
+func (t *BashApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	t.Logger = logger
 	return logger
 }
