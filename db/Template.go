@@ -84,8 +84,8 @@ type Template struct {
 }
 
 func (tpl *Template) Validate() error {
-	switch tpl.Type {
-	case TemplateTask, TemplateBuild, TemplateDeploy:
+	switch tpl.App {
+	case TemplateAnsible:
 		if tpl.InventoryID == nil {
 			return &ValidationError{"template inventory can not be empty"}
 		}
