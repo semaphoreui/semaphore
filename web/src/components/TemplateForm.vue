@@ -149,7 +149,6 @@
           :items="inventory"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || $t('inventory_required')]"
           outlined
           dense
           required

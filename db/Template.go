@@ -84,6 +84,16 @@ type Template struct {
 }
 
 func (tpl *Template) Validate() error {
+	switch tpl.Type {
+	case TemplateTask, TemplateBuild, TemplateDeploy:
+		if tpl.InventoryID == nil {
+			return &ValidationError{"template inventory can not be empty"}
+		}
+		if tpl.EnvironmentID == nil {
+			return &ValidationError{"template environment can not be empty"}
+		}
+	}
+
 	if tpl.Name == "" {
 		return &ValidationError{"template name can not be empty"}
 	}
