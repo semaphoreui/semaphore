@@ -214,7 +214,7 @@ func TestPopulateDetails(t *testing.T) {
 		Playbook:      "test.yml",
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
-		InventoryID:   inv.ID,
+		InventoryID:   &inv.ID,
 		EnvironmentID: &env.ID,
 	})
 

@@ -164,7 +164,7 @@
               <v-list-item-content>
                 <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
                 <v-list-item-subtitle>
-                  {{ inventory.find((x) => x.id === item.inventory_id).name }}
+                  {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
                 </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
