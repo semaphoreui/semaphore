@@ -69,6 +69,7 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 	}
 
 	taskDetails["username"] = username
+	taskDetails["url"] = t.Task.GetUrl()
 
 	if t.Template.Type != db.TemplateTask {
 		taskDetails["type"] = t.Template.Type
@@ -106,6 +107,7 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 	}
 
 	taskDetails["username"] = username
+	taskDetails["url"] = t.Task.GetUrl()
 
 	if t.Template.Type != db.TemplateTask {
 		taskDetails["type"] = t.Template.Type
