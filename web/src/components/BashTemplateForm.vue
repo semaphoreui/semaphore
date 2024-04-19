@@ -286,7 +286,6 @@ export default {
       },
       item: null,
       keys: null,
-      inventory: null,
       repositories: null,
       environment: null,
       views: null,
@@ -329,7 +328,6 @@ export default {
 
       return this.keys != null
         && this.repositories != null
-        && this.inventory != null
         && this.environment != null
         && this.item != null
         && this.schedules != null
@@ -376,12 +374,6 @@ export default {
         url: `/api/project/${this.projectId}/repositories`,
         responseType: 'json',
       })).data;
-
-      this.inventory = (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
-        responseType: 'json',
-      })).data.filter((inv) => inv.type === 'none');
 
       this.environment = (await axios({
         keys: 'get',
@@ -451,7 +443,6 @@ export default {
 
     async beforeSave() {
       this.item.app = 'bash';
-      this.item.inventory_id = this.inventory[0].id;
 
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
