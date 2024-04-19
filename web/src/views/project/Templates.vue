@@ -219,11 +219,11 @@
       </template>
 
       <template v-slot:item.inventory_id="{ item }">
-        {{ inventory.find((x) => x.id === item.inventory_id).name }}
+        {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
       </template>
 
       <template v-slot:item.environment_id="{ item }">
-        {{ environment.find((x) => x.id === item.environment_id).name }}
+        {{ (environment.find((x) => x.id === item.environment_id) || {name: '—'}).name }}
       </template>
 
       <template v-slot:item.repository_id="{ item }">

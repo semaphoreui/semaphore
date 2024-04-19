@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db_lib"
 	"math/rand"
 	"os"
 	"path"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db_lib"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
@@ -213,7 +214,7 @@ func TestPopulateDetails(t *testing.T) {
 		Playbook:      "test.yml",
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
-		InventoryID:   inv.ID,
+		InventoryID:   &inv.ID,
 		EnvironmentID: &env.ID,
 	})
 
@@ -306,7 +307,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -362,7 +363,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -418,7 +419,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }

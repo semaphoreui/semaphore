@@ -127,7 +127,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			desc := "Hello, World!"
 			res, err := store.CreateTemplate(db.Template{
 				ProjectID:               userProject.ID,
-				InventoryID:             inventoryID,
+				InventoryID:             &inventoryID,
 				RepositoryID:            repoID,
 				EnvironmentID:           &environmentID,
 				Name:                    "Test-" + uid,

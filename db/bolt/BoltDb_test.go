@@ -17,48 +17,8 @@ type test1 struct {
 	Removed        bool   `db:"removed"`
 }
 
-//var test1props = db.ObjectProps{
-//	IsGlobal:          true,
-//	TableName:         "test1",
-//	PrimaryColumnName: "ID",
-//}
-
-//func TestDeleteObjectSoft(t *testing.T) {
-//	store := CreateTestStore()
-//
-//	obj := test1{
-//		FirstName: "Denis",
-//		LastName:  "Gukov",
-//	}
-//	newObj, err := store.createObject(0, test1props, obj)
-//
-//	if err != nil {
-//		t.Fatal(err.Error())
-//	}
-//
-//	objID := intObjectID(newObj.(test1).ID)
-//
-//	err = store.deleteObjectSoft(0, test1props, objID)
-//
-//	if err != nil {
-//		t.Fatal(err.Error())
-//	}
-//
-//	var found test1
-//	err = store.getObject(0, test1props, objID, &found)
-//
-//	if err != nil {
-//		t.Fatal(err.Error())
-//	}
-//
-//	if found.ID != int(objID) ||
-//		found.Removed != true ||
-//		found.Password != obj.Password ||
-//		found.LastName != obj.LastName {
-//
-//		t.Fatal()
-//	}
-//}
+var inventoryID = 10
+var environmentID = 10
 
 func TestMarshalObject_UserWithPwd(t *testing.T) {
 	user := db.UserWithPwd{
@@ -200,10 +160,11 @@ func TestIsObjectInUse(t *testing.T) {
 	}
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:        "Test",
-		Playbook:    "test.yml",
-		ProjectID:   proj.ID,
-		InventoryID: 10,
+		Name:          "Test",
+		Playbook:      "test.yml",
+		ProjectID:     proj.ID,
+		InventoryID:   &inventoryID,
+		EnvironmentID: &environmentID,
 	})
 
 	if err != nil {
@@ -233,13 +194,12 @@ func TestIsObjectInUse_Environment(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	envID := 10
-
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Test",
 		Playbook:      "test.yml",
 		ProjectID:     proj.ID,
-		EnvironmentID: &envID,
+		InventoryID:   &inventoryID,
+		EnvironmentID: &environmentID,
 	})
 
 	if err != nil {
@@ -273,6 +233,7 @@ func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
 		Name:          "Test",
 		Playbook:      "test.yml",
 		ProjectID:     proj.ID,
+		InventoryID:   &inventoryID,
 		EnvironmentID: nil,
 	})
 
@@ -376,21 +337,25 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 	}
 
 	_, err = store.CreateTemplate(db.Template{
-		Type:         db.TemplateBuild,
-		Name:         "tpl1",
-		Playbook:     "build.yml",
-		RepositoryID: repo1.ID,
-		ProjectID:    1,
+		Type:          db.TemplateBuild,
+		Name:          "tpl1",
+		Playbook:      "build.yml",
+		RepositoryID:  repo1.ID,
+		ProjectID:     1,
+		InventoryID:   &inventoryID,
+		EnvironmentID: &environmentID,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	tpl2, err := store.CreateTemplate(db.Template{
-		Type:      db.TemplateBuild,
-		Name:      "tpl12",
-		Playbook:  "build.yml",
-		ProjectID: 1,
+		Type:          db.TemplateBuild,
+		Name:          "tpl12",
+		Playbook:      "build.yml",
+		ProjectID:     1,
+		InventoryID:   &inventoryID,
+		EnvironmentID: &environmentID,
 	})
 	if err != nil {
 		t.Fatal(err)

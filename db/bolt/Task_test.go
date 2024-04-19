@@ -8,13 +8,16 @@ import (
 func TestTask_GetVersion(t *testing.T) {
 	VERSION := "1.54.48"
 
+	invID := 0
+
 	store := CreateTestStore()
 
 	build, err := store.CreateTemplate(db.Template{
-		ProjectID: 0,
-		Type:      db.TemplateBuild,
-		Name:      "Build",
-		Playbook:  "build.yml",
+		ProjectID:   0,
+		Type:        db.TemplateBuild,
+		Name:        "Build",
+		Playbook:    "build.yml",
+		InventoryID: &invID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -26,6 +29,7 @@ func TestTask_GetVersion(t *testing.T) {
 		BuildTemplateID: &build.ID,
 		Name:            "Deploy",
 		Playbook:        "deploy.yml",
+		InventoryID:     &invID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -37,6 +41,7 @@ func TestTask_GetVersion(t *testing.T) {
 		BuildTemplateID: &deploy.ID,
 		Name:            "Deploy2",
 		Playbook:        "deploy2.yml",
+		InventoryID:     &invID,
 	})
 	if err != nil {
 		t.Fatal(err)
