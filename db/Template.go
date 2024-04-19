@@ -89,9 +89,6 @@ func (tpl *Template) Validate() error {
 		if tpl.InventoryID == nil {
 			return &ValidationError{"template inventory can not be empty"}
 		}
-		if tpl.EnvironmentID == nil {
-			return &ValidationError{"template environment can not be empty"}
-		}
 	}
 
 	if tpl.Name == "" {
