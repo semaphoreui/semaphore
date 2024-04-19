@@ -134,7 +134,7 @@
 
         <v-text-field
           v-model="item.playbook"
-          label="Script Filename"
+          label="Script Filename *"
           :rules="[v => !!v || $t('playbook_filename_required')]"
           outlined
           dense
