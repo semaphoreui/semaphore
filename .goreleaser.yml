@@ -1,8 +1,8 @@
 dist: bin
 
-# before:
-#   hooks:
-#     - task build:fe
+before:
+  hooks:
+    - task build:fe
 
 builds:
   - binary: semaphore
