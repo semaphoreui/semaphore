@@ -1,77 +1,61 @@
-# Semaphore Tasks
-# These tasks should be used to build and develop Semaphore
-#
-# Tasks without a `desc:` field are intended mainly to be called
-# internally by other tasks and therefore are not listed when running `task` or `task -l`
-version: '3'
+version: "3"
 
 vars:
-  docker_namespace: semaphoreui
-  docker_image: semaphore
-
-
+  DOCKER_ORG: semaphoreui
+  DOCKER_SERVER: semaphore
+  DOCKER_RUNNER: runner
+  DOCKER_CMD: docker
 
 tasks:
   all:
-    desc: Install, Compile, Test and Build Semaphore for local architecture
+    desc: Install, test and build Semaphore for local architecture
     cmds:
       - task: deps
-      - task: compile
       - task: test
-      - task: build:local
+      - task: build
         vars:
-          GOOS: ''
-          GOARCH: ''
+          GOOS: ""
+          GOARCH: ""
 
   deps:
-    desc: Install all dependencies (except dredd requirements)
+    desc: Install all build dependencies
     cmds:
       - task: deps:tools
       - task: deps:be
-      - task: deps:fe2
+      - task: deps:fe
+
+  deps:tools:
+    desc: Installs required tools to build and publish
+    vars:
+      GOODMAN_VERSION: latest
+      SWAGGER_VERSION: v0.30.5
+      GORELEASER_VERSION: v1.25.1
+      GOLINTER_VERSION: v1.57.2
+    cmds:
+      - go install github.com/snikch/goodman/cmd/goodman@{{ .GOODMAN_VERSION }}
+      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
+      - go install github.com/goreleaser/goreleaser@{{ .GORELEASER_VERSION }}
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
 
   deps:be:
     desc: Vendor application dependencies
     cmds:
       - go mod vendor
 
-  deps:fe2:
-    desc: Installs npm requirements for front end from package.json
+  deps:fe:
+    desc: Installs nodejs requirements
     dir: web
     cmds:
       - npm install
-      # - npm audit fix
 
-  deps:integration:
-    desc: Installs requirements for integration testing with dredd
-    dir: web
+  build:
+    desc: Build a full set of release binaries and packages
     cmds:
-      - npm install dredd@13.1.2
-      # - npm audit fix
+      - task: build:fe
+      - task: build:be
 
-  deps:tools:
-    desc: Installs tools needed
-    dir: web
-    vars:
-      GORELEASER_VERSION: "0.183.0"
-      GOLINTER_VERSION: "1.46.2"
-    cmds:
-      - go install github.com/snikch/goodman/cmd/goodman@latest
-      - go install github.com/go-swagger/go-swagger/cmd/swagger@v0.29.0
-      - '{{ if ne OS "windows" }} sh -c "curl -L https://github.com/goreleaser/goreleaser/releases/download/v{{ .GORELEASER_VERSION }}/goreleaser_$(uname -s)_$(uname -m).tar.gz | tar -xz -C $(go env GOPATH)/bin goreleaser"{{ else }} {{ end }}'
-      - '{{ if ne OS "windows" }} chmod +x $(go env GOPATH)/bin/goreleaser{{ else }} {{ end }}'
-      - '{{ if eq OS "windows" }} echo "NOTICE: You must download goreleaser manually to build this application https://github.com/goreleaser/goreleaser/releases "{{ else }}:{{ end }}'
-#      - '{{ if ne OS "windows" }} sh -c "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v{{ .GOLINTER_VERSION }}"{{ else }}{{ end }}'
-      - '{{ if eq OS "windows" }} echo "NOTICE: You need to install golangci-lint manually to build this application https://github.com/golangci/golangci-lint#install"{{ else }}{{ end }}'
-
-  compile:
-    desc: Generates compiled frontend and backend resources (must be in this order)
-    cmds:
-      - task: compile:fe2
-      - task: compile:be
-
-  compile:fe2:
-    desc: Build vue.js project
+  build:fe:
+    desc: Build VueJS project
     dir: web
     sources:
       - src/*.*
@@ -90,199 +74,221 @@ tasks:
     cmds:
       - npm run build
 
-  compile:be:
-    desc: Generate the version
+  build:be:
+    desc: Build server binary
     cmds:
-      - go run util/version_gen/generator.go {{ if .TAG }}{{ .TAG }}{{ else }}{{ if .SEMAPHORE_VERSION }}{{ .SEMAPHORE_VERSION }}{{ else }}{{ .BRANCH }}-{{ .SHA }}-{{ .TIMESTAMP }}{{ if .DIRTY }}-dirty{{ end }}{{ end }}{{end}}
+      - env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }} go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }} -tags "netgo" -ldflags "-s -w -X github.com/ansible-semaphore/semaphore/util.Ver={{ if eq .GITHUB_REF_TYPE "tag" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ if .TAG }}{{ .TAG }}{{ else }}{{ .BRANCH }}{{ end }}{{ end }} -X github.com/ansible-semaphore/semaphore/util.Commit={{ .SHA }} -X github.com/ansible-semaphore/semaphore/util.Date={{ .DATE }}" ./cli
     vars:
       TAG:
-        sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null | sed -n 's/^\([^^~]\{1,\}\)\(\^0\)\{0,1\}$/\1/p'
+        sh: git name-rev --name-only --tags --no-undefined HEAD
       BRANCH:
         sh: git rev-parse --abbrev-ref HEAD
-      DIRTY:
-        # We must exclude the package-lock file as npm install can change it!
-        sh: git diff --exit-code --stat -- . ':(exclude)web/package-lock.json' ':(exclude)web/package.json' || true
       SHA:
         sh: git log --pretty=format:'%h' -n 1
-      TIMESTAMP:
-        sh: date +%s
-
-  compile:api:hooks:
-    dir: ./.dredd/hooks
-    cmds:
-      - go build -o ../compiled_hooks{{ if eq OS "windows" }}.exe{{ end }}
-
-  build:
-    desc: Build a full set of release binaries and packages
-    cmds:
-      - task: release
-
-  build:local:
-    desc: Build a binary for the current architecture
-    dir: cli
-    cmds:
-      - env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }} go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
-
-  release:
-    desc: creates a release without performing validations or publishing artifacts
-    cmds:
-      - goreleaser --snapshot --rm-dist
-
-  release:prod:
-    cmds:
-      - goreleaser
+      DATE: "{{ now | unixEpoch }}"
 
   lint:
     cmds:
+      - task: lint:fe
       - task: lint:be
 
+  lint:fe:
+    dir: web
+    cmds:
+      - npm run lint
+
   lint:be:
-    # --errors
     cmds:
       - golangci-lint run --disable goconst --timeout 240s ./...
+      - go vet ./...
+      - swagger validate ./api-docs.yml
 
   test:
     cmds:
+      - task: test:fe
       - task: test:be
+
+  test:fe:
+    dir: web
+    cmds:
+      - npm run test:unit
 
   test:be:
     desc: Run go code tests
     cmds:
-      - go vet ./...
-      - swagger validate ./api-docs.yml
       - go test -v -coverprofile=coverage.out ./...
 
-  test:api:
-    desc: test the api with dredd
+  e2e:deps:
+    desc: Installs dredd dep for integration testing
+    dir: web
+    cmds:
+      - npm install dredd@13.1.2
+
+  e2e:hooks:
+    desc: Compile required dredd hooks built
+    dir: ./.dredd/hooks
+    cmds:
+      - go build -o ../compiled_hooks{{ if eq OS "windows" }}.exe{{ end }}
+
+  e2e:test:
+    desc: Run end to end test for API with dredd
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.yml
 
-  ci:artifacts:
+  release:prod:
+    desc: Create and publish a release
     cmds:
-      - rsync -a bin/ $CIRCLE_ARTIFACTS/
+      - goreleaser
 
-  # docker(-compose) commands
-  dc:dev:
-    desc: build and start a development stack using docker-compose
+  release:test:
+    desc: Create a local test release
     cmds:
-      - task: docker
-        vars:
-          context: dev
-          args: build semaphore_dev
-          compose: true
-      - task: dc:up
-        vars:
-          context: dev
-
-  # convenience function to build and start a production like stack
-  dc:prod:
-    desc: build and start a production like stack using docker-compose
-    cmds:
-      - task: docker
-        vars:
-          context: prod
-          args: build semaphore
-          compose: true
-      - task: dc:up
-        vars:
-          context: prod
-
-  dc:up:
-    desc: start a docker-compose instance, requires context
-    cmds:
-      - task: docker
-        vars:
-          compose: true
-          args: up --abort-on-container-exit
-          prefix: "{{ .prefix }}"
-          context: "{{ .context }}"
-
-  dc:build:
-    desc: build a set of docker-compose containers, requires context
-    cmds:
-      - task: docker
-        vars:
-          compose: true
-          args: build
-          context: "{{ .context }}"
-
-  dc:down:
-    desc: down a docker-compose instance, requires context
-    cmds:
-      - task: docker
-        vars:
-          compose: true
-          args: down
-          context: "{{ .context }}"
-
-  dc:stop:
-    desc: stop a docker-compose instance, requires context
-    cmds:
-      - task: docker
-        vars:
-          compose: true
-          args: stop
-          context: "{{ .context }}"
-
-  docker:build:
-    desc: Build an image for Semaphore, requires context
-    vars:
-      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
-    cmds:
-      - task: docker
-        vars:
-          context: "{{ .context }}"
-          action: build
-          tag: "{{ .tag }}"
-          args: -t "{{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}" .
-
-  deps:docker:
-    desc: Install docker testing dependencies. These must be installed explicitly and are not included in the general deps task.
-    status:
-      - test -f /usr/local/bin/goss
-      - test -f /usr/local/bin/dgoss
-      - test -f /usr/local/bin/hadolint
-    cmds:
-      - sudo curl -L https://github.com/aelsabbahy/goss/releases/download/v0.3.5/goss-linux-amd64 -o /usr/local/bin/goss
-      - sudo chmod +rx /usr/local/bin/goss
-      - sudo curl -L https://raw.githubusercontent.com/aelsabbahy/goss/v0.3.5/extras/dgoss/dgoss -o /usr/local/bin/dgoss
-      - sudo chmod +rx /usr/local/bin/dgoss
-      - sudo curl -L https://github.com/hadolint/hadolint/releases/download/v2.10.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
-      - sudo chmod +rx /usr/local/bin/hadolint
+      - goreleaser --auto-snapshot --clean --skip=sign
 
   docker:test:
-    desc: Test docker containers by building them, running tests and deleting
-    deps: ['deps:docker']
+    desc: Test containers by building, running, testing and deleting them
+    deps:
+      - task: docker:deps
     cmds:
-      - task: docker:lint
-        vars:
-          context: "{{ .context }}"
       - task: docker:build
         vars:
-          tag: "{{ .context }}-test"
-      - task: docker:goss
-      - docker rmi "{{ .docker_namespace }}/{{ .docker_image }}:{{ .context }}-test"
+          tag: test
 
-  docker:goss:
-    dir: "deployment/docker/{{ .context}}"
-    deps: ['deps:docker']
-    cmds:
-      - GOSS_FILES_STRATEGY='cp' dgoss run -it "{{ .docker_namespace }}/{{ .docker_image }}:{{ .context }}-test"
+      - task: docker:goss
+      - task: docker:lint
+
+      - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:test"
+      - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
 
   docker:lint:
-    desc: hadolint a dockerfile. Ignores version pinning warning
-    dir: "deployment/docker/{{ .context}}"
+    desc: Lint all dockerfiles based on Hadolint
+    deps:
+      - task: docker:deps
+    cmds:
+      - task: docker:lint:server
+      - task: docker:lint:runner
+
+  docker:lint:server:
+    desc: Lint server dockerfile based on Hadolint
+    dir: deployment/docker/server
     cmds:
       - hadolint Dockerfile --ignore DL3018
 
-  docker:push:
-    desc: push a docker image to a repo. Defaults to the official docker hub
+  docker:lint:runner:
+    desc: Lint runner dockerfile based on Hadolint
+    dir: deployment/docker/runner
     cmds:
-      - docker push {{ .docker_namespace }}/{{ .docker_image }}:{{ .tag }}
+      - hadolint Dockerfile --ignore DL3018
 
-  # templated command to reduce code duplication
-  docker:
-    vars:
-      docker_root: deployment/docker/
+  docker:goss:
+    desc: Check if container contains defined files
+    deps:
+      - task: docker:deps
     cmds:
-      - docker{{ if .compose }}-compose{{ end }} {{ if .action }}{{ .action }}{{ end }} -f {{ .docker_root }}{{ .context }}/{{ if .compose }}docker-compose{{ if .prefix }}{{ .prefix }}{{ end }}.yml{{ else }}Dockerfile{{ if .prefix }}{{ .prefix }}{{ end }}{{ end }} {{if .args }}{{ .args }}{{ end }}
+      - task: docker:goss:server
+      - task: docker:goss:runner
+
+  docker:goss:server:
+    desc: Check if server contains defined files
+    dir: deployment/docker/server
+    env:
+      GOSS_FILES_STRATEGY: cp
+    cmds:
+      - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:test"
+
+  docker:goss:runner:
+    desc: Check if runner contains defined files
+    dir: deployment/docker/runner
+    env:
+      GOSS_FILES_STRATEGY: cp
+    cmds:
+      - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
+
+  docker:build:
+    desc: Build all defined images for Semaphore
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - task: docker:build:server
+        vars:
+          tag: "{{ .tag }}"
+      - task: docker:build:runner
+        vars:
+          tag: "{{ .tag }}"
+
+  docker:build:server:
+    desc: Build an image for Semaphore server
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - "{{ .DOCKER_CMD }} build -f deployment/docker/server/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
+
+  docker:build:runner:
+    desc: Build an image for Semaphore runner
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - "{{ .DOCKER_CMD }} build -f deployment/docker/runner/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:{{ .tag }} ."
+
+  docker:push:
+    desc: Push the images to registry
+    cmds:
+      - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }}
+      - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:{{ .tag }}
+
+  docker:deps:
+    desc: Install docker testing dependencies
+    vars:
+      INSTALL_PATH: '{{ .INSTALL_PATH | default "/usr/local/bin" }}'
+      REQUIRE_SUDO: '{{ .REQUIRE_SUDO | default "true" }}'
+    cmds:
+      - task: docker:deps:hadolint
+        vars:
+          INSTALL_PATH: "{{ .INSTALL_PATH }}"
+          REQUIRE_SUDO: "{{ .REQUIRE_SUDO }}"
+      - task: docker:deps:goss
+        vars:
+          INSTALL_PATH: "{{ .INSTALL_PATH }}"
+          REQUIRE_SUDO: "{{ .REQUIRE_SUDO }}"
+      - task: docker:deps:dgoss
+        vars:
+          INSTALL_PATH: "{{ .INSTALL_PATH }}"
+          REQUIRE_SUDO: "{{ .REQUIRE_SUDO }}"
+
+  docker:deps:hadolint:
+    platforms:
+      - linux/amd64
+      - linux/arm64
+      - darwin/amd64
+      - darwin/arm64
+    vars:
+      HADOLINT_VERSION: v2.10.0
+    status:
+      - test -f "{{ .INSTALL_PATH }}/hadolint"
+    cmds:
+      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}curl -sSL https://github.com/hadolint/hadolint/releases/download/{{ .HADOLINT_VERSION }}/hadolint-{{ if eq OS "linux" }}Linux{{ end }}{{ if eq OS "darwin" }}Darwin{{ end }}-{{ if eq ARCH "amd64" }}x86_64{{ else }}{{ ARCH }}{{ end }} -o {{ .INSTALL_PATH }}/hadolint'
+      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}chmod +x {{ .INSTALL_PATH }}/hadolint'
+
+  docker:deps:goss:
+    platforms:
+      - linux
+      - darwin
+    vars:
+      GOSS_VERSION: v0.3.5
+    status:
+      - test -f "{{ .INSTALL_PATH }}/goss"
+    cmds:
+      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}curl -sSL https://github.com/aelsabbahy/goss/releases/download/{{ .GOSS_VERSION }}/goss-{{ OS }}-{{ ARCH }} -o {{ .INSTALL_PATH }}/goss'
+      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}chmod +x {{ .INSTALL_PATH }}/goss'
+
+  docker:deps:dgoss:
+    platforms:
+      - linux
+      - darwin
+    vars:
+      GOSS_VERSION: v0.3.5
+    status:
+      - test -f "{{ .INSTALL_PATH }}/dgoss"
+    cmds:
+      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}curl -sSL https://raw.githubusercontent.com/aelsabbahy/goss/{{ .GOSS_VERSION }}/extras/dgoss/dgoss -o {{ .INSTALL_PATH }}/dgoss'
+      - '{{ if eq .REQUIRE_SUDO "true" }}sudo {{ end }}chmod +x {{ .INSTALL_PATH }}/dgoss'
