@@ -77,15 +77,19 @@ tasks:
   build:be:
     desc: Build server binary
     cmds:
-      - env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }} go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }} -tags "netgo" -ldflags "-s -w -X github.com/ansible-semaphore/semaphore/util.Ver={{ if eq .GITHUB_REF_TYPE "tag" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ if .TAG }}{{ .TAG }}{{ else }}{{ .BRANCH }}{{ end }}{{ end }} -X github.com/ansible-semaphore/semaphore/util.Commit={{ .SHA }} -X github.com/ansible-semaphore/semaphore/util.Date={{ .DATE }}" ./cli
+      - >-
+        env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
+        go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+        -tags "netgo"
+        -ldflags "-s -w -X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli
     vars:
       TAG:
-        sh: git name-rev --name-only --tags --no-undefined HEAD
-      BRANCH:
-        sh: git rev-parse --abbrev-ref HEAD
+        sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD
       SHA:
         sh: git log --pretty=format:'%h' -n 1
+      VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
+      IMPORT: "github.com/ansible-semaphore/semaphore"
 
   lint:
     cmds:
