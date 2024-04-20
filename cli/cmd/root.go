@@ -2,16 +2,17 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/services/schedules"
+	"github.com/ansible-semaphore/semaphore/services/subscription"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"net/http"
 	"os"
@@ -60,6 +61,7 @@ func runService() {
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 
+	subscription.StartValidationCron(store)
 	go sockets.StartWS()
 	go schedulePool.Run()
 	go taskPool.Run()
