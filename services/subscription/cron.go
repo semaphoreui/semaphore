@@ -31,10 +31,10 @@ func RefreshToken(store db.Store) {
 	}
 
 	var req struct {
-		token string
+		Token string `json:"token"`
 	}
 
-	req.token = token
+	req.Token = token
 
 	buf, err := json.Marshal(req)
 	if err != nil {
@@ -66,7 +66,7 @@ func RefreshToken(store db.Store) {
 	}
 
 	var res struct {
-		token string
+		Token string `json:"token"`
 	}
 
 	if err = json.Unmarshal(body, &res); err != nil {
@@ -74,13 +74,13 @@ func RefreshToken(store db.Store) {
 		return
 	}
 
-	_, err = ParseToken(res.token)
+	_, err = ParseToken(res.Token)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	err = store.SetOption("subscription_token", res.token)
+	err = store.SetOption("subscription_token", res.Token)
 	if err != nil {
 		log.Error(err)
 		return
@@ -88,6 +88,9 @@ func RefreshToken(store db.Store) {
 }
 
 func StartValidationCron(store db.Store) {
+
+	RefreshToken(store)
+
 	c := cron.New()
 
 	_, err := c.AddFunc("0 1 * * *", func() {

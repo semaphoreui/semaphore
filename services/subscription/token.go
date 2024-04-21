@@ -11,7 +11,13 @@ import (
 )
 
 const rsaPublicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn/...more RSA public key data...AB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtNDwVQqLJsxiDffnZChd
+sOSTITn3v2bQP03t6yZPDxBSgoV6sP/6eq20ZY2LpFURV7C+wpPVB3InTC0NXpm1
+bWEGCUspWBxTI0YgPyPSQ57a2lFPPj/paqf9So4YjZeSJv0ozt9FukZ8GlozAJjl
+RvunsbaYY1E/VClTCTp6wX2HUlQmhQ8cbWajreTagfM5S3V/wF6sWUiuiR5HFxlX
+Ns4q8cYmyMCUVyDarxWJiXNDEUh0IHu1XZkm4zL1Lrgv857jY4sGdfqkShKYiym8
+KnqMfaeeMSSvTenjSo32F0tXmTS+5gMONhDM17fb+a9hFmNlIaoJ9MrH6/hCvrbj
+lQIDAQAB
 -----END PUBLIC KEY-----`
 
 // Function to parse RSA public key
@@ -35,9 +41,10 @@ func parseRSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 }
 
 type Token struct {
-	SubscriptionType string    `json:"subscription_type"`
-	UserCount        int       `json:"user_count"`
-	ExpiresAt        time.Time `json:"expires_at"`
+	Key       string    `json:"key"`
+	Plan      string    `json:"plan"`
+	Users     int       `json:"users"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 // ParseToken Function to verify a JWT
@@ -63,9 +70,16 @@ func ParseToken(tokenString string) (res Token, err error) {
 		return
 	}
 
-	res.ExpiresAt, err = time.Parse("", token.Header["expires_at"].(string))
-	res.SubscriptionType = token.Header["subscription_type"].(string)
-	res.UserCount = token.Header["user_count"].(int)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		err = fmt.Errorf("failed to parse claims")
+		return
+	}
+
+	res.ExpiresAt, err = time.Parse("2006-01-02 15:04:05", claims["expiresAt"].(string))
+	res.Plan = claims["plan"].(string)
+	res.Key = claims["key"].(string)
+	res.Users = int(claims["users"].(float64))
 
 	err = res.Validate()
 	if err != nil {
@@ -86,7 +100,7 @@ func GetToken(store db.Store) (res Token, err error) {
 	}
 
 	if token == "" {
-		err = fmt.Errorf("token is empty")
+		err = db.ErrNotFound
 		return
 	}
 

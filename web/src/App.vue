@@ -89,6 +89,25 @@
       </template>
     </EditDialog>
 
+    <EditDialog
+      v-model="subscriptionDialogue"
+      save-button-text="Activate"
+      title="Premium Subscription"
+      v-if="user"
+      event-name="i-user"
+      :dont-close-on-save="true"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <SubscriptionForm
+          item-id="new"
+          @save="onSave(); onSubscriptionKeyUpdates();"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
+
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -397,6 +416,20 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item
+                key="subscription"
+                v-if="user.admin"
+                @click="subscriptionDialogue = true"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-license</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  Premium Subscription
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="edit" @click="userDialog = true">
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>
@@ -612,6 +645,7 @@ import UserForm from '@/components/UserForm.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
+import SubscriptionForm from '@/components/SubscriptionForm.vue';
 
 const PROJECT_COLORS = [
   'red',
@@ -686,6 +720,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    SubscriptionForm,
     ChangePasswordForm,
     UserForm,
     EditDialog,
@@ -707,6 +742,7 @@ export default {
       newProjectType: '',
       userDialog: null,
       passwordDialog: null,
+      subscriptionDialogue: null,
 
       taskLogDialog: null,
       task: null,
@@ -931,6 +967,12 @@ export default {
   },
 
   methods: {
+    onSubscriptionKeyUpdates() {
+      EventBus.$emit('i-snackbar', {
+        color: 'success',
+        text: 'Subscription activated',
+      });
+    },
 
     selectLanguage(lang) {
       localStorage.setItem('lang', lang);

@@ -3,29 +3,34 @@ package subscriptions
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/services/subscription"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 )
 
 func GetSubscription(w http.ResponseWriter, r *http.Request) {
-	key, err := helpers.Store(r).GetOption("subscription_key")
+	store := helpers.Store(r)
+
+	key, err := store.GetOption("subscription_key")
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
 	if key == "" {
-		helpers.WriteJSON(w, 404, nil)
+		helpers.WriteJSON(w, 200, subscription.Token{})
 		return
 	}
 
-	token, err := subscription.GetToken(helpers.Store(r))
+	token, err := subscription.GetToken(store)
 
-	if err != nil {
+	if errors.Is(err, db.ErrNotFound) {
+		token.Key = key
+	} else if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -38,15 +43,14 @@ func Activate(w http.ResponseWriter, r *http.Request) {
 		Key string `json:"key"`
 	}
 
-	err := helpers.Store(r).SetOption("subscription_key", req.Key)
-	if err != nil {
-		helpers.WriteError(w, err)
+	if !helpers.Bind(w, r, &req) {
+		helpers.WriteErrorStatus(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
 	buf, err := json.Marshal(req)
 	if err != nil {
-		log.Error(err)
+		helpers.WriteError(w, err)
 		return
 	}
 
@@ -59,30 +63,46 @@ func Activate(w http.ResponseWriter, r *http.Request) {
 		bytes.NewBuffer(buf),
 	)
 
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		helpers.WriteErrorStatus(w, "Invalid subscription key.", http.StatusNotFound)
+		return
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error(err)
+		helpers.WriteError(w, err)
 		return
 	}
 
 	var res struct {
-		token string
+		Token string `json:"token"`
 	}
 
 	if err = json.Unmarshal(body, &res); err != nil {
-		log.Error(err)
+		helpers.WriteError(w, err)
 		return
 	}
 
-	token, err := subscription.ParseToken(res.token)
+	token, err := subscription.ParseToken(res.Token)
 	if err != nil {
-		log.Error(err)
+		helpers.WriteError(w, err)
 		return
 	}
 
-	err = helpers.Store(r).SetOption("subscription_token", res.token)
+	err = helpers.Store(r).SetOption("subscription_key", req.Key)
 	if err != nil {
-		log.Error(err)
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = helpers.Store(r).SetOption("subscription_token", res.Token)
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 

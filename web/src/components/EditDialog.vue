@@ -22,7 +22,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       <v-card-text class="pb-0">
         <slot
           name="form"
-          :onSave="close"
+          :onSave="onSave"
           :onError="clearFlags"
           :needSave="needSave"
           :needReset="needReset"
@@ -74,6 +74,7 @@ export default {
     maxWidth: Number,
     eventName: String,
     hideButtons: Boolean,
+    dontCloseOnSave: Boolean,
   },
 
   data() {
@@ -101,8 +102,18 @@ export default {
   },
 
   methods: {
+    onSave(e) {
+      if (this.dontCloseOnSave) {
+        this.clearFlags();
+        return;
+      }
+
+      this.close(e);
+    },
+
     close(e) {
       this.dialog = false;
+
       this.clearFlags();
       if (e) {
         this.$emit('save', e);
