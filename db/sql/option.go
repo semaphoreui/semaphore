@@ -11,12 +11,12 @@ func (d *SqlDb) SetOption(key string, value string) error {
 	_, err := d.getOption(key)
 
 	if errors.Is(err, db.ErrNotFound) {
-		_, err = d.exec("update option set value=? where key=?", key)
-	} else {
 		_, err = d.insert(
 			"key",
-			"insert into option (key, value) values (?, ?)",
+			"insert into `option` (`key`, `value`) values (?, ?)",
 			key, value)
+	} else if err == nil {
+		_, err = d.exec("update `option` set `value`=? where `key`=?", value, key)
 	}
 
 	return err
@@ -25,7 +25,7 @@ func (d *SqlDb) SetOption(key string, value string) error {
 func (d *SqlDb) getOption(key string) (value string, err error) {
 	q := squirrel.Select("*").
 		From(db.OptionProps.TableName).
-		Where("key=?", key)
+		Where("`key`=?", key)
 
 	query, args, err := q.ToSql()
 
