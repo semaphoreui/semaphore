@@ -41,6 +41,7 @@ func parseRSAPublicKeyFromPEM(pubPEM string) (*rsa.PublicKey, error) {
 }
 
 type Token struct {
+	State     string    `json:"state"`
 	Key       string    `json:"key"`
 	Plan      string    `json:"plan"`
 	Users     int       `json:"users"`
@@ -110,4 +111,14 @@ func GetToken(store db.Store) (res Token, err error) {
 	}
 
 	return
+}
+
+func HasActiveSubscription(store db.Store) bool {
+	token, err := GetToken(store)
+
+	if err != nil {
+		return false
+	}
+
+	return token.State == "active"
 }
