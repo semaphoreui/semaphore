@@ -76,7 +76,7 @@ func ParseToken(tokenString string) (res Token, err error) {
 		return
 	}
 
-	res.ExpiresAt, err = time.Parse("2006-01-02 15:04:05", claims["expiresAt"].(string))
+	res.ExpiresAt, err = time.Parse(time.RFC3339, claims["expiresAt"].(string))
 	res.Plan = claims["plan"].(string)
 	res.Key = claims["key"].(string)
 	res.Users = int(claims["users"].(float64))
