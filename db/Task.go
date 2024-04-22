@@ -84,11 +84,6 @@ func (task *Task) GetUrl() *string {
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
-	switch template.Type {
-	case TemplateBuild:
-	case TemplateDeploy:
-	case TemplateTask:
-	}
 	return nil
 }
 
