@@ -27,6 +27,7 @@ func (d *SqlDb) GetAllProjects() (projects []db.Project, err error) {
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
 		OrderBy("p.name").
+		Limit(200).
 		ToSql()
 
 	if err != nil {
