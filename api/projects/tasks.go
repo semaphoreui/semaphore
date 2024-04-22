@@ -1,8 +1,10 @@
 package projects
 
 import (
+	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
@@ -23,7 +25,11 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID)
 
-	if err != nil {
+	if errors.Is(err, tasks.ErrInvalidSubscription) {
+		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
+		return
+	} else if err != nil {
+
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
 		w.WriteHeader(http.StatusInternalServerError)
 		return

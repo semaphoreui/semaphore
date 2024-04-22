@@ -1,7 +1,9 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/services/subscription"
 	"regexp"
 	"strconv"
 	"strings"
@@ -45,6 +47,8 @@ type TaskPool struct {
 
 	resourceLocker chan *resourceLock
 }
+
+var ErrInvalidSubscription = errors.New("has no active subscription")
 
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.runningTasks {
@@ -322,6 +326,14 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	tpl, err := p.store.GetTemplate(projectID, taskObj.TemplateID)
 	if err != nil {
 		return
+	}
+
+	switch tpl.App {
+	case db.TemplateBash, db.TemplateTerraform:
+		if !subscription.HasActiveSubscription(p.store) {
+			err = ErrInvalidSubscription
+			return
+		}
 	}
 
 	err = taskObj.ValidateNewTask(tpl)
