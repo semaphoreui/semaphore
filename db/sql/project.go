@@ -59,6 +59,7 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
 		Where("p.id=?", projectID).
+		Limit(200).
 		ToSql()
 
 	if err != nil {
