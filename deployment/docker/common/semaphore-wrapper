@@ -169,5 +169,14 @@ else
     echoerr "No additional python packages to install"
 fi
 
+# Install ansible-galaxy contents
+if [ -f "${SEMAPHORE_CONFIG_PATH}/requirements.yml" ]; then
+    echoerr "Installing ansible-galaxy contents"
+    ansible-galaxy collection install --upgrade -r "${SEMAPHORE_CONFIG_PATH}/requirements.yml"
+    ansible-galaxy role install --force -r "${SEMAPHORE_CONFIG_PATH}/requirements.yml"
+else
+    echoerr "No ansible-galaxy contents to install"
+fi
+
 # run our command
 exec "$@"
