@@ -15,7 +15,10 @@ Vue.config.productionTip = false;
 
 Vue.filter('formatDate', (value) => (value ? moment(String(value)).fromNow() : '—'));
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
-Vue.filter('formatLog', (value) => (value ? convert.toHtml(String(value)) : value));
+Vue.filter('formatLog', (value) => {
+  if (value.length > 1000) return value;
+  return (value ? convert.toHtml(String(value)) : value);
+});
 
 Vue.filter('formatMilliseconds', (value) => {
   if (value == null || value === '') {
