@@ -192,6 +192,15 @@ func (d *SqlDb) GetUser(userID int) (db.User, error) {
 	return user, err
 }
 
+func (d *SqlDb) GetUserCount() (count int, err error) {
+
+	cnt, err := d.sql.SelectInt("select count(*) from `user`")
+
+	count = int(cnt)
+
+	return
+}
+
 func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
 	query, args, err := getSqlForTable("user", params)
 
