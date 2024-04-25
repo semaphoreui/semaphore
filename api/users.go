@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/services/subscription"
@@ -48,10 +49,26 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := subscription.GetToken(helpers.Store(r))
+	count, err := helpers.Store(r).GetUserCount()
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	token, err := subscription.GetToken(helpers.Store(r))
+
+	if errors.Is(err, db.ErrNotFound) {
+		if count > 1 {
+			helpers.WriteErrorStatus(w, "You have no subscription.", http.StatusForbidden)
+			return
+		}
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if count >= token.Users {
+		helpers.WriteErrorStatus(w, "You have no subscription.", http.StatusForbidden)
 		return
 	}
 
