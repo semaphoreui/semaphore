@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/services/subscription"
@@ -68,7 +69,8 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if count >= token.Users {
-		helpers.WriteErrorStatus(w, "You have no subscription.", http.StatusForbidden)
+		helpers.WriteErrorStatus(w,
+			fmt.Sprintf("Your subscription allows you to have a maximum of %d users.", token.Users), http.StatusForbidden)
 		return
 	}
 
