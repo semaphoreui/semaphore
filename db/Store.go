@@ -169,6 +169,7 @@ type Store interface {
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
 
+	GetUserCount() (int, error)
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
 	CreateUser(user UserWithPwd) (User, error)
