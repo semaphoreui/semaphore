@@ -81,6 +81,7 @@ func ParseToken(tokenString string) (res Token, err error) {
 	res.Plan = claims["plan"].(string)
 	res.Key = claims["key"].(string)
 	res.Users = int(claims["users"].(float64))
+	res.State = claims["state"].(string)
 
 	err = res.Validate()
 	if err != nil {
@@ -114,13 +115,11 @@ func GetToken(store db.Store) (res Token, err error) {
 }
 
 func HasActiveSubscription(store db.Store) bool {
-	_, err := GetToken(store)
+	token, err := GetToken(store)
 
 	if err != nil {
 		return false
 	}
 
-	return true
-
-	//return token.State == "active"
+	return token.State == "active"
 }
