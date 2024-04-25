@@ -326,6 +326,20 @@
 
       <template v-slot:append>
         <v-list class="pa-0">
+
+          <v-list-item
+            key="premium"
+            v-if="user.admin && !user.has_active_subscription"
+            @click="subscriptionDialogue = true"
+            class="ActivatePremiumSubscriptionButton"
+          >
+            <v-list-item-content>
+              <v-list-item-title style="font-weight: bold; color: black;">
+                Activate Premium Subscription
+              </v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+
           <v-list-item>
             <v-switch
               v-model="darkMode"
@@ -519,6 +533,17 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+
+.ActivatePremiumSubscriptionButton {
+  background: gold;
+  transform: rotate(-5deg) scale(0.95);
+  border-radius: 6px;
+  transition: 0.2s transform;
+  &:hover {
+    transform: rotate(-5deg) scale(1);
+  }
+}
+
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
   overflow: hidden;
