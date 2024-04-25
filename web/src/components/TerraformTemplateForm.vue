@@ -144,11 +144,10 @@
 
         <v-select
           v-model="item.inventory_id"
-          label="Workspace"
+          label="Default Workspace"
           :items="inventory"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || $t('inventory_required')]"
           outlined
           dense
           required
@@ -245,7 +244,10 @@
 
         <small class="mt-1 mb-4 d-block">
           {{ $t('readThe') }}
-          <a target="_blank" href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format">{{ $t('docs') }}</a>
+          <a target="_blank"
+             href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format">{{
+              $t('docs')
+            }}</a>
           {{ $t('toLearnMoreAboutCron') }}
         </small>
 

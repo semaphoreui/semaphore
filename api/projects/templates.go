@@ -2,6 +2,8 @@ package projects
 
 import (
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/services/subscription"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
@@ -71,6 +73,17 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
+
+	switch template.App {
+	case db.TemplateBash, db.TemplateTerraform:
+		if !subscription.HasActiveSubscription(helpers.Store(r)) {
+			err = tasks.ErrInvalidSubscription
+			helpers.WriteError(w, err)
+			return
+		}
+	}
+
 	template.ProjectID = project.ID
 	newTemplate, err := helpers.Store(r).CreateTemplate(template)
 
@@ -81,14 +94,35 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	if newTemplate.App == db.TemplateTerraform {
 		var inv db.Inventory
-		inv, err = helpers.Store(r).GetInventory(project.ID, *newTemplate.InventoryID)
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
+
+		if newTemplate.InventoryID == nil {
+			inv, err = helpers.Store(r).CreateInventory(db.Inventory{
+				Name:      newTemplate.Name + " - default",
+				ProjectID: project.ID,
+				HolderID:  &newTemplate.ID,
+				Type:      db.InventoryTerraformWorkspace,
+				Inventory: "default",
+			})
+
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+
+			newTemplate.InventoryID = &inv.ID
+			err = helpers.Store(r).UpdateTemplate(newTemplate)
+
+		} else {
+			inv, err = helpers.Store(r).GetInventory(project.ID, *newTemplate.InventoryID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+
+			inv.HolderID = &newTemplate.ID
+			err = helpers.Store(r).UpdateInventory(inv)
 		}
 
-		inv.HolderID = &newTemplate.ID
-		err = helpers.Store(r).UpdateInventory(inv)
 		if err != nil {
 			helpers.WriteError(w, err)
 			return

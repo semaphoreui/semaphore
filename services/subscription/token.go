@@ -114,11 +114,13 @@ func GetToken(store db.Store) (res Token, err error) {
 }
 
 func HasActiveSubscription(store db.Store) bool {
-	token, err := GetToken(store)
+	_, err := GetToken(store)
 
 	if err != nil {
 		return false
 	}
 
-	return token.State == "active"
+	return true
+
+	//return token.State == "active"
 }
