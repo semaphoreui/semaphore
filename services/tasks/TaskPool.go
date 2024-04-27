@@ -171,9 +171,11 @@ func (p *TaskPool) Run() {
 
 			db.StoreSession(p.store, "new task", func() {
 				//p.Queue = append(p.Queue, task)
-				msg := "Task " + getTaskName(task) + " added to queue"
+				msg := "Task " + task.Template.Name + " added to queue"
 				task.Log(msg)
-				log.Info(msg)
+				log.WithFields(log.Fields{
+					"task_id": task.Task.ID,
+				}).Info(msg)
 				task.saveStatus()
 			})
 			p.queueEvents <- PoolEvent{EventTypeNew, task}

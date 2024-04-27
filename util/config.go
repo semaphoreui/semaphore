@@ -398,7 +398,7 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
-	fmt.Println("Loading config")
+	//fmt.Println("Loading config")
 
 	Config = NewConfigType()
 	Config.Apps = map[string]App{}
@@ -410,7 +410,7 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
-	fmt.Println("Validating config")
+	//fmt.Println("Validating config")
 	validateConfig()
 
 	var encryption []byte

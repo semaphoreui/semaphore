@@ -182,8 +182,11 @@ func (t *TaskRunner) run() {
 			return
 		}
 
-		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
-		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
+		log.WithFields(log.Fields{
+			"task_id": t.Task.ID,
+		}).Info("Stopped running task " + t.Template.Name)
+
+		//log.Info("Release resource locker with " + strconv.Itoa(t.Task.ID))
 
 		now := tz.Now()
 		t.Task.End = &now
