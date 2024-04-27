@@ -285,7 +285,6 @@ jobs:
             up --abort-on-container-exit
 
   deploy-dev:
-    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
 
     needs:
