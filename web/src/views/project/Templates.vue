@@ -54,6 +54,7 @@
 
       <v-menu
         offset-y
+        :disabled="templateApps.length === 0"
       >
         <template v-slot:activator="{ on, attrs }">
           <v-btn
@@ -62,9 +63,11 @@
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            @click="editItem('new'); itemApp = '';"
           >
             {{ $t('newTemplate') }}
-            <v-icon>mdi-chevron-down</v-icon>
+            <v-icon v-if="templateApps.length > 0">mdi-chevron-down</v-icon>
+            <span v-else class="pl-2"></span>
           </v-btn>
         </template>
         <v-list>
@@ -129,6 +132,7 @@
         <v-icon
           class="mr-3"
           small
+          v-if="templateApps.length > 0"
         >
           {{ APP_ICONS[item.app].icon }}
         </v-icon>
