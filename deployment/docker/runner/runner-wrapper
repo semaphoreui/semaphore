@@ -14,10 +14,10 @@ else
     echoerr "No additional system dependencies to install"
 fi
 
-if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.yaml"; then
+if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
     pip3 install --upgrade --user \
-        -r "${SEMAPHORE_CONFIG_PATH}/requirements.yaml"
+        -r "${SEMAPHORE_CONFIG_PATH}/requirements.txt"
 else
     echoerr "No additional python dependencies to install"
 fi
