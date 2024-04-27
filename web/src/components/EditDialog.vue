@@ -19,7 +19,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         </slot>
       </v-card-title>
 
-      <v-card-text class="pb-0">
+      <v-card-text class="pb-0" :style="{minHeight: minContentHeight + 'px'}">
         <slot
           name="form"
           :onSave="onSave"
@@ -72,6 +72,7 @@ export default {
     saveButtonText: String,
     value: Boolean,
     maxWidth: Number,
+    minContentHeight: Number,
     eventName: String,
     hideButtons: Boolean,
     dontCloseOnSave: Boolean,
