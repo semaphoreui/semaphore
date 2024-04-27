@@ -14,8 +14,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 RUN task deps && \
-    task compile && \
-    task build:local GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 FROM alpine:3.19
 
