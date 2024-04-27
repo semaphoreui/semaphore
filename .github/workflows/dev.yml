@@ -208,7 +208,10 @@ jobs:
                 "host": "localhost:5432",
                 "user": "semaphore",
                 "pass": "p455w0rd",
-                "name": "semaphore"
+                "name": "semaphore",
+                "options": {
+                  "sslmode": "disable"
+                }
               },
               "dialect": "postgres",
               "email_alert": false
