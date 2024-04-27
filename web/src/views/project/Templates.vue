@@ -132,8 +132,9 @@
         <v-icon
           class="mr-3"
           small
+          v-if="templateApps.length > 0"
         >
-          {{ (APP_ICONS[item.app] || {}).icon }}
+          {{ APP_ICONS[item.app].icon }}
         </v-icon>
 
         <v-icon class="mr-3" small>
