@@ -63,7 +63,7 @@
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
-            @click="editItem('new'); itemApp = '';"
+            @click="templateApps.length > 0 || editItem('new')"
           >
             {{ $t('newTemplate') }}
             <v-icon v-if="templateApps.length > 0">mdi-chevron-down</v-icon>
