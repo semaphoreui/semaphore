@@ -1,0 +1,17 @@
+version: "3.4"
+
+volumes:
+  dredd:
+
+services:
+  dredd:
+    build:
+      context: ../../../
+      dockerfile: deployment/docker/dredd/Dockerfile
+    command:
+      - --config
+      - .dredd/dredd.yml
+    environment:
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
+    volumes:
+      - dredd:/data

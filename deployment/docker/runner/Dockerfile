@@ -1,0 +1,54 @@
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.19 as builder
+
+RUN apk add --no-cache -U \
+    libc-dev curl nodejs npm git gcc zip unzip tar
+
+WORKDIR /usr/local
+# hadolint ignore=DL4006
+RUN curl -sL https://taskfile.dev/install.sh | sh
+
+COPY ./ /go/src/semaphore
+WORKDIR /go/src/semaphore
+
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN task deps && \
+    task compile && \
+    task build:local GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+
+FROM alpine:3.19
+
+RUN apk add --no-cache -U \
+    curl git mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
+    rm -rf /var/cache/apk/* && \
+    adduser -D -u 1001 -G root semaphore && \
+    mkdir -p /tmp/semaphore && \
+    mkdir -p /etc/semaphore && \
+    mkdir -p /var/lib/semaphore && \
+    chown -R semaphore:0 /tmp/semaphore && \
+    chown -R semaphore:0 /etc/semaphore && \
+    chown -R semaphore:0 /var/lib/semaphore
+
+COPY --chown=1001:0 ./deployment/docker/runner/ansible.cfg /tmp/semaphore/ansible.cfg
+COPY --from=builder /go/src/semaphore/deployment/docker/runner/runner-wrapper /usr/local/bin/
+COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
+
+RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
+    chmod +x /usr/local/bin/runner-wrapper && \
+    chown -R semaphore:0 /usr/local/bin/semaphore && \
+    chmod +x /usr/local/bin/semaphore
+
+WORKDIR /home/semaphore
+USER 1001
+
+# renovate: datasource=pypi depName=ansible
+ENV ANSIBLE_VERSION 9.4.0
+
+# hadolint ignore=DL3013
+RUN pip3 install -U --break-system-packages --no-cache-dir \
+    ansible==${ANSIBLE_VERSION} \
+    boto3 botocore requests netaddr
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD [ "/usr/local/bin/runner-wrapper"]
