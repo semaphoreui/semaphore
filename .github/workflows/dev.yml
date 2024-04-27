@@ -205,7 +205,7 @@ jobs:
           cat > config.json <<EOF
             {
               "postgres": {
-                "host": "localhost:3306",
+                "host": "localhost:5432",
                 "user": "semaphore",
                 "pass": "p455w0rd",
                 "name": "semaphore"
