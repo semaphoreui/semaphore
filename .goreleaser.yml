@@ -44,7 +44,7 @@ nfpms:
     description: Open Source alternative to Ansible Tower
     homepage: https://github.com/semaphoreui/semaphore
     vendor: Semaphore UI
-    maintainer: Semaphore UI
+    maintainer: Semaphore UI <support@semui.co>
     license: MIT
 
     formats:
