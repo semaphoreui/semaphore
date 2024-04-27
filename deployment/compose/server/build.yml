@@ -4,4 +4,4 @@ services:
   server:
     build:
       context: ../../../
-      dockerfile: deployment/docker/runner/Dockerfile
+      dockerfile: deployment/docker/server/Dockerfile
