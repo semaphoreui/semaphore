@@ -72,3 +72,11 @@ export const EXTRACT_VALUE_BODY_DATA_TYPE_ICONS = {
   json: 'mdi-code-json',
   str: 'mdi-text',
 };
+
+export const APP_ICONS = {
+  '': {},
+};
+
+export const APP_TITLE = {
+  '': '',
+};
