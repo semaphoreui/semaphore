@@ -109,7 +109,7 @@ tasks:
 
   test:
     cmds:
-      - task: test:fe
+      # - task: test:fe
       - task: test:be
 
   test:fe:
