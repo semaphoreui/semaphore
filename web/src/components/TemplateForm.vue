@@ -1,9 +1,23 @@
 <template>
+  <div v-if="!isLoaded">
+    <v-row>
+      <v-col>
+        <v-skeleton-loader
+            type="table-heading, list-item-two-line, image, table-tfoot"
+        ></v-skeleton-loader>
+      </v-col>
+      <v-col>
+        <v-skeleton-loader
+            type="table-heading, list-item-two-line, image, table-tfoot"
+        ></v-skeleton-loader>
+      </v-col>
+    </v-row>
+  </div>
   <v-form
+    v-else
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="isLoaded"
   >
     <v-dialog
       v-model="helpDialog"
