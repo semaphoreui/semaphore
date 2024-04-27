@@ -245,43 +245,43 @@ jobs:
           go install github.com/go-task/task/v3/cmd/task@latest
 
       - name: Compose bolt
-        run: |-
-          docker-compose
-            -f deployment/compose/server/base.yml
-            -f deployment/compose/server/build.yml
-            -f deployment/compose/store/boltdb.yml
-            -f deployment/compose/dredd/base.yml
-            -f deployment/compose/dredd/boltdb.yml
+        run: |
+          docker-compose \
+            -f deployment/compose/server/base.yml \
+            -f deployment/compose/server/build.yml \
+            -f deployment/compose/store/boltdb.yml \
+            -f deployment/compose/dredd/base.yml \
+            -f deployment/compose/dredd/boltdb.yml \
             up --abort-on-container-exit
 
       - name: Compose mysql
-        run: |-
-          docker-compose
-            -f deployment/compose/server/base.yml
-            -f deployment/compose/server/build.yml
-            -f deployment/compose/store/mysql.yml
-            -f deployment/compose/dredd/base.yml
-            -f deployment/compose/dredd/mysql.yml
+        run: |
+          docker-compose \
+            -f deployment/compose/server/base.yml \
+            -f deployment/compose/server/build.yml \
+            -f deployment/compose/store/mysql.yml \
+            -f deployment/compose/dredd/base.yml \
+            -f deployment/compose/dredd/mysql.yml \
             up --abort-on-container-exit
 
       - name: Compose mariadb
-        run: |-
-          docker-compose
-            -f deployment/compose/server/base.yml
-            -f deployment/compose/server/build.yml
-            -f deployment/compose/store/mariadb.yml
-            -f deployment/compose/dredd/base.yml
-            -f deployment/compose/dredd/mariadb.yml
+        run: |
+          docker-compose \
+            -f deployment/compose/server/base.yml \
+            -f deployment/compose/server/build.yml \
+            -f deployment/compose/store/mariadb.yml \
+            -f deployment/compose/dredd/base.yml \
+            -f deployment/compose/dredd/mariadb.yml \
             up --abort-on-container-exit
 
       - name: Compose postgres
-        run: |-
-          docker-compose
-            -f deployment/compose/server/base.yml
-            -f deployment/compose/server/build.yml
-            -f deployment/compose/store/postgres.yml
-            -f deployment/compose/dredd/base.yml
-            -f deployment/compose/dredd/postgres.yml
+        run: |
+          docker-compose \
+            -f deployment/compose/server/base.yml \
+            -f deployment/compose/server/build.yml \
+            -f deployment/compose/store/postgres.yml \
+            -f deployment/compose/dredd/base.yml \
+            -f deployment/compose/dredd/postgres.yml \
             up --abort-on-container-exit
 
   deploy-dev:
