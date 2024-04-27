@@ -18,12 +18,15 @@ builds:
       - linux
       - freebsd
     goarch:
+      - 386
       - amd64
       - arm
       - arm64
     ignore:
       - goos: darwin
         goarch: 386
+      - goos: darwin
+        goarch: arm
 
 archives:
   - files:
