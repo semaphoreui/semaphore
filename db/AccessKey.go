@@ -130,6 +130,7 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (i
 			var agent ssh.Agent
 			agent, err = key.startSSHAgent(logger)
 			installation.SSHAgent = &agent
+			installation.Login = key.SshKey.Login
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
 		if key.Type != AccessKeyLoginPassword {
@@ -148,7 +149,7 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (i
 			var agent ssh.Agent
 			agent, err = key.startSSHAgent(logger)
 			installation.SSHAgent = &agent
-			installation.Login = key.LoginPassword.Login
+			installation.Login = key.SshKey.Login
 		case AccessKeyLoginPassword:
 			installation.Login = key.LoginPassword.Login
 			installation.Password = key.LoginPassword.Password
