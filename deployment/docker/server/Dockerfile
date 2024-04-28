@@ -7,19 +7,27 @@ WORKDIR /usr/local
 # hadolint ignore=DL4006
 RUN curl -sL https://taskfile.dev/install.sh | sh
 
-COPY ./ /go/src/semaphore
 WORKDIR /go/src/semaphore
+COPY go.mod go.sum /go/src/semaphore/
+
+RUN --mount=type=cache,target=/go/pkg \
+    go mod download -x
+
+COPY . /go/src/semaphore
 
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN task deps && \
+RUN --mount=type=cache,target=/go/src/semaphore/web/node_modules \
+    --mount=type=cache,target=/go/pkg \
+    --mount=type=cache,target=/root/.cache/go-build \
+    task deps && \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 FROM alpine:3.19
 
 RUN apk add --no-cache -U \
-    curl git mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
+    bash curl git mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
     rm -rf /var/cache/apk/* && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
@@ -43,6 +51,8 @@ USER 1001
 
 # renovate: datasource=pypi depName=ansible
 ENV ANSIBLE_VERSION 9.4.0
+
+ENV PATH /home/semaphore/.local/bin:$PATH
 
 # hadolint ignore=DL3013
 RUN pip3 install -U --break-system-packages --no-cache-dir \
