@@ -17,7 +17,7 @@ RUN task deps:tools && \
 FROM apiaryio/dredd:13.0.0
 
 RUN apk add --no-cache -U \
-    bash git
+    bash git go
 
 COPY --from=golang /go/bin/goodman /usr/local/bin/goodman
 COPY --from=golang /semaphore /semaphore
