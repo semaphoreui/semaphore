@@ -185,7 +185,7 @@ if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
 else
     echoerr "No additional python dependencies to install"
 fi
-SEMAPHORE_CONFIG_PATH
+
 echoerr "Starting semaphore server"
 if test "$#" -ne 1; then
     exec /usr/local/bin/semaphore server  --config "${SEMAPHORE_CONFIG_PATH}/config.json"
