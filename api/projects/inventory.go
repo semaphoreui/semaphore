@@ -172,7 +172,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		helpers.WriteErrorStatus(w,
-			"unknown inventory type: %s"+string(inventory.Type),
+			"unknown inventory type: "+string(inventory.Type),
 			http.StatusBadRequest)
 		return
 	}
