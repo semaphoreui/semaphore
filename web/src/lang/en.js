@@ -238,5 +238,5 @@ export default {
   Run: 'Run',
   CreateDemoProject: 'Create Demo Project',
   LeaveProject: 'Leave Project',
-
+  integration: 'Integration',
 };

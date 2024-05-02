@@ -23,9 +23,12 @@
         <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
-              <v-list-item-content>
+              <v-list-item-content v-if="!item.integration">
                 <v-list-item-title>{{ $t('author') }}</v-list-item-title>
                 <v-list-item-subtitle>{{ user.name || '-' }}</v-list-item-subtitle>
+              </v-list-item-content>
+              <v-list-item-content v-if="item.integration">
+                <v-list-item-title>{{ $t('integration') }}</v-list-item-title>
               </v-list-item-content>
             </v-list-item>
           </v-list>

@@ -20,6 +20,8 @@ type Task struct {
 	DryRun bool `db:"dry_run" json:"dry_run"`
 	Diff   bool `db:"diff" json:"diff"`
 
+	Integration bool `db:"integration" json:"integration"`
+
 	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
 	Environment string `db:"environment" json:"environment"`
