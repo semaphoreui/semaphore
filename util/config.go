@@ -134,7 +134,7 @@ type ConfigType struct {
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
-	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_TMP_PATH"`
+	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_SSH_PATH"`
 
 	GitClientId string `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
