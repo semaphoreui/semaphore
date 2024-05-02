@@ -6,7 +6,7 @@ volumes:
 services:
   server:
     environment:
-      - SEMAPHORE_DB_DIALECT=sqlite
-      - SEMAPHORE_DB_PATH=/var/lib/database
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_PATH: /var/lib/database
     volumes:
       - sqlite:/var/lib/database

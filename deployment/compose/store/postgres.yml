@@ -6,12 +6,12 @@ volumes:
 services:
   server:
     environment:
-      - SEMAPHORE_DB_DIALECT=postgres
-      - SEMAPHORE_DB_HOST=db
-      - SEMAPHORE_DB_PORT=5432
-      - SEMAPHORE_DB_USER=${POSTGRES_USERNAME:-semaphore}
-      - SEMAPHORE_DB_PASS=${POSTGRES_PASSWORD:-semaphore}
-      - SEMAPHORE_DB=${POSTGRES_DATABASE:-semaphore}
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_HOST: db
+      SEMAPHORE_DB_PORT: 5432
+      SEMAPHORE_DB_USER: ${POSTGRES_USERNAME:-semaphore}
+      SEMAPHORE_DB_PASS: ${POSTGRES_PASSWORD:-semaphore}
+      SEMAPHORE_DB: ${POSTGRES_DATABASE:-semaphore}
     depends_on:
       - db
 
@@ -19,8 +19,8 @@ services:
     image: postgres:14.3
     restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USERNAME:-semaphore}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-semaphore}
-      - POSTGRES_DB=${POSTGRES_DATABASE:-semaphore}
+      POSTGRES_USER: ${POSTGRES_USERNAME:-semaphore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-semaphore}
+      POSTGRES_DB: ${POSTGRES_DATABASE:-semaphore}
     volumes:
       - postgres:/var/lib/postgresql
