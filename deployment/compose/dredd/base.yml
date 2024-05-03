@@ -18,7 +18,7 @@ services:
       dockerfile: deployment/docker/dredd/Dockerfile
     command:
       - --config
-      - .dredd/dredd.yml
+      - .dredd/dredd.docker.yml
     environment:
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
     volumes:

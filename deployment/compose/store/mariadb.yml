@@ -22,6 +22,6 @@ services:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT:-root}
       MARIADB_USER: ${MARIADB_USERNAME:-semaphore}
       MARIADB_PASSWORD: ${MARIADB_PASSWORD:-semaphore}
-      MARIADB_DATABASE:${MARIADB_DATABASE:-semaphore}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-semaphore}
     volumes:
       - mariadb:/var/lib/mysql
