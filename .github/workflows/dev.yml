@@ -530,6 +530,7 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
 
     needs:
       - integrate-boltdb
