@@ -53,7 +53,7 @@ jobs:
           path: bin/semaphore
           retention-days: 1
 
-  test-boltdb:
+  migrate-boltdb:
     runs-on: ubuntu-latest
 
     needs:
@@ -81,7 +81,7 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-  test-mysql:
+  migrate-mysql:
     runs-on: ubuntu-latest
 
     needs:
@@ -128,7 +128,7 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-  test-mariadb:
+  migrate-mariadb:
     runs-on: ubuntu-latest
 
     needs:
@@ -175,7 +175,7 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-  test-postgres:
+  migrate-postgres:
     runs-on: ubuntu-latest
 
     needs:
@@ -224,29 +224,20 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-  test-e2e:
+  integrate-boltdb:
     runs-on: ubuntu-latest
 
     needs:
-      - test-boltdb
-      - test-mysql
-      - test-mariadb
-      - test-postgres
+      - migrate-boltdb
+      - migrate-mysql
+      - migrate-mariadb
+      - migrate-postgres
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: '^1.21.0'
-
-      - name: Install go-task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-
-      - name: Compose bolt
+      - name: Launch compose
         run: |
           docker-compose \
             -f deployment/compose/server/base.yml \
@@ -255,6 +246,19 @@ jobs:
             -f deployment/compose/dredd/base.yml \
             -f deployment/compose/dredd/boltdb.yml \
             up --abort-on-container-exit
+
+  integrate-mysql:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-boltdb
+      - migrate-mysql
+      - migrate-mariadb
+      - migrate-postgres
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
 
       - name: Compose mysql
         run: |
@@ -266,6 +270,19 @@ jobs:
             -f deployment/compose/dredd/mysql.yml \
             up --abort-on-container-exit
 
+  integrate-mariadb:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-boltdb
+      - migrate-mysql
+      - migrate-mariadb
+      - migrate-postgres
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
       - name: Compose mariadb
         run: |
           docker-compose \
@@ -275,6 +292,19 @@ jobs:
             -f deployment/compose/dredd/base.yml \
             -f deployment/compose/dredd/mariadb.yml \
             up --abort-on-container-exit
+
+  integrate-postgres:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-boltdb
+      - migrate-mysql
+      - migrate-mariadb
+      - migrate-postgres
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
 
       - name: Compose postgres
         run: |
@@ -290,7 +320,10 @@ jobs:
     runs-on: ubuntu-latest
 
     needs:
-      - test-e2e
+      - integrate-boltdb
+      - integrate-mysql
+      - integrate-mariadb
+      - integrate-postgres
 
     steps:
       - name: Checkout source
