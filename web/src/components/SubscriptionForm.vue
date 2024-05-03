@@ -7,8 +7,7 @@
   >
     <v-alert
       :value="formError"
-      color="error"
-      class="pb-2"
+      :color="(formError || '').includes('already activated') ? 'warning' : 'error'"
     >{{ formError }}
     </v-alert>
 

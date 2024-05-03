@@ -68,6 +68,11 @@ func Activate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if resp.StatusCode == 409 {
+		helpers.WriteErrorStatus(w, "Subscription key already activated.", resp.StatusCode)
+		return
+	}
+
 	if resp.StatusCode != 200 {
 		helpers.WriteErrorStatus(w, "Invalid subscription key.", http.StatusNotFound)
 		return
