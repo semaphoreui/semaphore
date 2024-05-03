@@ -27,12 +27,10 @@ tasks:
   deps:tools:
     desc: Installs required tools to build and publish
     vars:
-      GOODMAN_VERSION: latest
       SWAGGER_VERSION: v0.30.5
       GORELEASER_VERSION: v1.25.1
       GOLINTER_VERSION: v1.57.2
     cmds:
-      - go install github.com/snikch/goodman/cmd/goodman@{{ .GOODMAN_VERSION }}
       - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
       - go install github.com/goreleaser/goreleaser@{{ .GORELEASER_VERSION }}
       - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
@@ -122,6 +120,11 @@ tasks:
     cmds:
       - go test -v -coverprofile=coverage.out ./...
 
+  e2e:goodman:
+    desc: Installs goodman which is required by dredd
+    cmds:
+      - go install github.com/snikch/goodman/cmd/goodman@latest
+
   e2e:deps:
     desc: Installs dredd dep for integration testing
     dir: web
@@ -137,7 +140,7 @@ tasks:
   e2e:test:
     desc: Run end to end test for API with dredd
     cmds:
-      - ./web/node_modules/.bin/dredd --config .dredd/dredd.yml
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml
 
   release:prod:
     desc: Create and publish a release

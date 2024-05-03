@@ -1,6 +1,7 @@
 dry-run: null
 hookfiles: ./.dredd/compiled_hooks
 language: go
+server: ./semaphore server --config .dredd/config.json
 server-wait: 5
 init: false
 custom: {}
@@ -27,4 +28,4 @@ hooks-worker-handler-host: 0.0.0.0
 hooks-worker-handler-port: 61321
 config: ./.dredd/dredd.yml
 blueprint: api-docs.yml
-endpoint: 'http://server:3000'
+endpoint: 'http://localhost:3000'

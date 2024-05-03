@@ -88,7 +88,7 @@ jobs:
       - build-local
 
     services:
-      postgres:
+      mysql:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
@@ -135,7 +135,7 @@ jobs:
       - build-local
 
     services:
-      postgres:
+      mariadb:
         image: mariadb:10.4
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
@@ -229,92 +229,304 @@ jobs:
 
     needs:
       - migrate-boltdb
-      - migrate-mysql
-      - migrate-mariadb
-      - migrate-postgres
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Launch compose
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
         run: |
-          docker-compose \
-            -f deployment/compose/server/base.yml \
-            -f deployment/compose/server/build.yml \
-            -f deployment/compose/store/boltdb.yml \
-            -f deployment/compose/dredd/base.yml \
-            -f deployment/compose/dredd/boltdb.yml \
-            up --abort-on-container-exit
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          2
+          /tmp/database.bolt
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
 
   integrate-mysql:
     runs-on: ubuntu-latest
 
     needs:
-      - migrate-boltdb
       - migrate-mysql
-      - migrate-mariadb
-      - migrate-postgres
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: p455w0rd
+          MYSQL_USER: semaphore
+          MYSQL_PASSWORD: p455w0rd
+          MYSQL_DATABASE: semaphore
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Compose mysql
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
         run: |
-          docker-compose \
-            -f deployment/compose/server/base.yml \
-            -f deployment/compose/server/build.yml \
-            -f deployment/compose/store/mysql.yml \
-            -f deployment/compose/dredd/base.yml \
-            -f deployment/compose/dredd/mysql.yml \
-            up --abort-on-container-exit
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          1
+          localhost:3306
+          semaphore
+          p455w0rd
+          semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
 
   integrate-mariadb:
     runs-on: ubuntu-latest
 
     needs:
-      - migrate-boltdb
-      - migrate-mysql
       - migrate-mariadb
-      - migrate-postgres
+
+    services:
+      mariadb:
+        image: mariadb:10.4
+        env:
+          MARIADB_ROOT_PASSWORD: p455w0rd
+          MARIADB_USER: semaphore
+          MARIADB_PASSWORD: p455w0rd
+          MARIADB_DATABASE: semaphore
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Compose mariadb
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
         run: |
-          docker-compose \
-            -f deployment/compose/server/base.yml \
-            -f deployment/compose/server/build.yml \
-            -f deployment/compose/store/mariadb.yml \
-            -f deployment/compose/dredd/base.yml \
-            -f deployment/compose/dredd/mariadb.yml \
-            up --abort-on-container-exit
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          1
+          localhost:3306
+          semaphore
+          p455w0rd
+          semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
 
   integrate-postgres:
     runs-on: ubuntu-latest
 
     needs:
-      - migrate-boltdb
-      - migrate-mysql
-      - migrate-mariadb
       - migrate-postgres
+
+    services:
+      postgres:
+        image: postgres:12.18
+        env:
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: p455w0rd
+          POSTGRES_DB: semaphore
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Compose postgres
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
         run: |
-          docker-compose \
-            -f deployment/compose/server/base.yml \
-            -f deployment/compose/server/build.yml \
-            -f deployment/compose/store/postgres.yml \
-            -f deployment/compose/dredd/base.yml \
-            -f deployment/compose/dredd/postgres.yml \
-            up --abort-on-container-exit
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          3
+          localhost:5432
+          semaphore
+          p455w0rd
+          semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
 
   deploy-dev:
     runs-on: ubuntu-latest
