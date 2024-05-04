@@ -43,6 +43,11 @@ type AccessKey struct {
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
+
+	RepositorySSHKeys   []*Repository `gorm:"foreignKey:SSHKeyID" json:"-"`
+	InventorySSHKeys    []*Inventory  `gorm:"foreignKey:SSHKeyID" json:"-"`
+	InventoryBecomeKeys []*Inventory  `gorm:"foreignKey:BecomeKeyID" json:"-"`
+	TemplateVaultKeys   []*Template   `gorm:"foreignKey:VaultKeyID" json:"-"`
 }
 
 type LoginPassword struct {
