@@ -13,9 +13,16 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
-	_ "github.com/go-sql-driver/mysql" // imports mysql driver
-	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
+
+	// Import MySQL driver
+	_ "github.com/go-sql-driver/mysql"
+
+	// Import PostgreSQL driver
+	_ "github.com/lib/pq"
+
+	// Import SQLite driver
+	_ "modernc.org/sqlite"
 )
 
 type SqlDb struct {

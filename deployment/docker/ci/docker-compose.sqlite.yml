@@ -1,0 +1,38 @@
+version: '2'
+
+volumes:
+  data:
+
+services:
+  semaphore_ci:
+    image: semaphoreui/semaphore:ci-compose
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/ci/Dockerfile
+    environment:
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_ADMIN_PASSWORD: password
+      SEMAPHORE_ADMIN_NAME: "Developer"
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
+    ports:
+      - "3000:3000"
+    volumes:
+      - data:/var/lib/semaphore
+
+  dredd:
+    image: semaphoreui/dredd:ci
+    command: [ "--config", ".dredd/dredd.yml" ]
+    environment:
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ="
+      SEMAPHORE_DB_DIALECT: sqlite
+    build:
+      context: ./../../../
+      dockerfile: ./deployment/docker/ci/dredd.Dockerfile
+    depends_on:
+      - semaphore_ci
+    volumes:
+      - data:/data
+

@@ -28,6 +28,7 @@ func InteractiveSetup(conf *util.ConfigType) {
    1 - MySQL
    2 - BoltDB
    3 - PostgreSQL
+   4 - SQLite
 `
 
 	var db int
@@ -43,6 +44,9 @@ func InteractiveSetup(conf *util.ConfigType) {
 	case 3:
 		conf.Dialect = util.DbDriverPostgres
 		scanPostgres(conf)
+	case 4:
+		conf.Dialect = util.DbDriverSQLite
+		scanSQLite(conf)
 	}
 
 	defaultPlaybookPath := filepath.Join(os.TempDir(), "semaphore")
@@ -72,7 +76,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askConfirmation("Enable Rocket.Chat alerts?", false, &conf.RocketChatAlert)
 	if conf.RocketChatAlert {
 		askValue("Rocket.Chat Webhook URL", "", &conf.RocketChatUrl)
-	}	
+	}
 
 	askConfirmation("Enable Microsoft Team Channel alerts?", false, &conf.MicrosoftTeamsAlert)
 	if conf.MicrosoftTeamsAlert {
@@ -121,6 +125,15 @@ func scanPostgres(conf *util.ConfigType) {
 	if _, exists := conf.Postgres.Options["sslmode"]; !exists {
 		conf.Postgres.Options["sslmode"] = "disable"
 	}
+}
+
+func scanSQLite(conf *util.ConfigType) {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		workingDirectory = os.TempDir()
+	}
+	defaultSQLitePath := filepath.Join(workingDirectory, "database.sqlite3")
+	askValue("db filename", defaultSQLitePath, &conf.SQLite.Hostname)
 }
 
 func scanErrorChecker(n int, err error) {

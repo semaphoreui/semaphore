@@ -11,6 +11,7 @@ api/public/**/*
 /database.boltdb
 /database.boltdb.lock
 /database_test.boltdb
+/database.sqlite*
 .DS_Store
 node_modules/
 

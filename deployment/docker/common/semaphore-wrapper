@@ -97,6 +97,7 @@ case ${SEMAPHORE_DB_DIALECT} in
     mysql) SEMAPHORE_DB_DIALECT_ID=1;;
     bolt) SEMAPHORE_DB_DIALECT_ID=2;;
     postgres) SEMAPHORE_DB_DIALECT_ID=3;;
+    sqlite) SEMAPHORE_DB_DIALECT_ID=4;;
     *)
         echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
         exit 1
@@ -113,6 +114,10 @@ EOF
     if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
       cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
 ${SEMAPHORE_DB_PATH}/database.boltdb
+EOF
+    elif [ "${SEMAPHORE_DB_DIALECT}" = "sqlite" ]; then
+      cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+${SEMAPHORE_DB_PATH}/database.sqlite3
 EOF
     else
       cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"

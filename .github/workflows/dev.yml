@@ -77,6 +77,11 @@ jobs:
 
       - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
 
+      - run: "cat > config.json <<EOF\n{\n\t\"sqlite\": {\n\t\t\"host\": \"/tmp/database.sqlite3\"\
+          \n\t},\n\t\"dialect\": \"sqlite\",\n\t\"email_alert\": false\n}\nEOF\n"
+
+      - run: chmod +x ./semaphore && ./semaphore migrate --config config.json
+
   test-integration:
     runs-on: [ubuntu-latest]
     needs: [test-db-migration]
@@ -91,6 +96,7 @@ jobs:
       - run: context=ci prefix=.postgres task dc:up
       - run: context=ci prefix=.bolt task dc:up
       - run: context=ci prefix=.mysql task dc:up
+      - run: context=ci prefix=.sqlite task dc:up
 
   deploy-dev:
     runs-on: [ubuntu-latest]

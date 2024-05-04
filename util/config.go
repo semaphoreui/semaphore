@@ -31,6 +31,7 @@ const (
 	DbDriverMySQL    = "mysql"
 	DbDriverBolt     = "bolt"
 	DbDriverPostgres = "postgres"
+	DbDriverSQLite   = "sqlite"
 )
 
 type DbConfig struct {
@@ -118,8 +119,9 @@ type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
 	BoltDb   DbConfig `json:"bolt"`
 	Postgres DbConfig `json:"postgres"`
+	SQLite   DbConfig `json:"sqlite"`
 
-	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -693,6 +695,24 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				dbHost)
 		}
 		connectionString += mapToQueryString(d.Options)
+	case DbDriverSQLite:
+		query := url.Values{}
+		query.Add("_journal_mode", "WAL")
+		query.Add("_busy_timeout", "5000")
+		query.Add("_foreign_keys", "1")
+
+		for v, k := range d.Options {
+			query.Add(
+				v,
+				k,
+			)
+		}
+
+		connectionString = fmt.Sprintf(
+			"%s?%s",
+			dbHost,
+			query.Encode(),
+		)
 	default:
 		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
 	}
@@ -711,6 +731,8 @@ func (conf *ConfigType) PrintDbInfo() {
 		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
+	case DbDriverSQLite:
+		fmt.Printf("SQLite %v\n", conf.SQLite.GetHostname())
 	default:
 		panic(fmt.Errorf("database configuration not found"))
 	}
@@ -725,6 +747,8 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
 			dialect = DbDriverPostgres
+		case conf.SQLite.IsPresent():
+			dialect = DbDriverSQLite
 		default:
 			err = errors.New("database configuration not found")
 		}
@@ -750,6 +774,8 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 		dbConfig = conf.Postgres
 	case DbDriverMySQL:
 		dbConfig = conf.MySQL
+	case DbDriverSQLite:
+		dbConfig = conf.SQLite
 	default:
 		err = errors.New("database configuration not found")
 	}
