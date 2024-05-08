@@ -24,7 +24,7 @@ func (d *SqlDb) SetOption(key string, value string) error {
 
 func (d *SqlDb) getOption(key string) (value string, err error) {
 	q := squirrel.Select("*").
-		From(db.OptionProps.TableName).
+		From("`"+db.OptionProps.TableName+"`").
 		Where("`key`=?", key)
 
 	query, args, err := q.ToSql()
