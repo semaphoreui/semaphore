@@ -12,8 +12,8 @@ RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc unzip
 RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
 
 RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
-RUN unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /usr/bin
-RUN rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+RUN unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /usr/bin
+RUN rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 
 FROM alpine:3.18 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
