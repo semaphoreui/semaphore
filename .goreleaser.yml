@@ -22,11 +22,16 @@ builds:
       - amd64
       - arm
       - arm64
+      - ppc64le
     ignore:
       - goos: darwin
         goarch: 386
       - goos: darwin
         goarch: arm
+      - goos: darwin
+        goarch: ppc64le
+      - goos: windows
+        goarch: ppc64le
 
 archives:
   - files:
