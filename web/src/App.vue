@@ -992,11 +992,13 @@ export default {
   },
 
   methods: {
-    onSubscriptionKeyUpdates() {
+    async onSubscriptionKeyUpdates() {
       EventBus.$emit('i-snackbar', {
         color: 'success',
         text: 'Subscription activated',
       });
+
+      await this.loadUserInfo();
     },
 
     selectLanguage(lang) {
