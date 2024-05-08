@@ -18,7 +18,6 @@ node_modules/
 /semaphore.iml
 /bin/
 
-util/version.go
 /vendor/
 /coverage.out
 /public/package-lock.json

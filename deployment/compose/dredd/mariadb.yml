@@ -1,0 +1,10 @@
+version: "3.4"
+
+services:
+  dredd:
+    environment:
+      SEMAPHORE_DB_DIALECT: mysql
+      SEMAPHORE_DB_CONFIG: '{"host": "db:3306","user": "semaphore","pass": "semaphore","name": "semaphore"}'
+    depends_on:
+      - server
+      - db

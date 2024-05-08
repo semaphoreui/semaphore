@@ -1,6 +1,7 @@
 dry-run: null
 hookfiles: ./.dredd/compiled_hooks
 language: go
+server: ./semaphore server --config .dredd/config.json
 server-wait: 5
 init: false
 custom: {}

@@ -1,0 +1,6 @@
+version: "3.4"
+
+services:
+  runner:
+    volumes:
+      - ${SEMAPHORE_RUNNER_LOCAL_CONFIG:-runner.json}:/etc/semaphore/config.json:Z

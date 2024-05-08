@@ -27,4 +27,4 @@ hooks-worker-handler-host: 0.0.0.0
 hooks-worker-handler-port: 61321
 config: ./.dredd/dredd.yml
 blueprint: api-docs.yml
-endpoint: 'http://localhost:3000'
+endpoint: 'http://server:3000'

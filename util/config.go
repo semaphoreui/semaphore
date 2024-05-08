@@ -598,7 +598,7 @@ func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	}
 
 	updateAvailable = nil
-	if (*releases[0].TagName)[1:] != Version {
+	if (*releases[0].TagName)[1:] != Version() {
 		updateAvailable = releases[0]
 	}
 

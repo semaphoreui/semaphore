@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -12,10 +15,8 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"net/http"
-	"os"
-	"strings"
 )
 
 var configPath string
@@ -56,7 +57,7 @@ func runService() {
 	}
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
-	fmt.Printf("Semaphore %v\n", util.Version)
+	fmt.Printf("Semaphore %v\n", util.Version())
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 

@@ -1,0 +1,25 @@
+version: "3.4"
+
+volumes:
+  dredd:
+
+services:
+  server:
+    environment:
+      SEMAPHORE_ADMIN_PASSWORD: password
+      SEMAPHORE_ADMIN_NAME: Developer
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
+
+  dredd:
+    build:
+      context: ../../../
+      dockerfile: deployment/docker/dredd/Dockerfile
+    command:
+      - --config
+      - .dredd/dredd.docker.yml
+    environment:
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
+    volumes:
+      - dredd:/data

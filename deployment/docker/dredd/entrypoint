@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+echo "---> Gen semaphore config"
+cat << EOF > /semaphore/.dredd/config.json
+{
+  "dialect": "${SEMAPHORE_DB_DIALECT}",
+  "${SEMAPHORE_DB_DIALECT}": ${SEMAPHORE_DB_CONFIG},
+  "access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
+}
+EOF
+
+echo "---> Waiting for semaphore"
+while ! nc -z server 3000; do
+  sleep 1
+done
+
+echo "---> Start dredd server"
+sleep 5
+dredd $@
