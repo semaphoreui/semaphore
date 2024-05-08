@@ -6,9 +6,14 @@ WORKDIR /go/src/github.com/ansible-semaphore/semaphore
 
 ARG TARGETOS
 ARG TARGETARCH
+ARG TERRAFORM_VERSION="1.8.2"
 
-RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc
+RUN apk add --no-cache -U libc-dev curl nodejs npm git gcc bash
 RUN ./deployment/docker/prod/bin/install ${TARGETOS} ${TARGETARCH}
+
+RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip \
+    && unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /usr/bin \
+    && rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip
 
 FROM alpine:3.18 as runner
 LABEL maintainer="Tom Whiston <tom.whiston@gmail.com>"
