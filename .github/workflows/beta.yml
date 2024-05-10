@@ -95,7 +95,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: deployment/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
@@ -121,7 +121,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
