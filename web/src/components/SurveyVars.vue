@@ -39,6 +39,56 @@
               item-value="id"
               item-text="name"
             ></v-select>
+
+            <v-data-table
+              v-if="editedVar.type === 'enum'"
+              :items="editedValues"
+              :items-per-page="-1"
+              class="elevation-1"
+              hide-default-footer
+            >
+              <template v-slot:item="props">
+                <tr>
+                  <td>
+                    <v-text-field
+                      solo-inverted
+                      flat
+                      hide-details
+                      v-model="props.item.name"
+                      class="v-text-field--solo--no-min-height"
+                    ></v-text-field>
+                  </td>
+                  <td>
+                    <v-text-field
+                      solo-inverted
+                      flat
+                      hide-details
+                      v-model="props.item.value"
+                      class="v-text-field--solo--no-min-height"
+                    ></v-text-field>
+                  </td>
+                  <td class="pa-0" style="width: 38px;">
+                    <v-icon
+                      small
+                      class="pa-1"
+                      @click="removeEditedVarValue(props.item)"
+                    >
+                      mdi-delete
+                    </v-icon>
+                  </td>
+                </tr>
+              </template>
+            </v-data-table>
+
+            <div class="text-right mt-2">
+
+              <v-btn
+                color="primary"
+                v-if="editedVar.type === 'enum'"
+                @click="addEditedVarValue()"
+              >Add Value</v-btn>
+            </div>
+
             <v-checkbox
               :label="$t('required')"
               v-model="editedVar.required"
@@ -114,6 +164,7 @@ export default {
     return {
       editDialog: null,
       editedVar: null,
+      editedValues: [],
       editedVarIndex: null,
       modifiedVars: null,
       varTypes: [{
@@ -122,16 +173,40 @@ export default {
       }, {
         id: 'int',
         name: 'Integer',
+      }, {
+        id: 'enum',
+        name: 'Enum',
       }],
     };
   },
   methods: {
+    addEditedVarValue() {
+      this.editedValues.push({
+        name: '',
+        value: '',
+      });
+    },
+
+    removeEditedVarValue(val) {
+      const i = this.editedValues.findIndex((v) => v.name === val.name);
+      if (i > -1) {
+        this.editedValues.splice(i, 1);
+      }
+    },
+
     editVar(index) {
       this.editedVar = index != null ? { ...this.modifiedVars[index] } : {};
+
+      this.editedValues = [];
+      this.editedValues.push(...(this.editedVar.values || []));
+      this.editedVar.values = this.editedValues;
+
       this.editedVarIndex = index;
+
       if (this.$refs.form) {
         this.$refs.form.resetValidation();
       }
+
       this.editDialog = true;
     },
 
