@@ -125,7 +125,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm/v6
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
