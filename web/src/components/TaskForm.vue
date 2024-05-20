@@ -119,7 +119,6 @@
       text
       class="mb-2"
     >
-      {{ $t('pleaseAllowOverridingCliArgumentInTaskTemplateSett') }}<br>
       <div style="position: relative; margin-top: 10px;">
         <video
           autoplay
