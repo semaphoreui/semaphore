@@ -254,16 +254,8 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 	var taskDefinition = db.Task{
 		TemplateID:  integration.TemplateID,
 		ProjectID:   integration.ProjectID,
-		Debug:       true,
 		Environment: environmentJSONString,
 	}
-
-	//var user db.User
-	//user, err = helpers.Store(r).GetUser(1)
-	//if err != nil {
-	//	log.Error(err)
-	//	return
-	//}
 
 	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID)
 	if err != nil {

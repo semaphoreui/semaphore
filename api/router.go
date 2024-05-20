@@ -435,7 +435,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 	body := map[string]interface{}{
-		"version": util.Version,
+		"version": util.Version(),
 		"ansible": util.AnsibleVersion(),
 	}
 

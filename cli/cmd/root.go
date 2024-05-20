@@ -57,7 +57,7 @@ func runService() {
 	}
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
-	fmt.Printf("Semaphore %v\n", util.Version)
+	fmt.Printf("Semaphore %v\n", util.Version())
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 

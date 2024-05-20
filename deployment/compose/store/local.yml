@@ -1,0 +1,31 @@
+version: "3.4"
+
+volumes:
+  mariadb:
+  postgres:
+
+services:
+  mariadb:
+    image: mariadb:10.8
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_USER: semaphore
+      MARIADB_PASSWORD: semaphore
+      MARIADB_DATABASE: semaphore
+    volumes:
+      - mariadb:/var/lib/mysql
+    ports:
+      - 3306:3306
+
+  postgres:
+    image: postgres:14.3
+    restart: always
+    environment:
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
+    volumes:
+      - postgres:/var/lib/postgresql
+    ports:
+      - 5432:5432

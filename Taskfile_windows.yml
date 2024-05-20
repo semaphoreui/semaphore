@@ -1,9 +1,0 @@
-version: '2'
-tasks:
-  compile:be:
-    cmds:
-      - go run util/version_gen/generator.go 1
-  build:local:
-    dir: cli
-    cmds:
-    - go build -o ../bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}

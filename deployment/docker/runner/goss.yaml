@@ -1,0 +1,60 @@
+file:
+  /usr/local/bin/runner-wrapper:
+    exists: true
+    owner: semaphore
+    group: root
+    filetype: file
+  /usr/local/bin/semaphore:
+    exists: true
+    owner: semaphore
+    group: root
+    filetype: file
+
+package:
+  go:
+    installed: false
+  libc-dev:
+    installed: false
+  nodejs:
+    installed: false
+
+  curl:
+    installed: true
+  git:
+    installed: true
+  mysql-client:
+    installed: true
+  openssh-client-default:
+    installed: true
+  python3:
+    installed: true
+  py3-pip:
+    installed: true
+  rsync:
+    installed: true
+  sshpass:
+    installed: true
+  tar:
+    installed: true
+  tini:
+    installed: true
+  tzdata:
+    installed: true
+  unzip:
+    installed: true
+  wget:
+    installed: true
+  zip:
+    installed: true
+
+user:
+  semaphore:
+    exists: true
+    uid: 1001
+    gid: 0
+    home: /home/semaphore
+
+command:
+  semaphore:
+    exit-status: 0
+    timeout: 10000

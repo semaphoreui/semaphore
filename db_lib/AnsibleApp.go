@@ -91,7 +91,7 @@ func (t *AnsibleApp) getRepoPath() string {
 }
 
 func (t *AnsibleApp) installRolesRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getRepoPath(), "roles", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -126,7 +126,7 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 }
 
 func (t *AnsibleApp) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.GetPlaybookDir(), "collections", "requirements.yml")
+	requirementsFilePath := path.Join(t.getRepoPath(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {

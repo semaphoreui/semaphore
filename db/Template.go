@@ -23,16 +23,23 @@ const (
 type SurveyVarType string
 
 const (
-	SurveyVarStr TemplateType = ""
-	SurveyVarInt TemplateType = "int"
+	SurveyVarStr  TemplateType = ""
+	SurveyVarInt  TemplateType = "int"
+	SurveyVarEnum TemplateType = "enum"
 )
 
+type SurveyVarEnumValue struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type SurveyVar struct {
-	Name        string        `json:"name"`
-	Title       string        `json:"title"`
-	Required    bool          `json:"required"`
-	Type        SurveyVarType `json:"type"`
-	Description string        `json:"description"`
+	Name        string               `json:"name"`
+	Title       string               `json:"title"`
+	Required    bool                 `json:"required"`
+	Type        SurveyVarType        `json:"type"`
+	Description string               `json:"description"`
+	Values      []SurveyVarEnumValue `json:"values"`
 }
 
 type TemplateFilter struct {
