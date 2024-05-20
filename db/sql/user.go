@@ -2,8 +2,8 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
@@ -192,6 +192,15 @@ func (d *SqlDb) GetUser(userID int) (db.User, error) {
 	return user, err
 }
 
+func (d *SqlDb) GetUserCount() (count int, err error) {
+
+	cnt, err := d.sql.SelectInt("select count(*) from `user`")
+
+	count = int(cnt)
+
+	return
+}
+
 func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
 	query, args, err := getSqlForTable("user", params)
 
@@ -213,6 +222,12 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (existingUser 
 	if err == sql.ErrNoRows {
 		err = db.ErrNotFound
 	}
+
+	return
+}
+
+func (d *SqlDb) GetAllAdmins() (users []db.User, err error) {
+	_, err = d.selectAll(&users, "select * from `user` where `admin` = true")
 
 	return
 }

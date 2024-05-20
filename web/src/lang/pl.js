@@ -178,7 +178,7 @@ export default {
   taskTemplates2: 'Szablony zadań',
   all: 'Wszystko',
   notLaunched: 'Nie uruchomiono',
-  by: 'by {user_name} {formatDate}',
+  by: 'by {user_name}',
   editTemplate: 'Modyfikuj Szablon',
   newTemplate2: 'Nowy Szablon',
   deleteTemplate: 'Usuń szablon',

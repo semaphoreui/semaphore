@@ -1,0 +1,27 @@
+version: "3.4"
+
+volumes:
+  mariadb:
+
+services:
+  server:
+    environment:
+      SEMAPHORE_DB_DIALECT: mysql
+      SEMAPHORE_DB_HOST: db
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB_USER: ${MARIADB_USERNAME:-semaphore}
+      SEMAPHORE_DB_PASS: ${MARIADB_PASSWORD:-semaphore}
+      SEMAPHORE_DB: ${MARIADB_DATABASE:-semaphore}
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:10.8
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT:-root}
+      MARIADB_USER: ${MARIADB_USERNAME:-semaphore}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-semaphore}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-semaphore}
+    volumes:
+      - mariadb:/var/lib/mysql

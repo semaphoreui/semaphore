@@ -160,15 +160,16 @@ type Store interface {
 	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
-	GetIntegrationAlias(projectID int, integrationID *int) (IntegrationAlias, error)
-	GetIntegrationAliasByAlias(alias string) (IntegrationAlias, error)
-	UpdateIntegrationAlias(alias IntegrationAlias) error
-	DeleteIntegrationAlias(projectID int, integrationID *int) error
+	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
+	GetIntegrationsByAlias(alias string) ([]Integration, error)
+	DeleteIntegrationAlias(projectID int, aliasID int) error
+	GetAllSearchableIntegrations() ([]Integration, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
 
+	GetUserCount() (int, error)
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
 	CreateUser(user UserWithPwd) (User, error)
@@ -203,6 +204,7 @@ type Store interface {
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
 
+	GetAllAdmins() ([]User, error)
 	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
 	DeleteProjectUser(projectID int, userID int) error

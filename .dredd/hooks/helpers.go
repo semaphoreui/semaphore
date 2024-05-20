@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"os"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/db/sql"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/snikch/goodman/transaction"
@@ -291,24 +291,13 @@ func addToken(tok string, user int) {
 }
 
 // HELPERS
-var r *rand.Rand
 var randSetup = false
 
 func getUUID() string {
 	if !randSetup {
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 		randSetup = true
 	}
-	return randomString(8)
-}
-func randomString(strlen int) string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := ""
-	for i := 0; i < strlen; i++ {
-		index := r.Intn(len(chars))
-		result += chars[index : index+1]
-	}
-	return result
+	return random.String(8)
 }
 
 func loadConfig() {

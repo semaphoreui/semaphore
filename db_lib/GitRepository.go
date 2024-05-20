@@ -1,10 +1,10 @@
 package db_lib
 
 import (
-	"github.com/ansible-semaphore/semaphore/lib"
 	"os"
 
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 )
 
 type GitRepositoryDirType int
@@ -27,7 +27,7 @@ type GitClient interface {
 type GitRepository struct {
 	TemplateID int
 	Repository db.Repository
-	Logger     lib.Logger
+	Logger     task_logger.Logger
 	Client     GitClient
 }
 

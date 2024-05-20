@@ -45,10 +45,7 @@
       :disabled="formSaving"
     />
 
-    <div
-        v-for="(v) in template.survey_vars || []"
-        :key="v.name"
-    >
+    <div v-for="(v) in template.survey_vars || []" :key="v.name">
 
       <v-text-field
         v-if="v.type === 'secret'"
@@ -62,17 +59,32 @@
           ]"
       />
 
-      <v-text-field
-        v-else
-        :label="v.title"
+      <v-select
+        clearable
+        v-else-if="v.type === 'enum'"
+        :label="v.title + (v.required ? ' *' : '')"
         :hint="v.description"
         v-model="editedEnvironment[v.name]"
         :required="v.required"
         :rules="[
-            val => !v.required || !!val || v.title + $t('isRequired'),
-            val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
-            v.title + ' ' + $t('mustBeInteger'),
-          ]"
+          val => !v.required || val != null || v.title + ' ' + $t('isRequired')
+        ]"
+        :items="v.values"
+        item-text="name"
+        item-value="value"
+      />
+
+      <v-text-field
+        v-else
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          val => !v.required || !!val || v.title + ' ' + $t('isRequired'),
+          val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
+          v.title + ' ' + $t('mustBeInteger'),
+        ]"
       />
     </div>
 
@@ -121,7 +133,6 @@
       text
       class="mb-2"
     >
-      {{ $t('pleaseAllowOverridingCliArgumentInTaskTemplateSett') }}<br>
       <div style="position: relative; margin-top: 10px;">
         <video
           autoplay

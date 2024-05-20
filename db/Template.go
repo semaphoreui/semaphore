@@ -21,16 +21,23 @@ const (
 type SurveyVarType string
 
 const (
-	SurveyVarStr TemplateType = ""
-	SurveyVarInt TemplateType = "int"
+	SurveyVarStr  TemplateType = ""
+	SurveyVarInt  TemplateType = "int"
+	SurveyVarEnum TemplateType = "enum"
 )
 
+type SurveyVarEnumValue struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type SurveyVar struct {
-	Name        string        `json:"name"`
-	Title       string        `json:"title"`
-	Required    bool          `json:"required"`
-	Type        SurveyVarType `json:"type"`
-	Description string        `json:"description"`
+	Name        string               `json:"name"`
+	Title       string               `json:"title"`
+	Required    bool                 `json:"required"`
+	Type        SurveyVarType        `json:"type"`
+	Description string               `json:"description"`
+	Values      []SurveyVarEnumValue `json:"values"`
 }
 
 type TemplateFilter struct {
@@ -44,7 +51,7 @@ type Template struct {
 	ID int `db:"id" json:"id"`
 
 	ProjectID     int  `db:"project_id" json:"project_id"`
-	InventoryID   int  `db:"inventory_id" json:"inventory_id"`
+	InventoryID   *int `db:"inventory_id" json:"inventory_id"`
 	RepositoryID  int  `db:"repository_id" json:"repository_id"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id"`
 
@@ -84,6 +91,13 @@ type Template struct {
 }
 
 func (tpl *Template) Validate() error {
+	switch tpl.App {
+	case TemplateAnsible:
+		if tpl.InventoryID == nil {
+			return &ValidationError{"template inventory can not be empty"}
+		}
+	}
+
 	if tpl.Name == "" {
 		return &ValidationError{"template name can not be empty"}
 	}

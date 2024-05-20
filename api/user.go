@@ -21,13 +21,11 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	var user struct {
 		db.User
-		CanCreateProject   bool `json:"can_create_project"`
-		IntegrationsEnable bool `json:"integrations_enable"`
+		CanCreateProject bool `json:"can_create_project"`
 	}
 
 	user.User = *context.Get(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
-	user.IntegrationsEnable = util.Config.IntegrationsEnable
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }

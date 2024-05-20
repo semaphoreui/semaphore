@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"database/sql"
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
 )
@@ -40,13 +41,6 @@ func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (i
 	return integrations, err
 }
 
-func (d *SqlDb) GetAllIntegrations() (integrations []db.Integration, err error) {
-	var integrationObjects interface{}
-	integrationObjects, err = d.GetAllObjects(db.IntegrationProps)
-	integrations = integrationObjects.([]db.Integration)
-	return
-}
-
 func (d *SqlDb) GetIntegration(projectID int, integrationID int) (integration db.Integration, err error) {
 	err = d.getObject(projectID, db.IntegrationProps, integrationID, &integration)
 	return
@@ -62,15 +56,6 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 }
 
 func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	//extractors, err := d.GetIntegrationExtractors(0, db.RetrieveQueryParams{}, integrationID)
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//for extractor := range extractors {
-	//	d.DeleteIntegrationExtractor(0, extractors[extractor].ID, integrationID)
-	//}
 	return d.deleteObject(projectID, db.IntegrationProps, integrationID)
 }
 
@@ -126,13 +111,6 @@ func (d *SqlDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQue
 	var values []db.IntegrationExtractValue
 	err := d.getObjectsByReferrer(integrationID, db.IntegrationProps, db.IntegrationExtractValueProps, params, &values)
 	return values, err
-}
-
-func (d *SqlDb) GetAllIntegrationExtractValues() (values []db.IntegrationExtractValue, err error) {
-	var valueObjects interface{}
-	valueObjects, err = d.GetAllObjects(db.IntegrationExtractValueProps)
-	values = valueObjects.([]db.IntegrationExtractValue)
-	return
 }
 
 func (d *SqlDb) GetIntegrationExtractValue(projectID int, valueID int, integrationID int) (value db.IntegrationExtractValue, err error) {
@@ -225,14 +203,6 @@ func (d *SqlDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryPar
 	return
 }
 
-func (d *SqlDb) GetAllIntegrationMatchers() (matchers []db.IntegrationMatcher, err error) {
-	var matcherObjects interface{}
-	matcherObjects, err = d.GetAllObjects(db.IntegrationMatcherProps)
-	matchers = matcherObjects.([]db.IntegrationMatcher)
-
-	return
-}
-
 func (d *SqlDb) GetIntegrationMatcher(projectID int, matcherID int, integrationID int) (matcher db.IntegrationMatcher, err error) {
 	query, args, err := squirrel.Select("m.*").
 		From("project__integration_matcher as m").
@@ -267,34 +237,114 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 	}
 
 	_, err = d.exec(
-		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where `id`=?",
+		"update project__integration_matcher set match_type=?, `method`=?, body_data_type=?, `key`=?, `value`=?, `name`=? where integration_id=? and `id`=?",
 		integrationMatcher.MatchType,
 		integrationMatcher.Method,
 		integrationMatcher.BodyDataType,
 		integrationMatcher.Key,
 		integrationMatcher.Value,
 		integrationMatcher.Name,
+		integrationMatcher.IntegrationID,
 		integrationMatcher.ID)
 
 	return err
 }
 
 func (d *SqlDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
+
+	insertID, err := d.insert(
+		"id",
+		"insert into project__integration_alias (project_id, integration_id, alias) values (?, ?, ?)",
+		alias.ProjectID,
+		alias.IntegrationID,
+		alias.Alias)
+
+	if err != nil {
+		return
+	}
+
+	res = alias
+	res.ID = insertID
 	return
 }
 
-func (d *SqlDb) GetIntegrationAlias(projectID int, integrationID *int) (res db.IntegrationAlias, err error) {
+func (d *SqlDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
+
+	q := squirrel.Select("*").From(db.IntegrationAliasProps.TableName)
+
+	if integrationID == nil {
+		q = q.Where("project_id=? AND integration_id is null", projectID)
+	} else {
+		q = q.Where("project_id=? AND integration_id=?", projectID, integrationID)
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&res, query, args...)
+
 	return
 }
 
-func (d *SqlDb) GetIntegrationAliasByAlias(alias string) (res db.IntegrationAlias, err error) {
+func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err error) {
+
+	var aliasObj db.IntegrationAlias
+
+	q := squirrel.Select("*").
+		From(db.IntegrationAliasProps.TableName).
+		Where("alias=?", alias)
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.selectOne(&aliasObj, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	if aliasObj.IntegrationID == nil {
+		var projIntegrations []db.Integration
+		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{})
+		if err != nil {
+			return
+		}
+		for _, integration := range projIntegrations {
+			if integration.Searchable {
+				res = append(res, integration)
+			}
+		}
+	} else {
+		var integration db.Integration
+		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+		res = append(res, integration)
+	}
+
 	return
 }
 
-func (d *SqlDb) UpdateIntegrationAlias(alias db.IntegrationAlias) error {
-	return nil
+func (d *SqlDb) DeleteIntegrationAlias(projectID int, aliasID int) error {
+	return d.deleteObject(projectID, db.IntegrationAliasProps, aliasID)
 }
 
-func (d *SqlDb) DeleteIntegrationAlias(projectID int, integrationID *int) error {
-	return nil
+func (d *SqlDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
+	q := squirrel.Select("*").From(db.IntegrationProps.TableName)
+
+	q = q.Where("searchable")
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&integrations, query, args...)
+
+	return
 }

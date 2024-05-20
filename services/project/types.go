@@ -65,7 +65,7 @@ type BackupRepository struct {
 }
 
 type BackupTemplate struct {
-	Inventory               string          `json:"inventory"`
+	Inventory               *string         `json:"inventory"`
 	Repository              string          `json:"repository"`
 	Environment             *string         `json:"environment"`
 	Name                    string          `json:"name"`

@@ -74,7 +74,6 @@ type OidcProvider struct {
 	UsernameClaim    string       `json:"username_claim" default:"preferred_username"`
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
-	EmailSuffix      string       `json:"email_suffix"`
 	Order            int          `json:"order"`
 }
 
@@ -97,6 +96,11 @@ const (
 //	email address: ^(|.*@[A-Za-z0-9-\\.]*)$
 //
 // */
+
+type RunnerConfig struct {
+	RunnerID int    `json:"runner_id" env:"SEMAPHORE_RUNNER_ID"`
+	Token    string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
+}
 
 type RunnerSettings struct {
 	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
@@ -130,7 +134,7 @@ type ConfigType struct {
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
-	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_TMP_PATH"`
+	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_SSH_PATH"`
 
 	GitClientId string `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
@@ -163,12 +167,14 @@ type ConfigType struct {
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
 	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack and Microsoft Teams alerting
+	// Telegram, Slack, Rocket.Chat and Microsoft Teams alerting
 	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
 	SlackAlert          bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
 	SlackUrl            string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
+	RocketChatAlert     bool   `json:"rocketchat_alert" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
+	RocketChatUrl       string `json:"rocketchat_url" env:"SEMAPHORE_ROCKETCHAT_URL"`
 	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
 
@@ -186,10 +192,11 @@ type ConfigType struct {
 	PasswordLoginDisable     bool `json:"password_login_disable" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
-	UseRemoteRunner    bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
-	IntegrationsEnable bool `json:"integrations_enable" env:"SEMAPHORE_INTEGRATIONS_ENABLE"`
+	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Runner RunnerSettings `json:"runner"`
+
+	GlobalIntegrationAlias string `json:"global_integration_alias"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -198,6 +205,49 @@ var Config *ConfigType
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
+}
+
+func LoadRunnerSettings(path string) (config RunnerConfig, err error) {
+	configFileExists := false
+
+	if path != "" {
+		_, err = os.Stat(path)
+
+		if os.IsNotExist(err) {
+			configFileExists = false
+		} else if err != nil {
+			return
+		} else {
+			configFileExists = true
+		}
+	}
+
+	if configFileExists {
+
+		var configBytes []byte
+		configBytes, err = os.ReadFile(path)
+
+		if err != nil {
+			return
+		}
+
+		err = json.Unmarshal(configBytes, &config)
+
+		if err != nil {
+			return
+		}
+
+	}
+
+	err = loadEnvironmentToObject(&config)
+
+	if err != nil {
+		return
+	}
+
+	err = loadDefaultsToObject(&config)
+
+	return
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
@@ -548,7 +598,7 @@ func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	}
 
 	updateAvailable = nil
-	if (*releases[0].TagName)[1:] != Version {
+	if (*releases[0].TagName)[1:] != Version() {
 		updateAvailable = releases[0]
 	}
 

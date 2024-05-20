@@ -178,7 +178,7 @@ export default {
   taskTemplates2: 'Taaksjablonen',
   all: 'Alles',
   notLaunched: 'Niet gestart',
-  by: 'door {user_name} {formatDate}',
+  by: 'door {user_name}',
   editTemplate: 'Sjabloon bewerken',
   newTemplate2: 'Nieuw sjabloon',
   deleteTemplate: 'Sjabloon verwijderen',

@@ -128,6 +128,7 @@ func (e BackupInventory) Restore(store db.Store, b *BackupDB) error {
 			Type:        e.Type,
 			SSHKeyID:    SSHKeyID,
 			BecomeKeyID: BecomeKeyID,
+			Inventory:   e.Inventory,
 		},
 	)
 	if err != nil {
@@ -177,7 +178,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if getEntryByName[BackupRepository](&e.Repository, backup.Repositories) == nil {
 		return fmt.Errorf("repository does not exist in repositories[].name")
 	}
-	if getEntryByName[BackupInventory](&e.Inventory, backup.Inventories) == nil {
+	if getEntryByName[BackupInventory](e.Inventory, backup.Inventories) == nil {
 		return fmt.Errorf("inventory does not exist in inventories[].name")
 	}
 	if e.VaultKey != nil && getEntryByName[BackupKey](e.VaultKey, backup.Keys) == nil {
@@ -207,7 +208,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 
 func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	var InventoryID int
-	if k := findEntityByName[db.Inventory](&e.Inventory, b.inventories); k == nil {
+	if k := findEntityByName[db.Inventory](e.Inventory, b.inventories); k == nil {
 		return fmt.Errorf("inventory does not exist in inventories[].name")
 	} else {
 		InventoryID = k.GetID()
@@ -241,7 +242,7 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	template, err := store.CreateTemplate(
 		db.Template{
 			ProjectID:               b.meta.ID,
-			InventoryID:             InventoryID,
+			InventoryID:             &InventoryID,
 			EnvironmentID:           &EnvironmentID,
 			RepositoryID:            RepositoryID,
 			ViewID:                  ViewID,
@@ -309,7 +310,7 @@ func (backup *BackupFormat) Verify() error {
 	return nil
 }
 
-func (backup *BackupFormat) Restore(store db.Store) (*db.Project, error) {
+func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, error) {
 	var b = BackupDB{}
 	project, err := store.CreateProject(
 		db.Project{
@@ -364,5 +365,14 @@ func (backup *BackupFormat) Restore(store db.Store) (*db.Project, error) {
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
+
+	if _, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    user.ID,
+		Role:      db.ProjectOwner,
+	}); err != nil {
+		return nil, err
+	}
+
 	return &project, nil
 }

@@ -2,9 +2,9 @@ package db_lib
 
 import (
 	"errors"
-	"github.com/ansible-semaphore/semaphore/lib"
 
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -20,7 +20,7 @@ import (
 type GoGitClient struct{}
 
 type ProgressWrapper struct {
-	Logger lib.Logger
+	Logger task_logger.Logger
 }
 
 func (t ProgressWrapper) Write(p []byte) (n int, err error) {
@@ -32,7 +32,12 @@ func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	if r.Repository.SSHKey.Type == db.AccessKeySSH {
 		var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
 
-		publicKey, sshErr := ssh.NewPublicKeys("git", []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
+		if r.Repository.SSHKey.SshKey.Login == "" {
+			r.Repository.SSHKey.SshKey.Login = "git"
+		}
+
+		publicKey, sshErr := ssh.NewPublicKeys(r.Repository.SSHKey.SshKey.Login, []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
+
 		if sshErr != nil {
 			r.Logger.Log("Unable to creating ssh auth method")
 			return nil, sshErr

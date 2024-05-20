@@ -3,7 +3,7 @@ package db
 type InventoryType string
 
 const (
-	InventoryNone       InventoryType = "none"
+	//InventoryNone       InventoryType = "none"
 	InventoryStatic     InventoryType = "static"
 	InventoryStaticYaml InventoryType = "static-yaml"
 	// InventoryFile means that it is path to the Ansible inventory file

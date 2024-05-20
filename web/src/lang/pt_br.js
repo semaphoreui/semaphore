@@ -178,7 +178,7 @@ export default {
   taskTemplates2: 'Modelos de Tarefas',
   all: 'Todos',
   notLaunched: 'Não lançado',
-  by: 'por {user_name} {formatDate}',
+  by: 'por {user_name}',
   editTemplate: 'Editar Modelo',
   newTemplate2: 'Novo Modelo',
   deleteTemplate: 'Excluir modelo',

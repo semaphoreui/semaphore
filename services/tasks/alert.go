@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"text/template"
 
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/ansible-semaphore/semaphore/util/mailer"
 )
@@ -53,7 +52,7 @@ func (t *TaskRunner) sendMailAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -114,7 +113,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
 		return
 	}
 
@@ -137,7 +136,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -188,7 +187,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
 		return
 	}
 
@@ -202,7 +201,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -237,9 +236,68 @@ func (t *TaskRunner) sendSlackAlert() {
 		t.Log("Can't send slack alert! Error: " + err.Error())
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send slack alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully slack alert")
+	}
+}
+
+func (t *TaskRunner) sendRocketChatAlert() {
+	if !util.Config.RocketChatAlert || !t.alert {
+		return
 	}
 
-	t.Log("Sent successfully slack alert")
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("rocketchat"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/rocketchat.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse rocketchat alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate rocketchat alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for rocketchat alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send rocketchat alert")
+
+	resp, err := http.Post(
+		util.Config.RocketChatUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send rocketchat alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send rocketchat alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	}
+
+	t.Log("Sent successfully rocketchat alert")
 }
 
 func (t *TaskRunner) sendMicrosoftTeamsAlert() {
@@ -247,7 +305,7 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == lib.TaskSuccessStatus {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
 		return
 	}
 
@@ -261,7 +319,7 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
-			Result:  strings.ToUpper(string(t.Task.Status)),
+			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
 		},
@@ -312,7 +370,7 @@ func (t *TaskRunner) alertInfos() (string, string) {
 		version = ""
 	}
 
-	author := ""
+	author := "—"
 
 	if t.Task.UserID != nil {
 		user, err := t.pool.store.GetUser(*t.Task.UserID)
@@ -324,24 +382,39 @@ func (t *TaskRunner) alertInfos() (string, string) {
 		author = user.Name
 	}
 
-	return version, author
+	return author, version
 }
 
 func (t *TaskRunner) alertColor(kind string) string {
 	switch kind {
 	case "slack":
 		switch t.Task.Status {
-		case lib.TaskSuccessStatus:
+		case task_logger.TaskSuccessStatus:
 			return "good"
-		case lib.TaskFailStatus:
+		case task_logger.TaskFailStatus:
 			return "danger"
-		case lib.TaskRunningStatus:
+		case task_logger.TaskRunningStatus:
 			return "#333CFF"
-		case lib.TaskWaitingStatus:
+		case task_logger.TaskWaitingStatus:
 			return "#FFFC33"
-		case lib.TaskStoppingStatus:
+		case task_logger.TaskStoppingStatus:
 			return "#BEBEBE"
-		case lib.TaskStoppedStatus:
+		case task_logger.TaskStoppedStatus:
+			return "#5B5B5B"
+		}
+	case "rocketchat":
+		switch t.Task.Status {
+		case task_logger.TaskSuccessStatus:
+			return "#00EE00"
+		case task_logger.TaskFailStatus:
+			return "#EE0000"
+		case task_logger.TaskRunningStatus:
+			return "#333CFF"
+		case task_logger.TaskWaitingStatus:
+			return "#FFFC33"
+		case task_logger.TaskStoppingStatus:
+			return "#BEBEBE"
+		case task_logger.TaskStoppedStatus:
 			return "#5B5B5B"
 		}
 	}

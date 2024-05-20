@@ -1,0 +1,7 @@
+version: "3.4"
+
+services:
+  server:
+    build:
+      context: ../../../
+      dockerfile: deployment/docker/server/Dockerfile

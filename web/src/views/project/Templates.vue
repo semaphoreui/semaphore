@@ -26,24 +26,13 @@
       </v-card>
     </v-dialog>
 
-    <EditDialog
-      :max-width="700"
-      v-model="editDialog"
-      :save-button-text="$t('create')"
-      :title="$t('newTemplate')"
-      @save="loadItems()"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TemplateForm
-          :project-id="projectId"
-          item-id="new"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
+    <EditTemplateDialogue
+        v-model="editDialog"
+        :project-id="projectId"
+        :item-app="itemApp"
+        item-id="new"
+        @save="loadItems()"
+    ></EditTemplateDialogue>
 
     <NewTaskDialog
       v-model="newTaskDialog"
@@ -53,6 +42,7 @@
       :template-id="itemId"
       :template-alias="templateAlias"
       :template-type="templateType"
+      :template-app="templateApp"
     />
 
     <v-toolbar flat>
@@ -61,13 +51,43 @@
         {{ $t('taskTemplates2') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        class="mr-1"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newTemplate') }}
-      </v-btn>
+
+      <v-menu
+        offset-y
+        :disabled="templateApps.length === 0"
+      >
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            class="mr-1 pr-2"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            @click="templateApps.length > 0 || editItem('new')"
+          >
+            {{ $t('newTemplate') }}
+            <v-icon v-if="templateApps.length > 0">mdi-chevron-down</v-icon>
+            <span v-else class="pl-2"></span>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item
+            v-for="item in templateApps"
+            :key="item"
+            link
+            @click="editItem('new'); itemApp = item;"
+          >
+            <v-list-item-icon>
+              <v-icon
+                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
+              >
+                {{ APP_ICONS[item].icon }}
+              </v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn icon @click="settingsSheet = true">
         <v-icon>mdi-cog</v-icon>
@@ -109,9 +129,18 @@
         }"
     >
       <template v-slot:item.name="{ item }">
+        <v-icon
+          class="mr-3"
+          small
+          v-if="templateApps.length > 0"
+        >
+          {{ APP_ICONS[item.app].icon }}
+        </v-icon>
+
         <v-icon class="mr-3" small>
           {{ TEMPLATE_TYPE_ICONS[item.type] }}
         </v-icon>
+
         <router-link
           :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
@@ -156,22 +185,17 @@
             :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
-            {{
-              $t('by', {
-                user_name: item.last_task.user_name, formatDate: item.last_task.created |
-                  formatDate
-              })
-            }}
+            {{ $t('by', {user_name: item.last_task.user_name}) }}
           </div>
         </div>
       </template>
 
       <template v-slot:item.inventory_id="{ item }">
-        {{ inventory.find((x) => x.id === item.inventory_id).name }}
+        {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
       </template>
 
       <template v-slot:item.environment_id="{ item }">
-        {{ environment.find((x) => x.id === item.environment_id).name }}
+        {{ (environment.find((x) => x.id === item.environment_id) || {name: '—'}).name }}
       </template>
 
       <template v-slot:item.repository_id="{ item }">
@@ -223,7 +247,6 @@
 </style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import TemplateForm from '@/components/TemplateForm.vue';
 import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
 import EditViewsForm from '@/components/EditViewsForm.vue';
@@ -234,11 +257,17 @@ import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../../lib/constants';
+import {
+  APP_ICONS,
+  APP_TITLE,
+  TEMPLATE_TYPE_ACTION_TITLES,
+  TEMPLATE_TYPE_ICONS,
+} from '@/lib/constants';
+import EditTemplateDialogue from '@/components/EditTemplateDialogue.vue';
 
 export default {
   components: {
-    TemplateForm,
+    EditTemplateDialogue,
     TableSettingsSheet,
     TaskStatus,
     TaskLink,
@@ -254,6 +283,8 @@ export default {
   },
   data() {
     return {
+      APP_TITLE,
+      APP_ICONS,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_ACTION_TITLES,
       inventory: null,
@@ -267,6 +298,8 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
+      templateApps: [],
+      itemApp: '',
     };
   },
   computed: {
@@ -289,6 +322,13 @@ export default {
         return '';
       }
       return this.items.find((x) => x.id === this.itemId).name;
+    },
+
+    templateApp() {
+      if (this.itemId == null || this.itemId === 'new') {
+        return '';
+      }
+      return this.items.find((x) => x.id === this.itemId).app;
     },
 
     isLoaded() {

@@ -2,6 +2,8 @@ package helpers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
 	"net/url"
@@ -9,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/db"
 
@@ -28,6 +30,24 @@ func TaskPool(r *http.Request) *tasks.TaskPool {
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
 	accept := r.Header.Get("Accept")
 	return !strings.Contains(accept, "text/html")
+}
+
+// GetStrParam fetches a parameter from the route variables as an integer
+// redirects to a 404 or writes bad request state depending on error state
+func GetStrParam(name string, w http.ResponseWriter, r *http.Request) (string, error) {
+	strParam, ok := mux.Vars(r)[name]
+
+	if !ok {
+		if !isXHR(w, r) {
+			http.Redirect(w, r, "/404", http.StatusFound)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		return "", fmt.Errorf("parameter missed")
+	}
+
+	return strParam, nil
 }
 
 // GetIntParam fetches a parameter from the route variables as an integer
@@ -71,22 +91,26 @@ func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	}
 }
 
+func WriteErrorStatus(w http.ResponseWriter, err string, code int) {
+	WriteJSON(w, code, map[string]string{
+		"error": err,
+	})
+}
+
 func WriteError(w http.ResponseWriter, err error) {
-	if err == db.ErrNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	if err == db.ErrInvalidOperation {
+	if errors.Is(err, db.ErrInvalidOperation) {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 
 	switch e := err.(type) {
 	case *db.ValidationError:
-		WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": e.Error(),
-		})
+		WriteErrorStatus(w, e.Error(), http.StatusBadRequest)
 	default:
 		log.Error(err)
 		debug.PrintStack()

@@ -61,16 +61,6 @@ func validateMutationResult(res sql.Result, err error) error {
 		return err
 	}
 
-	affected, err := res.RowsAffected()
-
-	if err != nil {
-		return err
-	}
-
-	if affected == 0 {
-		return db.ErrNotFound
-	}
-
 	return nil
 }
 
@@ -377,25 +367,6 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
-	templates, err := d.getObjectRefsFrom(projectID, objectProps, objectID, db.ScheduleProps)
-	if err != nil {
-		return
-	}
-
-	for _, st := range templates {
-		exists := false
-		for _, tpl := range refs.Templates {
-			if tpl.ID == st.ID {
-				exists = true
-				break
-			}
-		}
-		if exists {
-			continue
-		}
-		refs.Templates = append(refs.Templates, st)
-	}
-
 	return
 }
 
@@ -697,7 +668,7 @@ func (d *SqlDb) GetAllObjects(props db.ObjectProps) (objects interface{}, err er
 
 }
 
-// Retrieve the Matchers & Values referncing `id' from WebhookExtractor
+// Retrieve the Matchers & Values referencing `id' from WebhookExtractor
 // --
 // Examples:
 // referrerCollection := db.ObjectReferrers{}

@@ -40,12 +40,15 @@
 
     <v-text-field
         v-model="item.login_password.password"
+        :append-icon="showLoginPassword ? 'mdi-eye' : 'mdi-eye-off'"
         :label="$t('password')"
         :rules="[v => (!!v || !canEditSecrets) || $t('password_required')]"
+        :type="showLoginPassword ? 'text' : 'password'"
         v-if="item.type === 'login_password'"
         :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
+        @click:append="showLoginPassword = !showLoginPassword"
     />
 
     <v-text-field
@@ -57,9 +60,12 @@
 
     <v-text-field
       v-model="item.ssh.passphrase"
+      :append-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
       label="Passphrase (Optional)"
+      :type="showSSHPassphrase ? 'text' : 'password'"
       v-if="item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
+      @click:append="showSSHPassphrase = !showSSHPassphrase"
     />
 
     <v-textarea
@@ -67,7 +73,7 @@
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets"
-      :rules="[v => !!v || $t('private_key_required')]"
+      :rules="[v => !canEditSecrets || !!v || $t('private_key_required')]"
       v-if="item.type === 'ssh'"
     />
 
@@ -94,6 +100,8 @@ export default {
   mixins: [ItemFormBase],
   data() {
     return {
+      showLoginPassword: false,
+      showSSHPassphrase: false,
       inventoryTypes: [{
         id: 'ssh',
         name: `${this.$t('keyFormSshKey')}`,

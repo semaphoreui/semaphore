@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -11,21 +12,20 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
+	"text/template"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gorilla/mux"
-
-	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 )
 
 func tryFindLDAPUser(username, password string) (*db.User, error) {
@@ -320,7 +320,7 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 	}
 	oidcProvider := config.NewProvider(ctx)
 	var err error
-	if len(provider.AutoDiscovery) > 0 {
+	if provider.AutoDiscovery != "" {
 		oidcProvider, err = oidc.NewProvider(ctx, provider.AutoDiscovery)
 		if err != nil {
 			return nil, nil, err
@@ -342,20 +342,24 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 	}
 
 	if redirectPath != "" {
-		if !strings.HasPrefix(redirectPath, "/") {
-			redirectPath = "/" + redirectPath
+		//if !strings.HasPrefix(redirectPath, "/") {
+		//	redirectPath = "/" + redirectPath
+		//}
+
+		redirectPath = strings.TrimRight(redirectPath, "/")
+
+		providerUrl, err2 := url.Parse(provider.RedirectURL)
+
+		if err2 != nil {
+			return nil, nil, err2
 		}
 
-		providerUrl, err := url.Parse(provider.RedirectURL)
+		providerPath := strings.TrimRight(providerUrl.Path, "/")
 
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if redirectPath == providerUrl.Path {
+		if redirectPath == providerPath {
 			redirectPath = ""
-		} else if strings.HasPrefix(redirectPath, providerUrl.Path+"/") {
-			redirectPath = redirectPath[len(providerUrl.Path):]
+		} else if strings.HasPrefix(redirectPath, providerPath+"/") {
+			redirectPath = redirectPath[len(providerPath):]
 		}
 	}
 
@@ -424,38 +428,78 @@ type oidcClaimResult struct {
 	email    string
 }
 
-func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
-	var ok bool
+func parseClaim(str string, claims map[string]interface{}) (string, bool) {
 
-	res.email, ok = claims[provider.EmailClaim].(string)
-	if !ok {
+	for _, s := range strings.Split(str, "|") {
+		s = strings.TrimSpace(s)
 
-		var username string
-
-		if provider.EmailSuffix == "" {
-			err = fmt.Errorf("claim '%s' missing from id_token or not a string", provider.EmailClaim)
-			return
+		if s == "" {
+			continue
 		}
 
-		switch claims[provider.UsernameClaim].(type) {
-		case float64:
-			username = strconv.FormatFloat(claims[provider.UsernameClaim].(float64), 'f', -1, 64)
-		case string:
-			username = claims[provider.UsernameClaim].(string)
-		default:
-			err = fmt.Errorf("claim '%s' missing from id_token or not a string or an number", provider.UsernameClaim)
-			b, _ := json.MarshalIndent(claims, "", "  ")
-			fmt.Print(string(b))
-			return
+		if strings.Contains(s, "{{") {
+			tpl, err := template.New("").Parse(s)
+
+			if err != nil {
+				return "", false
+			}
+
+			buff := bytes.NewBufferString("")
+
+			if err = tpl.Execute(buff, claims); err != nil {
+				return "", false
+			}
+
+			res := buff.String()
+
+			return res, res != ""
 		}
 
-		res.email = username + "@" + provider.EmailSuffix
+		res, ok := claims[s].(string)
+		if res != "" && ok {
+			return res, ok
+		}
 	}
 
-	res.username = getRandomUsername()
+	return "", false
+}
 
-	res.name, ok = claims[provider.NameClaim].(string)
-	if !ok || res.name == "" {
+func prepareClaims(claims map[string]interface{}) {
+	for k, v := range claims {
+		switch v.(type) {
+		case float64:
+			f := v.(float64)
+			i := int64(f)
+			if float64(i) == f {
+				claims[k] = i
+			}
+		case float32:
+			f := v.(float32)
+			i := int64(f)
+			if float32(i) == f {
+				claims[k] = i
+			}
+		}
+	}
+}
+
+func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
+
+	var ok bool
+	res.email, ok = parseClaim(provider.EmailClaim, claims)
+
+	if !ok {
+		err = fmt.Errorf("claim '%s' missing or has bad format", provider.EmailClaim)
+		return
+	}
+
+	res.username, ok = parseClaim(provider.UsernameClaim, claims)
+	if !ok {
+		res.username = getRandomUsername()
+	}
+
+	res.name, ok = parseClaim(provider.NameClaim, claims)
+	if !ok {
 		res.name = getRandomProfileName()
 	}
 
@@ -469,6 +513,8 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 		return
 	}
 
+	prepareClaims(claims)
+
 	return parseClaims(claims, provider)
 }
 
@@ -479,18 +525,13 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 		return
 	}
 
+	prepareClaims(claims)
+
 	return parseClaims(claims, provider)
 }
 
 func getRandomUsername() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := ""
-	for i := 0; i < 16; i++ {
-		index := r.Intn(len(chars))
-		result += chars[index : index+1]
-	}
-	return result
+	return random.String(16)
 }
 
 func getRandomProfileName() string {

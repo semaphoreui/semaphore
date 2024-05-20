@@ -1,6 +1,0 @@
-#!/usr/bin/env sh
-
-if [ ! -f /etc/nginx/cert/privkey.pem ] && [ ! -f /etc/nginx/cert/cert.pem ]; then
-    echo "--> Generating self-signed cert. This should not be used in production"
-    openssl req -x509 -newkey rsa:4096 -keyout /etc/nginx/cert/privkey.pem -out /etc/nginx/cert/cert.pem -sha256 -nodes -subj "/O=Ansible Semaphore/OU=Production Test/CN=github.com\/ansible-semaphore\/semaphore"
-fi

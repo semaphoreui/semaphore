@@ -2,12 +2,11 @@ package projects
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
-	"net/http"
-	"strconv"
 )
 
 // UserMiddleware ensures a user exists and loads it to the context
@@ -104,21 +103,13 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	objType := db.EventUser
-	desc := "User ID " + strconv.Itoa(projectUser.UserID) + " added to team"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &projectUser.UserID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    projectUser.UserID,
+		Description: fmt.Sprintf("User ID %d added to team", projectUser.UserID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -141,20 +132,13 @@ func removeUser(targetUser db.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	objType := db.EventUser
-	desc := "User ID " + strconv.Itoa(targetUser.ID) + " removed from team"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &me.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &targetUser.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    targetUser.ID,
+		Description: fmt.Sprintf("User ID %d removed from team", targetUser.ID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -205,6 +189,14 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    targetUser.ID,
+		Description: fmt.Sprintf("Changed role for User ID %d", targetUser.ID),
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

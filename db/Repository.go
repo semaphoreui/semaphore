@@ -36,6 +36,7 @@ func (r Repository) ClearCache() error {
 	if err != nil {
 		return err
 	}
+	defer dir.Close()
 
 	files, err := dir.ReadDir(0)
 	if err != nil {

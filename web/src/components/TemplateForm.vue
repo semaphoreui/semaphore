@@ -1,9 +1,23 @@
 <template>
+  <div v-if="!isLoaded">
+    <v-row>
+      <v-col>
+        <v-skeleton-loader
+            type="table-heading, list-item-two-line, image, table-tfoot"
+        ></v-skeleton-loader>
+      </v-col>
+      <v-col>
+        <v-skeleton-loader
+            type="table-heading, list-item-two-line, image, table-tfoot"
+        ></v-skeleton-loader>
+      </v-col>
+    </v-row>
+  </div>
   <v-form
+    v-else
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="isLoaded"
   >
     <v-dialog
       v-model="helpDialog"
@@ -149,7 +163,6 @@
           :items="inventory"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || $t('inventory_required')]"
           outlined
           dense
           required
@@ -431,6 +444,7 @@ export default {
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
           responseType: 'json',
         })).data;
+        this.item.id = null;
       }
 
       this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;

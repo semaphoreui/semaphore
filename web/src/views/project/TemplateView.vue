@@ -15,44 +15,22 @@
       :template-type="item.type"
     />
 
-    <EditDialog
-      :max-width="700"
-      v-model="editDialog"
-      :save-button-text="$t('save')"
-      :title="$t('editTemplate')"
-      @save="loadData()"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TemplateForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
+    <EditTemplateDialogue
+        v-model="editDialog"
+        :project-id="projectId"
+        :item-app="item.app"
+        :item-id="itemId"
+        @save="loadData()"
+    ></EditTemplateDialogue>
 
-    <EditDialog
-      :max-width="700"
-      v-model="copyDialog"
-      :save-button-text="$t('create')"
-      :title="$t('newTemplate2')"
-      @save="onTemplateCopied"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TemplateForm
-          :project-id="projectId"
-          item-id="new"
-          :source-item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
+    <EditTemplateDialogue
+        v-model="copyDialog"
+        :project-id="projectId"
+        :item-app="item.app"
+        item-id="new"
+        :source-item-id="itemId"
+        @save="onTemplateCopied"
+    ></EditTemplateDialogue>
 
     <ObjectRefsDialog
       object-title="template"
@@ -164,7 +142,7 @@
               <v-list-item-content>
                 <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
                 <v-list-item-subtitle>
-                  {{ inventory.find((x) => x.id === item.inventory_id).name }}
+                  {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
                 </v-list-item-subtitle>
               </v-list-item-content>
             </v-list-item>
@@ -214,8 +192,6 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
-import EditDialog from '@/components/EditDialog.vue';
-import TemplateForm from '@/components/TemplateForm.vue';
 import TaskList from '@/components/TaskList.vue';
 import {
   TEMPLATE_TYPE_ACTION_TITLES,
@@ -225,10 +201,15 @@ import {
 } from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
+import EditTemplateDialogue from '@/components/EditTemplateDialogue.vue';
 
 export default {
   components: {
-    YesNoDialog, EditDialog, TemplateForm, TaskList, ObjectRefsDialog, NewTaskDialog,
+    YesNoDialog,
+    TaskList,
+    ObjectRefsDialog,
+    NewTaskDialog,
+    EditTemplateDialogue,
   },
 
   props: {

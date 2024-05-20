@@ -1,13 +1,14 @@
 package runners
 
 import (
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/services/runners"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"net/http"
 )
 
 func RunnerMiddleware(next http.Handler) http.Handler {
@@ -68,7 +69,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if tsk.Task.Status == lib.TaskStartingStatus {
+		if tsk.Task.Status == task_logger.TaskStartingStatus {
 
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:        tsk.Username,
@@ -151,7 +152,7 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, logRecord := range job.LogRecords {
-			tsk.Log2(logRecord.Message, logRecord.Time)
+			tsk.LogWithTime(logRecord.Time, logRecord.Message)
 		}
 
 		tsk.SetStatus(job.Status)
@@ -189,10 +190,26 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := runners.RunnerConfig{
+	res := util.RunnerConfig{
 		RunnerID: runner.ID,
 		Token:    runner.Token,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, res)
+}
+
+func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
+
+	runner := context.Get(r, "runner").(db.Runner)
+
+	err := helpers.Store(r).DeleteGlobalRunner(runner.ID)
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Unknown error",
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

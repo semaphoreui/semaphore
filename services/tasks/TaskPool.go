@@ -2,13 +2,14 @@ package tasks
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -154,7 +155,7 @@ func (p *TaskPool) Run() {
 
 			//get TaskRunner from top of queue
 			t := p.queue[0]
-			if t.Task.Status == lib.TaskFailStatus {
+			if t.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
 				log.Info("Task " + strconv.Itoa(t.Task.ID) + " removed from queue")
@@ -223,7 +224,7 @@ func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
 		return fmt.Errorf("task is not active")
 	}
 
-	tsk.SetStatus(lib.TaskConfirmed)
+	tsk.SetStatus(task_logger.TaskConfirmed)
 
 	return nil
 }
@@ -239,18 +240,18 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		if err != nil {
 			return err
 		}
-		tsk.SetStatus(lib.TaskStoppedStatus)
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
 		tsk.createTaskEvent()
 	} else {
 		status := tsk.Task.Status
 
 		if forceStop {
-			tsk.SetStatus(lib.TaskStoppedStatus)
+			tsk.SetStatus(task_logger.TaskStoppedStatus)
 		} else {
-			tsk.SetStatus(lib.TaskStoppingStatus)
+			tsk.SetStatus(task_logger.TaskStoppingStatus)
 		}
 
-		if status == lib.TaskRunningStatus {
+		if status == task_logger.TaskRunningStatus {
 			tsk.kill()
 		}
 	}
@@ -314,7 +315,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 
 func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask db.Task, err error) {
 	taskObj.Created = time.Now()
-	taskObj.Status = lib.TaskWaitingStatus
+	taskObj.Status = task_logger.TaskWaitingStatus
 	taskObj.UserID = userID
 	taskObj.ProjectID = projectID
 	extraSecretVars := taskObj.Secret
@@ -357,7 +358,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	err = taskRunner.populateDetails()
 	if err != nil {
 		taskRunner.Log("Error: " + err.Error())
-		taskRunner.SetStatus(lib.TaskFailStatus)
+		taskRunner.SetStatus(task_logger.TaskFailStatus)
 		return
 	}
 

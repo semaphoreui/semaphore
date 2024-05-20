@@ -1,10 +1,12 @@
 package projects
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	log "github.com/sirupsen/logrus"
-	"net/http"
 
 	"os"
 	"path/filepath"
@@ -104,22 +106,13 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventInventory
-	desc := "Inventory " + inventory.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newInventory.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventInventory,
+		ObjectID:    newInventory.ID,
+		Description: fmt.Sprintf("Inventory %s created", inventory.Name),
 	})
-
-	if err != nil {
-		// Write error to log but return ok to user, because inventory created
-		log.Error(err)
-	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newInventory)
 }
@@ -156,16 +149,16 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if inventory.ID != oldInventory.ID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Inventory ID in body and URL must be the same",
-		})
+		helpers.WriteErrorStatus(w,
+			"Inventory ID in body and URL must be the same",
+			http.StatusBadRequest)
 		return
 	}
 
 	if inventory.ProjectID != oldInventory.ProjectID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Project ID in body and URL must be the same",
-		})
+		helpers.WriteErrorStatus(w,
+			"project ID in body and URL must be the same",
+			http.StatusBadRequest)
 		return
 	}
 
@@ -178,7 +171,9 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		w.WriteHeader(http.StatusBadRequest)
+		helpers.WriteErrorStatus(w,
+			"unknown inventory type: "+string(inventory.Type),
+			http.StatusBadRequest)
 		return
 	}
 
@@ -192,6 +187,14 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldInventory.ProjectID,
+		ObjectType:  db.EventInventory,
+		ObjectID:    oldInventory.ID,
+		Description: fmt.Sprintf("Inventory %s updated", inventory.Name),
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -201,7 +204,7 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	err = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
-	if err == db.ErrInvalidOperation {
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Inventory is in use by one or more templates",
 			"inUse": true,
@@ -214,19 +217,13 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	desc := "Inventory " + inventory.Name + " deleted"
-
-	user := context.Get(r, "user").(*db.User)
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &inventory.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   inventory.ProjectID,
+		ObjectType:  db.EventInventory,
+		ObjectID:    inventory.ID,
+		Description: fmt.Sprintf("Inventory %s deleted", inventory.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

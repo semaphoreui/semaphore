@@ -101,11 +101,12 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			repoID = pRepo.ID
 		case "inventory":
 			res, err := store.CreateInventory(db.Inventory{
-				ProjectID: userProject.ID,
-				Name:      "ITI-" + uid,
-				Type:      "static",
-				SSHKeyID:  &userKey.ID,
-				Inventory: "Test Inventory",
+				ProjectID:   userProject.ID,
+				Name:        "ITI-" + uid,
+				Type:        "static",
+				SSHKeyID:    &userKey.ID,
+				BecomeKeyID: &userKey.ID,
+				Inventory:   "Test Inventory",
 			})
 			printError(err)
 			inventoryID = res.ID
@@ -126,7 +127,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			desc := "Hello, World!"
 			res, err := store.CreateTemplate(db.Template{
 				ProjectID:               userProject.ID,
-				InventoryID:             inventoryID,
+				InventoryID:             &inventoryID,
 				RepositoryID:            repoID,
 				EnvironmentID:           &environmentID,
 				Name:                    "Test-" + uid,
@@ -208,6 +209,7 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("json", "{}", &request)
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
+		bodyFieldProcessor("become_key_id", userKey.ID, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)

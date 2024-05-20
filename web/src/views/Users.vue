@@ -45,7 +45,6 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      hide-default-footer
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >

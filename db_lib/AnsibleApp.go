@@ -3,11 +3,12 @@ package db_lib
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/lib"
 	"io"
 	"os"
 	"path"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 )
 
 func getMD5Hash(filepath string) (string, error) {
@@ -48,20 +49,20 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 }
 
 type AnsibleApp struct {
-	Logger     lib.Logger
+	Logger     task_logger.Logger
 	Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
 }
 
-func (t *AnsibleApp) SetLogger(logger lib.Logger) lib.Logger {
+func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	t.Logger = logger
 	t.Playbook.Logger = logger
 	return logger
 }
 
-func (t *AnsibleApp) Run(args []string, environmentVars *[]string, cb func(*os.Process)) error {
-	return t.Playbook.RunPlaybook(args, environmentVars, cb)
+func (t *AnsibleApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+	return t.Playbook.RunPlaybook(args, environmentVars, inputs, cb)
 }
 
 func (t *AnsibleApp) Log(msg string) {
@@ -90,7 +91,7 @@ func (t *AnsibleApp) getRepoPath() string {
 }
 
 func (t *AnsibleApp) installRolesRequirements() error {
-	requirementsFilePath := fmt.Sprintf("%s/roles/requirements.yml", t.getRepoPath())
+	requirementsFilePath := path.Join(t.getRepoPath(), "roles", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -125,7 +126,7 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 }
 
 func (t *AnsibleApp) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.GetPlaybookDir(), "collections", "requirements.yml")
+	requirementsFilePath := path.Join(t.getRepoPath(), "collections", "requirements.yml")
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {

@@ -19,7 +19,6 @@
   </div>
 </template>
 <script>
-import axios from 'axios';
 
 import ItemListPageBase from '@/components/ItemListPageBase';
 
@@ -28,18 +27,13 @@ import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
 export default {
   mixins: [ItemListPageBase, IntegrationExtractorsBase],
   components: { },
+  props: {
+    integration: Object,
+  },
   data() {
     return {
-      integration: null,
       extractor: null,
     };
-  },
-  async created() {
-    this.integration = (await axios({
-      method: 'get',
-      url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
-      responseType: 'json',
-    })).data;
   },
 
   computed: {

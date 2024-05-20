@@ -52,6 +52,5 @@ create table project__integration_alias (
   foreign key (`project_id`) references project(`id`) on delete cascade,
   foreign key (`integration_id`) references project__integration(`id`) on delete cascade,
 
-  unique (`alias`),
-  unique (`project_id`, `integration_id`)
+  unique (`alias`)
 );

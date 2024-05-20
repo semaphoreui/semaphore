@@ -27,6 +27,7 @@ func (d *SqlDb) GetAllProjects() (projects []db.Project, err error) {
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
 		OrderBy("p.name").
+		Limit(200).
 		ToSql()
 
 	if err != nil {
@@ -44,6 +45,7 @@ func (d *SqlDb) GetProjects(userID int) (projects []db.Project, err error) {
 		Join("project__user as pu on pu.project_id=p.id").
 		Where("pu.user_id=?", userID).
 		OrderBy("p.name").
+		Limit(200).
 		ToSql()
 
 	if err != nil {

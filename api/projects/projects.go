@@ -1,11 +1,12 @@
 package projects
 
 import (
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -30,20 +31,12 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, projects)
 }
 
-func createDemoProject(projectID int, store db.Store) (err error) {
-	var noneKey db.AccessKey
+func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.Store) (err error) {
 	var demoRepo db.Repository
-	var emptyEnv db.Environment
 
 	var buildInv db.Inventory
 	var devInv db.Inventory
 	var prodInv db.Inventory
-
-	noneKey, err = store.CreateAccessKey(db.AccessKey{
-		Name:      "None",
-		Type:      db.AccessKeyNone,
-		ProjectID: &projectID,
-	})
 
 	if err != nil {
 		return
@@ -67,17 +60,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		ProjectID: projectID,
 		GitURL:    "https://github.com/semaphoreui/demo-project.git",
 		GitBranch: "main",
-		SSHKeyID:  noneKey.ID,
-	})
-
-	if err != nil {
-		return
-	}
-
-	emptyEnv, err = store.CreateEnvironment(db.Environment{
-		Name:      "Empty",
-		ProjectID: projectID,
-		JSON:      "{}",
+		SSHKeyID:  noneKeyID,
 	})
 
 	if err != nil {
@@ -89,7 +72,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		ProjectID: projectID,
 		Inventory: "[builder]\nlocalhost ansible_connection=local",
 		Type:      "static",
-		SSHKeyID:  &noneKey.ID,
+		SSHKeyID:  &noneKeyID,
 	})
 
 	if err != nil {
@@ -101,7 +84,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		ProjectID: projectID,
 		Inventory: "invs/dev/hosts",
 		Type:      "file",
-		SSHKeyID:  &noneKey.ID,
+		SSHKeyID:  &noneKeyID,
 	})
 
 	if err != nil {
@@ -113,7 +96,7 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		ProjectID: projectID,
 		Inventory: "invs/prod/hosts",
 		Type:      "file",
-		SSHKeyID:  &noneKey.ID,
+		SSHKeyID:  &noneKeyID,
 	})
 
 	var desc string
@@ -128,8 +111,8 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Playbook:      "ping.yml",
 		Description:   &desc,
 		ProjectID:     projectID,
-		InventoryID:   prodInv.ID,
-		EnvironmentID: &emptyEnv.ID,
+		InventoryID:   &prodInv.ID,
+		EnvironmentID: &emptyEnvID,
 		RepositoryID:  demoRepo.ID,
 	})
 
@@ -145,8 +128,8 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Playbook:      "build.yml",
 		Type:          db.TemplateBuild,
 		ProjectID:     projectID,
-		InventoryID:   buildInv.ID,
-		EnvironmentID: &emptyEnv.ID,
+		InventoryID:   &buildInv.ID,
+		EnvironmentID: &emptyEnvID,
 		RepositoryID:  demoRepo.ID,
 		StartVersion:  &startVersion,
 	})
@@ -160,8 +143,8 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
-		InventoryID:     devInv.ID,
-		EnvironmentID:   &emptyEnv.ID,
+		InventoryID:     &devInv.ID,
+		EnvironmentID:   &emptyEnvID,
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		Autorun:         true,
@@ -177,8 +160,8 @@ func createDemoProject(projectID int, store db.Store) (err error) {
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
-		InventoryID:     prodInv.ID,
-		EnvironmentID:   &emptyEnv.ID,
+		InventoryID:     &prodInv.ID,
+		EnvironmentID:   &emptyEnvID,
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		VaultKeyID:      &vaultKey.ID,
@@ -234,20 +217,30 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = store.CreateInventory(db.Inventory{
-		Name:      "None",
-		ProjectID: body.ID,
-		Type:      "none",
-		SSHKeyID:  &noneKey.ID,
-	})
+	//_, err = store.CreateInventory(db.Inventory{
+	//	Name:      "None",
+	//	ProjectID: body.ID,
+	//	Type:      "none",
+	//	SSHKeyID:  &noneKey.ID,
+	//})
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
+	emptyEnv, err := store.CreateEnvironment(db.Environment{
+		Name:      "Empty",
+		ProjectID: body.ID,
+		JSON:      "{}",
+	})
+
+	if err != nil {
+		return
+	}
+
 	if bodyWithDemo.Demo {
-		err = createDemoProject(body.ID, store)
+		err = createDemoProject(body.ID, noneKey.ID, emptyEnv.ID, store)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -255,19 +248,13 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	desc := "Project Created"
-	oType := db.EventProject
-	_, err = store.CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &body.ID,
-		Description: &desc,
-		ObjectType:  &oType,
-		ObjectID:    &body.ID,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   body.ID,
+		ObjectType:  db.EventProject,
+		ObjectID:    body.ID,
+		Description: "Project created",
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	helpers.WriteJSON(w, http.StatusCreated, body)
 }
