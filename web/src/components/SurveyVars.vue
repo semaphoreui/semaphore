@@ -13,6 +13,12 @@
             lazy-validation
             v-if="editedVar != null"
           >
+            <v-alert
+              :value="formError"
+              color="error"
+            >{{ formError }}
+            </v-alert>
+
             <v-text-field
               :label="$t('name2')"
               v-model.trim="editedVar.name"
@@ -178,6 +184,7 @@ export default {
         id: 'enum',
         name: 'Enum',
       }],
+      formError: null,
     };
   },
   methods: {
@@ -212,11 +219,35 @@ export default {
     },
 
     saveVar() {
+      this.formError = null;
+
       if (!this.$refs.form.validate()) {
         return;
       }
 
-      if (this.editedVar.type !== 'enum') {
+      if (this.editedVar.type === 'enum') {
+        if (this.editedValues.length === 0) {
+          this.formError = 'Enumeration must have values.';
+          return;
+        }
+
+        const uniq = new Set(this.editedValues.map((v) => v.name));
+
+        if (this.editedValues.length !== uniq.size) {
+          this.formError = 'Enumeration values must have unique names.';
+          return;
+        }
+
+        this.editedValues.forEach((v) => {
+          if (v.name === '') {
+            this.formError = 'Value name cannot be empty.';
+          }
+        });
+
+        if (this.formError != null) {
+          return;
+        }
+      } else {
         this.editedVar.values = [];
       }
 
@@ -225,6 +256,7 @@ export default {
       } else {
         this.modifiedVars.push(this.editedVar);
       }
+
       this.editDialog = false;
       this.editedVar = null;
       this.$emit('change', this.modifiedVars);
