@@ -46,10 +46,11 @@
               :items-per-page="-1"
               class="elevation-1"
               hide-default-footer
+              no-data-text="No values"
             >
               <template v-slot:item="props">
                 <tr>
-                  <td>
+                  <td class="pa-1">
                     <v-text-field
                       solo-inverted
                       flat
@@ -58,7 +59,7 @@
                       class="v-text-field--solo--no-min-height"
                     ></v-text-field>
                   </td>
-                  <td>
+                  <td class="pa-1">
                     <v-text-field
                       solo-inverted
                       flat
@@ -67,7 +68,7 @@
                       class="v-text-field--solo--no-min-height"
                     ></v-text-field>
                   </td>
-                  <td class="pa-0" style="width: 38px;">
+                  <td style="width: 38px;">
                     <v-icon
                       small
                       class="pa-1"
@@ -213,6 +214,10 @@ export default {
     saveVar() {
       if (!this.$refs.form.validate()) {
         return;
+      }
+
+      if (this.editedVar.type !== 'enum') {
+        this.editedVar.values = [];
       }
 
       if (this.editedVarIndex != null) {
