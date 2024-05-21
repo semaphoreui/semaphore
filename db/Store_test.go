@@ -8,7 +8,7 @@ func TestObjectToJSON(t *testing.T) {
 		Title: "Test",
 	}
 	s := ObjectToJSON(v)
-	if s == nil || *s != "{\"name\":\"test\",\"title\":\"Test\",\"required\":false,\"type\":\"\",\"description\":\"\"}" {
+	if s == nil || *s != "{\"name\":\"test\",\"title\":\"Test\",\"required\":false,\"type\":\"\",\"description\":\"\",\"values\":null}" {
 		t.Fail()
 	}
 }

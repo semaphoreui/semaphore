@@ -322,6 +322,8 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	taskObj.Status = task_logger.TaskWaitingStatus
 	taskObj.UserID = userID
 	taskObj.ProjectID = projectID
+	extraSecretVars := taskObj.Secret
+	taskObj.Secret = "{}"
 
 	tpl, err := p.store.GetTemplate(projectID, taskObj.TemplateID)
 	if err != nil {
@@ -387,6 +389,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			Inventory:   taskRunner.Inventory,
 			Repository:  taskRunner.Repository,
 			Environment: taskRunner.Environment,
+			Secret:      extraSecretVars,
 			Logger:      app.SetLogger(&taskRunner),
 			App:         app,
 		}
