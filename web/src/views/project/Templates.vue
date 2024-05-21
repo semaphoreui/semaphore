@@ -185,7 +185,7 @@
             :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
-            {{ $t('by', {user_name: item.last_task.user_name}) }}
+            {{ $t('by', {user_name: item.last_task.user_name }) }}
           </div>
         </div>
       </template>
