@@ -20,7 +20,7 @@ type Task struct {
 	DryRun bool `db:"dry_run" json:"dry_run"`
 	Diff   bool `db:"diff" json:"diff"`
 
-	Integration bool `db:"integration" json:"integration"`
+	IntegrationID *int `db:"integration_id" json:"integration_id"`
 
 	// override variables
 	Playbook    string `db:"playbook" json:"playbook"`
@@ -52,8 +52,6 @@ type Task struct {
 	Arguments *string `db:"arguments" json:"arguments"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id"`
-
-	IntegrationID *int `db:"integration_id" json:"integration_id"`
 }
 
 func (task *Task) GetIncomingVersion(d Store) *string {
