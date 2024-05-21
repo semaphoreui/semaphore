@@ -1,0 +1,13 @@
+version: "3.4"
+
+services:
+  runner:
+    image: docker.io/semaphoreui/runner:${SEMAPHORE_VERSION:-latest}
+    restart: always
+    environment:
+      SEMAPHORE_RUNNER_API_URL: ${SEMAPHORE_RUNNER_API_URL:-http://server:3000/api}
+      SEMAPHORE_RUNNER_REGISTRATION_TOKEN: ${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-H1wDyorbg6gTSwJlVwle2Fne}
+
+  server:
+    environment:
+      SEMAPHORE_RUNNER_REGISTRATION_TOKEN: ${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-H1wDyorbg6gTSwJlVwle2Fne}

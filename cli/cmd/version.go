@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
 )
@@ -14,6 +15,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version of Semaphore",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(util.Version)
+		fmt.Println(util.Version())
 	},
 }

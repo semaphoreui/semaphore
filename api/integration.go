@@ -253,7 +253,6 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 	var taskDefinition = db.Task{
 		TemplateID:    integration.TemplateID,
 		ProjectID:     integration.ProjectID,
-		Debug:         true,
 		Environment:   environmentJSONString,
 		IntegrationID: &integration.ID,
 	}

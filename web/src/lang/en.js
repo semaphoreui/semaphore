@@ -130,7 +130,7 @@ export default {
   diff: 'Diff',
   advanced: 'Advanced',
   hide: 'Hide',
-  pleaseAllowOverridingCliArgumentInTaskTemplateSett: 'Please allow overriding CLI argument in Task Template settings',
+  pleaseAllowOverridingCliArgumentInTaskTemplateSett: 'To allow overriding CLI argument in Task Template settings',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe: 'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   started: 'Started',
   author: 'Author',

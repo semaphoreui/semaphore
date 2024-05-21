@@ -45,19 +45,48 @@
       :disabled="formSaving"
     />
 
-    <v-text-field
-      v-for="(v) in template.survey_vars || []"
-      :key="v.name"
-      :label="v.title"
-      :hint="v.description"
-      v-model="editedEnvironment[v.name]"
-      :required="v.required"
-      :rules="[
-          val => !v.required || !!val || v.title + $t('isRequired'),
+    <div v-for="(v) in template.survey_vars || []" :key="v.name">
+
+      <v-text-field
+        v-if="v.type === 'secret'"
+        :label="v.title"
+        :hint="v.description"
+        v-model="editedSecretEnvironment[v.name]"
+        :required="v.required"
+        type="password"
+        :rules="[
+            val => !v.required || !!val || v.title + $t('isRequired'),
+          ]"
+      />
+
+      <v-select
+        clearable
+        v-else-if="v.type === 'enum'"
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          val => !v.required || val != null || v.title + ' ' + $t('isRequired')
+        ]"
+        :items="v.values"
+        item-text="name"
+        item-value="value"
+      />
+
+      <v-text-field
+        v-else
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          val => !v.required || !!val || v.title + ' ' + $t('isRequired'),
           val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
           v.title + ' ' + $t('mustBeInteger'),
         ]"
-    />
+      />
+    </div>
 
     <v-row no-gutters class="mt-6">
       <v-col cols="12" sm="6">
@@ -104,7 +133,6 @@
       text
       class="mb-2"
     >
-      {{ $t('pleaseAllowOverridingCliArgumentInTaskTemplateSett') }}<br>
       <div style="position: relative; margin-top: 10px;">
         <video
           autoplay
@@ -155,6 +183,7 @@ export default {
       buildTasks: null,
       commitAvailable: null,
       editedEnvironment: null,
+      editedSecretEnvironment: null,
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',
@@ -214,6 +243,7 @@ export default {
       });
 
       this.editedEnvironment = JSON.parse(v.environment || '{}');
+      this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
       this.commitAvailable = v.commit_hash != null;
     },
 
@@ -225,6 +255,7 @@ export default {
 
     beforeSave() {
       this.item.environment = JSON.stringify(this.editedEnvironment);
+      this.item.secret = JSON.stringify(this.editedSecretEnvironment);
     },
 
     async afterLoadData() {
