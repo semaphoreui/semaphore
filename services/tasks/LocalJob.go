@@ -3,9 +3,9 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
-	"maps"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
@@ -20,7 +20,7 @@ type LocalJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Secret	    string
+	Secret      string
 	Logger      task_logger.Logger
 
 	App db_lib.LocalApp
@@ -204,10 +204,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	case db.InventoryFile:
 		inventory = t.Inventory.Inventory
 	case db.InventoryStatic, db.InventoryStaticYaml:
-		inventory = util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.Task.ID)
-		if t.Inventory.Type == db.InventoryStaticYaml {
-			inventory += ".yml"
-		}
+		inventory = t.tmpInventoryFilename()
 	default:
 		err = fmt.Errorf("invalid inventory type")
 		return
@@ -333,6 +330,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
 	defer func() {
 		t.destroyKeys()
+		t.destroyInventoryFile()
 	}()
 
 	var args []string

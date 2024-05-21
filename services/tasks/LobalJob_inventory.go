@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 
@@ -30,16 +31,27 @@ func (t *LocalJob) installInventory() (err error) {
 	return
 }
 
-func (t *LocalJob) installStaticInventory() error {
-	t.Log("installing static inventory")
-
+func (t *LocalJob) tmpInventoryFilename() string {
 	path := util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.Task.ID)
 	if t.Inventory.Type == db.InventoryStaticYaml {
 		path += ".yml"
 	}
+	return path
+}
+
+func (t *LocalJob) installStaticInventory() error {
+	t.Log("installing static inventory")
+
+	path := t.tmpInventoryFilename()
 
 	// create inventory file
 	return os.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
+}
+func (t *LocalJob) destroyInventoryFile() {
+	path := t.tmpInventoryFilename()
+	if err := os.Remove(path); err != nil {
+		log.Error(err)
+	}
 }
 
 func (t *LocalJob) destroyKeys() {
