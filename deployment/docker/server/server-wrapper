@@ -170,6 +170,8 @@ EOF
     fi
 fi
 
+source ./venv/bin/activate
+
 if test -f "${SEMAPHORE_CONFIG_PATH}/packages.txt"; then
     echoerr "Installing additional system dependencies"
     apk add --no-cache --upgrade \

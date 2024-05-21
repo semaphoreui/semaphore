@@ -161,7 +161,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		RunIntegration(integration, project, r)
+		RunIntegration(integration, project, r, payload)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -227,7 +227,7 @@ func MatchCompare(value interface{}, method db.IntegrationMatchMethodType, expec
 	}
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request) {
+func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
 
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
@@ -241,9 +241,8 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	extractValues = append(extractValues, extractValuesForExtractor...)
 
-	var extractedResults = Extract(extractValues, r)
+	var extractedResults = Extract(extractValues, r, payload)
 
-	// XXX: LOG AN EVENT HERE
 	environmentJSONBytes, err := json.Marshal(extractedResults)
 	if err != nil {
 		log.Error(err)
@@ -252,9 +251,10 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	var environmentJSONString = string(environmentJSONBytes)
 	var taskDefinition = db.Task{
-		TemplateID:  integration.TemplateID,
-		ProjectID:   integration.ProjectID,
-		Environment: environmentJSONString,
+		TemplateID:    integration.TemplateID,
+		ProjectID:     integration.ProjectID,
+		Environment:   environmentJSONString,
+		IntegrationID: &integration.ID,
 	}
 
 	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID)
@@ -264,7 +264,7 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 	}
 }
 
-func Extract(extractValues []db.IntegrationExtractValue, r *http.Request) (result map[string]string) {
+func Extract(extractValues []db.IntegrationExtractValue, r *http.Request, payload []byte) (result map[string]string) {
 	result = make(map[string]string)
 
 	for _, extractValue := range extractValues {
@@ -272,19 +272,12 @@ func Extract(extractValues []db.IntegrationExtractValue, r *http.Request) (resul
 		case db.IntegrationExtractHeaderValue:
 			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
 		case db.IntegrationExtractBodyValue:
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				log.Fatal(err)
-				return
-			}
-			var body = string(bodyBytes)
-
 			switch extractValue.BodyDataType {
 			case db.IntegrationBodyDataJSON:
-				result[extractValue.Variable] =
-					fmt.Sprintf("%v", gojsonq.New().JSONString(body).Find(extractValue.Key))
+				var extractedResult = fmt.Sprintf("%v", gojsonq.New().JSONString(string(payload)).Find(extractValue.Key))
+				result[extractValue.Variable] = extractedResult
 			case db.IntegrationBodyDataString:
-				result[extractValue.Variable] = body
+				result[extractValue.Variable] = string(payload)
 			}
 		}
 	}
