@@ -1,75 +1,126 @@
-name: Premium
-on:
+name: Beta
+
+'on':
   push:
     tags:
       - v*-premium
 
 jobs:
   release:
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/setup-go@v3
-        with: { go-version: '1.21' }
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
-        with: { node-version: '16' }
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
 
-      - run: go install github.com/go-task/task/v3/cmd/task@latest
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
-      - run: sudo apt update && sudo apt-get install rpm
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
 
-      - uses: actions/checkout@v3
+      - name: Install rpm
+        run: |
+          sudo apt update && sudo apt-get install rpm
 
-      - run: task deps
+      - name: Install deps
+        run: |
+          task deps
 
-      - run: |
-          echo ${{ secrets.GPG_KEY }} | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "A4FB 7208 48EA 79FA EC4E 9C30 0443 8136 6A5D 4731" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+      - name: Import gnupg
+        run: |
+          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          gpg --sign -u "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
-      - run:  git reset --hard
+      - name: Reset repo
+        run: |
+          git reset --hard
 
-      - run: GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
-
+      - name: Run release
+        run: |
+          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
 
   deploy-premium:
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/setup-go@v3
-        with: { go-version: '1.21' }
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-      - run: go install github.com/go-task/task/v3/cmd/task@latest
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v3
 
-      - uses: actions/checkout@v3
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
 
-#      - run: context=prod task docker:test
-
-      - uses: docker/setup-qemu-action@v2
-
-      - uses: docker/setup-buildx-action@v2
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
+      - name: Hub login
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v3
+      - name: Server meta
+        id: server
+        uses: docker/metadata-action@v5
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/semaphore
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semui.co>
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+          flavor: |
+            latest=false
+
+      - name: Server build
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
           context: .
-          platforms: linux/amd64,linux/arm64
-          file: ./deployment/docker/prod/buildx.Dockerfile
-          push: true
-          tags: semaphoreui/semaphore:premium,semaphoreui/semaphore:${{ github.ref_name }}
+          file: deployment/docker/server/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.server.outputs.labels }}
+          tags: ${{ steps.server.outputs.tags }}
 
+      - name: Runner meta
+        id: runner
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/runner
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semui.co>
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+          flavor: |
+            latest=false
 
-
-#      - name: Build and push runner
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          platforms: linux/amd64,linux/arm64
-#          file: ./deployment/docker/prod/runner.buildx.Dockerfile
-#          push: true
-#          tags: semaphoreui/runner:latest,semaphoreui/runner:${{ github.ref_name }}
+      - name: Runner build
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/runner/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.runner.outputs.labels }}
+          tags: ${{ steps.runner.outputs.tags }}
