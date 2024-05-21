@@ -251,11 +251,11 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	var environmentJSONString = string(environmentJSONBytes)
 	var taskDefinition = db.Task{
-		TemplateID:  integration.TemplateID,
-		ProjectID:   integration.ProjectID,
-		Debug:       true,
-		Environment: environmentJSONString,
-		Integration: true,
+		TemplateID:    integration.TemplateID,
+		ProjectID:     integration.ProjectID,
+		Debug:         true,
+		Environment:   environmentJSONString,
+		IntegrationID: &integration.ID,
 	}
 
 	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID)

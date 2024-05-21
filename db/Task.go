@@ -51,6 +51,8 @@ type Task struct {
 	Arguments *string `db:"arguments" json:"arguments"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id"`
+
+	IntegrationID *int `db:"integration_id" json:"integration_id"`
 }
 
 func (task *Task) GetIncomingVersion(d Store) *string {
