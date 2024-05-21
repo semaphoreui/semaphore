@@ -3,9 +3,9 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
-	"maps"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
@@ -20,7 +20,7 @@ type LocalJob struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Secret	    string
+	Secret      string
 	Logger      task_logger.Logger
 
 	App db_lib.LocalApp
@@ -164,7 +164,7 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 
 // nolint: gocyclo
 func (t *LocalJob) getBashArgs(username string, incomingVersion *string) (args []string, err error) {
-	//extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
 	args = append(args, t.Template.Playbook)
 
@@ -174,12 +174,12 @@ func (t *LocalJob) getBashArgs(username string, incomingVersion *string) (args [
 		return
 	}
 
-	//for name, value := range extraVars {
-	//	if name == "semaphore_vars" {
-	//		continue
-	//	}
-	//	args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
-	//}
+	for name, value := range extraVars {
+		if name == "semaphore_vars" {
+			continue
+		}
+		args = append(args, fmt.Sprintf("%s=%s", name, value))
+	}
 
 	return
 }
