@@ -18,10 +18,12 @@ COPY . /go/src/semaphore
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN --mount=type=cache,target=/go/src/semaphore/web/node_modules \
-    --mount=type=cache,target=/go/pkg \
+RUN --mount=type=cache,target=/go/pkg \
     --mount=type=cache,target=/root/.cache/go-build \
-    task deps && \
+    task deps
+
+RUN --mount=type=cache,target=/go/pkg \
+    --mount=type=cache,target=/root/.cache/go-build \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 FROM alpine:3.19
@@ -52,12 +54,10 @@ USER 1001
 # renovate: datasource=pypi depName=ansible
 ENV ANSIBLE_VERSION 9.4.0
 
-ENV PATH /home/semaphore/.local/bin:$PATH
+RUN mkdir ./venv
 
-# hadolint ignore=DL3013
-RUN pip3 install -U --break-system-packages --no-cache-dir \
-    ansible==${ANSIBLE_VERSION} \
-    boto3 botocore requests netaddr
+RUN python3 -m venv ./venv --system-site-packages && \
+    source ./venv/bin/activate && \
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
 
-ENTRYPOINT ["/sbin/tini", "--"]
 CMD [ "/usr/local/bin/server-wrapper"]

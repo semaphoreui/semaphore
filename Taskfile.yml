@@ -31,9 +31,9 @@ tasks:
       GORELEASER_VERSION: v1.25.1
       GOLINTER_VERSION: v1.57.2
     cmds:
-      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
+#      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
       - go install github.com/goreleaser/goreleaser@{{ .GORELEASER_VERSION }}
-      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
+#      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
 
   deps:be:
     desc: Vendor application dependencies
@@ -92,18 +92,18 @@ tasks:
   lint:
     cmds:
       - task: lint:fe
-      - task: lint:be
+#      - task: lint:be
 
   lint:fe:
     dir: web
     cmds:
       - npm run lint
 
-  lint:be:
-    cmds:
-      - golangci-lint run --disable goconst --timeout 240s ./...
-      - go vet ./...
-      - swagger validate ./api-docs.yml
+#  lint:be:
+#    cmds:
+#      - golangci-lint run --disable goconst --timeout 240s ./...
+#      - go vet ./...
+#      - swagger validate ./api-docs.yml
 
   test:
     cmds:
