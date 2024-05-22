@@ -29,6 +29,8 @@ type Inventory struct {
 
 	// HolderID is an ID of template which holds the inventory
 	HolderID *int `db:"holder_id" json:"holder_id"`
+
+	RepositoryID *int `db:"repository_id" json:"repository_id"`
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
