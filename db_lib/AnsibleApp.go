@@ -125,8 +125,8 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 	return path.Dir(playbookPath)
 }
 
-func (t *AnsibleApp) installCollectionsRequirements() error {
-	requirementsFilePath := path.Join(t.getRepoPath(), "collections", "requirements.yml")
+func (t *AnsibleApp) installCollectionsRequirementsFile(requirementsFilePath string) error {
+
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -152,6 +152,15 @@ func (t *AnsibleApp) installCollectionsRequirements() error {
 	}
 
 	return nil
+}
+
+func (t *AnsibleApp) installCollectionsRequirements() (err error) {
+	err = t.installCollectionsRequirementsFile(path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
+	if err != nil {
+		return
+	}
+	err = t.installCollectionsRequirementsFile(path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	return
 }
 
 func (t *AnsibleApp) runGalaxy(args []string) error {
