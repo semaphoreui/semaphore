@@ -20,10 +20,7 @@ ARG TARGETARCH
 
 RUN --mount=type=cache,target=/go/pkg \
     --mount=type=cache,target=/root/.cache/go-build \
-    task deps
-
-RUN --mount=type=cache,target=/go/pkg \
-    --mount=type=cache,target=/root/.cache/go-build \
+    task deps && \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 FROM alpine:3.19

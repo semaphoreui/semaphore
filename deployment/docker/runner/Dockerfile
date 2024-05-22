@@ -18,8 +18,7 @@ COPY . /go/src/semaphore
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN --mount=type=cache,target=/go/src/semaphore/web/node_modules \
-    --mount=type=cache,target=/go/pkg \
+RUN --mount=type=cache,target=/go/pkg \
     --mount=type=cache,target=/root/.cache/go-build \
     task deps && \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}

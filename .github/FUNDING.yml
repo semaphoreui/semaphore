@@ -1,8 +1,8 @@
 # These are supported funding model platforms
 
 github: semaphoreui
-patreon: semaphoreui
-ko_fi: fiftin
+#patreon: semaphoreui
+#ko_fi: fiftin
 open_collective: # semaphore
 tidelift: # Replace with a single Tidelift platform-name/package-name e.g., npm/babel
 community_bridge: # Replace with a single Community Bridge project-name e.g., cloud-foundry

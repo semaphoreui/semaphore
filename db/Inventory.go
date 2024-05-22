@@ -29,7 +29,25 @@ type Inventory struct {
 	Type InventoryType `db:"type" json:"type"`
 
 	// HolderID is an ID of template which holds the inventory
+	// It is not used now but can be used in feature for
+	// inventories which can not be used more than one template
+	// at once.
 	HolderID *int `db:"holder_id" json:"holder_id"`
+
+	// RepositoryID is an ID of repo where inventory stored.
+	// If null than inventory will be got from template repository.
+	RepositoryID *int        `db:"repository_id" json:"repository_id"`
+	Repository   *Repository `db:"-" json:"-"`
+}
+
+func (e Inventory) GetFilename() string {
+	if e.Type != InventoryFile {
+		return ""
+	}
+
+	return e.Inventory
+
+	//return strings.TrimPrefix(e.Inventory, "/")
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
@@ -43,6 +61,19 @@ func FillInventory(d Store, inventory *Inventory) (err error) {
 
 	if inventory.BecomeKeyID != nil {
 		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.RepositoryID != nil {
+		var repo Repository
+		repo, err = d.GetRepository(inventory.ProjectID, *inventory.RepositoryID)
+		if err != nil {
+			return
+		}
+		inventory.Repository = &repo
 	}
 
 	return
