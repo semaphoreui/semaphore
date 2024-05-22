@@ -7,6 +7,8 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -101,9 +103,8 @@ func (t *TerraformApp) runCmd(command string, args []string) error {
 	return cmd.Run()
 }
 
-func (t *TerraformApp) GetFullPath() (path string) {
-	path = t.Repository.GetFullPath(t.Template.ID)
-	return
+func (t *TerraformApp) GetFullPath() string {
+	return path.Join(t.Repository.GetFullPath(t.Template.ID), strings.TrimPrefix(t.Template.Playbook, "/"))
 }
 
 func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
