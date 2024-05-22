@@ -167,7 +167,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		break
 	case db.InventoryFile:
 		if !IsValidInventoryPath(inventory.Inventory) {
-			helpers.WriteErrorStatus(w, "Invalid inventory file path. Must be path/to/inventory.", http.StatusBadRequest)
+			helpers.WriteErrorStatus(w, "Invalid inventory file pathname. Must be: path/to/inventory.", http.StatusBadRequest)
 			return
 		}
 	default:
