@@ -64,9 +64,9 @@ func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 	var dir string
 
 	switch targetDir {
-	case GitRepositoryTmpDir:
+	case GitRepositoryTmpPath:
 		dir = util.Config.TmpPath
-	case GitRepositoryRepoDir:
+	case GitRepositoryFullPath:
 		dir = r.GetFullPath()
 	default:
 		panic("unknown Repository directory type")
@@ -103,7 +103,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 func (c GoGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	rep, err := openRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 func (c GoGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
 
-	rep, err := openRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (c GoGitClient) Checkout(r GitRepository, target string) error {
 
 func (c GoGitClient) CanBePulled(r GitRepository) bool {
 
-	rep, err := openRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
 		return false
 	}
@@ -196,7 +196,7 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err error) {
 	r.Logger.Log("Get current commit message")
 
-	rep, err := openRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err erro
 func (c GoGitClient) GetLastCommitHash(r GitRepository) (hash string, err error) {
 	r.Logger.Log("Get current commit hash")
 
-	rep, err := openRepository(r, GitRepositoryRepoDir)
+	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
 		return
 	}

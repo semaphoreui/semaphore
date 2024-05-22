@@ -51,6 +51,17 @@
       :disabled="formSaving"
     ></v-select>
 
+    <v-select
+      v-model="item.repository_id"
+      :label="$t('repository')"
+      clearable
+      :items="repositories"
+      item-value="id"
+      item-text="name"
+      :disabled="formSaving"
+      v-if="item.type === 'file'"
+    ></v-select>
+
     <v-text-field
       v-model="item.inventory"
       :label="$t('pathToInventoryFile')"
@@ -131,7 +142,6 @@ export default {
         lint: true,
         indentWithTabs: false,
       },
-      keys: null,
       inventoryTypes: [{
         id: 'static',
         name: 'Static',
@@ -142,6 +152,8 @@ export default {
         id: 'file',
         name: 'File',
       }],
+      keys: null,
+      repositories: null,
     };
   },
 
@@ -155,11 +167,18 @@ export default {
   },
 
   async created() {
-    this.keys = (await axios({
-      keys: 'get',
-      url: `/api/project/${this.projectId}/keys`,
-      responseType: 'json',
-    })).data;
+    [this.keys, this.repositories] = (await Promise.all([
+      await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/keys`,
+        responseType: 'json',
+      }),
+      await axios({
+        keys: 'get',
+        url: `/api/project/${this.projectId}/repositories`,
+        responseType: 'json',
+      }),
+    ])).map((x) => x.data);
   },
 
   methods: {

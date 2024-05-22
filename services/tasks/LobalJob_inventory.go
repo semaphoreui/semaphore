@@ -2,8 +2,10 @@ package tasks
 
 import (
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"path"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/util"
@@ -24,7 +26,9 @@ func (t *LocalJob) installInventory() (err error) {
 		}
 	}
 
-	if t.Inventory.Type == db.InventoryStatic || t.Inventory.Type == db.InventoryStaticYaml {
+	if t.Inventory.Type == db.InventoryFile {
+		err = t.cloneInventoryRepo()
+	} else if t.Inventory.Type == db.InventoryStatic || t.Inventory.Type == db.InventoryStaticYaml {
 		err = t.installStaticInventory()
 	}
 
@@ -32,23 +36,47 @@ func (t *LocalJob) installInventory() (err error) {
 }
 
 func (t *LocalJob) tmpInventoryFilename() string {
-	path := util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.Task.ID)
+	return "inventory_" + strconv.Itoa(t.Task.ID)
+}
+
+func (t *LocalJob) tmpInventoryFullPath() string {
+	pathname := path.Join(util.Config.TmpPath, t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
-		path += ".yml"
+		pathname += ".yml"
 	}
-	return path
+	return pathname
+}
+
+func (t *LocalJob) cloneInventoryRepo() error {
+	if t.Inventory.Repository == nil {
+		return nil
+	}
+
+	t.Log("cloning inventory repository")
+
+	repo := db_lib.GitRepository{
+		Logger:     t.Logger,
+		TmpDirName: t.tmpInventoryFilename(),
+		Repository: *t.Inventory.Repository,
+		Client:     db_lib.CreateDefaultGitClient(),
+	}
+
+	err := repo.Clone()
+
+	return err
 }
 
 func (t *LocalJob) installStaticInventory() error {
 	t.Log("installing static inventory")
 
-	path := t.tmpInventoryFilename()
+	path := t.tmpInventoryFullPath()
 
 	// create inventory file
 	return os.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
 }
+
 func (t *LocalJob) destroyInventoryFile() {
-	path := t.tmpInventoryFilename()
+	path := t.tmpInventoryFullPath()
 	if err := os.Remove(path); err != nil {
 		log.Error(err)
 	}
