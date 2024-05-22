@@ -159,7 +159,7 @@ export default {
   playbookFilename: 'Playbook 文件名称 *',
   exampleSiteyml: '例如: site.yml',
   inventory2: '主机配置 *',
-  repository: '存储库 *',
+  repository: '存储库',
   environment3: '环境 *',
   vaultPassword: 'Vault 密码',
   vaultPassword2: 'Vault 密码',

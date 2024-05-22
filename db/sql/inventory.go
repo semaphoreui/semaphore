@@ -36,8 +36,8 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 		inventory.Inventory,
 		inventory.BecomeKeyID,
 		inventory.HolderID,
-		inventory.ID,
-		inventory.RepositoryID)
+		inventory.RepositoryID,
+		inventory.ID)
 
 	return err
 }

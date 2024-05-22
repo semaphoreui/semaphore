@@ -157,7 +157,7 @@ export default {
   playbookFilename: 'Nom de fichier du playbook *',
   exampleSiteyml: 'Exemple: site.yml',
   inventory2: 'Inventaire *',
-  repository: 'Dépôt *',
+  repository: 'Dépôt',
   environment3: 'Environnement *',
   vaultPassword: 'Mot de passe du coffre-fort',
   vaultPassword2: 'Mot de passe du coffre-fort',
