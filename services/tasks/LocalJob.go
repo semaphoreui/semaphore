@@ -204,9 +204,9 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	switch t.Inventory.Type {
 	case db.InventoryFile:
 		if t.Inventory.RepositoryID == nil {
-			inventoryFilename = t.Inventory.Inventory
+			inventoryFilename = t.Inventory.GetFilename()
 		} else {
-			inventoryFilename = path.Join(t.tmpInventoryFullPath(), t.Inventory.Inventory)
+			inventoryFilename = path.Join(t.tmpInventoryFullPath(), t.Inventory.GetFilename())
 		}
 	case db.InventoryStatic, db.InventoryStaticYaml:
 		inventoryFilename = t.tmpInventoryFullPath()

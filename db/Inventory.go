@@ -39,6 +39,16 @@ type Inventory struct {
 	Repository   *Repository `db:"-" json:"-"`
 }
 
+func (e Inventory) GetFilename() string {
+	if e.Type != InventoryFile {
+		return ""
+	}
+
+	return e.Inventory
+
+	//return strings.TrimPrefix(e.Inventory, "/")
+}
+
 func FillInventory(d Store, inventory *Inventory) (err error) {
 	if inventory.SSHKeyID != nil {
 		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
