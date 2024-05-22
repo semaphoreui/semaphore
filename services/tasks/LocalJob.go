@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"path"
 	"strconv"
 
 	"github.com/ansible-semaphore/semaphore/db"
@@ -199,19 +200,23 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		playbookName = t.Template.Playbook
 	}
 
-	var inventory string
+	var inventoryFilename string
 	switch t.Inventory.Type {
 	case db.InventoryFile:
-		inventory = t.Inventory.Inventory
+		if t.Inventory.RepositoryID == nil {
+			inventoryFilename = t.Inventory.Inventory
+		} else {
+			inventoryFilename = path.Join(t.tmpInventoryFullPath(), t.Inventory.Inventory)
+		}
 	case db.InventoryStatic, db.InventoryStaticYaml:
-		inventory = t.tmpInventoryFilename()
+		inventoryFilename = t.tmpInventoryFullPath()
 	default:
 		err = fmt.Errorf("invalid inventory type")
 		return
 	}
 
 	args = []string{
-		"-i", inventory,
+		"-i", inventoryFilename,
 	}
 
 	if t.Inventory.SSHKeyID != nil {

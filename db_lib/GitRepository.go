@@ -1,7 +1,9 @@
 package db_lib
 
 import (
+	"github.com/ansible-semaphore/semaphore/util"
 	"os"
+	"path"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
@@ -10,8 +12,8 @@ import (
 type GitRepositoryDirType int
 
 const (
-	GitRepositoryTmpDir GitRepositoryDirType = iota
-	GitRepositoryRepoDir
+	GitRepositoryTmpPath GitRepositoryDirType = iota
+	GitRepositoryFullPath
 )
 
 type GitClient interface {
@@ -25,15 +27,18 @@ type GitClient interface {
 }
 
 type GitRepository struct {
+	TmpDirName string
 	TemplateID int
 	Repository db.Repository
 	Logger     task_logger.Logger
 	Client     GitClient
 }
 
-func (r GitRepository) GetFullPath() (path string) {
-	path = r.Repository.GetFullPath(r.TemplateID)
-	return
+func (r GitRepository) GetFullPath() string {
+	if r.TmpDirName != "" {
+		return path.Join(util.Config.TmpPath, r.TmpDirName)
+	}
+	return r.Repository.GetFullPath(r.TemplateID)
 }
 
 func (r GitRepository) ValidateRepo() error {

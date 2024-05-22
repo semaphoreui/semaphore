@@ -35,7 +35,8 @@ type Inventory struct {
 
 	// RepositoryID is an ID of repo where inventory stored.
 	// If null than inventory will be got from template repository.
-	RepositoryID *int `db:"repository_id" json:"repository_id"`
+	RepositoryID *int        `db:"repository_id" json:"repository_id"`
+	Repository   *Repository `db:"-" json:"-"`
 }
 
 func FillInventory(d Store, inventory *Inventory) (err error) {
@@ -49,6 +50,19 @@ func FillInventory(d Store, inventory *Inventory) (err error) {
 
 	if inventory.BecomeKeyID != nil {
 		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.RepositoryID != nil {
+		var repo Repository
+		repo, err = d.GetRepository(inventory.ProjectID, *inventory.RepositoryID)
+		if err != nil {
+			return
+		}
+		inventory.Repository = &repo
 	}
 
 	return

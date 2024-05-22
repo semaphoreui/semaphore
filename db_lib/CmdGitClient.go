@@ -29,9 +29,9 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 	}
 
 	switch targetDir {
-	case GitRepositoryTmpDir:
+	case GitRepositoryTmpPath:
 		cmd.Dir = util.Config.TmpPath
-	case GitRepositoryRepoDir:
+	case GitRepositoryFullPath:
 		cmd.Dir = r.GetFullPath()
 	default:
 		panic("unknown Repository directory type")
@@ -78,34 +78,41 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 func (c CmdGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
-	return c.run(r, GitRepositoryTmpDir,
+	var dirName string
+	if r.TmpDirName == "" {
+		dirName = r.Repository.GetDirName(r.TemplateID)
+	} else {
+		dirName = r.TmpDirName
+	}
+
+	return c.run(r, GitRepositoryTmpPath,
 		"clone",
 		"--recursive",
 		"--branch",
 		r.Repository.GitBranch,
 		r.Repository.GetGitURL(),
-		r.Repository.GetDirName(r.TemplateID))
+		dirName)
 }
 
 func (c CmdGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	return c.run(r, GitRepositoryRepoDir, "pull", "origin", r.Repository.GitBranch)
+	return c.run(r, GitRepositoryFullPath, "pull", "origin", r.Repository.GitBranch)
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
 
-	return c.run(r, GitRepositoryRepoDir, "checkout", target)
+	return c.run(r, GitRepositoryFullPath, "checkout", target)
 }
 
 func (c CmdGitClient) CanBePulled(r GitRepository) bool {
-	err := c.run(r, GitRepositoryRepoDir, "fetch")
+	err := c.run(r, GitRepositoryFullPath, "fetch")
 	if err != nil {
 		return false
 	}
 
-	err = c.run(r, GitRepositoryRepoDir,
+	err = c.run(r, GitRepositoryFullPath,
 		"merge-base", "--is-ancestor", "HEAD", "origin/"+r.Repository.GitBranch)
 
 	return err == nil
@@ -114,7 +121,7 @@ func (c CmdGitClient) CanBePulled(r GitRepository) bool {
 func (c CmdGitClient) GetLastCommitMessage(r GitRepository) (msg string, err error) {
 	r.Logger.Log("Get current commit message")
 
-	msg, err = c.output(r, GitRepositoryRepoDir, "show-branch", "--no-name", "HEAD")
+	msg, err = c.output(r, GitRepositoryFullPath, "show-branch", "--no-name", "HEAD")
 	if err != nil {
 		return
 	}
@@ -128,12 +135,12 @@ func (c CmdGitClient) GetLastCommitMessage(r GitRepository) (msg string, err err
 
 func (c CmdGitClient) GetLastCommitHash(r GitRepository) (hash string, err error) {
 	r.Logger.Log("Get current commit hash")
-	hash, err = c.output(r, GitRepositoryRepoDir, "rev-parse", "HEAD")
+	hash, err = c.output(r, GitRepositoryFullPath, "rev-parse", "HEAD")
 	return
 }
 
 func (c CmdGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err error) {
-	out, err := c.output(r, GitRepositoryTmpDir, "ls-remote", r.Repository.GetGitURL(), r.Repository.GitBranch)
+	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", r.Repository.GetGitURL(), r.Repository.GitBranch)
 	if err != nil {
 		return
 	}
