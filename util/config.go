@@ -40,7 +40,7 @@ type DbConfig struct {
 	Username string            `json:"user" env:"SEMAPHORE_DB_USER"`
 	Password string            `json:"pass" env:"SEMAPHORE_DB_PASS"`
 	DbName   string            `json:"name" env:"SEMAPHORE_DB"`
-	Options  map[string]string `json:"options"`
+	Options  map[string]string `json:"options" env:"SEMAPHORE_DB_OPTIONS"`
 }
 
 type ldapMappings struct {
@@ -408,6 +408,15 @@ func setConfigValue(attribute reflect.Value, value interface{}) {
 		case reflect.Bool:
 			if reflect.ValueOf(value).Kind() != reflect.Bool {
 				value = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
+			}
+		case reflect.Map:
+			if reflect.ValueOf(value).Kind() == reflect.String {
+				mapValue := make(map[string]string)
+				err := json.Unmarshal([]byte(value.(string)), &mapValue)
+				if err != nil {
+					panic(err)
+				}
+				value = mapValue
 			}
 		}
 		attribute.Set(reflect.ValueOf(value))
