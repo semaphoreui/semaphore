@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"path"
@@ -85,7 +86,18 @@ func (r Repository) GetGitURL() string {
 		if auth != "" {
 			auth += "@"
 		}
-		url = "https://" + auth + r.GitURL[8:]
+
+		re := regexp.MustCompile(`^(https?)://`)
+		m := re.FindStringSubmatch(url)
+		var protocol string
+
+		if m == nil {
+			panic(fmt.Errorf("invalid git url: %s", url))
+		}
+
+		protocol = m[1]
+
+		url = protocol + "://" + auth + r.GitURL[8:]
 	}
 
 	return url

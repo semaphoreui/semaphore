@@ -5,6 +5,7 @@
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Repository`"
       @save="loadItems()"
+      :max-width="450"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <RepositoryForm
