@@ -35,7 +35,7 @@
     <div class="mt-1 mb-4">
       <span class="caption">git:</span>
       <v-chip
-        v-for="x in ['ssh', 'https', 'file', 'git']"
+        v-for="x in ['ssh', 'http', 'https', 'file', 'git']"
         x-small
         class="ml-1"
         :color="type ===x ? 'primary' : ''"
@@ -148,7 +148,7 @@ export default {
         return 'ssh';
       }
 
-      if (!['git', 'file', 'ssh', 'https'].includes(m[1])) {
+      if (!['git', 'file', 'ssh', 'http', 'https'].includes(m[1])) {
         return null;
       }
 
