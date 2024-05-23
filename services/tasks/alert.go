@@ -364,6 +364,8 @@ func (t *TaskRunner) alertInfos() (string, string) {
 
 	if t.Task.Version != nil {
 		version = *t.Task.Version
+	} else if t.Task.GetIncomingVersion(t.pool.store) != nil {
+		version = "build " + *t.Task.GetIncomingVersion(t.pool.store)
 	} else if t.Task.BuildTaskID != nil {
 		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
 	} else {
