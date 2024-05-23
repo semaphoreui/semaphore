@@ -91,11 +91,11 @@ func (r Repository) GetGitURL() string {
 		m := re.FindStringSubmatch(url)
 		var protocol string
 
-		if len(m) > 1 {
-			protocol = m[1]
-		} else {
+		if m == nil {
 			panic(fmt.Errorf("invalid git url: %s", url))
 		}
+
+		protocol = m[1]
 
 		url = protocol + "://" + auth + r.GitURL[8:]
 	}
