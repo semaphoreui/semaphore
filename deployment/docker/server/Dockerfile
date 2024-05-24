@@ -26,17 +26,19 @@ RUN --mount=type=cache,target=/go/pkg \
 FROM alpine:3.19
 
 ARG TERRAFORM_VERSION="1.8.2"
+ARG PULUMI_VERSION="3.116.1"
+ARG OPENTOFU_VERSION="1.7.1"
 
 RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 RUN unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /usr/local/bin
 RUN rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 
-RUN curl -fsSL https://get.pulumi.com | sh
+RUN curl -fsSL https://get.pulumi.com | sh -s -- --version ${PULUMI_VERSION}
 
-RUN curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh \
-RUN chmod +x install-opentofu.sh
-RUN ./install-opentofu.sh --install-method deb
-RUN rm install-opentofu.sh
+RUN curl -O https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz
+RUN tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.zip -d /usr/local/bin
+RUN rm tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.zip
+
 
 RUN apk add --no-cache -U \
 bash curl git bash gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip build-base openssl-dev libffi-dev cargo && \
