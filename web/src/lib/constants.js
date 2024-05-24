@@ -85,7 +85,7 @@ export const APP_ICONS = {
     darkColor: '#7b42bc',
   },
   tofu: {
-    image: '',
+    icon: '',
     color: 'black',
     darkColor: 'white',
   },
