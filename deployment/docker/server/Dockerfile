@@ -31,6 +31,13 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 RUN unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /usr/local/bin
 RUN rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 
+RUN curl -fsSL https://get.pulumi.com | sh
+
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh \
+RUN chmod +x install-opentofu.sh
+RUN ./install-opentofu.sh --install-method deb
+RUN rm install-opentofu.sh
+
 RUN apk add --no-cache -U \
 bash curl git bash gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip build-base openssl-dev libffi-dev cargo && \
     rm -rf /var/cache/apk/* && \
