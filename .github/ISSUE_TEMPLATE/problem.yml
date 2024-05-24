@@ -64,6 +64,21 @@ body:
     validations:
       required: true
 
+
+  - type: dropdown
+    id: databases
+    attributes:
+      label: Database
+      description: |
+        What database you use?
+
+      multiple: true
+      options:
+        - MySQL
+        - BoltDB
+        - Postgres
+
+
   - type: dropdown
     id: browsers
     attributes:
