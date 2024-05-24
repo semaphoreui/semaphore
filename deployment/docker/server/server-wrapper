@@ -99,6 +99,7 @@ case ${SEMAPHORE_DB_DIALECT} in
         ;;
     bolt)
         SEMAPHORE_DB_DIALECT_ID=2
+        SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.boltdb
         ;;
     postgres)
         SEMAPHORE_DB_DIALECT_ID=3
@@ -117,7 +118,7 @@ EOF
 
     if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
         cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_PATH}/database.boltdb
+${SEMAPHORE_DB_HOST}
 EOF
     else
         cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
