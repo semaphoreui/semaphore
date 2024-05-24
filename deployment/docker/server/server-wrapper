@@ -111,64 +111,11 @@ case ${SEMAPHORE_DB_DIALECT} in
 esac
 
 if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
-    echoerr "Generating ${SEMAPHORE_TMP_PATH}/config.stdin ..."
-    cat << EOF > "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_DIALECT_ID}
-EOF
+    echoerr "Generating config.json..."
 
-    if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
-        cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_HOST}
-EOF
-    else
-        cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_HOST}
-${SEMAPHORE_DB_USER}
-${SEMAPHORE_DB_PASS}
-${SEMAPHORE_DB}
-EOF
-    fi
+    # TODO: add config.json
 
-    cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_TMP_PATH}
-${SEMAPHORE_WEB_ROOT}
-no
-no
-no
-no
-no
-${SEMAPHORE_LDAP_ACTIVATED}
-EOF
-
-    if [ "${SEMAPHORE_LDAP_ACTIVATED}" = "yes" ]; then
-        cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_LDAP_HOST}:${SEMAPHORE_LDAP_PORT}
-${SEMAPHORE_LDAP_NEEDTLS}
-${SEMAPHORE_LDAP_DN_BIND}
-${SEMAPHORE_LDAP_PASSWORD}
-${SEMAPHORE_LDAP_DN_SEARCH}
-${SEMAPHORE_LDAP_SEARCH_FILTER}
-${SEMAPHORE_LDAP_MAPPING_DN}
-${SEMAPHORE_LDAP_MAPPING_USERNAME}
-${SEMAPHORE_LDAP_MAPPING_FULLNAME}
-${SEMAPHORE_LDAP_MAPPING_EMAIL}
-EOF
-    fi;
-
-    cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_CONFIG_PATH}
-${SEMAPHORE_ADMIN}
-${SEMAPHORE_ADMIN_EMAIL}
-${SEMAPHORE_ADMIN_NAME}
-${SEMAPHORE_ADMIN_PASSWORD}
-EOF
-
-    echoerr "Executing semaphore setup"
-    if test "$#" -ne 1; then
-        /usr/local/bin/semaphore setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
-    else
-        "$1" setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
-    fi
+    # TODO: add admin user
 fi
 
 source ./venv/bin/activate
