@@ -84,6 +84,11 @@ export const APP_ICONS = {
     color: '#7b42bc',
     darkColor: '#7b42bc',
   },
+  tofu: {
+    image: '',
+    color: 'black',
+    darkColor: 'white',
+  },
   bash: {
     icon: 'mdi-bash',
     color: 'black',
@@ -94,10 +99,12 @@ export const APP_ICONS = {
 export const APP_TITLE = {
   '': 'Ansible Playbook',
   terraform: 'Terraform Code',
+  tofu: 'OpenTofu Code',
   bash: 'Bash Script',
 };
 
 export const APP_INVENTORY_TITLE = {
   '': 'Ansible Inventory',
   terraform: 'Terraform Workspace',
+  tofu: 'OpenTofu Workspace',
 };

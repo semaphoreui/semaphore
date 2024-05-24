@@ -11,7 +11,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <TerraformInventoryForm
-          v-if="itemApp === 'terraform'"
+          v-if="['terraform', 'tofu'].includes(itemApp)"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -147,7 +147,7 @@ export default {
     return {
       APP_TITLE,
       APP_ICONS,
-      apps: ['', 'terraform'],
+      apps: ['', 'terraform', 'tofu'],
       itemApp: '',
     };
   },
@@ -155,6 +155,8 @@ export default {
   methods: {
     getAppByType(type) {
       switch (type) {
+        case 'tofu-workspace':
+          return 'tofu';
         case 'terraform-workspace':
           return 'terraform';
         default:

@@ -23,6 +23,14 @@ func CreateApp(template db.Template, repository db.Repository, logger task_logge
 			Template:   template,
 			Repository: repository,
 			Logger:     logger,
+			Name:       TerraformAppTerraform,
+		}
+	case db.TemplateTofu:
+		return &TerraformApp{
+			Template:   template,
+			Repository: repository,
+			Logger:     logger,
+			Name:       TerraformAppTofu,
 		}
 	case db.TemplateBash:
 		return &BashApp{

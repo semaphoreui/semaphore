@@ -9,6 +9,7 @@ const (
 	// InventoryFile means that it is path to the Ansible inventory file
 	InventoryFile               InventoryType = "file"
 	InventoryTerraformWorkspace InventoryType = "terraform-workspace"
+	InventoryTofuWorkspace      InventoryType = "tofu-workspace"
 )
 
 // Inventory is the model of an ansible inventory file

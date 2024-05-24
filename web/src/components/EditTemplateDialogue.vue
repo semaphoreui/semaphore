@@ -12,7 +12,7 @@
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TerraformTemplateForm
-          v-if="itemApp === 'terraform'"
+          v-if="['terraform', 'tofu'].includes(itemApp)"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"

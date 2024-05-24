@@ -12,11 +12,19 @@ import (
 	"time"
 )
 
+type TerraformAppName string
+
+const (
+	TerraformAppTerraform TerraformAppName = "terraform"
+	TerraformAppTofu      TerraformAppName = "tofu"
+)
+
 type TerraformApp struct {
 	Logger     task_logger.Logger
 	Template   db.Template
 	Repository db.Repository
 	reader     terraformReader
+	Name       TerraformAppName
 }
 
 type terraformLogger struct {
@@ -124,7 +132,7 @@ func (t *TerraformApp) InstallRequirements() error {
 		t.SetLogger(t.Logger)
 	}
 
-	cmd := t.makeCmd("terraform", []string{"init"}, nil)
+	cmd := t.makeCmd(string(t.Name), []string{"init"}, nil)
 	t.Logger.LogCmd(cmd)
 	err := cmd.Start()
 	if err != nil {
@@ -134,7 +142,7 @@ func (t *TerraformApp) InstallRequirements() error {
 }
 
 func (t *TerraformApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
-	cmd := t.makeCmd("terraform", args, environmentVars)
+	cmd := t.makeCmd(string(t.Name), args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	cmd.Stdin = &t.reader
 	err := cmd.Start()
