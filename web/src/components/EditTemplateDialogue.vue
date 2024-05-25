@@ -20,6 +20,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :source-item-id="sourceItemId"
+          :app="itemApp"
       />
       <BashTemplateForm
           v-else-if="itemApp === 'bash'"

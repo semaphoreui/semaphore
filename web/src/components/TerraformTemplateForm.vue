@@ -3,12 +3,12 @@
     <v-row>
       <v-col>
         <v-skeleton-loader
-            type="table-heading, list-item-two-line, image, table-tfoot"
+          type="table-heading, list-item-two-line, image, table-tfoot"
         ></v-skeleton-loader>
       </v-col>
       <v-col>
         <v-skeleton-loader
-            type="table-heading, list-item-two-line, image, table-tfoot"
+          type="table-heading, list-item-two-line, image, table-tfoot"
         ></v-skeleton-loader>
       </v-col>
     </v-row>
@@ -299,6 +299,7 @@ export default {
 
   props: {
     sourceItemId: Number,
+    app: String,
   },
 
   data() {
@@ -404,7 +405,7 @@ export default {
         keys: 'get',
         url: `/api/project/${this.projectId}/inventory`,
         responseType: 'json',
-      })).data.filter((inv) => inv.type === 'terraform-workspace' && inv.holder_id == null);
+      })).data.filter((inv) => inv.type === `${this.app}-workspace` && inv.holder_id == null);
 
       this.environment = (await axios({
         keys: 'get',
@@ -473,7 +474,7 @@ export default {
     },
 
     async beforeSave() {
-      this.item.app = 'terraform';
+      this.item.app = this.app;
 
       if (this.cronFormat == null || this.cronFormat === '') {
         return;

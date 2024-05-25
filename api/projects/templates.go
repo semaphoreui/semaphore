@@ -92,7 +92,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if newTemplate.App == db.TemplateTerraform {
+	if newTemplate.App.IsTerraform() {
 		var inv db.Inventory
 
 		if newTemplate.InventoryID == nil {
