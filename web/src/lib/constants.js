@@ -85,7 +85,12 @@ export const APP_ICONS = {
     darkColor: '#7b42bc',
   },
   tofu: {
-    icon: '',
+    icon: '$vuetify.icons.tofu',
+    color: 'black',
+    darkColor: 'white',
+  },
+  pulumi: {
+    icon: '$vuetify.icons.pulumi',
     color: 'black',
     darkColor: 'white',
   },
@@ -101,6 +106,7 @@ export const APP_TITLE = {
   terraform: 'Terraform Code',
   tofu: 'OpenTofu Code',
   bash: 'Bash Script',
+  pulumi: 'Pulumi Code',
 };
 
 export const APP_INVENTORY_TITLE = {

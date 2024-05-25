@@ -298,7 +298,7 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateApps: ['', 'terraform', 'tofu', 'bash'],
+      templateApps: ['', 'terraform', 'tofu', 'bash', 'pulumi'],
       itemApp: '',
     };
   },
