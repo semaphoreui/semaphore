@@ -32,7 +32,8 @@ func doSetup() int {
 	setup.InteractiveSetup(config)
 
 	configPath := setup.SaveConfig(config)
-	util.Config = config
+
+	util.ConfigInit(configPath)
 
 	fmt.Println(" Pinging db..")
 
