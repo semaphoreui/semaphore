@@ -25,10 +25,10 @@
     </v-subheader>
 
     <codemirror
-        :style="{ border: '1px solid lightgray' }"
-        v-model="item.json"
-        :options="cmOptions"
-        :placeholder="$t('enterExtraVariablesJson')"
+      :style="{ border: '1px solid lightgray' }"
+      v-model="json"
+      :options="cmOptions"
+      :placeholder="$t('enterExtraVariablesJson')"
     />
 
     <div class="mt-4">
@@ -47,10 +47,10 @@
     </div>
 
     <v-alert
-        dense
-        text
-        type="info"
-        class="mt-4"
+      dense
+      text
+      type="info"
+      class="mt-4"
     >
       {{ $t('environmentAndExtraVariablesMustBeValidJsonExample') }}
       <pre style="font-size: 14px;">{
@@ -81,7 +81,7 @@
 
       <codemirror
         :style="{ border: '1px solid lightgray' }"
-        v-model="item.env"
+        v-model="env"
         :options="cmOptions"
         :placeholder="$t('enterEnvJson')"
       />
@@ -109,17 +109,17 @@ export default {
   },
 
   created() {
-    if (!this.item.env) {
-      this.item.env = '{}';
-    }
-    if (!this.item.json) {
-      this.item.json = '{}';
-    }
   },
 
   data() {
     return {
+      images: [
+        'dind-runner:latest',
+      ],
       advancedOptions: false,
+      json: '{}',
+      env: '{}',
+
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',
@@ -134,18 +134,25 @@ export default {
   methods: {
     setExtraVar(name, value) {
       try {
-        const obj = JSON.parse(this.item.json);
+        const obj = JSON.parse(this.json || '{}');
         obj[name] = value;
-        this.item = {
-          ...this.item,
-          json: JSON.stringify(obj, null, 2),
-        };
+        this.json = JSON.stringify(obj, null, 2);
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: getErrorMessage(err),
         });
       }
+    },
+
+    beforeSave() {
+      this.item.json = this.json;
+      this.item.env = this.env;
+    },
+
+    afterLoadData() {
+      this.json = this.item?.json || '{}';
+      this.env = this.item?.env || '{}';
     },
 
     getItemsUrl() {
