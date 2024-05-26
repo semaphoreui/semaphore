@@ -72,6 +72,16 @@ file_env 'SEMAPHORE_ACCESS_KEY_ENCRYPTION'
     exit 1
 }
 
+# Check if $SEMAPHORE_DB_HOST contains port number.
+case "$SEMAPHORE_DB_HOST" in
+  *:*)
+    SEMAPHORE_DB_PORT=$(echo "$SEMAPHORE_DB_HOST" | cut -d ':' -f 2)
+    SEMAPHORE_DB_HOST=$(echo "$SEMAPHORE_DB_HOST" | cut -d ':' -f 1)
+    ;;
+  *)
+esac
+
+# Ping database if it is not BoltDB
 if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
   echoerr "Attempting to connect to database ${SEMAPHORE_DB} on ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT} with user ${SEMAPHORE_DB_USER} ..."
   TIMEOUT=30

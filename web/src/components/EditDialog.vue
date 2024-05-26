@@ -17,6 +17,11 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           <v-icon v-if="icon" :color="iconColor" class="mr-3">{{ icon }}</v-icon>
           {{ title }}
         </slot>
+
+        <v-spacer></v-spacer>
+        <v-btn icon @click="close()">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
       </v-card-title>
 
       <v-card-text class="pb-0" :style="{minHeight: minContentHeight + 'px'}">
