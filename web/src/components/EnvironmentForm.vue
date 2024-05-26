@@ -136,7 +136,10 @@ export default {
       try {
         const obj = JSON.parse(this.item.json);
         obj[name] = value;
-        this.item.json = JSON.stringify(obj, null, 2);
+        this.item = {
+          ...this.item,
+          json: JSON.stringify(obj, null, 2),
+        };
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
