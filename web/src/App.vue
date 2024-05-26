@@ -486,6 +486,11 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+
+.v-alert__wrapper {
+  overflow: auto;
+}
+
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
   overflow: hidden;
