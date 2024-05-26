@@ -41,7 +41,7 @@
         </v-btn>
 
         <v-btn class="ml-4" icon @click="removeView(view.id)">
-          <v-icon>mdi-close</v-icon>
+          <v-icon>mdi-delete</v-icon>
         </v-btn>
       </div>
     </draggable>
