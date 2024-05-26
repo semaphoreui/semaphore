@@ -20,7 +20,7 @@
       class="mb-4"
     ></v-text-field>
 
-    <v-subheader>
+    <v-subheader class="pl-0">
       {{ $t('extraVariables') }}
     </v-subheader>
 
@@ -31,16 +31,20 @@
         :placeholder="$t('enterExtraVariablesJson')"
     />
 
-    <v-subheader>
-      {{ $t('environmentVariables') }}
-    </v-subheader>
-
-    <codemirror
-        :style="{ border: '1px solid lightgray' }"
-        v-model="item.env"
-        :options="cmOptions"
-        :placeholder="$t('enterEnvJson')"
-    />
+    <div class="mt-4">
+      <div class="d-flex flex-row justify-space-between">
+        <div>
+          <div style="line-height: 1.1;" class="pl-1">
+            Avoid host key checking by the tools Ansible uses to connect to the host.
+          </div>
+          <code>"ANSIBLE_HOST_KEY_CHECKING": false</code>
+        </div>
+        <v-btn
+          color="primary"
+          @click="setExtraVar('ANSIBLE_HOST_KEY_CHECKING', false)"
+        >Set variable</v-btn>
+      </div>
+    </div>
 
     <v-alert
         dense
@@ -54,6 +58,36 @@
   "var_available_in_playbook_2": "test"
 }</pre>
     </v-alert>
+
+    <div class="mt-4" v-if="!advancedOptions">
+      <a @click="advancedOptions = true">
+        {{ $t('advanced') }}
+        <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
+      </a>
+    </div>
+
+    <div class="mt-4" v-else>
+      <a @click="advancedOptions = false">
+        {{ $t('hide') }}
+        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
+      </a>
+    </div>
+
+    <div v-if="advancedOptions">
+
+      <v-subheader class="pl-0">
+        {{ $t('environmentVariables') }}
+      </v-subheader>
+
+      <codemirror
+        :style="{ border: '1px solid lightgray' }"
+        v-model="item.env"
+        :options="cmOptions"
+        :placeholder="$t('enterEnvJson')"
+      />
+
+    </div>
+
   </v-form>
 </template>
 <script>
@@ -65,6 +99,8 @@ import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
+import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 
 export default {
   mixins: [ItemFormBase],
@@ -83,6 +119,7 @@ export default {
 
   data() {
     return {
+      advancedOptions: false,
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',
@@ -95,6 +132,19 @@ export default {
   },
 
   methods: {
+    setExtraVar(name, value) {
+      try {
+        const obj = JSON.parse(this.item.json);
+        obj[name] = value;
+        this.item.json = JSON.stringify(obj, null, 2);
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
+
     getItemsUrl() {
       return `/api/project/${this.projectId}/environment`;
     },
