@@ -57,14 +57,6 @@
           <v-icon>mdi-chevron-right</v-icon>
           <span class="breadcrumbs__item">{{ $t('task', {expr: task ? task.id : null}) }}</span>
         </div>
-
-        <v-spacer></v-spacer>
-        <v-btn
-          icon
-          @click="taskLogDialog = false; onTaskLogDialogClosed()"
-        >
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
       </template>
       <template v-slot:form="{}">
         <TaskLogView :project-id="projectId" :item-id="task ? task.id : null"/>
