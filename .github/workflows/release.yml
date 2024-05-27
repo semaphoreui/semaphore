@@ -85,9 +85,7 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semui.co>
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=raw,value=${{ github.ref_name }}
           flavor: |
             latest=true
 
@@ -113,9 +111,7 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semui.co>
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=raw,value=${{ github.ref_name }}
           flavor: |
             latest=true
 
