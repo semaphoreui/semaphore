@@ -148,7 +148,7 @@
 
         <v-text-field
           v-model="item.playbook"
-          label="Subdirectory path (optional)"
+          label="Subdirectory path (Optional)"
           outlined
           dense
           required
