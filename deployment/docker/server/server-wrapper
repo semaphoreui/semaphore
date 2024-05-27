@@ -181,7 +181,7 @@ EOF
     fi
 fi
 
-source /home/semaphore/venv/bin/activate
+source /opt/semaphore/venv/bin/activate
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/packages.txt"; then
     echoerr "Installing additional system dependencies"

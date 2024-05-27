@@ -32,9 +32,11 @@ RUN apk add --no-cache -U \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     mkdir -p /var/lib/semaphore && \
+    mkdir -p /opt/semaphore && \
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
-    chown -R semaphore:0 /var/lib/semaphore
+    chown -R semaphore:0 /var/lib/semaphore && \
+    chown -R semaphore:0 /opt/semaphore
 
 COPY --chown=1001:0 ./deployment/docker/runner/ansible.cfg /tmp/semaphore/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/runner/runner-wrapper /usr/local/bin/
@@ -51,10 +53,10 @@ USER 1001
 # renovate: datasource=pypi depName=ansible
 ENV ANSIBLE_VERSION 9.4.0
 
-RUN mkdir ./venv
+RUN mkdir /opt/semaphore/venv
 
-RUN python3 -m venv ./venv --system-site-packages && \
-    source ./venv/bin/activate && \
+RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
+    source /opt/semaphore/venv/bin/activate && \
     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
 
 CMD [ "/usr/local/bin/runner-wrapper"]
