@@ -9,13 +9,14 @@ import (
 )
 
 type JobData struct {
-	Username        string
-	IncomingVersion *string
-	Task            db.Task        `json:"task" binding:"required"`
-	Template        db.Template    `json:"template" binding:"required"`
-	Inventory       db.Inventory   `json:"inventory" binding:"required"`
-	Repository      db.Repository  `json:"repository" binding:"required"`
-	Environment     db.Environment `json:"environment" binding:"required"`
+	Username            string
+	IncomingVersion     *string
+	Task                db.Task        `json:"task" binding:"required"`
+	Template            db.Template    `json:"template" binding:"required"`
+	Inventory           db.Inventory   `json:"inventory" binding:"required"`
+	InventoryRepository *db.Repository `json:"inventory_repository" binding:"required"`
+	Repository          db.Repository  `json:"repository" binding:"required"`
+	Environment         db.Environment `json:"environment" binding:"required"`
 }
 
 type RunnerState struct {

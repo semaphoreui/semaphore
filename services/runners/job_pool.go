@@ -397,6 +397,8 @@ func (p *JobPool) checkNewJobs() {
 			continue
 		}
 
+		newJob.Inventory.Repository = newJob.InventoryRepository
+
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
@@ -423,6 +425,10 @@ func (p *JobPool) checkNewJobs() {
 
 		if taskRunner.job.Template.VaultKeyID != nil {
 			taskRunner.job.Template.VaultKey = response.AccessKeys[*taskRunner.job.Template.VaultKeyID]
+		}
+
+		if taskRunner.job.Inventory.RepositoryID != nil {
+			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]
 		}
 
 		p.queue = append(p.queue, &taskRunner)

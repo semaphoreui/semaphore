@@ -72,13 +72,14 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 		if tsk.Task.Status == task_logger.TaskStartingStatus {
 
 			data.NewJobs = append(data.NewJobs, runners.JobData{
-				Username:        tsk.Username,
-				IncomingVersion: tsk.IncomingVersion,
-				Task:            tsk.Task,
-				Template:        tsk.Template,
-				Inventory:       tsk.Inventory,
-				Repository:      tsk.Repository,
-				Environment:     tsk.Environment,
+				Username:            tsk.Username,
+				IncomingVersion:     tsk.IncomingVersion,
+				Task:                tsk.Task,
+				Template:            tsk.Template,
+				Inventory:           tsk.Inventory,
+				InventoryRepository: tsk.Inventory.Repository,
+				Repository:          tsk.Repository,
+				Environment:         tsk.Environment,
 			})
 
 			if tsk.Inventory.SSHKeyID != nil {
@@ -103,6 +104,14 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 					// TODO: return error
 				}
 				data.AccessKeys[*tsk.Template.VaultKeyID] = tsk.Template.VaultKey
+			}
+
+			if tsk.Inventory.RepositoryID != nil {
+				err := tsk.Inventory.Repository.SSHKey.DeserializeSecret()
+				if err != nil {
+					// TODO: return error
+				}
+				data.AccessKeys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
 			}
 
 			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
