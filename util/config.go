@@ -562,6 +562,8 @@ func loadEnvironmentToObject(obj interface{}) error {
 			continue
 		}
 
+		fmt.Println("***** INIT BY ENV VAR: " + envVar + " " + envValue)
+
 		setConfigValue(fieldValue, envValue)
 	}
 
