@@ -44,10 +44,10 @@ type DbConfig struct {
 }
 
 type ldapMappings struct {
-	DN   string `json:"dn"`
-	Mail string `json:"mail"`
-	UID  string `json:"uid"`
-	CN   string `json:"cn"`
+	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN"`
+	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL"`
+	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID"`
+	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN"`
 }
 
 type oidcEndpoint struct {
