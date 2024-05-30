@@ -7,16 +7,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"math/big"
-	"os"
-	"path"
-	"strconv"
-	"time"
-
+	"github.com/ansible-semaphore/semaphore/pkg/random"
 	"github.com/ansible-semaphore/semaphore/pkg/ssh"
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
+	"io"
+	"math/big"
+	"path"
 )
 
 type AccessKeyType string
@@ -76,18 +73,7 @@ func (key AccessKeyInstallation) Destroy() error {
 	if key.SSHAgent != nil {
 		return key.SSHAgent.Close()
 	}
-
-	installPath := key.GetPath()
-	_, err := os.Stat(installPath)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return os.Remove(installPath)
-}
-
-// GetPath returns the location of the access key once written to disk
-func (key AccessKeyInstallation) GetPath() string {
-	return util.Config.TmpPath + "/access_key_" + strconv.FormatInt(key.InstallationKey, 10)
+	return nil
 }
 
 func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error) {
@@ -99,7 +85,7 @@ func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error
 				Passphrase: []byte(key.SshKey.Passphrase),
 			},
 		},
-		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%d.sock", key.ID, time.Now().Unix())),
+		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))),
 	}
 
 	return sshAgent, sshAgent.Listen()
