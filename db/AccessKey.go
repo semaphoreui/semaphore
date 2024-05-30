@@ -12,7 +12,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"io"
-	"math/big"
 	"path"
 )
 
@@ -63,10 +62,9 @@ const (
 )
 
 type AccessKeyInstallation struct {
-	InstallationKey int64
-	SSHAgent        *ssh.Agent
-	Login           string
-	Password        string
+	SSHAgent *ssh.Agent
+	Login    string
+	Password string
 }
 
 func (key AccessKeyInstallation) Destroy() error {
@@ -92,12 +90,6 @@ func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error
 }
 
 func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
-	rnd, err := rand.Int(rand.Reader, big.NewInt(1000000000))
-	if err != nil {
-		return
-	}
-
-	installation.InstallationKey = rnd.Int64()
 
 	if key.Type == AccessKeyNone {
 		return
