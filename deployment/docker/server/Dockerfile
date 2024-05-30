@@ -37,9 +37,11 @@ bash curl git bash gnupg mysql-client openssh-client-default python3 python3-dev
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     mkdir -p /var/lib/semaphore && \
+    mkdir -p /opt/semaphore && \
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
-    chown -R semaphore:0 /var/lib/semaphore
+    chown -R semaphore:0 /var/lib/semaphore && \
+    chown -R semaphore:0 /opt/semaphore
 
 
 RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
@@ -75,10 +77,12 @@ USER 1001
 # renovate: datasource=pypi depName=ansible
 ENV ANSIBLE_VERSION 9.4.0
 
-RUN mkdir ./venv
+RUN mkdir /opt/semaphore/venv
 
-RUN python3 -m venv ./venv --system-site-packages && \
-    source ./venv/bin/activate && \
+RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
+    source /opt/semaphore/venv/bin/activate && \
     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
 
+# Preventing ansible zombie processes. Tini kills zombies.
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD [ "/usr/local/bin/server-wrapper"]

@@ -28,6 +28,18 @@ import (
 	"golang.org/x/oauth2"
 )
 
+func convertEntryToMap(entity *ldap.Entry) map[string]any {
+	res := map[string]any{}
+	for _, attr := range entity.Attributes {
+		if len(attr.Values) == 0 {
+			continue
+		}
+		res[attr.Name] = attr.Values[0]
+	}
+
+	return res
+}
+
 func tryFindLDAPUser(username, password string) (*db.User, error) {
 	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
@@ -104,11 +116,20 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, fmt.Errorf("ldap search returned no entries")
 	}
 
+	entry := convertEntryToMap(sr.Entries[0])
+
+	prepareClaims(entry)
+
+	claims, err := parseClaims(entry, &util.Config.LdapMappings)
+	if err != nil {
+		return nil, err
+	}
+
 	ldapUser := db.User{
-		Username: strings.ToLower(sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.UID)),
+		Username: strings.ToLower(claims.username),
 		Created:  time.Now(),
-		Name:     sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.CN),
-		Email:    sr.Entries[0].GetAttributeValue(util.Config.LdapMappings.Mail),
+		Name:     claims.name,
+		Email:    claims.email,
 		External: true,
 		Alert:    false,
 	}
@@ -422,7 +443,7 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	return oauthState
 }
 
-type oidcClaimResult struct {
+type claimResult struct {
 	username string
 	name     string
 	email    string
@@ -483,22 +504,22 @@ func prepareClaims(claims map[string]interface{}) {
 	}
 }
 
-func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res oidcClaimResult, err error) {
+func parseClaims(claims map[string]interface{}, provider util.ClaimsProvider) (res claimResult, err error) {
 
 	var ok bool
-	res.email, ok = parseClaim(provider.EmailClaim, claims)
+	res.email, ok = parseClaim(provider.GetEmailClaim(), claims)
 
 	if !ok {
-		err = fmt.Errorf("claim '%s' missing or has bad format", provider.EmailClaim)
+		err = fmt.Errorf("claim '%s' missing or has bad format", provider.GetEmailClaim())
 		return
 	}
 
-	res.username, ok = parseClaim(provider.UsernameClaim, claims)
+	res.username, ok = parseClaim(provider.GetUsernameClaim(), claims)
 	if !ok {
 		res.username = getRandomUsername()
 	}
 
-	res.name, ok = parseClaim(provider.NameClaim, claims)
+	res.name, ok = parseClaim(provider.GetNameClaim(), claims)
 	if !ok {
 		res.name = getRandomProfileName()
 	}
@@ -506,8 +527,7 @@ func parseClaims(claims map[string]interface{}, provider util.OidcProvider) (res
 	return
 }
 
-func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res oidcClaimResult, err error) {
-
+func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res claimResult, err error) {
 	claims := make(map[string]interface{})
 	if err = userInfo.Claims(&claims); err != nil {
 		return
@@ -515,11 +535,10 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 
 	prepareClaims(claims)
 
-	return parseClaims(claims, provider)
+	return parseClaims(claims, &provider)
 }
 
-func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidcClaimResult, err error) {
-
+func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res claimResult, err error) {
 	claims := make(map[string]interface{})
 	if err = idToken.Claims(&claims); err != nil {
 		return
@@ -527,7 +546,7 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res oidc
 
 	prepareClaims(claims)
 
-	return parseClaims(claims, provider)
+	return parseClaims(claims, &provider)
 }
 
 func getRandomUsername() string {
@@ -589,7 +608,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var claims oidcClaimResult
+	var claims claimResult
 
 	// Extract the ID Token from OAuth2 token.
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)

@@ -44,10 +44,22 @@ type DbConfig struct {
 }
 
 type ldapMappings struct {
-	DN   string `json:"dn"`
-	Mail string `json:"mail"`
-	UID  string `json:"uid"`
-	CN   string `json:"cn"`
+	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN"`
+	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL"`
+	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID"`
+	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN"`
+}
+
+func (p *ldapMappings) GetUsernameClaim() string {
+	return p.UID
+}
+
+func (p *ldapMappings) GetEmailClaim() string {
+	return p.Mail
+}
+
+func (p *ldapMappings) GetNameClaim() string {
+	return p.CN
 }
 
 type oidcEndpoint struct {
@@ -75,6 +87,24 @@ type OidcProvider struct {
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
 	Order            int          `json:"order"`
+}
+
+type ClaimsProvider interface {
+	GetUsernameClaim() string
+	GetEmailClaim() string
+	GetNameClaim() string
+}
+
+func (p *OidcProvider) GetUsernameClaim() string {
+	return p.UsernameClaim
+}
+
+func (p *OidcProvider) GetEmailClaim() string {
+	return p.EmailClaim
+}
+
+func (p *OidcProvider) GetNameClaim() string {
+	return p.NameClaim
 }
 
 const (

@@ -51,6 +51,15 @@
       :disabled="formSaving"
     ></v-select>
 
+    <v-text-field
+      v-model="item.inventory"
+      :label="$t('pathToInventoryFile')"
+      :rules="[v => !!v || $t('path_required')]"
+      required
+      :disabled="formSaving"
+      v-if="item.type === 'file'"
+    ></v-text-field>
+
     <v-select
       v-model="item.repository_id"
       :label="$t('repository') + ' (Optional)'"
@@ -61,15 +70,6 @@
       :disabled="formSaving"
       v-if="item.type === 'file'"
     ></v-select>
-
-    <v-text-field
-      v-model="item.inventory"
-      :label="$t('pathToInventoryFile')"
-      :rules="[v => !!v || $t('path_required')]"
-      required
-      :disabled="formSaving"
-      v-if="item.type === 'file'"
-    ></v-text-field>
 
     <codemirror
         :style="{ border: '1px solid lightgray' }"
