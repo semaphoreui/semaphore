@@ -30,7 +30,7 @@ services:
 #    container_name: semaphore
     environment:
       SEMAPHORE_DB_DIALECT: "bolt"
-      SEMAPHORE_ADMIN_PASSWORD: "semaphore_admin"
+      SEMAPHORE_ADMIN_PASSWORD: "changeme"
       SEMAPHORE_ADMIN_NAME: "admin"
       SEMAPHORE_ADMIN_EMAIL: "admin@example.org"
       SEMAPHORE_LDAP_ACTIVATED: "yes"
