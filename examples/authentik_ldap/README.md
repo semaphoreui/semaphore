@@ -7,8 +7,10 @@
    echo "AUTHENTIK_SECRET_KEY=$(openssl rand 60 | base64)" >> .env
    docker-compose up -d
    ```
-2. Set up LDAP in Athentik according to the video tutorial [Authentik - LDAP Generic Setup](https://youtu.be/RtPKMMKRT_E).
-3. Set up Athentik LDAP service:
+2. To start the initial setup, navigate to http://localhsot:9000/if/flow/initial-setup/. 
+   There you are prompted to set a password for the `akadmin` user (the default user).
+3. Set up LDAP in Athentik according to the video tutorial [Authentik - LDAP Generic Setup](https://youtu.be/RtPKMMKRT_E).
+4. Set up Athentik LDAP container:
    1. Copy `AUTHENTIK_TOKEN`.
    2. Stop stack by command:
 
@@ -20,7 +22,7 @@
       ```
       docker-compose up -d
       ```
-4. Create new Semaphore project:
+5. Create new Semaphore project:
     1. Open http://localhost:3000
     2. Login as `john`
     3. Create demo project
