@@ -1,8 +1,9 @@
 # Semaphore with OpenLDAP example
 
 1. Start stack by command:
-
-   ```docker-compose up```
+   ```
+   docker-compose up -d
+   ```
 2. Create new LDAP user:
    1. Open https://localhost:6443
    2. Login as `cn=admin,dc=example,dc=org` with password `admin`
