@@ -14,3 +14,5 @@
    1. Open http://localhost:3000
    2. Login as `john`
    3. Create demo project
+
+      <img src="https://github.com/semaphoreui/semaphore/assets/914224/98b780a7-bfbc-4b45-941f-7dd6ca337685" width="600">
