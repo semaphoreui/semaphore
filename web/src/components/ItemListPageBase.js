@@ -6,6 +6,7 @@ import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 
 import { getErrorMessage } from '@/lib/error';
 import { USER_PERMISSIONS } from '@/lib/constants';
+import PermissionsCheck from '@/components/PermissionsCheck';
 
 export default {
   components: {
@@ -14,13 +15,13 @@ export default {
     ObjectRefsDialog,
   },
 
+  mixins: [PermissionsCheck],
+
   props: {
     projectId: Number,
     projectType: String,
     userId: Number,
-    userPermissions: Number,
     userRole: String,
-    isAdmin: Boolean,
     user: Object,
   },
 
@@ -52,14 +53,6 @@ export default {
   methods: {
     allowActions() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
-    },
-
-    can(permission) {
-      if (this.isAdmin) {
-        return true;
-      }
-      // eslint-disable-next-line no-bitwise
-      return (this.userPermissions & permission) === permission;
     },
 
     // eslint-disable-next-line no-empty-function

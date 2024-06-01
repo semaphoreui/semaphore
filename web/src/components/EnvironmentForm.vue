@@ -20,8 +20,31 @@
       class="mb-4"
     ></v-text-field>
 
-    <v-subheader class="pl-0">
+    <v-subheader class="px-0">
       {{ $t('extraVariables') }}
+
+      <v-tooltip bottom color="black" open-delay="300">
+        <template v-slot:activator="{ on, attrs }">
+          <v-icon
+            class="ml-1"
+            v-bind="attrs"
+            v-on="on"
+          >mdi-help-circle</v-icon>
+        </template>
+        <span>Variables passed via <code>--extra-vars</code>.</span>
+      </v-tooltip>
+
+      <v-spacer />
+
+      <v-btn-toggle
+        v-model="extraVarsEditMode"
+        tile
+        group
+      >
+        <v-btn value="json" small class="mr-0" style="border-radius: 4px;" disabled>
+          JSON
+        </v-btn>
+      </v-btn-toggle>
     </v-subheader>
 
     <codemirror
@@ -31,65 +54,123 @@
       :placeholder="$t('enterExtraVariablesJson')"
     />
 
-    <div class="mt-4">
-      <div class="d-flex flex-row justify-space-between">
-        <div>
-          <div style="line-height: 1.1;" class="pl-1">
-            Avoid host key checking by the tools Ansible uses to connect to the host.
-          </div>
-          <code>"ANSIBLE_HOST_KEY_CHECKING": false</code>
-        </div>
-        <v-btn
-          color="primary"
-          @click="setExtraVar('ANSIBLE_HOST_KEY_CHECKING', false)"
-        >Set variable</v-btn>
-      </div>
-    </div>
+    <div>
 
-    <v-alert
-      dense
-      text
-      type="info"
-      class="mt-4"
-    >
-      {{ $t('environmentAndExtraVariablesMustBeValidJsonExample') }}
-      <pre style="font-size: 14px;">{
-  "var_available_in_playbook_1": 1245,
-  "var_available_in_playbook_2": "test"
-}</pre>
-    </v-alert>
-
-    <div class="mt-4" v-if="!advancedOptions">
-      <a @click="advancedOptions = true">
-        {{ $t('advanced') }}
-        <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>
-      </a>
-    </div>
-
-    <div class="mt-4" v-else>
-      <a @click="advancedOptions = false">
-        {{ $t('hide') }}
-        <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>
-      </a>
-    </div>
-
-    <div v-if="advancedOptions">
-
-      <v-subheader class="pl-0">
+      <v-subheader class="px-0 mt-4">
         {{ $t('environmentVariables') }}
+
+        <v-tooltip bottom color="black" open-delay="300">
+          <template v-slot:activator="{ on, attrs }">
+            <v-icon
+              class="ml-1"
+              v-bind="attrs"
+              v-on="on"
+              color="lightgray"
+            >mdi-help-circle</v-icon>
+          </template>
+          <span>Variables passed as process environment variables.</span>
+        </v-tooltip>
       </v-subheader>
 
-      <codemirror
-        :style="{ border: '1px solid lightgray' }"
-        v-model="env"
-        :options="cmOptions"
-        :placeholder="$t('enterEnvJson')"
-      />
+      <v-chip-group
+        v-model="predefinedEnvVars"
+        column
+        multiple
+        class="EnvironmentForm__predefinedEnvVars"
+      >
+        <v-chip
+          filter
+          outlined
+          v-for="item in PREDEFINED_ENV_VARS"
+          :key="item.name"
+        >
+          <span class="EnvironmentForm__predefinedEnvVarsValue">
+            {{ item.name }}={{ item.value }}
+          </span>
+          <v-tooltip
+            bottom
+            color="black"
+            :max-width="400"
+            open-delay="300"
+          >
+            <template v-slot:activator="{ on, attrs }">
+              <v-icon
+                class="ml-2"
+                v-bind="attrs"
+                v-on="on"
+                style="margin-right: -6px;"
+              >mdi-help-circle</v-icon>
+            </template>
+            <span>{{ item.description }}</span>
+          </v-tooltip>
+        </v-chip>
+      </v-chip-group>
 
+      <v-data-table
+        :items="env"
+        :items-per-page="-1"
+        class="elevation-1"
+        hide-default-footer
+        no-data-text="No values"
+      >
+        <template v-slot:item="props">
+          <tr>
+            <td class="pa-1">
+              <v-text-field
+                solo-inverted
+                flat
+                hide-details
+                v-model="props.item.name"
+                class="v-text-field--solo--no-min-height"
+              ></v-text-field>
+            </td>
+            <td class="pa-1">
+              <v-text-field
+                solo-inverted
+                flat
+                hide-details
+                v-model="props.item.value"
+                class="v-text-field--solo--no-min-height"
+              ></v-text-field>
+            </td>
+            <td style="width: 38px;">
+              <v-icon
+                small
+                class="pa-1"
+                @click="removeEnvVar(props.item)"
+              >
+                mdi-delete
+              </v-icon>
+            </td>
+          </tr>
+        </template>
+      </v-data-table>
+
+      <div class="text-right mt-2 mb-4">
+        <v-btn
+          color="primary"
+          @click="addEnvVar()"
+        >New Variable</v-btn>
+      </div>
     </div>
 
   </v-form>
 </template>
+
+<style lang="scss">
+.EnvironmentForm__predefinedEnvVars {
+  .EnvironmentForm__predefinedEnvVarsValue {
+    text-decoration: line-through;
+    font-family: monospace;
+  }
+  .v-chip--active {
+    .EnvironmentForm__predefinedEnvVarsValue {
+      text-decoration: none;
+    }
+  }
+}
+</style>
+
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
@@ -102,6 +183,12 @@ import 'codemirror/addon/display/placeholder.js';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 
+const PREDEFINED_ENV_VARS = [{
+  name: 'ANSIBLE_HOST_KEY_CHECKING',
+  value: 'False',
+  description: 'Avoid host key checking by the tools Ansible uses to connect to the host.',
+}];
+
 export default {
   mixins: [ItemFormBase],
   components: {
@@ -113,12 +200,13 @@ export default {
 
   data() {
     return {
+      PREDEFINED_ENV_VARS,
       images: [
         'dind-runner:latest',
       ],
       advancedOptions: false,
       json: '{}',
-      env: '{}',
+      env: [],
 
       cmOptions: {
         tabSize: 2,
@@ -128,10 +216,24 @@ export default {
         lint: true,
         indentWithTabs: false,
       },
+
+      extraVarsEditMode: 'json',
+      predefinedEnvVars: [],
     };
   },
 
   methods: {
+    addEnvVar(name = '', value = '') {
+      this.env.push({ name, value });
+    },
+
+    removeEnvVar(val) {
+      const i = this.env.findIndex((v) => v.name === val.name);
+      if (i > -1) {
+        this.env.splice(i, 1);
+      }
+    },
+
     setExtraVar(name, value) {
       try {
         const obj = JSON.parse(this.json || '{}');
@@ -147,12 +249,41 @@ export default {
 
     beforeSave() {
       this.item.json = this.json;
-      this.item.env = this.env;
+
+      const env = (this.env || []).reduce((prev, curr) => ({
+        ...prev,
+        [curr.name]: curr.value,
+      }), {});
+
+      this.predefinedEnvVars.forEach((index) => {
+        const predefinedVar = PREDEFINED_ENV_VARS[index];
+        env[predefinedVar.name] = predefinedVar.value;
+      });
+
+      this.item.env = JSON.stringify(env);
     },
 
     afterLoadData() {
       this.json = this.item?.json || '{}';
-      this.env = this.item?.env || '{}';
+
+      const env = JSON.parse(this.item?.env || '{}');
+
+      this.env = Object.keys(env)
+        .filter((x) => {
+          const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);
+          return index === -1 || PREDEFINED_ENV_VARS[index].value !== env[x];
+        })
+        .map((x) => ({
+          name: x,
+          value: env[x],
+        }));
+
+      Object.keys(env).forEach((x) => {
+        const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);
+        if (index !== -1 && PREDEFINED_ENV_VARS[index].value === env[x]) {
+          this.predefinedEnvVars.push(index);
+        }
+      });
     },
 
     getItemsUrl() {
