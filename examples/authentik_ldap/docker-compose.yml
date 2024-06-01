@@ -70,26 +70,26 @@ services:
       AUTHENTIK_INSECURE: "false"
       AUTHENTIK_TOKEN: DdmZvpMV9Jb7XAw0nts08jQ43hMOsx4ANkkABLz4s9HpxV8mWzxdYjF5WIpg
 
-#  semaphore:
-#    image: semaphoreui/semaphore:latest
-#    environment:
-#      SEMAPHORE_DB_DIALECT: "bolt"
-#      SEMAPHORE_ADMIN_PASSWORD: "changeme"
-#      SEMAPHORE_ADMIN_NAME: "admin"
-#      SEMAPHORE_ADMIN_EMAIL: "admin@example.org"
-#      SEMAPHORE_LDAP_ACTIVATED: "yes"
-#      SEMAPHORE_LDAP_SERVER: "ldap:3389"
-#      SEMAPHORE_LDAP_SEARCH_DN: "ou=users,dc=ldap,dc=goauthentik,dc=io"
-#      SEMAPHORE_LDAP_BIND_DN: "cn=ldapservice,ou=users,DC=ldap,DC=goauthentik,DC=io"
-#      SEMAPHORE_LDAP_BIND_PASSWORD: "changeme"
-#      SEMAPHORE_LDAP_USERFILTER: "(&(objectClass=inetOrgPerson)(cn=%s))"
-#      SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
-#    ports:
-#      - "3000:3000"
-#    volumes:
-#      - semaphore_data:/var/lib/semaphore
-#    depends_on:
-#      - ldap
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    environment:
+      SEMAPHORE_DB_DIALECT: "bolt"
+      SEMAPHORE_ADMIN_PASSWORD: "changeme"
+      SEMAPHORE_ADMIN_NAME: "admin"
+      SEMAPHORE_ADMIN_EMAIL: "admin@example.org"
+      SEMAPHORE_LDAP_ACTIVATED: "yes"
+      SEMAPHORE_LDAP_SERVER: "ldap:3389"
+      SEMAPHORE_LDAP_SEARCH_DN: "ou=users,dc=ldap,dc=goauthentik,dc=io"
+      SEMAPHORE_LDAP_BIND_DN: "cn=ldapservice,ou=users,DC=ldap,DC=goauthentik,DC=io"
+      SEMAPHORE_LDAP_BIND_PASSWORD: "changeme"
+      SEMAPHORE_LDAP_USERFILTER: "(&(objectClass=inetOrgPerson)(cn=%s))"
+      SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
+    ports:
+      - "3000:3000"
+    volumes:
+      - semaphore_data:/var/lib/semaphore
+    depends_on:
+      - ldap
 volumes:
   database:
   redis:
