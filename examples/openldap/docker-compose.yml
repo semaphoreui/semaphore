@@ -38,7 +38,7 @@ services:
       SEMAPHORE_LDAP_SEARCH_DN: "dc=example,dc=org"
       SEMAPHORE_LDAP_BIND_DN: "cn=admin,dc=example,dc=org"
       SEMAPHORE_LDAP_BIND_PASSWORD: "admin"
-      SEMAPHORE_LDAP_USERFILTER: "(&(objectClass=inetOrgPerson)(uid=%s))"
+      SEMAPHORE_LDAP_SEARCH_FILTER: "(&(objectClass=inetOrgPerson)(uid=%s))"
       SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
     ports:
       - "3000:3000"
