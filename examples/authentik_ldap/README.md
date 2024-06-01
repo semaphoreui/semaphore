@@ -11,7 +11,10 @@
    There you are prompted to set a password for the `akadmin` user (the default user).
 3. Set up LDAP in Athentik according to the video tutorial [Authentik - LDAP Generic Setup](https://youtu.be/RtPKMMKRT_E).
 4. Set up Athentik LDAP and Semaphore containers:
-   1. Copy `AUTHENTIK_TOKEN`.
+   1. Copy `AUTHENTIK_TOKEN` to clipboard.
+      
+      <img src="https://github.com/semaphoreui/semaphore/assets/914224/9e08d4cc-4526-4ace-8b45-2c065188857b" width="600">
+
    2. Update `AUTHENTIK_TOKEN` for LDAP service.
    3. Reload the stack:
       ```
