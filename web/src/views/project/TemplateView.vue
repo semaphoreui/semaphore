@@ -203,6 +203,7 @@ import {
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 import EditTemplateDialogue from '@/components/EditTemplateDialogue.vue';
+import PermissionsCheck from '@/components/PermissionsCheck';
 
 export default {
   components: {
@@ -217,6 +218,8 @@ export default {
     projectId: Number,
     userPermissions: Number,
   },
+
+  mixins: [PermissionsCheck],
 
   data() {
     return {
@@ -239,9 +242,7 @@ export default {
 
   computed: {
     canUpdate() {
-      const perm = USER_PERMISSIONS.manageProjectResources;
-      // eslint-disable-next-line no-bitwise
-      return (this.userPermissions & perm) === perm;
+      return this.can(USER_PERMISSIONS.manageProjectResources);
     },
 
     viewId() {

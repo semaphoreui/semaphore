@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  ldap:
+    image: osixia/openldap:1.5.0
+#    container_name: openldap
+    environment:
+      LDAP_ORGANISATION: "Example Inc."
+      LDAP_DOMAIN: "example.org"
+      LDAP_ADMIN_PASSWORD: "admin"
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+
+  ldap_admin:
+    image: osixia/phpldapadmin:0.9.0
+#    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: ldap
+    ports:
+      - "6443:443"
+    depends_on:
+      - ldap
+
+  semaphore:
+    image: semaphoreui/semaphore:latest
+#    container_name: semaphore
+    environment:
+      SEMAPHORE_DB_DIALECT: "bolt"
+      SEMAPHORE_ADMIN_PASSWORD: "changeme"
+      SEMAPHORE_ADMIN_NAME: "admin"
+      SEMAPHORE_ADMIN_EMAIL: "admin@example.org"
+      SEMAPHORE_LDAP_ACTIVATED: "yes"
+      SEMAPHORE_LDAP_SERVER: "ldap:389"
+      SEMAPHORE_LDAP_SEARCH_DN: "dc=example,dc=org"
+      SEMAPHORE_LDAP_BIND_DN: "cn=admin,dc=example,dc=org"
+      SEMAPHORE_LDAP_BIND_PASSWORD: "admin"
+      SEMAPHORE_LDAP_SEARCH_FILTER: "(&(objectClass=inetOrgPerson)(uid=%s))"
+      SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
+    ports:
+      - "3000:3000"
+    volumes:
+      - semaphore_data:/var/lib/semaphore
+    depends_on:
+      - ldap
+
+volumes:
+  ldap_data:
+  ldap_config:
+  semaphore_data:

@@ -52,6 +52,24 @@ tasks:
       - task: build:fe
       - task: build:be
 
+  build:debug:
+    desc: Build DEBUG server binary
+    cmds:
+      - >-
+        env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
+        go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+        -tags "netgo"
+        -gcflags="all=-N -l"
+        -ldflags "-X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli
+    vars:
+      TAG:
+        sh: git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD
+      SHA:
+        sh: git log --pretty=format:'%h' -n 1
+      VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
+      DATE: "{{ now | unixEpoch }}"
+      IMPORT: "github.com/ansible-semaphore/semaphore"
+
   build:fe:
     desc: Build VueJS project
     dir: web
@@ -222,6 +240,13 @@ tasks:
       - task: docker:build:runner
         vars:
           tag: "{{ .tag }}"
+
+  docker:build:debug:
+    desc: Build an DEBUG image for Semaphore server
+    vars:
+      tag: "debug"
+    cmds:
+      - "{{ .DOCKER_CMD }} build -f deployment/docker/debug/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
 
   docker:build:server:
     desc: Build an image for Semaphore server

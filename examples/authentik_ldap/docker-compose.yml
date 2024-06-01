@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: docker.io/library/postgres:16-alpine
+    volumes:
+      - database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS:?database password required}
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+    env_file:
+      - .env
+
+  redis:
+    image: docker.io/library/redis:alpine
+    volumes:
+      - redis:/data
+
+  server:
+    image: ghcr.io/goauthentik/server:2024.4.2
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_LISTEN__LDAP: "0.0.0.0:3389"
+    volumes:
+      - ./media:/media
+      - ./custom-templates:/templates
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    depends_on:
+      - postgresql
+      - redis
+
+  worker:
+    image: ghcr.io/goauthentik/server:2024.4.2
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./media:/media
+      - ./certs:/certs
+      - ./custom-templates:/templates
+    env_file:
+      - .env
+    depends_on:
+      - postgresql
+      - redis
+
+  ldap:
+    image: ghcr.io/goauthentik/ldap
+    ports:
+      - "389:3389"
+      - "636:6636"
+    environment:
+      AUTHENTIK_HOST: http://server:9000
+      AUTHENTIK_INSECURE: "false"
+    env_file:
+      - .env
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    environment:
+      SEMAPHORE_DB_DIALECT: "bolt"
+      SEMAPHORE_ADMIN_PASSWORD: "changeme"
+      SEMAPHORE_ADMIN_NAME: "admin"
+      SEMAPHORE_ADMIN_EMAIL: "admin@example.org"
+      SEMAPHORE_LDAP_ACTIVATED: "yes"
+      SEMAPHORE_LDAP_SERVER: "ldap:3389"
+      SEMAPHORE_LDAP_SEARCH_DN: "ou=users,dc=ldap,dc=goauthentik,dc=io"
+      SEMAPHORE_LDAP_BIND_DN: "cn=ldapservice,ou=users,dc=ldap,dc=goauthentik,dc=io"
+      SEMAPHORE_LDAP_SEARCH_FILTER: "(&(objectClass=inetOrgPerson)(cn=%s))"
+      SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
+      SEMAPHORE_LDAP_MAPPING_DN: "dn"
+      SEMAPHORE_LDAP_MAPPING_MAIL: "mail"
+      SEMAPHORE_LDAP_MAPPING_UID: "uid"
+      SEMAPHORE_LDAP_MAPPING_CN: "cn"
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - semaphore_data:/var/lib/semaphore
+    depends_on:
+      - ldap
+volumes:
+  database:
+  redis:
+  semaphore_data:
