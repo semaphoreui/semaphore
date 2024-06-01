@@ -8,8 +8,4 @@
 
    Provide required environment variables.
 
-2. Enable debugging for the Docker project and create Go Remote Project by the official tutorial.
-    * Docker project:
-      <video controls src="https://blog.jetbrains.com/go/2020/05/06/debugging-a-go-application-inside-a-docker-container/"></video>
-    * Go Remote project:
-      <video controls src="https://resources.jetbrains.com/storage/products/blog/wp-content/uploads/GoLand/tutorials/docker-dev-series/debugging/run-debugger.mp4"></video>
+2. Enable debugging for the Docker project and create Go Remote Project by the [official tutorial](https://blog.jetbrains.com/go/2020/05/06/debugging-a-go-application-inside-a-docker-container/).
