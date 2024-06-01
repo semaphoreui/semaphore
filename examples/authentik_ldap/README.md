@@ -12,13 +12,16 @@
 3. Set up LDAP in Athentik according to the video tutorial [Authentik - LDAP Generic Setup](https://youtu.be/RtPKMMKRT_E).
 4. Set up Athentik LDAP container:
    1. Copy `AUTHENTIK_TOKEN`.
-   2. Stop stack by command:
+
+      <img src="https://github.com/semaphoreui/semaphore/assets/914224/ac35398a-8c55-417a-aba3-4e2f9d267680" width="600">
+
+   3. Stop stack by command:
 
       ```
       docker-compose down
       ```
-   3. Update `AUTHENTIK_TOKEN` for LDAP service.
-   4. Start stack again:
+   4. Update `AUTHENTIK_TOKEN` for LDAP service.
+   5. Start stack again:
       ```
       docker-compose up -d
       ```
