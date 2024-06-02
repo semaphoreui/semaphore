@@ -7,7 +7,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/services/schedules"
-	"github.com/ansible-semaphore/semaphore/services/subscription"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
@@ -61,7 +60,6 @@ func runService() {
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 
-	subscription.StartValidationCron(store)
 	go sockets.StartWS()
 	go schedulePool.Run()
 	go taskPool.Run()

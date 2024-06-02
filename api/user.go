@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/services/subscription"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -22,13 +21,11 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	var user struct {
 		db.User
-		CanCreateProject      bool `json:"can_create_project"`
-		HasActiveSubscription bool `json:"has_active_subscription"`
+		CanCreateProject bool `json:"can_create_project"`
 	}
 
 	user.User = *context.Get(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
-	user.HasActiveSubscription = subscription.HasActiveSubscription(helpers.Store(r))
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }

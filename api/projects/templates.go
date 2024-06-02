@@ -2,8 +2,6 @@ package projects
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/services/subscription"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
@@ -74,15 +72,6 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-
-	switch template.App {
-	case db.TemplateBash, db.TemplateTerraform:
-		if !subscription.HasActiveSubscription(helpers.Store(r)) {
-			err = tasks.ErrInvalidSubscription
-			helpers.WriteError(w, err)
-			return
-		}
-	}
 
 	template.ProjectID = project.ID
 	newTemplate, err := helpers.Store(r).CreateTemplate(template)

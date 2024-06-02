@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/subscriptions"
 	"net/http"
 	"os"
 	"path"
@@ -107,9 +106,6 @@ func Route() *mux.Router {
 	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
-
-	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptions.Activate).Methods("POST")
-	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptions.GetSubscription).Methods("GET")
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.AddProject).Methods("POST")
