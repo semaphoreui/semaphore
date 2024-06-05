@@ -53,9 +53,8 @@ USER 1001
 # renovate: datasource=pypi depName=ansible
 ENV ANSIBLE_VERSION 9.4.0
 
-RUN mkdir /opt/semaphore/venv
-
-RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
+RUN mkdir /opt/semaphore/venv && \
+    python3 -m venv /opt/semaphore/venv --system-site-packages && \
     source /opt/semaphore/venv/bin/activate && \
     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
 
