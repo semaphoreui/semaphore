@@ -36,7 +36,8 @@ bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
     chown -R semaphore:0 /var/lib/semaphore && \
-    chown -R semaphore:0 /opt/semaphore
+    chown -R semaphore:0 /opt/semaphore && \
+    find /usr/lib/python* -iname __pycache__ | xargs rm -rf
 
 COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /tmp/semaphore/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
@@ -56,7 +57,8 @@ ENV ANSIBLE_VERSION 9.4.0
 RUN mkdir /opt/semaphore/venv && \
     python3 -m venv /opt/semaphore/venv --system-site-packages && \
     source /opt/semaphore/venv/bin/activate && \
-    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests && \
+    find /opt/semaphore/venv -iname __pycache__ | xargs rm -rf
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]
