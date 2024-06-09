@@ -13,8 +13,6 @@ file:
 package:
   go:
     installed: false
-  libc-dev:
-    installed: false
   nodejs:
     installed: false
 

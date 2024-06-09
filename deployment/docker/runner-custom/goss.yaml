@@ -14,7 +14,7 @@ package:
   go:
     installed: false
   libc-dev:
-    installed: false
+    installed: true
   nodejs:
     installed: false
 

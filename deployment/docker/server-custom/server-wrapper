@@ -174,11 +174,9 @@ EOF
     if test "$#" -ne 1; then
         su-exec semaphore /usr/local/bin/semaphore setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
     else
-        "$1" setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
+        su-exec semaphore "$1" setup - < "${SEMAPHORE_TMP_PATH}/config.stdin"
     fi
 fi
-
-source /opt/semaphore/venv/bin/activate
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/packages.txt"; then
     echoerr "Installing additional system dependencies"
@@ -190,7 +188,7 @@ fi
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
-    su-exec semaphore pip3 install --upgrade \
+    exec su-exec semaphore pip3 install --upgrade \
         -r "${SEMAPHORE_CONFIG_PATH}/requirements.txt"
 else
     echoerr "No additional python dependencies to install"
