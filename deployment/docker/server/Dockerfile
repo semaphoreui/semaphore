@@ -63,8 +63,7 @@ RUN apk add --no-cache -U \
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
     chown -R semaphore:0 /var/lib/semaphore && \
-    chown -R semaphore:0 /opt/semaphore && \
-    find /usr/lib/python* -iname __pycache__ | xargs rm -rf
+    chown -R semaphore:0 /opt/semaphore
 
 COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /tmp/semaphore/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
@@ -93,6 +92,6 @@ USER 1001
 ENV VIRTUAL_ENV="$ANSIBLE_VENV_PATH"
 ENV PATH="$ANSIBLE_VENV_PATH/bin:$PATH"
 
-# Preventing ansible zombie processes. Tini kills zombies.
+USER 1001
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD [ "/usr/local/bin/server-wrapper"]
