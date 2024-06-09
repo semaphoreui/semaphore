@@ -538,6 +538,22 @@ jobs:
       - integrate-mariadb
       - integrate-postgres
 
+    strategy:
+      matrix:
+        images:
+          - image: semaphoreui/semaphore
+            dir: deployment/docker/server
+            prefix:
+          - image: semaphoreui/semaphore
+            dir: deployment/docker/server-custom
+            prefix: custom-
+          - image: semaphoreui/runner
+            dir: deployment/docker/runner
+            prefix:
+          - image: semaphoreui/runner
+            dir: deployment/docker/runner-custom
+            prefix: custom-
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -557,13 +573,13 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-      - name: Server meta
+      - name: Image meta
         id: server
         uses: docker/metadata-action@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            ${{ matrix.images.image }}
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semui.co>
@@ -571,14 +587,15 @@ jobs:
             type=raw,value=develop
           flavor: |
             latest=false
+            prefix=${{ matrix.images.prefix }}
 
-      - name: Server build
+      - name: Image build
         uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
-          file: deployment/docker/server/Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          file: ${{ matrix.images.dir }}/Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}

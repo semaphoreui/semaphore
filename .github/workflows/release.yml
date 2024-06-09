@@ -55,6 +55,25 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
 
+    needs:
+      - release
+
+    strategy:
+      matrix:
+        images:
+          - image: semaphoreui/semaphore
+            dir: deployment/docker/server
+            prefix:
+          - image: semaphoreui/semaphore
+            dir: deployment/docker/server-custom
+            prefix: custom-
+          - image: semaphoreui/runner
+            dir: deployment/docker/runner
+            prefix:
+          - image: semaphoreui/runner
+            dir: deployment/docker/runner-custom
+            prefix: custom-
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -74,13 +93,13 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-      - name: Server meta
+      - name: Image meta
         id: server
         uses: docker/metadata-action@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            ${{ matrix.images.image }}
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semui.co>
@@ -88,40 +107,15 @@ jobs:
             type=raw,value=${{ github.ref_name }}
           flavor: |
             latest=true
+            prefix=${{ matrix.images.prefix }},onlatest=true
 
-      - name: Server build
+      - name: Image build
         uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
-          file: deployment/docker/server/Dockerfile
+          file: ${{ matrix.images.dir }}/Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
-
-      - name: Runner meta
-        id: runner
-        uses: docker/metadata-action@v5
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          images: |
-            semaphoreui/runner
-          labels: |
-            org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
-          tags: |
-            type=raw,value=${{ github.ref_name }}
-          flavor: |
-            latest=true
-
-      - name: Runner build
-        uses: docker/build-push-action@v5
-        with:
-          builder: ${{ steps.buildx.outputs.name }}
-          context: .
-          file: deployment/docker/runner/Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
-          push: ${{ github.event_name != 'pull_request' }}
-          labels: ${{ steps.runner.outputs.labels }}
-          tags: ${{ steps.runner.outputs.tags }}
