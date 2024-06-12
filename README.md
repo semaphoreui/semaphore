@@ -1,4 +1,4 @@
-# Semaphore UI
+# Semaphore UI (formerly Ansible Semaphore)
 
 
 [![](https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white)](https://t.me/semaphoreui)
