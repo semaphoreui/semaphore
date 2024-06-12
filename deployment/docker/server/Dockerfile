@@ -23,12 +23,31 @@ RUN --mount=type=cache,target=/go/pkg \
     task deps && \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
+
+ENV OPENTOFU_VERSION="1.7.0"
+#ENV TERRAFORM_VERSION="1.8.2"
+#ENV PULUMI_VERSION="3.116.1"
+
+RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
+    tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /tmp && \
+    rm tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz
+
+#RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip && \
+#    unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
+#    rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
+#
+#RUN if [ "$TARGETARCH" = "amd64" ]; then \
+#      export PULUMI_ARCH="x64"; \
+#    else \
+#      export PULUMI_ARCH="${TARGETARCH}"; \
+#    fi && \
+#    wget -O pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v${PULUMI_VERSION}/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz
+#RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
+#RUN rm pulumi.tar.gz
+
 FROM alpine:3.19
 
 ARG TARGETARCH="amd64"
-ARG OPENTOFU_VERSION="1.7.0"
-#ARG TERRAFORM_VERSION="1.8.2"
-#ARG PULUMI_VERSION="3.116.1"
 
 RUN apk add --no-cache -U \
 bash curl git bash gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
@@ -44,26 +63,10 @@ bash curl git bash gnupg mysql-client openssh-client-default python3 python3-dev
     chown -R semaphore:0 /opt/semaphore && \
     find /usr/lib/python* -iname __pycache__ | xargs rm -rf
 
-RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
-    tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /usr/local/bin && \
-    rm tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz
-
-#RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip && \
-#    unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /usr/local/bin && \
-#    rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
-
-#RUN if [ "$TARGETARCH" = "amd64" ]; then \
-#      export PULUMI_ARCH="x64"; \
-#    else \
-#      export PULUMI_ARCH="${TARGETARCH}"; \
-#    fi && \
-#    wget -O pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v${PULUMI_VERSION}/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz
-#RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
-#RUN rm pulumi.tar.gz
-
 COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /tmp/semaphore/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
+COPY --from=builder /tmp/tofu /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/server-wrapper && \
     chmod +x /usr/local/bin/server-wrapper && \
