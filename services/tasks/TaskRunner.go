@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -178,7 +179,7 @@ func (t *TaskRunner) run() {
 }
 
 func (t *TaskRunner) prepareError(err error, errMsg string) error {
-	if err == db.ErrNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		t.Log(errMsg)
 		return err
 	}

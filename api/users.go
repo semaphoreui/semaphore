@@ -1,9 +1,9 @@
 package api
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"

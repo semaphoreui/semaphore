@@ -13,7 +13,11 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   >
     <v-card>
       <v-card-title>
-        <slot name="title">{{ title }}</slot>
+        <slot name="title">
+          <v-icon v-if="icon" :color="iconColor" class="mr-3">{{ icon }}</v-icon>
+          {{ title }}
+        </slot>
+
         <v-spacer></v-spacer>
         <v-btn icon @click="close()">
           <v-icon>mdi-close</v-icon>
@@ -23,7 +27,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       <v-card-text class="pb-0" :style="{minHeight: minContentHeight + 'px'}">
         <slot
           name="form"
-          :onSave="close"
+          :onSave="onSave"
           :onError="clearFlags"
           :needSave="needSave"
           :needReset="needReset"
@@ -68,12 +72,15 @@ export default {
   props: {
     position: String,
     title: String,
+    icon: String,
+    iconColor: String,
     saveButtonText: String,
     value: Boolean,
     maxWidth: Number,
     minContentHeight: Number,
     eventName: String,
     hideButtons: Boolean,
+    dontCloseOnSave: Boolean,
   },
 
   data() {
@@ -101,8 +108,18 @@ export default {
   },
 
   methods: {
+    onSave(e) {
+      if (this.dontCloseOnSave) {
+        this.clearFlags();
+        return;
+      }
+
+      this.close(e);
+    },
+
     close(e) {
       this.dialog = false;
+
       this.clearFlags();
       if (e) {
         this.$emit('save', e);

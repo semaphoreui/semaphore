@@ -13,6 +13,7 @@
       :template-id="itemId"
       :template-alias="item.name"
       :template-type="item.type"
+      :template-app="item.app"
     />
 
     <EditTemplateDialogue

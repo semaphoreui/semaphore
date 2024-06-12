@@ -143,6 +143,17 @@ type RunnerSettings struct {
 	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
+type AppVersion struct {
+	Semver      string `json:"semver"`
+	DownloadURL string `json:"download_url"`
+	Path        string `json:"path"`
+}
+
+type AppConfig struct {
+	Name     string       `json:"name"`
+	Versions []AppVersion `json:"versions"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    DbConfig `json:"mysql"`
@@ -227,6 +238,8 @@ type ConfigType struct {
 	Runner RunnerSettings `json:"runner"`
 
 	GlobalIntegrationAlias string `json:"global_integration_alias"`
+
+	Apps []AppConfig `json:"apps" env:"SEMAPHORE_APPS"`
 }
 
 // Config exposes the application configuration storage for use in the application
