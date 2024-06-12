@@ -39,7 +39,8 @@ RUN apk add --no-cache -U \
     chown -R semaphore:0 /tmp/semaphore && \
     chown -R semaphore:0 /etc/semaphore && \
     chown -R semaphore:0 /var/lib/semaphore && \
-    chown -R semaphore:0 /opt/semaphore
+    chown -R semaphore:0 /opt/semaphore && \
+    find /usr/lib/python* -iname __pycache__ | xargs rm -rf
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
     tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /usr/local/bin && \
@@ -60,11 +61,11 @@ USER 1001
 # renovate: datasource=pypi depName=ansible
 ENV ANSIBLE_VERSION 9.4.0
 
-RUN mkdir /opt/semaphore/venv
-
-RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
+RUN mkdir /opt/semaphore/venv && \
+    python3 -m venv /opt/semaphore/venv --system-site-packages && \
     source /opt/semaphore/venv/bin/activate && \
-    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests && \
+    find /opt/semaphore/venv -iname __pycache__ | xargs rm -rf
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]
