@@ -300,7 +300,7 @@ export default {
       viewTab: null,
       templateApps: [
         '', // Ansible
-        'terraform',
+        // 'terraform',
         'tofu',
         'bash',
         // 'pulumi',

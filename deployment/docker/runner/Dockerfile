@@ -25,8 +25,11 @@ RUN --mount=type=cache,target=/go/pkg \
 
 FROM alpine:3.19
 
+ARG TARGETARCH="amd64"
+ARG OPENTOFU_VERSION="1.7.0"
+
 RUN apk add --no-cache -U \
-    bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip build-base openssl-dev libffi-dev cargo && \
+    bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
     rm -rf /var/cache/apk/* && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
@@ -37,6 +40,10 @@ RUN apk add --no-cache -U \
     chown -R semaphore:0 /etc/semaphore && \
     chown -R semaphore:0 /var/lib/semaphore && \
     chown -R semaphore:0 /opt/semaphore
+
+RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
+    tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /usr/local/bin && \
+    rm tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz
 
 COPY --chown=1001:0 ./deployment/docker/runner/ansible.cfg /tmp/semaphore/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/runner/runner-wrapper /usr/local/bin/
