@@ -81,6 +81,25 @@
       </template>
     </EditDialog>
 
+    <EditDialog
+      v-model="subscriptionDialogue"
+      save-button-text="Activate"
+      title="Premium Subscription"
+      v-if="user"
+      event-name="i-user"
+      :dont-close-on-save="true"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <SubscriptionForm
+          item-id="new"
+          @save="onSave(); onSubscriptionKeyUpdates();"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
+
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -299,6 +318,7 @@
 
       <template v-slot:append>
         <v-list class="pa-0">
+
           <v-list-item>
             <v-switch
               v-model="darkMode"
@@ -386,6 +406,20 @@
 
                 <v-list-item-content>
                   {{ $t('users') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item
+                key="subscription"
+                v-if="user.admin"
+                @click="subscriptionDialogue = true"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-license</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  Premium Subscription
                 </v-list-item-content>
               </v-list-item>
 
@@ -478,6 +512,16 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+
+.ActivatePremiumSubscriptionButton {
+  background: gold;
+  transform: rotate(-5deg) scale(0.95);
+  border-radius: 6px;
+  transition: 0.2s transform;
+  &:hover {
+    transform: rotate(-5deg) scale(1);
+  }
+}
 
 .v-alert__wrapper {
   overflow: auto;
@@ -609,6 +653,7 @@ import UserForm from '@/components/UserForm.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
+import SubscriptionForm from '@/components/SubscriptionForm.vue';
 
 const PROJECT_COLORS = [
   'red',
@@ -688,6 +733,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    SubscriptionForm,
     ChangePasswordForm,
     UserForm,
     EditDialog,
@@ -709,6 +755,7 @@ export default {
       newProjectType: '',
       userDialog: null,
       passwordDialog: null,
+      subscriptionDialogue: null,
 
       taskLogDialog: null,
       task: null,
@@ -933,6 +980,14 @@ export default {
   },
 
   methods: {
+    async onSubscriptionKeyUpdates() {
+      EventBus.$emit('i-snackbar', {
+        color: 'success',
+        text: 'Subscription activated',
+      });
+
+      await this.loadUserInfo();
+    },
 
     selectLanguage(lang) {
       localStorage.setItem('lang', lang);

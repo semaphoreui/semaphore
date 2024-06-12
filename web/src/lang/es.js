@@ -72,7 +72,7 @@ export default {
   enterEnvJson: 'Ingresar ambiente JSON...',
   environmentAndExtraVariablesMustBeValidJsonExample: 'El Ambiente y las variables extras deben tene un formato JSON válido. Ejemplo:',
   dashboard2: 'Panel',
-  ansibleSemaphore: 'Ansible Semaphore',
+  ansibleSemaphore: 'Semaphore UI',
   wereSorryButHtmlwebpackpluginoptionstitleDoesntWor: 'Lo sentimos pero <%= htmlWebpackPlugin.options.title %> no funciona correctamente sin JavaScript habilitado. Por favor habilítelo para continuar.',
   deleteInventory: 'Eliminar inventario',
   newInventory: 'Nuevo Inventario',

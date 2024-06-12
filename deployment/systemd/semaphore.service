@@ -1,5 +1,5 @@
 [Unit]
-Description=Ansible Semaphore
+Description=Semaphore UI
 Requires=network.target
 
 [Service]

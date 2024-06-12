@@ -98,6 +98,11 @@ func WriteErrorStatus(w http.ResponseWriter, err string, code int) {
 }
 
 func WriteError(w http.ResponseWriter, err error) {
+	if errors.Is(err, tasks.ErrInvalidSubscription) {
+		WriteErrorStatus(w, "You have no subscription.", http.StatusForbidden)
+		return
+	}
+
 	if errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return

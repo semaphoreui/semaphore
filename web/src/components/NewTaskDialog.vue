@@ -15,6 +15,17 @@
 
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TaskForm
+        v-if="['terraform', 'tofu'].includes(templateApp)"
+        :project-id="projectId"
+        item-id="new"
+        :template-id="templateId"
+        @save="onSave"
+        @error="onError"
+        :need-save="needSave"
+        :need-reset="needReset"
+      />
+      <TaskForm
+        v-else
         :project-id="projectId"
         item-id="new"
         :template-id="templateId"
@@ -44,6 +55,7 @@ export default {
     templateId: [Number, String],
     templateType: String,
     templateAlias: String,
+    templateApp: String,
   },
   data() {
     return {

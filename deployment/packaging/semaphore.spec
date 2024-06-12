@@ -5,7 +5,7 @@
 Name:           semaphore
 Version:        2.8.90
 Release:        1%{?dist}
-Summary:        Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
+Summary:        Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 License:        MIT
 URL:            https://github.com/ansible-semaphore/semaphore
@@ -21,7 +21,7 @@ BuildRequires:  systemd-rpm-macros
 Requires:       ansible
 
 %description
-Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
+Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 %prep
 %setup -q

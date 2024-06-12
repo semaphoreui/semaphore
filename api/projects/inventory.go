@@ -84,7 +84,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile:
+	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile, db.InventoryTerraformWorkspace:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -170,6 +170,8 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 			helpers.WriteErrorStatus(w, "Invalid inventory file pathname. Must be: path/to/inventory.", http.StatusBadRequest)
 			return
 		}
+	case db.InventoryTerraformWorkspace:
+		break
 	default:
 		helpers.WriteErrorStatus(w,
 			"unknown inventory type: "+string(inventory.Type),

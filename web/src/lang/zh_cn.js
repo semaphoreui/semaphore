@@ -72,7 +72,7 @@ export default {
   enterEnvJson: '添加额外的Json格式环境变量...',
   environmentAndExtraVariablesMustBeValidJsonExample: '环境变量和额外变量必须是有效的 JSON。例如：',
   dashboard2: '控制台',
-  ansibleSemaphore: 'Ansible Semaphore',
+  ansibleSemaphore: 'Semaphore UI',
   wereSorryButHtmlwebpackpluginoptionstitleDoesntWor: '抱歉，如果未启用 JavaScript，<%= htmlWebpackPlugin.options.title %> 将无法正常工作。请启用它以继续。',
   deleteInventory: '删除主机配置',
   newInventory: '新增主机配置',

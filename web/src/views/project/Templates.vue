@@ -298,7 +298,13 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateApps: [],
+      templateApps: [
+        '', // Ansible
+        // 'terraform',
+        'tofu',
+        'bash',
+        // 'pulumi',
+      ],
       itemApp: '',
     };
   },

@@ -2,10 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
-	"os"
-	"strings"
-
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -17,14 +13,17 @@ import (
 	"github.com/gorilla/handlers"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"net/http"
+	"os"
+	"strings"
 )
 
 var configPath string
 
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
-	Short: "Ansible Semaphore is a beautiful web UI for Ansible",
-	Long: `Ansible Semaphore is a beautiful web UI for Ansible.
+	Short: "Semaphore UI is a beautiful web UI for Ansible",
+	Long: `Semaphore UI is a beautiful web UI for Ansible.
 Source code is available at https://github.com/ansible-semaphore/semaphore.
 Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {

@@ -11,7 +11,29 @@
       @save="onSave"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
+      <TerraformTemplateForm
+          v-if="['terraform', 'tofu'].includes(itemApp)"
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+          :source-item-id="sourceItemId"
+          :app="itemApp"
+      />
+      <BashTemplateForm
+          v-else-if="itemApp === 'bash'"
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+          :source-item-id="sourceItemId"
+      />
       <TemplateForm
+          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -31,11 +53,15 @@
 <script>
 
 import { APP_ICONS, APP_TITLE } from '../lib/constants';
+import TerraformTemplateForm from './TerraformTemplateForm.vue';
+import BashTemplateForm from './BashTemplateForm.vue';
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
 
 export default {
   components: {
+    BashTemplateForm,
+    TerraformTemplateForm,
     TemplateForm,
     EditDialog,
   },
