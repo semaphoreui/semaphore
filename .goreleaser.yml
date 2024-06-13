@@ -43,7 +43,7 @@ archives:
 signs:
   -
     artifacts: checksum
-    args: ["-u", "A4FB 7208 48EA 79FA EC4E 9C30 0443 8136 6A5D 4731", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
+    args: ["-u", "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
 
 snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
