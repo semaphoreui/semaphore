@@ -56,26 +56,28 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 WORKDIR /home/semaphore
 
-COPY --chown=1001:0 ./deployment/docker/runner/ansible.cfg /tmp/semaphore/ansible.cfg
-COPY --from=builder /go/src/semaphore/deployment/docker/runner/runner-wrapper /usr/local/bin/
+COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /tmp/semaphore/ansible.cfg
+COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
 # COPY --from=builder /tmp/terraform /usr/local/bin/
 
-RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
-    chmod +x /usr/local/bin/runner-wrapper && \
+RUN chown -R semaphore:0 /usr/local/bin/server-wrapper && \
+    chmod +x /usr/local/bin/server-wrapper && \
     chown -R semaphore:0 /usr/local/bin/semaphore && \
     chmod +x /usr/local/bin/semaphore
 
-RUN apk add --no-cache -U ansible && \
+# renovate: datasource=pypi depName=ansible
+ENV ANSIBLE_VERSION 9.4.0
+
+RUN apk add --no-cache -U build-base openssl-dev libffi-dev cargo && \
     mkdir -p ${VIRTUAL_ENV} && \
     python3 -m venv ${VIRTUAL_ENV} --system-site-packages && \
     source ${VIRTUAL_ENV}/bin/activate && \
-    pip3 install --upgrade pip boto3 botocore requests && \
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests && \
     rm -rf /var/cache/apk/* && \
     find ${VIRTUAL_ENV} -iname __pycache__ | xargs rm -rf && \
     chown -R semaphore:0 /opt/semaphore
 
-USER 1001
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD [ "/usr/local/bin/runner-wrapper"]
+CMD [ "/usr/local/bin/server-wrapper"]

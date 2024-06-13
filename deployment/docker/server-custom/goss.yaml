@@ -1,5 +1,5 @@
 file:
-  /usr/local/bin/runner-wrapper:
+  /usr/local/bin/server-wrapper:
     exists: true
     owner: semaphore
     group: root
@@ -13,6 +13,8 @@ file:
 package:
   go:
     installed: false
+  libc-dev:
+    installed: true
   nodejs:
     installed: false
 
@@ -43,6 +45,9 @@ package:
   wget:
     installed: true
   zip:
+    installed: true
+
+  build-base:
     installed: true
 
 user:

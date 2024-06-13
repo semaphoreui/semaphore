@@ -183,7 +183,9 @@ tasks:
       - task: docker:lint
 
       - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:test"
+      - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:custom-test"
       - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
+      - "{{ .DOCKER_CMD }} rmi {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:custom-test"
 
   docker:lint:
     desc: Lint all dockerfiles based on Hadolint
@@ -191,11 +193,19 @@ tasks:
       - task: docker:deps
     cmds:
       - task: docker:lint:server
+      - task: docker:lint:server:custom
       - task: docker:lint:runner
+      - task: docker:lint:runner:custom
 
   docker:lint:server:
     desc: Lint server dockerfile based on Hadolint
     dir: deployment/docker/server
+    cmds:
+      - hadolint Dockerfile --ignore DL3018
+
+  docker:lint:server:custom:
+    desc: Lint server dockerfile based on Hadolint
+    dir: deployment/docker/server-custom
     cmds:
       - hadolint Dockerfile --ignore DL3018
 
@@ -205,13 +215,21 @@ tasks:
     cmds:
       - hadolint Dockerfile --ignore DL3018
 
+  docker:lint:runner:custom:
+    desc: Lint runner dockerfile based on Hadolint
+    dir: deployment/docker/runner-custom
+    cmds:
+      - hadolint Dockerfile --ignore DL3018
+
   docker:goss:
     desc: Check if container contains defined files
     deps:
       - task: docker:deps
     cmds:
       - task: docker:goss:server
+      - task: docker:goss:server:custom
       - task: docker:goss:runner
+      - task: docker:goss:runner:custom
 
   docker:goss:server:
     desc: Check if server contains defined files
@@ -221,6 +239,14 @@ tasks:
     cmds:
       - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:test"
 
+  docker:goss:server:custom:
+    desc: Check if server contains defined files
+    dir: deployment/docker/server-custom
+    env:
+      GOSS_FILES_STRATEGY: cp
+    cmds:
+      - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:custom-test"
+
   docker:goss:runner:
     desc: Check if runner contains defined files
     dir: deployment/docker/runner
@@ -228,6 +254,14 @@ tasks:
       GOSS_FILES_STRATEGY: cp
     cmds:
       - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
+
+  docker:goss:runner:custom:
+    desc: Check if runner contains defined files
+    dir: deployment/docker/runner-custom
+    env:
+      GOSS_FILES_STRATEGY: cp
+    cmds:
+      - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:custom-test"
 
   docker:build:
     desc: Build all defined images for Semaphore
@@ -237,16 +271,15 @@ tasks:
       - task: docker:build:server
         vars:
           tag: "{{ .tag }}"
+      - task: docker:build:server:custom
+        vars:
+          tag: "{{ .tag }}"
       - task: docker:build:runner
         vars:
           tag: "{{ .tag }}"
-
-  docker:build:debug:
-    desc: Build an DEBUG image for Semaphore server
-    vars:
-      tag: "debug"
-    cmds:
-      - "{{ .DOCKER_CMD }} build -f deployment/docker/debug/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
+      - task: docker:build:runner:custom
+        vars:
+          tag: "{{ .tag }}"
 
   docker:build:server:
     desc: Build an image for Semaphore server
@@ -255,6 +288,13 @@ tasks:
     cmds:
       - "{{ .DOCKER_CMD }} build -f deployment/docker/server/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
 
+  docker:build:server:custom:
+    desc: Build an image for Semaphore server
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - "{{ .DOCKER_CMD }} build -f deployment/docker/server-custom/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:custom-{{ .tag }} ."
+
   docker:build:runner:
     desc: Build an image for Semaphore runner
     vars:
@@ -262,11 +302,20 @@ tasks:
     cmds:
       - "{{ .DOCKER_CMD }} build -f deployment/docker/runner/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:{{ .tag }} ."
 
+  docker:build:runner:custom:
+    desc: Build an image for Semaphore runner
+    vars:
+      tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
+    cmds:
+      - "{{ .DOCKER_CMD }} build -f deployment/docker/runner/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:custom-{{ .tag }} ."
+
   docker:push:
     desc: Push the images to registry
     cmds:
       - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }}
+      - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:custom-{{ .tag }}
       - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:{{ .tag }}
+      - docker push {{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:custom-{{ .tag }}
 
   docker:deps:
     desc: Install docker testing dependencies

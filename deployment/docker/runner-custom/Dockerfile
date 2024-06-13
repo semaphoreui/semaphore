@@ -67,15 +67,17 @@ RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
     chown -R semaphore:0 /usr/local/bin/semaphore && \
     chmod +x /usr/local/bin/semaphore
 
-RUN apk add --no-cache -U ansible && \
+# renovate: datasource=pypi depName=ansible
+ENV ANSIBLE_VERSION 9.4.0
+
+RUN apk add --no-cache -U build-base openssl-dev libffi-dev cargo && \
     mkdir -p ${VIRTUAL_ENV} && \
     python3 -m venv ${VIRTUAL_ENV} --system-site-packages && \
     source ${VIRTUAL_ENV}/bin/activate && \
-    pip3 install --upgrade pip boto3 botocore requests && \
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests && \
     rm -rf /var/cache/apk/* && \
     find ${VIRTUAL_ENV} -iname __pycache__ | xargs rm -rf && \
     chown -R semaphore:0 /opt/semaphore
 
-USER 1001
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD [ "/usr/local/bin/runner-wrapper"]

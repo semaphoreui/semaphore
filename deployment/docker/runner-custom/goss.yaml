@@ -13,6 +13,8 @@ file:
 package:
   go:
     installed: false
+  libc-dev:
+    installed: true
   nodejs:
     installed: false
 
@@ -43,6 +45,9 @@ package:
   wget:
     installed: true
   zip:
+    installed: true
+
+  build-base:
     installed: true
 
 user:
