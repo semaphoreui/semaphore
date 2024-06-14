@@ -25,17 +25,17 @@ RUN --mount=type=cache,target=/go/pkg \
 
 
 ENV OPENTOFU_VERSION="1.7.0"
-#ENV TERRAFORM_VERSION="1.8.2"
+ENV TERRAFORM_VERSION="1.8.2"
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
     tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /tmp && \
     rm tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz
 
-#RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip && \
-#    unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
-#    rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
-#
+RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip && \
+    unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
+    rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
+
 #RUN if [ "$TARGETARCH" = "amd64" ]; then \
 #      export PULUMI_ARCH="x64"; \
 #    else \
@@ -70,6 +70,7 @@ COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /tmp/semaphore/ansibl
 COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
+COPY --from=builder /tmp/terraform /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/server-wrapper && \
     chmod +x /usr/local/bin/server-wrapper && \
