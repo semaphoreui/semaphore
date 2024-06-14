@@ -237,7 +237,7 @@ type ConfigType struct {
 
 	Runner RunnerSettings `json:"runner"`
 
-	GlobalIntegrationAlias string `json:"global_integration_alias"`
+	GlobalIntegrationAlias string `json:"global_integration_alias" env:"g"`
 
 	Apps []AppConfig `json:"apps" env:"SEMAPHORE_APPS"`
 }
