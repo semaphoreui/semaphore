@@ -6,6 +6,27 @@ import (
 	"time"
 )
 
+func (d *BoltDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
+	newOutput, err := d.createObject(stage.TaskID, db.TaskStageProps, stage)
+	if err != nil {
+		return db.TaskStage{}, err
+	}
+	return newOutput.(db.TaskStage), nil
+}
+
+func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStage, err error) {
+	// check if task exists in the project
+	_, err = d.GetTask(projectID, taskID)
+
+	if err != nil {
+		return
+	}
+
+	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &res)
+
+	return
+}
+
 func (d *BoltDb) CreateTask(task db.Task) (newTask db.Task, err error) {
 	task.Created = time.Now()
 	res, err := d.createObject(0, db.TaskProps, task)

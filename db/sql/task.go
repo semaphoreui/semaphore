@@ -2,9 +2,22 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
 )
+
+func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
+	_, err := d.exec(
+		"insert into task__stage (task_id, type) VALUES (?, ?, ?, ?)",
+		stage.TaskID,
+		stage.Type,
+		stage.Start)
+	return stage, err
+}
+
+func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStage, error) {
+	return nil, nil
+}
 
 func (d *SqlDb) CreateTask(task db.Task) (db.Task, error) {
 	err := d.sql.Insert(&task)

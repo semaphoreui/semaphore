@@ -121,3 +121,20 @@ type TaskOutput struct {
 	Time   time.Time `db:"time" json:"time"`
 	Output string    `db:"output" json:"output"`
 }
+
+type TaskStageType string
+
+const (
+	TaskStageRepositoryClone TaskStageType = "repository_clone"
+	TaskStageTerraformPlan   TaskStageType = "terraform_plan"
+	TaskStageTerraformApply  TaskStageType = "terraform_apply"
+)
+
+type TaskStage struct {
+	TaskID        int           `db:"task_id" json:"task_id"`
+	Start         *time.Time    `db:"start" json:"start"`
+	End           *time.Time    `db:"end" json:"end"`
+	StartOutputID *int          `db:"start_output_id" json:"start_output_id"`
+	EndOutputID   *int          `db:"end_output_id" json:"end_output_id"`
+	Type          TaskStageType `db:"type" json:"type"`
+}
