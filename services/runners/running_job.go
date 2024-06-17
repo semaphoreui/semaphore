@@ -16,6 +16,17 @@ type runningJob struct {
 	status     task_logger.TaskStatus
 	logRecords []LogRecord
 	job        *tasks.LocalJob
+
+	statusListeners []task_logger.StatusListener
+	logListeners    []task_logger.LogListener
+}
+
+func (p *runningJob) AddStatusListener(l task_logger.StatusListener) {
+	p.statusListeners = append(p.statusListeners, l)
+}
+
+func (p *runningJob) AddLogListener(l task_logger.LogListener) {
+	p.logListeners = append(p.logListeners, l)
 }
 
 func (p *runningJob) Log(msg string) {
@@ -34,6 +45,9 @@ func (p *runningJob) LogWithTime(now time.Time, msg string) {
 			Message: msg,
 		},
 	)
+	for _, l := range p.logListeners {
+		l(now, msg)
+	}
 }
 
 func (p *runningJob) LogfWithTime(now time.Time, format string, a ...any) {
@@ -55,6 +69,10 @@ func (p *runningJob) SetStatus(status task_logger.TaskStatus) {
 
 	p.status = status
 	p.job.SetStatus(status)
+
+	for _, l := range p.statusListeners {
+		l(status)
+	}
 }
 
 func (p *runningJob) logPipe(reader *bufio.Reader) {

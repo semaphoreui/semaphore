@@ -6,6 +6,8 @@ create table task__stage(
     `end` datetime,
     `end_output_id` int,
     `type` varchar(20) not null,
+    `status` varchat(255) not null,
+    `result` text,
     foreign key (`task_id`) references project(`id`),
     foreign key (`start_output_id`) references task__output(`id`),
     foreign key (`end_output_id`) references task__output(`id`) on delete cascade

@@ -38,6 +38,17 @@ type TaskRunner struct {
 	RunnerID        int
 	Username        string
 	IncomingVersion *string
+
+	statusListeners []task_logger.StatusListener
+	logListeners    []task_logger.LogListener
+}
+
+func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
+	t.statusListeners = append(t.statusListeners, l)
+}
+
+func (t *TaskRunner) AddLogListener(l task_logger.LogListener) {
+	t.logListeners = append(t.logListeners, l)
 }
 
 func (t *TaskRunner) saveStatus() {
