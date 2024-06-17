@@ -40,6 +40,10 @@ func (t *TaskRunner) LogWithTime(now time.Time, msg string) {
 		output: msg,
 		time:   now,
 	}
+
+	for _, l := range t.logListeners {
+		l(now, msg)
+	}
 }
 
 func (t *TaskRunner) LogfWithTime(now time.Time, format string, a ...any) {
@@ -101,6 +105,10 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		t.sendSlackAlert()
 		t.sendRocketChatAlert()
 		t.sendMicrosoftTeamsAlert()
+	}
+
+	for _, l := range t.statusListeners {
+		l(status)
 	}
 }
 

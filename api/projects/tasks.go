@@ -111,6 +111,23 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 }
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
+func GetTaskStages(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	var output []db.TaskOutput
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, output)
+}
+
+// GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)

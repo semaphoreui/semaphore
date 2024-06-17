@@ -235,6 +235,8 @@ type Store interface {
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
+	CreateTaskStage(stage TaskStage) (TaskStage, error)
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
@@ -379,6 +381,11 @@ var TaskProps = ObjectProps{
 var TaskOutputProps = ObjectProps{
 	TableName: "task__output",
 	Type:      reflect.TypeOf(TaskOutput{}),
+}
+
+var TaskStageProps = ObjectProps{
+	TableName: "task__stage",
+	Type:      reflect.TypeOf(TaskStage{}),
 }
 
 var ViewProps = ObjectProps{

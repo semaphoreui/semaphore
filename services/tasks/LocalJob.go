@@ -191,12 +191,6 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 
 	args = []string{}
 
-	if t.Task.DryRun {
-		args = append(args, "plan")
-	} else {
-		args = append(args, "apply")
-	}
-
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
 	if err != nil {

@@ -45,6 +45,9 @@ func (s TaskStatus) IsFinished() bool {
 	return s == TaskStoppedStatus || s == TaskSuccessStatus || s == TaskFailStatus
 }
 
+type StatusListener func(status TaskStatus)
+type LogListener func(new time.Time, msg string)
+
 type Logger interface {
 	Log(msg string)
 	Logf(format string, a ...any)
@@ -52,4 +55,6 @@ type Logger interface {
 	LogfWithTime(now time.Time, format string, a ...any)
 	LogCmd(cmd *exec.Cmd)
 	SetStatus(status TaskStatus)
+	AddStatusListener(l StatusListener)
+	AddLogListener(l LogListener)
 }

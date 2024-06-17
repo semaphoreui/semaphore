@@ -25,64 +25,18 @@ type TerraformApp struct {
 	Repository db.Repository
 	reader     terraformReader
 	Name       TerraformAppName
+	noChanges  bool
 }
 
-type terraformLogger struct {
-	logger task_logger.Logger
-	reader *terraformReader
-}
+type terraformReaderResult int
 
-func (l *terraformLogger) Log(msg string) {
-	l.logger.Log(msg)
-}
-
-func (l *terraformLogger) Logf(format string, a ...any) {
-	l.logger.Logf(format, a...)
-}
+const (
+	terraformReaderConfirmed terraformReaderResult = iota
+	terraformReaderFailed
+)
 
 type terraformReader struct {
-	confirmed bool
-	logger    *terraformLogger
-}
-
-func (r *terraformReader) Read(p []byte) (n int, err error) {
-	if r.confirmed {
-		copy(p, "\n")
-		return 1, nil
-	}
-
-	r.logger.SetStatus(task_logger.TaskWaitingConfirmation)
-
-	for {
-		time.Sleep(time.Second * 3)
-		if r.confirmed {
-			break
-		}
-	}
-
-	copy(p, "yes\n")
-	r.logger.SetStatus(task_logger.TaskRunningStatus)
-	return 4, nil
-}
-
-func (l *terraformLogger) LogWithTime(now time.Time, msg string) {
-	l.logger.LogWithTime(now, msg)
-}
-
-func (l *terraformLogger) LogfWithTime(now time.Time, format string, a ...any) {
-	l.logger.LogWithTime(now, fmt.Sprintf(format, a...))
-}
-
-func (l *terraformLogger) LogCmd(cmd *exec.Cmd) {
-	l.logger.LogCmd(cmd)
-}
-
-func (l *terraformLogger) SetStatus(status task_logger.TaskStatus) {
-	if status == task_logger.TaskConfirmed {
-		l.reader.confirmed = true
-	}
-
-	l.logger.SetStatus(status)
+	result *terraformReaderResult
 }
 
 func (t *TerraformApp) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
@@ -116,21 +70,31 @@ func (t *TerraformApp) GetFullPath() string {
 }
 
 func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
-	internalLogger := &terraformLogger{
-		logger: logger,
-		reader: &t.reader,
-	}
+	t.Logger = logger
 
-	t.reader.logger = internalLogger
-	t.Logger = internalLogger
-	return internalLogger
+	t.Logger.AddLogListener(func(new time.Time, msg string) {
+		if strings.Contains(msg, "No changes.") {
+			t.noChanges = true
+		}
+	})
+
+	t.Logger.AddStatusListener(func(status task_logger.TaskStatus) {
+		var result terraformReaderResult
+
+		switch status {
+		case task_logger.TaskConfirmed:
+			result = terraformReaderConfirmed
+			t.reader.result = &result
+		case task_logger.TaskFailStatus, task_logger.TaskStoppedStatus:
+			result = terraformReaderFailed
+			t.reader.result = &result
+		}
+	})
+
+	return logger
 }
 
 func (t *TerraformApp) InstallRequirements() error {
-
-	if _, ok := t.Logger.(*terraformLogger); !ok {
-		t.SetLogger(t.Logger)
-	}
 
 	cmd := t.makeCmd(string(t.Name), []string{"init"}, nil)
 	t.Logger.LogCmd(cmd)
@@ -141,14 +105,59 @@ func (t *TerraformApp) InstallRequirements() error {
 	return cmd.Wait()
 }
 
-func (t *TerraformApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+func (t *TerraformApp) Plan(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+	args = append([]string{"plan"}, args...)
 	cmd := t.makeCmd(string(t.Name), args, environmentVars)
 	t.Logger.LogCmd(cmd)
-	cmd.Stdin = &t.reader
+	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()
 	if err != nil {
 		return err
 	}
 	cb(cmd.Process)
 	return cmd.Wait()
+}
+
+func (t *TerraformApp) Apply(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+	args = append([]string{"apply", "-auto-approve"}, args...)
+	cmd := t.makeCmd(string(t.Name), args, environmentVars)
+	t.Logger.LogCmd(cmd)
+	cmd.Stdin = strings.NewReader("")
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+	cb(cmd.Process)
+	return cmd.Wait()
+}
+
+func (t *TerraformApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+	err := t.Plan(args, environmentVars, inputs, cb)
+	if err != nil {
+		return err
+	}
+
+	if t.noChanges {
+		t.Logger.SetStatus(task_logger.TaskSuccessStatus)
+		return nil
+	}
+
+	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
+
+	for {
+		time.Sleep(time.Second * 3)
+		if t.reader.result != nil {
+			break
+		}
+	}
+
+	switch *t.reader.result {
+	case terraformReaderFailed:
+		return nil
+	case terraformReaderConfirmed:
+		t.Logger.SetStatus(task_logger.TaskRunningStatus)
+		return t.Apply(args, environmentVars, inputs, cb)
+	default:
+		return fmt.Errorf("unknown plan result")
+	}
 }
