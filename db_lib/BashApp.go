@@ -7,6 +7,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type bashReader struct {
 }
 
 func (r *bashReader) Read(p []byte) (n int, err error) {
+
 	r.logger.SetStatus(task_logger.TaskWaitingConfirmation)
 
 	for {
@@ -77,6 +79,7 @@ func (t *BashApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	t.Logger.AddStatusListener(func(status task_logger.TaskStatus) {
 
 	})
+	t.reader.logger = logger
 	return logger
 }
 
@@ -87,7 +90,8 @@ func (t *BashApp) InstallRequirements() error {
 func (t *BashApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	cmd := t.makeCmd("bash", args, environmentVars)
 	t.Logger.LogCmd(cmd)
-	cmd.Stdin = &t.reader
+	//cmd.Stdin = &t.reader
+	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()
 	if err != nil {
 		return err

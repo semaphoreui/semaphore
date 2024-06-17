@@ -34,9 +34,10 @@ type TaskPool struct {
 	// register channel used to put tasks to queue.
 	register chan *TaskRunner
 
+	// activeProj ???
 	activeProj map[int]map[int]*TaskRunner
 
-	// runningTasks contains tasks with status TaskRunningStatus.
+	// runningTasks contains tasks with status TaskRunningStatus. Map key is a task ID.
 	runningTasks map[int]*TaskRunner
 
 	// logger channel used to putting log records to database.
@@ -193,6 +194,9 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	}
 
 	for _, r := range p.activeProj[t.Task.ProjectID] {
+		if r.Task.Status.IsFinished() {
+			continue
+		}
 		if r.Template.ID == t.Task.TemplateID {
 			return true
 		}
