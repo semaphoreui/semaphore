@@ -24,21 +24,25 @@ file_env() {
         val="$(cat "${fileVar}")"
     fi
 
-    export "${1}"="$val"
+    if [ -n "${val:-}" ]; then
+        export "${1}"="$val"
+    fi
+
     unset "${1}_FILE"
 }
 
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
-export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
 export ANSIBLE_CONFIG="${ANSIBLE_CONFIG:-${SEMAPHORE_TMP_PATH}/ansible.cfg}"
+
+export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
 export SEMAPHORE_DB_DIALECT="${SEMAPHORE_DB_DIALECT:-mysql}"
 export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-0.0.0.0}"
 export SEMAPHORE_DB_PATH="${SEMAPHORE_DB_PATH:-/var/lib/semaphore}"
 export SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-}"
 export SEMAPHORE_DB="${SEMAPHORE_DB:-semaphore}"
+
 file_env 'SEMAPHORE_DB_USER' 'semaphore'
 file_env 'SEMAPHORE_DB_PASS' 'semaphore'
-export SEMAPHORE_WEB_ROOT="${SEMAPHORE_WEB_ROOT:-}"
 file_env 'SEMAPHORE_ADMIN' 'admin'
 export SEMAPHORE_ADMIN_EMAIL="${SEMAPHORE_ADMIN_EMAIL:-admin@localhost}"
 export SEMAPHORE_ADMIN_NAME="${SEMAPHORE_ADMIN_NAME:-Semaphore Admin}"
@@ -138,7 +142,7 @@ EOF
 
     cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
 ${SEMAPHORE_TMP_PATH}
-${SEMAPHORE_WEB_ROOT}
+${SEMAPHORE_WEB_ROOT:-}
 no
 no
 no
@@ -178,8 +182,6 @@ EOF
     fi
 fi
 
-source /opt/semaphore/venv/bin/activate
-
 if test -f "${SEMAPHORE_CONFIG_PATH}/packages.txt"; then
     echoerr "Installing additional system dependencies"
     apk add --no-cache --upgrade \
@@ -190,7 +192,7 @@ fi
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
-    pip3 install --upgrade --user \
+    pip3 install --upgrade \
         -r "${SEMAPHORE_CONFIG_PATH}/requirements.txt"
 else
     echoerr "No additional python dependencies to install"
