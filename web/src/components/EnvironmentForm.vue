@@ -72,40 +72,6 @@
         </v-tooltip>
       </v-subheader>
 
-      <v-chip-group
-        v-model="predefinedEnvVars"
-        column
-        multiple
-        class="EnvironmentForm__predefinedEnvVars"
-      >
-        <v-chip
-          filter
-          outlined
-          v-for="item in PREDEFINED_ENV_VARS"
-          :key="item.name"
-        >
-          <span class="EnvironmentForm__predefinedEnvVarsValue">
-            {{ item.name }}={{ item.value }}
-          </span>
-          <v-tooltip
-            bottom
-            color="black"
-            :max-width="400"
-            open-delay="300"
-          >
-            <template v-slot:activator="{ on, attrs }">
-              <v-icon
-                class="ml-2"
-                v-bind="attrs"
-                v-on="on"
-                style="margin-right: -6px;"
-              >mdi-help-circle</v-icon>
-            </template>
-            <span>{{ item.description }}</span>
-          </v-tooltip>
-        </v-chip>
-      </v-chip-group>
-
       <v-data-table
         :items="env"
         :items-per-page="-1"
@@ -156,20 +122,6 @@
 
   </v-form>
 </template>
-
-<style lang="scss">
-.EnvironmentForm__predefinedEnvVars {
-  .EnvironmentForm__predefinedEnvVarsValue {
-    text-decoration: line-through;
-    font-family: monospace;
-  }
-  .v-chip--active {
-    .EnvironmentForm__predefinedEnvVarsValue {
-      text-decoration: none;
-    }
-  }
-}
-</style>
 
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
