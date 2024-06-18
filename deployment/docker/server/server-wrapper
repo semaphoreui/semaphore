@@ -24,7 +24,10 @@ file_env() {
         val="$(cat "${fileVar}")"
     fi
 
-    export "${1}"="$val"
+    if [ -n "${val:-}" ]; then
+        export "${1}"="$val"
+    fi
+
     unset "${1}_FILE"
 }
 
