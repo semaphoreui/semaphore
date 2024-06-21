@@ -610,7 +610,6 @@ import UserForm from '@/components/UserForm.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
-import SubscriptionForm from '@/components/SubscriptionForm.vue';
 
 const PROJECT_COLORS = [
   'red',
@@ -690,7 +689,6 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
-    SubscriptionForm,
     ChangePasswordForm,
     UserForm,
     EditDialog,
