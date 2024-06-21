@@ -1,16 +1,9 @@
 # Semaphore UI (formerly Ansible Semaphore)
 
-
-[![](https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white)](https://t.me/semaphoreui)
-[![](https://img.shields.io/youtube/channel/views/UCUjzgHjyeiiKsINaM6mHVQQ)](https://www.youtube.com/@semaphoreui)
-
-
-[//]: # (![Website]&#40;https://img.shields.io/website?url=https%3A%2F%2Fsemui.co&#41;)
-
-
-[//]: # ([![Twitter]&#40;https://img.shields.io/twitter/follow/semaphoreui?style=social&logo=twitter&#41;]&#40;https://twitter.com/semaphoreui&#41;)
-
-[//]: # ([![ko-fi]&#40;https://ko-fi.com/img/githubbutton_sm.svg&#41;]&#40;https://ko-fi.com/fiftin&#41;)
+[![docker](https://img.shields.io/badge/docker_container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
+[![patreon](https://img.shields.io/badge/support_semaphore-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
+[![telegram](https://img.shields.io/badge/telegram_community-blue?style=for-the-badge&logo=telegram)](https://t.me/semaphoreui) 
+[![telegram](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
 
 Semaphore is a modern UI for Ansible, Terraform/OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
