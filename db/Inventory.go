@@ -74,6 +74,12 @@ func FillInventory(d Store, inventory *Inventory) (err error) {
 		if err != nil {
 			return
 		}
+
+		err = repo.SSHKey.DeserializeSecret()
+		if err != nil {
+			return
+		}
+
 		inventory.Repository = &repo
 	}
 
