@@ -38,7 +38,7 @@ services:
 ```
 
 ### Other installation methods
-https://docs.semui.co/administration-guide/installation
+https://docs.semaphoreui.com/administration-guide/installation
 
 ## Demo
 
@@ -46,6 +46,6 @@ You can test latest version of Semaphore on https://cloud.semui.co.
 
 ## Docs
 
-Admin and user docs: https://docs.semui.co.
+Admin and user docs: https://docs.semaphoreui.com.
 
-API description: https://semui.co/api-docs/.
+API description: https://semaphoreui.com/api-docs/.

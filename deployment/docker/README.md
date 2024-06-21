@@ -57,4 +57,4 @@ task docker:test
 [hadolint]: https://github.com/hadolint/hadolint
 [goss]: https://github.com/goss-org/goss
 [snippets]: ../compose/README.md
-[documentation]: https://docs.semui.co/administration-guide/installation
+[documentation]: https://docs.semaphoreui.com/administration-guide/installation
