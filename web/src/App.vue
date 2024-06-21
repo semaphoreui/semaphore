@@ -81,25 +81,6 @@
       </template>
     </EditDialog>
 
-    <EditDialog
-      v-model="subscriptionDialogue"
-      save-button-text="Activate"
-      title="Premium Subscription"
-      v-if="user"
-      event-name="i-user"
-      :dont-close-on-save="true"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <SubscriptionForm
-          item-id="new"
-          @save="onSave(); onSubscriptionKeyUpdates();"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
-
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -409,20 +390,6 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item
-                key="subscription"
-                v-if="user.admin"
-                @click="subscriptionDialogue = true"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-license</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  Premium Subscription
-                </v-list-item-content>
-              </v-list-item>
-
               <v-list-item key="edit" @click="userDialog = true">
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>
@@ -512,16 +479,6 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
-
-.ActivatePremiumSubscriptionButton {
-  background: gold;
-  transform: rotate(-5deg) scale(0.95);
-  border-radius: 6px;
-  transition: 0.2s transform;
-  &:hover {
-    transform: rotate(-5deg) scale(1);
-  }
-}
 
 .v-alert__wrapper {
   overflow: auto;
@@ -755,7 +712,6 @@ export default {
       newProjectType: '',
       userDialog: null,
       passwordDialog: null,
-      subscriptionDialogue: null,
 
       taskLogDialog: null,
       task: null,
