@@ -197,6 +197,7 @@ type Store interface {
 	DeleteTemplate(projectID int, templateID int) error
 
 	GetSchedules() ([]Schedule, error)
+	GetProjectSchedules(projectID int) ([]Schedule, error)
 	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
