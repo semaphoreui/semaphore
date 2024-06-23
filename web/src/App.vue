@@ -561,7 +561,7 @@
 .v-data-table-header {
 }
 
-.theme--light.v-data-table > .v-data-table__wrapper > table > thead > tr:last-child > th {
+.v-data-table > .v-data-table__wrapper > table > thead > tr:last-child > th {
   text-transform: uppercase;
   white-space: nowrap;
 }

@@ -72,9 +72,11 @@ func (d *SqlDb) GetSchedules() (schedules []db.Schedule, err error) {
 	return
 }
 
-func (d *SqlDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, err error) {
+func (d *SqlDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
 	_, err = d.selectAll(&schedules,
-		"select * from project__schedule where project_id=?",
+		"SELECT ps.*, pt.name as tpl_name FROM project__schedule ps "+
+			"JOIN project__template pt ON pt.id = ps.template_id "+
+			"WHERE ps.project_id=?",
 		projectID)
 	return
 }

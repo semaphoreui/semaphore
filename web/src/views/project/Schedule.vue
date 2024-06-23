@@ -3,12 +3,12 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="$t('save')"
-      :title="$t('editEnvironment')"
+      :title="$t('Edit Schedule')"
       :max-width="500"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <EnvironmentForm
+        <ScheduleForm
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -20,14 +20,14 @@
     </EditDialog>
 
     <ObjectRefsDialog
-      object-title="environment"
+      object-title="schedule"
       :object-refs="itemRefs"
       :project-id="projectId"
       v-model="itemRefsDialog"
     />
 
     <YesNoDialog
-      :title="$t('deleteEnvironment')"
+      :title="$t('Delete Schedule')"
       :text="$t('askDeleteEnv')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
@@ -35,13 +35,13 @@
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('environment2') }}</v-toolbar-title>
+      <v-toolbar-title>{{ $t('Schedule') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newEnvironment') }}
+      >{{ $t('New Schedule') }}
       </v-btn>
     </v-toolbar>
 
@@ -77,32 +77,35 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import EnvironmentForm from '@/components/EnvironmentForm.vue';
+import ScheduleForm from '@/components/ScheduleForm.vue';
 
 export default {
-  components: { EnvironmentForm },
+  components: { ScheduleForm },
   mixins: [ItemListPageBase],
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        text: this.$i18n.t('Cron'),
+        value: 'cron_format',
         width: '100%',
-      },
-      {
+      }, {
+        text: this.$i18n.t('Template'),
+        value: 'tpl_name',
+        width: '100%',
+      }, {
         text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/environment`;
+      return `/api/project/${this.projectId}/schedules`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/environment/${this.itemId}`;
+      return `/api/project/${this.projectId}/schedules/${this.itemId}`;
     },
     getEventName() {
-      return 'i-environment';
+      return 'i-schedule';
     },
   },
 };
