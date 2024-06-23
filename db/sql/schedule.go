@@ -76,7 +76,7 @@ func (d *SqlDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithT
 	_, err = d.selectAll(&schedules,
 		"SELECT ps.*, pt.name as tpl_name FROM project__schedule ps "+
 			"JOIN project__template pt ON pt.id = ps.template_id "+
-			"WHERE ps.project_id=?",
+			"WHERE ps.repository_id IS NULL AND ps.project_id=?",
 		projectID)
 	return
 }

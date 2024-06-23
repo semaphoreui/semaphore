@@ -52,6 +52,16 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.tpl_name="{ item }">
+        <div class="d-flex">
+          <router-link :to="
+            '/project/' + item.project_id +
+            '/templates/' + item.template_id"
+          >{{ item.tpl_name }}
+          </router-link>
+        </div>
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -71,6 +81,20 @@
           </v-btn>
         </div>
       </template>
+
+      <template v-slot:expanded-item="{ headers, item }">
+        <td
+          :colspan="headers.length"
+          v-if="openedItems.some((template) => template.id === item.id)"
+        >
+          <TaskList
+            style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
+            :template="item"
+            :limit="5"
+            :hide-footer="true"
+          />
+        </td>
+      </template>
     </v-data-table>
   </div>
 
@@ -78,16 +102,21 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import ScheduleForm from '@/components/ScheduleForm.vue';
+import TaskList from '@/components/TaskList.vue';
 
 export default {
-  components: { ScheduleForm },
+  components: { TaskList, ScheduleForm },
   mixins: [ItemListPageBase],
+  data() {
+    return {
+      openedItems: [],
+    };
+  },
   methods: {
     getHeaders() {
       return [{
         text: this.$i18n.t('Cron'),
         value: 'cron_format',
-        width: '100%',
       }, {
         text: this.$i18n.t('Template'),
         value: 'tpl_name',

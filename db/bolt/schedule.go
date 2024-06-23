@@ -32,7 +32,10 @@ func (d *BoltDb) getProjectSchedules(projectID int) (schedules []db.Schedule, er
 }
 
 func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
-	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, nil, &schedules)
+	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		s := referringObj.(db.ScheduleWithTpl)
+		return s.RepositoryID == nil
+	}, &schedules)
 	return
 }
 
