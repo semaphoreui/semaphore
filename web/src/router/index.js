@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
+import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
 import Settings from '../views/project/Settings.vue';
@@ -14,7 +15,6 @@ import Users from '../views/Users.vue';
 import Auth from '../views/Auth.vue';
 import New from '../views/project/New.vue';
 import Integrations from '../views/project/Integrations.vue';
-
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
 
 Vue.use(VueRouter);
@@ -35,6 +35,10 @@ const routes = [
   {
     path: '/project/:projectId/activity',
     component: Activity,
+  },
+  {
+    path: '/project/:projectId/schedule',
+    component: Schedule,
   },
   {
     path: '/project/:projectId/settings',

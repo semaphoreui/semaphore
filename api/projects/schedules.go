@@ -42,6 +42,17 @@ func GetSchedule(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, schedule)
 }
 
+func GetProjectSchedules(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+
+	tplSchedules, err := helpers.Store(r).GetProjectSchedules(project.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, tplSchedules)
+}
 func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	templateID, err := helpers.GetIntParam("template_id", w, r)

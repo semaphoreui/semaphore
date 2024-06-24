@@ -16,7 +16,7 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 
 	for _, proj := range allProjects {
 		var projSchedules []db.Schedule
-		projSchedules, err = d.GetProjectSchedules(proj.ID)
+		projSchedules, err = d.getProjectSchedules(proj.ID)
 		if err != nil {
 			return
 		}
@@ -26,15 +26,23 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 	return
 }
 
-func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, err error) {
+func (d *BoltDb) getProjectSchedules(projectID int) (schedules []db.Schedule, err error) {
 	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, nil, &schedules)
+	return
+}
+
+func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
+	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		s := referringObj.(db.ScheduleWithTpl)
+		return s.RepositoryID == nil
+	}, &schedules)
 	return
 }
 
 func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	schedules = make([]db.Schedule, 0)
 
-	projSchedules, err := d.GetProjectSchedules(projectID)
+	projSchedules, err := d.getProjectSchedules(projectID)
 	if err != nil {
 		return
 	}

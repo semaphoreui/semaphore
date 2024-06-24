@@ -238,34 +238,16 @@
           dense
         ></v-select>
 
-        <v-row>
-          <v-col cols="5" class="pr-1">
-            <v-text-field
-              style="font-size: 14px"
-              v-model="cronFormat"
-              :label="$t('cron')"
-              :disabled="formSaving"
-              placeholder="* * * * *"
-              v-if="schedules == null || schedules.length <= 1"
-              outlined
-              dense
-              hide-details
-            ></v-text-field>
-          </v-col>
+        <v-checkbox
+          class="mt-0"
+          :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
+          v-model="cronRepositoryIdVisible"
+        />
 
+        <v-row v-if="cronRepositoryIdVisible" class="mb-2">
           <v-col cols="7">
-            <a
-              v-if="!cronRepositoryIdVisible && cronRepositoryId == null"
-              @click="cronRepositoryIdVisible = true"
-              class="text-caption d-block"
-              style="line-height: 1.1;"
-            >
-              {{ $t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome') }}
-            </a>
-
             <v-select
               style="font-size: 14px"
-              v-if="cronRepositoryIdVisible || cronRepositoryId != null"
               v-model="cronRepositoryId"
               :label="$t('repository2')"
               :placeholder="$t('cronChecksNewCommitBeforeRun')"
@@ -278,15 +260,23 @@
               dense
               hide-details
             ></v-select>
+          </v-col>
 
+          <v-col cols="5">
+            <v-select
+              v-model="cronFormat"
+              :label="$t('Interval')"
+              :placeholder="$t('New commit check interval')"
+              item-value="cron"
+              item-text="title"
+              :items="cronFormats"
+              :disabled="formSaving"
+              outlined
+              dense
+              hide-details
+            />
           </v-col>
         </v-row>
-
-        <small class="mt-1 mb-4 d-block">
-          {{ $t('readThe') }}
-          <a target="_blank" href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format">{{ $t('docs') }}</a>
-          {{ $t('toLearnMoreAboutCron') }}
-        </small>
 
         <v-checkbox
           class="mt-0"
@@ -356,6 +346,22 @@ export default {
 
   data() {
     return {
+      cronFormats: [{
+        cron: '* * * * *',
+        title: '1 minute',
+      }, {
+        cron: '*/5 * * * *',
+        title: '5 minutes',
+      }, {
+        cron: '*/10 * * * *',
+        title: '10 minutes',
+      }, {
+        cron: '@hourly',
+        title: '1 hour',
+      }, {
+        cron: '@daily',
+        title: '24 hours',
+      }],
       itemTypeIndex: 0,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
@@ -517,9 +523,13 @@ export default {
         responseType: 'json',
       })).data;
 
-      if (this.schedules.length === 1) {
-        this.cronFormat = this.schedules[0].cron_format;
-        this.cronRepositoryId = this.schedules[0].repository_id;
+      if (this.schedules.length > 0) {
+        const schedule = this.schedules.find((s) => s.repository_id != null);
+        if (schedule != null) {
+          this.cronFormat = schedule.cron_format;
+          this.cronRepositoryId = schedule.repository_id;
+          this.cronRepositoryIdVisible = this.cronRepositoryId != null;
+        }
       }
 
       this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
@@ -566,7 +576,7 @@ export default {
         }
       } else if (this.schedules.length > 1) {
         // do nothing
-      } else if (this.cronFormat == null || this.cronFormat === '') {
+      } else if (this.cronFormat == null || this.cronFormat === '' || !this.cronRepositoryIdVisible) {
         // drop schedule
         await axios({
           method: 'delete',

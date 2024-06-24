@@ -8,3 +8,8 @@ type Schedule struct {
 	RepositoryID   *int    `db:"repository_id" json:"repository_id"`
 	LastCommitHash *string `db:"last_commit_hash" json:"-"`
 }
+
+type ScheduleWithTpl struct {
+	Schedule
+	TemplateName string `db:"tpl_name" json:"tpl_name"`
+}
