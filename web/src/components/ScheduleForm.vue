@@ -10,16 +10,17 @@
       :value="formError"
       color="error"
       class="pb-2"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
 
-<!--    <v-text-field-->
-<!--      v-model="item.name"-->
-<!--      :label="$t('Name')"-->
-<!--      :rules="[v => !!v || $t('name_required')]"-->
-<!--      required-->
-<!--      :disabled="formSaving"-->
-<!--      class="mb-4"-->
-<!--    ></v-text-field>-->
+    <!--    <v-text-field-->
+    <!--      v-model="item.name"-->
+    <!--      :label="$t('Name')"-->
+    <!--      :rules="[v => !!v || $t('name_required')]"-->
+    <!--      required-->
+    <!--      :disabled="formSaving"-->
+    <!--      class="mb-4"-->
+    <!--    ></v-text-field>-->
 
     <v-select
       v-model="item.template_id"
@@ -39,14 +40,229 @@
       required
       :disabled="formSaving"
       class="mb-4"
+      @input="refreshCheckboxes()"
     ></v-text-field>
+
+    <div>
+      <v-select
+        v-model="timing"
+        :label="$t('Timing')"
+        :items="TIMINGS"
+        item-value="id"
+        item-text="title"
+        :rules="[v => !!v || $t('template_required')]"
+        required
+        :disabled="formSaving"
+        @change="refreshCron()"
+      />
+
+      <div v-if="['yearly'].includes(timing)">
+        <div>Months</div>
+        <div class="d-flex flex-wrap">
+          <v-checkbox
+            class="mr-2 mt-0 ScheduleCheckbox"
+            v-for="m in MONTHS" :key="m.id"
+            :value="m.id"
+            :label="m.title"
+            v-model="months"
+            color="white"
+            :class="{'ScheduleCheckbox--active': months.includes(m.id)}"
+            @change="refreshCron()"
+          ></v-checkbox>
+        </div>
+      </div>
+
+      <div v-if="['weekly'].includes(timing)">
+        <div class="mt-4">Weekdays</div>
+        <div class="d-flex flex-wrap">
+          <v-checkbox
+            class="mr-2 mt-0 ScheduleCheckbox"
+            v-for="d in WEEKDAYS" :key="d.id"
+            :value="d.id"
+            :label="d.title"
+            v-model="weekdays"
+            color="white"
+            :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
+            @change="refreshCron()"
+          ></v-checkbox>
+        </div>
+      </div>
+
+      <div v-if="['yearly', 'monthly'].includes(timing)">
+        <div class="mt-4">Days</div>
+        <div class="d-flex flex-wrap">
+          <v-checkbox
+            class="mr-2 mt-0 ScheduleCheckbox"
+            v-for="d in 31"
+            :key="d"
+            :value="d"
+            :label="`${d}`"
+            v-model="days"
+            color="white"
+            :class="{'ScheduleCheckbox--active': days.includes(d)}"
+            @change="refreshCron()"
+          ></v-checkbox>
+        </div>
+      </div>
+
+      <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
+        <div class="mt-4">Hours</div>
+        <div class="d-flex flex-wrap">
+          <v-checkbox
+            class="mr-2 mt-0 ScheduleCheckbox"
+            v-for="h in 24"
+            :key="h - 1"
+            :value="h - 1"
+            :label="`${h - 1}`"
+            v-model="hours"
+            color="white"
+            :class="{'ScheduleCheckbox--active': hours.includes(h - 1)}"
+            @change="refreshCron()"
+          ></v-checkbox>
+        </div>
+      </div>
+
+      <div>
+        <div class="mt-4">Minutes</div>
+        <div class="d-flex flex-wrap">
+          <v-checkbox
+            class="mr-2 mt-0 ScheduleCheckbox"
+            v-for="m in MINUTES"
+            :key="m.id"
+            :value="m.id"
+            :label="m.title"
+            v-model="minutes"
+            color="white"
+            :class="{'ScheduleCheckbox--active': minutes.includes(m.id)}"
+            @change="refreshCron()"
+          ></v-checkbox>
+        </div>
+      </div>
+    </div>
 
   </v-form>
 </template>
 
+<style lang="scss">
+.ScheduleCheckbox {
+
+  .v-input__slot {
+    padding: 4px 6px;
+    font-weight: bold;
+    border-radius: 6px;
+  }
+
+  .v-messages {
+    display: none;
+  }
+
+  &.theme--light {
+    .v-input__slot {
+      background: #e4e4e4;
+    }
+  }
+
+  &.theme--dark {
+    .v-input__slot {
+      background: gray;
+    }
+  }
+}
+
+.ScheduleCheckbox--active {
+  .v-input__slot {
+    background: #4caf50 !important;
+  }
+  .v-label {
+    color: white;
+  }
+}
+
+</style>
+
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+
+const parser = require('cron-parser');
+
+const MONTHS = [{
+  id: 1,
+  title: 'Jan',
+}, {
+  id: 2,
+  title: 'Feb',
+}, {
+  id: 3,
+  title: 'March',
+}, {
+  id: 4,
+  title: 'March',
+}, {
+  id: 5,
+  title: 'March',
+}, {
+  id: 6,
+  title: 'March',
+}, {
+  id: 7,
+  title: 'March',
+}];
+
+const TIMINGS = [{
+  id: 'yearly',
+  title: 'Yearly',
+}, {
+  id: 'monthly',
+  title: 'Monthly',
+}, {
+  id: 'weekly',
+  title: 'Weekly',
+}, {
+  id: 'daily',
+  title: 'Daily',
+}, {
+  id: 'hourly',
+  title: 'Hourly',
+}];
+
+const WEEKDAYS = [{
+  id: 0,
+  title: 'Sunday',
+}, {
+  id: 1,
+  title: 'Monday',
+}, {
+  id: 2,
+  title: 'Tuesday',
+}, {
+  id: 3,
+  title: 'Wednesday',
+}, {
+  id: 4,
+  title: 'Thursday',
+}, {
+  id: 5,
+  title: 'Friday',
+}, {
+  id: 6,
+  title: 'Saturday',
+}];
+
+const MINUTES = [
+  { id: 0, title: ':00' },
+  { id: 5, title: ':05' },
+  { id: 10, title: ':10' },
+  { id: 15, title: ':15' },
+  { id: 20, title: ':20' },
+  { id: 25, title: ':25' },
+  { id: 30, title: ':30' },
+  { id: 35, title: ':35' },
+  { id: 40, title: ':40' },
+  { id: 45, title: ':45' },
+  { id: 50, title: ':50' },
+  { id: 55, title: ':55' },
+];
 
 export default {
   mixins: [ItemFormBase],
@@ -54,6 +270,16 @@ export default {
   data() {
     return {
       templates: null,
+      timing: 'hourly',
+      TIMINGS,
+      MONTHS,
+      WEEKDAYS,
+      MINUTES,
+      minutes: [],
+      hours: [],
+      days: [],
+      months: [],
+      weekdays: [],
     };
   },
 
@@ -66,6 +292,124 @@ export default {
   },
 
   methods: {
+
+    refreshCheckboxes() {
+      const fields = JSON.parse(
+        JSON.stringify(parser.parseExpression(this.item.cron_format).fields),
+      );
+
+      if (this.isMinutely(this.item.cron_format)) {
+        this.minutes = fields.minute;
+      } else {
+        this.minutes = [];
+      }
+
+      if (this.isHourly(this.item.cron_format)) {
+        this.hours = fields.hour;
+        this.timing = 'hourly';
+      } else {
+        this.hours = [];
+      }
+
+      if (this.isDaily(this.item.cron_format)) {
+        this.timing = 'daily';
+        this.days = fields.dayOfMonth;
+      } else {
+        this.days = [];
+      }
+
+      if (this.isWeekly(this.item.cron_format)) {
+        this.timing = 'weekly';
+        this.weekdays = fields.dayOfWeek;
+      } else {
+        this.weekdays = [];
+      }
+
+      if (this.timing !== 'weekly' && this.isMinutely(this.item.cron_format)) {
+        this.timing = 'monthly';
+      } else {
+        this.months = [];
+      }
+
+      if (this.isYearly(this.item.cron_format)) {
+        this.timing = 'yearly';
+        this.months = fields.month;
+      }
+    },
+
+    afterLoadData() {
+      this.refreshCheckboxes();
+    },
+
+    isWeekly(s) {
+      return /^\S+\s\S+\s\S+\s\S+\s[^*]\S*$/.test(s);
+    },
+
+    isYearly(s) {
+      return /^\S+\s\S+\s\S+\s[^*]\S*\s\S+$/.test(s);
+    },
+
+    isDaily(s) {
+      return /^\S+\s\S+\s[^*]\S*\s\S+\s\S+$/.test(s);
+    },
+
+    isHourly(s) {
+      return /^\S+\s[^*]\S*\s\S+\s\S+\s\S+$/.test(s);
+    },
+
+    isMinutely(s) {
+      return /^[^*]\S*\s\S+\s\S+\s\S+\s\S+$/.test(s);
+    },
+
+    refreshCron() {
+      const fields = JSON.parse(JSON.stringify(parser.parseExpression('* * * * *').fields));
+
+      switch (this.timing) {
+        case 'hourly':
+          this.months = [];
+          this.weekdays = [];
+          this.days = [];
+          this.hours = [];
+          break;
+        case 'daily':
+          this.days = [];
+          this.months = [];
+          this.weekdays = [];
+          break;
+        case 'monthly':
+          this.months = [];
+          this.weekdays = [];
+          break;
+        case 'weekly':
+          this.months = [];
+          this.days = [];
+          break;
+        default:
+          break;
+      }
+
+      if (this.months.length > 0) {
+        fields.month = this.months;
+      }
+
+      if (this.weekdays.length > 0) {
+        fields.dayOfWeek = this.weekdays;
+      }
+
+      if (this.days.length > 0) {
+        fields.dayOfMonth = this.days;
+      }
+
+      if (this.hours.length > 0) {
+        fields.hour = this.hours;
+      }
+
+      if (this.minutes.length > 0) {
+        fields.minute = this.minutes;
+      }
+
+      this.item.cron_format = parser.fieldsToExpression(fields).stringify();
+    },
 
     getItemsUrl() {
       return `/api/project/${this.projectId}/schedules`;
