@@ -43,7 +43,7 @@
     ></v-text-field>
 
     <div class="mb-4" style="color: limegreen; font-weight: bold;">
-      Next run {{ nextRunTime | formatDate }}.
+      Next run {{ nextRunTime() | formatDate }}.
     </div>
 
     <div>
@@ -286,12 +286,6 @@ export default {
     };
   },
 
-  computed: {
-    nextRunTime() {
-      return parser.parseExpression(this.item.cron_format).next();
-    },
-  },
-
   async created() {
     this.templates = (await axios({
       method: 'get',
@@ -302,51 +296,56 @@ export default {
 
   methods: {
 
+    nextRunTime() {
+      return parser.parseExpression(this.item.cron_format).next();
+    },
+
     refreshCheckboxes() {
       const fields = JSON.parse(
         JSON.stringify(parser.parseExpression(this.item.cron_format).fields),
       );
 
-      if (this.isMinutely(this.item.cron_format)) {
+      if (this.isHourly(this.item.cron_format)) {
         this.minutes = fields.minute;
+        this.timing = 'hourly';
       } else {
         this.minutes = [];
       }
 
-      if (this.isHourly(this.item.cron_format)) {
+      if (this.isDaily(this.item.cron_format)) {
         this.hours = fields.hour;
-        this.timing = 'hourly';
+        this.timing = 'daily';
       } else {
         this.hours = [];
       }
 
-      if (this.isDaily(this.item.cron_format)) {
-        this.timing = 'daily';
-        this.days = fields.dayOfMonth;
-      } else {
-        this.days = [];
-      }
-
       if (this.isWeekly(this.item.cron_format)) {
-        this.timing = 'weekly';
         this.weekdays = fields.dayOfWeek;
+        this.timing = 'weekly';
       } else {
+        this.months = [];
         this.weekdays = [];
       }
 
-      if (this.timing !== 'weekly' && this.isMinutely(this.item.cron_format)) {
+      if (this.isMonthly(this.item.cron_format)) {
+        this.days = fields.dayOfMonth;
         this.timing = 'monthly';
       } else {
         this.months = [];
+        this.weekdays = [];
       }
 
       if (this.isYearly(this.item.cron_format)) {
-        this.timing = 'yearly';
         this.months = fields.month;
+        this.timing = 'yearly';
       }
     },
 
     afterLoadData() {
+      if (this.isNew) {
+        this.item.cron_format = '* * * * *';
+      }
+
       this.refreshCheckboxes();
     },
 
@@ -358,15 +357,15 @@ export default {
       return /^\S+\s\S+\s\S+\s[^*]\S*\s\S+$/.test(s);
     },
 
-    isDaily(s) {
+    isMonthly(s) {
       return /^\S+\s\S+\s[^*]\S*\s\S+\s\S+$/.test(s);
     },
 
-    isHourly(s) {
+    isDaily(s) {
       return /^\S+\s[^*]\S*\s\S+\s\S+\s\S+$/.test(s);
     },
 
-    isMinutely(s) {
+    isHourly(s) {
       return /^[^*]\S*\s\S+\s\S+\s\S+\s\S+$/.test(s);
     },
 
