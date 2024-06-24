@@ -39,9 +39,12 @@
       :rules="[v => !!v || $t('Cron required')]"
       required
       :disabled="formSaving"
-      class="mb-4"
       @input="refreshCheckboxes()"
     ></v-text-field>
+
+    <div class="mb-4" style="color: limegreen; font-weight: bold;">
+      Next run {{ nextRunTime | formatDate }}.
+    </div>
 
     <div>
       <v-select
@@ -281,6 +284,12 @@ export default {
       months: [],
       weekdays: [],
     };
+  },
+
+  computed: {
+    nextRunTime() {
+      return parser.parseExpression(this.item.cron_format).next();
+    },
   },
 
   async created() {
