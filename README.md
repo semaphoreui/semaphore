@@ -42,7 +42,7 @@ https://docs.semaphoreui.com/administration-guide/installation
 
 ## Demo
 
-You can test latest version of Semaphore on https://cloud.semui.co.
+You can test latest version of Semaphore on https://my.semaphore.tech.
 
 ## Docs
 
