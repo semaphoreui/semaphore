@@ -117,10 +117,10 @@ export default {
       return [{
         text: this.$i18n.t('Template'),
         value: 'tpl_name',
-        width: '100%',
       }, {
         text: this.$i18n.t('Cron'),
         value: 'cron_format',
+        width: '100%',
       }, {
         text: this.$i18n.t('actions'),
         value: 'actions',

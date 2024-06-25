@@ -244,39 +244,33 @@
           v-model="cronRepositoryIdVisible"
         />
 
-        <v-row v-if="cronRepositoryIdVisible" class="mb-2">
-          <v-col cols="7">
-            <v-select
-              style="font-size: 14px"
-              v-model="cronRepositoryId"
-              :label="$t('repository2')"
-              :placeholder="$t('cronChecksNewCommitBeforeRun')"
-              :items="repositories"
-              item-value="id"
-              item-text="name"
-              clearable
-              :disabled="formSaving"
-              outlined
-              dense
-              hide-details
-            ></v-select>
-          </v-col>
+        <v-select
+          v-if="cronRepositoryIdVisible"
+          v-model="cronRepositoryId"
+          :label="$t('repository2')"
+          :placeholder="$t('cronChecksNewCommitBeforeRun')"
+          :rules="[v => !!v || $t('repository_required')]"
+          :items="repositories"
+          item-value="id"
+          item-text="name"
+          clearable
+          :disabled="formSaving"
+          outlined
+          dense
+        ></v-select>
 
-          <v-col cols="5">
-            <v-select
-              v-model="cronFormat"
-              :label="$t('Interval')"
-              :placeholder="$t('New commit check interval')"
-              item-value="cron"
-              item-text="title"
-              :items="cronFormats"
-              :disabled="formSaving"
-              outlined
-              dense
-              hide-details
-            />
-          </v-col>
-        </v-row>
+        <v-select
+          v-if="cronRepositoryIdVisible"
+          v-model="cronFormat"
+          :label="$t('Check interval')"
+          :hint="$t('New commit check interval')"
+          item-value="cron"
+          item-text="title"
+          :items="cronFormats"
+          :disabled="formSaving"
+          outlined
+          dense
+        />
 
         <v-checkbox
           class="mt-0"
@@ -381,7 +375,7 @@ export default {
       views: null,
       schedules: null,
       buildTemplates: null,
-      cronFormat: null,
+      cronFormat: '* * * * *',
       cronRepositoryId: null,
       cronRepositoryIdVisible: false,
 
@@ -560,7 +554,7 @@ export default {
 
     async afterSave(newItem) {
       if (newItem || this.schedules.length === 0) {
-        if (this.cronFormat != null && this.cronFormat !== '') {
+        if (this.cronFormat != null && this.cronFormat !== '' && this.cronRepositoryIdVisible) {
           // new schedule
           await axios({
             method: 'post',
