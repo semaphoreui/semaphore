@@ -399,7 +399,7 @@ export default {
         return;
       }
 
-      const template = this.items.find((item) => item.id === data.template_id);
+      const template = (this.items || []).find((item) => item.id === data.template_id);
 
       if (template == null) {
         return;
