@@ -200,16 +200,31 @@ const MONTHS = [{
   title: 'March',
 }, {
   id: 4,
-  title: 'March',
+  title: 'April',
 }, {
   id: 5,
-  title: 'March',
+  title: 'May',
 }, {
   id: 6,
-  title: 'March',
+  title: 'June',
 }, {
   id: 7,
-  title: 'March',
+  title: 'July',
+}, {
+  id: 8,
+  title: 'August',
+}, {
+  id: 9,
+  title: 'September',
+}, {
+  id: 10,
+  title: 'October',
+}, {
+  id: 11,
+  title: 'November',
+}, {
+  id: 12,
+  title: 'December',
 }];
 
 const TIMINGS = [{
