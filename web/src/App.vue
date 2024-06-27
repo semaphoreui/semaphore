@@ -296,7 +296,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>Integrations</v-list-item-title>
+            <v-list-item-title>{{ $t('integrations') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 

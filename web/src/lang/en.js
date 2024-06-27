@@ -239,4 +239,11 @@ export default {
   CreateDemoProject: 'Create Demo Project',
   LeaveProject: 'Leave Project',
   integration: 'Integration',
+  integrations: 'Integrations',
+  NewIntegration: 'New Integration',
+  EditIntegration: 'Edit Integration',
+  DeleteIntegration: 'Delete Integration',
+  DeleteIntegrationMsg: 'Are you sure you want to delete this Integration?',
+  AddAlias: 'Add Alias',
+  LoadAlias: 'Loading aliases...',
 };

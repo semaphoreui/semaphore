@@ -238,5 +238,13 @@ export default {
   Run: '运行',
   CreateDemoProject: '创建模板项目',
   LeaveProject: '离开项目',
-
+  Schedule: '计划任务',
+  integration: '外部集成',
+  integrations: '外部集成',
+  NewIntegration: '新增集成',
+  EditIntegration: '编辑集成',
+  DeleteIntegration: '删除集成',
+  DeleteIntegrationMsg: '确定删除此集成吗？',
+  AddAlias: '新增 Alias',
+  LoadAlias: '列出已有的 Alias',
 };
