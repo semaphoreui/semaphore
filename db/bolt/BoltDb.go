@@ -339,7 +339,7 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 
 		n++
 
-		if params.Count > 0 && n > params.Count {
+		if params.Count > 0 && n >= params.Count {
 			break
 		}
 	}

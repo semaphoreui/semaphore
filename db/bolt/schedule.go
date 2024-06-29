@@ -16,7 +16,7 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 
 	for _, proj := range allProjects {
 		var projSchedules []db.Schedule
-		projSchedules, err = d.getProjectSchedules(proj.ID)
+		projSchedules, err = d.getProjectSchedules(proj.ID, nil)
 		if err != nil {
 			return
 		}
@@ -26,32 +26,44 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 	return
 }
 
-func (d *BoltDb) getProjectSchedules(projectID int) (schedules []db.Schedule, err error) {
-	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, nil, &schedules)
-	return
-}
-
-func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
+func (d *BoltDb) getProjectSchedules(projectID int, filter func(referringObj db.Schedule) bool) (schedules []db.Schedule, err error) {
+	schedules = []db.Schedule{}
 	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
-		s := referringObj.(db.ScheduleWithTpl)
-		return s.RepositoryID == nil
+		return filter == nil || filter(referringObj.(db.Schedule))
 	}, &schedules)
 	return
 }
 
-func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
-	schedules = make([]db.Schedule, 0)
+func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
+	schedules = []db.ScheduleWithTpl{}
 
-	projSchedules, err := d.getProjectSchedules(projectID)
+	orig, err := d.getProjectSchedules(projectID, func(s db.Schedule) bool {
+		return s.RepositoryID == nil
+	})
+
 	if err != nil {
 		return
 	}
 
-	for _, s := range projSchedules {
-		if s.TemplateID == templateID {
-			schedules = append(schedules, s)
+	for _, s := range orig {
+		var tpl db.Template
+		tpl, err = d.GetTemplate(projectID, s.TemplateID)
+		if err != nil {
+			return
 		}
+		schedules = append(schedules, db.ScheduleWithTpl{
+			Schedule:     s,
+			TemplateName: tpl.Name,
+		})
 	}
+
+	return
+}
+
+func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
+	schedules, err = d.getProjectSchedules(projectID, func(s db.Schedule) bool {
+		return s.TemplateID == templateID
+	})
 
 	return
 }

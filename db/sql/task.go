@@ -44,7 +44,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
-func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -57,10 +57,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQuery
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("task.created desc, id desc")
 
-	if templateID == nil {
+	if len(templateIDs) == 0 {
 		q = q.Where("tpl.project_id=?", projectID)
 	} else {
-		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
+		q = q.Where("tpl.project_id=? AND task.template_id IN (?)", projectID, templateIDs)
 	}
 
 	if params.Count > 0 {
@@ -107,8 +107,8 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getTasks(projectID, &templateID, params, &tasks)
+func (d *SqlDb) GetTemplateTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	err = d.getTasks(projectID, templateIDs, params, &tasks)
 	return
 }
 

@@ -49,7 +49,16 @@ func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return newOutput.(db.TaskOutput), nil
 }
 
-func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
+func includes(slice []int, value int) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *BoltDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
 	var tasks []db.Task
 
 	err = d.getObjects(0, db.TaskProps, params, func(tsk interface{}) bool {
@@ -59,7 +68,7 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 			return false
 		}
 
-		if templateID != nil && task.TemplateID != *templateID {
+		if len(templateIDs) > 0 && !includes(templateIDs, task.TemplateID) {
 			return false
 		}
 
@@ -77,11 +86,14 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 	for i, task := range tasks {
 		tpl, ok := templates[task.TemplateID]
 		if !ok {
-			if templateID == nil {
-				tpl, _ = d.getRawTemplate(task.ProjectID, task.TemplateID)
-			} else {
-				tpl, _ = d.getRawTemplate(task.ProjectID, *templateID)
-			}
+			tpl, _ = d.getRawTemplate(task.ProjectID, task.TemplateID)
+
+			//if len(templateIDs) == 0 {
+			//	tpl, _ = d.getRawTemplate(task.ProjectID, task.TemplateID)
+			//} else {
+			//	tpl, _ = d.getRawTemplate(task.ProjectID, *templateID)
+			//}
+
 			templates[task.TemplateID] = tpl
 		}
 		tasksWithTpl[i] = db.TaskWithTpl{Task: task}
@@ -123,8 +135,8 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *BoltDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
-	return d.getTasks(projectID, &templateID, params)
+func (d *BoltDb) GetTemplateTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
+	return d.getTasks(projectID, templateIDs, params)
 }
 
 func (d *BoltDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
