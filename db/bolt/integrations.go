@@ -69,19 +69,11 @@ func (d *BoltDb) CreateIntegrationExtractValue(projectId int, value db.Integrati
 
 func (d *BoltDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQueryParams, integrationID int) (values []db.IntegrationExtractValue, err error) {
 	values = make([]db.IntegrationExtractValue, 0)
-	var allValues []db.IntegrationExtractValue
 
-	err = d.getObjects(projectID, db.IntegrationExtractValueProps, params, nil, &allValues)
-
-	if err != nil {
-		return
-	}
-
-	for _, v := range allValues {
-		if v.IntegrationID == integrationID {
-			values = append(values, v)
-		}
-	}
+	err = d.getObjects(projectID, db.IntegrationExtractValueProps, params, func(i interface{}) bool {
+		v := i.(db.IntegrationExtractValue)
+		return v.IntegrationID == integrationID
+	}, &values)
 
 	return
 }
@@ -120,19 +112,11 @@ func (d *BoltDb) CreateIntegrationMatcher(projectID int, matcher db.IntegrationM
 
 func (d *BoltDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryParams, integrationID int) (matchers []db.IntegrationMatcher, err error) {
 	matchers = make([]db.IntegrationMatcher, 0)
-	var allMatchers []db.IntegrationMatcher
 
-	err = d.getObjects(projectID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, nil, &allMatchers)
-
-	if err != nil {
-		return
-	}
-
-	for _, v := range allMatchers {
-		if v.IntegrationID == integrationID {
-			matchers = append(matchers, v)
-		}
-	}
+	err = d.getObjects(projectID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		v := i.(db.IntegrationExtractValue)
+		return v.IntegrationID == integrationID
+	}, &matchers)
 
 	return
 }
