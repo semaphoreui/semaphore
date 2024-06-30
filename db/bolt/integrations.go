@@ -114,7 +114,7 @@ func (d *BoltDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryPa
 	matchers = make([]db.IntegrationMatcher, 0)
 
 	err = d.getObjects(projectID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
-		v := i.(db.IntegrationExtractValue)
+		v := i.(db.IntegrationMatcher)
 		return v.IntegrationID == integrationID
 	}, &matchers)
 
