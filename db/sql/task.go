@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
-	"math/rand/v2"
+	"math/rand"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
@@ -28,7 +28,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 	nTasks := tpl.Tasks
 
-	if rand.IntN(10) == 0 { // randomly recalculate number of tasks for the template
+	if rand.Intn(10) == 0 { // randomly recalculate number of tasks for the template
 		var n int64
 		n, err = d.sql.SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
 		if err != nil {
