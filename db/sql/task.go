@@ -28,7 +28,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 	nTasks := tpl.Tasks
 
-	if rand.IntN(10) == 0 {
+	if rand.IntN(10) == 0 { // randomly recalculate number of tasks for the template
 		var n int64
 		n, err = d.sql.SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
 		if err != nil {
@@ -46,7 +46,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 		nTasks = int(n)
 	}
 
-	if nTasks < maxTasks+maxTasks/20 {
+	if nTasks < maxTasks+maxTasks/10 { // deadzone of 10% for clearing of old tasks
 		return
 	}
 

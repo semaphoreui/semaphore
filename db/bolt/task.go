@@ -28,6 +28,41 @@ func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStage, e
 }
 
 func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
+	tpl, err := d.GetTemplate(projectID, templateID)
+	if err != nil {
+		return
+	}
+
+	nTasks := tpl.Tasks
+
+	if nTasks == 0 { // recalculate number of tasks for the template
+
+		n, err := d.count(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(item interface{}) bool {
+			task := item.(db.Task)
+
+			return task.TemplateID == templateID
+		})
+
+		if err != nil {
+			return
+		}
+
+		if n != nTasks {
+			tpl.Tasks = n
+			err = d.UpdateTemplate(tpl)
+
+			if err != nil {
+				return
+			}
+		}
+
+		nTasks = n
+	}
+
+	if nTasks < maxTasks {
+		return
+	}
+
 	i := 0
 
 	_ = d.db.Update(func(tx *bbolt.Tx) error {

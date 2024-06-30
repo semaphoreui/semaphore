@@ -352,6 +352,26 @@ func apply(
 	return
 }
 
+func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool) (n int, err error) {
+	n = 0
+
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		c := b.Cursor()
+
+		return apply(c, db.TaskProps, params, filter, func(i interface{}) error {
+			n++
+			return nil
+		})
+	})
+
+	return
+}
+
 func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	//objType := objectsValue.Type().Elem()
@@ -363,40 +383,6 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 		objectsValue.Set(newObjectValues)
 		return nil
 	})
-
-	//i := 0 // offset counter
-	//n := 0 // number of added items
-	//
-	//for k, v := rawData.First(); k != nil; k, v = rawData.Next() {
-	//	if params.Offset > 0 && i < params.Offset {
-	//		i++
-	//		continue
-	//	}
-	//
-	//	tmp := reflect.New(objType)
-	//	ptr := tmp.Interface()
-	//	err = unmarshalObject(v, ptr)
-	//	obj := reflect.ValueOf(ptr).Elem().Interface()
-	//
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	if filter != nil {
-	//		if !filter(obj) {
-	//			continue
-	//		}
-	//	}
-	//
-	//	newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(obj))
-	//	objectsValue.Set(newObjectValues)
-	//
-	//	n++
-	//
-	//	if params.Count > 0 && n >= params.Count {
-	//		break
-	//	}
-	//}
 
 	sortable := false
 
