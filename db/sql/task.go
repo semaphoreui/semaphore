@@ -36,7 +36,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 		}
 
 		if n != int64(nTasks) {
-			_, err = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and template_id=?",
+			_, err = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and id=?",
 				maxTasks, projectID, templateID)
 			if err != nil {
 				return
@@ -52,20 +52,20 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 	var oldestTask db.Task
 	err = d.selectOne(&oldestTask,
-		"SELECT created FROM task WHERE template_id=? ORDER BY created DESC OFFSET ? LIMIT 1",
+		"SELECT created FROM task WHERE template_id=? ORDER BY created DESC LIMIT 1 OFFSET ?",
 		templateID, maxTasks-1)
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created > ?", oldestTask.Created)
+	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created>?", templateID, oldestTask.Created)
 
 	if err != nil {
 		return
 	}
 
-	_, _ = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and template_id=?",
+	_, _ = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and id=?",
 		maxTasks, projectID, templateID)
 }
 
