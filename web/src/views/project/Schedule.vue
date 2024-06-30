@@ -136,7 +136,7 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('Active'),
+        text: '',
         value: 'active',
         sortable: false,
       }, {
