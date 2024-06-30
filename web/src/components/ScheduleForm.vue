@@ -13,14 +13,14 @@
     >{{ formError }}
     </v-alert>
 
-    <!--    <v-text-field-->
-    <!--      v-model="item.name"-->
-    <!--      :label="$t('Name')"-->
-    <!--      :rules="[v => !!v || $t('name_required')]"-->
-    <!--      required-->
-    <!--      :disabled="formSaving"-->
-    <!--      class="mb-4"-->
-    <!--    ></v-text-field>-->
+    <v-text-field
+      v-model="item.name"
+      :label="$t('Name')"
+      :rules="[v => !!v || $t('name_required')]"
+      required
+      :disabled="formSaving"
+      class="mb-4"
+    ></v-text-field>
 
     <v-select
       v-model="item.template_id"
@@ -33,7 +33,13 @@
       :disabled="formSaving"
     />
 
+    <v-switch
+      v-model="rawCron"
+      label="Show cron format"
+    />
+
     <v-text-field
+      v-if="rawCron"
       v-model="item.cron_format"
       :label="$t('Cron')"
       :rules="[v => !!v || $t('Cron required')]"
@@ -42,11 +48,7 @@
       @input="refreshCheckboxes()"
     ></v-text-field>
 
-    <div class="mb-4" style="color: limegreen; font-weight: bold;">
-      Next run {{ nextRunTime() | formatDate }}.
-    </div>
-
-    <div>
+    <div v-if="!rawCron">
       <v-select
         v-model="timing"
         :label="$t('Timing')"
@@ -143,6 +145,21 @@
       </div>
     </div>
 
+    <v-checkbox
+      v-model="item.active"
+    >
+      <template v-slot:label>
+        Enabled
+        <span
+          v-if="item.active"
+          class="ml-3"
+          style="color: limegreen; font-weight: bold;"
+        >
+          Next run {{ nextRunTime() | formatDate }}.
+        </span>
+      </template>
+    </v-checkbox>
+
   </v-form>
 </template>
 
@@ -176,6 +193,7 @@
   .v-input__slot {
     background: #4caf50 !important;
   }
+
   .v-label {
     color: white;
   }
@@ -298,6 +316,7 @@ export default {
       days: [],
       months: [],
       weekdays: [],
+      rawCron: false,
     };
   },
 
@@ -310,7 +329,6 @@ export default {
   },
 
   methods: {
-
     nextRunTime() {
       return parser.parseExpression(this.item.cron_format).next();
     },

@@ -776,7 +776,7 @@ definitions:
         type: integer
       name:
         type: string
-      disabled:
+      active:
         type: boolean
 
   Schedule:
@@ -792,7 +792,7 @@ definitions:
         type: integer
       name:
         type: string
-      disabled:
+      active:
         type: boolean
 
   ViewRequest:

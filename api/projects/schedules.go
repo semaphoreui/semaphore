@@ -173,6 +173,36 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
+	oldSchedule := context.Get(r, "schedule").(db.Schedule)
+
+	var schedule struct {
+		Active bool `json:"active"`
+	}
+
+	if !helpers.Bind(w, r, &schedule) {
+		return
+	}
+
+	err := helpers.Store(r).SetScheduleActive(oldSchedule.ProjectID, oldSchedule.ID, schedule.Active)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldSchedule.ProjectID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    oldSchedule.ID,
+		Description: fmt.Sprintf("Schedule ID %d updated", oldSchedule.ID),
+	})
+
+	refreshSchedulePool(r)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // RemoveSchedule deletes a schedule from the database
 func RemoveSchedule(w http.ResponseWriter, r *http.Request) {
 	schedule := context.Get(r, "schedule").(db.Schedule)

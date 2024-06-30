@@ -52,6 +52,15 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.active="{ item }">
+
+        <v-switch
+          v-model="item.active"
+          inset
+          @change="setActive(item.id, item.active)"
+        ></v-switch>
+      </template>
+
       <template v-slot:item.tpl_name="{ item }">
         <div class="d-flex">
           <router-link :to="
@@ -103,6 +112,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import ScheduleForm from '@/components/ScheduleForm.vue';
 import TaskList from '@/components/TaskList.vue';
+import axios from 'axios';
 
 export default {
   components: { TaskList, ScheduleForm },
@@ -113,13 +123,31 @@ export default {
     };
   },
   methods: {
+    async setActive(scheduleId, active) {
+      await axios({
+        method: 'put',
+        url: `/api/project/${this.projectId}/schedules/${scheduleId}/active`,
+        responseType: 'json',
+        data: {
+          active,
+        },
+      });
+    },
+
     getHeaders() {
       return [{
-        text: this.$i18n.t('Template'),
-        value: 'tpl_name',
+        text: this.$i18n.t('Active'),
+        value: 'active',
+        sortable: false,
+      }, {
+        text: this.$i18n.t('Name'),
+        value: 'name',
       }, {
         text: this.$i18n.t('Cron'),
         value: 'cron_format',
+      }, {
+        text: this.$i18n.t('Template'),
+        value: 'tpl_name',
         width: '100%',
       }, {
         text: this.$i18n.t('actions'),

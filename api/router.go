@@ -271,6 +271,7 @@ func Route() *mux.Router {
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
+	projectScheduleManagement.HandleFunc("/{schedule_id}/active", projects.SetScheduleActive).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
 
 	projectViewManagement := projectUserAPI.PathPrefix("/views").Subrouter()

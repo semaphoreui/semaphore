@@ -96,6 +96,15 @@ func (d *BoltDb) DeleteSchedule(projectID int, scheduleID int) error {
 	})
 }
 
+func (d *BoltDb) SetScheduleActive(projectID int, scheduleID int, active bool) error {
+	schedule, err := d.GetSchedule(projectID, scheduleID)
+	if err != nil {
+		return err
+	}
+	schedule.Active = active
+	return d.updateObject(projectID, db.ScheduleProps, schedule)
+}
+
 func (d *BoltDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string) error {
 	schedule, err := d.GetSchedule(projectID, scheduleID)
 	if err != nil {
