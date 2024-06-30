@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
+	"math/rand/v2"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
@@ -19,9 +20,75 @@ func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStage, error)
 	return nil, nil
 }
 
-func (d *SqlDb) CreateTask(task db.Task) (db.Task, error) {
-	err := d.sql.Insert(&task)
-	return task, err
+func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
+	tpl, err := d.GetTemplate(projectID, templateID)
+	if err != nil {
+		return
+	}
+
+	nTasks := tpl.Tasks
+
+	if rand.IntN(10) == 0 { // randomly recalculate number of tasks for the template
+		var n int64
+		n, err = d.sql.SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
+		if err != nil {
+			return
+		}
+
+		if n != int64(nTasks) {
+			_, err = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and id=?",
+				maxTasks, projectID, templateID)
+			if err != nil {
+				return
+			}
+		}
+
+		nTasks = int(n)
+	}
+
+	if nTasks < maxTasks+maxTasks/10 { // deadzone of 10% for clearing of old tasks
+		return
+	}
+
+	var oldestTask db.Task
+	err = d.selectOne(&oldestTask,
+		"SELECT created FROM task WHERE template_id=? ORDER BY created DESC LIMIT 1 OFFSET ?",
+		templateID, maxTasks-1)
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created>?", templateID, oldestTask.Created)
+
+	if err != nil {
+		return
+	}
+
+	_, _ = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and id=?",
+		maxTasks, projectID, templateID)
+}
+
+func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
+	err = d.sql.Insert(&task)
+	newTask = task
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.exec("UPDATE `project__template` SET `tasks` = `tasks` + 1 WHERE project_id=? and id=?",
+		task.ProjectID, task.TemplateID)
+
+	if err != nil {
+		return
+	}
+
+	if maxTasks > 0 {
+		d.clearTasks(task.ProjectID, task.TemplateID, maxTasks)
+	}
+
+	return
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
@@ -44,7 +111,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
-func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -57,19 +124,35 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQuery
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("task.created desc, id desc")
 
-	if templateID == nil {
-		q = q.Where("tpl.project_id=?", projectID)
-	} else {
-		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
-	}
-
 	if params.Count > 0 {
 		q = q.Limit(uint64(params.Count))
 	}
 
-	query, args, _ := q.ToSql()
+	type queryWithArgs struct {
+		sql  string
+		args []interface{}
+	}
 
-	_, err = d.selectAll(tasks, query, args...)
+	var queries []queryWithArgs
+
+	if len(templateIDs) == 0 {
+		q = q.Where("tpl.project_id=?", projectID)
+		query, args, _ := q.ToSql()
+		queries = append(queries, queryWithArgs{sql: query, args: args})
+	} else {
+		for _, templateID := range templateIDs {
+			query, args, _ := q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID).ToSql()
+			queries = append(queries, queryWithArgs{sql: query, args: args})
+		}
+	}
+
+	*tasks = []db.TaskWithTpl{}
+
+	for _, query := range queries {
+		var queryTasks []db.TaskWithTpl
+		_, err = d.selectAll(&queryTasks, query.sql, query.args...)
+		*tasks = append(*tasks, queryTasks...)
+	}
 
 	for i := range *tasks {
 		err = (*tasks)[i].Fill(d)
@@ -107,12 +190,13 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getTasks(projectID, &templateID, params, &tasks)
+func (d *SqlDb) GetTemplateTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	err = d.getTasks(projectID, templateIDs, params, &tasks)
 	return
 }
 
 func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	tasks = make([]db.TaskWithTpl, 0)
 	err = d.getTasks(projectID, nil, params, &tasks)
 	return
 }

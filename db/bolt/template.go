@@ -85,12 +85,12 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		return db.ErrInvalidOperation
 	}
 
-	tasks, err := d.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{})
+	tasks, err := d.GetTemplateTasks(projectID, []int{templateID}, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
 	for _, task := range tasks {
-		err = d.deleteTaskWithOutputs(projectID, task.ID, tx)
+		err = d.deleteTaskWithOutputs(projectID, task.ID, true, tx)
 		if err != nil {
 			return
 		}

@@ -96,6 +96,8 @@ type Template struct {
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
 
 	App TemplateApp `db:"app" json:"app"`
+
+	Tasks int `db:"tasks" json:"tasks"`
 }
 
 func (tpl *Template) Validate() error {
@@ -124,15 +126,32 @@ func (tpl *Template) Validate() error {
 }
 
 func FillTemplates(d Store, templates []Template) (err error) {
-	for i := range templates {
-		tpl := &templates[i]
-		var tasks []TaskWithTpl
-		tasks, err = d.GetTemplateTasks(tpl.ProjectID, tpl.ID, RetrieveQueryParams{Count: 1})
-		if err != nil {
+
+	var templateIDs []int
+	var projectID int
+
+	if len(templates) == 0 {
+		return
+	}
+
+	projectID = templates[0].ProjectID
+
+	for _, tpl := range templates {
+		if tpl.ProjectID != projectID {
+			err = &ValidationError{"templates must be from the same project"}
 			return
 		}
-		if len(tasks) > 0 {
-			tpl.LastTask = &tasks[0]
+
+		templateIDs = append(templateIDs, tpl.ID)
+	}
+
+	var tasks []TaskWithTpl
+	tasks, err = d.GetTemplateTasks(projectID, templateIDs, RetrieveQueryParams{Count: 1})
+
+	for _, task := range tasks {
+		i := findIntIndex(templateIDs, task.TemplateID)
+		if i >= 0 {
+			templates[i].LastTask = &task
 		}
 	}
 
@@ -155,7 +174,7 @@ func FillTemplate(d Store, template *Template) (err error) {
 	}
 
 	var tasks []TaskWithTpl
-	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})
+	tasks, err = d.GetTemplateTasks(template.ProjectID, []int{template.ID}, RetrieveQueryParams{Count: 1})
 	if err != nil {
 		return
 	}

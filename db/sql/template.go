@@ -3,8 +3,8 @@ package sql
 import (
 	"database/sql"
 
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
@@ -121,7 +121,8 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.`app`",
 		"pt.survey_vars",
 		"pt.start_version",
-		"pt.`type`").
+		"pt.`type`",
+		"pt.`tasks`").
 		From("project__template pt")
 
 	if filter.ViewID != nil {

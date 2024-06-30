@@ -304,11 +304,14 @@ func marshalObject(obj interface{}) ([]byte, error) {
 	return json.Marshal(copyObject(obj, newType))
 }
 
-func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
-	objectsValue := reflect.ValueOf(objects).Elem()
-	objType := objectsValue.Type().Elem()
-
-	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
+func apply(
+	rawData enumerable,
+	props db.ObjectProps,
+	params db.RetrieveQueryParams,
+	filter func(interface{}) bool,
+	applier func(interface{}) error,
+) (err error) {
+	objType := props.Type
 
 	i := 0 // offset counter
 	n := 0 // number of added items
@@ -334,15 +337,52 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 			}
 		}
 
-		newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(obj))
-		objectsValue.Set(newObjectValues)
+		err = applier(obj)
+		if err != nil {
+			return
+		}
 
 		n++
 
-		if params.Count > 0 && n > params.Count {
+		if params.Count > 0 && n >= params.Count {
 			break
 		}
 	}
+
+	return
+}
+
+func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool) (n int, err error) {
+	n = 0
+
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		c := b.Cursor()
+
+		return apply(c, db.TaskProps, params, filter, func(i interface{}) error {
+			n++
+			return nil
+		})
+	})
+
+	return
+}
+
+func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
+	objectsValue := reflect.ValueOf(objects).Elem()
+	//objType := objectsValue.Type().Elem()
+
+	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
+
+	err = apply(rawData, props, params, filter, func(i interface{}) error {
+		newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(i))
+		objectsValue.Set(newObjectValues)
+		return nil
+	})
 
 	sortable := false
 
