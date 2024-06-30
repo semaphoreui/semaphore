@@ -774,6 +774,10 @@ definitions:
         type: integer
       template_id:
         type: integer
+      name:
+        type: string
+      disabled:
+        type: boolean
 
   Schedule:
     type: object
@@ -786,6 +790,10 @@ definitions:
         type: integer
       template_id:
         type: integer
+      name:
+        type: string
+      disabled:
+        type: boolean
 
   ViewRequest:
     type: object

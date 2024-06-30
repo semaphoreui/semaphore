@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 type ScheduleRunner struct {
@@ -111,6 +111,10 @@ func (p *SchedulePool) Refresh() {
 	p.locker.Lock()
 	p.clear()
 	for _, schedule := range schedules {
+		if schedule.Disabled {
+			continue
+		}
+
 		_, err := p.addRunner(ScheduleRunner{
 			projectID:  schedule.ProjectID,
 			scheduleID: schedule.ID,
