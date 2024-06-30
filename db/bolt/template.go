@@ -90,7 +90,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		return
 	}
 	for _, task := range tasks {
-		err = d.deleteTaskWithOutputs(projectID, task.ID, tx)
+		err = d.deleteTaskWithOutputs(projectID, task.ID, true, tx)
 		if err != nil {
 			return
 		}

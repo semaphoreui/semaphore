@@ -96,6 +96,8 @@ type Template struct {
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
 
 	App TemplateApp `db:"app" json:"app"`
+
+	Tasks int `db:"tasks" json:"tasks"`
 }
 
 func (tpl *Template) Validate() error {

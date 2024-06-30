@@ -1,0 +1,1 @@
+alter table `project__template` add `tasks` int not null default 0;

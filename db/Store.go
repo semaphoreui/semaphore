@@ -227,7 +227,7 @@ type Store interface {
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
 
-	CreateTask(task Task) (Task, error)
+	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
 
 	GetTemplateTasks(projectID int, templateIDs []int, params RetrieveQueryParams) ([]TaskWithTpl, error)

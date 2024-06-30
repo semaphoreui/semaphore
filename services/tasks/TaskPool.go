@@ -352,7 +352,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 		}
 	}
 
-	newTask, err = p.store.CreateTask(taskObj)
+	newTask, err = p.store.CreateTask(taskObj, util.Config.MaxTasksPerTemplate)
 	if err != nil {
 		return
 	}
@@ -388,10 +388,6 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			Logger:      app.SetLogger(&taskRunner),
 			App:         app,
 		}
-	}
-
-	if err != nil {
-		return
 	}
 
 	taskRunner.job = job

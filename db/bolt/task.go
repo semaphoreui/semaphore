@@ -27,13 +27,45 @@ func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStage, e
 	return
 }
 
-func (d *BoltDb) CreateTask(task db.Task) (newTask db.Task, err error) {
+func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
+	i := 0
+
+	_ = d.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(db.TaskProps, projectID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		c := b.Cursor()
+
+		return apply(c, db.TaskProps, db.RetrieveQueryParams{}, func(item interface{}) bool {
+			task := item.(db.Task)
+
+			if task.TemplateID != templateID {
+				return false
+			}
+
+			i++
+			return i > maxTasks
+		}, func(i interface{}) error {
+			task := i.(db.Task)
+			return d.deleteTaskWithOutputs(projectID, task.ID, false, tx)
+		})
+	})
+}
+
+func (d *BoltDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
 	task.Created = time.Now()
 	res, err := d.createObject(0, db.TaskProps, task)
 	if err != nil {
 		return
 	}
 	newTask = res.(db.Task)
+
+	if maxTasks > 0 {
+		d.clearTasks(task.ProjectID, task.TemplateID, maxTasks)
+	}
+
 	return
 }
 
@@ -143,11 +175,13 @@ func (d *BoltDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (
 	return d.getTasks(projectID, nil, params)
 }
 
-func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, tx *bbolt.Tx) (err error) {
-	// check if task exists in the project
-	_, err = d.GetTask(projectID, taskID)
-	if err != nil {
-		return
+func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, checkTaskExisting bool, tx *bbolt.Tx) (err error) {
+
+	if checkTaskExisting {
+		_, err = d.GetTask(projectID, taskID)
+		if err != nil {
+			return
+		}
 	}
 
 	err = d.deleteObject(0, db.TaskProps, intObjectID(taskID), tx)
@@ -165,7 +199,7 @@ func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, tx *bbolt.Tx) 
 
 func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		return d.deleteTaskWithOutputs(projectID, taskID, tx)
+		return d.deleteTaskWithOutputs(projectID, taskID, true, tx)
 	})
 }
 

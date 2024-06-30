@@ -41,7 +41,7 @@ func TestTaskRunnerRun(t *testing.T) {
 	var err error
 
 	db.StoreSession(store, "", func() {
-		task, err = store.CreateTask(db.Task{})
+		task, err = store.CreateTask(db.Task{}, 0)
 	})
 
 	if err != nil {

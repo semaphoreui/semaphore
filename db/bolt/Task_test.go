@@ -51,7 +51,7 @@ func TestTask_GetVersion(t *testing.T) {
 		ProjectID:  0,
 		TemplateID: build.ID,
 		Version:    &VERSION,
-	})
+	}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestTask_GetVersion(t *testing.T) {
 		ProjectID:   0,
 		TemplateID:  deploy.ID,
 		BuildTaskID: &buildTask.ID,
-	})
+	}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestTask_GetVersion(t *testing.T) {
 		ProjectID:   0,
 		TemplateID:  deploy2.ID,
 		BuildTaskID: &deployTask.ID,
-	})
+	}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
+	"math/rand/v2"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
@@ -19,9 +20,75 @@ func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStage, error)
 	return nil, nil
 }
 
-func (d *SqlDb) CreateTask(task db.Task) (db.Task, error) {
-	err := d.sql.Insert(&task)
-	return task, err
+func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
+	tpl, err := d.GetTemplate(projectID, templateID)
+	if err != nil {
+		return
+	}
+
+	nTasks := tpl.Tasks
+
+	if rand.IntN(10) == 0 {
+		var n int64
+		n, err = d.sql.SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
+		if err != nil {
+			return
+		}
+
+		if n != int64(nTasks) {
+			_, err = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and template_id=?",
+				maxTasks, projectID, templateID)
+			if err != nil {
+				return
+			}
+		}
+
+		nTasks = int(n)
+	}
+
+	if nTasks < maxTasks+maxTasks/20 {
+		return
+	}
+
+	var oldestTask db.Task
+	err = d.selectOne(&oldestTask,
+		"SELECT created FROM task WHERE template_id=? ORDER BY created DESC OFFSET ? LIMIT 1",
+		templateID, maxTasks-1)
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created > ?", oldestTask.Created)
+
+	if err != nil {
+		return
+	}
+
+	_, _ = d.exec("UPDATE `project__template` SET `tasks`=? WHERE project_id=? and template_id=?",
+		maxTasks, projectID, templateID)
+}
+
+func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
+	err = d.sql.Insert(&task)
+	newTask = task
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.exec("UPDATE `project__template` SET `tasks` = `tasks` + 1 WHERE project_id=? and template_id=?",
+		task.ProjectID, task.TemplateID)
+
+	if err != nil {
+		return
+	}
+
+	if maxTasks > 0 {
+		d.clearTasks(task.ProjectID, task.TemplateID, maxTasks)
+	}
+
+	return
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {

@@ -216,7 +216,7 @@ func addTask() *db.Task {
 		UserID:     &userPathTestUser.ID,
 		Created:    db.GetParsedTime(time.Now()),
 	}
-	t, err := store.CreateTask(t)
+	t, err := store.CreateTask(t, 0)
 	if err != nil {
 		fmt.Println("error during insertion of task:")
 		if j, err := json.Marshal(t); err == nil {
