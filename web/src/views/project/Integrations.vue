@@ -2,8 +2,8 @@
   <div v-if="items != null && templates != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
-      :title="`${itemId === 'new' ? 'New' : 'Edit'} Integration`"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="itemId === 'new' ? $t('NewIntegration') : $t('EditIntegration')"
       :max-width="450"
       :transition="false"
       @save="loadItems()"
@@ -28,20 +28,20 @@
     />
 
     <YesNoDialog
-      title="Delete Integration"
-      text="Are you sure you want to delete this Integration?"
+      :title="$t('DeleteIntegration')"
+      :text="$t('DeleteIntegrationMsg')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Integrations</v-toolbar-title>
+      <v-toolbar-title>{{ $t('integrations') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >New Integration
+      >{{ $t('NewIntegration') }}
       </v-btn>
     </v-toolbar>
 
@@ -59,7 +59,7 @@
       </div>
 
       <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
-        {{ aliases == null ? 'Loading aliases...' : 'Add Alias' }}
+        {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
       </v-btn>
     </div>
 
