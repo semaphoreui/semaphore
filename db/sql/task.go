@@ -77,7 +77,7 @@ func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err err
 		return
 	}
 
-	_, err = d.exec("UPDATE `project__template` SET `tasks` = `tasks` + 1 WHERE project_id=? and template_id=?",
+	_, err = d.exec("UPDATE `project__template` SET `tasks` = `tasks` + 1 WHERE project_id=? and id=?",
 		task.ProjectID, task.TemplateID)
 
 	if err != nil {
@@ -124,19 +124,35 @@ func (d *SqlDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQue
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("task.created desc, id desc")
 
-	if len(templateIDs) == 0 {
-		q = q.Where("tpl.project_id=?", projectID)
-	} else {
-		q = q.Where("tpl.project_id=? AND task.template_id IN (?)", projectID, templateIDs)
-	}
-
 	if params.Count > 0 {
 		q = q.Limit(uint64(params.Count))
 	}
 
-	query, args, _ := q.ToSql()
+	type queryWithArgs struct {
+		sql  string
+		args []interface{}
+	}
 
-	_, err = d.selectAll(tasks, query, args...)
+	var queries []queryWithArgs
+
+	if len(templateIDs) == 0 {
+		q = q.Where("tpl.project_id=?", projectID)
+		query, args, _ := q.ToSql()
+		queries = append(queries, queryWithArgs{sql: query, args: args})
+	} else {
+		for _, templateID := range templateIDs {
+			query, args, _ := q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID).ToSql()
+			queries = append(queries, queryWithArgs{sql: query, args: args})
+		}
+	}
+
+	*tasks = []db.TaskWithTpl{}
+
+	for _, query := range queries {
+		var queryTasks []db.TaskWithTpl
+		_, err = d.selectAll(&queryTasks, query.sql, query.args...)
+		*tasks = append(*tasks, queryTasks...)
+	}
 
 	for i := range *tasks {
 		err = (*tasks)[i].Fill(d)
@@ -180,6 +196,7 @@ func (d *SqlDb) GetTemplateTasks(projectID int, templateIDs []int, params db.Ret
 }
 
 func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	tasks = make([]db.TaskWithTpl, 0)
 	err = d.getTasks(projectID, nil, params, &tasks)
 	return
 }
