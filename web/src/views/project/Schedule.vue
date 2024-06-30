@@ -53,12 +53,15 @@
       :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.active="{ item }">
-
         <v-switch
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
         ></v-switch>
+      </template>
+
+      <template v-slot:item.name="{ item }">
+        <div>{{ item.name || '&mdash;' }}</div>
       </template>
 
       <template v-slot:item.tpl_name="{ item }">
