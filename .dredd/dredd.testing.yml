@@ -1,7 +1,7 @@
 dry-run: null
 hookfiles: ./.dredd/compiled_hooks
 language: go
-server: ./semaphore server --config .dredd/config.json
+server: MAX_TASKS_PER_TEMPLATE=300 ./semaphore server --config .dredd/config.json
 server-wait: 5
 init: false
 custom: {}
