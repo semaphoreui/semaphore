@@ -222,8 +222,8 @@ type ConfigType struct {
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
 
-	MaxTaskDurationSec  int `json:"max_task_duration_sec" env:"MAX_TASK_DURATION_SEC"`
-	MaxTasksPerTemplate int `json:"max_tasks_per_template" env:"MAX_TASKS_PER_TEMPLATE"`
+	MaxTaskDurationSec  int `json:"max_task_duration_sec" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
+	MaxTasksPerTemplate int `json:"max_tasks_per_template" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
 
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
