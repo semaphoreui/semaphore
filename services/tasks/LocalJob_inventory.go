@@ -1,12 +1,13 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db_lib"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -61,9 +62,20 @@ func (t *LocalJob) cloneInventoryRepo() error {
 		Client:     db_lib.CreateDefaultGitClient(),
 	}
 
-	err := repo.Clone()
+	// Try to pull the repo before trying to clone it
+	if repo.CanBePulled() {
+		err := repo.Pull()
+		if err == nil {
+			return nil
+		}
+	}
 
-	return err
+	err := os.RemoveAll(repo.GetFullPath())
+	if err != nil {
+		return err
+	}
+
+	return repo.Clone()
 }
 
 func (t *LocalJob) installStaticInventory() error {
