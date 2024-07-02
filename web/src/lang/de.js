@@ -71,7 +71,7 @@ export default {
   environmentVariables: 'Umgebungsvariablen',
   enterEnvJson: 'Geben Sie Umgebungsvariablen im JSON-Format ein...',
   environmentAndExtraVariablesMustBeValidJsonExample: 'Zusätzliche Variablen und Umgebungsvariablen müssen gültiges JSON sein. Beispiel:',
-  dashboard2: 'Obefläche',
+  dashboard2: 'Oberfläche',
   ansibleSemaphore: 'Semaphore UI',
   wereSorryButHtmlwebpackpluginoptionstitleDoesntWor: 'Es tut uns leid, aber <%= htmlWebpackPlugin.options.title %> funktioniert nicht richtig ohne JavaScript. Bitte aktivieren Sie es, um fortzufahren.',
   deleteInventory: 'Inventar löschen',
