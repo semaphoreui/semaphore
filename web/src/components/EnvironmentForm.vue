@@ -142,7 +142,7 @@
       </v-subheader>
 
       <v-data-table
-        :items="secrets.filter(s => !s.removed)"
+        :items="secrets.filter(s => !s.remove)"
         :items-per-page="-1"
         class="elevation-1"
         hide-default-footer
@@ -263,12 +263,16 @@ export default {
     },
 
     removeSecret(val) {
-      const i = this.secrets.findIndex((v) => v.id === val.id);
+      const i = this.secrets.findIndex((v) => v.name === val.name);
       if (i > -1) {
-        if (this.secrets[i].new) {
-          this.secrets.splice(i, 1);
-        } else {
-          this.secrets[i].remove = true;
+        const s = this.secrets[i];
+        this.secrets.splice(i, 1);
+
+        if (!this.secrets[i].new) {
+          this.secrets.push({
+            ...s,
+            remove: true,
+          });
         }
       }
     },
@@ -304,7 +308,7 @@ export default {
         if (s.new) {
           operation = 'create';
         } else if (s.remove) {
-          operation = 'remove';
+          operation = 'delete';
         } else if (s.value !== '') {
           operation = 'update';
         }
