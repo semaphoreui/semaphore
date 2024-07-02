@@ -202,7 +202,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 	return
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+func (d *SqlDb) makeObjectsQuery(projectID int, props db.ObjectProps, params db.RetrieveQueryParams) squirrel.SelectBuilder {
 	q := squirrel.Select("*").
 		From(props.TableName + " pe")
 
@@ -232,7 +232,11 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 		q = q.Offset(uint64(params.Offset))
 	}
 
-	query, args, err := q.ToSql()
+	return q
+}
+
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
+	query, args, err := d.makeObjectsQuery(projectID, props, params).ToSql()
 
 	if err != nil {
 		return
@@ -241,10 +245,6 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 	_, err = d.selectAll(objects, query, args...)
 
 	return
-}
-
-func (d *SqlDb) getProjectObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
-	return d.getObjects(projectID, props, params, objects)
 }
 
 func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {

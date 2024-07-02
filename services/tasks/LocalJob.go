@@ -183,6 +183,10 @@ func (t *LocalJob) getBashArgs(username string, incomingVersion *string) (args [
 		args = append(args, fmt.Sprintf("%s=%s", name, value))
 	}
 
+	for _, secret := range t.Environment.Secrets {
+		args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
 	return
 }
 
@@ -204,6 +208,10 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 			continue
 		}
 		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
+	}
+
+	for _, secret := range t.Environment.Secrets {
+		args = append(args, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
 	return
@@ -300,6 +308,10 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
+	}
+
+	for _, secret := range t.Environment.Secrets {
+		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
 	var templateExtraArgs []string

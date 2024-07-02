@@ -10,6 +10,55 @@ import (
 	"github.com/gorilla/context"
 )
 
+func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
+	for _, secret := range env.Secrets {
+		var err error
+
+		var key db.AccessKey
+
+		switch secret.Operation {
+		case db.EnvironmentSecretCreate:
+			key, err = store.CreateAccessKey(db.AccessKey{
+				Name:          secret.Name,
+				String:        secret.Secret,
+				EnvironmentID: &env.ID,
+				ProjectID:     &env.ProjectID,
+				Type:          db.AccessKeyString,
+			})
+		case db.EnvironmentSecretDelete:
+			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
+
+			if err != nil {
+				continue
+			}
+
+			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+				continue
+			}
+
+			err = store.DeleteAccessKey(env.ProjectID, secret.ID)
+		case db.EnvironmentSecretUpdate:
+			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
+
+			if err != nil {
+				continue
+			}
+
+			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+				continue
+			}
+
+			err = store.UpdateAccessKey(db.AccessKey{
+				Name:   secret.Name,
+				String: secret.Secret,
+				Type:   db.AccessKeyString,
+			})
+		}
+	}
+
+	return nil
+}
+
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -25,6 +74,20 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
+		}
+
+		keys, err := helpers.Store(r).GetEnvironmentSecrets(env.ProjectID, env.ID)
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		for _, k := range keys {
+			env.Secrets = append(env.Secrets, db.EnvironmentSecret{
+				ID:   k.ID,
+				Name: k.Name,
+			})
 		}
 
 		context.Set(r, "environment", env)
@@ -99,6 +162,11 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Environment %s updated", env.Name),
 	})
 
+	if err := updateEnvironmentSecrets(helpers.Store(r), env); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -130,6 +198,11 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    newEnv.ID,
 		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
+
+	if err = updateEnvironmentSecrets(helpers.Store(r), newEnv); err != nil {
+		//helpers.WriteError(w, err)
+		//return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

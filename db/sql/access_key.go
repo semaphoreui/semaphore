@@ -15,10 +15,20 @@ func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, 
 	return d.getObjectRefs(projectID, db.AccessKeyProps, keyID)
 }
 
-func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-	var keys []db.AccessKey
-	err := d.getProjectObjects(projectID, db.AccessKeyProps, params, &keys)
-	return keys, err
+func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
+	keys = make([]db.AccessKey, 0)
+
+	q := d.makeObjectsQuery(projectID, db.AccessKeyProps, params).Where("pe.environment_id IS NULL")
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&keys, query, args...)
+
+	return
 }
 
 func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
@@ -65,11 +75,12 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 
 	insertID, err := d.insert(
 		"id",
-		"insert into access_key (name, type, project_id, secret) values (?, ?, ?, ?)",
+		"insert into access_key (name, type, project_id, secret, environment_id) values (?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
-		key.Secret)
+		key.Secret,
+		key.EnvironmentID)
 
 	if err != nil {
 		return

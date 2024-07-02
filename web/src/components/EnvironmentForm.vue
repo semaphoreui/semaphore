@@ -23,7 +23,7 @@
     <v-subheader class="px-0">
       {{ $t('extraVariables') }}
 
-      <v-tooltip bottom color="black" open-delay="300">
+      <v-tooltip bottom color="black" open-delay="300" max-width="400">
         <template v-slot:activator="{ on, attrs }">
           <v-icon
             class="ml-1"
@@ -31,7 +31,10 @@
             v-on="on"
           >mdi-help-circle</v-icon>
         </template>
-        <span>Variables passed via <code>--extra-vars</code>.</span>
+        <span>
+          Variables passed via <code>--extra-vars</code> (Ansible) or
+          <code>-var</code> (Terraform/OpenTofu).
+        </span>
       </v-tooltip>
 
       <v-spacer />
@@ -55,7 +58,6 @@
     />
 
     <div>
-
       <v-subheader class="px-0 mt-4">
         {{ $t('environmentVariables') }}
 
@@ -71,7 +73,6 @@
           <span>Variables passed as process environment variables.</span>
         </v-tooltip>
       </v-subheader>
-
       <v-data-table
         :items="env"
         :items-per-page="-1"
@@ -111,12 +112,81 @@
           </tr>
         </template>
       </v-data-table>
-
-      <div class="text-right mt-2 mb-4">
+      <div class="mt-2 mb-4 mx-1">
         <v-btn
           color="primary"
           @click="addEnvVar()"
-        >New Variable</v-btn>
+        >New Environment Variable</v-btn>
+      </div>
+    </div>
+
+    <div>
+      <v-subheader class="px-0 mt-4">
+        {{ $t('Secrets') }}
+
+        <v-tooltip bottom color="black" open-delay="300" max-width="400">
+          <template v-slot:activator="{ on, attrs }">
+            <v-icon
+              class="ml-1"
+              v-bind="attrs"
+              v-on="on"
+              color="lightgray"
+            >mdi-help-circle</v-icon>
+          </template>
+          <span>
+            Secrets are stored in the database in encrypted form.
+            Secrets passed via <code>--extra-vars</code> (Ansible) or
+            <code>-var</code> (Terraform/OpenTofu).
+          </span>
+        </v-tooltip>
+      </v-subheader>
+
+      <v-data-table
+        :items="secrets.filter(s => !s.remove)"
+        :items-per-page="-1"
+        class="elevation-1"
+        hide-default-footer
+        no-data-text="No values"
+      >
+        <template v-slot:item="props">
+          <tr>
+            <td class="pa-1">
+              <v-text-field
+                solo-inverted
+                flat
+                hide-details
+                v-model="props.item.name"
+                class="v-text-field--solo--no-min-height"
+              ></v-text-field>
+            </td>
+            <td class="pa-1">
+              <v-text-field
+                solo-inverted
+                flat
+                hide-details
+                v-model="props.item.value"
+                placeholder="*******"
+                class="v-text-field--solo--no-min-height"
+              ></v-text-field>
+            </td>
+            <td style="width: 38px;">
+              <v-icon
+                small
+                class="pa-1"
+                @click="removeSecret(props.item)"
+              >
+                mdi-delete
+              </v-icon>
+            </td>
+          </tr>
+        </template>
+      </v-data-table>
+
+      <div class="mt-2 mb-4 mx-1">
+        <v-btn
+          color="primary"
+          @click="addSecret()"
+        >New Secret</v-btn>
       </div>
     </div>
 
@@ -157,8 +227,10 @@ export default {
         'dind-runner:latest',
       ],
       advancedOptions: false,
+
       json: '{}',
       env: [],
+      secrets: [],
 
       cmOptions: {
         tabSize: 2,
@@ -183,6 +255,25 @@ export default {
       const i = this.env.findIndex((v) => v.name === val.name);
       if (i > -1) {
         this.env.splice(i, 1);
+      }
+    },
+
+    addSecret(name = '', value = '') {
+      this.secrets.push({ name, value, new: true });
+    },
+
+    removeSecret(val) {
+      const i = this.secrets.findIndex((v) => v.name === val.name);
+      if (i > -1) {
+        const s = this.secrets[i];
+        this.secrets.splice(i, 1);
+
+        if (!this.secrets[i].new) {
+          this.secrets.push({
+            ...s,
+            remove: true,
+          });
+        }
       }
     },
 
@@ -212,13 +303,33 @@ export default {
         env[predefinedVar.name] = predefinedVar.value;
       });
 
+      const secrets = (this.secrets || []).map((s) => {
+        let operation;
+        if (s.new) {
+          operation = 'create';
+        } else if (s.remove) {
+          operation = 'delete';
+        } else if (s.value !== '') {
+          operation = 'update';
+        }
+        return {
+          id: s.id,
+          name: s.name,
+          secret: s.value,
+          operation,
+        };
+      }).filter((s) => s.operation != null);
+
       this.item.env = JSON.stringify(env);
+      this.item.secrets = secrets;
     },
 
     afterLoadData() {
       this.json = this.item?.json || '{}';
 
       const env = JSON.parse(this.item?.env || '{}');
+
+      const secrets = this.item?.secrets || [];
 
       this.env = Object.keys(env)
         .filter((x) => {
@@ -229,6 +340,12 @@ export default {
           name: x,
           value: env[x],
         }));
+
+      this.secrets = secrets.map((x) => ({
+        id: x.id,
+        name: x.name,
+        value: '',
+      }));
 
       Object.keys(env).forEach((x) => {
         const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);

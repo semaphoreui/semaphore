@@ -118,6 +118,7 @@ type Store interface {
 	UpdateEnvironment(env Environment) error
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
+	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
 
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
