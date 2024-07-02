@@ -249,9 +249,6 @@ func Route() *mux.Router {
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
 
-	projectEnvManagement.HandleFunc("/{environment_id}/secrets", projects.GetEnvironmentSecrets).Methods("GET", "HEAD")
-	projectEnvManagement.HandleFunc("/{environment_id}/secrets", projects.UpdateEnvironmentSecrets).Methods("POST")
-
 	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()
 	projectTmplManagement.Use(projects.TemplatesMiddleware)
 

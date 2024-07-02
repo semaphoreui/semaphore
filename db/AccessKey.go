@@ -171,6 +171,8 @@ func (key *AccessKey) SerializeSecret() error {
 	var err error
 
 	switch key.Type {
+	case AccessKeyString:
+		plaintext = []byte(key.String)
 	case AccessKeySSH:
 		plaintext, err = json.Marshal(key.SshKey)
 		if err != nil {
@@ -225,6 +227,8 @@ func (key *AccessKey) SerializeSecret() error {
 
 func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 	switch key.Type {
+	case AccessKeyString:
+		key.String = string(secret)
 	case AccessKeySSH:
 		sshKey := SshKey{}
 		err = json.Unmarshal(secret, &sshKey)
