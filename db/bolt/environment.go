@@ -40,3 +40,12 @@ func (d *BoltDb) CreateEnvironment(env db.Environment) (db.Environment, error) {
 func (d *BoltDb) DeleteEnvironment(projectID int, environmentID int) error {
 	return d.deleteObject(projectID, db.EnvironmentProps, intObjectID(environmentID), nil)
 }
+
+func (d *BoltDb) GetEnvironmentSecrets(projectID int, environmentID int) ([]db.AccessKey, error) {
+	var keys []db.AccessKey
+	err := d.getObjects(projectID, db.AccessKeyProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		k := i.(db.AccessKey)
+		return k.EnvironmentID != nil && *k.EnvironmentID == environmentID
+	}, &keys)
+	return keys, err
+}
