@@ -206,6 +206,10 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
 
+	for _, secret := range t.Environment.Secrets {
+		args = append(args, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
 	return
 }
 
