@@ -163,39 +163,34 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type environmentSecretOperation string
+
+const (
+	environmentSecretCreate environmentSecretOperation = "create"
+	environmentSecretUpdate environmentSecretOperation = "update"
+	environmentSecretDelete environmentSecretOperation = "delete"
+)
+
 type environmentSecret struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Secret string `json:"secret"`
+	ID        int                        `json:"id"`
+	Name      string                     `json:"name"`
+	Secret    string                     `json:"secret"`
+	Operation environmentSecretOperation `json:"operation"`
 }
 
-func AddEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
+func GetEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(db.Environment)
-
-	var secrets []environmentSecret
-
-	if !helpers.Bind(w, r, &secrets) {
-		return
-	}
 
 	store := helpers.Store(r)
 
-	for _, secret := range secrets {
-		_, err := store.CreateAccessKey(db.AccessKey{
-			Name:          secret.Name,
-			String:        secret.Secret,
-			EnvironmentID: &env.ID,
-			ProjectID:     &env.ProjectID,
-			Type:          db.AccessKeyString,
-		})
+	keys, err := store.GetEnvironmentSecrets(env.ProjectID, env.ID)
 
-		if err != nil {
-			continue
-		}
-
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusOK, keys)
 }
 
 func UpdateEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
@@ -210,56 +205,47 @@ func UpdateEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
 	store := helpers.Store(r)
 
 	for _, secret := range secrets {
-		key, err := store.GetAccessKey(env.ProjectID, secret.ID)
+		var err error
 
-		if err != nil {
-			continue
-		}
+		var key db.AccessKey
 
-		if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-			continue
-		}
+		switch secret.Operation {
+		case environmentSecretCreate:
+			key, err = store.CreateAccessKey(db.AccessKey{
+				Name:          secret.Name,
+				String:        secret.Secret,
+				EnvironmentID: &env.ID,
+				ProjectID:     &env.ProjectID,
+				Type:          db.AccessKeyString,
+			})
+		case environmentSecretDelete:
+			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
 
-		err = store.UpdateAccessKey(db.AccessKey{
-			Name:   secret.Name,
-			String: secret.Secret,
-			Type:   db.AccessKeyString,
-		})
+			if err != nil {
+				continue
+			}
 
-		if err != nil {
-			continue
-		}
-	}
+			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+				continue
+			}
 
-	w.WriteHeader(http.StatusNoContent)
-}
+			err = store.DeleteAccessKey(env.ProjectID, secret.ID)
+		case environmentSecretUpdate:
+			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
 
-func RemoveEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
-	env := context.Get(r, "environment").(db.Environment)
+			if err != nil {
+				continue
+			}
 
-	var secretIDs []int
+			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+				continue
+			}
 
-	if !helpers.Bind(w, r, &secretIDs) {
-		return
-	}
-
-	store := helpers.Store(r)
-
-	for _, keyID := range secretIDs {
-		key, err := store.GetAccessKey(env.ProjectID, keyID)
-
-		if err != nil {
-			continue
-		}
-
-		if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-			continue
-		}
-
-		err = store.DeleteAccessKey(env.ProjectID, keyID)
-
-		if err != nil {
-			continue
+			err = store.UpdateAccessKey(db.AccessKey{
+				Name:   secret.Name,
+				String: secret.Secret,
+				Type:   db.AccessKeyString,
+			})
 		}
 	}
 

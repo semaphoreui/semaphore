@@ -24,7 +24,7 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 }
 
 func (d *SqlDb) GetGlobalRunners() (runners []db.Runner, err error) {
-	err = d.getProjectObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, &runners)
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, &runners)
 	return
 }
 

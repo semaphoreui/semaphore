@@ -15,10 +15,20 @@ func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, 
 	return d.getObjectRefs(projectID, db.AccessKeyProps, keyID)
 }
 
-func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-	var keys []db.AccessKey
-	err := d.getProjectObjects(projectID, db.AccessKeyProps, params, &keys)
-	return keys, err
+func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
+	keys = make([]db.AccessKey, 0)
+	
+	q := d.makeObjectsQuery(projectID, db.AccessKeyProps, params).Where("pe.environment_is IS NULL")
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&keys, query, args...)
+
+	return
 }
 
 func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
