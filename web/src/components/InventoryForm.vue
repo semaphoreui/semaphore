@@ -52,7 +52,7 @@
     ></v-select>
 
     <v-text-field
-      v-model="item.inventory"
+      v-model.trim="item.inventory"
       :label="$t('pathToInventoryFile')"
       :rules="[v => !!v || $t('path_required')]"
       required
@@ -73,7 +73,7 @@
 
     <codemirror
         :style="{ border: '1px solid lightgray' }"
-        v-model="item.inventory"
+        v-model.trim="item.inventory"
         :options="cmOptions"
         v-if="item.type === 'static' || item.type === 'static-yaml'"
         :placeholder="$t('enterInventory')"
