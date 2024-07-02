@@ -21,7 +21,7 @@
     ></v-text-field>
 
     <v-text-field
-        v-model="item.git_url"
+        v-model.trim="item.git_url"
         :label="$t('urlOrPath')"
         :rules="[
           v => !!v || $t('repository_required'),
@@ -56,7 +56,7 @@
     </div>
 
     <v-text-field
-      v-model="item.git_branch"
+      v-model.trim="item.git_branch"
       :label="$t('branch')"
       :rules="[v => (!!v || type === 'local') || $t('branch_required')]"
       required
