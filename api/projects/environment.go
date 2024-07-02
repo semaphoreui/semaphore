@@ -162,3 +162,106 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+type environmentSecret struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Secret string `json:"secret"`
+}
+
+func AddEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
+	env := context.Get(r, "environment").(db.Environment)
+
+	var secrets []environmentSecret
+
+	if !helpers.Bind(w, r, &secrets) {
+		return
+	}
+
+	store := helpers.Store(r)
+
+	for _, secret := range secrets {
+		_, err := store.CreateAccessKey(db.AccessKey{
+			Name:          secret.Name,
+			String:        secret.Secret,
+			EnvironmentID: &env.ID,
+			ProjectID:     &env.ProjectID,
+			Type:          db.AccessKeyString,
+		})
+
+		if err != nil {
+			continue
+		}
+
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func UpdateEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
+	env := context.Get(r, "environment").(db.Environment)
+
+	var secrets []environmentSecret
+
+	if !helpers.Bind(w, r, &secrets) {
+		return
+	}
+
+	store := helpers.Store(r)
+
+	for _, secret := range secrets {
+		key, err := store.GetAccessKey(env.ProjectID, secret.ID)
+
+		if err != nil {
+			continue
+		}
+
+		if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+			continue
+		}
+
+		err = store.UpdateAccessKey(db.AccessKey{
+			Name:   secret.Name,
+			String: secret.Secret,
+			Type:   db.AccessKeyString,
+		})
+
+		if err != nil {
+			continue
+		}
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func RemoveEnvironmentSecrets(w http.ResponseWriter, r *http.Request) {
+	env := context.Get(r, "environment").(db.Environment)
+
+	var secretIDs []int
+
+	if !helpers.Bind(w, r, &secretIDs) {
+		return
+	}
+
+	store := helpers.Store(r)
+
+	for _, keyID := range secretIDs {
+		key, err := store.GetAccessKey(env.ProjectID, keyID)
+
+		if err != nil {
+			continue
+		}
+
+		if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+			continue
+		}
+
+		err = store.DeleteAccessKey(env.ProjectID, keyID)
+
+		if err != nil {
+			continue
+		}
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

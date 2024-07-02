@@ -21,6 +21,7 @@ const (
 	AccessKeySSH           AccessKeyType = "ssh"
 	AccessKeyNone          AccessKeyType = "none"
 	AccessKeyLoginPassword AccessKeyType = "login_password"
+	AccessKeyString        AccessKeyType = "string"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -36,9 +37,12 @@ type AccessKey struct {
 	// You should use methods SerializeSecret to fill this field.
 	Secret *string `db:"secret" json:"-"`
 
+	String         string        `db:"-" json:"string"`
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
+
+	EnvironmentID *int `db:"environment_id" json:"-"`
 }
 
 type LoginPassword struct {
