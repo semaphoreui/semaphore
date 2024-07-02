@@ -112,7 +112,7 @@
           </tr>
         </template>
       </v-data-table>
-      <div class="mt-2 mb-4">
+      <div class="mt-2 mb-4 mx-1">
         <v-btn
           color="primary"
           @click="addEnvVar()"
@@ -182,7 +182,7 @@
         </template>
       </v-data-table>
 
-      <div class="mt-2 mb-4">
+      <div class="mt-2 mb-4 mx-1">
         <v-btn
           color="primary"
           @click="addSecret()"
