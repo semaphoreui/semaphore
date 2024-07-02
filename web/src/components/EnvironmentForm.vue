@@ -23,7 +23,7 @@
     <v-subheader class="px-0">
       {{ $t('extraVariables') }}
 
-      <v-tooltip bottom color="black" open-delay="300">
+      <v-tooltip bottom color="black" open-delay="300" max-width="400">
         <template v-slot:activator="{ on, attrs }">
           <v-icon
             class="ml-1"
@@ -31,7 +31,10 @@
             v-on="on"
           >mdi-help-circle</v-icon>
         </template>
-        <span>Variables passed via <code>--extra-vars</code>.</span>
+        <span>
+          Variables passed via <code>--extra-vars</code> (Ansible) or
+          <code>-var</code> (Terraform/OpenTofu).
+        </span>
       </v-tooltip>
 
       <v-spacer />
@@ -109,11 +112,11 @@
           </tr>
         </template>
       </v-data-table>
-      <div class="text-right mt-2 mb-4">
+      <div class="mt-2 mb-4">
         <v-btn
           color="primary"
           @click="addEnvVar()"
-        >New Variable</v-btn>
+        >New Environment Variable</v-btn>
       </div>
     </div>
 
@@ -121,7 +124,7 @@
       <v-subheader class="px-0 mt-4">
         {{ $t('Secrets') }}
 
-        <v-tooltip bottom color="black" open-delay="300">
+        <v-tooltip bottom color="black" open-delay="300" max-width="400">
           <template v-slot:activator="{ on, attrs }">
             <v-icon
               class="ml-1"
@@ -130,7 +133,11 @@
               color="lightgray"
             >mdi-help-circle</v-icon>
           </template>
-          <span>Secrets.</span>
+          <span>
+            Secrets are stored in the database in encrypted form.
+            Secrets passed via <code>--extra-vars</code> (Ansible) or
+            <code>-var</code> (Terraform/OpenTofu).
+          </span>
         </v-tooltip>
       </v-subheader>
 
@@ -175,7 +182,7 @@
         </template>
       </v-data-table>
 
-      <div class="text-right mt-2 mb-4">
+      <div class="mt-2 mb-4">
         <v-btn
           color="primary"
           @click="addSecret()"
