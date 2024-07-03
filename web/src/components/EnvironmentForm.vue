@@ -44,18 +44,72 @@
         tile
         group
       >
-        <v-btn value="json" small class="mr-0" style="border-radius: 4px;" disabled>
+        <v-btn value="table" small class="mr-0" style="border-radius: 4px;">
+          Table
+        </v-btn>
+        <v-btn value="json" small class="mr-0" style="border-radius: 4px;">
           JSON
         </v-btn>
       </v-btn-toggle>
     </v-subheader>
 
     <codemirror
+      v-if="extraVarsEditMode === 'json'"
       :style="{ border: '1px solid lightgray' }"
       v-model="json"
       :options="cmOptions"
       :placeholder="$t('enterExtraVariablesJson')"
     />
+
+    <div v-else-if="extraVarsEditMode === 'table'">
+      <v-data-table
+        v-if="extraVars != null"
+        :items="extraVars"
+        :items-per-page="-1"
+        class="elevation-1"
+        hide-default-footer
+        no-data-text="No values"
+      >
+        <template v-slot:item="props">
+          <tr>
+            <td class="pa-1">
+              <v-text-field
+                solo-inverted
+                flat
+                hide-details
+                v-model="props.item.name"
+                class="v-text-field--solo--no-min-height"
+              ></v-text-field>
+            </td>
+            <td class="pa-1">
+              <v-text-field
+                solo-inverted
+                flat
+                hide-details
+                v-model="props.item.value"
+                class="v-text-field--solo--no-min-height"
+              ></v-text-field>
+            </td>
+            <td style="width: 38px;">
+              <v-icon
+                small
+                class="pa-1"
+                @click="removeExtraVar(props.item)"
+              >
+                mdi-delete
+              </v-icon>
+            </td>
+          </tr>
+        </template>
+      </v-data-table>
+      <div class="mt-2 mb-4 mx-1" v-if="extraVars != null">
+        <v-btn
+          color="primary"
+          @click="addExtraVar()"
+        >New Variable</v-btn>
+      </div>
+      <v-alert color="error" v-else>Can't be displayed table.</v-alert>
+    </div>
 
     <div>
       <v-subheader class="px-0 mt-4">
@@ -202,14 +256,15 @@ import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
-import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+// import EventBus from '@/event-bus';
+// import { getErrorMessage } from '@/lib/error';
 
-const PREDEFINED_ENV_VARS = [{
-  name: 'ANSIBLE_HOST_KEY_CHECKING',
-  value: 'False',
-  description: 'Avoid host key checking by the tools Ansible uses to connect to the host.',
-}];
+// const PREDEFINED_ENV_VARS = [{
+//   name: 'ANSIBLE_HOST_KEY_CHECKING',
+//   value: 'False',
+//   description: 'Avoid host key checking by the tools Ansible uses to connect to the host.',
+// }];
 
 export default {
   mixins: [ItemFormBase],
@@ -220,15 +275,56 @@ export default {
   created() {
   },
 
+  watch: {
+    extraVarsEditMode(val) {
+      let extraVars;
+
+      switch (val) {
+        case 'json':
+          if (this.extraVars == null) {
+            return;
+          }
+
+          this.json = JSON.stringify(this.extraVars.reduce((prev, curr) => ({
+            ...prev,
+            [curr.name]: curr.value,
+          }), {}), null, 2);
+          break;
+        case 'table':
+          try {
+            extraVars = JSON.parse(this.json);
+            this.formError = null;
+          } catch (err) {
+            this.formError = getErrorMessage(err);
+            this.extraVars = null;
+            return;
+          }
+          if (Object.keys(extraVars).some((x) => typeof extraVars[x] === 'object')) {
+            this.extraVars = null;
+          } else {
+            this.extraVars = Object.keys(extraVars)
+              .map((x) => ({
+                name: x,
+                value: extraVars[x],
+              }));
+          }
+          break;
+        default:
+          throw new Error(`Invalid extra variables edit mode: ${val}`);
+      }
+    },
+  },
+
   data() {
     return {
-      PREDEFINED_ENV_VARS,
+      // PREDEFINED_ENV_VARS,
       images: [
         'dind-runner:latest',
       ],
       advancedOptions: false,
 
       json: '{}',
+      extraVars: [],
       env: [],
       secrets: [],
 
@@ -242,11 +338,22 @@ export default {
       },
 
       extraVarsEditMode: 'json',
-      predefinedEnvVars: [],
+      // predefinedEnvVars: [],
     };
   },
 
   methods: {
+    addExtraVar(name = '', value = '') {
+      this.extraVars.push({ name, value });
+    },
+
+    removeExtraVar(val) {
+      const i = this.extraVars.findIndex((v) => v.name === val.name);
+      if (i > -1) {
+        this.extraVars.splice(i, 1);
+      }
+    },
+
     addEnvVar(name = '', value = '') {
       this.env.push({ name, value });
     },
@@ -277,31 +384,51 @@ export default {
       }
     },
 
-    setExtraVar(name, value) {
-      try {
-        const obj = JSON.parse(this.json || '{}');
-        obj[name] = value;
-        this.json = JSON.stringify(obj, null, 2);
-      } catch (err) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: getErrorMessage(err),
-        });
-      }
-    },
+    // setExtraVar(name, value) {
+    //   try {
+    //     const obj = JSON.parse(this.json || '{}');
+    //     if (value == null) {
+    //       delete obj[name];
+    //     } else {
+    //       obj[name] = value;
+    //     }
+    //     this.json = JSON.stringify(obj, null, 2);
+    //   } catch (err) {
+    //     EventBus.$emit('i-snackbar', {
+    //       color: 'error',
+    //       text: getErrorMessage(err),
+    //     });
+    //   }
+    // },
 
     beforeSave() {
-      this.item.json = this.json;
+      switch (this.extraVarsEditMode) {
+        case 'json':
+          this.item.json = this.json;
+          break;
+        case 'table':
+          if (this.extraVars == null) {
+            this.item.json = this.json;
+          } else {
+            this.item.json = JSON.stringify(this.extraVars.reduce((prev, curr) => ({
+              ...prev,
+              [curr.name]: curr.value,
+            }), {}));
+          }
+          break;
+        default:
+          throw new Error(`Invalid extra variables edit mode: ${this.extraVarsEditMode}`);
+      }
 
       const env = (this.env || []).reduce((prev, curr) => ({
         ...prev,
         [curr.name]: curr.value,
       }), {});
 
-      this.predefinedEnvVars.forEach((index) => {
-        const predefinedVar = PREDEFINED_ENV_VARS[index];
-        env[predefinedVar.name] = predefinedVar.value;
-      });
+      // this.predefinedEnvVars.forEach((index) => {
+      //   const predefinedVar = PREDEFINED_ENV_VARS[index];
+      //   env[predefinedVar.name] = predefinedVar.value;
+      // });
 
       const secrets = (this.secrets || []).map((s) => {
         let operation;
@@ -325,17 +452,31 @@ export default {
     },
 
     afterLoadData() {
-      this.json = this.item?.json || '{}';
+      this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);
+
+      const json = JSON.parse(this.item?.json || '{}');
 
       const env = JSON.parse(this.item?.env || '{}');
 
       const secrets = this.item?.secrets || [];
 
+      if (Object.keys(json).some((x) => typeof json[x] === 'object')) {
+        this.extraVars = null;
+        this.extraVarsEditMode = 'json';
+      } else {
+        this.extraVars = Object.keys(json)
+          .map((x) => ({
+            name: x,
+            value: json[x],
+          }));
+        this.extraVarsEditMode = 'table';
+      }
+
       this.env = Object.keys(env)
-        .filter((x) => {
-          const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);
-          return index === -1 || PREDEFINED_ENV_VARS[index].value !== env[x];
-        })
+        // .filter((x) => {
+        //   const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);
+        //   return index === -1 || PREDEFINED_ENV_VARS[index].value !== env[x];
+        // })
         .map((x) => ({
           name: x,
           value: env[x],
@@ -347,12 +488,12 @@ export default {
         value: '',
       }));
 
-      Object.keys(env).forEach((x) => {
-        const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);
-        if (index !== -1 && PREDEFINED_ENV_VARS[index].value === env[x]) {
-          this.predefinedEnvVars.push(index);
-        }
-      });
+      // Object.keys(env).forEach((x) => {
+      //   const index = PREDEFINED_ENV_VARS.findIndex((v) => v.name === x);
+      //   if (index !== -1 && PREDEFINED_ENV_VARS[index].value === env[x]) {
+      //     this.predefinedEnvVars.push(index);
+      //   }
+      // });
     },
 
     getItemsUrl() {
