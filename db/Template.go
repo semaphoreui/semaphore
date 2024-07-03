@@ -151,7 +151,8 @@ func FillTemplates(d Store, templates []Template) (err error) {
 	for _, task := range tasks {
 		i := findIntIndex(templateIDs, task.TemplateID)
 		if i >= 0 {
-			templates[i].LastTask = &task
+			templates[i].LastTask = &TaskWithTpl{}
+			*templates[i].LastTask = task
 		}
 	}
 
