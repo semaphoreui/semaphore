@@ -20,15 +20,16 @@ type Task struct {
 	DryRun bool `db:"dry_run" json:"dry_run"`
 	Diff   bool `db:"diff" json:"diff"`
 
-	IntegrationID *int `db:"integration_id" json:"integration_id"`
-
 	// override variables
-	Playbook    string `db:"playbook" json:"playbook"`
-	Environment string `db:"environment" json:"environment"`
-	Limit       string `db:"hosts_limit" json:"limit"`
-	Secret      string `db:"-" json:"secret"`
+	Playbook    string  `db:"playbook" json:"playbook"`
+	Environment string  `db:"environment" json:"environment"`
+	Limit       string  `db:"hosts_limit" json:"limit"`
+	Secret      string  `db:"-" json:"secret"`
+	Arguments   *string `db:"arguments" json:"arguments"`
 
-	UserID *int `db:"user_id" json:"user_id"`
+	UserID        *int `db:"user_id" json:"user_id"`
+	IntegrationID *int `db:"integration_id" json:"integration_id"`
+	ScheduleID    *int `db:"schedule_id" json:"schedule_id"`
 
 	Created time.Time  `db:"created" json:"created"`
 	Start   *time.Time `db:"start" json:"start"`
@@ -42,14 +43,10 @@ type Task struct {
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
 	// It is readonly by API.
 	CommitMessage string `db:"commit_message" json:"commit_message"`
-
-	BuildTaskID *int `db:"build_task_id" json:"build_task_id"`
-
+	BuildTaskID   *int   `db:"build_task_id" json:"build_task_id"`
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version"`
-
-	Arguments *string `db:"arguments" json:"arguments"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id"`
 }
