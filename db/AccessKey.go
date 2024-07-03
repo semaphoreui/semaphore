@@ -43,6 +43,7 @@ type AccessKey struct {
 	OverrideSecret bool          `db:"-" json:"override_secret"`
 
 	EnvironmentID *int `db:"environment_id" json:"-"`
+	UserID        *int `db:"user_id" json:"-"`
 }
 
 type LoginPassword struct {
