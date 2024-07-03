@@ -79,6 +79,7 @@
                 hide-details
                 v-model="props.item.name"
                 class="v-text-field--solo--no-min-height"
+                :placeholder="$t('name')"
               ></v-text-field>
             </td>
             <td class="pa-1">
@@ -88,6 +89,7 @@
                 hide-details
                 v-model="props.item.value"
                 class="v-text-field--solo--no-min-height"
+                :placeholder="$t('Value')"
               ></v-text-field>
             </td>
             <td style="width: 38px;">
@@ -108,7 +110,7 @@
           @click="addExtraVar()"
         >New Variable</v-btn>
       </div>
-      <v-alert color="error" v-else>Can't be displayed table.</v-alert>
+      <v-alert color="error" v-else>Can't be displayed as table.</v-alert>
     </div>
 
     <div>
@@ -143,6 +145,7 @@
                 hide-details
                 v-model="props.item.name"
                 class="v-text-field--solo--no-min-height"
+                :placeholder="$t('name')"
               ></v-text-field>
             </td>
             <td class="pa-1">
@@ -152,6 +155,7 @@
                 hide-details
                 v-model="props.item.value"
                 class="v-text-field--solo--no-min-height"
+                :placeholder="$t('Value')"
               ></v-text-field>
             </td>
             <td style="width: 38px;">
@@ -211,6 +215,7 @@
                 hide-details
                 v-model="props.item.name"
                 class="v-text-field--solo--no-min-height"
+                :placeholder="$t('name')"
               ></v-text-field>
             </td>
             <td class="pa-1">
