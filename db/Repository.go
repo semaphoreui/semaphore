@@ -97,7 +97,7 @@ func (r Repository) GetGitURL() string {
 
 		protocol = m[1]
 
-		url = protocol + "://" + auth + r.GitURL[8:]
+		url = protocol + "://" + auth + r.GitURL[len(protocol)+3:]
 	}
 
 	return url
