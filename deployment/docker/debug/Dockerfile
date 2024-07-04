@@ -40,7 +40,7 @@ bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-
     chown -R semaphore:0 /var/lib/semaphore && \
     chown -R semaphore:0 /opt/semaphore
 
-COPY --chown=1001:0 ./deployment/docker/debug/ansible.cfg /tmp/semaphore/ansible.cfg
+COPY --chown=1001:0 ./deployment/docker/debug/ansible.cfg /etc/ansible/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/debug/server-wrapper /usr/local/bin/
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /go/bin/dlv /

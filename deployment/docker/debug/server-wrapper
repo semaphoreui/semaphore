@@ -32,8 +32,6 @@ file_env() {
 }
 
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
-export ANSIBLE_CONFIG="${ANSIBLE_CONFIG:-${SEMAPHORE_TMP_PATH}/ansible.cfg}"
-
 export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
 export SEMAPHORE_DB_DIALECT="${SEMAPHORE_DB_DIALECT:-mysql}"
 export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-0.0.0.0}"
