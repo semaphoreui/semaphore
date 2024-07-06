@@ -22,6 +22,15 @@ func (d *SqlDb) SetOption(key string, value string) error {
 	return err
 }
 
+func (d *SqlDb) GetOptions() (res map[string]string, err error) {
+	var options []db.Option
+	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, &options)
+	for _, opt := range options {
+		res[opt.Key] = opt.Value
+	}
+	return
+}
+
 func (d *SqlDb) getOption(key string) (value string, err error) {
 	q := squirrel.Select("*").
 		From("`"+db.OptionProps.TableName+"`").

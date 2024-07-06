@@ -5,6 +5,15 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 )
 
+func (d *BoltDb) GetOptions() (res map[string]string, err error) {
+	var options []db.Option
+	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, nil, &options)
+	for _, opt := range options {
+		res[opt.Key] = opt.Value
+	}
+	return
+}
+
 func (d *BoltDb) SetOption(key string, value string) error {
 
 	opt := db.Option{

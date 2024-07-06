@@ -109,6 +109,7 @@ type Store interface {
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
 
+	GetOptions() (map[string]string, error)
 	GetOption(key string) (string, error)
 	SetOption(key string, value string) error
 
