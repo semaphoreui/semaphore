@@ -88,8 +88,23 @@ func (t *ShellApp) InstallRequirements() error {
 	return nil
 }
 
+func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.Cmd {
+	var command string
+	var appArgs []string
+	switch t.App {
+	case db.TemplateBash:
+		command = "bash"
+	case db.TemplatePython:
+		command = "python"
+	case db.TemplatePowerShell:
+		command = "powershell"
+		appArgs = []string{"-File"}
+	}
+	return t.makeCmd(command, append(appArgs, args...), environmentVars)
+}
+
 func (t *ShellApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
-	cmd := t.makeCmd("bash", args, environmentVars)
+	cmd := t.makeShellCmd(args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")

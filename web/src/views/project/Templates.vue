@@ -86,6 +86,17 @@
             </v-list-item-icon>
             <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
           </v-list-item>
+          <v-divider/>
+          <v-list-item
+              key="other"
+              link
+              href="/apps"
+          >
+            <v-list-item-icon>
+              <v-icon>mdi-cogs</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>App Settings</v-list-item-title>
+          </v-list-item>
         </v-list>
       </v-menu>
 
