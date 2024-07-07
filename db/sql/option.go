@@ -29,7 +29,7 @@ func (d *SqlDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string
 
 	if params.Filter != "" {
 		var m bool
-		m, err = regexp.Match(`^(?:\w.*)+$`, []byte(params.Filter))
+		m, err = regexp.Match(`^(?:\w.)+$`, []byte(params.Filter))
 		if err != nil {
 			return
 		}
@@ -44,7 +44,7 @@ func (d *SqlDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string
 		if params.Filter == "" {
 			return q
 		}
-		return q.Where("`key` like ?", params.Filter+".%")
+		return q.Where("`key` = ? OR `key` LIKE ?", params.Filter, params.Filter+".%")
 	}, &options)
 
 	if err != nil {

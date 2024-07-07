@@ -3,11 +3,22 @@ package bolt
 import (
 	"errors"
 	"github.com/ansible-semaphore/semaphore/db"
+	"strings"
 )
 
 func (d *BoltDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string, err error) {
+	res = make(map[string]string)
 	var options []db.Option
-	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, nil, &options)
+	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+
+		option := i.(db.Option)
+		if params.Filter == "" {
+			return true
+		}
+
+		return option.Key == params.Filter || strings.HasPrefix(option.Key, params.Filter+".")
+
+	}, &options)
 	for _, opt := range options {
 		res[opt.Key] = opt.Value
 	}

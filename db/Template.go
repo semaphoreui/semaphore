@@ -18,9 +18,9 @@ const (
 	TemplateAnsible    TemplateApp = ""
 	TemplateTerraform  TemplateApp = "terraform"
 	TemplateTofu       TemplateApp = "tofu"
-	TemplateBash       TemplateApp = "shell:bash"
-	TemplatePowerShell TemplateApp = "shell:powershell"
-	TemplatePython     TemplateApp = "shell:python"
+	TemplateBash       TemplateApp = "bash"
+	TemplatePowerShell TemplateApp = "powershell"
+	TemplatePython     TemplateApp = "python"
 	TemplatePulumi     TemplateApp = "pulumi"
 )
 
