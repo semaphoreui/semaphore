@@ -71,42 +71,6 @@ type oidcEndpoint struct {
 	Algorithms  []string `json:"algorithms"`
 }
 
-type OidcProvider struct {
-	ClientID         string       `json:"client_id"`
-	ClientIDFile     string       `json:"client_id_file"`
-	ClientSecret     string       `json:"client_secret"`
-	ClientSecretFile string       `json:"client_secret_file"`
-	RedirectURL      string       `json:"redirect_url"`
-	Scopes           []string     `json:"scopes"`
-	DisplayName      string       `json:"display_name"`
-	Color            string       `json:"color"`
-	Icon             string       `json:"icon"`
-	AutoDiscovery    string       `json:"provider_url"`
-	Endpoint         oidcEndpoint `json:"endpoint"`
-	UsernameClaim    string       `json:"username_claim" default:"preferred_username"`
-	NameClaim        string       `json:"name_claim" default:"preferred_username"`
-	EmailClaim       string       `json:"email_claim" default:"email"`
-	Order            int          `json:"order"`
-}
-
-type ClaimsProvider interface {
-	GetUsernameClaim() string
-	GetEmailClaim() string
-	GetNameClaim() string
-}
-
-func (p *OidcProvider) GetUsernameClaim() string {
-	return p.UsernameClaim
-}
-
-func (p *OidcProvider) GetEmailClaim() string {
-	return p.EmailClaim
-}
-
-func (p *OidcProvider) GetNameClaim() string {
-	return p.NameClaim
-}
-
 const (
 	// GoGitClientId is builtin Git client. It is not require external dependencies and is preferred.
 	// Use it if you don't need external SSH authorization.
@@ -141,17 +105,6 @@ type RunnerSettings struct {
 
 	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
 	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
-}
-
-type AppVersion struct {
-	Semver      string `json:"semver"`
-	DownloadURL string `json:"download_url"`
-	Path        string `json:"path"`
-}
-
-type AppConfig struct {
-	Name     string       `json:"name"`
-	Versions []AppVersion `json:"versions"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -238,9 +191,9 @@ type ConfigType struct {
 
 	Runner RunnerSettings `json:"runner"`
 
-	GlobalIntegrationAlias string `json:"global_integration_alias" env:"g"`
+	IntegrationAlias string `json:"global_integration_alias" env:"SEMAPHORE_INTEGRATION_ALIAS"`
 
-	Apps []AppConfig `json:"apps" env:"SEMAPHORE_APPS"`
+	Apps map[string]AppConfig `json:"apps" env:"SEMAPHORE_APPS"`
 }
 
 // Config exposes the application configuration storage for use in the application

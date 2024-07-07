@@ -38,6 +38,7 @@ type RetrieveQueryParams struct {
 	Count        int
 	SortBy       string
 	SortInverted bool
+	Filter       string
 }
 
 type ObjectReferrer struct {
@@ -109,7 +110,7 @@ type Store interface {
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
 
-	GetOptions() (map[string]string, error)
+	GetOptions(params RetrieveQueryParams) (map[string]string, error)
 	GetOption(key string) (string, error)
 	SetOption(key string, value string) error
 
@@ -486,4 +487,26 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 	}
 
 	return
+}
+
+func ConvertFlatToNested(flatMap map[string]string) map[string]interface{} {
+	nestedMap := make(map[string]interface{})
+
+	for key, value := range flatMap {
+		parts := strings.Split(key, ".")
+		currentMap := nestedMap
+
+		for i, part := range parts {
+			if i == len(parts)-1 {
+				currentMap[part] = value
+			} else {
+				if _, exists := currentMap[part]; !exists {
+					currentMap[part] = make(map[string]interface{})
+				}
+				currentMap = currentMap[part].(map[string]interface{})
+			}
+		}
+	}
+
+	return nestedMap
 }

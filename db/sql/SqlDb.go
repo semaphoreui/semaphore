@@ -235,8 +235,14 @@ func (d *SqlDb) makeObjectsQuery(projectID int, props db.ObjectProps, params db.
 	return q
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
-	query, args, err := d.makeObjectsQuery(projectID, props, params).ToSql()
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, prepare func(squirrel.SelectBuilder) squirrel.SelectBuilder, objects interface{}) (err error) {
+	q := d.makeObjectsQuery(projectID, props, params)
+
+	if prepare != nil {
+		q = prepare(q)
+	}
+
+	query, args, err := q.ToSql()
 
 	if err != nil {
 		return

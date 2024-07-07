@@ -3,8 +3,10 @@ package sql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
+	"regexp"
 )
 
 func (d *SqlDb) SetOption(key string, value string) error {
@@ -22,12 +24,37 @@ func (d *SqlDb) SetOption(key string, value string) error {
 	return err
 }
 
-func (d *SqlDb) GetOptions() (res map[string]string, err error) {
+func (d *SqlDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string, err error) {
 	var options []db.Option
-	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, &options)
+
+	if params.Filter != "" {
+		var m bool
+		m, err = regexp.Match(`^(?:\w.*)+$`, []byte(params.Filter))
+		if err != nil {
+			return
+		}
+
+		if !m {
+			err = fmt.Errorf("invalid filter format")
+			return
+		}
+	}
+
+	err = d.getObjects(0, db.OptionProps, params, func(q squirrel.SelectBuilder) squirrel.SelectBuilder {
+		if params.Filter == "" {
+			return q
+		}
+		return q.Where("`key` like ?", params.Filter+".%")
+	}, &options)
+
+	if err != nil {
+		return
+	}
+
 	for _, opt := range options {
 		res[opt.Key] = opt.Value
 	}
+
 	return
 }
 

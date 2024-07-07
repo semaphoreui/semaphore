@@ -8,7 +8,7 @@ func (d *SqlDb) GetView(projectID int, viewID int) (view db.View, err error) {
 }
 
 func (d *SqlDb) GetViews(projectID int) (views []db.View, err error) {
-	err = d.getObjects(projectID, db.ViewProps, db.RetrieveQueryParams{}, &views)
+	err = d.getObjects(projectID, db.ViewProps, db.RetrieveQueryParams{}, nil, &views)
 	return
 }
 

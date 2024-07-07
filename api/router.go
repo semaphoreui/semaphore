@@ -122,6 +122,9 @@ func Route() *mux.Router {
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
 
+	authenticatedAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/options").HandlerFunc(setOption).Methods("POST", "HEAD")
+
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)
 

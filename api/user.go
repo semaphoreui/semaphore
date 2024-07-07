@@ -22,10 +22,32 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	var user struct {
 		db.User
 		CanCreateProject bool `json:"can_create_project"`
+		//Apps             []db.AppPublic `json:"apps"`
 	}
 
 	user.User = *context.Get(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
+
+	//str, err := helpers.Store(r).GetOption("apps")
+	//if err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+
+	//var apps []db.App
+
+	//err = json.Unmarshal([]byte(str), &apps)
+	//if err != nil {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//for _, app := range apps {
+	//	if app.Mode == db.AppActive {
+	//		user.Apps = append(user.Apps, app.AppPublic)
+	//
+	//	}
+	//}
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }

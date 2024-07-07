@@ -108,5 +108,11 @@ func createStore(token string) db.Store {
 		panic(err)
 	}
 
+	err = db.FillConfigFromDB(store)
+
+	if err != nil {
+		panic(err)
+	}
+
 	return store
 }
