@@ -110,6 +110,8 @@ func createStore(token string) db.Store {
 
 	err = db.FillConfigFromDB(store)
 
+	util.CheckDefaultApps()
+
 	if err != nil {
 		panic(err)
 	}

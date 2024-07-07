@@ -786,3 +786,28 @@ func (conf *ConfigType) GenerateSecrets() {
 	conf.CookieEncryption = base64.StdEncoding.EncodeToString(encryption)
 	conf.AccessKeyEncryption = base64.StdEncoding.EncodeToString(accessKeyEncryption)
 }
+
+func CheckDefaultApps() {
+	appCommands := map[string]string{
+		"":          "ansible-playbook",
+		"terraform": "terraform",
+		"tofu":      "tofu",
+		"bash":      "bash",
+	}
+
+	for app, cmd := range appCommands {
+		if _, ok := Config.Apps[app]; ok {
+			continue
+		}
+
+		_, err := exec.LookPath(cmd)
+
+		if err != nil {
+			continue
+		}
+
+		Config.Apps[app] = AppConfig{
+			Active: true,
+		}
+	}
+}
