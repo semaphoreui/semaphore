@@ -394,28 +394,39 @@ func castStringToBool(value string) bool {
 
 }
 
+func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok bool) {
+	res = value
+
+	switch kind {
+	case reflect.Int:
+		if reflect.ValueOf(value).Kind() != reflect.Int {
+			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
+			ok = true
+		}
+	case reflect.Bool:
+		if reflect.ValueOf(value).Kind() != reflect.Bool {
+			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
+			ok = true
+		}
+	case reflect.Map:
+		if reflect.ValueOf(value).Kind() == reflect.String {
+			mapValue := make(map[string]string)
+			err := json.Unmarshal([]byte(value.(string)), &mapValue)
+			if err != nil {
+				panic(err)
+			}
+			res = mapValue
+			ok = true
+		}
+	}
+
+	return
+}
+
 func setConfigValue(attribute reflect.Value, value interface{}) {
 
 	if attribute.IsValid() {
-		switch attribute.Kind() {
-		case reflect.Int:
-			if reflect.ValueOf(value).Kind() != reflect.Int {
-				value = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
-			}
-		case reflect.Bool:
-			if reflect.ValueOf(value).Kind() != reflect.Bool {
-				value = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
-			}
-		case reflect.Map:
-			if reflect.ValueOf(value).Kind() == reflect.String {
-				mapValue := make(map[string]string)
-				err := json.Unmarshal([]byte(value.(string)), &mapValue)
-				if err != nil {
-					panic(err)
-				}
-				value = mapValue
-			}
-		}
+		value, _ = CastValueToKind(value, attribute.Kind())
 		attribute.Set(reflect.ValueOf(value))
 	} else {
 		panic(fmt.Errorf("got non-existent config attribute"))

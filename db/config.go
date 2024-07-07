@@ -50,56 +50,68 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 			fieldValue := structValue.FieldByName(field.Name)
 			if fieldValue.CanSet() {
 				val := reflect.ValueOf(value)
+
 				switch fieldValue.Kind() {
 				case reflect.Struct:
-					// Handle nested struct
-					if val.Kind() == reflect.Map {
-						mapValue, ok := value.(map[string]interface{})
-						if !ok {
-							return fmt.Errorf("cannot assign value of type %T to field %s of type %s", value, field.Name, field.Type)
-						}
-						err := assignMapToStructRecursive(mapValue, fieldValue)
-						if err != nil {
-							return err
-						}
-					} else {
+
+					if val.Kind() != reflect.Map {
 						return fmt.Errorf("expected map for nested struct field %s but got %T", field.Name, value)
+					}
+
+					mapValue, ok := value.(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("cannot assign value of type %T to field %s of type %s", value, field.Name, field.Type)
+					}
+					err := assignMapToStructRecursive(mapValue, fieldValue)
+					if err != nil {
+						return err
 					}
 				case reflect.Map:
 					// Handle map
-					if val.Kind() == reflect.Map {
-						mapValue := reflect.MakeMap(fieldValue.Type())
-						for _, key := range val.MapKeys() {
-							mapElemValue := val.MapIndex(key)
-							mapElemType := fieldValue.Type().Elem()
-							mapElem := reflect.New(mapElemType).Elem()
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
+					}
+					mapValue := reflect.MakeMap(fieldValue.Type())
+					for _, key := range val.MapKeys() {
+						mapElemValue := val.MapIndex(key)
+						mapElemType := fieldValue.Type().Elem()
+						mapElem := reflect.New(mapElemType).Elem()
 
-							if mapElemType.Kind() == reflect.Struct {
-								if err := assignMapToStructRecursive(mapElemValue.Interface().(map[string]interface{}), mapElem); err != nil {
-									return err
-								}
+						if mapElemType.Kind() == reflect.Struct {
+							if err := assignMapToStructRecursive(mapElemValue.Interface().(map[string]interface{}), mapElem); err != nil {
+								return err
+							}
+						} else {
+							if mapElemValue.Type().ConvertibleTo(mapElemType) {
+								mapElem.Set(mapElemValue.Convert(mapElemType))
 							} else {
-								if mapElemValue.Type().ConvertibleTo(mapElemType) {
-									mapElem.Set(mapElemValue.Convert(mapElemType))
-								} else {
+								newVal, converted := util.CastValueToKind(mapElemValue.Interface(), mapElemType.Kind())
+								if !converted {
 									return fmt.Errorf("cannot assign value of type %s to map element of type %s",
 										mapElemValue.Type(), mapElemType)
 								}
+
+								mapElem.Set(reflect.ValueOf(newVal))
 							}
 
-							mapValue.SetMapIndex(key, mapElem)
 						}
-						fieldValue.Set(mapValue)
-					} else {
-						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
+
+						mapValue.SetMapIndex(key, mapElem)
 					}
+					fieldValue.Set(mapValue)
 				default:
 					// Handle simple types
 					if val.Type().ConvertibleTo(fieldValue.Type()) {
 						fieldValue.Set(val.Convert(fieldValue.Type()))
 					} else {
-						return fmt.Errorf("cannot assign value of type %s to field %s of type %s",
-							val.Type(), field.Name, fieldValue.Type())
+
+						newVal, converted := util.CastValueToKind(val.Interface(), fieldValue.Type().Kind())
+						if !converted {
+							return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+								val.Type(), val)
+						}
+
+						fieldValue.Set(reflect.ValueOf(newVal))
 					}
 				}
 			}
