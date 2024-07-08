@@ -48,19 +48,12 @@
         class="mt-4"
         :footer-props="{ itemsPerPageOptions: [20] }"
     >
-      <template v-slot:item.external="{ item }">
-        <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
-
-      <template v-slot:item.alert="{ item }">
-        <v-icon v-if="item.alert">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
-
-      <template v-slot:item.admin="{ item }">
-        <v-icon v-if="item.admin">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+      <template v-slot:item.active="{ item }">
+        <v-switch
+            v-model="item.active"
+            inset
+            @change="setActive(item.id, item.active)"
+        ></v-switch>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -91,6 +84,7 @@ import EventBus from '@/event-bus';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
+import axios from 'axios';
 
 export default {
   mixins: [ItemListPageBase],
@@ -104,11 +98,14 @@ export default {
     getHeaders() {
       return [{
         text: '',
+        value: 'active',
+      }, {
+        text: 'ID',
         value: 'id',
       }, {
-        text: this.$i18n.t('title'),
-        value: 'Title',
+        text: this.$i18n.t('name'),
         width: '100%',
+        value: 'title',
       }, {
         text: this.$i18n.t('actions'),
         value: 'actions',
@@ -130,6 +127,17 @@ export default {
 
     getEventName() {
       return 'i-app';
+    },
+
+    async setActive(appId, active) {
+      await axios({
+        method: 'post',
+        url: `/api/apps/${appId}/active`,
+        responseType: 'json',
+        data: {
+          active,
+        },
+      });
     },
   },
 };

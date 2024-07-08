@@ -193,7 +193,7 @@ type ConfigType struct {
 
 	IntegrationAlias string `json:"global_integration_alias" env:"SEMAPHORE_INTEGRATION_ALIAS"`
 
-	Apps map[string]AppConfig `json:"apps" env:"SEMAPHORE_APPS"`
+	Apps map[string]App `json:"apps" env:"SEMAPHORE_APPS"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -806,7 +806,7 @@ func CheckDefaultApps() {
 			continue
 		}
 
-		Config.Apps[app] = AppConfig{
+		Config.Apps[app] = App{
 			Active: true,
 		}
 	}

@@ -1,6 +1,6 @@
 package util
 
-type AppConfig struct {
+type App struct {
 	Active    bool     `json:"active"`
 	Order     int      `json:"order"`
 	Title     string   `json:"title"`

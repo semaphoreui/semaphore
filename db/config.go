@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func convertFlatToNested(flatMap map[string]string) map[string]interface{} {
+func ConvertFlatToNested(flatMap map[string]string) map[string]interface{} {
 	nestedMap := make(map[string]interface{})
 
 	for key, value := range flatMap {
@@ -29,9 +29,25 @@ func convertFlatToNested(flatMap map[string]string) map[string]interface{} {
 	return nestedMap
 }
 
-func assignMapToStruct[P *S, S any](m map[string]interface{}, s P) error {
+func AssignMapToStruct[P *S, S any](m map[string]interface{}, s P) error {
 	v := reflect.ValueOf(s).Elem()
 	return assignMapToStructRecursive(m, v)
+}
+
+func cloneStruct(origValue reflect.Value) reflect.Value {
+	// Create a new instance of the same type as the original struct
+	cloneValue := reflect.New(origValue.Type()).Elem()
+
+	// Iterate over the fields of the struct
+	for i := 0; i < origValue.NumField(); i++ {
+		// Get the field value
+		fieldValue := origValue.Field(i)
+		// Set the field value in the clone
+		cloneValue.Field(i).Set(fieldValue)
+	}
+
+	// Return the cloned struct
+	return cloneValue
 }
 
 func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Value) error {
@@ -71,11 +87,18 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 					if val.Kind() != reflect.Map {
 						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
 					}
-					//mapValue := reflect.MakeMap(fieldValue.Type())
+
 					for _, key := range val.MapKeys() {
 						mapElemValue := val.MapIndex(key)
 						mapElemType := fieldValue.Type().Elem()
-						mapElem := reflect.New(mapElemType).Elem()
+
+						srcVal := fieldValue.MapIndex(key)
+						var mapElem reflect.Value
+						if srcVal.IsValid() {
+							mapElem = cloneStruct(srcVal)
+						} else {
+							mapElem = reflect.New(mapElemType).Elem()
+						}
 
 						if mapElemType.Kind() == reflect.Struct {
 							if err := assignMapToStructRecursive(mapElemValue.Interface().(map[string]interface{}), mapElem); err != nil {
@@ -98,7 +121,7 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 
 						fieldValue.SetMapIndex(key, mapElem)
 					}
-					//fieldValue.Set(mapValue)
+
 				default:
 					// Handle simple types
 					if val.Type().ConvertibleTo(fieldValue.Type()) {
@@ -128,13 +151,13 @@ func FillConfigFromDB(store Store) (err error) {
 		return
 	}
 
-	options := convertFlatToNested(opts)
+	options := ConvertFlatToNested(opts)
 
 	if options["apps"] == nil {
 		options["apps"] = make(map[string]interface{})
 	}
 
-	err = assignMapToStruct(options, util.Config)
+	err = AssignMapToStruct(options, util.Config)
 
 	return
 }
