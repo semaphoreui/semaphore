@@ -31,10 +31,20 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 	}
 
 	var john User
+	john.Details = make(map[string]string)
+	john.Details["interests"] = "politics"
 
 	err := assignMapToStruct(johnData, &john)
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if john.Name != "John Doe" {
+		t.Errorf("Expected name to be John Doe but got %s", john.Name)
+	}
+
+	if john.Details["interests"] != "politics" {
+		t.Errorf("Expected interests to be politics but got %s", john.Details["interests"])
 	}
 }

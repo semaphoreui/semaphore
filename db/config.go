@@ -71,7 +71,7 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 					if val.Kind() != reflect.Map {
 						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
 					}
-					mapValue := reflect.MakeMap(fieldValue.Type())
+					//mapValue := reflect.MakeMap(fieldValue.Type())
 					for _, key := range val.MapKeys() {
 						mapElemValue := val.MapIndex(key)
 						mapElemType := fieldValue.Type().Elem()
@@ -96,9 +96,9 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 
 						}
 
-						mapValue.SetMapIndex(key, mapElem)
+						fieldValue.SetMapIndex(key, mapElem)
 					}
-					fieldValue.Set(mapValue)
+					//fieldValue.Set(mapValue)
 				default:
 					// Handle simple types
 					if val.Type().ConvertibleTo(fieldValue.Type()) {

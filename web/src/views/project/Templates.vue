@@ -54,7 +54,7 @@
 
       <v-menu
         offset-y
-        :disabled="templateApps.length === 0"
+        :disabled="apps.length === 0"
       >
         <template v-slot:activator="{ on, attrs }">
           <v-btn
@@ -63,28 +63,28 @@
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
-            @click="templateApps.length > 0 || editItem('new')"
+            @click="activeAppIds.length > 0 || editItem('new')"
           >
             {{ $t('newTemplate') }}
-            <v-icon v-if="templateApps.length > 0">mdi-chevron-down</v-icon>
+            <v-icon v-if="activeAppIds.length > 0">mdi-chevron-down</v-icon>
             <span v-else class="pl-2"></span>
           </v-btn>
         </template>
         <v-list>
           <v-list-item
-            v-for="item in templateApps"
-            :key="item.id"
+            v-for="appID in activeAppIds"
+            :key="appID"
             link
-            @click="editItem('new'); itemApp = item;"
+            @click="editItem('new'); itemApp = appID;"
           >
             <v-list-item-icon>
               <v-icon
-                :color="getAppColor(item)"
+                :color="getAppColor(appID)"
               >
-                {{ getAppIcon(item) }}
+                {{ getAppIcon(appID) }}
               </v-icon>
             </v-list-item-icon>
-            <v-list-item-title>{{ getAppTitle(item) }}</v-list-item-title>
+            <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
           </v-list-item>
           <v-divider/>
           <v-list-item
@@ -95,7 +95,7 @@
             <v-list-item-icon>
               <v-icon>mdi-cogs</v-icon>
             </v-list-item-icon>
-            <v-list-item-title>App Settings</v-list-item-title>
+            <v-list-item-title>Applications</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -143,7 +143,6 @@
         <v-icon
           class="mr-3"
           small
-          v-if="templateApps.length > 0"
         >
           {{ getAppIcon(item.app) }}
         </v-icon>
@@ -269,12 +268,11 @@ import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 import {
-  APP_ICONS,
-  APP_TITLE,
   TEMPLATE_TYPE_ACTION_TITLES,
   TEMPLATE_TYPE_ICONS,
 } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
+import AppsMixin from '@/components/AppsMixin';
 
 export default {
   components: {
@@ -286,7 +284,7 @@ export default {
     EditViewsForm,
     NewTaskDialog,
   },
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, AppsMixin],
   async created() {
     socket.addListener((data) => this.onWebsocketDataReceived(data));
 
@@ -307,7 +305,7 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateApps: null,
+      apps: null,
       itemApp: { id: '' },
     };
   },
@@ -346,7 +344,7 @@ export default {
         && this.environment
         && this.repositories
         && this.views
-        && this.templateApps;
+        && this.isAppsLoaded;
     },
   },
   watch: {
@@ -365,22 +363,6 @@ export default {
     },
   },
   methods: {
-    getAppColor(item) {
-      if (APP_ICONS[item.id]) {
-        return this.$vuetify.theme.dark ? APP_ICONS[item.id].darkColor : APP_ICONS[item.id].color;
-      }
-
-      return item.color || 'grey';
-    },
-
-    getAppTitle(item) {
-      return APP_TITLE[item.id] || item.title;
-    },
-
-    getAppIcon(item) {
-      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : `mdi-${item.icon}`;
-    },
-
     async beforeLoadItems() {
       await this.loadViews();
     },
@@ -523,12 +505,6 @@ export default {
       this.repositories = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
-
-      this.templateApps = (await axios({
-        method: 'get',
-        url: '/api/apps',
         responseType: 'json',
       })).data;
     },

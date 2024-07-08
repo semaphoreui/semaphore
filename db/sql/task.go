@@ -116,7 +116,8 @@ func (d *SqlDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQue
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
 		", tpl.name as tpl_alias" +
-		", tpl.type as tpl_type"
+		", tpl.type as tpl_type" +
+		", tpl.app as tpl_app"
 
 	q := squirrel.Select(fields).
 		From("task").

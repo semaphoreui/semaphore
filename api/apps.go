@@ -14,14 +14,12 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 		Icon      string `json:"icon"`
 		Color     string `json:"color"`
 		DarkColor string `json:"dark_color"`
+		Active    bool   `json:"active"`
 	}
 
 	apps := make([]app, 0)
 
 	for k, a := range util.Config.Apps {
-		if !a.Active {
-			continue
-		}
 
 		apps = append(apps, app{
 			ID:        k,
@@ -29,8 +27,17 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 			Icon:      a.Icon,
 			Color:     a.Color,
 			DarkColor: a.DarkColor,
+			Active:    a.Active,
 		})
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, apps)
+}
+
+func getApp(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func setApp(w http.ResponseWriter, r *http.Request) {
+
 }
