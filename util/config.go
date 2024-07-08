@@ -806,6 +806,10 @@ func CheckDefaultApps() {
 			continue
 		}
 
+		if Config.Apps == nil {
+			Config.Apps = make(map[string]App)
+		}
+
 		Config.Apps[app] = App{
 			Active: true,
 		}
