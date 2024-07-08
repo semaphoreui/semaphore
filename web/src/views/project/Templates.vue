@@ -26,13 +26,13 @@
       </v-card>
     </v-dialog>
 
-    <EditTemplateDialogue
+    <EditTemplateDialog
         v-model="editDialog"
         :project-id="projectId"
         :item-app="itemApp"
         item-id="new"
         @save="loadItems()"
-    ></EditTemplateDialogue>
+    ></EditTemplateDialog>
 
     <NewTaskDialog
       v-model="newTaskDialog"
@@ -73,7 +73,7 @@
         <v-list>
           <v-list-item
             v-for="item in templateApps"
-            :key="item"
+            :key="item.id"
             link
             @click="editItem('new'); itemApp = item;"
           >
@@ -274,11 +274,11 @@ import {
   TEMPLATE_TYPE_ACTION_TITLES,
   TEMPLATE_TYPE_ICONS,
 } from '@/lib/constants';
-import EditTemplateDialogue from '@/components/EditTemplateDialogue.vue';
+import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 
 export default {
   components: {
-    EditTemplateDialogue,
+    EditTemplateDialog,
     TableSettingsSheet,
     TaskStatus,
     TaskLink,
@@ -308,7 +308,7 @@ export default {
       viewItemsLoading: null,
       viewTab: null,
       templateApps: null,
-      itemApp: '',
+      itemApp: { id: '' },
     };
   },
   computed: {
@@ -378,7 +378,7 @@ export default {
     },
 
     getAppIcon(item) {
-      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : item.icon;
+      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : `mdi-${item.icon}`;
     },
 
     async beforeLoadItems() {

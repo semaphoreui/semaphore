@@ -4,15 +4,15 @@
       :min-content-height="457"
       v-model="dialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="APP_ICONS[itemApp].icon"
-      :icon-color="$vuetify.theme.dark ? APP_ICONS[itemApp].darkColor : APP_ICONS[itemApp].color"
+      :icon="getAppIcon(itemApp)"
+      :icon-color="getAppColor(itemApp)"
       :title="(itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
-        ' \'' + APP_TITLE[itemApp] + '\''"
+        ' \'' + getAppTitle(itemApp) + '\''"
       @save="onSave"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TerraformTemplateForm
-          v-if="['terraform', 'tofu'].includes(itemApp)"
+          v-if="['terraform', 'tofu'].includes(itemApp.id)"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -20,7 +20,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :source-item-id="sourceItemId"
-          :app="itemApp"
+          :app="itemApp.id"
       />
       <BashTemplateForm
           v-else-if="itemApp === 'bash'"
@@ -68,7 +68,7 @@ export default {
 
   props: {
     value: Boolean,
-    itemApp: String,
+    itemApp: Object,
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
@@ -76,8 +76,6 @@ export default {
 
   data() {
     return {
-      APP_TITLE,
-      APP_ICONS,
       dialog: false,
     };
   },
@@ -93,6 +91,22 @@ export default {
   },
 
   methods: {
+    getAppColor(item) {
+      if (APP_ICONS[item.id]) {
+        return this.$vuetify.theme.dark ? APP_ICONS[item.id].darkColor : APP_ICONS[item.id].color;
+      }
+
+      return item.color || 'grey';
+    },
+
+    getAppTitle(item) {
+      return APP_TITLE[item.id] || item.title;
+    },
+
+    getAppIcon(item) {
+      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : `mdi-${item.icon}`;
+    },
+
     onSave(e) {
       this.$emit('save', e);
     },
