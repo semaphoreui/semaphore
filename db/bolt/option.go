@@ -3,6 +3,7 @@ package bolt
 import (
 	"errors"
 	"github.com/ansible-semaphore/semaphore/db"
+	"go.etcd.io/bbolt"
 	"strings"
 )
 
@@ -58,6 +59,26 @@ func (d *BoltDb) GetOption(key string) (value string, err error) {
 
 	if errors.Is(err, db.ErrNotFound) {
 		err = nil
+	}
+
+	return
+}
+
+func (d *BoltDb) DeleteOption(key string) (err error) {
+	err = db.ValidateOptionKey(key)
+	if err != nil {
+		return
+	}
+
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		return d.deleteObject(-1, db.OptionProps, strObjectID(key), tx)
+	})
+}
+
+func (d *BoltDb) DeleteOptions(filter string) (err error) {
+	err = db.ValidateOptionKey(filter)
+	if err != nil {
+		return
 	}
 
 	return

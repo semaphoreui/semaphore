@@ -117,14 +117,23 @@ func Route() *mux.Router {
 	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
 	authenticatedAPI.Path("/user").HandlerFunc(getUser).Methods("GET", "HEAD")
 
+	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
+
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
 
-	authenticatedAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
-	authenticatedAPI.Path("/options").HandlerFunc(setOption).Methods("POST", "HEAD")
-	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
+	adminAPI := authenticatedAPI.NewRoute().Subrouter()
+	adminAPI.Use(adminMiddleware)
+	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
+	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST", "HEAD")
+
+	appsAPI := adminAPI.Path("/apps").Subrouter()
+	appsAPI.Use(appMiddleware)
+	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
+	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("POST", "HEAD")
+	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("POST", "HEAD")
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)

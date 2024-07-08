@@ -3,10 +3,8 @@ package sql
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
-	"regexp"
 )
 
 func (d *SqlDb) SetOption(key string, value string) error {
@@ -28,14 +26,8 @@ func (d *SqlDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string
 	var options []db.Option
 
 	if params.Filter != "" {
-		var m bool
-		m, err = regexp.Match(`^(?:\w.)+$`, []byte(params.Filter))
+		err = db.ValidateOptionKey(params.Filter)
 		if err != nil {
-			return
-		}
-
-		if !m {
-			err = fmt.Errorf("invalid filter format")
 			return
 		}
 	}
@@ -89,6 +81,28 @@ func (d *SqlDb) GetOption(key string) (value string, err error) {
 	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
+
+	return
+}
+
+func (d *SqlDb) DeleteOption(key string) (err error) {
+	err = db.ValidateOptionKey(key)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(0, db.OptionProps, key)
+
+	return
+}
+
+func (d *SqlDb) DeleteOptions(filter string) (err error) {
+	err = db.ValidateOptionKey(filter)
+	if err != nil {
+		return
+	}
+
+	_, err = d.exec("DELETE FROM `option` WHERE `key` = ? OR `key` LIKE ?", filter, filter+".%")
 
 	return
 }

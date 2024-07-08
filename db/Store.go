@@ -113,6 +113,8 @@ type Store interface {
 	GetOptions(params RetrieveQueryParams) (map[string]string, error)
 	GetOption(key string) (string, error)
 	SetOption(key string, value string) error
+	DeleteOption(key string) error
+	DeleteOptions(filter string) error
 
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)

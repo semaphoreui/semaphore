@@ -253,7 +253,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 	return
 }
 
-func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {
+func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID any) error {
 	if props.IsGlobal {
 		return validateMutationResult(
 			d.exec(
