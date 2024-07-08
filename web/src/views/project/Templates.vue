@@ -79,12 +79,12 @@
           >
             <v-list-item-icon>
               <v-icon
-                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
+                :color="getAppColor(item)"
               >
-                {{ APP_ICONS[item].icon }}
+                {{ getAppIcon(item) }}
               </v-icon>
             </v-list-item-icon>
-            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
+            <v-list-item-title>{{ getAppTitle(item) }}</v-list-item-title>
           </v-list-item>
           <v-divider/>
           <v-list-item
@@ -145,7 +145,7 @@
           small
           v-if="templateApps.length > 0"
         >
-          {{ APP_ICONS[item.app].icon }}
+          {{ getAppIcon(item.app) }}
         </v-icon>
 
         <v-icon class="mr-3" small>
@@ -294,8 +294,6 @@ export default {
   },
   data() {
     return {
-      APP_TITLE,
-      APP_ICONS,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_ACTION_TITLES,
       inventory: null,
@@ -309,13 +307,7 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateApps: [
-        '', // Ansible
-        'terraform',
-        'tofu',
-        'bash',
-        // 'pulumi',
-      ],
+      templateApps: null,
       itemApp: '',
     };
   },
@@ -353,7 +345,8 @@ export default {
         && this.inventory
         && this.environment
         && this.repositories
-        && this.views;
+        && this.views
+        && this.templateApps;
     },
   },
   watch: {
@@ -372,6 +365,22 @@ export default {
     },
   },
   methods: {
+    getAppColor(item) {
+      if (APP_ICONS[item.id]) {
+        return this.$vuetify.theme.dark ? APP_ICONS[item.id].darkColor : APP_ICONS[item.id].color;
+      }
+
+      return item.color || 'grey';
+    },
+
+    getAppTitle(item) {
+      return APP_TITLE[item.id] || item.title;
+    },
+
+    getAppIcon(item) {
+      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : item.icon;
+    },
+
     async beforeLoadItems() {
       await this.loadViews();
     },
@@ -514,6 +523,12 @@ export default {
       this.repositories = (await axios({
         method: 'get',
         url: `/api/project/${this.projectId}/repositories`,
+        responseType: 'json',
+      })).data;
+
+      this.templateApps = (await axios({
+        method: 'get',
+        url: '/api/apps',
         responseType: 'json',
       })).data;
     },
