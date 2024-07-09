@@ -148,18 +148,19 @@
 
         <v-text-field
           v-model="item.playbook"
-          :label="$t('playbookFilename')"
+          :label="fieldLabel('playbook')"
           :rules="[v => !!v || $t('playbook_filename_required')]"
           outlined
           dense
           required
           :disabled="formSaving"
           :placeholder="$t('exampleSiteyml')"
+          v-if="needField('playbook')"
         ></v-text-field>
 
         <v-select
           v-model="item.inventory_id"
-          :label="$t('inventory2')"
+          :label="fieldLabel('inventory')"
           :items="inventory"
           item-value="id"
           item-text="name"
@@ -167,11 +168,12 @@
           dense
           required
           :disabled="formSaving"
+          v-if="needField('inventory')"
         ></v-select>
 
         <v-select
           v-model="item.repository_id"
-          :label="$t('repository') + ' *'"
+          :label="fieldLabel('repository')"
           :items="repositories"
           item-value="id"
           item-text="name"
@@ -180,11 +182,12 @@
           dense
           required
           :disabled="formSaving"
+          v-if="needField('repository')"
         ></v-select>
 
         <v-select
           v-model="item.environment_id"
-          :label="$t('environment3')"
+          :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
           item-text="name"
@@ -193,12 +196,13 @@
           dense
           required
           :disabled="formSaving"
+          v-if="needField('environment')"
         ></v-select>
 
         <v-select
-          v-if="itemTypeIndex === 0"
+          v-if="itemTypeIndex === 0 && needField('vault')"
           v-model="item.vault_key_id"
-          :label="$t('vaultPassword')"
+          :label="fieldLabel('vault')"
           clearable
           :items="loginPasswordKeys"
           item-value="id"
@@ -212,9 +216,9 @@
       <v-col cols="12" md="6" class="pb-0">
 
         <v-select
-          v-if="itemTypeIndex > 0"
+          v-if="itemTypeIndex > 0 && needField('vault')"
           v-model="item.vault_key_id"
-          :label="$t('vaultPassword2')"
+          :label="fieldLabel('vault')"
           clearable
           :items="loginPasswordKeys"
           item-value="id"
@@ -336,6 +340,7 @@ export default {
 
   props: {
     sourceItemId: Number,
+    fields: Array,
   },
 
   data() {
@@ -428,6 +433,14 @@ export default {
   },
 
   methods: {
+    fieldLabel(f) {
+      return this.$t(this.fields[f]);
+    },
+
+    needField(f) {
+      return this.fields[f] != null;
+    },
+
     setSurveyVars(v) {
       this.item.survey_vars = v;
     },

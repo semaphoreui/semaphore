@@ -11,8 +11,7 @@
       @save="onSave"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
-      <TerraformTemplateForm
-          v-if="['terraform', 'tofu'].includes(itemApp)"
+      <TemplateForm
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -21,27 +20,7 @@
           :need-reset="needReset"
           :source-item-id="sourceItemId"
           :app="itemApp"
-      />
-      <TemplateForm
-          v-else-if="['', 'ansible'].includes(itemApp)"
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :source-item-id="sourceItemId"
-      />
-      <ShellTemplateForm
-          v-else
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :source-item-id="sourceItemId"
-          :app-id="itemApp"
+          :fields="fields"
       />
     </template>
   </EditDialog>
@@ -53,16 +32,57 @@
 
 <script>
 
-import TerraformTemplateForm from './TerraformTemplateForm.vue';
-import ShellTemplateForm from './ShellTemplateForm.vue';
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
 import AppsMixin from './AppsMixin';
 
+const ANSIBLE_FIELDS = {
+  playbook: {
+    label: 'playbookFilename',
+  },
+  inventory: {
+    label: 'inventory2',
+  },
+  repository: {
+    label: 'repository',
+  },
+  environment: {
+    label: 'environment3',
+  },
+  vault: {
+    label: 'vaultPassword2',
+  },
+};
+
+const TERRAFORM_FIELDS = {
+  ...ANSIBLE_FIELDS,
+  playbook: {
+    label: 'Subdirectory path (Optional)',
+  },
+  inventory: {
+    label: 'Default Workspace',
+  },
+  vault: undefined,
+};
+
+const UNKNOWN_APP_FIELDS = {
+  ...ANSIBLE_FIELDS,
+  playbook: {
+    label: 'Script Filename',
+  },
+  inventory: undefined,
+  vault: undefined,
+};
+
+const APP_FIELDS = {
+  '': ANSIBLE_FIELDS,
+  ansible: ANSIBLE_FIELDS,
+  terraform: TERRAFORM_FIELDS,
+  tofu: TERRAFORM_FIELDS,
+};
+
 export default {
   components: {
-    ShellTemplateForm,
-    TerraformTemplateForm,
     TemplateForm,
     EditDialog,
   },
@@ -81,6 +101,12 @@ export default {
     return {
       dialog: false,
     };
+  },
+
+  computed: {
+    fields() {
+      return APP_FIELDS[this.itemApp] || UNKNOWN_APP_FIELDS;
+    },
   },
 
   watch: {
