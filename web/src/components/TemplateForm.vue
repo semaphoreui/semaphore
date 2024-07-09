@@ -173,7 +173,7 @@
 
         <v-select
           v-model="item.repository_id"
-          :label="fieldLabel('repository')"
+          :label="fieldLabel('repository') + ' *'"
           :items="repositories"
           item-value="id"
           item-text="name"
@@ -182,7 +182,7 @@
           dense
           required
           :disabled="formSaving"
-          v-if="needField('repository') + ' *'"
+          v-if="needField('repository')"
         ></v-select>
 
         <v-select
