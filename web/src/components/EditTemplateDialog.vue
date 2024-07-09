@@ -12,7 +12,7 @@
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TerraformTemplateForm
-          v-if="['terraform', 'tofu'].includes(itemApp.id)"
+          v-if="['terraform', 'tofu'].includes(itemApp)"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -22,8 +22,8 @@
           :source-item-id="sourceItemId"
           :app="itemApp"
       />
-      <ShellTemplateForm
-          v-else-if="itemApp === 'bash'"
+      <TemplateForm
+          v-else-if="['', 'ansible'].includes(itemApp)"
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -32,7 +32,7 @@
           :need-reset="needReset"
           :source-item-id="sourceItemId"
       />
-      <TemplateForm
+      <ShellTemplateForm
           v-else
           :project-id="projectId"
           :item-id="itemId"
