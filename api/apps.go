@@ -79,6 +79,18 @@ func appMiddleware(next http.Handler) http.Handler {
 }
 
 func getApps(w http.ResponseWriter, r *http.Request) {
+	defaultApps := map[string]util.App{
+		string(db.TemplateAnsible):    {},
+		string(db.TemplateTerraform):  {},
+		string(db.TemplateTofu):       {},
+		string(db.TemplateBash):       {},
+		string(db.TemplatePowerShell): {},
+		string(db.TemplatePython):     {},
+	}
+
+	for k, a := range util.Config.Apps {
+		defaultApps[k] = a
+	}
 
 	type app struct {
 		ID        string `json:"id"`
@@ -91,7 +103,7 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 
 	apps := make([]app, 0)
 
-	for k, a := range util.Config.Apps {
+	for k, a := range defaultApps {
 
 		apps = append(apps, app{
 			ID:        k,

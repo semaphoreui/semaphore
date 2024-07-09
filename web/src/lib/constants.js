@@ -114,3 +114,5 @@ export const APP_INVENTORY_TITLE = {
   terraform: 'Terraform Workspace',
   tofu: 'OpenTofu Workspace',
 };
+
+export const DEFAULT_APPS = Object.keys(APP_ICONS);

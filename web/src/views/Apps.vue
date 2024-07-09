@@ -58,6 +58,7 @@
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
+              v-if="!isDefaultApp(item.id)"
               icon
               class="mr-1"
               @click="askDeleteItem(item.id)"
@@ -67,6 +68,7 @@
           </v-btn>
 
           <v-btn
+              v-if="!isDefaultApp(item.id)"
               icon
               class="mr-1"
               @click="editItem(item.id)"
@@ -85,6 +87,7 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import axios from 'axios';
 import AppForm from '../components/AppForm.vue';
+import { DEFAULT_APPS } from '../lib/constants';
 
 export default {
   mixins: [ItemListPageBase],
@@ -139,6 +142,10 @@ export default {
           active,
         },
       });
+    },
+
+    isDefaultApp(appId) {
+      return DEFAULT_APPS.includes(appId);
     },
   },
 };
