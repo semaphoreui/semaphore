@@ -11,7 +11,7 @@ type Option struct {
 }
 
 func ValidateOptionKey(key string) error {
-	m, err := regexp.Match(`^(?:\w.)+$`, []byte(key))
+	m, err := regexp.Match(`^[\w.]+$`, []byte(key))
 	if err != nil {
 		return err
 	}

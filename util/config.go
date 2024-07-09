@@ -398,6 +398,18 @@ func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok 
 	res = value
 
 	switch kind {
+	case reflect.Slice:
+		if reflect.ValueOf(value).Kind() == reflect.String {
+			var arr []string
+			err := json.Unmarshal([]byte(value.(string)), &arr)
+			if err != nil {
+				panic(err)
+			}
+			res = arr
+			ok = true
+		}
+	case reflect.String:
+		ok = true
 	case reflect.Int:
 		if reflect.ValueOf(value).Kind() != reflect.Int {
 			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
@@ -418,6 +430,7 @@ func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok 
 			res = mapValue
 			ok = true
 		}
+	default:
 	}
 
 	return

@@ -48,31 +48,37 @@ import ItemFormBase from '@/components/ItemFormBase';
 export default {
   mixins: [ItemFormBase],
 
-  watch: {
-    itemId(val) {
-      this.id = val;
-    },
-  },
-
-  created() {
-    this.id = this.itemId;
-  },
-
   computed: {
     isNew() {
-      return false;
+      return this.itemId === '';
     },
   },
 
   data() {
     return {
-      id: '',
+      id: null,
     };
   },
 
+  watch: {
+    itemId() {
+      this.id = this.itemId;
+    },
+  },
+
   methods: {
+    beforeLoadData() {
+      if (!this.isNew) {
+        this.id = this.itemId;
+      }
+    },
+
+    afterReset() {
+      this.id = null;
+    },
+
     getItemsUrl() {
-      return '/api/apps';
+      return `/api/apps/${this.id}`;
     },
 
     getSingleItemUrl() {

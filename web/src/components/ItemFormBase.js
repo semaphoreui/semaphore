@@ -69,6 +69,7 @@ export default {
       if (this.$refs.form) {
         this.$refs.form.resetValidation();
       }
+      await this.afterReset();
       await this.loadData();
     },
 
@@ -84,7 +85,15 @@ export default {
 
     },
 
+    afterReset() {
+
+    },
+
     afterSave() {
+
+    },
+
+    beforeLoadData() {
 
     },
 
@@ -97,6 +106,8 @@ export default {
     },
 
     async loadData() {
+      await this.beforeLoadData();
+
       if (this.isNew) {
         this.item = this.getNewItem();
       } else {

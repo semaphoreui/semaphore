@@ -81,5 +81,19 @@ func (d *BoltDb) DeleteOptions(filter string) (err error) {
 		return
 	}
 
+	var options []db.Option
+
+	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		opt := i.(db.Option)
+		return opt.Key == filter || strings.HasPrefix(opt.Key, filter+".")
+	}, &options)
+
+	for _, opt := range options {
+		err = d.DeleteOption(opt.Key)
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }

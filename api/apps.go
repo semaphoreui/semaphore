@@ -129,6 +129,8 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	delete(util.Config.Apps, appID)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

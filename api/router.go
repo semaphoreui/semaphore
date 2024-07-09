@@ -131,7 +131,7 @@ func Route() *mux.Router {
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
 	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
-	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT")
+	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
 
