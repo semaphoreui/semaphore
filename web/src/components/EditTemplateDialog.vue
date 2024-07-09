@@ -22,7 +22,7 @@
           :source-item-id="sourceItemId"
           :app="itemApp"
       />
-      <BashTemplateForm
+      <ShellTemplateForm
           v-else-if="itemApp === 'bash'"
           :project-id="projectId"
           :item-id="itemId"
@@ -53,14 +53,14 @@
 <script>
 
 import TerraformTemplateForm from './TerraformTemplateForm.vue';
-import BashTemplateForm from './BashTemplateForm.vue';
+import ShellTemplateForm from './ShellTemplateForm.vue';
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
 import AppsMixin from './AppsMixin';
 
 export default {
   components: {
-    BashTemplateForm,
+    ShellTemplateForm,
     TerraformTemplateForm,
     TemplateForm,
     EditDialog,
