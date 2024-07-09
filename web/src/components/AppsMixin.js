@@ -10,11 +10,7 @@ export default {
   },
 
   async created() {
-    const apps = (await axios({
-      method: 'get',
-      url: '/api/apps',
-      responseType: 'json',
-    })).data;
+    const apps = await this.loadAppsDataFromBackend();
 
     this.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
 
@@ -31,6 +27,14 @@ export default {
   },
 
   methods: {
+    async loadAppsDataFromBackend() {
+      return (await axios({
+        method: 'get',
+        url: '/api/apps',
+        responseType: 'json',
+      })).data;
+    },
+
     getAppColor(id) {
       if (APP_ICONS[id]) {
         return this.$vuetify.theme.dark ? APP_ICONS[id].darkColor : APP_ICONS[id].color;

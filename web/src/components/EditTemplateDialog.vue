@@ -11,29 +11,7 @@
       @save="onSave"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
-      <TerraformTemplateForm
-          v-if="['terraform', 'tofu'].includes(itemApp.id)"
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :source-item-id="sourceItemId"
-          :app="itemApp.id"
-      />
-      <BashTemplateForm
-          v-else-if="itemApp === 'bash'"
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :source-item-id="sourceItemId"
-      />
       <TemplateForm
-          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -41,6 +19,8 @@
           :need-save="needSave"
           :need-reset="needReset"
           :source-item-id="sourceItemId"
+          :app="itemApp"
+          :fields="fields"
       />
     </template>
   </EditDialog>
@@ -52,23 +32,66 @@
 
 <script>
 
-import { APP_ICONS, APP_TITLE } from '../lib/constants';
-import TerraformTemplateForm from './TerraformTemplateForm.vue';
-import BashTemplateForm from './BashTemplateForm.vue';
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
+import AppsMixin from './AppsMixin';
+
+const ANSIBLE_FIELDS = {
+  playbook: {
+    label: 'playbookFilename',
+  },
+  inventory: {
+    label: 'inventory2',
+  },
+  repository: {
+    label: 'repository',
+  },
+  environment: {
+    label: 'environment3',
+  },
+  vault: {
+    label: 'vaultPassword2',
+  },
+};
+
+const TERRAFORM_FIELDS = {
+  ...ANSIBLE_FIELDS,
+  playbook: {
+    label: 'Subdirectory path (Optional)',
+  },
+  inventory: {
+    label: 'Default Workspace',
+  },
+  vault: undefined,
+};
+
+const UNKNOWN_APP_FIELDS = {
+  ...ANSIBLE_FIELDS,
+  playbook: {
+    label: 'Script Filename *',
+  },
+  inventory: undefined,
+  vault: undefined,
+};
+
+const APP_FIELDS = {
+  '': ANSIBLE_FIELDS,
+  ansible: ANSIBLE_FIELDS,
+  terraform: TERRAFORM_FIELDS,
+  tofu: TERRAFORM_FIELDS,
+};
 
 export default {
   components: {
-    BashTemplateForm,
-    TerraformTemplateForm,
     TemplateForm,
     EditDialog,
   },
 
+  mixins: [AppsMixin],
+
   props: {
     value: Boolean,
-    itemApp: Object,
+    itemApp: String,
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
@@ -78,6 +101,12 @@ export default {
     return {
       dialog: false,
     };
+  },
+
+  computed: {
+    fields() {
+      return APP_FIELDS[this.itemApp] || UNKNOWN_APP_FIELDS;
+    },
   },
 
   watch: {
@@ -91,22 +120,6 @@ export default {
   },
 
   methods: {
-    getAppColor(item) {
-      if (APP_ICONS[item.id]) {
-        return this.$vuetify.theme.dark ? APP_ICONS[item.id].darkColor : APP_ICONS[item.id].color;
-      }
-
-      return item.color || 'grey';
-    },
-
-    getAppTitle(item) {
-      return APP_TITLE[item.id] || item.title;
-    },
-
-    getAppIcon(item) {
-      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : `mdi-${item.icon}`;
-    },
-
     onSave(e) {
       this.$emit('save', e);
     },

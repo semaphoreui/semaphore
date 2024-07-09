@@ -24,6 +24,7 @@ func (d *SqlDb) SetOption(key string, value string) error {
 
 func (d *SqlDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string, err error) {
 	var options []db.Option
+	res = make(map[string]string)
 
 	if params.Filter != "" {
 		err = db.ValidateOptionKey(params.Filter)
