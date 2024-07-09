@@ -68,7 +68,7 @@ const TERRAFORM_FIELDS = {
 const UNKNOWN_APP_FIELDS = {
   ...ANSIBLE_FIELDS,
   playbook: {
-    label: 'Script Filename',
+    label: 'Script Filename *',
   },
   inventory: undefined,
   vault: undefined,
