@@ -10,7 +10,14 @@ export default {
   },
 
   async created() {
-    await this.loadData();
+    const apps = await this.loadAppsDataFromBackend();
+
+    this.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
+
+    this.apps = apps.reduce((prev, app) => ({
+      ...prev,
+      [app.id]: app,
+    }), {});
   },
 
   computed: {
@@ -26,17 +33,6 @@ export default {
         url: '/api/apps',
         responseType: 'json',
       })).data;
-    },
-
-    async loadData() {
-      const apps = await this.loadAppsDataFromBackend();
-
-      this.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
-
-      this.apps = apps.reduce((prev, app) => ({
-        ...prev,
-        [app.id]: app,
-      }), {});
     },
 
     getAppColor(id) {
