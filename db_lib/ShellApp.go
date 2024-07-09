@@ -49,10 +49,6 @@ func (t *ShellApp) makeCmd(command string, args []string, environmentVars *[]str
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
-		cmd.Env = append(cmd.Env, args...)
-	}
-
-	if environmentVars != nil {
 		cmd.Env = append(cmd.Env, *environmentVars...)
 	}
 

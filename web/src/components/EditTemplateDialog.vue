@@ -41,6 +41,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :source-item-id="sourceItemId"
+          :app-id="itemApp"
       />
     </template>
   </EditDialog>

@@ -269,6 +269,7 @@ export default {
 
   props: {
     sourceItemId: Number,
+    appId: String,
   },
 
   data() {
@@ -442,7 +443,7 @@ export default {
     },
 
     async beforeSave() {
-      this.item.app = 'bash';
+      this.item.app = this.appId;
 
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
