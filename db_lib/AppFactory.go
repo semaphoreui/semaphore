@@ -40,6 +40,6 @@ func CreateApp(template db.Template, repository db.Repository, logger task_logge
 			App:        template.App,
 		}
 	default:
-		panic("unknown app")
+		panic("unknown app: " + template.App)
 	}
 }
