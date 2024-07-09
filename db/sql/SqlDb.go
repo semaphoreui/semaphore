@@ -204,7 +204,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 
 func (d *SqlDb) makeObjectsQuery(projectID int, props db.ObjectProps, params db.RetrieveQueryParams) squirrel.SelectBuilder {
 	q := squirrel.Select("*").
-		From(props.TableName + " pe")
+		From("`" + props.TableName + "` pe")
 
 	if !props.IsGlobal {
 		q = q.Where("pe.project_id=?", projectID)
