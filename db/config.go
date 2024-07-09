@@ -65,6 +65,7 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 		if value, ok := m[jsonTag]; ok {
 			fieldValue := structValue.FieldByName(field.Name)
 			if fieldValue.CanSet() {
+
 				val := reflect.ValueOf(value)
 
 				switch fieldValue.Kind() {
@@ -83,6 +84,11 @@ func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Va
 						return err
 					}
 				case reflect.Map:
+					if fieldValue.IsNil() {
+						mapValue := reflect.MakeMap(fieldValue.Type())
+						fieldValue.Set(mapValue)
+					}
+
 					// Handle map
 					if val.Kind() != reflect.Map {
 						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
