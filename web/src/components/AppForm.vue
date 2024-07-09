@@ -35,6 +35,14 @@
         :disabled="formSaving"
     ></v-text-field>
 
+    <v-text-field
+        v-model="item.path"
+        :label="$t('Path')"
+        :rules="[v => !!v || $t('path_required')]"
+        required
+        :disabled="formSaving"
+    ></v-text-field>
+
     <v-checkbox
         v-model="item.active"
         :label="$t('Active')"
