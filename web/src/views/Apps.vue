@@ -19,8 +19,8 @@
     </EditDialog>
 
     <YesNoDialog
-        :title="$t('deleteUser')"
-        :text="$t('askDeleteUser')"
+        :title="$t('Delete App')"
+        :text="$t('Do you really want to delete this app?')"
         v-model="deleteItemDialog"
         @yes="deleteItem(itemId)"
     />
@@ -53,6 +53,21 @@
             inset
             @change="setActive(item.id, item.active)"
         ></v-switch>
+      </template>
+
+      <template v-slot:item.title="{ item }">
+        <v-icon
+            class="mr-2"
+            small
+        >
+          {{ getAppIcon(item.id) }}
+        </v-icon>
+
+        {{ getAppTitle(item.id) }}
+      </template>
+
+      <template v-slot:item.id="{ item }">
+        <code>{{ item.id || 'ansible' }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -88,9 +103,11 @@ import EditDialog from '@/components/EditDialog.vue';
 import axios from 'axios';
 import AppForm from '../components/AppForm.vue';
 import { DEFAULT_APPS } from '../lib/constants';
+import AppsMixin from '../components/AppsMixin';
+import delay from '../lib/delay';
 
 export default {
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, AppsMixin],
 
   components: {
     AppForm,
@@ -104,17 +121,26 @@ export default {
         text: '',
         value: 'active',
       }, {
+        text: this.$i18n.t('name'),
+        value: 'title',
+      }, {
         text: 'ID',
         value: 'id',
-      }, {
-        text: this.$i18n.t('name'),
         width: '100%',
-        value: 'title',
       }, {
         text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];
+    },
+
+    async loadAppsDataFromBackend() {
+      while (this.items == null) {
+        // eslint-disable-next-line no-await-in-loop
+        await delay(100);
+      }
+
+      return this.items;
     },
 
     async returnToProjects() {
