@@ -11,10 +11,11 @@ import (
 	"time"
 )
 
-type BashApp struct {
+type ShellApp struct {
 	Logger     task_logger.Logger
 	Template   db.Template
 	Repository db.Repository
+	App        db.TemplateApp
 	reader     bashReader
 }
 
@@ -39,17 +40,13 @@ func (r *bashReader) Read(p []byte) (n int, err error) {
 	return len(*r.input) + 1, nil
 }
 
-func (t *BashApp) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
+func (t *ShellApp) makeCmd(command string, args []string, environmentVars *[]string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
-
-	if environmentVars != nil {
-		cmd.Env = append(cmd.Env, args...)
-	}
 
 	if environmentVars != nil {
 		cmd.Env = append(cmd.Env, *environmentVars...)
@@ -63,18 +60,18 @@ func (t *BashApp) makeCmd(command string, args []string, environmentVars *[]stri
 	return cmd
 }
 
-func (t *BashApp) runCmd(command string, args []string) error {
+func (t *ShellApp) runCmd(command string, args []string) error {
 	cmd := t.makeCmd(command, args, nil)
 	t.Logger.LogCmd(cmd)
 	return cmd.Run()
 }
 
-func (t *BashApp) GetFullPath() (path string) {
+func (t *ShellApp) GetFullPath() (path string) {
 	path = t.Repository.GetFullPath(t.Template.ID)
 	return
 }
 
-func (t *BashApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
+func (t *ShellApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	t.Logger = logger
 	t.Logger.AddStatusListener(func(status task_logger.TaskStatus) {
 
@@ -83,12 +80,27 @@ func (t *BashApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *BashApp) InstallRequirements() error {
+func (t *ShellApp) InstallRequirements() error {
 	return nil
 }
 
-func (t *BashApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
-	cmd := t.makeCmd("bash", args, environmentVars)
+func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.Cmd {
+	var command string
+	var appArgs []string
+	switch t.App {
+	case db.TemplateBash:
+		command = "bash"
+	case db.TemplatePython:
+		command = "python"
+	case db.TemplatePowerShell:
+		command = "powershell"
+		appArgs = []string{"-File"}
+	}
+	return t.makeCmd(command, append(appArgs, args...), environmentVars)
+}
+
+func (t *ShellApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
+	cmd := t.makeShellCmd(args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")

@@ -15,11 +15,13 @@ const (
 type TemplateApp string
 
 const (
-	TemplateAnsible   TemplateApp = ""
-	TemplateTerraform TemplateApp = "terraform"
-	TemplateTofu      TemplateApp = "tofu"
-	TemplateBash      TemplateApp = "bash"
-	TemplatePulumi    TemplateApp = "pulumi"
+	TemplateAnsible    TemplateApp = "ansible"
+	TemplateTerraform  TemplateApp = "terraform"
+	TemplateTofu       TemplateApp = "tofu"
+	TemplateBash       TemplateApp = "bash"
+	TemplatePowerShell TemplateApp = "powershell"
+	TemplatePython     TemplateApp = "python"
+	TemplatePulumi     TemplateApp = "pulumi"
 )
 
 func (t TemplateApp) IsTerraform() bool {

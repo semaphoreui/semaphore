@@ -65,7 +65,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	// Search for the given username
+	// Filter for the given username
 	searchRequest := ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,

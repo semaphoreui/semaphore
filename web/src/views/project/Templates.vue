@@ -26,13 +26,13 @@
       </v-card>
     </v-dialog>
 
-    <EditTemplateDialogue
+    <EditTemplateDialog
         v-model="editDialog"
         :project-id="projectId"
         :item-app="itemApp"
         item-id="new"
         @save="loadItems()"
-    ></EditTemplateDialogue>
+    ></EditTemplateDialog>
 
     <NewTaskDialog
       v-model="newTaskDialog"
@@ -54,7 +54,7 @@
 
       <v-menu
         offset-y
-        :disabled="templateApps.length === 0"
+        :disabled="apps.length === 0"
       >
         <template v-slot:activator="{ on, attrs }">
           <v-btn
@@ -63,28 +63,39 @@
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
-            @click="templateApps.length > 0 || editItem('new')"
+            @click="activeAppIds.length > 0 || editItem('new')"
           >
             {{ $t('newTemplate') }}
-            <v-icon v-if="templateApps.length > 0">mdi-chevron-down</v-icon>
+            <v-icon v-if="activeAppIds.length > 0">mdi-chevron-down</v-icon>
             <span v-else class="pl-2"></span>
           </v-btn>
         </template>
         <v-list>
           <v-list-item
-            v-for="item in templateApps"
-            :key="item"
+            v-for="appID in activeAppIds"
+            :key="appID"
             link
-            @click="editItem('new'); itemApp = item;"
+            @click="editItem('new'); itemApp = appID;"
           >
             <v-list-item-icon>
               <v-icon
-                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
+                :color="getAppColor(appID)"
               >
-                {{ APP_ICONS[item].icon }}
+                {{ getAppIcon(appID) }}
               </v-icon>
             </v-list-item-icon>
-            <v-list-item-title>{{ APP_TITLE[item] }}</v-list-item-title>
+            <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
+          </v-list-item>
+          <v-divider/>
+          <v-list-item
+              key="other"
+              link
+              href="/apps"
+          >
+            <v-list-item-icon>
+              <v-icon>mdi-cogs</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Applications</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -132,9 +143,8 @@
         <v-icon
           class="mr-3"
           small
-          v-if="templateApps.length > 0"
         >
-          {{ APP_ICONS[item.app].icon }}
+          {{ getAppIcon(item.app) }}
         </v-icon>
 
         <v-icon class="mr-3" small>
@@ -258,16 +268,15 @@ import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 import {
-  APP_ICONS,
-  APP_TITLE,
   TEMPLATE_TYPE_ACTION_TITLES,
   TEMPLATE_TYPE_ICONS,
 } from '@/lib/constants';
-import EditTemplateDialogue from '@/components/EditTemplateDialogue.vue';
+import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
+import AppsMixin from '@/components/AppsMixin';
 
 export default {
   components: {
-    EditTemplateDialogue,
+    EditTemplateDialog,
     TableSettingsSheet,
     TaskStatus,
     TaskLink,
@@ -275,7 +284,7 @@ export default {
     EditViewsForm,
     NewTaskDialog,
   },
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, AppsMixin],
   async created() {
     socket.addListener((data) => this.onWebsocketDataReceived(data));
 
@@ -283,8 +292,6 @@ export default {
   },
   data() {
     return {
-      APP_TITLE,
-      APP_ICONS,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_ACTION_TITLES,
       inventory: null,
@@ -298,13 +305,7 @@ export default {
       editViewsDialog: null,
       viewItemsLoading: null,
       viewTab: null,
-      templateApps: [
-        '', // Ansible
-        'terraform',
-        'tofu',
-        'bash',
-        // 'pulumi',
-      ],
+      apps: null,
       itemApp: '',
     };
   },
@@ -342,7 +343,8 @@ export default {
         && this.inventory
         && this.environment
         && this.repositories
-        && this.views;
+        && this.views
+        && this.isAppsLoaded;
     },
   },
   watch: {

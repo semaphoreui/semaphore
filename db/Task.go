@@ -107,6 +107,7 @@ type TaskWithTpl struct {
 	TemplatePlaybook string       `db:"tpl_playbook" json:"tpl_playbook"`
 	TemplateAlias    string       `db:"tpl_alias" json:"tpl_alias"`
 	TemplateType     TemplateType `db:"tpl_type" json:"tpl_type"`
+	TemplateApp      string       `db:"tpl_app" json:"tpl_app"`
 	UserName         *string      `db:"user_name" json:"user_name"`
 	BuildTask        *Task        `db:"-" json:"build_task"`
 }

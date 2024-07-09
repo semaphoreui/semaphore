@@ -102,7 +102,6 @@ func Route() *mux.Router {
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-
 	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
@@ -117,10 +116,24 @@ func Route() *mux.Router {
 	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
 	authenticatedAPI.Path("/user").HandlerFunc(getUser).Methods("GET", "HEAD")
 
+	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
+
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
+
+	adminAPI := authenticatedAPI.NewRoute().Subrouter()
+	adminAPI.Use(adminMiddleware)
+	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
+	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+
+	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
+	appsAPI.Use(appMiddleware)
+	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
+	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
+	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
+	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)

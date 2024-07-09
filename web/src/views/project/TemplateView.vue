@@ -202,7 +202,7 @@ import {
 } from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
-import EditTemplateDialogue from '@/components/EditTemplateDialogue.vue';
+import EditTemplateDialogue from '@/components/EditTemplateDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
 
 export default {

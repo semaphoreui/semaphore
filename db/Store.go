@@ -38,6 +38,7 @@ type RetrieveQueryParams struct {
 	Count        int
 	SortBy       string
 	SortInverted bool
+	Filter       string
 }
 
 type ObjectReferrer struct {
@@ -109,8 +110,11 @@ type Store interface {
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
 
+	GetOptions(params RetrieveQueryParams) (map[string]string, error)
 	GetOption(key string) (string, error)
 	SetOption(key string, value string) error
+	DeleteOption(key string) error
+	DeleteOptions(filter string) error
 
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)

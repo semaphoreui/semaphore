@@ -16,6 +16,7 @@ import Auth from '../views/Auth.vue';
 import New from '../views/project/New.vue';
 import Integrations from '../views/project/Integrations.vue';
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
+import Apps from '../views/Apps.vue';
 
 Vue.use(VueRouter);
 
@@ -99,6 +100,10 @@ const routes = [
   {
     path: '/users',
     component: Users,
+  },
+  {
+    path: '/apps',
+    component: Apps,
   },
 ];
 

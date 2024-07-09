@@ -22,6 +22,35 @@ func (d *SqlDb) SetOption(key string, value string) error {
 	return err
 }
 
+func (d *SqlDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string, err error) {
+	var options []db.Option
+	res = make(map[string]string)
+
+	if params.Filter != "" {
+		err = db.ValidateOptionKey(params.Filter)
+		if err != nil {
+			return
+		}
+	}
+
+	err = d.getObjects(0, db.OptionProps, params, func(q squirrel.SelectBuilder) squirrel.SelectBuilder {
+		if params.Filter == "" {
+			return q
+		}
+		return q.Where("`key` = ? OR `key` LIKE ?", params.Filter, params.Filter+".%")
+	}, &options)
+
+	if err != nil {
+		return
+	}
+
+	for _, opt := range options {
+		res[opt.Key] = opt.Value
+	}
+
+	return
+}
+
 func (d *SqlDb) getOption(key string) (value string, err error) {
 	q := squirrel.Select("*").
 		From("`"+db.OptionProps.TableName+"`").
@@ -53,6 +82,28 @@ func (d *SqlDb) GetOption(key string) (value string, err error) {
 	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
+
+	return
+}
+
+func (d *SqlDb) DeleteOption(key string) (err error) {
+	err = db.ValidateOptionKey(key)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(0, db.OptionProps, key)
+
+	return
+}
+
+func (d *SqlDb) DeleteOptions(filter string) (err error) {
+	err = db.ValidateOptionKey(filter)
+	if err != nil {
+		return
+	}
+
+	_, err = d.exec("DELETE FROM `option` WHERE `key` = ? OR `key` LIKE ?", filter, filter+".%")
 
 	return
 }

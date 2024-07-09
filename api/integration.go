@@ -58,7 +58,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	var integrations []db.Integration
 
-	if util.Config.GlobalIntegrationAlias != "" && integrationAlias == util.Config.GlobalIntegrationAlias {
+	if util.Config.IntegrationAlias != "" && integrationAlias == util.Config.IntegrationAlias {
 		integrations, err = helpers.Store(r).GetAllSearchableIntegrations()
 	} else {
 		integrations, err = helpers.Store(r).GetIntegrationsByAlias(integrationAlias)

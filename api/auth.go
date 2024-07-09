@@ -1,11 +1,11 @@
 package api
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 	"time"
@@ -118,5 +118,18 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		if ok {
 			next.ServeHTTP(w, r)
 		}
+	})
+}
+
+func adminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := context.Get(r, "user").(*db.User)
+
+		if !user.Admin {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }

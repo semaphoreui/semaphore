@@ -204,7 +204,7 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 
 func (d *SqlDb) makeObjectsQuery(projectID int, props db.ObjectProps, params db.RetrieveQueryParams) squirrel.SelectBuilder {
 	q := squirrel.Select("*").
-		From(props.TableName + " pe")
+		From("`" + props.TableName + "` pe")
 
 	if !props.IsGlobal {
 		q = q.Where("pe.project_id=?", projectID)
@@ -235,8 +235,14 @@ func (d *SqlDb) makeObjectsQuery(projectID int, props db.ObjectProps, params db.
 	return q
 }
 
-func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, objects interface{}) (err error) {
-	query, args, err := d.makeObjectsQuery(projectID, props, params).ToSql()
+func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.RetrieveQueryParams, prepare func(squirrel.SelectBuilder) squirrel.SelectBuilder, objects interface{}) (err error) {
+	q := d.makeObjectsQuery(projectID, props, params)
+
+	if prepare != nil {
+		q = prepare(q)
+	}
+
+	query, args, err := q.ToSql()
 
 	if err != nil {
 		return
@@ -247,7 +253,7 @@ func (d *SqlDb) getObjects(projectID int, props db.ObjectProps, params db.Retrie
 	return
 }
 
-func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID int) error {
+func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID any) error {
 	if props.IsGlobal {
 		return validateMutationResult(
 			d.exec(

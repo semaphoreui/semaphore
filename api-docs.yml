@@ -703,6 +703,9 @@ definitions:
         example: ''
       suppress_success_alerts:
         type: boolean
+      app:
+        type: string
+        example: ansible
       survey_vars:
         type: array
         items:
