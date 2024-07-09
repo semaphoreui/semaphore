@@ -126,14 +126,14 @@ func Route() *mux.Router {
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
-	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST", "HEAD")
+	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
 	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
-	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("POST", "HEAD")
-	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST", "HEAD")
-	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("POST", "HEAD")
+	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT")
+	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
+	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)

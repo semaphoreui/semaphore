@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/context"
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -133,6 +132,25 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func setAppOption(store db.Store, appID string, field string, val interface{}) error {
+	key := "apps." + appID + "." + field
+
+	v := fmt.Sprintf("%v", val)
+
+	if err := store.SetOption(key, v); err != nil {
+		return err
+	}
+
+	opts := make(map[string]string)
+	opts[key] = v
+
+	options := db.ConvertFlatToNested(opts)
+
+	_ = db.AssignMapToStruct(options, util.Config)
+
+	return nil
+}
+
 func setApp(w http.ResponseWriter, r *http.Request) {
 	appID := context.Get(r, "app_id").(string)
 
@@ -147,7 +165,7 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 	options := structToFlatMap(app)
 
 	for k, v := range options {
-		if err := store.SetOption("apps."+appID+"."+k, fmt.Sprintf("%v", v)); err != nil {
+		if err := setAppOption(store, appID, k, v); err != nil {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -169,20 +187,10 @@ func setAppActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := "apps." + appID + ".active"
-	val := strconv.FormatBool(body.Active)
-
-	if err := store.SetOption(key, val); err != nil {
+	if err := setAppOption(store, appID, "active", body.Active); err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	opts := make(map[string]string)
-	opts[key] = val
-
-	options := db.ConvertFlatToNested(opts)
-
-	_ = db.AssignMapToStruct(options, util.Config)
 
 	w.WriteHeader(http.StatusNoContent)
 }

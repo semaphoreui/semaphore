@@ -3,18 +3,17 @@
     <EditDialog
         v-model="editDialog"
         save-button-text="Save"
-        :title="$t('editUser')"
+        :title="$t('Edit App')"
         @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <UserForm
+        <AppForm
             :project-id="projectId"
             :item-id="itemId"
             @save="onSave"
             @error="onError"
             :need-save="needSave"
             :need-reset="needReset"
-            :is-admin="true"
         />
       </template>
     </EditDialog>
@@ -38,7 +37,7 @@
       <v-spacer></v-spacer>
       <v-btn
           color="primary"
-          @click="editItem('new')"
+          @click="editItem('')"
       >{{ $t('New App') }}</v-btn>
     </v-toolbar>
 
@@ -85,11 +84,13 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import axios from 'axios';
+import AppForm from '../components/AppForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   components: {
+    AppForm,
     YesNoDialog,
     EditDialog,
   },
