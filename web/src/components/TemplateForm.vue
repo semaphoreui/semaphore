@@ -182,7 +182,7 @@
           dense
           required
           :disabled="formSaving"
-          v-if="needField('repository')"
+          v-if="needField('repository') + ' *'"
         ></v-select>
 
         <v-select
