@@ -67,7 +67,7 @@
       </template>
 
       <template v-slot:item.id="{ item }">
-        <code>{{ item.id || 'ansible' }}</code>
+        <code>{{ item.id }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">

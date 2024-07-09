@@ -434,7 +434,7 @@ export default {
 
   methods: {
     fieldLabel(f) {
-      return this.$t(this.fields[f]);
+      return this.$t((this.fields[f] || { label: f }).label);
     },
 
     needField(f) {

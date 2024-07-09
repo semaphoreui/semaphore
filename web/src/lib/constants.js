@@ -74,7 +74,7 @@ export const EXTRACT_VALUE_BODY_DATA_TYPE_ICONS = {
 };
 
 export const APP_ICONS = {
-  '': {
+  ansible: {
     icon: 'mdi-ansible',
     color: 'black',
     darkColor: 'white',
@@ -102,7 +102,7 @@ export const APP_ICONS = {
 };
 
 export const APP_TITLE = {
-  '': 'Ansible Playbook',
+  ansible: 'Ansible Playbook',
   terraform: 'Terraform Code',
   tofu: 'OpenTofu Code',
   bash: 'Bash Script',
@@ -110,7 +110,7 @@ export const APP_TITLE = {
 };
 
 export const APP_INVENTORY_TITLE = {
-  '': 'Ansible Inventory',
+  ansible: 'Ansible Inventory',
   terraform: 'Terraform Workspace',
   tofu: 'OpenTofu Workspace',
 };
