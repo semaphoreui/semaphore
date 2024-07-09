@@ -20,7 +20,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :source-item-id="sourceItemId"
-          :app="itemApp.id"
+          :app="itemApp"
       />
       <BashTemplateForm
           v-else-if="itemApp === 'bash'"
@@ -52,11 +52,11 @@
 
 <script>
 
-import { APP_ICONS, APP_TITLE } from '../lib/constants';
 import TerraformTemplateForm from './TerraformTemplateForm.vue';
 import BashTemplateForm from './BashTemplateForm.vue';
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
+import AppsMixin from './AppsMixin';
 
 export default {
   components: {
@@ -66,9 +66,11 @@ export default {
     EditDialog,
   },
 
+  mixins: [AppsMixin],
+
   props: {
     value: Boolean,
-    itemApp: Object,
+    itemApp: String,
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
@@ -91,22 +93,6 @@ export default {
   },
 
   methods: {
-    getAppColor(item) {
-      if (APP_ICONS[item.id]) {
-        return this.$vuetify.theme.dark ? APP_ICONS[item.id].darkColor : APP_ICONS[item.id].color;
-      }
-
-      return item.color || 'grey';
-    },
-
-    getAppTitle(item) {
-      return APP_TITLE[item.id] || item.title;
-    },
-
-    getAppIcon(item) {
-      return APP_ICONS[item.id] ? APP_ICONS[item.id].icon : `mdi-${item.icon}`;
-    },
-
     onSave(e) {
       this.$emit('save', e);
     },

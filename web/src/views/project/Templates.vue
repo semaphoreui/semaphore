@@ -306,7 +306,7 @@ export default {
       viewItemsLoading: null,
       viewTab: null,
       apps: null,
-      itemApp: { id: '' },
+      itemApp: '',
     };
   },
   computed: {
