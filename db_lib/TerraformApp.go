@@ -43,16 +43,13 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars *[
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
-	cmd.Env = os.Environ()
+	cmd.Env = removeSensitiveEnvs(os.Environ())
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
 		cmd.Env = append(cmd.Env, *environmentVars...)
 	}
-
-	// Remove sensitive env variables from cmd process
-	cmd.Env = removeSensitiveEnvs(cmd.Env)
 
 	return cmd
 }
