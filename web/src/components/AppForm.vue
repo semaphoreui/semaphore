@@ -9,7 +9,8 @@
         :value="formError"
         color="error"
         class="pb-2"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
 
     <v-text-field
         v-model="id"
@@ -43,6 +44,8 @@
         :disabled="formSaving"
     ></v-text-field>
 
+    <ArgsPicker style="margin-top: -10px;" :vars="item.args" @change="setArgs"/>
+
     <v-checkbox
         v-model="item.active"
         :label="$t('Active')"
@@ -52,8 +55,10 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import ArgsPicker from './ArgsPicker.vue';
 
 export default {
+  components: { ArgsPicker },
   mixins: [ItemFormBase],
 
   computed: {
@@ -75,6 +80,10 @@ export default {
   },
 
   methods: {
+    setArgs(args) {
+      this.item.args = args;
+    },
+
     beforeLoadData() {
       if (!this.isNew) {
         this.id = this.itemId;
