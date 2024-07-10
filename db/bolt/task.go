@@ -167,6 +167,7 @@ func (d *BoltDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQu
 		tasksWithTpl[i].TemplatePlaybook = tpl.Playbook
 		tasksWithTpl[i].TemplateAlias = tpl.Name
 		tasksWithTpl[i].TemplateType = tpl.Type
+		tasksWithTpl[i].TemplateApp = tpl.App
 		if task.UserID != nil {
 			usr, ok := users[*task.UserID]
 			if !ok {
