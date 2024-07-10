@@ -813,7 +813,7 @@ func (conf *ConfigType) GenerateSecrets() {
 
 func LookupDefaultApps() {
 	appCommands := map[string]string{
-		"":          "ansible-playbook",
+		"ansible":   "ansible-playbook",
 		"terraform": "terraform",
 		"tofu":      "tofu",
 		"bash":      "bash",

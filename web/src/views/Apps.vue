@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div v-if="items != null && isAppsLoaded">
     <EditDialog
         v-model="editDialog"
         save-button-text="Save"
