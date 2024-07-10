@@ -1,5 +1,6 @@
 <template>
   <EditDialog
+      v-if="isAppsLoaded"
       :max-width="700"
       :min-content-height="457"
       v-model="dialog"

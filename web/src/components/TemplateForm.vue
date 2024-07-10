@@ -340,7 +340,8 @@ export default {
 
   props: {
     sourceItemId: Number,
-    fields: Array,
+    fields: Object,
+    app: String,
   },
 
   data() {
@@ -563,6 +564,8 @@ export default {
           cron_format: this.cronFormat,
         },
       });
+
+      this.item.app = this.app;
     },
 
     async afterSave(newItem) {

@@ -95,6 +95,12 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.
 	case db.TemplatePowerShell:
 		command = "powershell"
 		appArgs = []string{"-File"}
+	default:
+		if app, ok := util.Config.Apps[string(t.App)]; ok && app.AppPath != "" {
+			command = app.AppPath
+		} else {
+			command = string(t.App)
+		}
 	}
 	return t.makeCmd(command, append(appArgs, args...), environmentVars)
 }

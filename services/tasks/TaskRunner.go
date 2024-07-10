@@ -158,7 +158,7 @@ func (t *TaskRunner) run() {
 	err = t.job.Run(username, incomingVersion)
 
 	if err != nil {
-		t.Log("Running playbook failed: " + err.Error())
+		t.Log("Running app failed: " + err.Error())
 		t.SetStatus(task_logger.TaskFailStatus)
 		return
 	}
@@ -172,7 +172,7 @@ func (t *TaskRunner) run() {
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
 	if err != nil {
-		t.Log("Running playbook failed: " + err.Error())
+		t.Log("Running app failed: " + err.Error())
 		return
 	}
 
@@ -183,7 +183,7 @@ func (t *TaskRunner) run() {
 			BuildTaskID: &t.Task.ID,
 		}, nil, tpl.ProjectID)
 		if err != nil {
-			t.Log("Running playbook failed: " + err.Error())
+			t.Log("Running app failed: " + err.Error())
 			continue
 		}
 	}

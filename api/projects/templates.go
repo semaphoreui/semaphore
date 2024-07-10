@@ -2,6 +2,7 @@ package projects
 
 import (
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/util"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
@@ -81,6 +82,12 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, ok := util.Config.Apps[string(newTemplate.App)]; !ok {
+		helpers.WriteErrorStatus(w, "Invalid app id", http.StatusBadRequest)
+		return
+	}
+
+	// Check workspace and create it if required.
 	if newTemplate.App.IsTerraform() {
 		var inv db.Inventory
 
@@ -135,6 +142,11 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	var template db.Template
 	if !helpers.Bind(w, r, &template) {
+		return
+	}
+
+	if _, ok := util.Config.Apps[string(template.App)]; !ok {
+		helpers.WriteErrorStatus(w, "Invalid app id", http.StatusBadRequest)
 		return
 	}
 

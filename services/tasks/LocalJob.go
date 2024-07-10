@@ -165,7 +165,7 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getBashArgs(username string, incomingVersion *string) (args []string, err error) {
+func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
 	args = append(args, t.Template.Playbook)
@@ -378,10 +378,8 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		args, inputs, err = t.getPlaybookArgs(username, incomingVersion)
 	case db.TemplateTerraform, db.TemplateTofu:
 		args, err = t.getTerraformArgs(username, incomingVersion)
-	case db.TemplateBash, db.TemplatePowerShell, db.TemplatePython:
-		args, err = t.getBashArgs(username, incomingVersion)
 	default:
-		panic("unknown template app")
+		args, err = t.getShellArgs(username, incomingVersion)
 	}
 
 	if err != nil {
