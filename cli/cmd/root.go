@@ -114,7 +114,7 @@ func createStore(token string) db.Store {
 		panic(err)
 	}
 
-	util.CheckDefaultApps()
+	util.LookupDefaultApps()
 
 	return store
 }

@@ -250,6 +250,17 @@ func LoadRunnerSettings(path string) (config RunnerConfig, err error) {
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit(configPath string) {
 	fmt.Println("Loading config")
+
+	Config = &ConfigType{}
+	Config.Apps = map[string]App{
+		"ansible":    {},
+		"terraform":  {},
+		"tofu":       {},
+		"bash":       {},
+		"powershell": {},
+		"python":     {},
+	}
+
 	loadConfigFile(configPath)
 	loadConfigEnvironment()
 	loadConfigDefaults()
@@ -800,7 +811,7 @@ func (conf *ConfigType) GenerateSecrets() {
 	conf.AccessKeyEncryption = base64.StdEncoding.EncodeToString(accessKeyEncryption)
 }
 
-func CheckDefaultApps() {
+func LookupDefaultApps() {
 	appCommands := map[string]string{
 		"":          "ansible-playbook",
 		"terraform": "terraform",
