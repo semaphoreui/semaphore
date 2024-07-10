@@ -83,7 +83,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, ok := util.Config.Apps[string(newTemplate.App)]; !ok {
-		helpers.WriteErrorStatus(w, "Invalid app id", http.StatusBadRequest)
+		helpers.WriteErrorStatus(w, "Invalid app id: "+string(newTemplate.App), http.StatusBadRequest)
 		return
 	}
 
@@ -146,7 +146,7 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, ok := util.Config.Apps[string(template.App)]; !ok {
-		helpers.WriteErrorStatus(w, "Invalid app id", http.StatusBadRequest)
+		helpers.WriteErrorStatus(w, "Invalid app id: "+string(template.App), http.StatusBadRequest)
 		return
 	}
 
