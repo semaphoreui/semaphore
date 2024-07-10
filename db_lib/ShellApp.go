@@ -98,6 +98,7 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.
 	default:
 		if app, ok := util.Config.Apps[string(t.App)]; ok && app.AppPath != "" {
 			command = app.AppPath
+			appArgs = app.AppArgs
 		} else {
 			command = string(t.App)
 		}

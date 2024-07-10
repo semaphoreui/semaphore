@@ -166,26 +166,26 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 
 // nolint: gocyclo
 func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
-	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	//extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
 	args = append(args, t.Template.Playbook)
 
-	if err != nil {
-		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
-		return
-	}
+	//if err != nil {
+	//	t.Log(err.Error())
+	//	t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
+	//	return
+	//}
 
-	for name, value := range extraVars {
-		if name == "semaphore_vars" {
-			continue
-		}
-		args = append(args, fmt.Sprintf("%s=%s", name, value))
-	}
-
-	for _, secret := range t.Environment.Secrets {
-		args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	}
+	//for name, value := range extraVars {
+	//	if name == "semaphore_vars" {
+	//		continue
+	//	}
+	//	args = append(args, fmt.Sprintf("%s=%s", name, value))
+	//}
+	//
+	//for _, secret := range t.Environment.Secrets {
+	//	args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	//}
 
 	return
 }
