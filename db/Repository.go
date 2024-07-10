@@ -2,12 +2,13 @@ package db
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type RepositoryType string
@@ -81,7 +82,11 @@ func (r Repository) GetGitURL() string {
 		auth := ""
 		switch r.SSHKey.Type {
 		case AccessKeyLoginPassword:
-			auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
+			if r.SSHKey.LoginPassword.Login == "" {
+				auth = r.SSHKey.LoginPassword.Password
+			} else {
+				auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
+			}
 		}
 		if auth != "" {
 			auth += "@"
