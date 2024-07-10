@@ -86,7 +86,7 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.
 	case db.TemplateBash:
 		command = "bash"
 	case db.TemplatePython:
-		command = "python"
+		command = "python3"
 	case db.TemplatePowerShell:
 		command = "powershell"
 		appArgs = []string{"-File"}
