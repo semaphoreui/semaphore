@@ -38,9 +38,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	}
 
 	// Remove sensitive env variables from cmd process
-	for _, env := range getSensitiveEnvs() {
-		cmd.Env = append(cmd.Env, env+"=")
-	}
+	cmd.Env = removeSensitiveEnvs(cmd.Env)
 
 	return cmd
 }

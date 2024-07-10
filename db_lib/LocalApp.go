@@ -2,12 +2,13 @@ package db_lib
 
 import (
 	"os"
+	"strings"
 
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 )
 
-func getSensitiveEnvs() []string {
-	return []string{
+func removeSensitiveEnvs(envs []string) (res []string) {
+	sensitives := []string{
 		"SEMAPHORE_ACCESS_KEY_ENCRYPTION",
 		"SEMAPHORE_ADMIN_PASSWORD",
 		"SEMAPHORE_DB_USER",
@@ -16,6 +17,16 @@ func getSensitiveEnvs() []string {
 		"SEMAPHORE_DB_PASS",
 		"SEMAPHORE_LDAP_PASSWORD",
 	}
+
+	for _, e := range envs {
+		for _, s := range sensitives {
+			if !strings.HasPrefix(e, s+"=") {
+				res = append(res, e)
+			}
+		}
+	}
+
+	return res
 }
 
 type LocalApp interface {

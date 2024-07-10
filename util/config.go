@@ -828,3 +828,13 @@ func CheckDefaultApps() {
 		}
 	}
 }
+
+func PrintDebug() {
+	envs := os.Environ()
+	for _, e := range envs {
+		fmt.Println(e)
+	}
+
+	b, _ := Config.ToJSON()
+	fmt.Println(string(b))
+}
