@@ -4,17 +4,19 @@ import { APP_ICONS, APP_TITLE } from '../lib/constants';
 export default {
   data() {
     return {
-      activeAppIds: [],
-      apps: null,
+      appsMixin: {
+        activeAppIds: [],
+        apps: null,
+      },
     };
   },
 
   async created() {
     const apps = await this.loadAppsDataFromBackend();
 
-    this.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
+    this.appsMixin.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
 
-    this.apps = apps.reduce((prev, app) => ({
+    this.appsMixin.apps = apps.reduce((prev, app) => ({
       ...prev,
       [app.id]: app,
     }), {});
@@ -22,7 +24,7 @@ export default {
 
   computed: {
     isAppsLoaded() {
-      return this.apps != null;
+      return this.appsMixin.apps != null;
     },
   },
 
@@ -40,8 +42,8 @@ export default {
         return this.$vuetify.theme.dark ? APP_ICONS[id].darkColor : APP_ICONS[id].color;
       }
 
-      if (this.apps[id]) {
-        return this.apps[id].color || 'gray';
+      if (this.appsMixin.apps[id]) {
+        return this.appsMixin.apps[id].color || 'gray';
       }
 
       return 'gray';
@@ -52,8 +54,8 @@ export default {
         return APP_TITLE[id];
       }
 
-      if (this.apps[id]) {
-        return this.apps[id].title;
+      if (this.appsMixin.apps[id]) {
+        return this.appsMixin.apps[id].title;
       }
 
       return '';
@@ -64,8 +66,8 @@ export default {
         return APP_ICONS[id].icon;
       }
 
-      if (this.apps[id]) {
-        return `mdi-${this.apps[id].icon}`;
+      if (this.appsMixin.apps[id]) {
+        return `mdi-${this.appsMixin.apps[id].icon}`;
       }
 
       return 'mdi-help';

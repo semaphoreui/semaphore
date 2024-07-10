@@ -3,8 +3,8 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="APP_ICONS[itemApp].icon"
-      :icon-color="$vuetify.theme.dark ? APP_ICONS[itemApp].darkColor : APP_ICONS[itemApp].color"
+      :icon="getAppIcon(itemApp)"
+      :icon-color="getAppColor(itemApp)"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
       :max-width="450"
       @save="loadItems"
@@ -73,8 +73,8 @@
           >
             <v-list-item-icon>
               <v-icon
-                :color="$vuetify.theme.dark ? APP_ICONS[item].darkColor : APP_ICONS[item].color"
-              >{{ APP_ICONS[item].icon }}
+                :color="getAppColor(item)"
+              >{{ getAppIcon(item) }}
               </v-icon>
             </v-list-item-icon>
             <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
@@ -93,7 +93,7 @@
     >
       <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" small>
-          {{ APP_ICONS[getAppByType(item.type)].icon }}
+          {{ getAppIcon(getAppByType(item.type)) }}
         </v-icon>
 
         {{ item.name }}
@@ -132,7 +132,8 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
 import TerraformInventoryForm from '@/components/TerraformInventoryForm.vue';
-import { APP_ICONS, APP_INVENTORY_TITLE, APP_TITLE } from '@/lib/constants';
+import { APP_INVENTORY_TITLE } from '@/lib/constants';
+import AppsMixin from '@/components/AppsMixin';
 
 export default {
   computed: {
@@ -140,14 +141,12 @@ export default {
       return APP_INVENTORY_TITLE;
     },
   },
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, AppsMixin],
   components: { TerraformInventoryForm, InventoryForm },
 
   data() {
     return {
-      APP_TITLE,
-      APP_ICONS,
-      apps: ['', 'terraform', 'tofu'],
+      apps: ['ansible', 'terraform', 'tofu'],
       itemApp: '',
     };
   },
@@ -159,8 +158,11 @@ export default {
           return 'tofu';
         case 'terraform-workspace':
           return 'terraform';
+        case '':
+        case 'ansible':
+          return 'ansible';
         default:
-          return '';
+          return 'ansible';
       }
     },
 
