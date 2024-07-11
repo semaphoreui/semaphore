@@ -282,27 +282,13 @@
           v-model="item.suppress_success_alerts"
         />
 
-<!--        <a @click="advancedOptions = true" v-if="!advancedOptions">-->
-<!--          Advanced-->
-<!--          <v-icon style="transform: translateY(-1px)">mdi-chevron-right</v-icon>-->
-<!--        </a>-->
-
-<!--        <div v-if="advancedOptions" class="mb-3">-->
-<!--          <a @click="advancedOptions = false">-->
-<!--            Hide-->
-<!--            <v-icon style="transform: translateY(-1px)">mdi-chevron-up</v-icon>-->
-<!--          </a>-->
-<!--        </div>-->
-
-        <codemirror
-          :style="{ border: '1px solid lightgray' }"
-          v-model="item.arguments"
-          :options="cmOptions"
-          :disabled="formSaving"
-          :placeholder="$t('cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2')"
+        <ArgsPicker
+          :vars="args"
+          @change="setArgs"
         />
 
         <v-checkbox
+          class="mt-0"
           :label="$t('allowCliArgsInTask')"
           v-model="item.allow_override_args_in_task"
         />
@@ -321,12 +307,12 @@
 
 import axios from 'axios';
 
-import { codemirror } from 'vue-codemirror';
 import ItemFormBase from '@/components/ItemFormBase';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
+import ArgsPicker from '@/components/ArgsPicker.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
 import SurveyVars from './SurveyVars';
 
@@ -334,8 +320,8 @@ export default {
   mixins: [ItemFormBase],
 
   components: {
+    ArgsPicker,
     SurveyVars,
-    codemirror,
   },
 
   props: {
@@ -389,6 +375,7 @@ export default {
       helpKey: null,
 
       advancedOptions: false,
+      args: [],
     };
   },
 
@@ -434,6 +421,10 @@ export default {
   },
 
   methods: {
+    setArgs(args) {
+      this.args = args;
+    },
+
     fieldLabel(f) {
       return this.$t((this.fields[f] || { label: f }).label);
     },
@@ -511,6 +502,8 @@ export default {
           default:
             break;
         }
+
+        this.args = JSON.parse(this.item.arguments || '[]');
       });
 
       this.buildTemplates = builds;
@@ -566,6 +559,8 @@ export default {
       });
 
       this.item.app = this.app;
+
+      this.item.arguments = JSON.stringify(this.args);
     },
 
     async afterSave(newItem) {
