@@ -1,36 +1,24 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/db_lib"
 	"math/rand"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/ansible-semaphore/semaphore/db_lib"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/util"
 )
 
-func CreateBoltDB() db.Store {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
-	store := bolt.BoltDb{
-		Filename: fn,
-	}
-	return &store
-}
-
 func TestTaskRunnerRun(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
 	}
 
-	store := CreateBoltDB()
+	store := bolt.CreateTestStore()
 
 	pool := CreateTaskPool(store)
 
@@ -166,8 +154,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 }
 
 func TestPopulateDetails(t *testing.T) {
-	store := CreateBoltDB()
-	store.Connect("")
+	store := bolt.CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {

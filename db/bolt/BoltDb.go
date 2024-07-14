@@ -7,10 +7,8 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"go.etcd.io/bbolt"
-	"math/rand"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -813,8 +811,11 @@ func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProps, objID obje
 }
 
 func CreateTestStore() *BoltDb {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
+	util.Config = &util.ConfigType{
+		Dialect: "bolt",
+	}
+
+	fn := "/tmp/test_semaphore_db_" + util.RandString(5)
 	store := BoltDb{
 		Filename: fn,
 	}
