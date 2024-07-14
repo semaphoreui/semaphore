@@ -130,27 +130,23 @@ func (p *TaskPool) Run() {
 	for {
 		select {
 		case record := <-p.logger: // new log message which should be put to database
-			db.StoreSession(p.store, "logger", func() {
-				_, err := p.store.CreateTaskOutput(db.TaskOutput{
-					TaskID: record.task.Task.ID,
-					Output: record.output,
-					Time:   record.time,
-				})
-				if err != nil {
-					log.Error(err)
-				}
+			_, err := p.store.CreateTaskOutput(db.TaskOutput{
+				TaskID: record.task.Task.ID,
+				Output: record.output,
+				Time:   record.time,
 			})
+			if err != nil {
+				log.Error(err)
+			}
 
 		case task := <-p.register: // new task created by API or schedule
 
-			db.StoreSession(p.store, "new task", func() {
-				p.queue = append(p.queue, task)
-				log.Debug(task)
-				msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
-				task.Log(msg)
-				log.Info(msg)
-				task.saveStatus()
-			})
+			p.queue = append(p.queue, task)
+			log.Debug(task)
+			msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
+			task.Log(msg)
+			log.Info(msg)
+			task.saveStatus()
 
 		case <-ticker.C: // timer 5 seconds
 			if len(p.queue) == 0 {

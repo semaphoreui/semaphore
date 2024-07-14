@@ -55,7 +55,7 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 
 func addCapabilities(caps []string) {
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 	resolved := make([]string, 0)
 	uid := getUUID()
 	resolveCapability(caps, resolved, uid)

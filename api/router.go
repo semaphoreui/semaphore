@@ -25,18 +25,6 @@ var startTime = time.Now().UTC()
 //go:embed public/*
 var publicAssets embed.FS
 
-// StoreMiddleware WTF?
-func StoreMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		store := helpers.Store(r)
-		//var url = r.URL.String()
-
-		db.StoreSession(store, util.RandString(12), func() {
-			next.ServeHTTP(w, r)
-		})
-	})
-}
-
 // JSONMiddleware ensures that all the routes respond with Json, this is added by default to all routes
 func JSONMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +66,7 @@ func Route() *mux.Router {
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
-	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
+	publicAPIRouter.Use(JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
@@ -88,13 +76,13 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
 	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
-	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
+	routersAPI.Use(JSONMiddleware, runners.RunnerMiddleware)
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
 	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
-	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
+	publicWebHookRouter.Use(JSONMiddleware)
 	publicWebHookRouter.Path("/integrations/{integration_alias}").HandlerFunc(ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
@@ -102,7 +90,7 @@ func Route() *mux.Router {
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
 

@@ -73,31 +73,14 @@ func (d *BoltDb) Migrate() error {
 	return nil
 }
 
-func (d *BoltDb) Connect(token string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.connections == nil {
-		d.connections = make(map[string]bool)
-	}
-
-	if _, exists := d.connections[token]; exists {
-		// Use for debugging
-		panic(fmt.Errorf("Connection " + token + " already exists"))
-	}
-
-	if len(d.connections) > 0 {
-		d.connections[token] = true
-		return
-	}
-
+func (d *BoltDb) Connect() {
 	var filename string
 	if d.Filename == "" {
 		config, err := util.Config.GetDBConfig()
 		if err != nil {
 			panic(err)
 		}
-		filename = config.GetHostname()
+		filename = config.Hostname
 	} else {
 		filename = d.Filename
 	}
@@ -110,37 +93,10 @@ func (d *BoltDb) Connect(token string) {
 	if err != nil {
 		panic(err)
 	}
-
-	d.connections[token] = true
 }
 
-func (d *BoltDb) Close(token string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	_, exists := d.connections[token]
-
-	if !exists {
-		// Use for debugging
-		panic(fmt.Errorf("can not close closed connection " + token))
-	}
-
-	if len(d.connections) > 1 {
-		delete(d.connections, token)
-		return
-	}
-
-	err := d.db.Close()
-	if err != nil {
-		panic(err)
-	}
-
-	d.db = nil
-	delete(d.connections, token)
-}
-
-func (d *BoltDb) PermanentConnection() bool {
-	return false
+func (d *BoltDb) Close() {
+	_ = d.db.Close()
 }
 
 func (d *BoltDb) IsInitialized() (initialized bool, err error) {
@@ -789,6 +745,6 @@ func CreateTestStore() *BoltDb {
 	store := BoltDb{
 		Filename: fn,
 	}
-	store.Connect("test")
+	store.Connect()
 	return &store
 }

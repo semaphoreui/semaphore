@@ -82,11 +82,7 @@ func runService() {
 
 	fmt.Println("Server is running")
 
-	if store.PermanentConnection() {
-		defer store.Close("root")
-	} else {
-		store.Close("root")
-	}
+	defer store.Close()
 
 	err := http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
 
@@ -100,7 +96,7 @@ func createStore(token string) db.Store {
 
 	store := factory.CreateStore()
 
-	store.Connect(token)
+	store.Connect()
 
 	err := db.Migrate(store)
 

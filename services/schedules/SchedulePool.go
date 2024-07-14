@@ -1,7 +1,6 @@
 package schedules
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/ansible-semaphore/semaphore/db"
@@ -53,11 +52,6 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 }
 
 func (r ScheduleRunner) Run() {
-	if !r.pool.store.PermanentConnection() {
-		r.pool.store.Connect("schedule " + strconv.Itoa(r.scheduleID))
-		defer r.pool.store.Close("schedule " + strconv.Itoa(r.scheduleID))
-	}
-
 	schedule, err := r.pool.store.GetSchedule(r.projectID, r.scheduleID)
 	if err != nil {
 		log.Error(err)

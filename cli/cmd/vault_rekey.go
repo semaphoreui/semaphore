@@ -18,7 +18,7 @@ var vaultRekeyCmd = &cobra.Command{
 		"pre-existing keys stored in the database.",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		err := store.RekeyAccessKeys(targetVaultArgs.oldKey)
 

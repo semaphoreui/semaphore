@@ -40,9 +40,7 @@ func TestTaskRunnerRun(t *testing.T) {
 
 	var err error
 
-	db.StoreSession(store, "", func() {
-		task, err = store.CreateTask(db.Task{}, 0)
-	})
+	task, err = store.CreateTask(db.Task{}, 0)
 
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +165,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 
 func TestPopulateDetails(t *testing.T) {
 	store := CreateBoltDB()
-	store.Connect("")
+	store.Connect()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {

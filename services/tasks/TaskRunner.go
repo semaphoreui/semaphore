@@ -96,11 +96,6 @@ func (t *TaskRunner) createTaskEvent() {
 }
 
 func (t *TaskRunner) run() {
-	if !t.pool.store.PermanentConnection() {
-		t.pool.store.Connect("run task " + strconv.Itoa(t.Task.ID))
-		defer t.pool.store.Close("run task " + strconv.Itoa(t.Task.ID))
-	}
-
 	defer func() {
 		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))

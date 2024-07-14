@@ -47,7 +47,7 @@ var userAddCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		if _, err := store.CreateUser(db.UserWithPwd{
 			Pwd: targetUserArgs.password,

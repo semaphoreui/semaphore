@@ -268,18 +268,14 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID any) 
 	}
 }
 
-func (d *SqlDb) Close(token string) {
+func (d *SqlDb) Close() {
 	err := d.sql.Db.Close()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (d *SqlDb) PermanentConnection() bool {
-	return true
-}
-
-func (d *SqlDb) Connect(token string) {
+func (d *SqlDb) Connect() {
 	sqlDb, err := connect()
 	if err != nil {
 		panic(err)

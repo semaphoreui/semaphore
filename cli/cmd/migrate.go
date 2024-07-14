@@ -14,7 +14,7 @@ var migrateCmd = &cobra.Command{
 	Short: "Execute migrations",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("migrate")
-		defer store.Close("migrate")
+		defer store.Close()
 		util.Config.PrintDbInfo()
 	},
 }
