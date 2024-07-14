@@ -22,6 +22,9 @@ func CreateBoltDB() db.Store {
 	store := bolt.BoltDb{
 		Filename: fn,
 	}
+
+	store.Connect()
+
 	return &store
 }
 
@@ -31,6 +34,8 @@ func TestTaskRunnerRun(t *testing.T) {
 	}
 
 	store := CreateBoltDB()
+
+	defer store.Close()
 
 	pool := CreateTaskPool(store)
 
