@@ -146,7 +146,7 @@ definitions:
           alert:
             type: boolean
           alert_chat:
-            type: 
+            type:
               - string
               - 'null'
           max_parallel_tasks:
@@ -297,7 +297,9 @@ definitions:
       alert:
         type: boolean
       alert_chat:
-        type: string
+        type:
+          - string
+          - 'null'
         example: Test
       max_parallel_tasks:
         type: integer
@@ -317,7 +319,9 @@ definitions:
       alert:
         type: boolean
       alert_chat:
-        type: string
+        type:
+          - string
+          - 'null'
         example: Test
       max_parallel_tasks:
         type: integer

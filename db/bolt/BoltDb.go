@@ -167,7 +167,11 @@ func (d *BoltDb) PermanentConnection() bool {
 
 	isSessionConnection, ok := config.Options["sessionConnection"]
 
-	return ok && (isSessionConnection == "true" || isSessionConnection == "yes")
+	if ok && (isSessionConnection == "true" || isSessionConnection == "yes") {
+		return false
+	}
+
+	return true
 }
 
 func (d *BoltDb) IsInitialized() (initialized bool, err error) {
