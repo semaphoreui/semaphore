@@ -230,6 +230,9 @@ jobs:
     needs:
       - migrate-boltdb
 
+    env:
+      SEMAPHORE_DB_OPTIONS: '{"sessionConnection": "true"}'
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
