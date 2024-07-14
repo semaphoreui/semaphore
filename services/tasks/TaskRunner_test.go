@@ -35,7 +35,7 @@ func TestTaskRunnerRun(t *testing.T) {
 
 	store := CreateBoltDB()
 
-	defer store.Close()
+	//defer store.Close()
 
 	pool := CreateTaskPool(store)
 
