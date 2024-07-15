@@ -81,7 +81,7 @@ type Integration struct {
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
 	AuthSecret   AccessKey             `db:"-" json:"-"`
 	Searchable   bool                  `db:"searchable" json:"searchable"`
-	TaskParams   *string               `db:"task_params" json:"task_params"`
+	TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
 }
 
 func (env *Integration) Validate() error {

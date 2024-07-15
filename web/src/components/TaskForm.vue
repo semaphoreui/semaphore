@@ -88,8 +88,8 @@
       />
     </div>
 
-    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item" :template="template" />
-    <TaskParamsForm v-else v-model="item.params" :template="template" />
+    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item" :app="template.app" />
+    <TaskParamsForm v-else v-model="item.params" :app="template.app" />
 
     <div class="mt-4" v-if="!advancedOptions">
       <a @click="advancedOptions = true">

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	log "github.com/sirupsen/logrus"
@@ -489,4 +490,30 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 	}
 
 	return
+}
+
+type MapStringAnyField map[string]interface{}
+
+func (m *MapStringAnyField) Scan(value interface{}) error {
+	if value == nil {
+		*m = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, m)
+	case string:
+		return json.Unmarshal([]byte(v), m)
+	default:
+		return errors.New("unsupported type for MapStringAnyField")
+	}
+}
+
+// Value implements the driver.Valuer interface for MapStringAnyField
+func (m MapStringAnyField) Value() (driver.Value, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return json.Marshal(m)
 }

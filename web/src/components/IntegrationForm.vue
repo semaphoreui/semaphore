@@ -57,13 +57,20 @@
       :disabled="formSaving"
     ></v-select>
 
+    <TaskParamsForm
+      v-if="item.template_id"
+      v-model="item.task_params"
+      :app="template.app"
+    />
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
 export default {
+  components: { TaskParamsForm },
   mixins: [ItemFormBase],
   data() {
     return {
@@ -103,6 +110,10 @@ export default {
       }
       return this.keys.filter((key) => key.type === 'login_password');
     },
+
+    template() {
+      return this.templates.find((t) => t.id === this.item.template_id);
+    },
   },
 
   methods: {
@@ -127,7 +138,12 @@ export default {
         url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
+
+      if (this.item.task_params == null) {
+        this.item.task_params = {};
+      }
     },
+
   },
 };
 </script>
