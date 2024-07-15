@@ -88,29 +88,8 @@
       />
     </div>
 
-    <v-row no-gutters class="mt-6">
-      <v-col cols="12" sm="6">
-        <v-checkbox class="mt-0" v-model="item.debug">
-          <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('debug') }} <code>--vvvv</code></div>
-          </template>
-        </v-checkbox>
-      </v-col>
-      <v-col cols="12" sm="6">
-        <v-checkbox class="mt-0" v-model="item.dry_run">
-          <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
-          </template>
-        </v-checkbox>
-      </v-col>
-      <v-col cols="12" sm="6">
-        <v-checkbox class="mt-0" v-model="item.diff">
-          <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
-          </template>
-        </v-checkbox>
-      </v-col>
-    </v-row>
+    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item" :template="template" />
+    <TaskParamsForm v-else v-model="item.params" :template="template" />
 
     <div class="mt-4" v-if="!advancedOptions">
       <a @click="advancedOptions = true">
@@ -167,6 +146,7 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
+import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
 export default {
   mixins: [ItemFormBase],
@@ -175,6 +155,7 @@ export default {
     sourceTask: Object,
   },
   components: {
+    TaskParamsForm,
     codemirror,
   },
   data() {
@@ -262,6 +243,10 @@ export default {
       this.assignItem(this.sourceTask);
 
       this.item.template_id = this.templateId;
+
+      if (!this.item.params) {
+        this.item.params = {};
+      }
 
       this.advancedOptions = this.item.arguments != null;
 
