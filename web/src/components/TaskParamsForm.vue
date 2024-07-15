@@ -66,7 +66,6 @@
 <script>
 
 const APP_PARAMS = {
-  ansible: ['debug', 'dry_run', 'diff'],
   terraform: ['plan', 'auto_approve'],
   tofu: ['plan', 'auto_approve'],
 };
@@ -81,10 +80,12 @@ export default {
     updateValue(prop, value) {
       let input = { ...this.value, [prop]: value };
 
-      input = (APP_PARAMS[this.app] || []).reduce((res, param) => ({
-        ...res,
-        [param]: input[param],
-      }), {});
+      if (APP_PARAMS[this.app]) {
+        input = (APP_PARAMS[this.app] || []).reduce((res, param) => ({
+          ...res,
+          [param]: input[param],
+        }), {});
+      }
 
       this.$emit('input', input);
     },
