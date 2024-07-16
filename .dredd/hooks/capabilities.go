@@ -136,7 +136,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				AllowOverrideArgsInTask: false,
 				Description:             &desc,
 				ViewID:                  &view.ID,
-				App:                     db.TemplateAnsible,
+				App:                     db.AppAnsible,
 			})
 
 			printError(err)

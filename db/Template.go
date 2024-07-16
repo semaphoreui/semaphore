@@ -15,17 +15,17 @@ const (
 type TemplateApp string
 
 const (
-	TemplateAnsible    TemplateApp = "ansible"
-	TemplateTerraform  TemplateApp = "terraform"
-	TemplateTofu       TemplateApp = "tofu"
-	TemplateBash       TemplateApp = "bash"
-	TemplatePowerShell TemplateApp = "powershell"
-	TemplatePython     TemplateApp = "python"
-	TemplatePulumi     TemplateApp = "pulumi"
+	AppAnsible    TemplateApp = "ansible"
+	AppTerraform  TemplateApp = "terraform"
+	AppTofu       TemplateApp = "tofu"
+	AppBash       TemplateApp = "bash"
+	AppPowerShell TemplateApp = "powershell"
+	AppPython     TemplateApp = "python"
+	AppPulumi     TemplateApp = "pulumi"
 )
 
 func (t TemplateApp) IsTerraform() bool {
-	return t == TemplateTerraform || t == TemplateTofu
+	return t == AppTerraform || t == AppTofu
 }
 
 type SurveyVarType string
@@ -104,7 +104,7 @@ type Template struct {
 
 func (tpl *Template) Validate() error {
 	switch tpl.App {
-	case TemplateAnsible:
+	case AppAnsible:
 		if tpl.InventoryID == nil {
 			return &ValidationError{"template inventory can not be empty"}
 		}

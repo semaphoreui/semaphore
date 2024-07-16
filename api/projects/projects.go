@@ -114,6 +114,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		InventoryID:   &prodInv.ID,
 		EnvironmentID: &emptyEnvID,
 		RepositoryID:  demoRepo.ID,
+		App:           db.AppAnsible,
 	})
 
 	if err != nil {
@@ -132,6 +133,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		EnvironmentID: &emptyEnvID,
 		RepositoryID:  demoRepo.ID,
 		StartVersion:  &startVersion,
+		App:           db.AppAnsible,
 	})
 
 	if err != nil {
@@ -149,6 +151,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		BuildTemplateID: &buildTpl.ID,
 		Autorun:         true,
 		VaultKeyID:      &vaultKey.ID,
+		App:             db.AppAnsible,
 	})
 
 	if err != nil {
@@ -165,6 +168,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		VaultKeyID:      &vaultKey.ID,
+		App:             db.AppAnsible,
 	})
 
 	return
