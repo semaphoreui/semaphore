@@ -59,6 +59,7 @@ const TERRAFORM_FIELDS = {
   ...ANSIBLE_FIELDS,
   playbook: {
     label: 'Subdirectory path (Optional)',
+    optional: true,
   },
   inventory: {
     label: 'Default Workspace',

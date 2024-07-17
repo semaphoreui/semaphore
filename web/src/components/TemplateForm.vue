@@ -149,10 +149,10 @@
         <v-text-field
           v-model="item.playbook"
           :label="fieldLabel('playbook')"
-          :rules="[v => !!v || $t('playbook_filename_required')]"
+          :rules="isFieldRequired('playbook') ? [v => !!v || $t('playbook_filename_required')] : []"
           outlined
           dense
-          required
+          :required="isFieldRequired('playbook')"
           :disabled="formSaving"
           :placeholder="$t('exampleSiteyml')"
           v-if="needField('playbook')"
@@ -177,10 +177,10 @@
           :items="repositories"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || $t('repository_required')]"
+          :rules="isFieldRequired('repository') ? [v => !!v || $t('repository_required')] : []"
           outlined
           dense
-          required
+          :required="isFieldRequired('repository')"
           :disabled="formSaving"
           v-if="needField('repository')"
         ></v-select>
@@ -191,10 +191,10 @@
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="[v => !!v || $t('environment_required')]"
+          :rules="isFieldRequired('environment') ? [v => !!v || $t('environment_required')] : []"
           outlined
           dense
-          required
+          :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
         ></v-select>
@@ -431,6 +431,10 @@ export default {
 
     needField(f) {
       return this.fields[f] != null;
+    },
+
+    isFieldRequired(f) {
+      return this.fields[f] != null && !this.fields[f].optional;
     },
 
     setSurveyVars(v) {
