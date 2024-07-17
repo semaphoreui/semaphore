@@ -147,7 +147,7 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 	return
 }
 
-func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
+func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 	environmentVars := make(map[string]string)
 
 	if t.Environment.ENV != nil {
@@ -158,7 +158,14 @@ func (t *LocalJob) getEnvironmentENV() (arr []string, err error) {
 	}
 
 	for key, val := range environmentVars {
-		arr = append(arr, fmt.Sprintf("%s=%s", key, val))
+		res = append(res, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretEnv {
+			continue
+		}
+		res = append(res, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
 	return
@@ -211,6 +218,9 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 	}
 
 	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
 		args = append(args, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
@@ -311,6 +321,9 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
 		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 

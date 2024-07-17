@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 )
 
 type EnvironmentSecretOperation string
@@ -63,6 +64,46 @@ func (env *Environment) Validate() error {
 
 	if env.ENV != nil && !json.Valid([]byte(*env.ENV)) {
 		return &ValidationError{"Environment variables must be valid JSON"}
+	}
+
+	return nil
+}
+
+func FillEnvironmentSecrets(store Store, env *Environment, deserializeSecret bool) error {
+	keys, err := store.GetEnvironmentSecrets(env.ProjectID, env.ID)
+
+	if err != nil {
+		return err
+	}
+
+	for _, k := range keys {
+		var secretName string
+		var secretType EnvironmentSecretType
+
+		if strings.HasPrefix(k.Name, string(EnvironmentSecretVar)+".") {
+			secretType = EnvironmentSecretVar
+			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretVar)+".")
+		} else if strings.HasPrefix(k.Name, string(EnvironmentSecretEnv)+".") {
+			secretType = EnvironmentSecretEnv
+			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretEnv)+".")
+		} else {
+			secretType = EnvironmentSecretVar
+			secretName = k.Name
+		}
+
+		if deserializeSecret {
+			err = k.DeserializeSecret()
+			if err != nil {
+				return err
+			}
+		}
+
+		env.Secrets = append(env.Secrets, EnvironmentSecret{
+			ID:     k.ID,
+			Name:   secretName,
+			Type:   secretType,
+			Secret: k.String,
+		})
 	}
 
 	return nil

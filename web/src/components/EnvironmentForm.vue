@@ -117,18 +117,6 @@
       <v-subheader class="px-0 mt-4">
         <v-icon class="mr-1">mdi-application-settings</v-icon>
         {{ $t('environmentVariables') }}
-        <v-spacer />
-        <v-tooltip bottom color="black" open-delay="300">
-          <template v-slot:activator="{ on, attrs }">
-            <v-icon
-              class="ml-1"
-              v-bind="attrs"
-              v-on="on"
-              color="lightgray"
-            >mdi-help-circle</v-icon>
-          </template>
-          <span>Variables passed as process environment variables.</span>
-        </v-tooltip>
       </v-subheader>
       <v-data-table
         :items="env"
@@ -182,22 +170,6 @@
     <div>
       <v-subheader class="px-0 mt-4">
         <v-icon class="mr-1">mdi-lock</v-icon>{{ $t('Secrets') }}
-        <v-spacer />
-        <v-tooltip bottom color="black" open-delay="300" max-width="400">
-          <template v-slot:activator="{ on, attrs }">
-            <v-icon
-              class="ml-1"
-              v-bind="attrs"
-              v-on="on"
-              color="lightgray"
-            >mdi-help-circle</v-icon>
-          </template>
-          <span>
-            Secrets are stored in the database in encrypted form.
-            Secrets passed via <code>--extra-vars</code> (Ansible) or
-            <code>-var</code> (Terraform/OpenTofu).
-          </span>
-        </v-tooltip>
       </v-subheader>
 
       <v-data-table
@@ -266,7 +238,7 @@
               <v-list-item-icon>
                 <v-icon>mdi-variable</v-icon>
               </v-list-item-icon>
-              <v-list-item-title>{{ $t('Extra Variable') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('Secret Extra Variable') }}</v-list-item-title>
             </v-list-item>
             <v-list-item
               link
@@ -275,7 +247,7 @@
               <v-list-item-icon>
                 <v-icon>mdi-application-settings</v-icon>
               </v-list-item-icon>
-              <v-list-item-title>{{ $t('Environment Variable') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('Secret Environment Variable') }}</v-list-item-title>
             </v-list-item>
           </v-list>
         </v-menu>

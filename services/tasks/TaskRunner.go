@@ -274,24 +274,10 @@ func (t *TaskRunner) populateDetails() error {
 		if err != nil {
 			return err
 		}
-		var secrets []db.AccessKey
-		secrets, err = t.pool.store.GetEnvironmentSecrets(t.Template.ProjectID, *t.Template.EnvironmentID)
-		if err != nil {
+
+		if err = db.FillEnvironmentSecrets(t.pool.store, &t.Environment, true); err != nil {
 			return err
 		}
-
-		for _, s := range secrets {
-			err = s.DeserializeSecret()
-			if err != nil {
-				return err
-			}
-			t.Environment.Secrets = append(t.Environment.Secrets, db.EnvironmentSecret{
-				ID:     s.ID,
-				Name:   s.Name,
-				Secret: s.String,
-			})
-		}
-
 	}
 
 	if t.Task.Environment != "" {

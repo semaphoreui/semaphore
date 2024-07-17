@@ -2,11 +2,9 @@ package projects
 
 import (
 	"fmt"
-	"net/http"
-	"strings"
-
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"net/http"
 
 	"github.com/gorilla/context"
 )
@@ -80,33 +78,9 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		keys, err := helpers.Store(r).GetEnvironmentSecrets(env.ProjectID, env.ID)
-
-		if err != nil {
+		if err = db.FillEnvironmentSecrets(helpers.Store(r), &env, false); err != nil {
 			helpers.WriteError(w, err)
 			return
-		}
-
-		for _, k := range keys {
-			var secretName string
-			var secretType db.EnvironmentSecretType
-
-			if strings.HasPrefix(k.Name, string(db.EnvironmentSecretVar)+".") {
-				secretType = db.EnvironmentSecretVar
-				secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretVar)+".")
-			} else if strings.HasPrefix(k.Name, string(db.EnvironmentSecretEnv)+".") {
-				secretType = db.EnvironmentSecretEnv
-				secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretEnv)+".")
-			} else {
-				secretType = db.EnvironmentSecretVar
-				secretName = k.Name
-			}
-
-			env.Secrets = append(env.Secrets, db.EnvironmentSecret{
-				ID:   k.ID,
-				Name: secretName,
-				Type: secretType,
-			})
 		}
 
 		context.Set(r, "environment", env)
