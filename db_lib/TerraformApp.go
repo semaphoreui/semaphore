@@ -12,20 +12,13 @@ import (
 	"time"
 )
 
-type TerraformAppName string
-
-const (
-	TerraformAppTerraform TerraformAppName = "terraform"
-	TerraformAppTofu      TerraformAppName = "tofu"
-)
-
 type TerraformApp struct {
 	Logger     task_logger.Logger
 	Template   db.Template
 	Repository db.Repository
 	Inventory  db.Inventory
 	reader     terraformReader
-	Name       TerraformAppName
+	Name       string
 	noChanges  bool
 }
 
@@ -91,7 +84,7 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 }
 
 func (t *TerraformApp) init() error {
-	cmd := t.makeCmd(string(t.Name), []string{"init"}, nil)
+	cmd := t.makeCmd(t.Name, []string{"init"}, nil)
 	t.Logger.LogCmd(cmd)
 	err := cmd.Start()
 	if err != nil {
@@ -130,7 +123,7 @@ func (t *TerraformApp) InstallRequirements() (err error) {
 
 func (t *TerraformApp) Plan(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	args = append([]string{"plan"}, args...)
-	cmd := t.makeCmd(string(t.Name), args, environmentVars)
+	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()
@@ -143,7 +136,7 @@ func (t *TerraformApp) Plan(args []string, environmentVars *[]string, inputs map
 
 func (t *TerraformApp) Apply(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
 	args = append([]string{"apply", "-auto-approve"}, args...)
-	cmd := t.makeCmd(string(t.Name), args, environmentVars)
+	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()

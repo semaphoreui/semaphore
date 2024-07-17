@@ -377,7 +377,12 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 			taskPool: p,
 		}
 	} else {
-		app := db_lib.CreateApp(taskRunner.Template, taskRunner.Repository, &taskRunner)
+		app := db_lib.CreateApp(
+			taskRunner.Template,
+			taskRunner.Repository,
+			taskRunner.Inventory,
+			&taskRunner)
+
 		job = &LocalJob{
 			Task:        taskRunner.Task,
 			Template:    taskRunner.Template,

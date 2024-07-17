@@ -409,7 +409,11 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:   newJob.Inventory,
 				Repository:  newJob.Repository,
 				Environment: newJob.Environment,
-				App:         db_lib.CreateApp(newJob.Template, newJob.Repository, nil),
+				App: db_lib.CreateApp(
+					newJob.Template,
+					newJob.Repository,
+					newJob.Inventory,
+					nil),
 			},
 		}
 
