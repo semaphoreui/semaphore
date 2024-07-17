@@ -23,6 +23,7 @@ type TerraformApp struct {
 	Logger     task_logger.Logger
 	Template   db.Template
 	Repository db.Repository
+	Inventory  db.Inventory
 	reader     terraformReader
 	Name       TerraformAppName
 	noChanges  bool
@@ -89,15 +90,42 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *TerraformApp) InstallRequirements() error {
-
+func (t *TerraformApp) init() error {
 	cmd := t.makeCmd(string(t.Name), []string{"init"}, nil)
 	t.Logger.LogCmd(cmd)
 	err := cmd.Start()
 	if err != nil {
 		return err
 	}
+
 	return cmd.Wait()
+}
+
+func (t *TerraformApp) selectWorkspace(workspace string) error {
+	cmd := t.makeCmd(string(t.Name), []string{"workspace", "select", "-or-create=true", workspace}, nil)
+	t.Logger.LogCmd(cmd)
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	return cmd.Wait()
+}
+
+func (t *TerraformApp) InstallRequirements() (err error) {
+	err = t.init()
+	if err != nil {
+		return
+	}
+
+	workspace := "default"
+
+	if t.Inventory.Inventory != "" {
+		workspace = t.Inventory.Inventory
+	}
+
+	err = t.selectWorkspace(workspace)
+	return
 }
 
 func (t *TerraformApp) Plan(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
