@@ -3,6 +3,7 @@ package projects
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -12,14 +13,17 @@ import (
 
 func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 	for _, secret := range env.Secrets {
-		var err error
+		err := secret.Validate()
+		if err != nil {
+			continue
+		}
 
 		var key db.AccessKey
 
 		switch secret.Operation {
 		case db.EnvironmentSecretCreate:
 			key, err = store.CreateAccessKey(db.AccessKey{
-				Name:          secret.Name,
+				Name:          string(secret.Type) + "." + secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &env.ID,
 				ProjectID:     &env.ProjectID,
@@ -49,7 +53,7 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 			}
 
 			err = store.UpdateAccessKey(db.AccessKey{
-				Name:   secret.Name,
+				Name:   string(secret.Type) + "." + secret.Name,
 				String: secret.Secret,
 				Type:   db.AccessKeyString,
 			})
@@ -84,9 +88,24 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 		}
 
 		for _, k := range keys {
+			var secretName string
+			var secretType db.EnvironmentSecretType
+
+			if strings.HasPrefix(k.Name, string(db.EnvironmentSecretVar)+".") {
+				secretType = db.EnvironmentSecretVar
+				secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretVar)+".")
+			} else if strings.HasPrefix(k.Name, string(db.EnvironmentSecretEnv)+".") {
+				secretType = db.EnvironmentSecretEnv
+				secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretEnv)+".")
+			} else {
+				secretType = db.EnvironmentSecretVar
+				secretName = k.Name
+			}
+
 			env.Secrets = append(env.Secrets, db.EnvironmentSecret{
 				ID:   k.ID,
-				Name: k.Name,
+				Name: secretName,
+				Type: secretType,
 			})
 		}
 

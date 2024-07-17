@@ -21,7 +21,7 @@
     ></v-text-field>
 
     <v-subheader class="px-0">
-      {{ $t('extraVariables') }}
+      <v-icon class="mr-1">mdi-variable</v-icon> {{ $t('extraVariables') }}
 
       <v-tooltip bottom color="black" open-delay="300" max-width="400">
         <template v-slot:activator="{ on, attrs }">
@@ -104,19 +104,20 @@
           </tr>
         </template>
       </v-data-table>
-      <div class="mt-2 mb-4 mx-1" v-if="extraVars != null">
+      <div class="mt-2 mb-4" v-if="extraVars != null">
         <v-btn
           color="primary"
           @click="addExtraVar()"
-        >New Variable</v-btn>
+        >{{ $t('New Extra Variable') }}</v-btn>
       </div>
       <v-alert color="error" v-else>Can't be displayed as table.</v-alert>
     </div>
 
     <div>
       <v-subheader class="px-0 mt-4">
+        <v-icon class="mr-1">mdi-application-settings</v-icon>
         {{ $t('environmentVariables') }}
-
+        <v-spacer />
         <v-tooltip bottom color="black" open-delay="300">
           <template v-slot:activator="{ on, attrs }">
             <v-icon
@@ -170,18 +171,18 @@
           </tr>
         </template>
       </v-data-table>
-      <div class="mt-2 mb-4 mx-1">
+      <div class="mt-2 mb-4">
         <v-btn
           color="primary"
           @click="addEnvVar()"
-        >New Environment Variable</v-btn>
+        >{{ $t('New Environment Variable') }}</v-btn>
       </div>
     </div>
 
     <div>
       <v-subheader class="px-0 mt-4">
-        {{ $t('Secrets') }}
-
+        <v-icon class="mr-1">mdi-lock</v-icon>{{ $t('Secrets') }}
+        <v-spacer />
         <v-tooltip bottom color="black" open-delay="300" max-width="400">
           <template v-slot:activator="{ on, attrs }">
             <v-icon
@@ -208,6 +209,11 @@
       >
         <template v-slot:item="props">
           <tr>
+            <td class="pa-1">
+              <v-icon>
+                {{ props.item.type === 'var' ? 'mdi-variable' : 'mdi-application-settings' }}
+              </v-icon>
+            </td>
             <td class="pa-1">
               <v-text-field
                 solo-inverted
@@ -241,12 +247,40 @@
         </template>
       </v-data-table>
 
-      <div class="mt-2 mb-4 mx-1">
-        <v-btn
-          color="primary"
-          @click="addSecret()"
-        >New Secret</v-btn>
+      <div class="mt-2 mb-4">
+        <v-menu
+          offset-y
+        >
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+              v-bind="attrs"
+              v-on="on"
+              color="primary"
+            >New Secret</v-btn>
+          </template>
+          <v-list>
+            <v-list-item
+              link
+              @click="addSecret('var')"
+            >
+              <v-list-item-icon>
+                <v-icon>mdi-variable</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>{{ $t('Extra Variable') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item
+              link
+              @click="addSecret('env')"
+            >
+              <v-list-item-icon>
+                <v-icon>mdi-application-settings</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>{{ $t('Environment Variable') }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
       </div>
+
     </div>
 
   </v-form>
@@ -370,8 +404,10 @@ export default {
       }
     },
 
-    addSecret(name = '', value = '') {
-      this.secrets.push({ name, value, new: true });
+    addSecret(type) {
+      this.secrets.push({
+        type, name: '', value: '', new: true,
+      });
     },
 
     removeSecret(val) {
@@ -448,6 +484,7 @@ export default {
           id: s.id,
           name: s.name,
           secret: s.value,
+          type: s.type,
           operation,
         };
       }).filter((s) => s.operation != null);
@@ -491,6 +528,7 @@ export default {
         id: x.id,
         name: x.name,
         value: '',
+        type: x.type,
       }));
 
       // Object.keys(env).forEach((x) => {

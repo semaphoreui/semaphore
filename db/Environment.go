@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 )
 
 type EnvironmentSecretOperation string
@@ -38,8 +39,17 @@ type Environment struct {
 	Secrets   []EnvironmentSecret `db:"-" json:"secrets"`
 }
 
-func (secret *EnvironmentSecret) Validate() error {
-	return nil
+func (s *EnvironmentSecret) Validate() error {
+
+	if s.Type == EnvironmentSecretVar || s.Type == EnvironmentSecretEnv {
+		return nil
+	}
+
+	if s.Secret == "" {
+		return errors.New("missing secret")
+	}
+
+	return errors.New("invalid environment secret type")
 }
 
 func (env *Environment) Validate() error {

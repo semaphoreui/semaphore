@@ -54,7 +54,6 @@
 
       <v-menu
         offset-y
-        :disabled="appsMixin.apps.length === 0"
       >
         <template v-slot:activator="{ on, attrs }">
           <v-btn
