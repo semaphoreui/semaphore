@@ -60,7 +60,7 @@
     <TaskParamsForm
       v-if="item.template_id"
       v-model="item.task_params"
-      :app="template.app"
+      :app="(template || {}).app"
     />
   </v-form>
 </template>
