@@ -380,7 +380,7 @@ export default {
         const s = this.secrets[i];
         this.secrets.splice(i, 1);
 
-        if (!this.secrets[i].new) {
+        if (!s.new) {
           this.secrets.push({
             ...s,
             remove: true,

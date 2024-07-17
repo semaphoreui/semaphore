@@ -12,8 +12,16 @@ const (
 	EnvironmentSecretDelete EnvironmentSecretOperation = "delete"
 )
 
+type EnvironmentSecretType string
+
+const (
+	EnvironmentSecretVar EnvironmentSecretType = "var"
+	EnvironmentSecretEnv EnvironmentSecretType = "env"
+)
+
 type EnvironmentSecret struct {
 	ID        int                        `json:"id"`
+	Type      EnvironmentSecretType      `json:"type"`
 	Name      string                     `json:"name"`
 	Secret    string                     `json:"secret"`
 	Operation EnvironmentSecretOperation `json:"operation"`
@@ -28,6 +36,10 @@ type Environment struct {
 	JSON      string              `db:"json" json:"json" binding:"required"`
 	ENV       *string             `db:"env" json:"env" binding:"required"`
 	Secrets   []EnvironmentSecret `db:"-" json:"secrets"`
+}
+
+func (secret *EnvironmentSecret) Validate() error {
+	return nil
 }
 
 func (env *Environment) Validate() error {
