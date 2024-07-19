@@ -111,7 +111,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
-func (d *SqlDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -125,35 +125,19 @@ func (d *SqlDb) getTasks(projectID int, templateIDs []int, params db.RetrieveQue
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("task.created desc, id desc")
 
+	if templateID == nil {
+		q = q.Where("tpl.project_id=?", projectID)
+	} else {
+		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
+	}
+
 	if params.Count > 0 {
 		q = q.Limit(uint64(params.Count))
 	}
 
-	type queryWithArgs struct {
-		sql  string
-		args []interface{}
-	}
+	query, args, _ := q.ToSql()
 
-	var queries []queryWithArgs
-
-	if len(templateIDs) == 0 {
-		q = q.Where("tpl.project_id=?", projectID)
-		query, args, _ := q.ToSql()
-		queries = append(queries, queryWithArgs{sql: query, args: args})
-	} else {
-		for _, templateID := range templateIDs {
-			query, args, _ := q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID).ToSql()
-			queries = append(queries, queryWithArgs{sql: query, args: args})
-		}
-	}
-
-	*tasks = []db.TaskWithTpl{}
-
-	for _, query := range queries {
-		var queryTasks []db.TaskWithTpl
-		_, err = d.selectAll(&queryTasks, query.sql, query.args...)
-		*tasks = append(*tasks, queryTasks...)
-	}
+	_, err = d.selectAll(tasks, query, args...)
 
 	for i := range *tasks {
 		err = (*tasks)[i].Fill(d)
@@ -191,8 +175,8 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
-func (d *SqlDb) GetTemplateTasks(projectID int, templateIDs []int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getTasks(projectID, templateIDs, params, &tasks)
+func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	err = d.getTasks(projectID, &templateID, params, &tasks)
 	return
 }
 

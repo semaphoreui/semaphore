@@ -127,40 +127,6 @@ func (tpl *Template) Validate() error {
 	return nil
 }
 
-func FillTemplates(d Store, templates []Template) (err error) {
-
-	var templateIDs []int
-	var projectID int
-
-	if len(templates) == 0 {
-		return
-	}
-
-	projectID = templates[0].ProjectID
-
-	for _, tpl := range templates {
-		if tpl.ProjectID != projectID {
-			err = &ValidationError{"templates must be from the same project"}
-			return
-		}
-
-		templateIDs = append(templateIDs, tpl.ID)
-	}
-
-	var tasks []TaskWithTpl
-	tasks, err = d.GetTemplateTasks(projectID, templateIDs, RetrieveQueryParams{Count: 1})
-
-	for _, task := range tasks {
-		i := findIntIndex(templateIDs, task.TemplateID)
-		if i >= 0 {
-			templates[i].LastTask = &TaskWithTpl{}
-			*templates[i].LastTask = task
-		}
-	}
-
-	return
-}
-
 func FillTemplate(d Store, template *Template) (err error) {
 	if template.VaultKeyID != nil {
 		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
@@ -170,14 +136,8 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 
-	err = FillTemplates(d, []Template{*template})
-
-	if err != nil {
-		return
-	}
-
 	var tasks []TaskWithTpl
-	tasks, err = d.GetTemplateTasks(template.ProjectID, []int{template.ID}, RetrieveQueryParams{Count: 1})
+	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})
 	if err != nil {
 		return
 	}

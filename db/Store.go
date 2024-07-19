@@ -237,7 +237,7 @@ type Store interface {
 	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
 
-	GetTemplateTasks(projectID int, templateIDs []int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
@@ -415,15 +415,6 @@ var OptionProps = ObjectProps{
 	Type:              reflect.TypeOf(Option{}),
 	PrimaryColumnName: "key",
 	IsGlobal:          true,
-}
-
-func findIntIndex(slice []int, value int) int {
-	for i, v := range slice {
-		if v == value {
-			return i
-		}
-	}
-	return -1
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
