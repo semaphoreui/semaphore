@@ -62,6 +62,7 @@
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            :disabled="!isAdmin && appsMixin.activeAppIds.length === 0"
           >
             {{ $t('newTemplate') }}
             <v-icon>mdi-chevron-down</v-icon>
@@ -83,8 +84,11 @@
             </v-list-item-icon>
             <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
           </v-list-item>
-          <v-divider/>
+
+          <v-divider v-if="isAdmin && appsMixin.activeAppIds.length > 0"/>
+
           <v-list-item
+              v-if="isAdmin"
               key="other"
               link
               href="/apps"

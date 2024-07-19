@@ -36,6 +36,7 @@
       <v-toolbar-title>{{ $t('Applications') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+          :disabled="!isAdmin"
           color="primary"
           @click="editItem('')"
       >{{ $t('New App') }}</v-btn>
@@ -49,6 +50,7 @@
     >
       <template v-slot:item.active="{ item }">
         <v-switch
+            :disabled="!isAdmin"
             v-model="item.active"
             inset
             @change="setActive(item.id, item.active)"
@@ -101,13 +103,14 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import axios from 'axios';
+import PermissionsCheck from '@/components/PermissionsCheck';
 import AppForm from '../components/AppForm.vue';
 import { DEFAULT_APPS } from '../lib/constants';
 import AppsMixin from '../components/AppsMixin';
 import delay from '../lib/delay';
 
 export default {
-  mixins: [ItemListPageBase, AppsMixin],
+  mixins: [ItemListPageBase, AppsMixin, PermissionsCheck],
 
   components: {
     AppForm,
