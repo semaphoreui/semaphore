@@ -417,15 +417,6 @@ var OptionProps = ObjectProps{
 	IsGlobal:          true,
 }
 
-func findIntIndex(slice []int, value int) int {
-	for i, v := range slice {
-		if v == value {
-			return i
-		}
-	}
-	return -1
-}
-
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
