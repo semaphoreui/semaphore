@@ -106,13 +106,15 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 
 func (d *SqlDb) getProjectTasksByIDs(projectID int, taskIDs []int) (tasks []db.Task, err error) {
 	err = d.getObjects(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
-		return builder.Where("`id` IN ?", taskIDs)
+		return builder.Where(squirrel.Eq{"id": taskIDs})
 	}, &tasks)
 
 	return
 }
 
 func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+
+	templates = []db.Template{}
 
 	type templateWithLastTask struct {
 		db.Template
@@ -191,7 +193,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		return
 	}
 
-	var taskIDs []int
+	taskIDs := make([]int, 0)
 
 	for _, tpl := range tpls {
 		if tpl.LastTaskID != nil {
@@ -207,13 +209,12 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 
 	for _, tpl := range tpls {
 		template := tpl.Template
-		templates = append(templates, template)
 		if tpl.LastTaskID == nil {
 			continue
 		}
 
 		for _, tsk := range tasks {
-			if tsk.TemplateID != *tpl.LastTaskID {
+			if tsk.ID != *tpl.LastTaskID {
 				continue
 			}
 
@@ -222,6 +223,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 			}
 			break
 		}
+		templates = append(templates, template)
 	}
 
 	return
