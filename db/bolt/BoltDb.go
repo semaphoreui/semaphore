@@ -362,10 +362,8 @@ func apply(
 			return
 		}
 
-		if filter != nil {
-			if !filter(obj) {
-				continue
-			}
+		if filter != nil && !filter(obj) {
+			continue
 		}
 
 		err = applier(obj)
@@ -405,7 +403,6 @@ func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQue
 
 func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
-	//objType := objectsValue.Type().Elem()
 
 	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
 
@@ -447,6 +444,20 @@ func (d *BoltDb) getObjectsTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, 
 func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 		return d.getObjectsTx(tx, bucketID, props, params, filter, objects)
+	})
+}
+
+func (d *BoltDb) apply(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, applier func(interface{}) error) error {
+	return d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		var c enumerable
+		if b == nil {
+			c = emptyEnumerable{}
+		} else {
+			c = b.Cursor()
+		}
+
+		return apply(c, props, params, nil, applier)
 	})
 }
 

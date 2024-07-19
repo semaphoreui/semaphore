@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"errors"
 	"github.com/ansible-semaphore/semaphore/db"
 	"go.etcd.io/bbolt"
 )
@@ -55,13 +56,44 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 		return
 	}
 
-	var tasks []db.Task
+	templatesMap := make(map[int]*db.Template)
 
-	err = d.getObjects(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
-		return true
-	}, &tasks)
+	for i := 0; i < len(templates); i++ {
+		templatesMap[templates[i].ID] = &templates[i]
+	}
 
-	//err = db.FillTemplates(d, templates)
+	unfilledTemplateCount := len(templates)
+
+	var errEndOfTemplates = errors.New("no more templates to filling")
+
+	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) error {
+		task := i.(db.Task)
+
+		tpl, ok := templatesMap[task.TemplateID]
+		if !ok {
+			return nil
+		}
+
+		if tpl.LastTask != nil {
+			return nil
+		}
+
+		tpl.LastTask = &db.TaskWithTpl{
+			Task: task,
+		}
+
+		unfilledTemplateCount--
+
+		if unfilledTemplateCount <= 0 {
+			return errEndOfTemplates
+		}
+
+		return nil
+	})
+
+	if errors.Is(err, errEndOfTemplates) {
+		err = nil
+	}
 
 	return
 }
