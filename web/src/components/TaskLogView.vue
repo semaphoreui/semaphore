@@ -115,7 +115,7 @@
 .task-log-records {
   background: black;
   color: white;
-  height: calc(100vh - 250px);
+  height: calc(100vh - 280px);
   overflow: auto;
   font-family: monospace;
   margin: 0 -24px;
