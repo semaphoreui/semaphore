@@ -55,7 +55,13 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 		return
 	}
 
-	err = db.FillTemplates(d, templates)
+	var tasks []db.Task
+
+	err = d.getObjects(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		return true
+	}, &tasks)
+
+	//err = db.FillTemplates(d, templates)
 
 	return
 }
@@ -85,7 +91,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		return db.ErrInvalidOperation
 	}
 
-	tasks, err := d.GetTemplateTasks(projectID, []int{templateID}, db.RetrieveQueryParams{})
+	tasks, err := d.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}

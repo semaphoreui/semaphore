@@ -47,7 +47,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit int) {
 	var tasks []db.TaskWithTpl
 
 	if tpl != nil {
-		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template).ProjectID, []int{tpl.(db.Template).ID}, db.RetrieveQueryParams{
+		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template).ProjectID, tpl.(db.Template).ID, db.RetrieveQueryParams{
 			Count: limit,
 		})
 	} else {
