@@ -111,7 +111,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
-func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -129,6 +129,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, params db.RetrieveQuery
 		q = q.Where("tpl.project_id=?", projectID)
 	} else {
 		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
+	}
+
+	if len(taskIDs) > 0 {
+		q = q.Where(squirrel.Eq{"task.id": taskIDs})
 	}
 
 	if params.Count > 0 {
@@ -176,13 +180,13 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 }
 
 func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getTasks(projectID, &templateID, params, &tasks)
+	err = d.getTasks(projectID, &templateID, nil, params, &tasks)
 	return
 }
 
 func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
 	tasks = make([]db.TaskWithTpl, 0)
-	err = d.getTasks(projectID, nil, params, &tasks)
+	err = d.getTasks(projectID, nil, nil, params, &tasks)
 	return
 }
 

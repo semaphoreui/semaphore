@@ -79,7 +79,11 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 		}
 
 		tpl.LastTask = &db.TaskWithTpl{
-			Task: task,
+			Task:             task,
+			TemplatePlaybook: tpl.Playbook,
+			TemplateAlias:    tpl.Name,
+			TemplateType:     tpl.Type,
+			TemplateApp:      tpl.App,
 		}
 
 		unfilledTemplateCount--

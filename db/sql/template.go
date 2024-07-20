@@ -104,14 +104,6 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	return err
 }
 
-func (d *SqlDb) getProjectTasksByIDs(projectID int, taskIDs []int) (tasks []db.Task, err error) {
-	err = d.getObjects(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
-		return builder.Where(squirrel.Eq{"id": taskIDs})
-	}, &tasks)
-
-	return
-}
-
 func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 
 	templates = []db.Template{}
@@ -201,7 +193,8 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		}
 	}
 
-	tasks, err := d.getProjectTasksByIDs(projectID, taskIDs)
+	var tasks []db.TaskWithTpl
+	err = d.getTasks(projectID, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
 
 	if err != nil {
 		return
@@ -218,9 +211,11 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 				continue
 			}
 
-			template.LastTask = &db.TaskWithTpl{
-				Task: tsk,
+			err = tsk.Fill(d)
+			if err != nil {
+				return
 			}
+			template.LastTask = &tsk
 			break
 		}
 		templates = append(templates, template)
