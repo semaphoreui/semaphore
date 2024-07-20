@@ -139,7 +139,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.start_version",
 		"pt.`type`",
 		"pt.`tasks`",
-		"(SELECT `id` FROM `task` WHERE template_id = pt.id) last_task_id").
+		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id").
 		From("project__template pt")
 
 	if filter.ViewID != nil {
