@@ -202,22 +202,20 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 
 	for _, tpl := range tpls {
 		template := tpl.Template
-		if tpl.LastTaskID == nil {
-			continue
+
+		if tpl.LastTaskID != nil {
+			for _, tsk := range tasks {
+				if tsk.ID == *tpl.LastTaskID {
+					err = tsk.Fill(d)
+					if err != nil {
+						return
+					}
+					template.LastTask = &tsk
+					break
+				}
+			}
 		}
 
-		for _, tsk := range tasks {
-			if tsk.ID != *tpl.LastTaskID {
-				continue
-			}
-
-			err = tsk.Fill(d)
-			if err != nil {
-				return
-			}
-			template.LastTask = &tsk
-			break
-		}
 		templates = append(templates, template)
 	}
 
