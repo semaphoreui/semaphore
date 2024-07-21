@@ -92,7 +92,12 @@ func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err err
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
-	_, err := d.exec(
+	err := task.PreUpdate(d.sql)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(
 		"update task set status=?, start=?, `end`=? where id=?",
 		task.Status,
 		task.Start,
