@@ -54,7 +54,7 @@ func (d *SqlDb) GetUserEvents(userID int, params db.RetrieveQueryParams) ([]db.E
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
 		LeftJoin("project as p on event.project_id=p.id").
-		OrderBy("created desc").
+		OrderBy("id desc").
 		LeftJoin("project__user as pu on pu.project_id=p.id").
 		Where("p.id IS NULL or pu.user_id=?", userID)
 
@@ -65,7 +65,7 @@ func (d *SqlDb) GetEvents(projectID int, params db.RetrieveQueryParams) ([]db.Ev
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
 		LeftJoin("project as p on event.project_id=p.id").
-		OrderBy("created desc").
+		OrderBy("id desc").
 		Where("event.project_id=?", projectID)
 
 	return d.getEvents(q, params)

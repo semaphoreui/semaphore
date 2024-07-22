@@ -128,7 +128,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
-		OrderBy("task.created desc, id desc")
+		OrderBy("id desc")
 
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)
