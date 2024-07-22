@@ -99,6 +99,12 @@ export const APP_ICONS = {
     color: 'black',
     darkColor: 'white',
   },
+  python: {
+    icon: 'mdi-language-python',
+  },
+  powershell: {
+    icon: 'mdi-powershell',
+  },
 };
 
 export const APP_TITLE = {
@@ -107,6 +113,8 @@ export const APP_TITLE = {
   tofu: 'OpenTofu Code',
   bash: 'Bash Script',
   pulumi: 'Pulumi Code',
+  python: 'Python Script',
+  powershell: 'PowerShell Script',
 };
 
 export const APP_INVENTORY_TITLE = {

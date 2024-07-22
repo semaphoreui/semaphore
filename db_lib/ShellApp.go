@@ -91,15 +91,16 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars *[]string) *exec.
 		command = "powershell"
 		appArgs = []string{"-File"}
 	default:
+		command = string(t.App)
 	}
 
-	if app, ok := util.Config.Apps[string(t.App)]; ok && app.AppPath != "" {
-		command = app.AppPath
+	if app, ok := util.Config.Apps[string(t.App)]; ok {
+		if app.AppPath != "" {
+			command = app.AppPath
+		}
 		if app.AppArgs != nil {
 			appArgs = app.AppArgs
 		}
-	} else {
-		command = string(t.App)
 	}
 
 	return t.makeCmd(command, append(appArgs, args...), environmentVars)

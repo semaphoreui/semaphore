@@ -38,36 +38,36 @@ export default {
     },
 
     getAppColor(id) {
-      if (APP_ICONS[id]) {
-        return this.$vuetify.theme.dark ? APP_ICONS[id].darkColor : APP_ICONS[id].color;
+      if (this.appsMixin.apps[id]?.color) {
+        return this.appsMixin.apps[id].color || 'gray';
       }
 
-      if (this.appsMixin.apps[id]) {
-        return this.appsMixin.apps[id].color || 'gray';
+      if (APP_ICONS[id]) {
+        return this.$vuetify.theme.dark ? APP_ICONS[id].darkColor : APP_ICONS[id].color;
       }
 
       return 'gray';
     },
 
     getAppTitle(id) {
-      if (APP_TITLE[id]) {
-        return APP_TITLE[id];
+      if (this.appsMixin.apps[id]?.title) {
+        return this.appsMixin.apps[id].title;
       }
 
-      if (this.appsMixin.apps[id]) {
-        return this.appsMixin.apps[id].title;
+      if (APP_TITLE[id]) {
+        return APP_TITLE[id];
       }
 
       return '';
     },
 
     getAppIcon(id) {
-      if (APP_ICONS[id]) {
-        return APP_ICONS[id].icon;
+      if (this.appsMixin.apps[id]?.icon) {
+        return `mdi-${this.appsMixin.apps[id].icon}`;
       }
 
-      if (this.appsMixin.apps[id]) {
-        return `mdi-${this.appsMixin.apps[id].icon}`;
+      if (APP_ICONS[id]) {
+        return APP_ICONS[id].icon;
       }
 
       return 'mdi-help';

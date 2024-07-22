@@ -23,25 +23,26 @@
     <v-text-field
         v-model="item.icon"
         :label="$t('Icon')"
-        :rules="[v => !!v || $t('icon_required')]"
-        required
         :disabled="formSaving"
     ></v-text-field>
 
     <v-text-field
         v-model="item.title"
         :label="$t('name')"
-        :rules="[v => !!v || $t('name_required')]"
-        required
         :disabled="formSaving"
     ></v-text-field>
 
     <v-text-field
         v-model="item.path"
         :label="$t('Path')"
-        :rules="[v => !!v || $t('path_required')]"
-        required
         :disabled="formSaving"
+    ></v-text-field>
+
+    <v-text-field
+      type="number"
+      v-model.number="item.priority"
+      :label="$t('Priority')"
+      :disabled="formSaving"
     ></v-text-field>
 
     <ArgsPicker style="margin-top: -10px;" :vars="item.args" @change="setArgs"/>

@@ -252,14 +252,7 @@ func ConfigInit(configPath string) {
 	fmt.Println("Loading config")
 
 	Config = &ConfigType{}
-	Config.Apps = map[string]App{
-		"ansible":    {},
-		"terraform":  {},
-		"tofu":       {},
-		"bash":       {},
-		"powershell": {},
-		"python":     {},
-	}
+	Config.Apps = map[string]App{}
 
 	loadConfigFile(configPath)
 	loadConfigEnvironment()
@@ -811,16 +804,26 @@ func (conf *ConfigType) GenerateSecrets() {
 	conf.AccessKeyEncryption = base64.StdEncoding.EncodeToString(accessKeyEncryption)
 }
 
-func LookupDefaultApps() {
-	appCommands := map[string]string{
-		"ansible":   "ansible-playbook",
-		"terraform": "terraform",
-		"tofu":      "tofu",
-		"bash":      "bash",
-	}
+var appCommands = map[string]string{
+	"ansible":   "ansible-playbook",
+	"terraform": "terraform",
+	"tofu":      "tofu",
+	"bash":      "bash",
+}
 
-	for app, cmd := range appCommands {
-		if _, ok := Config.Apps[app]; ok {
+var appPriorities = map[string]int{
+	"ansible":    1000,
+	"terraform":  900,
+	"tofu":       800,
+	"bash":       700,
+	"powershell": 600,
+	"python":     500,
+}
+
+func LookupDefaultApps() {
+
+	for appID, cmd := range appCommands {
+		if _, ok := Config.Apps[appID]; ok {
 			continue
 		}
 
@@ -834,9 +837,17 @@ func LookupDefaultApps() {
 			Config.Apps = make(map[string]App)
 		}
 
-		Config.Apps[app] = App{
+		Config.Apps[appID] = App{
 			Active: true,
 		}
+	}
+
+	for k, v := range appPriorities {
+		app, _ := Config.Apps[k]
+		if app.Priority <= 0 {
+			app.Priority = v
+		}
+		Config.Apps[k] = app
 	}
 }
 

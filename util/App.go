@@ -2,7 +2,7 @@ package util
 
 type App struct {
 	Active    bool     `json:"active"`
-	Order     int      `json:"order"`
+	Priority  int      `json:"priority"`
 	Title     string   `json:"title"`
 	Icon      string   `json:"icon"`
 	Color     string   `json:"color"`

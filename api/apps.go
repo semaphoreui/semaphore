@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/context"
 	"net/http"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -80,13 +81,10 @@ func appMiddleware(next http.Handler) http.Handler {
 }
 
 func getApps(w http.ResponseWriter, r *http.Request) {
+
 	type app struct {
-		ID        string `json:"id"`
-		Title     string `json:"title"`
-		Icon      string `json:"icon"`
-		Color     string `json:"color"`
-		DarkColor string `json:"dark_color"`
-		Active    bool   `json:"active"`
+		util.App
+		ID string `json:"id"`
 	}
 
 	apps := make([]app, 0)
@@ -94,14 +92,14 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 	for k, a := range util.Config.Apps {
 
 		apps = append(apps, app{
-			ID:        k,
-			Title:     a.Title,
-			Icon:      a.Icon,
-			Color:     a.Color,
-			DarkColor: a.DarkColor,
-			Active:    a.Active,
+			App: a,
+			ID:  k,
 		})
 	}
+
+	sort.Slice(apps, func(i, j int) bool {
+		return apps[i].Priority > apps[j].Priority
+	})
 
 	helpers.WriteJSON(w, http.StatusOK, apps)
 }

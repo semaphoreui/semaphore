@@ -85,7 +85,6 @@
           </v-btn>
 
           <v-btn
-              v-if="!isDefaultApp(item.id)"
               icon
               class="mr-1"
               @click="editItem(item.id)"
