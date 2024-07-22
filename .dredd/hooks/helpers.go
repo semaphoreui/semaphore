@@ -211,7 +211,7 @@ func addSchedule() *db.Schedule {
 func addTask() *db.Task {
 	t := db.Task{
 		ProjectID:  userProject.ID,
-		TemplateID: int(templateID),
+		TemplateID: templateID,
 		Status:     "testing",
 		UserID:     &userPathTestUser.ID,
 		Created:    db.GetParsedTime(time.Now()),
