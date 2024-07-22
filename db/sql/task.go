@@ -112,7 +112,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 		"insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)",
 		output.TaskID,
 		output.Output,
-		output.Time)
+		output.Time.UTC())
 	return output, err
 }
 
