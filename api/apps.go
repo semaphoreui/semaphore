@@ -51,6 +51,11 @@ func structToFlatMap(obj interface{}) map[string]interface{} {
 			for k, v := range nestedMap {
 				result[fieldName+"."+k] = v
 			}
+		} else if (field.Kind() == reflect.Ptr ||
+			field.Kind() == reflect.Array ||
+			field.Kind() == reflect.Slice ||
+			field.Kind() == reflect.Map) && field.IsNil() {
+			result[fieldName] = nil
 		} else {
 			result[fieldName] = field.Interface()
 		}
@@ -135,6 +140,10 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 func setAppOption(store db.Store, appID string, field string, val interface{}) error {
 	key := "apps." + appID + "." + field
 
+	if val == nil {
+		return store.DeleteOptions(key)
+	}
+
 	v := fmt.Sprintf("%v", val)
 
 	if err := store.SetOption(key, v); err != nil {
@@ -165,6 +174,10 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 	options := structToFlatMap(app)
 
 	for k, v := range options {
+		if v == nil {
+			continue
+		}
+
 		t := reflect.TypeOf(v)
 		switch t.Kind() {
 		case reflect.Slice, reflect.Array:
