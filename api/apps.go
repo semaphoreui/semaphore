@@ -174,20 +174,26 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 	options := structToFlatMap(app)
 
 	for k, v := range options {
-		if v == nil {
-			continue
-		}
-
 		t := reflect.TypeOf(v)
-		switch t.Kind() {
-		case reflect.Slice, reflect.Array:
-			newV, err := json.Marshal(v)
-			if err != nil {
-				helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
-				return
+
+		if v != nil {
+			switch t.Kind() {
+			case reflect.String:
+				if v == "" {
+					v = nil
+				}
+			case reflect.Slice, reflect.Array:
+				newV, err := json.Marshal(v)
+				if err != nil {
+					helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				v = string(newV)
+				if v == "[]" {
+					v = nil
+				}
+			default:
 			}
-			v = string(newV)
-		default:
 		}
 
 		if err := setAppOption(store, appID, k, v); err != nil {
