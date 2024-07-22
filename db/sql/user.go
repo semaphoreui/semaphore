@@ -16,7 +16,7 @@ func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err er
 	}
 
 	user.Password = ""
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(time.Now().UTC())
 
 	err = d.sql.Insert(&user)
 
@@ -42,7 +42,7 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(time.Now().UTC())
 
 	err = d.sql.Insert(&user.User)
 

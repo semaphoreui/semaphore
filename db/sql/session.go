@@ -12,7 +12,7 @@ func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
 }
 
 func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
-	token.Created = db.GetParsedTime(time.Now())
+	token.Created = db.GetParsedTime(time.Now().UTC())
 	err := d.sql.Insert(&token)
 	return token, err
 }
@@ -56,7 +56,7 @@ func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
 }
 
 func (d *SqlDb) TouchSession(userID int, sessionID int) error {
-	_, err := d.exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
+	_, err := d.exec("update session set last_active=? where id=? and user_id=?", time.Now().UTC(), sessionID, userID)
 
 	return err
 }

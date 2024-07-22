@@ -92,7 +92,12 @@ func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err err
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
-	_, err := d.exec(
+	err := task.PreUpdate(d.sql)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(
 		"update task set status=?, start=?, `end`=? where id=?",
 		task.Status,
 		task.Start,
@@ -107,7 +112,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 		"insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)",
 		output.TaskID,
 		output.Output,
-		output.Time)
+		output.Time.UTC())
 	return output, err
 }
 
@@ -123,7 +128,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
-		OrderBy("task.created desc, id desc")
+		OrderBy("id desc")
 
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)

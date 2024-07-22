@@ -7,7 +7,7 @@ import (
 )
 
 func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err error) {
-	project.Created = time.Now()
+	project.Created = time.Now().UTC()
 
 	insertId, err := d.insert(
 		"id",

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"github.com/go-gorp/gorp/v3"
 	"time"
 
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
@@ -49,6 +50,24 @@ type Task struct {
 	Version *string `db:"version" json:"version"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id"`
+}
+
+func (task *Task) PreInsert(gorp.SqlExecutor) error {
+	task.Created = task.Created.UTC()
+	return nil
+}
+
+func (task *Task) PreUpdate(gorp.SqlExecutor) error {
+	if task.Start != nil {
+		start := task.Start.UTC()
+		task.Start = &start
+	}
+
+	if task.End != nil {
+		end := task.End.UTC()
+		task.End = &end
+	}
+	return nil
 }
 
 func (task *Task) GetIncomingVersion(d Store) *string {
