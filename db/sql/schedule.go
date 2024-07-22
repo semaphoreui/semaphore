@@ -91,7 +91,7 @@ func (d *SqlDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithT
 
 func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	_, err = d.selectAll(&schedules,
-		"select * from project__schedule where project_id=? and template_id=?",
+		"SELECT * FROM project__schedule WHERE project_id=? AND template_id=? AND repository_id IS NOT NULL",
 		projectID,
 		templateID)
 	return

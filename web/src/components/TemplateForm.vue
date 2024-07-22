@@ -245,11 +245,11 @@
         <v-checkbox
           class="mt-0"
           :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
-          v-model="cronRepositoryIdVisible"
+          v-model="cronVisible"
         />
 
         <v-select
-          v-if="cronRepositoryIdVisible"
+          v-if="cronVisible"
           v-model="cronRepositoryId"
           :label="$t('repository2')"
           :placeholder="$t('cronChecksNewCommitBeforeRun')"
@@ -264,7 +264,7 @@
         ></v-select>
 
         <v-select
-          v-if="cronRepositoryIdVisible"
+          v-if="cronVisible"
           v-model="cronFormat"
           :label="$t('Check interval')"
           :hint="$t('New commit check interval')"
@@ -369,7 +369,7 @@ export default {
       buildTemplates: null,
       cronFormat: '* * * * *',
       cronRepositoryId: null,
-      cronRepositoryIdVisible: false,
+      cronVisible: false,
 
       helpDialog: null,
       helpKey: null,
@@ -533,7 +533,7 @@ export default {
         if (schedule != null) {
           this.cronFormat = schedule.cron_format;
           this.cronRepositoryId = schedule.repository_id;
-          this.cronRepositoryIdVisible = this.cronRepositoryId != null;
+          this.cronVisible = this.cronRepositoryId != null;
         }
       }
 
@@ -569,7 +569,7 @@ export default {
 
     async afterSave(newItem) {
       if (newItem || this.schedules.length === 0) {
-        if (this.cronFormat != null && this.cronFormat !== '' && this.cronRepositoryIdVisible) {
+        if (this.cronFormat != null && this.cronFormat !== '' && this.cronVisible) {
           // new schedule
           await axios({
             method: 'post',
@@ -585,10 +585,10 @@ export default {
         }
       } else if (this.schedules.length > 1) {
         // do nothing
-      } else if (this.cronFormat == null || this.cronFormat === '' || !this.cronRepositoryIdVisible) {
+      } else if (this.cronFormat == null || this.cronFormat === '' || !this.cronVisible) {
         // drop schedule
         await axios({
-          method: 'delete',
+          method: '',
           url: `/api/project/${this.projectId}/schedules/${this.schedules[0].id}`,
           responseType: 'json',
         });
