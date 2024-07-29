@@ -1,4 +1,6 @@
 export default {
+  'Check interval': 'Check interval',
+  Schedule: 'Schedule',
   backup: 'Backup',
   downloadTheProjectBackupFile: 'Download the project backup file (in json)',
   restoreProject: 'Restore Project...',
