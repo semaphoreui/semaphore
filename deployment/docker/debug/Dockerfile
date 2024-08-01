@@ -54,13 +54,33 @@ WORKDIR /home/semaphore
 USER 1001
 
 # renovate: datasource=pypi depName=ansible
+
 ENV ANSIBLE_VERSION 9.4.0
+ENV MITOGEN_VERSION 0.3.8
 
 RUN mkdir /opt/semaphore/venv
 
 RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
     source /opt/semaphore/venv/bin/activate && \
-    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
+    pip3 install --upgrade pip \
+       ansible==${ANSIBLE_VERSION} \
+       mitogen==${MITOGEN_VERSION} \
+       appdirs \
+       baron \
+       boto3 \
+       botocore \
+       cffi \
+       cryptography \
+       Jinja2 \
+       jmespath \
+       MarkupSafe \
+       packaging \
+       pycparser \
+       PyYAML \
+       redbaron \
+       requests \
+       resolvelib \
+       rply 
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]

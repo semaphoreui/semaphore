@@ -77,18 +77,43 @@ RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
 WORKDIR /home/semaphore
 
 # renovate: datasource=pypi depName=ansible
+
 ENV ANSIBLE_VERSION 9.4.0
+ENV MITOGEN_VERSION 0.3.8
+
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo && \
      mkdir -p ${ANSIBLE_VENV_PATH} && \
      python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
      source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests && \
+     pip3 install --upgrade pip \
+       ansible==${ANSIBLE_VERSION} \
+       mitogen==${MITOGEN_VERSION} \
+       appdirs \
+       baron \
+       boto3 \
+       botocore \
+       cffi \
+       cryptography \
+       Jinja2 \
+       jmespath \
+       MarkupSafe \
+       packaging \
+       pycparser \
+       PyYAML \
+       redbaron \
+       requests \
+       resolvelib \
+       rply \
+       && \
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
      chown -R semaphore:0 /opt/semaphore
+
+RUN echo -e "\nstrategy = mitogen_linear" >>/etc/ansible/ansible.cfg
+RUN echo "strategy_plugins = /opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv/lib/python3.11/site-packages/ansible_mitogen/plugins/strategy" >>/etc/ansible/ansible.cfg
 
 USER 1001
 
