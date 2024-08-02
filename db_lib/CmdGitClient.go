@@ -97,7 +97,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 func (c CmdGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	return c.run(r, GitRepositoryFullPath, "pull", "origin", r.Repository.GitBranch)
+	return c.run(r, GitRepositoryFullPath, "pull", "--recurse-submodules", "origin", r.Repository.GitBranch)
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
