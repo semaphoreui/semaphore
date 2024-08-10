@@ -580,6 +580,7 @@ export default {
               template_id: newItem ? newItem.id : this.itemId,
               cron_format: this.cronFormat,
               repository_id: this.cronRepositoryId,
+              active: true,
             },
           });
         }
