@@ -652,6 +652,8 @@ definitions:
         type: string
       limit:
         type: string
+      git_branch:
+        type: string
   TaskOutput:
     type: object
     properties:
@@ -2163,6 +2165,8 @@ paths:
               environment:
                 type: string
               limit:
+                type: string
+              git_branch:
                 type: string
       responses:
         201:

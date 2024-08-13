@@ -465,6 +465,10 @@ func (t *LocalJob) prepareRun() error {
 		return err
 	}
 
+	if t.Task.GitBranch != "" {
+		t.Repository.GitBranch = t.Task.GitBranch
+	}
+
 	if t.Repository.GetType() == db.RepositoryLocal {
 		if _, err := os.Stat(t.Repository.GitURL); err != nil {
 			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())
