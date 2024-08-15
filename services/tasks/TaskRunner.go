@@ -249,10 +249,15 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	if t.Template.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+	if t.Task.InventoryID!=nil{
+		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
-			return t.prepareError(err, "Template Inventory not found!")
+			if t.Template.InventoryID != nil {
+				t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+				if err != nil {
+					return t.prepareError(err, "Template Inventory not found!")
+				}
+			}
 		}
 	}
 
