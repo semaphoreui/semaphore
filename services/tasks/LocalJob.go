@@ -173,26 +173,54 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 
 // nolint: gocyclo
 func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
-	//extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
+	if err != nil {
+		t.Log(err.Error())
+		t.Log("Error getting environment extra vars")
+		return
+	}
+
+	var templateExtraArgs []string
+	if t.Template.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
+		if err != nil {
+			t.Log("Invalid format of the template extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	var taskExtraArgs []string
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
+		if err != nil {
+			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	// Script to run
 	args = append(args, t.Template.Playbook)
 
-	//if err != nil {
-	//	t.Log(err.Error())
-	//	t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
-	//	return
-	//}
+	// Include Environment Secret Vars
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type == db.EnvironmentSecretVar {
+			args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+		}
+	}
 
-	//for name, value := range extraVars {
-	//	if name == "semaphore_vars" {
-	//		continue
-	//	}
-	//	args = append(args, fmt.Sprintf("%s=%s", name, value))
-	//}
-	//
-	//for _, secret := range t.Environment.Secrets {
-	//	args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	//}
+	// Include extra args from template
+	args = append(args, templateExtraArgs...)
+
+	// Include ExtraVars and Survey Vars
+	for name, value := range extraVars {
+		if name != "semaphore_vars" {
+			args = append(args, fmt.Sprintf("%s=%s", name, value))
+		}
+	}
+
+	// Include extra args from task
+	args = append(args, taskExtraArgs...)
 
 	return
 }
