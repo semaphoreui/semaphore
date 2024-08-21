@@ -1,12 +1,13 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/db_lib"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/ansible-semaphore/semaphore/db_lib"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
@@ -243,6 +244,202 @@ func TestPopulateDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 	if tsk.Environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
+		t.Fatal(err)
+	}
+}
+
+func TestPopulateDetailsInventory(t *testing.T) {
+	store := bolt.CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inv, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+		ID:        1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv2, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+		ID:        2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := store.CreateEnvironment(db.Environment{
+		ProjectID: proj.ID,
+		Name:      "test",
+		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:          "Test",
+		Playbook:      "test.yml",
+		ProjectID:     proj.ID,
+		RepositoryID:  repo.ID,
+		InventoryID:   &inv.ID,
+		EnvironmentID: &env.ID,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool := TaskPool{store: store}
+
+	tsk := TaskRunner{
+		pool: &pool,
+		Task: db.Task{
+			TemplateID:  tpl.ID,
+			ProjectID:   proj.ID,
+			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
+			InventoryID: &inv2.ID,
+		},
+	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
+			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
+		},
+	}
+
+	err = tsk.populateDetails()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tsk.Inventory.ID != 2 {
+		t.Fatal(err)
+	}
+}
+
+func TestPopulateDetailsInventory1(t *testing.T) {
+	store := bolt.CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inv, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+		ID:        1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := store.CreateEnvironment(db.Environment{
+		ProjectID: proj.ID,
+		Name:      "test",
+		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:          "Test",
+		Playbook:      "test.yml",
+		ProjectID:     proj.ID,
+		RepositoryID:  repo.ID,
+		InventoryID:   &inv.ID,
+		EnvironmentID: &env.ID,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool := TaskPool{store: store}
+
+	tsk := TaskRunner{
+		pool: &pool,
+		Task: db.Task{
+			TemplateID:  tpl.ID,
+			ProjectID:   proj.ID,
+			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
+		},
+	}
+	tsk.job = &LocalJob{
+		Task:        tsk.Task,
+		Template:    tsk.Template,
+		Repository:  tsk.Repository,
+		Environment: tsk.Environment,
+		Logger:      &tsk,
+		App: &db_lib.AnsibleApp{
+			Template:   tsk.Template,
+			Repository: tsk.Repository,
+			Logger:     &tsk,
+			Playbook: &db_lib.AnsiblePlaybook{
+				Logger:     &tsk,
+				TemplateID: tsk.Template.ID,
+				Repository: tsk.Repository,
+			},
+		},
+	}
+
+	err = tsk.populateDetails()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tsk.Inventory.ID != 1 {
 		t.Fatal(err)
 	}
 }
