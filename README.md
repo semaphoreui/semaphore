@@ -1,7 +1,8 @@
 # Semaphore UI (formerly Ansible Semaphore)
 
-[![docker](https://img.shields.io/badge/docker_container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
-[![patreon](https://img.shields.io/badge/support_semaphore-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
+[![docker](https://img.shields.io/badge/container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
+[![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
+[![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 
 [![telegram](https://img.shields.io/badge/telegram_community-blue?style=for-the-badge&logo=telegram)](https://t.me/semaphoreui) 
 [![telegram](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
 
