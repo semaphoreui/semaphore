@@ -164,6 +164,54 @@ ${SEMAPHORE_LDAP_MAPPING_EMAIL}
 EOF
     fi;
 
+    oidcProviderNum=0
+    while :
+    do
+        oidcProviderNum=$((oidcProviderNum+1))
+        providerIdVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_ID"
+        providerDisplayNameVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_DISPLAY_NAME"
+        providerClientIdVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_CLIENT_ID"
+        providerClientSecretVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_CLIENT_SECRET"
+        providerAutodiscoveryUrlVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_AUTODISCOVERY_URL"
+        providerIssuerUrlVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_ISSUER_URL"
+        providerAuthUrlVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_AUTH_URL"
+        providerTokenUrlVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_TOKEN_URL"
+        providerUserInfoUrlVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_USER_INFO_URL"
+        providerRedirectUrlVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_REDIRECT_URL"
+        providerScopesVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_SCOPES"
+        providerColorVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_COLOR"
+        providerIconVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_ICON"
+        providerUsernameClaimVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_USERNAME_CLAIM"
+        providerNameClaimVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_NAME_CLAIM"
+        providerEmailClaimVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_EMAIL_CLAIM"
+        providerOrderVar="SEMAPHORE_OIDC_PROVIDER_${oidcProviderNum}_ORDER"
+
+        if [ -z "$(eval echo \$$providerIdVar)" ]; then
+            echo "no" >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+            break
+        fi
+
+        echo "yes" >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerIdVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerDisplayNameVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerClientIdVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerClientSecretVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerAutodiscoveryUrlVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerIssuerUrlVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerAuthUrlVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerTokenUrlVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerUserInfoUrlVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerRedirectUrlVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerScopesVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerColorVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerIconVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerUsernameClaimVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerNameClaimVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$providerEmailClaimVar >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+        eval echo \$$oidcProviderNum >> "${SEMAPHORE_TMP_PATH}/config.stdin"
+    done
+
+
     cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
 ${SEMAPHORE_CONFIG_PATH}
 ${SEMAPHORE_ADMIN}

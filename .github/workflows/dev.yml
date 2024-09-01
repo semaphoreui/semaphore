@@ -271,6 +271,7 @@ jobs:
           no
           no
           no
+          no
           $(pwd)/.dredd
           admin
           admin@localhost
@@ -346,6 +347,7 @@ jobs:
           semaphore
           /tmp/semaphore
           http://localhost:3000
+          no
           no
           no
           no
@@ -433,6 +435,7 @@ jobs:
           no
           no
           no
+          no
           $(pwd)/.dredd
           admin
           admin@localhost
@@ -507,6 +510,7 @@ jobs:
           semaphore
           /tmp/semaphore
           http://localhost:3000
+          no
           no
           no
           no
