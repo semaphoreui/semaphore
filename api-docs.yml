@@ -713,6 +713,9 @@ definitions:
       app:
         type: string
         example: ansible
+      git_branch:
+        type: string
+        example: main
       survey_vars:
         type: array
         items:
@@ -756,6 +759,9 @@ definitions:
         type: boolean
       app:
         type: string
+      git_branch:
+        type: string
+        example: main
   TemplateSurveyVar:
     type: object
     properties:
