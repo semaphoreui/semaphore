@@ -150,6 +150,13 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 	environmentVars := make(map[string]string)
 
+	if t.Environment.ENV != nil {
+		err = json.Unmarshal([]byte(*t.Environment.ENV), &environmentVars)
+		if err != nil {
+			return
+		}
+	}
+
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &environmentVars)
 		if err != nil {
