@@ -436,6 +436,23 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
+	if t.Template.Type != db.TemplateTask {
+
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SEMAPHORE_TASK_TYPE=%s", t.Template.Type))
+
+		if incomingVersion != nil {
+			environmentVariables = append(
+				environmentVariables,
+				fmt.Sprintf("SEMAPHORE_TASK_INCOMING_VERSION=%s", *incomingVersion))
+		}
+
+		if t.Template.Type == db.TemplateBuild && t.Task.Version != nil {
+			environmentVariables = append(
+				environmentVariables,
+				fmt.Sprintf("SEMAPHORE_TASK_TARGET_VERSION=%s", *t.Task.Version))
+		}
+	}
+
 	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {
 		t.Process = p
 	})
