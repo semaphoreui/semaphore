@@ -336,7 +336,7 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none, ssh, login_password]
+        enum: [none, ssh, login_password, client_script]
         x-example: none
       project_id:
         type: integer
@@ -364,6 +364,13 @@ definitions:
             type: string
             x-example: private key
             example: private key
+      client_script:
+        type: object
+        properties:
+          script:
+            type: string
+            x-example: script-client.sh
+            example: script-client.sh
 
   AccessKey:
     type: object
@@ -375,7 +382,7 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none, ssh, login_password]
+        enum: [none, ssh, login_password, client_script]
       project_id:
         type: integer
       login_password:
@@ -400,6 +407,13 @@ definitions:
             type: string
             x-example: private key
             example: private key
+      client_script:
+        type: object
+        properties:
+          script:
+            type: string
+            x-example: script-client.sh
+            example: script-client.sh
 
   EnvironmentRequest:
     type: object
@@ -1639,7 +1653,7 @@ paths:
           in: query
           required: false
           type: string
-          enum: [none, ssh, login_password]
+          enum: [none, ssh, login_password, client_script]
           description: Filter by key type
           x-example: none
         - name: sort

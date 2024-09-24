@@ -13,6 +13,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"io"
 	"path"
+	"strings"
 )
 
 type AccessKeyType string
@@ -22,6 +23,7 @@ const (
 	AccessKeyNone          AccessKeyType = "none"
 	AccessKeyLoginPassword AccessKeyType = "login_password"
 	AccessKeyString        AccessKeyType = "string"
+	AccessKeyClientScript  AccessKeyType = "client_script"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -41,6 +43,7 @@ type AccessKey struct {
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
+	ClientScript   ClientScript  `db:"-" json:"client_script"`
 
 	EnvironmentID *int `db:"environment_id" json:"-"`
 	UserID        *int `db:"user_id" json:"-"`
@@ -57,6 +60,10 @@ type SshKey struct {
 	PrivateKey string `json:"private_key"`
 }
 
+type ClientScript struct {
+	Script string `json:"script"`
+}
+
 type AccessKeyRole int
 
 const (
@@ -70,6 +77,7 @@ type AccessKeyInstallation struct {
 	SSHAgent *ssh.Agent
 	Login    string
 	Password string
+	Script   string
 }
 
 func (key AccessKeyInstallation) Destroy() error {
@@ -116,13 +124,17 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (i
 			installation.Login = key.SshKey.Login
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
-		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible user")
+		switch key.Type {
+		case AccessKeyLoginPassword:
+			installation.Password = key.LoginPassword.Password
+		case AccessKeyClientScript:
+			installation.Script = key.ClientScript.Script
+		default:
+			err = fmt.Errorf("access key type not supported for ansible password vault")
 		}
-		installation.Password = key.LoginPassword.Password
 	case AccessKeyRoleAnsibleBecomeUser:
 		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible user")
+			err = fmt.Errorf("access key type not supported for ansible become user")
 		}
 		installation.Login = key.LoginPassword.Login
 		installation.Password = key.LoginPassword.Password
@@ -162,6 +174,14 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 		if key.LoginPassword.Password == "" {
 			return fmt.Errorf("password can not be empty")
 		}
+	case AccessKeyClientScript:
+		if key.ClientScript.Script == "" {
+			return fmt.Errorf("script can not be empty")
+		}
+		// Script must end with -client excluding extension
+		if !strings.HasSuffix(strings.TrimSuffix(key.ClientScript.Script, path.Ext(key.ClientScript.Script)), "-client") {
+			return fmt.Errorf("script must end with `-client`")
+		}
 	}
 
 	return nil
@@ -181,6 +201,11 @@ func (key *AccessKey) SerializeSecret() error {
 		}
 	case AccessKeyLoginPassword:
 		plaintext, err = json.Marshal(key.LoginPassword)
+		if err != nil {
+			return err
+		}
+	case AccessKeyClientScript:
+		plaintext, err = json.Marshal(key.ClientScript)
 		if err != nil {
 			return err
 		}
@@ -241,6 +266,12 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 		err = json.Unmarshal(secret, &loginPass)
 		if err == nil {
 			key.LoginPassword = loginPass
+		}
+	case AccessKeyClientScript:
+		clientScript := ClientScript{}
+		err = json.Unmarshal(secret, &clientScript)
+		if err == nil {
+			key.ClientScript = clientScript
 		}
 	}
 	return

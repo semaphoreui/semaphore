@@ -416,7 +416,7 @@ export default {
       if (this.keys == null) {
         return null;
       }
-      return this.keys.filter((key) => key.type === 'login_password');
+      return this.keys.filter((key) => ['login_password', 'client_script'].includes(key.type));
     },
   },
 

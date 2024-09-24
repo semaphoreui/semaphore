@@ -336,8 +336,13 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if t.Template.VaultKeyID != nil {
-		args = append(args, "--ask-vault-pass")
-		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.vaultFileInstallation.Password
+		if t.vaultFileInstallation.Password != "" {
+			args = append(args, "--vault-id=@prompt")
+			inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.vaultFileInstallation.Password
+		}
+		if t.vaultFileInstallation.Script != "" {
+			args = append(args, fmt.Sprintf("--vault-id=@%s", t.vaultFileInstallation.Script))
+		}
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
@@ -391,7 +396,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsiblePasswordVault]; ok {
-		inputs["Vault password:"] = line
+		inputs["Vault password (default):"] = line
 	}
 
 	return
