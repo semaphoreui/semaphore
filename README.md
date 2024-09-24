@@ -43,7 +43,7 @@ https://docs.semaphoreui.com/administration-guide/installation
 
 ## Demo
 
-You can test latest version of Semaphore on https://dash.semaphoreui.com.
+You can test latest version of Semaphore on https://cloud.semaphoreui.com.
 
 ## Docs
 
