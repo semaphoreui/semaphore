@@ -340,6 +340,9 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 			args = append(args, fmt.Sprintf("--vault-id=%s@prompt", name))
 			inputs[fmt.Sprintf("Vault password (%s):", name)] = install.Password
 		}
+		if install.Script != "" {
+			args = append(args, fmt.Sprintf("--vault-id=@%s", install.Script))
+		}
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
