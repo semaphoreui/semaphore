@@ -2,7 +2,7 @@ package bolt
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"reflect"
 	"testing"
 )

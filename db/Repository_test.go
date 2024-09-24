@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func TestRepository_GetSchema(t *testing.T) {

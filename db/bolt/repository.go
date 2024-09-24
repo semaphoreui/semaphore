@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *BoltDb) GetRepository(projectID int, repositoryID int) (repository db.Repository, err error) {

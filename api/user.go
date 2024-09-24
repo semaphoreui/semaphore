@@ -3,9 +3,9 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"io"

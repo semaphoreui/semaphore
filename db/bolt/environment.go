@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/semaphoreui/semaphore/db"
 
 func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
 	err = d.getObject(projectID, db.EnvironmentProps, intObjectID(environmentID), &environment)

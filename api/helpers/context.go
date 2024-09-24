@@ -3,7 +3,7 @@ package helpers
 import (
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/gorilla/context"
 )
 

@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {

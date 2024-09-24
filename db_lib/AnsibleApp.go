@@ -7,8 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
 func getMD5Hash(filepath string) (string, error) {

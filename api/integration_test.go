@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"net/http"
 	"testing"
 )

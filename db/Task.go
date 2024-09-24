@@ -5,8 +5,8 @@ import (
 	"github.com/go-gorp/gorp/v3"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 // Task is a model of a task which will be executed by the runner
