@@ -404,6 +404,16 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="runners" to="/runners" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-cogs</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('runners') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="edit" @click="userDialog = true">
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>
