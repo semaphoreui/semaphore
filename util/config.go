@@ -100,7 +100,14 @@ type RunnerSettings struct {
 	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
 	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
-	// OneOff indicates than runner runs only one job and exit
+
+	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
+	// How it works?
+	// Example:
+	// 1) User starts the task.
+	// 2) Semaphore found runner for task and calls runner's webhook if it provided.
+	// 3) Your server or lambda handling the call and starts the one-off runner.
+	// 4) The runner connects to the Semaphore server and handles tasks.
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
 	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
