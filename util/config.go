@@ -107,7 +107,7 @@ type RunnerSettings struct {
 	// 1) User starts the task.
 	// 2) Semaphore found runner for task and calls runner's webhook if it provided.
 	// 3) Your server or lambda handling the call and starts the one-off runner.
-	// 4) The runner connects to the Semaphore server and handles tasks.
+	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
 	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
@@ -255,13 +255,15 @@ func LoadRunnerSettings(path string) (config RunnerConfig, err error) {
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit(configPath string) {
+func ConfigInit(configPath string, noConfigFile bool) {
 	fmt.Println("Loading config")
 
 	Config = &ConfigType{}
 	Config.Apps = map[string]App{}
 
-	loadConfigFile(configPath)
+	if !noConfigFile {
+		loadConfigFile(configPath)
+	}
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
