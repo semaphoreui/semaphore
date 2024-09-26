@@ -26,7 +26,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-btn
         icon
         class="mr-4"
@@ -39,7 +39,8 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
-      >{{ $t('newRunner') }}</v-btn>
+      >{{ $t('newRunner') }}
+      </v-btn>
     </v-toolbar>
 
     <v-data-table
@@ -48,20 +49,17 @@
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
-      <template v-slot:item.external="{ item }">
-        <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+      <template v-slot:item.active="{ item }">
+        <v-switch
+          v-model="item.active"
+          inset
+          @change="setActive(item.id, item.active)"
+        ></v-switch>
       </template>
 
-      <template v-slot:item.alert="{ item }">
-        <v-icon v-if="item.alert">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
+      <template v-slot:item.name="{ item }">{{ item.name || '&mdash;' }}</template>
 
-      <template v-slot:item.admin="{ item }">
-        <v-icon v-if="item.admin">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
+      <template v-slot:item.webhook="{ item }">{{ item.webhook || '&mdash;' }}</template>
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
@@ -92,6 +90,7 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RunnerForm from '@/components/RunnerForm.vue';
+import axios from 'axios';
 
 export default {
   mixins: [ItemListPageBase],
@@ -103,16 +102,38 @@ export default {
   },
 
   methods: {
+    async setActive(runnerId, active) {
+      await axios({
+        method: 'post',
+        url: `/api/runners/${runnerId}/active`,
+        responseType: 'json',
+        data: {
+          active,
+        },
+      });
+    },
+
     getHeaders() {
-      return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
-        width: '50%',
-      },
-      {
-        text: this.$i18n.t('active'),
-        value: 'active',
-      }];
+      return [
+        {
+          value: 'active',
+        }, {
+          text: this.$i18n.t('name'),
+          value: 'name',
+          width: '50%',
+        },
+        {
+          text: this.$i18n.t('webhook'),
+          value: 'webhook',
+        },
+        {
+          text: this.$i18n.t('max_parallel_tasks'),
+          value: 'max_parallel_tasks',
+        }, {
+          text: this.$i18n.t('actions'),
+          value: 'actions',
+          sortable: false,
+        }];
     },
 
     async returnToProjects() {

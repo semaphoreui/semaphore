@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/base64"
+	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/securecookie"
 )
@@ -23,8 +24,14 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *SqlDb) GetGlobalRunners() (runners []db.Runner, err error) {
-	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, nil, &runners)
+func (d *SqlDb) GetGlobalRunners(activeOnly bool) (runners []db.Runner, err error) {
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+		if activeOnly {
+			builder = builder.Where("active=?", activeOnly)
+		}
+
+		return builder
+	}, &runners)
 	return
 }
 

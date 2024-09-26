@@ -87,7 +87,7 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
-	runnersAPI := r.PathPrefix(webPath + "api").Subrouter()
+	runnersAPI := r.PathPrefix(webPath + "internal").Subrouter()
 	runnersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
 	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
 	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
@@ -128,10 +128,10 @@ func Route() *mux.Router {
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
 
-	adminAPI.Path("/global-runners").HandlerFunc(getGlobalRunners).Methods("GET", "HEAD")
-	adminAPI.Path("/global-runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
+	adminAPI.Path("/runners").HandlerFunc(getGlobalRunners).Methods("GET", "HEAD")
+	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
 
-	globalRunnersAPI := adminAPI.PathPrefix("/global-runners").Subrouter()
+	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerMiddleware)
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(getGlobalRunner).Methods("GET", "HEAD")
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(updateGlobalRunner).Methods("PUT", "POST")

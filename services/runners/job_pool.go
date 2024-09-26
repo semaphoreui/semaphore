@@ -220,7 +220,7 @@ func (p *JobPool) sendProgress() {
 		return
 	}
 
-	req.Header.Set("X-API-Token", p.config.Token)
+	req.Header.Set("X-Runner-Token", p.config.Token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -315,7 +315,7 @@ func (p *JobPool) checkNewJobs() {
 
 	req, err := http.NewRequest("GET", url, nil)
 
-	req.Header.Set("X-API-Token", p.config.Token)
+	req.Header.Set("X-Runner-Token", p.config.Token)
 
 	if err != nil {
 		fmt.Println("Error creating request:", err)

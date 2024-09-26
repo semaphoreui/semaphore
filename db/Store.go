@@ -257,7 +257,7 @@ type Store interface {
 	GetRunners(projectID int) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetGlobalRunners() ([]Runner, error)
+	GetGlobalRunners(activeOnly bool) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)

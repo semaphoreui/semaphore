@@ -23,8 +23,14 @@ func (d *BoltDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *BoltDb) GetGlobalRunners() (runners []db.Runner, err error) {
-	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, nil, &runners)
+func (d *BoltDb) GetGlobalRunners(activeOnly bool) (runners []db.Runner, err error) {
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		runner := i.(*db.Runner)
+		if activeOnly {
+			return runner.Active
+		}
+		return true
+	}, &runners)
 	return
 }
 

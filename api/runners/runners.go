@@ -14,7 +14,7 @@ import (
 func RunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		token := r.Header.Get("X-API-Token")
+		token := r.Header.Get("X-Runner-Token")
 
 		if token == "" {
 			helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{

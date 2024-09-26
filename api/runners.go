@@ -9,36 +9,32 @@ import (
 	"github.com/gorilla/context"
 )
 
-type minimalGlobalRunner struct {
-	ID               int    `json:"id"`
-	Name             string `json:"name"`
-	Active           bool   `json:"active"`
-	Webhook          string `db:"webhook" json:"webhook"`
-	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
-}
+//type minimalGlobalRunner struct {
+//	ID               int    `json:"id"`
+//	Name             string `json:"name"`
+//	Active           bool   `json:"active"`
+//	Webhook          string `db:"webhook" json:"webhook"`
+//	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
+//}
 
 func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
-	runners, err := helpers.Store(r).GetGlobalRunners()
+	runners, err := helpers.Store(r).GetGlobalRunners(false)
 
 	if err != nil {
 		panic(err)
 	}
 
-	var result = make([]minimalGlobalRunner, 0)
+	var result = make([]db.Runner, 0)
 
 	for _, runner := range runners {
-		result = append(result, minimalGlobalRunner{
-			ID:     runner.ID,
-			Name:   "",
-			Active: false,
-		})
+		result = append(result, runner)
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
 func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
-	var runner minimalGlobalRunner
+	var runner db.Runner
 	if !helpers.Bind(w, r, &runner) {
 		return
 	}
@@ -86,7 +82,7 @@ func globalRunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "runner", runner)
+		context.Set(r, "runner", &runner)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -94,12 +90,7 @@ func globalRunnerMiddleware(next http.Handler) http.Handler {
 func getGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	runner := context.Get(r, "runner").(*db.Runner)
 
-	helpers.WriteJSON(w, http.StatusOK, minimalGlobalRunner{
-		Name:             "",
-		Active:           true,
-		Webhook:          runner.Webhook,
-		MaxParallelTasks: runner.MaxParallelTasks,
-	})
+	helpers.WriteJSON(w, http.StatusOK, runner)
 }
 
 func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +141,7 @@ func setGlobalRunnerActive(w http.ResponseWriter, r *http.Request) {
 
 	runner.Active = body.Active
 
-	err := store.UpdateRunner(runner)
+	err := store.UpdateRunner(*runner)
 
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
@@ -159,40 +150,3 @@ func setGlobalRunnerActive(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-//func updateUser(w http.ResponseWriter, r *http.Request) {
-//	targetUser := context.Get(r, "_user").(db.User)
-//	editor := context.Get(r, "user").(*db.User)
-//
-//	var user db.UserWithPwd
-//	if !helpers.Bind(w, r, &user) {
-//		return
-//	}
-//
-//	if !editor.Admin && editor.ID != targetUser.ID {
-//		log.Warn(editor.Username + " is not permitted to edit users")
-//		w.WriteHeader(http.StatusUnauthorized)
-//		return
-//	}
-//
-//	if editor.ID == targetUser.ID && targetUser.Admin != user.Admin {
-//		log.Warn("User can't edit his own role")
-//		w.WriteHeader(http.StatusUnauthorized)
-//		return
-//	}
-//
-//	if targetUser.External && targetUser.Username != user.Username {
-//		log.Warn("Username is not editable for external users")
-//		w.WriteHeader(http.StatusBadRequest)
-//		return
-//	}
-//
-//	user.ID = targetUser.ID
-//	if err := helpers.Store(r).UpdateUser(user); err != nil {
-//		log.Error(err.Error())
-//		w.WriteHeader(http.StatusBadRequest)
-//		return
-//	}
-//
-//	w.WriteHeader(http.StatusNoContent)
-//}

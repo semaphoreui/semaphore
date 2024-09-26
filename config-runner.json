@@ -8,6 +8,6 @@
 
 	"runner": {
 		"config_file": "/tmp/semaphore-runner.json",
-		"api_url": "http://localhost:3000/api"
+		"api_url": "http://localhost:3000/internal"
 	}
 }
