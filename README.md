@@ -3,7 +3,7 @@
 [![docker](https://img.shields.io/badge/container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
 [![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
 [![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 
-[![telegram](https://img.shields.io/badge/telegram_community-blue?style=for-the-badge&logo=telegram)](https://t.me/semaphoreui) 
+[![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.com/channels/1213935266213920829/1213935266687881288) 
 [![telegram](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
 
 Semaphore is a modern UI for Ansible, Terraform/OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
