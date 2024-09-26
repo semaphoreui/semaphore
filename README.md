@@ -1,6 +1,5 @@
 # Semaphore UI (formerly Ansible Semaphore)
 
-[![docker](https://img.shields.io/badge/container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
 [![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
 [![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 
 [![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.com/channels/1213935266213920829/1213935266687881288) 
@@ -16,27 +15,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 
 ### Docker
 
-https://hub.docker.com/r/semaphoreui/semaphore
-
-`docker-compose.yml` for minimal configuration:
-
-```yaml
-services:
-  semaphore:
-    ports:
-      - 3000:3000
-    image: semaphoreui/semaphore:latest
-    environment:
-      SEMAPHORE_DB_DIALECT: bolt
-      SEMAPHORE_ADMIN_PASSWORD: changeme
-      SEMAPHORE_ADMIN_NAME: admin
-      SEMAPHORE_ADMIN_EMAIL: admin@localhost
-      SEMAPHORE_ADMIN: admin
-      TZ: Europe/Berlin
-    volumes:
-      - /path/to/data/home:/etc/semaphore # config.json location
-      - /path/to/data/lib:/var/lib/semaphore # database.boltdb location (Not required if using mysql or postgres)
-```
+[![docker](https://img.shields.io/badge/container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
 
 ### Other installation methods
 https://docs.semaphoreui.com/administration-guide/installation
