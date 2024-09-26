@@ -87,11 +87,11 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
-	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
-	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
-	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
-	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
+	runnersAPI := r.PathPrefix(webPath + "api").Subrouter()
+	runnersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
+	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
@@ -116,8 +116,6 @@ func Route() *mux.Router {
 	authenticatedAPI.Path("/users").HandlerFunc(addUser).Methods("POST")
 	authenticatedAPI.Path("/user").HandlerFunc(getUser).Methods("GET", "HEAD")
 
-	authenticatedAPI.Path("/runners").HandlerFunc(getRunners).Methods("GET", "HEAD")
-
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
 
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
@@ -129,6 +127,16 @@ func Route() *mux.Router {
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+
+	adminAPI.Path("/global-runners").HandlerFunc(getGlobalRunners).Methods("GET", "HEAD")
+	adminAPI.Path("/global-runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
+
+	globalRunnersAPI := adminAPI.PathPrefix("/global-runners").Subrouter()
+	globalRunnersAPI.Use(globalRunnerMiddleware)
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(getGlobalRunner).Methods("GET", "HEAD")
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(updateGlobalRunner).Methods("PUT", "POST")
+	globalRunnersAPI.Path("/{runner_id}/active").HandlerFunc(setGlobalRunnerActive).Methods("POST")
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(deleteGlobalRunner).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)

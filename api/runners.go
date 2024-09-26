@@ -3,34 +3,31 @@ package api
 import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/gorilla/context"
 )
 
-type minimalRunner struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Active bool   `json:"active"`
+type minimalGlobalRunner struct {
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	Active           bool   `json:"active"`
+	Webhook          string `db:"webhook" json:"webhook"`
+	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 }
 
-func getRunners(w http.ResponseWriter, r *http.Request) {
-	currentUser := context.Get(r, "user").(*db.User)
+func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
 	runners, err := helpers.Store(r).GetGlobalRunners()
 
 	if err != nil {
 		panic(err)
 	}
 
-	if !currentUser.Admin {
-		helpers.WriteErrorStatus(w, "You must be admin", http.StatusForbidden)
-		return
-	}
-
-	var result = make([]minimalRunner, 0)
+	var result = make([]minimalGlobalRunner, 0)
 
 	for _, runner := range runners {
-		result = append(result, minimalRunner{
+		result = append(result, minimalGlobalRunner{
 			ID:     runner.ID,
 			Name:   "",
 			Active: false,
@@ -40,57 +37,128 @@ func getRunners(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
-//func addRunner(w http.ResponseWriter, r *http.Request) {
-//	var user db.UserWithPwd
-//	if !helpers.Bind(w, r, &user) {
-//		return
-//	}
-//
-//	editor := context.Get(r, "user").(*db.User)
-//	if !editor.Admin {
-//		log.Warn(editor.Username + " is not permitted to create users")
-//		w.WriteHeader(http.StatusUnauthorized)
-//		return
-//	}
-//
-//	newUser, err := helpers.Store(r).CreateUser(user)
-//
-//	if err != nil {
-//		log.Warn(editor.Username + " is not created: " + err.Error())
-//		w.WriteHeader(http.StatusBadRequest)
-//		return
-//	}
-//
-//	helpers.WriteJSON(w, http.StatusCreated, newUser)
-//}
+func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
+	var runner minimalGlobalRunner
+	if !helpers.Bind(w, r, &runner) {
+		return
+	}
 
-//func getRunnerMiddleware(next http.Handler) http.Handler {
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		runnerID, err := helpers.GetIntParam("runner_id", w, r)
-//
-//		if err != nil {
-//			return
-//		}
-//
-//		runner, err := helpers.Store(r).GetGlobalRunner(runnerID)
-//
-//		if err != nil {
-//			helpers.WriteError(w, err)
-//			return
-//		}
-//
-//		editor := context.Get(r, "runner").(*db.Runner)
-//
-//		if !editor.Admin && editor.ID != runner.ID {
-//			log.Warn(editor.Username + " is not permitted to edit users")
-//			w.WriteHeader(http.StatusUnauthorized)
-//			return
-//		}
-//
-//		context.Set(r, "_user", runner)
-//		next.ServeHTTP(w, r)
-//	})
-//}
+	editor := context.Get(r, "user").(*db.User)
+	if !editor.Admin {
+		log.Warn(editor.Username + " is not permitted to create users")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	newRunner, err := helpers.Store(r).CreateRunner(db.Runner{
+		Webhook:          runner.Webhook,
+		MaxParallelTasks: runner.MaxParallelTasks,
+	})
+
+	if err != nil {
+		log.Warn("Runner is not created: " + err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, newRunner)
+}
+
+func globalRunnerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		runnerID, err := helpers.GetIntParam("runner_id", w, r)
+
+		if err != nil {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "runner_id required",
+			})
+			return
+		}
+
+		store := helpers.Store(r)
+
+		runner, err := store.GetGlobalRunner(runnerID)
+
+		if err != nil {
+			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Runner not found",
+			})
+			return
+		}
+
+		context.Set(r, "runner", runner)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getGlobalRunner(w http.ResponseWriter, r *http.Request) {
+	runner := context.Get(r, "runner").(*db.Runner)
+
+	helpers.WriteJSON(w, http.StatusOK, minimalGlobalRunner{
+		Name:             "",
+		Active:           true,
+		Webhook:          runner.Webhook,
+		MaxParallelTasks: runner.MaxParallelTasks,
+	})
+}
+
+func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
+	runner := context.Get(r, "runner").(*db.Runner)
+
+	store := helpers.Store(r)
+
+	runner.ProjectID = nil
+
+	err := store.UpdateRunner(*runner)
+
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func deleteGlobalRunner(w http.ResponseWriter, r *http.Request) {
+	runner := context.Get(r, "runner").(*db.Runner)
+
+	store := helpers.Store(r)
+
+	err := store.DeleteGlobalRunner(runner.ID)
+
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func setGlobalRunnerActive(w http.ResponseWriter, r *http.Request) {
+	runner := context.Get(r, "runner").(*db.Runner)
+
+	store := helpers.Store(r)
+
+	var body struct {
+		Active bool `json:"active"`
+	}
+
+	if !helpers.Bind(w, r, &body) {
+		helpers.WriteErrorStatus(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	runner.Active = body.Active
+
+	err := store.UpdateRunner(runner)
+
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
 
 //func updateUser(w http.ResponseWriter, r *http.Request) {
 //	targetUser := context.Get(r, "_user").(db.User)
@@ -124,56 +192,6 @@ func getRunners(w http.ResponseWriter, r *http.Request) {
 //		log.Error(err.Error())
 //		w.WriteHeader(http.StatusBadRequest)
 //		return
-//	}
-//
-//	w.WriteHeader(http.StatusNoContent)
-//}
-//
-//func updateUserPassword(w http.ResponseWriter, r *http.Request) {
-//	user := context.Get(r, "_user").(db.User)
-//	editor := context.Get(r, "user").(*db.User)
-//
-//	var pwd struct {
-//		Pwd string `json:"password"`
-//	}
-//
-//	if !editor.Admin && editor.ID != user.ID {
-//		log.Warn(editor.Username + " is not permitted to edit users")
-//		w.WriteHeader(http.StatusUnauthorized)
-//		return
-//	}
-//
-//	if user.External {
-//		log.Warn("Password is not editable for external users")
-//		w.WriteHeader(http.StatusBadRequest)
-//		return
-//	}
-//
-//	if !helpers.Bind(w, r, &pwd) {
-//		return
-//	}
-//
-//	if err := helpers.Store(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {
-//		util.LogWarning(err)
-//		w.WriteHeader(http.StatusInternalServerError)
-//		return
-//	}
-//
-//	w.WriteHeader(http.StatusNoContent)
-//}
-//
-//func deleteUser(w http.ResponseWriter, r *http.Request) {
-//	user := context.Get(r, "_user").(db.User)
-//	editor := context.Get(r, "user").(*db.User)
-//
-//	if !editor.Admin && editor.ID != user.ID {
-//		log.Warn(editor.Username + " is not permitted to delete users")
-//		w.WriteHeader(http.StatusUnauthorized)
-//		return
-//	}
-//
-//	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
 //	}
 //
 //	w.WriteHeader(http.StatusNoContent)

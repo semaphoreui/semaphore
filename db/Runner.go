@@ -14,4 +14,6 @@ type Runner struct {
 	//State            RunnerState `db:"state" json:"state"`
 	Webhook          string `db:"webhook" json:"webhook"`
 	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
+	Active           bool   `db:"active" json:"active"`
+	Name             string `db:"name" json:"name"`
 }
