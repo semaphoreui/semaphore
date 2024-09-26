@@ -1,7 +1,5 @@
 # Semaphore UI (formerly Ansible Semaphore)
 
-[![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
-[![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 
 [![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.com/channels/1213935266213920829/1213935266687881288) 
 [![telegram](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
 
@@ -29,3 +27,6 @@ You can test latest version of Semaphore on https://cloud.semaphoreui.com.
 Admin and user docs: https://docs.semaphoreui.com.
 
 API description: https://semaphoreui.com/api-docs/.
+
+[![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
+[![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 
