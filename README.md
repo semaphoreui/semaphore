@@ -16,7 +16,7 @@ If your project has grown and deploying from the terminal is no longer for you t
 [![docker](https://img.shields.io/badge/container_configurator-skyblue?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
 
 ### Other installation methods
-[https://docs.semaphoreui.com/administration-guide/installation](https://semaphoreui.com/install)
+[https://semaphoreui.com/install](https://semaphoreui.com/install)
 
 ## Demo
 
