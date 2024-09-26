@@ -72,11 +72,16 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askConfirmation("Enable Rocket.Chat alerts?", false, &conf.RocketChatAlert)
 	if conf.RocketChatAlert {
 		askValue("Rocket.Chat Webhook URL", "", &conf.RocketChatUrl)
-	}	
+	}
 
 	askConfirmation("Enable Microsoft Team Channel alerts?", false, &conf.MicrosoftTeamsAlert)
 	if conf.MicrosoftTeamsAlert {
 		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
+	}
+
+	askConfirmation("Enable DingTalk alerts?", false, &conf.DingTalkAlert)
+	if conf.DingTalkAlert {
+		askValue("DingTalkAlert Webhook URL", "", &conf.DingTalkUrl)
 	}
 
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
