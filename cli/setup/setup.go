@@ -79,11 +79,6 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
 	}
 
-	askConfirmation("Enable DingTalk alerts?", false, &conf.DingTalkAlert)
-	if conf.DingTalkAlert {
-		askValue("DingTalkAlert Webhook URL", "", &conf.DingTalkUrl)
-	}
-
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
