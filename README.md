@@ -3,7 +3,7 @@
 [![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
 [![telegram](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
 
-Semaphore is a modern UI for Ansible, Terraform/OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
+Semaphore is a modern UI for must popular DevOps tools. It lets you easily run Ansible playbooks, Terraform and OpenTofu code, Bash and PowerShell scripts, get notifications about fails, control access to deployment system.
 
 If your project has grown and deploying from the terminal is no longer for you then Semaphore UI is what you need.
 
