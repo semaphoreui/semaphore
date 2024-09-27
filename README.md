@@ -16,7 +16,7 @@ You can test latest version of Semaphore on https://cloud.semaphoreui.com.
 
 ## What is Semaphore UI
 
-Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools. 
+Semaphore UI is a modern web interface for must popular DevOps tools. 
 
 Semaphore UI lets you:
 * Easily run Ansible playbooks, Terraform and OpenTofu code, Bash and PowerShell scripts
