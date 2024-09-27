@@ -1,4 +1,4 @@
-# Semaphore UI (formerly Ansible Semaphore)
+# Semaphore UI
 
 [![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
 [![telegram](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
