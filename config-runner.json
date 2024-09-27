@@ -1,6 +1,6 @@
 {
  	"bolt": {
- 		"host": "/Users/fiftin/go/src/github.com/ansible-semaphore/semaphore/database.boltdb"
+ 		"host": "/Users/fiftin/go/src/github.com/semaphoreui/semaphore/database.boltdb"
  	},
 
  	"dialect": "bolt",

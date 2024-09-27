@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
 func removeSensitiveEnvs(envs []string) (res []string) {

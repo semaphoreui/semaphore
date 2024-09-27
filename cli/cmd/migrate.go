@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

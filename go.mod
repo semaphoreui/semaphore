@@ -1,4 +1,4 @@
-module github.com/ansible-semaphore/semaphore
+module github.com/semaphoreui/semaphore
 
 go 1.21
 

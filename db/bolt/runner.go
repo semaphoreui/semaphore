@@ -1,8 +1,8 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func (d *BoltDb) GetRunner(projectID int, runnerID int) (runner db.Runner, err error) {

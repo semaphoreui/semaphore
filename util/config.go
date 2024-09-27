@@ -628,7 +628,7 @@ func AnsibleVersion() string {
 func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	// fetch releases
 	gh := github.NewClient(nil)
-	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "ansible-semaphore", "semaphore", nil)
+	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "semaphoreui", "semaphore", nil)
 	if err != nil {
 		return
 	}

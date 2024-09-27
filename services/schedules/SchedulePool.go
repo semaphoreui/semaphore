@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )

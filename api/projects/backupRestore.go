@@ -3,9 +3,9 @@ package projects
 import (
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	projectService "github.com/ansible-semaphore/semaphore/services/project"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	projectService "github.com/semaphoreui/semaphore/services/project"
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 )

@@ -8,8 +8,8 @@ Release:        1%{?dist}
 Summary:        Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 License:        MIT
-URL:            https://github.com/ansible-semaphore/semaphore
-Source:         https://github.com/ansible-semaphore/semaphore/archive/refs/tags/v2.8.90.zip
+URL:            https://github.com/semaphoreui/semaphore
+Source:         https://github.com/semaphoreui/semaphore/archive/refs/tags/v2.8.90.zip
 
 BuildRequires:  golang
 BuildRequires:  nodejs
@@ -30,7 +30,7 @@ Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. I
 export SEMAPHORE_VERSION="development"
 export SEMAPHORE_ARCH="linux_amd64"
 export SEMAPHORE_CONFIG_PATH="./etc/semaphore"
-export APP_ROOT="./ansible-semaphore/"
+export APP_ROOT="./semaphoreui/"
 
 if ! [[ "$PATH" =~ "$HOME/go/bin:" ]]
 then
@@ -39,10 +39,10 @@ fi
 export PATH
 go-task all
 
-cat > ansible-semaphore.service <<EOF
+cat > semaphoreui.service <<EOF
 [Unit]
 Description=Semaphore Ansible
-Documentation=https://github.com/ansible-semaphore/semaphore
+Documentation=https://github.com/semaphoreui/semaphore
 Wants=network-online.target
 After=network-online.target
 
@@ -69,7 +69,7 @@ mkdir -p %{buildroot}%{_unitdir}
 
 install -m 755 bin/semaphore %{buildroot}%{_bindir}/semaphore
 install -m 755 semaphore-setup %{buildroot}%{_bindir}/semaphore-setup
-install -m 755 ansible-semaphore.service %{buildroot}%{_unitdir}/ansible-semaphore.service
+install -m 755 semaphoreui.service %{buildroot}%{_unitdir}/semaphoreui.service
 
 %files
 %license LICENSE
@@ -77,7 +77,7 @@ install -m 755 ansible-semaphore.service %{buildroot}%{_unitdir}/ansible-semapho
 %attr(755, root, root) %{_bindir}/semaphore
 %attr(755, root, root) %{_bindir}/semaphore-setup
 %attr(644, root,root) %{_sysconfdir}/semaphore/
-%{_unitdir}/ansible-semaphore.service
+%{_unitdir}/semaphoreui.service
 
 %changelog
 * Wed Jun 28 2023 Neftali Yagua

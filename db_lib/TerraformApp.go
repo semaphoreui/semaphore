@@ -2,9 +2,9 @@ package db_lib
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	"os"
 	"os/exec"
 	"path"
@@ -115,9 +115,11 @@ func (t *TerraformApp) InstallRequirements() (err error) {
 
 	if t.Inventory.Inventory != "" {
 		workspace = t.Inventory.Inventory
-	}
+    }
 
-	err = t.selectWorkspace(workspace)
+    if t.Inventory.Inventory != "default" {
+	    err = t.selectWorkspace(workspace)
+    }
 	return
 }
 

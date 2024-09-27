@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 

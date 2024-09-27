@@ -17,13 +17,13 @@ When creating a pull-request you should:
 
 1) Set up GOPATH, GOBIN and Workspace.
 ```
-mkdir -p $GOPATH/src/github.com/ansible-semaphore && cd $GOPATH/src/github.com/ansible-semaphore
+mkdir -p $GOPATH/src/github.com/semaphoreui && cd $GOPATH/src/github.com/semaphoreui
 ```
 
 2) Clone semaphore (with submodules)
 
 ```
-git clone --recursive git@github.com:ansible-semaphore/semaphore.git && cd semaphore
+git clone --recursive git@github.com:semaphoreui/semaphore.git && cd semaphore
 ```
 
 3) Install dev dependencies

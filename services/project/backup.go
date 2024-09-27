@@ -3,8 +3,8 @@ package project
 import (
 	"fmt"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
