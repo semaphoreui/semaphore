@@ -9,6 +9,7 @@ import (
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 func getMD5Hash(filepath string) (string, error) {
@@ -100,13 +101,19 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requ
 	}
 
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy([]string{
+
+		paramsGalaxy := []string{
 			requirementsType,
 			"install",
 			"-r",
 			requirementsFilePath,
-			"--force",
-		}); err != nil {
+		}
+
+		if util.Config.ForceRequirements {
+			paramsGalaxy = append(paramsGalaxy, "--force")
+		}
+
+		if err := t.runGalaxy(paramsGalaxy); err != nil {
 			return err
 		}
 		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
