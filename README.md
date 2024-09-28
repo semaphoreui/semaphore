@@ -26,12 +26,12 @@ Semaphore UI allows you to:
 
 ## Key Concepts
 
-1. **Projects**
-2. **Task Templates**
-3. **Tasks**
-4. **Schedules**
-5. **Inventory**
-6. **Environment**
+1. **Projects** is a collection of related resources, configurations, and tasks. Each project allows you to organize and manage your automation efforts in one place, defining the scope of tasks such as deploying applications, running scripts, or orchestrating cloud resources. Projects help group resources, inventories, task templates, and environments for streamlined automation workflows.
+2. **Task Templates** are reusable definitions of tasks that can be executed on demand or scheduled. A template specifies what actions should be performed, such as running Ansible playbooks, Terraform configurations, or other automation tasks. By using templates, you can standardize tasks and easily re-execute them with minimal effort, ensuring consistent results across different environments.
+3. **Task** is a specific instance of a job or operation executed by Semaphore. It refers to running a predefined action (like an Ansible playbook or a script) using a task template. Tasks can be initiated manually or automatically through schedules and are tracked to give you detailed feedback on the execution, including success, failure, and logs.
+4. **Schedules** allow you to automate task execution at specified times or intervals. This feature is useful for running periodic maintenance tasks, backups, or deployments without manual intervention. You can configure recurring schedules to ensure important automation tasks are performed regularly and on time.
+5. **Inventory** is a collection of target hosts (servers, virtual machines, containers, etc.) on which tasks will be executed. The inventory includes details about the managed nodes such as IP addresses, SSH credentials, and grouping information. It allows for dynamic control over which environments and hosts your automation will interact with.
+6. **Environment** refers to a configuration context that holds sensitive information such as environment variables and secrets used by tasks during execution. It separates sensitive data from task templates and allows you to switch between different setups while running the same task template across different environments securely.
 
 ## Getting Started
 
