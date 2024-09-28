@@ -654,7 +654,7 @@ func (d *BoltDb) getIntegrationExtractorChildrenRefs(integrationID int, objectPr
 func (d *BoltDb) getReferringObjectByParentID(parentID int, objProps db.ObjectProps, objID int, referringObjectProps db.ObjectProps) (referringObjs []db.ObjectReferrer, err error) {
 	referringObjs = make([]db.ObjectReferrer, 0)
 
-	var referringObjectOfType reflect.Value = reflect.New(reflect.SliceOf(referringObjectProps.Type))
+	var referringObjectOfType = reflect.New(reflect.SliceOf(referringObjectProps.Type))
 	err = d.getObjects(parentID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
 		return isObjectReferredBy(objProps, intObjectID(objID), referringObj)
 	}, referringObjectOfType.Interface())

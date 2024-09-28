@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{

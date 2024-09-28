@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/Masterminds/squirrel"
+	"github.com/ansible-semaphore/semaphore/db"
 )
 
 func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, error) {

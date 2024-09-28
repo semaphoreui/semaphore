@@ -67,7 +67,7 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 
 func TestCastStringToInt(t *testing.T) {
 
-	var errMsg string = "Cast string => int failed"
+	var errMsg = "Cast string => int failed"
 
 	if castStringToInt("5") != 5 {
 		t.Error(errMsg)
@@ -93,7 +93,7 @@ func TestCastStringToInt(t *testing.T) {
 
 func TestCastStringToBool(t *testing.T) {
 
-	var errMsg string = "Cast string => bool failed"
+	var errMsg = "Cast string => bool failed"
 
 	if castStringToBool("1") != true {
 		t.Error(errMsg)
@@ -120,11 +120,11 @@ func TestGetConfigValue(t *testing.T) {
 
 	Config = new(ConfigType)
 
-	var testPort string = "1337"
-	var testCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var testMaxParallelTasks int = 5
-	var testLdapNeedTls bool = true
-	var testDbHost string = "192.168.0.1"
+	var testPort = "1337"
+	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	var testMaxParallelTasks = 5
+	var testLdapNeedTls = true
+	var testDbHost = "192.168.0.1"
 
 	Config.Port = testPort
 	Config.CookieHash = testCookieHash
@@ -170,13 +170,13 @@ func TestSetConfigValue(t *testing.T) {
 
 	configValue := reflect.ValueOf(Config).Elem()
 
-	var testPort string = "1337"
-	var testCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var testMaxParallelTasks int = 5
-	var testLdapNeedTls bool = true
+	var testPort = "1337"
+	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	var testMaxParallelTasks = 5
+	var testLdapNeedTls = true
 	//var testDbHost string = "192.168.0.1"
-	var testEmailSecure string = "1"
-	var expectEmailSecure bool = true
+	var testEmailSecure = "1"
+	var expectEmailSecure = true
 
 	setConfigValue(configValue.FieldByName("Port"), testPort)
 	setConfigValue(configValue.FieldByName("CookieHash"), testCookieHash)
@@ -225,14 +225,14 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	Config = new(ConfigType)
 	Config.Dialect = DbDriverBolt
 
-	var envPort string = "1337"
-	var envCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var envAccessKeyEncryption string = "1/wRYXQltDGwbzNZRP9ZfJb2IoWcn1hYrxA0vOdvVos="
-	var envMaxParallelTasks string = "5"
-	var expectMaxParallelTasks int = 5
-	var expectLdapNeedTls bool = true
-	var envLdapNeedTls string = "1"
-	var envDbHost string = "192.168.0.1"
+	var envPort = "1337"
+	var envCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	var envAccessKeyEncryption = "1/wRYXQltDGwbzNZRP9ZfJb2IoWcn1hYrxA0vOdvVos="
+	var envMaxParallelTasks = "5"
+	var expectMaxParallelTasks = 5
+	var expectLdapNeedTls = true
+	var envLdapNeedTls = "1"
+	var envDbHost = "192.168.0.1"
 
 	os.Setenv("SEMAPHORE_PORT", envPort)
 	os.Setenv("SEMAPHORE_COOKIE_HASH", envCookieHash)
@@ -272,7 +272,7 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 func TestLoadConfigDefaults(t *testing.T) {
 
 	Config = new(ConfigType)
-	var errMsg string = "Failed to load config-default"
+	var errMsg = "Failed to load config-default"
 
 	loadConfigDefaults()
 
@@ -303,10 +303,10 @@ func TestValidateConfig(t *testing.T) {
 
 	Config = new(ConfigType)
 
-	var testPort string = ":3000"
+	var testPort = ":3000"
 	var testDbDialect = DbDriverBolt
-	var testCookieHash string = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var testMaxParallelTasks int = 0
+	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	var testMaxParallelTasks = 0
 
 	Config.Port = testPort
 	Config.Dialect = testDbDialect
