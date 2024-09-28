@@ -8,58 +8,65 @@ Modern UI for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
-If your project has grown and deploying from the terminal is no longer for you then Semaphore UI is what you need.
+If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
 
 ## Live Demo
 
-You can test latest version of Semaphore on https://cloud.semaphoreui.com.
+Try the latest version of Semaphore at [https://cloud.semaphoreui.com](https://cloud.semaphoreui.com).
 
-## What is Semaphore UI
 
-Semaphore UI is a modern web interface for must popular DevOps tools. 
+## What is Semaphore UI?
 
-Semaphore UI lets you:
-* Easily run Ansible playbooks, Terraform and OpenTofu code, Bash and PowerShell scripts
-* Get notifications about fails
-* Control access to deployment system
+Semaphore UI is a modern web interface for popular DevOps tools.
 
-## Key concepts
-1. **`Projects`**
-2. **`Task Templates`**
-3. **`Tasks`**
-1. **`Schedule`**
-4. **`Inventory`** 
-5. **`Environment`**
+Semaphore UI allows you to:
+* Easily run Ansible playbooks, Terraform and OpenTofu code, as well as Bash and PowerShell scripts.
+* Receive notifications about failed tasks.
+* Control access to your deployment system.
+
+## Key Concepts
+
+1. **Projects**
+2. **Task Templates**
+3. **Tasks**
+4. **Schedules**
+5. **Inventory**
+6. **Environment**
 
 ## Getting Started
-There is following ways to install Semaphore:
+
+You can install Semaphore using the following methods:
 * Docker
-* Don't install but use [SaaS](https://cloud.semaphoreui.com)
-* Deploy VM from Marketplace (AWS, DigitalOcean, etc)
+* SaaS ([Semaphore Cloud](https://cloud.semaphoreui.com))
+* Deploy a VM from a marketplace (AWS, DigitalOcean, etc.)
 * Snap
 * Binary file
 * Debian or RPM package
 
 ### Docker
-Must popular way to install Semaphore. You can use [Container Configurator](https://semaphoreui.com/install/docker/) to get suitable configuration of Semaphore in Docker.
+
+The most popular way to install Semaphore is via Docker. We recommend using the [Container Configurator](https://semaphoreui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
 
 ### SaaS
-We are provide SaaS solution to use Semaphore UI.
+
+We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://cloud.semaphoreui.com).
 
 ### Deploy VM from Marketplace
-Currenlty supported Cloud providers:
+
+Supported cloud providers:
 * [Semaphore Run](https://cloud.semaphore.run/servers/new/semaphore)
 * [AWS](https://aws.amazon.com/marketplace/pp/prodview-5noeat2jipwca)
 * [Yandex Cloud](https://yandex.cloud/en-ru/marketplace/products/fastlix/semaphore)
-* Digital Ocean (coming soon)
+* DigitalOcean (coming soon)
 
-### Other installation methods
-You can find on [Installation](https://semaphoreui.com/install) page on our website.
+### Other Installation Methods
 
-## Docs
+For more installation options, visit our [Installation page](https://semaphoreui.com/install).
 
-* User Guide: https://docs.semaphoreui.com
-* API Reference: https://semaphoreui.com/api-docs
+## Documentation
+
+* [User Guide](https://docs.semaphoreui.com)
+* [API Reference](https://semaphoreui.com/api-docs)
 
 ## License
 MIT © [Denis Gukov](https://github.com/fiftin)
