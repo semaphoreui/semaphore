@@ -248,4 +248,12 @@ export default {
   DeleteIntegrationMsg: 'Are you sure you want to delete this Integration?',
   AddAlias: 'Add Alias',
   LoadAlias: 'Loading aliases...',
+  runners: 'Runners',
+  newRunner: 'New Runner',
+  enabled: 'Enabled',
+  scheduleNextRun: 'Next run',
+  maxNumberOfParallelTasks: 'Maximum parallel tasks',
+  runnerUsage: 'Usage:',
+  runnerToken: 'Token:',
+  editRunner: 'Edit Runner',
 };

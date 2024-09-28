@@ -226,7 +226,7 @@ semaphore runner --no-config`;
           value: 'webhook',
         },
         {
-          text: this.$i18n.t('maxNumberOfParallelTasksOptional'),
+          text: this.$i18n.t('maxNumberOfParallelTasks'),
           value: 'max_parallel_tasks',
         }, {
           text: this.$i18n.t('actions'),

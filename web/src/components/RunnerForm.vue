@@ -36,8 +36,7 @@
 
     <v-checkbox
       v-model="item.active"
-      :label="$t('active')"
-      v-if="isAdmin"
+      :label="$t('enabled')"
     ></v-checkbox>
   </v-form>
 </template>
