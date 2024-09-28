@@ -168,7 +168,7 @@ type ConfigType struct {
 	LdapMappings     ldapMappings `json:"ldap_mappings"`
 	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack, Rocket.Chat and Microsoft Teams alerting
+	// Telegram, Slack, Rocket.Chat, Microsoft Teams and DingTalk alerting
 	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
@@ -178,6 +178,8 @@ type ConfigType struct {
 	RocketChatUrl       string `json:"rocketchat_url" env:"SEMAPHORE_ROCKETCHAT_URL"`
 	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
+	DingTalkAlert       bool   `json:"dingtalk_alert" env:"SEMAPHORE_DINGTALK_ALERT"`
+	DingTalkUrl         string `json:"dingtalk_url" env:"SEMAPHORE_DINGTALK_URL"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers"`

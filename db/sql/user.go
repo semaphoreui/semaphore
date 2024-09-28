@@ -148,7 +148,7 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 	case "name", "username", "email":
 		q = q.OrderBy("u." + params.SortBy + " " + sortDirection)
 	case "role":
-		q = q.OrderBy("pu." + params.SortBy + " " + sortDirection)
+		q = q.OrderBy("pu.role " + sortDirection)
 	default:
 		q = q.OrderBy("u.name " + sortDirection)
 	}
