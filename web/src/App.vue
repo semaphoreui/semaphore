@@ -449,6 +449,7 @@
         :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
+        :webHost="(systemInfo || {}).web_host"
         :user="user"
       ></router-view>
     </v-main>

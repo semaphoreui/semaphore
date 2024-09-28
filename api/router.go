@@ -459,8 +459,9 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 	body := map[string]interface{}{
-		"version": util.Version(),
-		"ansible": util.AnsibleVersion(),
+		"version":  util.Version(),
+		"ansible":  util.AnsibleVersion(),
+		"web_host": util.WebHostURL.String(),
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

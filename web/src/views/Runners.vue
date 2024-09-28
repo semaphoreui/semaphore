@@ -2,9 +2,9 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      save-button-text="Save"
-      :title="$t('editUser')"
-      @save="loadItems()"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="itemId === 'new' ? $t('newRunner') : $t('editRunner')"
+      @save="loadItemsAndShowRunnerDetails($event)"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <RunnerForm
@@ -16,6 +16,32 @@
           :need-reset="needReset"
           :is-admin="true"
         />
+      </template>
+    </EditDialog>
+
+    <EditDialog
+      max-width="600"
+      v-model="newRunnerTokenDialog"
+      :save-button-text="null"
+      :title="$t('newRunnerToken')"
+    >
+      <template v-slot:form="{}">
+        <div>
+          <div>
+            <div>Token:</div>
+            <code>{{ (newRunner || {}).token }}</code>
+          </div>
+
+          <div>
+            <div>Usage:</div>
+            <pre>
+SEMAPHORE_RUNNER_API_URL={{ webHost }}/internal \
+SEMAPHORE_RUNNER_ID={{ (newRunner || {}).id }} \
+SEMAPHORE_RUNNER_TOKEN={{ (newRunner || {}).token }} \
+semaphore runner --no-config
+            </pre>
+          </div>
+        </div>
       </template>
     </EditDialog>
 
@@ -105,7 +131,24 @@ export default {
     EditDialog,
   },
 
+  props: {
+    webHost: String,
+  },
+
+  data() {
+    return {
+      newRunnerTokenDialog: null,
+      newRunner: null,
+    };
+  },
+
   methods: {
+    async loadItemsAndShowRunnerDetails(e) {
+      this.newRunnerTokenDialog = true;
+      this.newRunner = e.item;
+      return this.loadItems();
+    },
+
     async setActive(runnerId, active) {
       await axios({
         method: 'post',
