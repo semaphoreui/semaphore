@@ -18,7 +18,7 @@
     "vue": "^2.6.14",
     "vue-codemirror": "^4.0.6",
     "vue-i18n": "^8.18.2",
-    "vue-router": "^3.5.4",
+    "vue-router": "^3.6.5",
     "vuedraggable": "^2.24.3",
     "vuetify": "^2.6.10"
   },
