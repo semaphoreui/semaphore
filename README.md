@@ -45,7 +45,7 @@ You can install Semaphore using the following methods:
 
 ### Docker
 
-The most popular way to install Semaphore is via Docker. We recommend using the [Container Configurator](https://semaphoreui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
+The most popular way to install Semaphore is via Docker.
 
 ```
 docker run -p 3000:3000 --name semaphore \
@@ -57,21 +57,7 @@ docker run -p 3000:3000 --name semaphore \
 	-d semaphoreui/semaphore:latest
 ```
 
-`docker-compose.yml` for minimal configuration:
-
-```yaml
-services:
-  semaphore:
-    ports:
-      - 3000:3000
-    image: semaphoreui/semaphore:latest
-    environment:
-      SEMAPHORE_DB_DIALECT: bolt
-      SEMAPHORE_ADMIN_PASSWORD: changeme
-      SEMAPHORE_ADMIN_NAME: admin
-      SEMAPHORE_ADMIN_EMAIL: admin@localhost
-      SEMAPHORE_ADMIN: admin
-```
+We recommend using the [Container Configurator](https://semaphoreui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
 
 ### SaaS
 
