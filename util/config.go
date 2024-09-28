@@ -91,6 +91,7 @@ const (
 //
 // */
 
+// Deprecated
 type RunnerConfig struct {
 	RunnerID int    `json:"runner_id" env:"SEMAPHORE_RUNNER_ID"`
 	Token    string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
@@ -99,7 +100,12 @@ type RunnerConfig struct {
 type RunnerSettings struct {
 	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
 	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
+
+	// Deprecated
+	ConfigFile string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
+
+	Token     string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
+	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?

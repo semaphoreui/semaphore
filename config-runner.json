@@ -1,8 +1,0 @@
-{
- 	"tmp_path": "/var/folders/x1/d7p_yr4j7g57_r2r8s0ll_1r0000gn/T/semaphore",
-	"runner": {
-		"registration_token": "test123",
-		"config_file": "/tmp/semaphore-runner.json",
-		"api_url": "http://localhost:3000/internal"
-	}
-}

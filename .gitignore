@@ -7,6 +7,7 @@ web/public/fonts/*.*
 web/.nyc_output
 api/public/**/*
 /config.json
+/config-runner.json
 /.dredd/config.json
 /database.boltdb
 /database.boltdb.lock
