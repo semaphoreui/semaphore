@@ -8,7 +8,7 @@ type RunnerState string
 //)
 
 type Runner struct {
-	ID        int    `db:"id" json:"-"`
+	ID        int    `db:"id" json:"id"`
 	Token     string `db:"token" json:"-"`
 	ProjectID *int   `db:"project_id" json:"project_id"`
 	//State            RunnerState `db:"state" json:"state"`

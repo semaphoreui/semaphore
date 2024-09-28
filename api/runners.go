@@ -33,23 +33,19 @@ func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
+type runnerWithToken struct {
+	db.Runner
+	Token string `json:"token"`
+}
+
 func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	var runner db.Runner
 	if !helpers.Bind(w, r, &runner) {
 		return
 	}
 
-	editor := context.Get(r, "user").(*db.User)
-	if !editor.Admin {
-		log.Warn(editor.Username + " is not permitted to create users")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	newRunner, err := helpers.Store(r).CreateRunner(db.Runner{
-		Webhook:          runner.Webhook,
-		MaxParallelTasks: runner.MaxParallelTasks,
-	})
+	runner.ProjectID = nil
+	newRunner, err := helpers.Store(r).CreateRunner(runner)
 
 	if err != nil {
 		log.Warn("Runner is not created: " + err.Error())
@@ -57,7 +53,10 @@ func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, newRunner)
+	helpers.WriteJSON(w, http.StatusCreated, runnerWithToken{
+		Runner: newRunner,
+		Token:  newRunner.Token,
+	})
 }
 
 func globalRunnerMiddleware(next http.Handler) http.Handler {
@@ -94,13 +93,19 @@ func getGlobalRunner(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(*db.Runner)
+	oldRunner := context.Get(r, "runner").(*db.Runner)
+
+	var runner db.Runner
+	if !helpers.Bind(w, r, &runner) {
+		return
+	}
 
 	store := helpers.Store(r)
 
+	runner.ID = oldRunner.ID
 	runner.ProjectID = nil
 
-	err := store.UpdateRunner(*runner)
+	err := store.UpdateRunner(runner)
 
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)

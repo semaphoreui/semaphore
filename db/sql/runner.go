@@ -42,7 +42,9 @@ func (d *SqlDb) DeleteGlobalRunner(runnerID int) (err error) {
 
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	_, err = d.exec(
-		"update runner set webhook=?, max_parallel_tasks=? where id=?",
+		"update runner set name=?, active=?, webhook=?, max_parallel_tasks=? where id=?",
+		runner.Name,
+		runner.Active,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.ID)
@@ -55,11 +57,13 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into runner (project_id, token, webhook, max_parallel_tasks) values (?, ?, ?, ?)",
+		"insert into runner (project_id, token, webhook, max_parallel_tasks, name, active) values (?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
-		runner.MaxParallelTasks)
+		runner.MaxParallelTasks,
+		runner.Name,
+		runner.Active)
 
 	if err != nil {
 		return

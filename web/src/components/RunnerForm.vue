@@ -19,9 +19,24 @@
       :disabled="formSaving"
     ></v-text-field>
 
+    <v-text-field
+      v-model="item.webhook"
+      :label="$t('webhook')"
+      required
+      :disabled="formSaving"
+    ></v-text-field>
+
+    <v-text-field
+      type="number"
+      v-model.number="item.max_parallel_tasks"
+      :label="$t('maxNumberOfParallelTasksOptional')"
+      required
+      :disabled="formSaving"
+    ></v-text-field>
+
     <v-checkbox
       v-model="item.active"
-      :label="$t('adminUser')"
+      :label="$t('active')"
       v-if="isAdmin"
     ></v-checkbox>
   </v-form>

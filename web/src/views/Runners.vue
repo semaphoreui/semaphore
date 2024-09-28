@@ -61,6 +61,10 @@
 
       <template v-slot:item.webhook="{ item }">{{ item.webhook || '&mdash;' }}</template>
 
+      <template v-slot:item.max_parallel_tasks="{ item }">
+        {{ item.max_parallel_tasks || '∞' }}
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -127,7 +131,7 @@ export default {
           value: 'webhook',
         },
         {
-          text: this.$i18n.t('max_parallel_tasks'),
+          text: this.$i18n.t('maxNumberOfParallelTasksOptional'),
           value: 'max_parallel_tasks',
         }, {
           text: this.$i18n.t('actions'),
