@@ -20,26 +20,52 @@
     </EditDialog>
 
     <EditDialog
-      max-width="600"
+      :max-width="600"
       v-model="newRunnerTokenDialog"
       :save-button-text="null"
       :title="$t('newRunnerToken')"
     >
       <template v-slot:form="{}">
         <div>
-          <div>
+          <div class="mb-4">
             <div>Token:</div>
-            <code>{{ (newRunner || {}).token }}</code>
+            <div style="position: relative;">
+              <code
+                class="pa-2 mt-2"
+                style="background: gray; color: white; display: block; font-size: 14px;"
+              >{{ (newRunner || {}).token }}</code>
+
+              <v-btn
+                style="position: absolute; right: 10px; top: 2px;"
+                icon
+                color="white"
+                @click="copyToClipboard((newRunner || {}).token)"
+              >
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
+            </div>
           </div>
 
           <div>
             <div>Usage:</div>
-            <pre>
-SEMAPHORE_RUNNER_API_URL={{ webHost }}/internal \
-SEMAPHORE_RUNNER_ID={{ (newRunner || {}).id }} \
-SEMAPHORE_RUNNER_TOKEN={{ (newRunner || {}).token }} \
-semaphore runner --no-config
-            </pre>
+            <div style="position: relative;">
+              <pre style="white-space: pre-wrap;
+                          background: gray;
+                          color: white;
+                          border-radius: 10px;
+                          margin-top: 5px;"
+                   class="pa-2"
+              >{{ runnerUsageCommand }}</pre>
+
+              <v-btn
+                style="position: absolute; right: 10px; top: 10px;"
+                icon
+                color="white"
+                @click="copyToClipboard(runnerUsageCommand)"
+              >
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
+            </div>
           </div>
         </div>
       </template>
@@ -135,6 +161,15 @@ export default {
     webHost: String,
   },
 
+  computed: {
+    runnerUsageCommand() {
+      return `SEMAPHORE_RUNNER_API_URL=${this.webHost}/internal \\
+SEMAPHORE_RUNNER_ID=${(this.newRunner || {}).id} \\
+SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+semaphore runner --no-config`;
+    },
+  },
+
   data() {
     return {
       newRunnerTokenDialog: null,
@@ -144,9 +179,26 @@ export default {
 
   methods: {
     async loadItemsAndShowRunnerDetails(e) {
-      this.newRunnerTokenDialog = true;
-      this.newRunner = e.item;
+      if (e.item.token) {
+        this.newRunnerTokenDialog = true;
+        this.newRunner = e.item;
+      }
       return this.loadItems();
+    },
+
+    async copyToClipboard(text) {
+      try {
+        await window.navigator.clipboard.writeText(text);
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'The command has been copied to the clipboard.',
+        });
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Can't copy the command: ${e.message}`,
+        });
+      }
     },
 
     async setActive(runnerId, active) {

@@ -86,15 +86,16 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
-	runnersAPI := r.PathPrefix(webPath + "internal").Subrouter()
+	internalAPI := r.PathPrefix(webPath + "internal").Subrouter()
 
-	runnersAPI.Use(StoreMiddleware, JSONMiddleware)
-	runnersAPI.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
+	internalAPI.Use(StoreMiddleware, JSONMiddleware)
+	internalAPI.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
 
+	runnersAPI := internalAPI.PathPrefix("/runners").Subrouter()
 	runnersAPI.Use(runners.RunnerMiddleware)
-	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
-	runnersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
+	runnersAPI.Path("/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	runnersAPI.Path("/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	runnersAPI.Path("/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
