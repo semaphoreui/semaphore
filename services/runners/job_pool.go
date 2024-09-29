@@ -62,7 +62,7 @@ func (p *JobPool) Unregister() (err error) {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners"
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -183,7 +183,7 @@ func (p *JobPool) sendProgress() {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners/" + *p.token
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	body := RunnerProgress{
 		Jobs: nil,
@@ -252,7 +252,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners"
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
@@ -262,19 +262,19 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		log.Error("Error creating request:", err)
+		log.Error("Registration: Error creating request:", err)
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		log.Error("Error making request:", err)
+		log.Error("Registration: Error making request:", err)
 		return false
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		fmt.Println("Registration: Error reading response body:", err)
 		return false
 	}
 
@@ -284,7 +284,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		fmt.Println("Registration: Error parsing JSON:", err)
 		return false
 	}
 
@@ -307,7 +307,7 @@ func (p *JobPool) checkNewJobs() {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners/" + *p.token
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	req, err := http.NewRequest("GET", url, nil)
 

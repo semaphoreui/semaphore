@@ -23,18 +23,9 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		runnerID, err := helpers.GetIntParam("runner_id", w, r)
-
-		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "runner_id required",
-			})
-			return
-		}
-
 		store := helpers.Store(r)
 
-		runner, err := store.GetGlobalRunner(runnerID)
+		runner, err := store.GetGlobalRunnerByToken(token)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{

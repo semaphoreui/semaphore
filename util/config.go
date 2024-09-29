@@ -238,6 +238,13 @@ func ConfigInit(configPath string, noConfigFile bool) {
 	if len(WebHostURL.String()) == 0 {
 		WebHostURL = nil
 	}
+
+	if Config.Runner.TokenFile != "" {
+		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
+		if err == nil {
+			Config.Runner.Token = string(runnerTokenBytes)
+		}
+	}
 }
 
 func loadConfigFile(configPath string) {
@@ -254,6 +261,7 @@ func loadConfigFile(configPath string) {
 		paths := []string{
 			path.Join(cwd, "config.json"),
 			"/usr/local/etc/semaphore/config.json",
+			"/etc/semaphore/config.json",
 		}
 		for _, p := range paths {
 			_, err = os.Stat(p)

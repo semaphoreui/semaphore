@@ -86,16 +86,14 @@ func Route() *mux.Router {
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
-	internalAPI := r.PathPrefix(webPath + "internal").Subrouter()
-
-	internalAPI.Use(StoreMiddleware, JSONMiddleware)
+	internalAPI := publicAPIRouter.PathPrefix("/internal").Subrouter()
 	internalAPI.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
 
 	runnersAPI := internalAPI.PathPrefix("/runners").Subrouter()
 	runnersAPI.Use(runners.RunnerMiddleware)
-	runnersAPI.Path("/").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	runnersAPI.Path("/").HandlerFunc(runners.UpdateRunner).Methods("PUT")
-	runnersAPI.Path("/").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
+	runnersAPI.Path("").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	runnersAPI.Path("").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	runnersAPI.Path("").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
