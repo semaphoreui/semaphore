@@ -54,6 +54,24 @@ func (p *JobPool) hasRunningJobs() bool {
 	return false
 }
 
+func (p *JobPool) Register() (err error) {
+	if util.Config.Runner.RegistrationToken == "" {
+		return fmt.Errorf("runner registration token required")
+	}
+
+	if util.Config.Runner.TokenFile == "" {
+		return fmt.Errorf("runner token file required")
+	}
+
+	ok := p.tryRegisterRunner()
+
+	if !ok {
+		return fmt.Errorf("runner registration failed")
+	}
+
+	return
+}
+
 func (p *JobPool) Unregister() (err error) {
 
 	if util.Config.Runner.Token == "" {
@@ -87,6 +105,11 @@ func (p *JobPool) Unregister() (err error) {
 }
 
 func (p *JobPool) Run() {
+
+	if p.token == nil {
+		panic("runner token required. Please register runner first or create it from web interface.")
+	}
+
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(1 * time.Second)
 	p.runningJobs = make(map[int]*runningJob)
@@ -95,18 +118,6 @@ func (p *JobPool) Run() {
 		queueTicker.Stop()
 		requestTimer.Stop()
 	}()
-
-	for {
-
-		if p.tryRegisterRunner() {
-
-			log.Info("The runner has been started")
-
-			break
-		}
-
-		time.Sleep(5_000_000_000)
-	}
 
 	for {
 		select {
@@ -230,12 +241,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 	}
 
 	log.Info("Attempting to register on the server")
-
-	//config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
-	//
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	if util.Config.Runner.Token != "" {
 		p.token = &util.Config.Runner.Token

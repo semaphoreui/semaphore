@@ -195,11 +195,11 @@ type ConfigType struct {
 
 	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
-	Runner RunnerSettings `json:"runner"`
-
 	IntegrationAlias string `json:"global_integration_alias" env:"SEMAPHORE_INTEGRATION_ALIAS"`
 
 	Apps map[string]App `json:"apps" env:"SEMAPHORE_APPS"`
+
+	Runner RunnerSettings `json:"runner"`
 }
 
 // Config exposes the application configuration storage for use in the application
