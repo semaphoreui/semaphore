@@ -168,8 +168,8 @@ func SaveConfig(config IConfig, defaultFilename string, requiredConfigPath strin
 			configDirectory = filepath.Join(configDirectory, "semaphore")
 		}
 
+		askValue("Config output directory", configDirectory, &configDirectory)
 		configPath = filepath.Join(configDirectory, defaultFilename)
-		askValue("Config output file", configPath, &configPath)
 	} else {
 		configPath = requiredConfigPath
 	}
