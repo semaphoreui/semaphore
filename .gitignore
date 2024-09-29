@@ -30,3 +30,4 @@ node_modules/
 .vscode
 __debug_bin*
 .task/
+/web/.env
