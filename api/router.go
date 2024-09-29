@@ -457,10 +457,16 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
+	host := ""
+
+	if util.WebHostURL != nil {
+		host = util.WebHostURL.String()
+	}
+
 	body := map[string]interface{}{
 		"version":           util.Version(),
 		"ansible":           util.AnsibleVersion(),
-		"web_host":          util.WebHostURL.String(),
+		"web_host":          host,
 		"use_remote_runner": util.Config.UseRemoteRunner,
 	}
 

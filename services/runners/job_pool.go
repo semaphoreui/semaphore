@@ -29,7 +29,7 @@ type JobPool struct {
 
 	queue []*job
 
-	token *string
+	//token *string
 
 	processing int32
 }
@@ -106,7 +106,7 @@ func (p *JobPool) Unregister() (err error) {
 
 func (p *JobPool) Run() {
 
-	if p.token == nil {
+	if util.Config.Runner.Token == "" {
 		panic("runner token required. Please register runner first or create it from web interface.")
 	}
 
@@ -194,7 +194,7 @@ func (p *JobPool) sendProgress() {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.Webhook + "/api/internal/runners"
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	body := RunnerProgress{
 		Jobs: nil,
@@ -224,7 +224,7 @@ func (p *JobPool) sendProgress() {
 		return
 	}
 
-	req.Header.Set("X-Runner-Token", *p.token)
+	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -236,16 +236,13 @@ func (p *JobPool) sendProgress() {
 }
 
 func (p *JobPool) tryRegisterRunner() bool {
-	if p.token != nil {
-		return true
-	}
 
 	log.Info("Attempting to register on the server")
 
-	if util.Config.Runner.Token != "" {
-		p.token = &util.Config.Runner.Token
-		return true
-	}
+	//if util.Config.Runner.Token != "" {
+	//	p.token = &util.Config.Runner.Token
+	//	return true
+	//}
 
 	// Can not restore runner configuration. Register new runner on the server.
 
@@ -297,8 +294,6 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 
-	p.token = &res.Token
-
 	defer resp.Body.Close()
 
 	return true
@@ -307,7 +302,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
-	if p.token == nil {
+	if util.Config.Runner.Token == "" {
 		fmt.Println("Error creating request:", "no token provided")
 		return
 	}
@@ -318,7 +313,7 @@ func (p *JobPool) checkNewJobs() {
 
 	req, err := http.NewRequest("GET", url, nil)
 
-	req.Header.Set("X-Runner-Token", *p.token)
+	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
 	if err != nil {
 		fmt.Println("Error creating request:", err)
