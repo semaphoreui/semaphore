@@ -69,7 +69,6 @@
             icon
             class="mr-1"
             @click="askDeleteItem(item.id)"
-            :disabled="item.id === userId"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
