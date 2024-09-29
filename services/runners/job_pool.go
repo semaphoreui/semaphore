@@ -55,9 +55,9 @@ func (p *JobPool) hasRunningJobs() bool {
 }
 
 func (p *JobPool) Register() (err error) {
-	if util.Config.Runner.RegistrationToken == "" {
-		return fmt.Errorf("runner registration token required")
-	}
+	//if util.Config.Runner.RegistrationToken == "" {
+	//	return fmt.Errorf("runner registration token required")
+	//}
 
 	if util.Config.Runner.TokenFile == "" {
 		return fmt.Errorf("runner token file required")
@@ -80,7 +80,7 @@ func (p *JobPool) Unregister() (err error) {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/internal/runners"
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -194,7 +194,7 @@ func (p *JobPool) sendProgress() {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/internal/runners"
+	url := util.Config.Runner.Webhook + "/api/internal/runners"
 
 	body := RunnerProgress{
 		Jobs: nil,
@@ -249,7 +249,9 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	// Can not restore runner configuration. Register new runner on the server.
 
-	if util.Config.Runner.RegistrationToken == "" {
+	registrationToken := ""
+
+	if registrationToken == "" {
 		panic("registration token cannot be empty")
 	}
 
@@ -257,10 +259,10 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/internal/runners"
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
-		RegistrationToken: util.Config.Runner.RegistrationToken,
+		RegistrationToken: registrationToken,
 		Webhook:           util.Config.Runner.Webhook,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
@@ -312,7 +314,7 @@ func (p *JobPool) checkNewJobs() {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/internal/runners"
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("GET", url, nil)
 

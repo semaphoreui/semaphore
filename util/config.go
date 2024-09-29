@@ -36,11 +36,11 @@ const (
 type DbConfig struct {
 	Dialect string `json:"-"`
 
-	Hostname string            `json:"host" env:"SEMAPHORE_DB_HOST"`
-	Username string            `json:"user" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass" env:"SEMAPHORE_DB_PASS"`
-	DbName   string            `json:"name" env:"SEMAPHORE_DB"`
-	Options  map[string]string `json:"options" env:"SEMAPHORE_DB_OPTIONS"`
+	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST"`
+	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
+	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
+	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB"`
+	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
 
 type ldapMappings struct {
@@ -91,11 +91,9 @@ const (
 //
 // */
 
-type RunnerSettings struct {
-	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
-	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+type RunnerConfig struct {
+	Token string `json:"-" env:"SEMAPHORE_RUNNER_TOKEN"`
 
-	Token     string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
 	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
@@ -105,101 +103,102 @@ type RunnerSettings struct {
 	// 2) Semaphore found runner for task and calls runner's webhook if it provided.
 	// 3) Your server or lambda handling the call and starts the one-off runner.
 	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
-	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
+	OneOff bool `json:"one_off,omitempty" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
-	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
-	MaxParallelTasks int    `json:"max_parallel_tasks" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+	Webhook string `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+
+	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
-	MySQL    DbConfig `json:"mysql"`
-	BoltDb   DbConfig `json:"bolt"`
-	Postgres DbConfig `json:"postgres"`
+	MySQL    *DbConfig `json:"mysql,omitempty"`
+	BoltDb   *DbConfig `json:"bolt,omitempty"`
+	Postgres *DbConfig `json:"postgres,omitempty"`
 
-	Dialect string `json:"dialect" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
-	Interface string `json:"interface" env:"SEMAPHORE_INTERFACE"`
+	Interface string `json:"interface,omitempty" env:"SEMAPHORE_INTERFACE"`
 
 	// semaphore stores ephemeral projects here
-	TmpPath string `json:"tmp_path" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
+	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
-	SshConfigPath string `json:"ssh_config_path" env:"SEMAPHORE_SSH_PATH"`
+	SshConfigPath string `json:"ssh_config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
 
-	GitClientId string `json:"git_client" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
+	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
 	// web host
-	WebHost string `json:"web_host" env:"SEMAPHORE_WEB_ROOT"`
+	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash" env:"SEMAPHORE_COOKIE_HASH"`
-	CookieEncryption string `json:"cookie_encryption" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
+	CookieHash       string `json:"cookie_hash,omitempty" env:"SEMAPHORE_COOKIE_HASH"`
+	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
-	AccessKeyEncryption string `json:"access_key_encryption" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
+	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
-	EmailAlert    bool   `json:"email_alert" env:"SEMAPHORE_EMAIL_ALERT"`
-	EmailSender   string `json:"email_sender" env:"SEMAPHORE_EMAIL_SENDER"`
-	EmailHost     string `json:"email_host" env:"SEMAPHORE_EMAIL_HOST"`
-	EmailPort     string `json:"email_port" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
-	EmailUsername string `json:"email_username" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword string `json:"email_password" env:"SEMAPHORE_EMAIL_PASSWORD"`
-	EmailSecure   bool   `json:"email_secure" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailAlert    bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
+	EmailSender   string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
+	EmailHost     string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
+	EmailPort     string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
+	EmailUsername string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
+	EmailPassword string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailSecure   bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
 
 	// ldap settings
-	LdapEnable       bool         `json:"ldap_enable" env:"SEMAPHORE_LDAP_ENABLE"`
-	LdapBindDN       string       `json:"ldap_binddn" env:"SEMAPHORE_LDAP_BIND_DN"`
-	LdapBindPassword string       `json:"ldap_bindpassword" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
-	LdapServer       string       `json:"ldap_server" env:"SEMAPHORE_LDAP_SERVER"`
-	LdapSearchDN     string       `json:"ldap_searchdn" env:"SEMAPHORE_LDAP_SEARCH_DN"`
-	LdapSearchFilter string       `json:"ldap_searchfilter" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
-	LdapMappings     ldapMappings `json:"ldap_mappings"`
-	LdapNeedTLS      bool         `json:"ldap_needtls" env:"SEMAPHORE_LDAP_NEEDTLS"`
+	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
+	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
+	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
+	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
+	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
+	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
+	LdapMappings     *ldapMappings `json:"ldap_mappings,omitempty"`
+	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams and DingTalk alerting
-	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
-	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
-	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
-	SlackAlert          bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
-	SlackUrl            string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
-	RocketChatAlert     bool   `json:"rocketchat_alert" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
-	RocketChatUrl       string `json:"rocketchat_url" env:"SEMAPHORE_ROCKETCHAT_URL"`
-	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
-	MicrosoftTeamsUrl   string `json:"microsoft_teams_url" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
-	DingTalkAlert       bool   `json:"dingtalk_alert" env:"SEMAPHORE_DINGTALK_ALERT"`
-	DingTalkUrl         string `json:"dingtalk_url" env:"SEMAPHORE_DINGTALK_URL"`
+	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
+	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
+	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
+	SlackAlert          bool   `json:"slack_alert,omitempty" env:"SEMAPHORE_SLACK_ALERT"`
+	SlackUrl            string `json:"slack_url,omitempty" env:"SEMAPHORE_SLACK_URL"`
+	RocketChatAlert     bool   `json:"rocketchat_alert,omitempty" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
+	RocketChatUrl       string `json:"rocketchat_url,omitempty" env:"SEMAPHORE_ROCKETCHAT_URL"`
+	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
+	MicrosoftTeamsUrl   string `json:"microsoft_teams_url,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
+	DingTalkAlert       bool   `json:"dingtalk_alert,omitempty" env:"SEMAPHORE_DINGTALK_ALERT"`
+	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
 
 	// oidc settings
-	OidcProviders map[string]OidcProvider `json:"oidc_providers"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty"`
 
-	MaxTaskDurationSec  int `json:"max_task_duration_sec" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
-	MaxTasksPerTemplate int `json:"max_tasks_per_template" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
+	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
+	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
-	RunnerRegistrationToken string `json:"runner_registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	// feature switches
-	PasswordLoginDisable     bool `json:"password_login_disable" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
-	NonAdminCanCreateProject bool `json:"non_admin_can_create_project" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
+	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
-	UseRemoteRunner bool `json:"use_remote_runner" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
+	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
-	IntegrationAlias string `json:"global_integration_alias" env:"SEMAPHORE_INTEGRATION_ALIAS"`
+	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"SEMAPHORE_INTEGRATION_ALIAS"`
 
-	Apps map[string]App `json:"apps" env:"SEMAPHORE_APPS"`
+	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
 
-	Runner RunnerSettings `json:"runner"`
+	Runner *RunnerConfig `json:"runner,omitempty"`
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -239,7 +238,7 @@ func ConfigInit(configPath string, noConfigFile bool) {
 		WebHostURL = nil
 	}
 
-	if Config.Runner.TokenFile != "" {
+	if Config.Runner != nil && Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
 			Config.Runner.Token = string(runnerTokenBytes)
@@ -752,11 +751,11 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 
 	switch dialect {
 	case DbDriverBolt:
-		dbConfig = conf.BoltDb
+		dbConfig = *conf.BoltDb
 	case DbDriverPostgres:
-		dbConfig = conf.Postgres
+		dbConfig = *conf.Postgres
 	case DbDriverMySQL:
-		dbConfig = conf.MySQL
+		dbConfig = *conf.MySQL
 	default:
 		err = errors.New("database configuration not found")
 	}

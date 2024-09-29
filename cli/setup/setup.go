@@ -21,6 +21,23 @@ Hello! You will now be guided through a setup to:
 
 `
 
+func InteractiveRunnerSetup(conf *util.ConfigType) {
+
+	askValue("Semaphore server URL", "", &conf.WebHost)
+
+	askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
+
+	haveToken := false
+	askConfirmation("Do you have runner token?", false, &haveToken)
+
+	if haveToken {
+		token := ""
+		askValue("Runner token", "", &token)
+
+		// TODO: write token
+	}
+}
+
 func InteractiveSetup(conf *util.ConfigType) {
 	fmt.Print(interactiveSetupBlurb)
 
@@ -100,10 +117,12 @@ func scanBoltDb(conf *util.ConfigType) {
 		workingDirectory = os.TempDir()
 	}
 	defaultBoltDBPath := filepath.Join(workingDirectory, "database.boltdb")
+	conf.BoltDb = &util.DbConfig{}
 	askValue("db filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
 }
 
 func scanMySQL(conf *util.ConfigType) {
+	conf.MySQL = &util.DbConfig{}
 	askValue("db Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
 	askValue("db User", "root", &conf.MySQL.Username)
 	askValue("db Password", "", &conf.MySQL.Password)
@@ -111,6 +130,7 @@ func scanMySQL(conf *util.ConfigType) {
 }
 
 func scanPostgres(conf *util.ConfigType) {
+	conf.Postgres = &util.DbConfig{}
 	askValue("db Hostname", "127.0.0.1:5432", &conf.Postgres.Hostname)
 	askValue("db User", "root", &conf.Postgres.Username)
 	askValue("db Password", "", &conf.Postgres.Password)
@@ -129,7 +149,11 @@ func scanErrorChecker(n int, err error) {
 	}
 }
 
-func SaveConfig(config *util.ConfigType) (configPath string) {
+type IConfig interface {
+	ToJSON() ([]byte, error)
+}
+
+func SaveConfig(config IConfig) (configPath string) {
 	configDirectory, err := os.Getwd()
 	if err != nil {
 		configDirectory, err = os.UserConfigDir()
@@ -166,19 +190,6 @@ func SaveConfig(config *util.ConfigType) (configPath string) {
 
 	fmt.Printf("Configuration written to %v..\n", configPath)
 	return
-}
-
-func AskConfigConfirmation(config *util.ConfigType) bool {
-	bytes, err := config.ToJSON()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("\nGenerated configuration:\n %v\n\n", string(bytes))
-
-	var correct bool
-	askConfirmation("Is this correct?", true, &correct)
-	return correct
 }
 
 func askValue(prompt string, defaultValue string, item interface{}) {

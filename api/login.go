@@ -120,7 +120,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	prepareClaims(entry)
 
-	claims, err := parseClaims(entry, &util.Config.LdapMappings)
+	claims, err := parseClaims(entry, util.Config.LdapMappings)
 	if err != nil {
 		return nil, err
 	}
