@@ -431,7 +431,8 @@ func getConfigValue(path string) string {
 	for i, nested := range nested_path {
 		attribute = reflect.Indirect(attribute).FieldByName(nested)
 		lastDepth := len(nested_path) == i+1
-		if !lastDepth && attribute.Kind() != reflect.Struct || lastDepth && attribute.Kind() == reflect.Invalid {
+		if !lastDepth && attribute.Kind() != reflect.Struct && attribute.Kind() != reflect.Pointer ||
+			lastDepth && attribute.Kind() == reflect.Invalid {
 			panic(fmt.Errorf("got non-existent config attribute '%v'", path))
 		}
 	}
@@ -512,6 +513,16 @@ func loadEnvironmentToObject(obj interface{}) error {
 
 		if fieldType.Type.Kind() == reflect.Struct {
 			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
+			if err != nil {
+				return err
+			}
+			continue
+		} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
+			if fieldValue.IsZero() {
+				newValue := reflect.New(fieldType.Type.Elem())
+				fieldValue.Set(newValue)
+			}
+			err := loadEnvironmentToObject(fieldValue.Interface())
 			if err != nil {
 				return err
 			}

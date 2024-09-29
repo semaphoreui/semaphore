@@ -130,7 +130,9 @@ func TestGetConfigValue(t *testing.T) {
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
 	Config.LdapNeedTLS = testLdapNeedTls
-	Config.BoltDb.Hostname = testDbHost
+	Config.BoltDb = &DbConfig{
+		Hostname: testDbHost,
+	}
 
 	if getConfigValue("Port") != testPort {
 		t.Error("Could not get value for config attribute 'Port'!")
@@ -144,6 +146,7 @@ func TestGetConfigValue(t *testing.T) {
 	if getConfigValue("LdapNeedTLS") != fmt.Sprintf("%v", testLdapNeedTls) {
 		t.Error("Could not get value for config attribute 'LdapNeedTLS'!")
 	}
+
 	if getConfigValue("BoltDb.Hostname") != fmt.Sprintf("%v", testDbHost) {
 		t.Error("Could not get value for config attribute 'BoltDb.Hostname'!")
 	}
@@ -223,6 +226,7 @@ func TestSetConfigValue(t *testing.T) {
 func TestLoadConfigEnvironmet(t *testing.T) {
 
 	Config = new(ConfigType)
+	Config.BoltDb = &DbConfig{}
 	Config.Dialect = DbDriverBolt
 
 	var envPort = "1337"

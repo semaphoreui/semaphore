@@ -827,6 +827,7 @@ func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProps, objID obje
 
 func CreateTestStore() *BoltDb {
 	util.Config = &util.ConfigType{
+		BoltDb:  &util.DbConfig{},
 		Dialect: "bolt",
 	}
 
