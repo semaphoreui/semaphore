@@ -26,12 +26,12 @@ func doRunnerSetup() int {
 
 	setup.InteractiveRunnerSetup(config)
 
-	configPath := setup.SaveConfig(config)
+	resultConfigPath := setup.SaveConfig(config, "config-runner.json", configPath)
 
-	util.ConfigInit(configPath, false)
+	util.ConfigInit(resultConfigPath, false)
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", configPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", configPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore runner --config %v\n\n", resultConfigPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore runner --config %v &\n\n", resultConfigPath)
 
 	return 0
 }

@@ -241,7 +241,7 @@ func ConfigInit(configPath string, noConfigFile bool) {
 	if Config.Runner != nil && Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
-			Config.Runner.Token = string(runnerTokenBytes)
+			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
 	}
 }

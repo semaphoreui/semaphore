@@ -31,9 +31,9 @@ func doSetup() int {
 	config.GenerateSecrets()
 	setup.InteractiveSetup(config)
 
-	configPath := setup.SaveConfig(config)
+	resultConfigPath := setup.SaveConfig(config, "config.json", configPath)
 
-	util.ConfigInit(configPath, false)
+	util.ConfigInit(resultConfigPath, false)
 
 	fmt.Println(" Pinging db..")
 
@@ -74,8 +74,8 @@ func doSetup() int {
 		fmt.Printf("\n You are all setup %v!\n", user.Name)
 	}
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", configPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", configPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", resultConfigPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", resultConfigPath)
 	fmt.Printf(" You can login with %v or %v.\n", user.Email, user.Username)
 
 	return 0

@@ -25,6 +25,8 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 	askValue("Semaphore server URL", "", &conf.WebHost)
 
+	conf.Runner = &util.RunnerConfig{}
+
 	askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
 
 	haveToken := false
@@ -153,19 +155,30 @@ type IConfig interface {
 	ToJSON() ([]byte, error)
 }
 
-func SaveConfig(config IConfig) (configPath string) {
-	configDirectory, err := os.Getwd()
-	if err != nil {
-		configDirectory, err = os.UserConfigDir()
+func SaveConfig(config IConfig, defaultFilename string, requiredConfigPath string) (configPath string) {
+
+	if requiredConfigPath == "" {
+		configDirectory, err := os.Getwd()
 		if err != nil {
-			// Final fallback
-			configDirectory = "/etc/semaphore"
+			configDirectory, err = os.UserConfigDir()
+			if err != nil {
+				// Final fallback
+				configDirectory = "/etc/semaphore"
+			}
+			configDirectory = filepath.Join(configDirectory, "semaphore")
 		}
-		configDirectory = filepath.Join(configDirectory, "semaphore")
+
+		configPath = filepath.Join(configDirectory, defaultFilename)
+		askValue("Config output file", configPath, &configPath)
+	} else {
+		configPath = requiredConfigPath
 	}
-	askValue("Config output directory", configDirectory, &configDirectory)
+
+	configDirectory := filepath.Dir(configPath)
 
 	fmt.Printf("Running: mkdir -p %v..\n", configDirectory)
+
+	var err error
 
 	if _, err = os.Stat(configDirectory); err != nil {
 		if os.IsNotExist(err) {
@@ -183,7 +196,6 @@ func SaveConfig(config IConfig) (configPath string) {
 		panic(err)
 	}
 
-	configPath = filepath.Join(configDirectory, "config.json")
 	if err = os.WriteFile(configPath, bytes, 0644); err != nil {
 		panic(err)
 	}
