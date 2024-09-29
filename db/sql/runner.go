@@ -19,6 +19,27 @@ func (d *SqlDb) DeleteRunner(projectID int, runnerID int) (err error) {
 	return
 }
 
+func (d *SqlDb) GetGlobalRunnerByToken(token string) (runner db.Runner, err error) {
+
+	runners := make([]db.Runner, 0)
+
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+		return builder.Where("token=?", token)
+	}, &runners)
+
+	if err != nil {
+		return
+	}
+
+	if len(runners) == 0 {
+		err = db.ErrNotFound
+		return
+	}
+
+	runner = runners[0]
+	return
+}
+
 func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	err = d.getObject(0, db.GlobalRunnerProps, runnerID, &runner)
 	return

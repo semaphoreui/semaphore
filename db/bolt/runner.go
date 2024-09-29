@@ -17,6 +17,28 @@ func (d *BoltDb) DeleteRunner(projectID int, runnerID int) (err error) {
 	return
 }
 
+func (d *BoltDb) GetGlobalRunnerByToken(token string) (runner db.Runner, err error) {
+
+	runners := make([]db.Runner, 0)
+
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		r := i.(db.Runner)
+		return r.Token == token
+	}, &runners)
+
+	if err != nil {
+		return
+	}
+
+	if len(runners) == 0 {
+		err = db.ErrNotFound
+		return
+	}
+
+	runner = runners[0]
+	return
+}
+
 func (d *BoltDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	err = d.getObject(0, db.GlobalRunnerProps, intObjectID(runnerID), &runner)
 

@@ -93,9 +93,9 @@ func Route() *mux.Router {
 
 	runnersAPI := internalAPI.PathPrefix("/runners").Subrouter()
 	runnersAPI.Use(runners.RunnerMiddleware)
-	runnersAPI.Path("/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	runnersAPI.Path("/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
-	runnersAPI.Path("/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
+	runnersAPI.Path("/").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	runnersAPI.Path("/").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	runnersAPI.Path("/").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)

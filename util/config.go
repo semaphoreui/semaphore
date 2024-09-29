@@ -91,18 +91,9 @@ const (
 //
 // */
 
-// Deprecated
-type RunnerConfig struct {
-	RunnerID int    `json:"runner_id" env:"SEMAPHORE_RUNNER_ID"`
-	Token    string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
-}
-
 type RunnerSettings struct {
 	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
 	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-
-	// Deprecated
-	ConfigFile string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
 
 	Token     string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
 	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
@@ -217,49 +208,6 @@ var Config *ConfigType
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
-}
-
-func LoadRunnerSettings(path string) (config RunnerConfig, err error) {
-	configFileExists := false
-
-	if path != "" {
-		_, err = os.Stat(path)
-
-		if os.IsNotExist(err) {
-			configFileExists = false
-		} else if err != nil {
-			return
-		} else {
-			configFileExists = true
-		}
-	}
-
-	if configFileExists {
-
-		var configBytes []byte
-		configBytes, err = os.ReadFile(path)
-
-		if err != nil {
-			return
-		}
-
-		err = json.Unmarshal(configBytes, &config)
-
-		if err != nil {
-			return
-		}
-
-	}
-
-	err = loadEnvironmentToObject(&config)
-
-	if err != nil {
-		return
-	}
-
-	err = loadDefaultsToObject(&config)
-
-	return
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them

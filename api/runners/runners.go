@@ -199,10 +199,11 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := util.RunnerConfig{
-		RunnerID: runner.ID,
-		Token:    runner.Token,
+	var res struct {
+		Token string `json:"token"`
 	}
+
+	res.Token = runner.Token
 
 	helpers.WriteJSON(w, http.StatusOK, res)
 }
