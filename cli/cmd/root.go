@@ -19,6 +19,7 @@ import (
 )
 
 var configPath string
+var noConfig bool
 
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
@@ -34,8 +35,9 @@ Complete documentation is available at https://ansible-semaphore.com.`,
 
 func Execute() {
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
+	rootCmd.PersistentFlags().BoolVar(&noConfig, "no-config", false, "Don't use configuration file")
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -96,7 +98,7 @@ func runService() {
 }
 
 func createStore(token string) db.Store {
-	util.ConfigInit(configPath)
+	util.ConfigInit(configPath, noConfig)
 
 	store := factory.CreateStore()
 

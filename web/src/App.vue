@@ -376,7 +376,7 @@
                 </v-list-item-content>
 
                 <v-list-item-action>
-                  <v-chip color="red" v-if="user.admin" small>admin</v-chip>
+                  <v-chip color="red" v-if="user.admin" small>{{ $i18n.t('admin') }}</v-chip>
                 </v-list-item-action>
               </v-list-item>
             </template>
@@ -401,6 +401,20 @@
 
                 <v-list-item-content>
                   {{ $t('users') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item
+                key="runners"
+                to="/runners"
+                v-if="user.admin && systemInfo.use_remote_runner"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-cogs</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('runners') }}
                 </v-list-item-content>
               </v-list-item>
 
@@ -439,6 +453,7 @@
         :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
+        :webHost="(systemInfo || {}).web_host"
         :user="user"
       ></router-view>
     </v-main>

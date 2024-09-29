@@ -29,7 +29,7 @@ type JobPool struct {
 
 	queue []*job
 
-	config *util.RunnerConfig
+	token *string
 
 	processing int32
 }
@@ -56,19 +56,13 @@ func (p *JobPool) hasRunningJobs() bool {
 
 func (p *JobPool) Unregister() (err error) {
 
-	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
-
-	if err != nil {
-		return
-	}
-
-	if config.Token == "" {
+	if util.Config.Runner.Token == "" {
 		return fmt.Errorf("runner is not registered")
 	}
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners"
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -85,9 +79,8 @@ func (p *JobPool) Unregister() (err error) {
 		return
 	}
 
-	err = os.Remove(util.Config.Runner.ConfigFile)
-	if err != nil {
-		return
+	if util.Config.Runner.TokenFile != "" {
+		err = os.Remove(util.Config.Runner.TokenFile)
 	}
 
 	return
@@ -190,7 +183,7 @@ func (p *JobPool) sendProgress() {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	body := RunnerProgress{
 		Jobs: nil,
@@ -220,7 +213,7 @@ func (p *JobPool) sendProgress() {
 		return
 	}
 
-	req.Header.Set("X-API-Token", p.config.Token)
+	req.Header.Set("X-Runner-Token", *p.token)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -232,20 +225,20 @@ func (p *JobPool) sendProgress() {
 }
 
 func (p *JobPool) tryRegisterRunner() bool {
-	if p.config != nil {
+	if p.token != nil {
 		return true
 	}
 
 	log.Info("Attempting to register on the server")
 
-	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
+	//config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
+	//
+	//if err != nil {
+	//	panic(err)
+	//}
 
-	if err != nil {
-		panic(err)
-	}
-
-	if config.Token != "" {
-		p.config = &config
+	if util.Config.Runner.Token != "" {
+		p.token = &util.Config.Runner.Token
 		return true
 	}
 
@@ -259,7 +252,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners"
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
@@ -269,37 +262,35 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		log.Error("Error creating request:", err)
+		log.Error("Registration: Error creating request:", err)
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		log.Error("Error making request:", err)
+		log.Error("Registration: Error making request:", err)
 		return false
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		fmt.Println("Registration: Error reading response body:", err)
 		return false
 	}
 
-	err = json.Unmarshal(body, &config)
+	var res struct {
+		Token string `json:"token"`
+	}
+
+	err = json.Unmarshal(body, &res)
 	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		fmt.Println("Registration: Error parsing JSON:", err)
 		return false
 	}
 
-	configBytes, err := json.Marshal(config)
+	err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 
-	if err != nil {
-		panic("cannot save runner config")
-	}
-
-	err = os.WriteFile(util.Config.Runner.ConfigFile, configBytes, 0644)
-
-	p.config = &config
+	p.token = &res.Token
 
 	defer resp.Body.Close()
 
@@ -309,13 +300,18 @@ func (p *JobPool) tryRegisterRunner() bool {
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
+	if p.token == nil {
+		fmt.Println("Error creating request:", "no token provided")
+		return
+	}
+
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
+	url := util.Config.Runner.ApiURL + "/internal/runners"
 
 	req, err := http.NewRequest("GET", url, nil)
 
-	req.Header.Set("X-API-Token", p.config.Token)
+	req.Header.Set("X-Runner-Token", *p.token)
 
 	if err != nil {
 		fmt.Println("Error creating request:", err)

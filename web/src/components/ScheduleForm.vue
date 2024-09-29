@@ -149,13 +149,13 @@
       v-model="item.active"
     >
       <template v-slot:label>
-        Enabled
+        {{ $t('enabled') }}
         <span
           v-if="item.active"
           class="ml-3"
           style="color: limegreen; font-weight: bold;"
         >
-          Next run {{ nextRunTime() | formatDate }}.
+          {{ $t('scheduleNextRun') }} {{ nextRunTime() | formatDate }}.
         </span>
       </template>
     </v-checkbox>

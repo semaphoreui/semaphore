@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/base64"
+	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/securecookie"
 )
@@ -18,13 +19,40 @@ func (d *SqlDb) DeleteRunner(projectID int, runnerID int) (err error) {
 	return
 }
 
+func (d *SqlDb) GetGlobalRunnerByToken(token string) (runner db.Runner, err error) {
+
+	runners := make([]db.Runner, 0)
+
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+		return builder.Where("token=?", token)
+	}, &runners)
+
+	if err != nil {
+		return
+	}
+
+	if len(runners) == 0 {
+		err = db.ErrNotFound
+		return
+	}
+
+	runner = runners[0]
+	return
+}
+
 func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	err = d.getObject(0, db.GlobalRunnerProps, runnerID, &runner)
 	return
 }
 
-func (d *SqlDb) GetGlobalRunners() (runners []db.Runner, err error) {
-	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, nil, &runners)
+func (d *SqlDb) GetGlobalRunners(activeOnly bool) (runners []db.Runner, err error) {
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+		if activeOnly {
+			builder = builder.Where("active=?", activeOnly)
+		}
+
+		return builder
+	}, &runners)
 	return
 }
 
@@ -35,7 +63,9 @@ func (d *SqlDb) DeleteGlobalRunner(runnerID int) (err error) {
 
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	_, err = d.exec(
-		"update runner set webhook=?, max_parallel_tasks=? where id=?",
+		"update runner set name=?, active=?, webhook=?, max_parallel_tasks=? where id=?",
+		runner.Name,
+		runner.Active,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.ID)
@@ -48,11 +78,13 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into runner (project_id, token, webhook, max_parallel_tasks) values (?, ?, ?, ?)",
+		"insert into runner (project_id, token, webhook, max_parallel_tasks, name, active) values (?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
-		runner.MaxParallelTasks)
+		runner.MaxParallelTasks,
+		runner.Name,
+		runner.Active)
 
 	if err != nil {
 		return

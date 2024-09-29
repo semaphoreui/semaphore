@@ -91,16 +91,20 @@ const (
 //
 // */
 
-type RunnerConfig struct {
-	RunnerID int    `json:"runner_id" env:"SEMAPHORE_RUNNER_ID"`
-	Token    string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
-}
-
 type RunnerSettings struct {
 	ApiURL            string `json:"api_url" env:"SEMAPHORE_RUNNER_API_URL"`
 	RegistrationToken string `json:"registration_token" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-	ConfigFile        string `json:"config_file" env:"SEMAPHORE_RUNNER_CONFIG_FILE"`
-	// OneOff indicates than runner runs only one job and exit
+
+	Token     string `json:"token" env:"SEMAPHORE_RUNNER_TOKEN"`
+	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+
+	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
+	// How it works?
+	// Example:
+	// 1) User starts the task.
+	// 2) Semaphore found runner for task and calls runner's webhook if it provided.
+	// 3) Your server or lambda handling the call and starts the one-off runner.
+	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
 	OneOff bool `json:"one_off" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
 	Webhook          string `json:"webhook" env:"SEMAPHORE_RUNNER_WEBHOOK"`
@@ -206,57 +210,16 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
 }
 
-func LoadRunnerSettings(path string) (config RunnerConfig, err error) {
-	configFileExists := false
-
-	if path != "" {
-		_, err = os.Stat(path)
-
-		if os.IsNotExist(err) {
-			configFileExists = false
-		} else if err != nil {
-			return
-		} else {
-			configFileExists = true
-		}
-	}
-
-	if configFileExists {
-
-		var configBytes []byte
-		configBytes, err = os.ReadFile(path)
-
-		if err != nil {
-			return
-		}
-
-		err = json.Unmarshal(configBytes, &config)
-
-		if err != nil {
-			return
-		}
-
-	}
-
-	err = loadEnvironmentToObject(&config)
-
-	if err != nil {
-		return
-	}
-
-	err = loadDefaultsToObject(&config)
-
-	return
-}
-
 // ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit(configPath string) {
+func ConfigInit(configPath string, noConfigFile bool) {
 	fmt.Println("Loading config")
 
 	Config = &ConfigType{}
 	Config.Apps = map[string]App{}
 
-	loadConfigFile(configPath)
+	if !noConfigFile {
+		loadConfigFile(configPath)
+	}
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -275,6 +238,13 @@ func ConfigInit(configPath string) {
 	if len(WebHostURL.String()) == 0 {
 		WebHostURL = nil
 	}
+
+	if Config.Runner.TokenFile != "" {
+		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
+		if err == nil {
+			Config.Runner.Token = string(runnerTokenBytes)
+		}
+	}
 }
 
 func loadConfigFile(configPath string) {
@@ -291,6 +261,7 @@ func loadConfigFile(configPath string) {
 		paths := []string{
 			path.Join(cwd, "config.json"),
 			"/usr/local/etc/semaphore/config.json",
+			"/etc/semaphore/config.json",
 		}
 		for _, p := range paths {
 			_, err = os.Stat(p)
