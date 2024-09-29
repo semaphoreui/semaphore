@@ -31,8 +31,6 @@ function gptTranslate(options) {
       try {
         const content = file.contents.toString(enc);
 
-        console.log(`****** translating file ${file.path} ******`);
-
         const response = await openai.chat.completions.create({
           model: options.model || 'gpt-4o-mini',
           temperature: 0,
@@ -46,7 +44,7 @@ function gptTranslate(options) {
           ],
         });
 
-        file.contents = Buffer.from(response.choices[0].message.content, enc);
+        file.contents = Buffer.from(`${response.choices[0].message.content}\n`, enc);
 
         self.push(file);
         cb();

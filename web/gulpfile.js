@@ -13,7 +13,11 @@ const LANG_NAMES = {
   ja: 'Japanese',
   ko: 'Korean',
   pt: 'Portuguese',
-  zh: 'Chinese',
+  zh_cn: 'Simplified Chinese',
+  zh_tw: 'Traditional Chinese',
+  nl: 'Dutch (Netherlands)',
+  pl: 'Polish',
+  pt_br: 'Brazilian Portuguese',
 };
 
 function tr() {
@@ -22,8 +26,8 @@ function tr() {
       apiKey: process.env.OPENAI_API_KEY,
       targetLanguage: LANG_NAMES[lang],
       messages: [
-        'This content contains Ansible Semaphore strings.',
-        'Do not wrap result to any formatting tags. Result must be valid json file.',
+        'Translate values of the JS object fields.',
+        'Preserve file format. Do not wrap result to markdown tag. Result must be valid js file.',
       ],
     }))
     .pipe(rename({ basename: lang }))
