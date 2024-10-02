@@ -262,6 +262,9 @@ type Store interface {
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+
+	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
+	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 }
 
 var AccessKeyProps = ObjectProps{
@@ -416,6 +419,13 @@ var OptionProps = ObjectProps{
 	Type:              reflect.TypeOf(Option{}),
 	PrimaryColumnName: "key",
 	IsGlobal:          true,
+}
+
+var TemplateVaultProps = ObjectProps{
+	TableName:             "project__template_vault",
+	Type:                  reflect.TypeOf(TemplateVault{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "template_id",
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {

@@ -76,8 +76,7 @@ type Template struct {
 
 	Description *string `db:"description" json:"description"`
 
-	VaultKeyID *int      `db:"vault_key_id" json:"vault_key_id"`
-	VaultKey   AccessKey `db:"-" json:"-"`
+	Vaults []TemplateVault `db:"-" json:"vaults"`
 
 	Type            TemplateType `db:"type" json:"type"`
 	StartVersion    *string      `db:"start_version" json:"start_version"`
@@ -128,13 +127,12 @@ func (tpl *Template) Validate() error {
 }
 
 func FillTemplate(d Store, template *Template) (err error) {
-	if template.VaultKeyID != nil {
-		template.VaultKey, err = d.GetAccessKey(template.ProjectID, *template.VaultKeyID)
-	}
-
+	var vaults []TemplateVault
+	vaults, err = d.GetTemplateVaults(template.ProjectID, template.ID)
 	if err != nil {
 		return
 	}
+	template.Vaults = vaults
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})

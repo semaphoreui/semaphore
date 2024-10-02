@@ -684,6 +684,10 @@ definitions:
       view_id:
         type: integer
         minimum: 1
+      vaults:
+        type: array
+        items:
+          $ref: '#/definitions/TemplateVault'
       vault_id:
         type: integer
         minimum: 1
@@ -767,6 +771,18 @@ definitions:
         example: String => "", Integer => "int"
       required:
         type: boolean
+  TemplateVault:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      vault_key_id:
+        type: integer
+        minimum: 1
+      name:
+        type: string
+        example: default
 
   ScheduleRequest:
     type: object

@@ -14,6 +14,7 @@
     "axios": "^0.28.0",
     "core-js": "^3.23.2",
     "cron-parser": "^4.9.0",
+    "dredd": "^13.1.2",
     "moment": "^2.29.4",
     "vue": "^2.6.14",
     "vue-codemirror": "^4.0.6",
