@@ -425,8 +425,10 @@ func (p *JobPool) checkNewJobs() {
 			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
 		}
 
-		if taskRunner.job.Template.VaultKeyID != nil {
-			taskRunner.job.Template.VaultKey = response.AccessKeys[*taskRunner.job.Template.VaultKeyID]
+		if taskRunner.job.Template.Vaults != nil {
+			for _, vault := range taskRunner.job.Template.Vaults {
+				*vault.Vault = response.AccessKeys[vault.Vault.ID]
+			}
 		}
 
 		if taskRunner.job.Inventory.RepositoryID != nil {

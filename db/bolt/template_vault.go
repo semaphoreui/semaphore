@@ -22,6 +22,16 @@ func (d *BoltDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.T
 	return
 }
 
+func (d *BoltDb) CreateTemplateVault(vault db.TemplateVault) (newVault db.TemplateVault, err error) {
+	var newTpl interface{}
+	newTpl, err = d.createObject(vault.ProjectID, db.TemplateVaultProps, vault)
+	if err != nil {
+		return
+	}
+	newVault = newTpl.(db.TemplateVault)
+	return
+}
+
 func (d *BoltDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db.TemplateVault) (err error) {
 	if vaults == nil {
 		vaults = []db.TemplateVault{}

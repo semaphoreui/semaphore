@@ -195,7 +195,6 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	taskIDs := make([]int, 0)
 
 	for _, tpl := range tpls {
-		tpl.Vaults, err = d.GetTemplateVaults(projectID, tpl.ID)
 		if tpl.LastTaskID != nil {
 			taskIDs = append(taskIDs, *tpl.LastTaskID)
 		}
@@ -222,6 +221,11 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 					break
 				}
 			}
+		}
+
+		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+		if err != nil {
+			return
 		}
 
 		templates = append(templates, template)

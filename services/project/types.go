@@ -65,23 +65,31 @@ type BackupRepository struct {
 }
 
 type BackupTemplate struct {
-	Inventory               *string         `json:"inventory"`
-	Repository              string          `json:"repository"`
-	Environment             *string         `json:"environment"`
-	Name                    string          `json:"name"`
-	Playbook                string          `json:"playbook"`
-	Arguments               *string         `json:"arguments"`
-	AllowOverrideArgsInTask bool            `json:"allow_override_args_in_task"`
-	Description             *string         `json:"description"`
-	VaultKey                *string         `json:"vault_key"`
-	Type                    db.TemplateType `json:"type"`
-	StartVersion            *string         `json:"start_version"`
-	BuildTemplate           *string         `json:"build_template"`
-	View                    *string         `json:"view"`
-	Autorun                 bool            `json:"autorun"`
-	SurveyVars              *string         `json:"survey_vars"`
-	SuppressSuccessAlerts   bool            `json:"suppress_success_alerts"`
-	Cron                    *string         `json:"cron"`
+	Inventory               *string               `json:"inventory"`
+	Repository              string                `json:"repository"`
+	Environment             *string               `json:"environment"`
+	Name                    string                `json:"name"`
+	Playbook                string                `json:"playbook"`
+	Arguments               *string               `json:"arguments"`
+	AllowOverrideArgsInTask bool                  `json:"allow_override_args_in_task"`
+	Description             *string               `json:"description"`
+	Type                    db.TemplateType       `json:"type"`
+	StartVersion            *string               `json:"start_version"`
+	BuildTemplate           *string               `json:"build_template"`
+	View                    *string               `json:"view"`
+	Autorun                 bool                  `json:"autorun"`
+	SurveyVars              *string               `json:"survey_vars"`
+	SuppressSuccessAlerts   bool                  `json:"suppress_success_alerts"`
+	Cron                    *string               `json:"cron"`
+	Vaults                  []BackupTemplateVault `json:"vaults"`
+
+	// Deprecated: Left here for compatibility with old backups
+	VaultKey *string `json:"vault_key"`
+}
+
+type BackupTemplateVault struct {
+	Name     *string `json:"name"`
+	VaultKey string  `json:"vault_key"`
 }
 
 type BackupEntry interface {

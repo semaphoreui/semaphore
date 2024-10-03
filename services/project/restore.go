@@ -184,6 +184,13 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if e.VaultKey != nil && getEntryByName[BackupKey](e.VaultKey, backup.Keys) == nil {
 		return fmt.Errorf("vault_key does not exist in keys[].name")
 	}
+	if e.Vaults != nil {
+		for _, vault := range e.Vaults {
+			if getEntryByName[BackupKey](&vault.VaultKey, backup.Keys) == nil {
+				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+			}
+		}
+	}
 	if e.View != nil && getEntryByName[BackupView](e.View, backup.Views) == nil {
 		return fmt.Errorf("view does not exist in views[].name")
 	}
@@ -271,6 +278,27 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		)
 		if err != nil {
 			return err
+		}
+	}
+	if e.Vaults != nil {
+		for _, vault := range e.Vaults {
+			var VaultKeyID int
+			if k := findEntityByName[db.AccessKey](&vault.VaultKey, b.keys); k == nil {
+				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+			} else {
+				VaultKeyID = k.ID
+			}
+			_, err := store.CreateTemplateVault(
+				db.TemplateVault{
+					ProjectID:  b.meta.ID,
+					TemplateID: template.ID,
+					VaultKeyID: VaultKeyID,
+					Name:       vault.Name,
+				},
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

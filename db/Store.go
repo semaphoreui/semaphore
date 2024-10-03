@@ -264,6 +264,7 @@ type Store interface {
 	CreateRunner(runner Runner) (Runner, error)
 
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
+	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 }
 

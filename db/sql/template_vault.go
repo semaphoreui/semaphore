@@ -7,16 +7,38 @@ import (
 )
 
 func (d *SqlDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {
-	_, err = d.selectAll(&vaults, "select * from project__template_vault where project_id=? and template_id=?", projectID, templateID)
+	vaults = []db.TemplateVault{}
+
+	var vlts []db.TemplateVault
+	_, err = d.selectAll(&vlts, "select * from project__template_vault where project_id=? and template_id=?", projectID, templateID)
 	if err != nil {
 		return
 	}
-	for _, vault := range vaults {
+	for _, vault := range vlts {
+		vault := vault
 		err = db.FillTemplateVault(d, projectID, &vault)
 		if err != nil {
 			return
 		}
+		vaults = append(vaults, vault)
 	}
+	return
+}
+
+func (d *SqlDb) CreateTemplateVault(vault db.TemplateVault) (newVault db.TemplateVault, err error) {
+	insertID, err := d.insert(
+		"id",
+		"insert into project__template_vault (project_id, template_id, vault_key_id, name) values (?, ?, ?, ?)",
+		vault.ProjectID,
+		vault.TemplateID,
+		vault.VaultKeyID,
+		vault.Name)
+	if err != nil {
+		return
+	}
+
+	newVault = vault
+	newVault.ID = insertID
 	return
 }
 
