@@ -95,7 +95,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 					if err != nil {
 						// TODO: return error
 					}
-					data.AccessKeys[vault.Vault.ID] = *vault.Vault
+					data.AccessKeys[vault.VaultKeyID] = *vault.Vault
 				}
 			}
 
