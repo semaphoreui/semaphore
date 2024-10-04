@@ -95,7 +95,7 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requ
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
-		t.Log("No " + requirementsType + "/requirements.yml file found. Skip galaxy install process.\n")
+		t.Log("No " + requirementsFilePath + " file found. Skip galaxy install process.\n")
 		return nil
 	}
 
@@ -113,7 +113,7 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requ
 			return err
 		}
 	} else {
-		t.Log(requirementsType + "/requirements.yml has no changes. Skip galaxy install process.\n")
+		t.Log(requirementsFilePath + " has no changes. Skip galaxy install process.\n")
 	}
 
 	return nil
