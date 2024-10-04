@@ -688,9 +688,6 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/TemplateVault'
-      vault_id:
-        type: integer
-        minimum: 1
       name:
         type: string
         example: Test
@@ -774,9 +771,6 @@ definitions:
   TemplateVault:
     type: object
     properties:
-      id:
-        type: integer
-        minimum: 1
       vault_key_id:
         type: integer
         minimum: 1
