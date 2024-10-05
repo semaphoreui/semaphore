@@ -9,7 +9,7 @@ type migration_2_8_26 struct {
 	db *SqlDb
 }
 
-func (m migration_2_8_26) Apply(tx *gorp.Transaction) error {
+func (m migration_2_8_26) PostApply(tx *gorp.Transaction) error {
 	rows, err := tx.Query(m.db.PrepareQuery("SELECT id, git_url FROM project__repository"))
 	if err != nil {
 		return err

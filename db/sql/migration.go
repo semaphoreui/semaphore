@@ -142,6 +142,16 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
+	switch migration.Version {
+	case "2.10.24":
+		err = migration_2_10_24{db: d}.PreApply(tx)
+	}
+
+	if err != nil {
+		handleRollbackError(tx.Rollback())
+		return err
+	}
+
 	queries := getVersionSQL(getVersionPath(migration))
 	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
@@ -164,20 +174,21 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
-	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	switch migration.Version {
+	case "2.8.26":
+		err = migration_2_8_26{db: d}.PostApply(tx)
+	case "2.8.42":
+		err = migration_2_8_42{db: d}.PostApply(tx)
+	}
+
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
 	}
 
-	switch migration.Version {
-	case "2.8.26":
-		err = migration_2_8_26{db: d}.Apply(tx)
-	case "2.8.42":
-		err = migration_2_8_42{db: d}.Apply(tx)
-	}
-
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
 	if err != nil {
+		handleRollbackError(tx.Rollback())
 		return err
 	}
 
