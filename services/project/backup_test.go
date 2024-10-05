@@ -97,7 +97,7 @@ func TestBackupProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if restoredBackup.Meta.ID != proj.ID {
+	if restoredBackup.Meta.Name != proj.Name {
 		t.Fatal("backup meta ID wrong")
 	}
 
