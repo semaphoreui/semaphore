@@ -37,46 +37,36 @@ func (e BackupEnvironment) Verify(backup *BackupFormat) error {
 }
 
 func (e BackupEnvironment) Restore(store db.Store, b *BackupDB) error {
-	environment, err := store.CreateEnvironment(
-		db.Environment{
-			Name:      e.Name,
-			Password:  e.Password,
-			ProjectID: b.meta.ID,
-			JSON:      e.JSON,
-			ENV:       e.ENV,
-		},
-	)
+	env := e.Environment
+	env.ProjectID = b.meta.ID
+	newEnv, err := store.CreateEnvironment(env)
 	if err != nil {
 		return err
 	}
-	b.environments = append(b.environments, environment)
+	b.environments = append(b.environments, newEnv)
 	return nil
 }
 
 func (e BackupView) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupView](e.Name, backup.Views)
+	return verifyDuplicate[BackupView](e.Title, backup.Views)
 }
 
 func (e BackupView) Restore(store db.Store, b *BackupDB) error {
-	view, err := store.CreateView(
-		db.View{
-			Title:     e.Name,
-			ProjectID: b.meta.ID,
-			Position:  e.Position,
-		},
-	)
+	v := e.View
+	v.ProjectID = b.meta.ID
+	newView, err := store.CreateView(v)
 	if err != nil {
 		return err
 	}
-	b.views = append(b.views, view)
+	b.views = append(b.views, newView)
 	return nil
 }
 
-func (e BackupKey) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupKey](e.Name, backup.Keys)
+func (e BackupAccessKey) Verify(backup *BackupFormat) error {
+	return verifyDuplicate[BackupAccessKey](e.Name, backup.Keys)
 }
 
-func (e BackupKey) Restore(store db.Store, b *BackupDB) error {
+func (e BackupAccessKey) Restore(store db.Store, b *BackupDB) error {
 	key, err := store.CreateAccessKey(
 		db.AccessKey{
 			Name:      e.Name,
@@ -95,10 +85,10 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if err := verifyDuplicate[BackupInventory](e.Name, backup.Inventories); err != nil {
 		return err
 	}
-	if e.SSHKey != nil && getEntryByName[BackupKey](e.SSHKey, backup.Keys) == nil {
+	if e.SSHKey != nil && getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
 		return fmt.Errorf("SSHKey does not exist in keys[].Name")
 	}
-	if e.BecomeKey != nil && getEntryByName[BackupKey](e.BecomeKey, backup.Keys) == nil {
+	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
 	return nil
@@ -121,20 +111,17 @@ func (e BackupInventory) Restore(store db.Store, b *BackupDB) error {
 	} else {
 		BecomeKeyID = &((*k).ID)
 	}
-	inventory, err := store.CreateInventory(
-		db.Inventory{
-			ProjectID:   b.meta.ID,
-			Name:        e.Name,
-			Type:        e.Type,
-			SSHKeyID:    SSHKeyID,
-			BecomeKeyID: BecomeKeyID,
-			Inventory:   e.Inventory,
-		},
-	)
+
+	inv := e.Inventory
+	inv.ProjectID = b.meta.ID
+	inv.SSHKeyID = SSHKeyID
+	inv.BecomeKeyID = BecomeKeyID
+
+	newInventory, err := store.CreateInventory(inv)
 	if err != nil {
 		return err
 	}
-	b.inventories = append(b.inventories, inventory)
+	b.inventories = append(b.inventories, newInventory)
 	return nil
 }
 
@@ -142,7 +129,7 @@ func (e BackupRepository) Verify(backup *BackupFormat) error {
 	if err := verifyDuplicate[BackupRepository](e.Name, backup.Repositories); err != nil {
 		return err
 	}
-	if e.SSHKey != nil && getEntryByName[BackupKey](e.SSHKey, backup.Keys) == nil {
+	if e.SSHKey != nil && getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
 		return fmt.Errorf("SSHKey does not exist in keys[].Name")
 	}
 	return nil
@@ -181,12 +168,12 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if getEntryByName[BackupInventory](e.Inventory, backup.Inventories) == nil {
 		return fmt.Errorf("inventory does not exist in inventories[].name")
 	}
-	if e.VaultKey != nil && getEntryByName[BackupKey](e.VaultKey, backup.Keys) == nil {
+	if e.VaultKey != nil && getEntryByName[BackupAccessKey](e.VaultKey, backup.Keys) == nil {
 		return fmt.Errorf("vault_key does not exist in keys[].name")
 	}
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
-			if getEntryByName[BackupKey](&vault.VaultKey, backup.Keys) == nil {
+			if getEntryByName[BackupAccessKey](&vault.VaultKey, backup.Keys) == nil {
 				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
 			}
 		}
