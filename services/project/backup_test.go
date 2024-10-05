@@ -101,6 +101,28 @@ func TestBackupProject(t *testing.T) {
 		t.Fatal("backup meta ID wrong")
 	}
 
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "test",
+			Name:     "Test",
+			Email:    "test@example.com",
+			Admin:    true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	restoredProj, err := restoredBackup.Restore(user, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if restoredProj.Name != proj.Name {
+		t.Fatal("backup meta ID wrong")
+	}
+
 }
 
 func isUnique(items []testItem) bool {
