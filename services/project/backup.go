@@ -218,9 +218,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.ViewID != nil {
 			View, _ = findNameByID[db.View](*o.ViewID, b.views)
 		}
-		var VaultKey *string = nil
-		if o.VaultKeyID != nil {
-			VaultKey, _ = findNameByID[db.AccessKey](*o.VaultKeyID, b.keys)
+		var vaults []BackupTemplateVault = nil
+		for _, vault := range o.Vaults {
+			var vaultKey *string = nil
+			vaultKey, _ = findNameByID[db.AccessKey](vault.VaultKeyID, b.keys)
+			vaults = append(vaults, BackupTemplateVault{
+				Name:     vault.Name,
+				VaultKey: *vaultKey,
+			})
+
 		}
 		var Environment *string = nil
 		if o.EnvironmentID != nil {
@@ -249,12 +255,12 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			SurveyVars:              o.SurveyVarsJSON,
 			Type:                    o.Type,
 			View:                    View,
-			VaultKey:                VaultKey,
 			Repository:              *Repository,
 			Inventory:               Inventory,
 			Environment:             Environment,
 			BuildTemplate:           BuildTemplate,
 			Cron:                    getScheduleByTemplate(o.ID, b.schedules),
+			Vaults:                  vaults,
 		}
 	}
 	return &BackupFormat{

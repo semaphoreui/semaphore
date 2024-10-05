@@ -6,7 +6,7 @@ type migration_2_8_42 struct {
 	db *SqlDb
 }
 
-func (m migration_2_8_42) Apply(tx *gorp.Transaction) error {
+func (m migration_2_8_42) PostApply(tx *gorp.Transaction) error {
 	switch m.db.sql.Dialect.(type) {
 	case gorp.MySQLDialect:
 		_, _ = tx.Exec(m.db.PrepareQuery("alter table `task` drop foreign key `task_ibfk_3`"))
