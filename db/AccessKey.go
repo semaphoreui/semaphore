@@ -47,6 +47,8 @@ type AccessKey struct {
 
 	// UserID is an ID of user which owns the access key.
 	UserID *int `db:"user_id" json:"-" backup:"-"`
+
+	Empty bool `db:"-" json:"empty"`
 }
 
 type LoginPassword struct {

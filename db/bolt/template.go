@@ -78,6 +78,10 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) error {
 		task := i.(db.Task)
 
+		if task.ProjectID != projectID {
+			return nil
+		}
+
 		tpl, ok := templatesMap[task.TemplateID]
 		if !ok {
 			return nil

@@ -39,11 +39,12 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 			}
 
 			tag := fieldType.Tag.Get("backup")
-
-			// Check if the field should be backed up
 			if tag == "-" {
 				continue // Skip fields with backup:"-"
-			} else if tag == "" {
+			}
+
+			// Check if the field should be backed up
+			if tag == "" {
 				// Get the field name from the "db" tag
 				tag = fieldType.Tag.Get("db")
 				if tag == "" || tag == "-" {
@@ -55,6 +56,10 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 			value, err := marshalValue(fieldValue)
 			if err != nil {
 				return nil, err
+			}
+
+			if value == nil {
+				continue
 			}
 
 			result[tag] = value
@@ -251,18 +256,19 @@ func unmarshalStructWithBackupTags(data map[string]interface{}, v reflect.Value)
 		}
 
 		// Skip fields with backup:"-"
-		if backupTag := fieldType.Tag.Get("backup"); backupTag == "-" {
+		backupTag := fieldType.Tag.Get("backup")
+
+		if backupTag == "-" {
 			continue
 		}
 
 		// Determine the JSON key to use
 		var jsonKey string
-		backupTag := fieldType.Tag.Get("backup")
 		if backupTag != "" {
 			jsonKey = backupTag
 		} else {
 			dbTag := fieldType.Tag.Get("db")
-			if dbTag != "" {
+			if dbTag != "" && dbTag != "-" {
 				jsonKey = dbTag
 			} else {
 				continue // Skip if no backup or db tag

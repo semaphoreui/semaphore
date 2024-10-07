@@ -341,6 +341,14 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 		return nil, err
 	}
 
+	if _, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: newProject.ID,
+		UserID:    user.ID,
+		Role:      db.ProjectOwner,
+	}); err != nil {
+		return nil, err
+	}
+
 	b.meta = newProject
 
 	for i, o := range backup.Environments {
@@ -383,19 +391,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
+
 	for _, i := range deployTemplates {
 		o := backup.Templates[i]
 		if err := o.Restore(store, &b); err != nil {
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
-	}
-
-	if _, err = store.CreateProjectUser(db.ProjectUser{
-		ProjectID: newProject.ID,
-		UserID:    user.ID,
-		Role:      db.ProjectOwner,
-	}); err != nil {
-		return nil, err
 	}
 
 	return &newProject, nil
