@@ -87,7 +87,7 @@ func TestBackupProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if str != `{"environments":[{"env":null,"json":"{\"author\": \"Denis\", \"comment\": \"Hello, World!\"}","name":"test","password":null}],"inventories":[{"become_key":null,"inventory":"","name":"","ssh_key":null,"type":""}],"keys":[{"name":"","type":"none"}],"meta":{"alert":false,"alert_chat":null,"max_parallel_tasks":0,"name":"Test 123","type":""},"repositories":[{"git_branch":"master","git_url":"git@example.com:test/test","name":"Test","ssh_key":""}],"templates":[{"allow_override_args_in_task":false,"app":"","arguments":null,"autorun":false,"build_template":null,"cron":null,"description":null,"environment":"test","inventory":"","name":"Test","playbook":"test.yml","repository":"Test","start_version":null,"suppress_success_alerts":false,"survey_vars":"null","type":"","vaults":null,"view":null}],"views":null}` {
+	if str != `{"environments":[{"json":"{\"author\": \"Denis\", \"comment\": \"Hello, World!\"}","name":"test"}],"inventories":[{"inventory":"","name":"","type":""}],"keys":[{"name":"","type":"none"}],"meta":{"alert":false,"max_parallel_tasks":0,"name":"Test 123","type":""},"repositories":[{"git_branch":"master","git_url":"git@example.com:test/test","name":"Test","ssh_key":""}],"templates":[{"allow_override_args_in_task":false,"app":"","autorun":false,"environment":"test","inventory":"","name":"Test","playbook":"test.yml","repository":"Test","suppress_success_alerts":false,"survey_vars":"null","type":""}],"views":null}` {
 		t.Fatal("Invalid backup content")
 	}
 
