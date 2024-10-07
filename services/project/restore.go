@@ -163,7 +163,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("repository does not exist in repositories[].name")
 	}
 
-	if getEntryByName[BackupInventory](e.Inventory, backup.Inventories) == nil {
+	if e.Inventory != nil && getEntryByName[BackupInventory](e.Inventory, backup.Inventories) == nil {
 		return fmt.Errorf("inventory does not exist in inventories[].name")
 	}
 
@@ -205,18 +205,24 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 }
 
 func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
-	var InventoryID int
-	if k := findEntityByName[db.Inventory](e.Inventory, b.inventories); k == nil {
-		return fmt.Errorf("inventory does not exist in inventories[].name")
-	} else {
-		InventoryID = k.GetID()
+	var InventoryID *int
+	if e.Inventory != nil {
+		if k := findEntityByName[db.Inventory](e.Inventory, b.inventories); k == nil {
+			return fmt.Errorf("inventory does not exist in inventories[].name")
+		} else {
+			id := k.GetID()
+			InventoryID = &id
+		}
 	}
 
-	var EnvironmentID int
-	if k := findEntityByName[db.Environment](e.Environment, b.environments); k == nil {
-		return fmt.Errorf("environment does not exist in environments[].name")
-	} else {
-		EnvironmentID = k.GetID()
+	var EnvironmentID *int
+	if e.Environment != nil {
+		if k := findEntityByName[db.Environment](e.Environment, b.environments); k == nil {
+			return fmt.Errorf("environment does not exist in environments[].name")
+		} else {
+			id := k.GetID()
+			EnvironmentID = &id
+		}
 	}
 
 	var RepositoryID int
@@ -245,8 +251,8 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	template := e.Template
 	template.ProjectID = b.meta.ID
 	template.RepositoryID = RepositoryID
-	template.EnvironmentID = &EnvironmentID
-	template.InventoryID = &InventoryID
+	template.EnvironmentID = EnvironmentID
+	template.InventoryID = InventoryID
 	template.ViewID = ViewID
 	template.BuildTemplateID = BuildTemplateID
 
