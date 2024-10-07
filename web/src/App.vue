@@ -81,6 +81,23 @@
       </template>
     </EditDialog>
 
+    <EditDialog
+      v-model="restoreProjectDialog"
+      save-button-text="Restore"
+      :title="$t('restoreProject')"
+      event-name="i-project"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <RestoreProjectForm
+          item-id="new"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
+
     <v-snackbar
       v-model="snackbar"
       :color="snackbarColor"
@@ -170,7 +187,7 @@
             </v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="restoreProject" v-if="user.can_create_project">
+          <v-list-item @click="restoreProjectDialog = true" v-if="user.can_create_project">
             <v-list-item-icon>
               <v-icon>mdi-backup-restore</v-icon>
             </v-list-item-icon>
@@ -190,6 +207,18 @@
 
           <v-list-item-content>
             <v-list-item-title>{{ $t('newProject') }}</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+
+      <v-list class="pt-0" v-if="!project">
+        <v-list-item key="new_project" :to="`/project/restore`">
+          <v-list-item-icon>
+            <v-icon>mdi-plus</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>{{ $t('restoreProject') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -639,6 +668,7 @@ import UserForm from '@/components/UserForm.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
+import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 
 const PROJECT_COLORS = [
   'red',
@@ -718,6 +748,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    RestoreProjectForm,
     ChangePasswordForm,
     UserForm,
     EditDialog,
@@ -739,6 +770,7 @@ export default {
       newProjectType: '',
       userDialog: null,
       passwordDialog: null,
+      restoreProjectDialog: null,
 
       taskLogDialog: null,
       task: null,
