@@ -70,9 +70,9 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 	// Handle slices and arrays
 	if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
 		if v.IsNil() {
-			return nil, nil
+			return make([]interface{}, 0), nil
 		}
-		var result []interface{}
+		var result []interface{} = make([]interface{}, 0)
 		for i := 0; i < v.Len(); i++ {
 			elemValue, err := marshalValue(v.Index(i))
 			if err != nil {
@@ -86,7 +86,7 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 	// Handle maps
 	if v.Kind() == reflect.Map {
 		if v.IsNil() {
-			return nil, nil
+			return make(map[string]interface{}), nil
 		}
 		result := make(map[string]interface{})
 		for _, key := range v.MapKeys() {
