@@ -1,7 +1,7 @@
 export default {
   'Check interval': 'Check interval',
   Schedule: 'Schedule',
-  backup: 'Backup',
+  backup: 'Backup Project',
   downloadTheProjectBackupFile: 'Download the project backup file (in json)',
   restoreProject: 'Restore Project...',
   incorrectUsrPwd: 'Incorrect login or password',
