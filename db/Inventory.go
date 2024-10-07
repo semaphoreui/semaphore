@@ -14,17 +14,17 @@ const (
 
 // Inventory is the model of an ansible inventory file
 type Inventory struct {
-	ID        int    `db:"id" json:"id"`
+	ID        int    `db:"id" json:"id" backup:"-"`
 	Name      string `db:"name" json:"name" binding:"required"`
-	ProjectID int    `db:"project_id" json:"project_id"`
+	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
 	Inventory string `db:"inventory" json:"inventory"`
 
 	// accesses hosts in inventory
-	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id"`
-	SSHKey   AccessKey `db:"-" json:"-"`
+	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id" backup:"-"`
+	SSHKey   AccessKey `db:"-" json:"-" backup:"-"`
 
-	BecomeKeyID *int      `db:"become_key_id" json:"become_key_id"`
-	BecomeKey   AccessKey `db:"-" json:"-"`
+	BecomeKeyID *int      `db:"become_key_id" json:"become_key_id" backup:"-"`
+	BecomeKey   AccessKey `db:"-" json:"-" backup:"-"`
 
 	// static/file
 	Type InventoryType `db:"type" json:"type"`
@@ -33,12 +33,12 @@ type Inventory struct {
 	// It is not used now but can be used in feature for
 	// inventories which can not be used more than one template
 	// at once.
-	HolderID *int `db:"holder_id" json:"holder_id"`
+	HolderID *int `db:"holder_id" json:"holder_id" backup:"-"`
 
 	// RepositoryID is an ID of repo where inventory stored.
 	// If null than inventory will be got from template repository.
-	RepositoryID *int        `db:"repository_id" json:"repository_id"`
-	Repository   *Repository `db:"-" json:"-"`
+	RepositoryID *int        `db:"repository_id" json:"repository_id" backup:"-"`
+	Repository   *Repository `db:"-" json:"-" backup:"-"`
 }
 
 func (e Inventory) GetFilename() string {

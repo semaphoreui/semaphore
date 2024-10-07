@@ -9,18 +9,15 @@ import (
 func (d *SqlDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {
 	vaults = []db.TemplateVault{}
 
-	var vlts []db.TemplateVault
-	_, err = d.selectAll(&vlts, "select * from project__template_vault where project_id=? and template_id=?", projectID, templateID)
+	_, err = d.selectAll(&vaults, "select * from project__template_vault where project_id=? and template_id=?", projectID, templateID)
 	if err != nil {
 		return
 	}
-	for _, vault := range vlts {
-		vault := vault
-		err = db.FillTemplateVault(d, projectID, &vault)
+	for i := range vaults {
+		err = db.FillTemplateVault(d, projectID, &vaults[i])
 		if err != nil {
 			return
 		}
-		vaults = append(vaults, vault)
 	}
 	return
 }

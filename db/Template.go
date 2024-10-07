@@ -58,12 +58,12 @@ type TemplateFilter struct {
 
 // Template is a user defined model that is used to run a task
 type Template struct {
-	ID int `db:"id" json:"id"`
+	ID int `db:"id" json:"id" backup:"-"`
 
-	ProjectID     int  `db:"project_id" json:"project_id"`
-	InventoryID   *int `db:"inventory_id" json:"inventory_id"`
-	RepositoryID  int  `db:"repository_id" json:"repository_id"`
-	EnvironmentID *int `db:"environment_id" json:"environment_id"`
+	ProjectID     int  `db:"project_id" json:"project_id" backup:"-"`
+	InventoryID   *int `db:"inventory_id" json:"inventory_id" backup:"-"`
+	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
+	EnvironmentID *int `db:"environment_id" json:"environment_id" backup:"-"`
 
 	// Name as described in https://github.com/ansible-semaphore/semaphore/issues/188
 	Name string `db:"name" json:"name"`
@@ -76,15 +76,15 @@ type Template struct {
 
 	Description *string `db:"description" json:"description"`
 
-	Vaults []TemplateVault `db:"-" json:"vaults"`
+	Vaults []TemplateVault `db:"-" json:"vaults" backup:"-"`
 
 	Type            TemplateType `db:"type" json:"type"`
 	StartVersion    *string      `db:"start_version" json:"start_version"`
-	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id"`
+	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id" backup:"-"`
 
-	ViewID *int `db:"view_id" json:"view_id"`
+	ViewID *int `db:"view_id" json:"view_id" backup:"-"`
 
-	LastTask *TaskWithTpl `db:"-" json:"last_task"`
+	LastTask *TaskWithTpl `db:"-" json:"last_task" backup:"-"`
 
 	Autorun bool `db:"autorun" json:"autorun"`
 
@@ -92,13 +92,13 @@ type Template struct {
 	// It is not used for store survey vars to database.
 	// Do not use it in your code. Use SurveyVars instead.
 	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
-	SurveyVars     []SurveyVar `db:"-" json:"survey_vars"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars" backup:"-"`
 
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
 
 	App TemplateApp `db:"app" json:"app"`
 
-	Tasks int `db:"tasks" json:"tasks"`
+	Tasks int `db:"tasks" json:"tasks" backup:"-"`
 }
 
 func (tpl *Template) Validate() error {

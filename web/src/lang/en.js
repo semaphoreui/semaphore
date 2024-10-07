@@ -31,7 +31,7 @@ export default {
   editUser: 'Edit User',
   newProject: 'New Project',
   close: 'Close',
-  newProject2: 'New project...',
+  newProject2: 'New Project...',
   demoMode: 'DEMO MODE',
   task: 'Task #{expr}',
   youCanRunAnyTasks: 'You can run any tasks',

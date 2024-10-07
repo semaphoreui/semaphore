@@ -87,7 +87,8 @@ func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
 	w.WriteHeader(code)
 
 	if err := json.NewEncoder(w).Encode(out); err != nil {
-		panic(err)
+		log.Error(err)
+		debug.PrintStack()
 	}
 }
 

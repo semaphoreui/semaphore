@@ -30,9 +30,8 @@ type LocalJob struct {
 	// Internal field
 	Process *os.Process
 
-	sshKeyInstallation    db.AccessKeyInstallation
-	becomeKeyInstallation db.AccessKeyInstallation
-
+	sshKeyInstallation     db.AccessKeyInstallation
+	becomeKeyInstallation  db.AccessKeyInstallation
 	vaultFileInstallations map[string]db.AccessKeyInstallation
 }
 

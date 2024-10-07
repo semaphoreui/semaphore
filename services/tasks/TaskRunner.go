@@ -167,7 +167,7 @@ func (t *TaskRunner) run() {
 		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
-	templates, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
+	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
@@ -176,7 +176,7 @@ func (t *TaskRunner) run() {
 		return
 	}
 
-	for _, tpl := range templates {
+	for _, tpl := range tpls {
 		_, err = t.pool.AddTask(db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,

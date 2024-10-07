@@ -1,7 +1,9 @@
 package projects
 
 import (
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -21,27 +23,47 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
-	helpers.WriteJSON(w, http.StatusOK, backup)
+
+	str, err := backup.Marshal()
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(str))
 }
 
 func Restore(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	var backup projectService.BackupFormat
-	var p *db.Project
-	var err error
 
-	if !helpers.Bind(w, r, &backup) {
-		helpers.WriteJSON(w, http.StatusBadRequest, backup)
-		return
-	}
-	store := helpers.Store(r)
-	if err = backup.Verify(); err != nil {
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, r.Body); err != nil {
 		log.Error(err)
 		helpers.WriteError(w, err)
 		return
 	}
-	if p, err = backup.Restore(*user, store); err != nil {
+
+	if err := backup.Unmarshal(buf.String()); err != nil {
+		log.Error(err)
+		helpers.WriteError(w, err)
+		return
+	}
+
+	store := helpers.Store(r)
+	if err := backup.Verify(); err != nil {
+		log.Error(err)
+		helpers.WriteError(w, err)
+		return
+	}
+
+	var p *db.Project
+	p, err := backup.Restore(*user, store)
+
+	if err != nil {
 		log.Error(err)
 		helpers.WriteError(w, err)
 		return
