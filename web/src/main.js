@@ -21,9 +21,9 @@ Vue.filter('formatDate', (value) => {
   const now = moment();
 
   if (now.isSame(date, 'day')) {
-    return `${date.fromNow()} (${date.format('LT')})`; // Display only time if today
+    return `${date.fromNow()} (${date.format('HH:mm')})`; // Display only time if today
   }
-  return date.format('L LT'); // Display only date otherwise
+  return date.format('L HH:mm'); // Display only date otherwise
 });
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
 Vue.filter('formatLog', (value) => (value ? convert.toHtml(String(value)) : value));
