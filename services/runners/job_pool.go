@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ansible-semaphore/semaphore/db"
 	"io"
 	"net/http"
 	"os"
@@ -425,9 +426,16 @@ func (p *JobPool) checkNewJobs() {
 			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
 		}
 
-		if taskRunner.job.Template.VaultKeyID != nil {
-			taskRunner.job.Template.VaultKey = response.AccessKeys[*taskRunner.job.Template.VaultKeyID]
+		var vaults []db.TemplateVault
+		if taskRunner.job.Template.Vaults != nil {
+			for _, vault := range taskRunner.job.Template.Vaults {
+				vault := vault
+				key := response.AccessKeys[vault.VaultKeyID]
+				vault.Vault = &key
+				vaults = append(vaults, vault)
+			}
 		}
+		taskRunner.job.Template.Vaults = vaults
 
 		if taskRunner.job.Inventory.RepositoryID != nil {
 			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]

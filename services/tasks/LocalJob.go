@@ -30,9 +30,9 @@ type LocalJob struct {
 	// Internal field
 	Process *os.Process
 
-	sshKeyInstallation    db.AccessKeyInstallation
-	becomeKeyInstallation db.AccessKeyInstallation
-	vaultFileInstallation db.AccessKeyInstallation
+	sshKeyInstallation     db.AccessKeyInstallation
+	becomeKeyInstallation  db.AccessKeyInstallation
+	vaultFileInstallations map[string]db.AccessKeyInstallation
 }
 
 func (t *LocalJob) Kill() {
@@ -335,9 +335,11 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--check")
 	}
 
-	if t.Template.VaultKeyID != nil {
-		args = append(args, "--ask-vault-pass")
-		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.vaultFileInstallation.Password
+	for name, install := range t.vaultFileInstallations {
+		if install.Password != "" {
+			args = append(args, fmt.Sprintf("--vault-id=%s@prompt", name))
+			inputs[fmt.Sprintf("Vault password (%s):", name)] = install.Password
+		}
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
@@ -388,10 +390,6 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleBecomeUser]; ok {
 		inputs["BECOME password"] = line
-	}
-
-	if line, ok := inputMap[db.AccessKeyRoleAnsiblePasswordVault]; ok {
-		inputs["Vault password:"] = line
 	}
 
 	return
@@ -493,8 +491,8 @@ func (t *LocalJob) prepareRun() error {
 		return err
 	}
 
-	if err := t.installVaultKeyFile(); err != nil {
-		t.Log("Failed to install vault password file: " + err.Error())
+	if err := t.installVaultKeyFiles(); err != nil {
+		t.Log("Failed to install vault password files: " + err.Error())
 		return err
 	}
 
@@ -573,12 +571,28 @@ func (t *LocalJob) checkoutRepository() error {
 	return nil
 }
 
-func (t *LocalJob) installVaultKeyFile() (err error) {
-	if t.Template.VaultKeyID == nil {
+func (t *LocalJob) installVaultKeyFiles() (err error) {
+	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
+
+	if t.Template.Vaults == nil || len(t.Template.Vaults) == 0 {
 		return nil
 	}
 
-	t.vaultFileInstallation, err = t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+	for _, vault := range t.Template.Vaults {
+		var name string
+		if vault.Name != nil {
+			name = *vault.Name
+		} else {
+			name = "default"
+		}
+
+		var install db.AccessKeyInstallation
+		install, err = vault.Vault.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+		if err != nil {
+			return
+		}
+		t.vaultFileInstallations[name] = install
+	}
 
 	return
 }

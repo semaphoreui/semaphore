@@ -199,34 +199,23 @@
           v-if="needField('environment')"
         ></v-select>
 
-        <v-select
+        <TemplateVaults
           v-if="itemTypeIndex === 0 && needField('vault')"
-          v-model="item.vault_key_id"
-          :label="fieldLabel('vault')"
-          clearable
-          :items="loginPasswordKeys"
-          item-value="id"
-          item-text="name"
-          :disabled="formSaving"
-          outlined
-          dense
-        ></v-select>
+          :project-id="this.projectId"
+          :vaults="item.vaults"
+          @change="setTemplateVaults"
+        ></TemplateVaults>
+
       </v-col>
 
       <v-col cols="12" md="6" class="pb-0">
 
-        <v-select
+        <TemplateVaults
           v-if="itemTypeIndex > 0 && needField('vault')"
-          v-model="item.vault_key_id"
-          :label="fieldLabel('vault')"
-          clearable
-          :items="loginPasswordKeys"
-          item-value="id"
-          item-text="name"
-          :disabled="formSaving"
-          outlined
-          dense
-        ></v-select>
+          :project-id="this.projectId"
+          :vaults="item.vaults"
+          @change="setTemplateVaults"
+        ></TemplateVaults>
 
         <SurveyVars style="margin-top: -10px;" :vars="item.survey_vars" @change="setSurveyVars"/>
 
@@ -313,6 +302,7 @@ import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
+import TemplateVaults from '@/components/TemplateVaults.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '../lib/constants';
 import SurveyVars from './SurveyVars';
 
@@ -320,6 +310,7 @@ export default {
   mixins: [ItemFormBase],
 
   components: {
+    TemplateVaults,
     ArgsPicker,
     SurveyVars,
   },
@@ -360,7 +351,6 @@ export default {
         indentWithTabs: false,
       },
       item: null,
-      keys: null,
       inventory: null,
       repositories: null,
       environment: null,
@@ -403,20 +393,12 @@ export default {
         return true;
       }
 
-      return this.keys != null
-        && this.repositories != null
+      return this.repositories != null
         && this.inventory != null
         && this.environment != null
         && this.item != null
         && this.schedules != null
         && this.views != null;
-    },
-
-    loginPasswordKeys() {
-      if (this.keys == null) {
-        return null;
-      }
-      return this.keys.filter((key) => key.type === 'login_password');
     },
   },
 
@@ -441,6 +423,10 @@ export default {
       this.item.survey_vars = v;
     },
 
+    setTemplateVaults(v) {
+      this.item.vaults = v;
+    },
+
     showHelpDialog(key) {
       this.helpKey = key;
       this.helpDialog = true;
@@ -457,12 +443,6 @@ export default {
       }
 
       this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;
-
-      this.keys = (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/keys`,
-        responseType: 'json',
-      })).data;
 
       this.repositories = (await axios({
         keys: 'get',

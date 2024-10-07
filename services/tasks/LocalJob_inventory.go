@@ -105,8 +105,10 @@ func (t *LocalJob) destroyKeys() {
 		t.Log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
-	err = t.vaultFileInstallation.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
+	for _, vault := range t.vaultFileInstallations {
+		err = vault.Destroy()
+		if err != nil {
+			t.Log("Can't destroy inventory vault password file, error: " + err.Error())
+		}
 	}
 }

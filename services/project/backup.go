@@ -1,7 +1,9 @@
 package project
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/pkg/random"
@@ -156,21 +158,17 @@ func (b *BackupDB) new(projectID int, store db.Store) (*BackupDB, error) {
 }
 
 func (b *BackupDB) format() (*BackupFormat, error) {
-	keys := make([]BackupKey, len(b.keys))
+	keys := make([]BackupAccessKey, len(b.keys))
 	for i, o := range b.keys {
-		keys[i] = BackupKey{
-			Name: o.Name,
-			Type: o.Type,
+		keys[i] = BackupAccessKey{
+			o,
 		}
 	}
 
 	environments := make([]BackupEnvironment, len(b.environments))
 	for i, o := range b.environments {
 		environments[i] = BackupEnvironment{
-			Name:     o.Name,
-			ENV:      o.ENV,
-			JSON:     o.JSON,
-			Password: o.Password,
+			o,
 		}
 	}
 
@@ -185,9 +183,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
 		inventories[i] = BackupInventory{
-			Name:      o.Name,
-			Inventory: o.Inventory,
-			Type:      o.Type,
+			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
 		}
@@ -196,8 +192,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	views := make([]BackupView, len(b.views))
 	for i, o := range b.views {
 		views[i] = BackupView{
-			Name:     o.Title,
-			Position: o.Position,
+			o,
 		}
 	}
 
@@ -205,10 +200,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	for i, o := range b.repositories {
 		SSHKey, _ := findNameByID[db.AccessKey](o.SSHKeyID, b.keys)
 		repositories[i] = BackupRepository{
-			Name:      o.Name,
-			SSHKey:    SSHKey,
-			GitURL:    o.GitURL,
-			GitBranch: o.GitBranch,
+			Repository: o,
+			SSHKey:     SSHKey,
 		}
 	}
 
@@ -218,9 +211,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.ViewID != nil {
 			View, _ = findNameByID[db.View](*o.ViewID, b.views)
 		}
-		var VaultKey *string = nil
-		if o.VaultKeyID != nil {
-			VaultKey, _ = findNameByID[db.AccessKey](*o.VaultKeyID, b.keys)
+		var vaults []BackupTemplateVault = nil
+		for _, vault := range o.Vaults {
+			var vaultKey *string = nil
+			vaultKey, _ = findNameByID[db.AccessKey](vault.VaultKeyID, b.keys)
+			vaults = append(vaults, BackupTemplateVault{
+				TemplateVault: vault,
+				VaultKey:      *vaultKey,
+			})
+
 		}
 		var Environment *string = nil
 		if o.EnvironmentID != nil {
@@ -238,31 +237,19 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 
 		templates[i] = BackupTemplate{
-			Name:                    o.Name,
-			AllowOverrideArgsInTask: o.AllowOverrideArgsInTask,
-			Arguments:               o.Arguments,
-			Autorun:                 o.Autorun,
-			Description:             o.Description,
-			Playbook:                o.Playbook,
-			StartVersion:            o.StartVersion,
-			SuppressSuccessAlerts:   o.SuppressSuccessAlerts,
-			SurveyVars:              o.SurveyVarsJSON,
-			Type:                    o.Type,
-			View:                    View,
-			VaultKey:                VaultKey,
-			Repository:              *Repository,
-			Inventory:               Inventory,
-			Environment:             Environment,
-			BuildTemplate:           BuildTemplate,
-			Cron:                    getScheduleByTemplate(o.ID, b.schedules),
+			Template:      o,
+			View:          View,
+			Repository:    *Repository,
+			Inventory:     Inventory,
+			Environment:   Environment,
+			BuildTemplate: BuildTemplate,
+			Cron:          getScheduleByTemplate(o.ID, b.schedules),
+			Vaults:        vaults,
 		}
 	}
 	return &BackupFormat{
 		Meta: BackupMeta{
-			Name:             b.meta.Name,
-			MaxParallelTasks: b.meta.MaxParallelTasks,
-			Alert:            b.meta.Alert,
-			AlertChat:        b.meta.AlertChat,
+			b.meta,
 		},
 		Inventories:  inventories,
 		Environments: environments,
@@ -280,4 +267,32 @@ func GetBackup(projectID int, store db.Store) (*BackupFormat, error) {
 	}
 
 	return backup.format()
+}
+
+func (b *BackupFormat) Marshal() (res string, err error) {
+	data, err := marshalValue(reflect.ValueOf(b))
+	if err != nil {
+		return
+	}
+
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	res = string(bytes)
+
+	return
+}
+
+func (b *BackupFormat) Unmarshal(res string) (err error) {
+	// Parse the JSON data into a map
+	var jsonData interface{}
+	if err = json.Unmarshal([]byte(res), &jsonData); err != nil {
+		return
+	}
+
+	// Start the recursive unmarshaling process
+	err = unmarshalValueWithBackupTags(jsonData, reflect.ValueOf(b))
+	return
 }

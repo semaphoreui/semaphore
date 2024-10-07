@@ -140,7 +140,8 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		return
 	}
 
-	_, err = store.CreateTemplate(db.Template{
+	var template db.Template
+	template, err = store.CreateTemplate(db.Template{
 		Name:            "Deploy to Dev",
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
@@ -150,7 +151,6 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		Autorun:         true,
-		VaultKeyID:      &vaultKey.ID,
 		App:             db.AppAnsible,
 	})
 
@@ -158,7 +158,18 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		return
 	}
 
-	_, err = store.CreateTemplate(db.Template{
+	_, err = store.CreateTemplateVault(db.TemplateVault{
+		ProjectID:  projectID,
+		TemplateID: template.ID,
+		VaultKeyID: vaultKey.ID,
+		Name:       nil,
+	})
+
+	if err != nil {
+		return
+	}
+
+	template, err = store.CreateTemplate(db.Template{
 		Name:            "Deploy to Production",
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
@@ -167,8 +178,18 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		EnvironmentID:   &emptyEnvID,
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
-		VaultKeyID:      &vaultKey.ID,
 		App:             db.AppAnsible,
+	})
+
+	if err != nil {
+		return
+	}
+
+	_, err = store.CreateTemplateVault(db.TemplateVault{
+		ProjectID:  projectID,
+		TemplateID: template.ID,
+		VaultKeyID: vaultKey.ID,
+		Name:       nil,
 	})
 
 	return
