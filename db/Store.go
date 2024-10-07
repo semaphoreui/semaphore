@@ -23,7 +23,9 @@ func GetParsedTime(t time.Time) time.Time {
 }
 
 func ObjectToJSON(obj interface{}) *string {
-	if obj == nil || (reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) {
+	if obj == nil ||
+		(reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) ||
+		(reflect.ValueOf(obj).Kind() == reflect.Slice && reflect.ValueOf(obj).IsZero()) {
 		return nil
 	}
 	bytes, err := json.Marshal(obj)
