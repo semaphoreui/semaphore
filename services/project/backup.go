@@ -108,53 +108,89 @@ func (b *BackupDB) makeUniqueNames() {
 	}, func(item *db.View, name string) {
 		item.Title = name
 	})
+
+	makeUniqueNames(b.integrations, func(item *db.Integration) string {
+		return item.Name
+	}, func(item *db.Integration, name string) {
+		item.Name = name
+	})
 }
 
-func (b *BackupDB) new(projectID int, store db.Store) (*BackupDB, error) {
-	var err error
+func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 
 	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.repositories, err = store.GetRepositories(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.keys, err = store.GetAccessKeys(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.views, err = store.GetViews(projectID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.inventories, err = store.GetInventories(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.environments, err = store.GetEnvironments(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
+
 	schedules, err := store.GetSchedules()
 	if err != nil {
-		return nil, err
+		return
 	}
+
 	b.schedules = getSchedulesByProject(projectID, schedules)
+
 	b.meta, err = store.GetProject(projectID)
 	if err != nil {
-		return nil, err
+		return
+	}
+
+	b.integrationProjAliases, err = store.GetIntegrationAliases(projectID, nil)
+	if err != nil {
+		return
+	}
+
+	b.integrations, err = store.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	b.integrationAliases = make(map[int][]db.IntegrationAlias)
+	b.integrationMatchers = make(map[int][]db.IntegrationMatcher)
+	b.integrationExtractValues = make(map[int][]db.IntegrationExtractValue)
+	for _, o := range b.integrations {
+		b.integrationAliases[o.ID], err = store.GetIntegrationAliases(projectID, &o.ID)
+		if err != nil {
+			return
+		}
+		b.integrationMatchers[o.ID], err = store.GetIntegrationMatchers(projectID, db.RetrieveQueryParams{}, o.ID)
+		if err != nil {
+			return
+		}
+		b.integrationExtractValues[o.ID], err = store.GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, o.ID)
+		if err != nil {
+			return
+		}
 	}
 
 	b.makeUniqueNames()
 
-	return b, nil
+	return
 }
 
 func (b *BackupDB) format() (*BackupFormat, error) {
@@ -247,25 +283,64 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Vaults:        vaults,
 		}
 	}
+
+	integrations := make([]BackupIntegration, len(b.integrations))
+	for i, o := range b.integrations {
+
+		var aliases []string
+
+		for _, a := range b.integrationAliases[o.ID] {
+			aliases = append(aliases, a.Alias)
+		}
+
+		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+
+		if tplName == nil {
+			continue
+		}
+
+		var keyName *string
+
+		if o.AuthSecretID != nil {
+			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
+		}
+
+		integrations[i] = BackupIntegration{
+			Integration:   o,
+			Aliases:       aliases,
+			Matchers:      b.integrationMatchers[o.ID],
+			ExtractValues: b.integrationExtractValues[o.ID],
+			Template:      *tplName,
+			AuthSecret:    keyName,
+		}
+	}
+
+	var integrationAliases []string
+
+	for _, alias := range b.integrationProjAliases {
+		integrationAliases = append(integrationAliases, alias.Alias)
+	}
+
 	return &BackupFormat{
 		Meta: BackupMeta{
 			b.meta,
 		},
-		Inventories:  inventories,
-		Environments: environments,
-		Views:        views,
-		Repositories: repositories,
-		Keys:         keys,
-		Templates:    templates,
+		Inventories:        inventories,
+		Environments:       environments,
+		Views:              views,
+		Repositories:       repositories,
+		Keys:               keys,
+		Templates:          templates,
+		Integration:        integrations,
+		IntegrationAliases: integrationAliases,
 	}, nil
 }
 
 func GetBackup(projectID int, store db.Store) (*BackupFormat, error) {
 	backup := BackupDB{}
-	if _, err := backup.new(projectID, store); err != nil {
+	if err := backup.load(projectID, store); err != nil {
 		return nil, err
 	}
-
 	return backup.format()
 }
 

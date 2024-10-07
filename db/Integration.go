@@ -38,8 +38,8 @@ const (
 
 type IntegrationMatcher struct {
 	ID            int                        `db:"id" json:"id" backup:"-"`
+	IntegrationID int                        `db:"integration_id" json:"integration_id" backup:"-"`
 	Name          string                     `db:"name" json:"name"`
-	IntegrationID int                        `db:"integration_id" json:"integration_id"`
 	MatchType     IntegrationMatchType       `db:"match_type" json:"match_type"`
 	Method        IntegrationMatchMethodType `db:"method" json:"method"`
 	BodyDataType  IntegrationBodyDataType    `db:"body_data_type" json:"body_data_type"`
@@ -56,8 +56,8 @@ const (
 
 type IntegrationExtractValue struct {
 	ID            int                           `db:"id" json:"id" backup:"-"`
-	Name          string                        `db:"name" json:"name"`
 	IntegrationID int                           `db:"integration_id" json:"integration_id" backup:"-"`
+	Name          string                        `db:"name" json:"name"`
 	ValueSource   IntegrationExtractValueSource `db:"value_source" json:"value_source"`
 	BodyDataType  IntegrationBodyDataType       `db:"body_data_type" json:"body_data_type"`
 	Key           string                        `db:"key" json:"key"`
