@@ -48,7 +48,7 @@ type AccessKey struct {
 	// UserID is an ID of user which owns the access key.
 	UserID *int `db:"user_id" json:"-" backup:"-"`
 
-	Empty bool `db:"-" json:"empty"`
+	Empty bool `db:"-" json:"empty,omitempty"`
 }
 
 type LoginPassword struct {
@@ -178,13 +178,33 @@ func (key *AccessKey) SerializeSecret() error {
 
 	switch key.Type {
 	case AccessKeyString:
+		if key.String == "" {
+			key.Secret = nil
+			return nil
+		}
 		plaintext = []byte(key.String)
 	case AccessKeySSH:
+		if key.SshKey.PrivateKey == "" {
+			if key.SshKey.Login != "" || key.SshKey.Passphrase != "" {
+				return fmt.Errorf("invalid ssh key")
+			}
+			key.Secret = nil
+			return nil
+		}
+
 		plaintext, err = json.Marshal(key.SshKey)
 		if err != nil {
 			return err
 		}
 	case AccessKeyLoginPassword:
+		if key.LoginPassword.Password == "" {
+			if key.LoginPassword.Login != "" {
+				return fmt.Errorf("invalid password key")
+			}
+			key.Secret = nil
+			return nil
+		}
+
 		plaintext, err = json.Marshal(key.LoginPassword)
 		if err != nil {
 			return err

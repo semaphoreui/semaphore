@@ -28,6 +28,12 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (key
 
 	_, err = d.selectAll(&keys, query, args...)
 
+	for i := range keys {
+		if keys[i].Secret == nil {
+			keys[i].Empty = true
+		}
+	}
+
 	return
 }
 

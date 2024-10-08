@@ -52,6 +52,16 @@
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
+      <template v-slot:item.name="{ item }">
+        {{ item.name }}
+        <v-chip
+          color="error"
+          v-if="item.empty && item.type !== 'none'"
+          small
+          style="font-weight: bold;"
+          class="ml-2"
+        >Empty</v-chip>
+      </template>
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>
       </template>
