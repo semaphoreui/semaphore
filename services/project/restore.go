@@ -183,14 +183,6 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("view does not exist in views[].name")
 	}
 
-	if string(e.Type) == "deploy" && e.BuildTemplate == nil {
-		return fmt.Errorf("type is deploy but build_template is null")
-	}
-
-	if string(e.Type) != "deploy" && e.BuildTemplate != nil {
-		return fmt.Errorf("type is not deploy but build_template is not null")
-	}
-
 	if buildTemplate := getEntryByName[BackupTemplate](e.BuildTemplate, backup.Templates); string(e.Type) == "deploy" && buildTemplate == nil {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
