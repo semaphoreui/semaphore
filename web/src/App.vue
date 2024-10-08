@@ -15,7 +15,7 @@
           outlined
           type="success"
         >
-          Project {{ restoreProjectResult.projectName }} restored.
+          {{ $t('projectWithNameRestored', {projectName: restoreProjectResult.projectName}) }}
         </v-alert>
 
         <v-alert
@@ -24,8 +24,8 @@
           type="error"
           class="mb-0"
         >
-          <b>{{ restoreProjectResult.emptyKeys }} empty keys added.</b>
-          Please update the keys before running tasks.
+          <b>{{ $t('emptyKeysRestored', {emptyKeys: restoreProjectResult.emptyKeys}) }}</b>
+          {{ $t('pleaseUpdateAccessKeys') }}
         </v-alert>
       </div>
     </YesNoDialog>

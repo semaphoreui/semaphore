@@ -261,4 +261,8 @@ export default {
   runnerUsage: 'Usage:',
   runnerToken: 'Token:',
   editRunner: 'Edit Runner',
+  projectRestoreResult: 'Project restore results',
+  projectWithNameRestored: 'Project {projectName} successfully restored.',
+  pleaseUpdateAccessKeys: 'Please update them before running tasks.',
+  emptyKeysRestored: '{emptyKeys} empty keys added.',
 };
