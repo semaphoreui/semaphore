@@ -3,10 +3,32 @@
 
     <YesNoDialog
       :title="$t('projectRestoreResult')"
-      :text="restoreProjectResult"
       v-model="restoreProjectResultDialog"
       hide-no-button
-    />
+      :yes-button-title="$t('close')"
+      :max-width="400"
+    >
+      <div class="pt-3" v-if="restoreProjectResult">
+
+        <v-alert
+          dense
+          outlined
+          type="success"
+        >
+          Project {{ restoreProjectResult.projectName }} restored.
+        </v-alert>
+
+        <v-alert
+          dense
+          outlined
+          type="error"
+          class="mb-0"
+        >
+          <b>{{ restoreProjectResult.emptyKeys }} empty keys added.</b>
+          Please update the keys before running tasks.
+        </v-alert>
+      </div>
+    </YesNoDialog>
 
     <EditDialog
       v-model="passwordDialog"
@@ -974,13 +996,13 @@ export default {
         case 'new':
           text = `Project ${projectName} created`;
           break;
-        case 'restore':
-          break;
         case 'edit':
           text = `Project ${projectName} saved`;
           break;
         case 'delete':
           text = `Project ${projectName} deleted`;
+          break;
+        case 'restore':
           break;
         default:
           throw new Error('Unknown project action');
@@ -993,7 +1015,10 @@ export default {
           responseType: 'json',
         })).data.filter((k) => k.empty);
 
-        this.restoreProjectResult = `Project ${projectName} restored. ${emptyKeys.length} empty keys added.`;
+        this.restoreProjectResult = {
+          projectName,
+          emptyKeys: emptyKeys.length,
+        };
         this.restoreProjectResultDialog = true;
       } else {
         EventBus.$emit('i-snackbar', {

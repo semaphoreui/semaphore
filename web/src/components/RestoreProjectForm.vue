@@ -43,6 +43,10 @@ export default {
       this.item.meta.name = this.projectName;
     },
 
+    getSaveAction() {
+      return 'restore';
+    },
+
     /**
      * @param file {File}
      */

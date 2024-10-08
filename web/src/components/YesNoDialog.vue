@@ -1,12 +1,14 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <v-dialog
     v-model="dialog"
-    max-width="290"
+    :max-width="maxWidth || 290"
   >
     <v-card>
       <v-card-title class="headline">{{ title }}</v-card-title>
 
-      <v-card-text>{{ text }}</v-card-text>
+      <v-card-text>
+        <slot>{{ text }}</slot>
+      </v-card-text>
 
       <v-card-actions>
         <v-spacer></v-spacer>
@@ -41,6 +43,7 @@ export default {
     yesButtonTitle: String,
     noButtonTitle: String,
     hideNoButton: Boolean,
+    maxWidth: Number,
   },
 
   data() {

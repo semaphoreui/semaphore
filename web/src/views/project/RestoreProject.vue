@@ -33,13 +33,6 @@ export default {
   },
 
   methods: {
-    onSave(e) {
-      EventBus.$emit('i-project', {
-        action: 'restore',
-        item: e.item,
-      });
-    },
-
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
