@@ -60,7 +60,7 @@ RUN mkdir /opt/semaphore/venv
 
 RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
     source /opt/semaphore/venv/bin/activate && \
-    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]
