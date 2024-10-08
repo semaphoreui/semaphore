@@ -1,6 +1,10 @@
 export default {
-  'Check interval': 'Check interval',
-  Schedule: 'Schedule',
+  checkInterval: 'checkInterval',
+  newCommitCheckInterval: 'New commit check interval',
+  schedule: 'Schedule',
+  newSchedule: 'New Schedule',
+  deleteSchedule: 'Delete Schedule',
+  editSchedule: 'Edit Schedule',
   backup: 'Backup Project',
   downloadTheProjectBackupFile: 'Download the project backup file (in json)',
   restoreProject: 'Restore Project...',
@@ -13,6 +17,7 @@ export default {
   askDeleteRepo: 'Do you really want to delete this repository?',
   askDeleteProj: 'Do you really want to delete this project?',
   askDeleteTMem: 'Do you really want to delete this team member?',
+  askDeleteSchedule: 'Do you really want to delete this schedule?',
   edit: 'Edit',
   nnew: 'New',
   keyFormSshKey: 'SSH Key',
@@ -265,4 +270,7 @@ export default {
   projectWithNameRestored: 'Project {projectName} successfully restored.',
   pleaseUpdateAccessKeys: 'Please update them before running tasks.',
   emptyKeysRestored: '{emptyKeys} empty keys added.',
+  template: 'Template',
+  aliasUrlCopied: 'The alias URL has been copied to the clipboard.',
+  yes: 'Yes',
 };

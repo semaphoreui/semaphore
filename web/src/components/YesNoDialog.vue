@@ -19,7 +19,7 @@
           text
           @click="no()"
         >
-          {{ noButtonTitle || 'Cancel' }}
+          {{ noButtonTitle || $t('cancel') }}
         </v-btn>
 
         <v-btn
@@ -27,7 +27,7 @@
           text
           @click="yes()"
         >
-          {{ yesButtonTitle || 'Yes' }}
+          {{ yesButtonTitle || $t('yes') }}
         </v-btn>
       </v-card-actions>
     </v-card>

@@ -255,8 +255,8 @@
         <v-select
           v-if="cronVisible"
           v-model="cronFormat"
-          :label="$t('Check interval')"
-          :hint="$t('New commit check interval')"
+          :label="$t('checkInterval')"
+          :hint="$t('newCommitCheckInterval')"
           item-value="cron"
           item-text="title"
           :items="cronFormats"
