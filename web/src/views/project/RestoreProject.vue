@@ -35,7 +35,7 @@ export default {
   methods: {
     onSave(e) {
       EventBus.$emit('i-project', {
-        action: 'new',
+        action: 'restore',
         item: e.item,
       });
     },

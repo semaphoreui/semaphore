@@ -1,5 +1,13 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
+
+    <YesNoDialog
+      :title="$t('projectRestoreResult')"
+      :text="restoreProjectResult"
+      v-model="restoreProjectResultDialog"
+      hide-no-button
+    />
+
     <EditDialog
       v-model="passwordDialog"
       save-button-text="Save"
@@ -669,6 +677,7 @@ import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
+import YesNoDialog from '@/components/YesNoDialog.vue';
 
 const PROJECT_COLORS = [
   'red',
@@ -748,6 +757,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    YesNoDialog,
     RestoreProjectForm,
     ChangePasswordForm,
     UserForm,
@@ -771,6 +781,8 @@ export default {
       userDialog: null,
       passwordDialog: null,
       restoreProjectDialog: null,
+      restoreProjectResult: null,
+      restoreProjectResultDialog: null,
 
       taskLogDialog: null,
       task: null,
@@ -962,6 +974,8 @@ export default {
         case 'new':
           text = `Project ${projectName} created`;
           break;
+        case 'restore':
+          break;
         case 'edit':
           text = `Project ${projectName} saved`;
           break;
@@ -972,15 +986,27 @@ export default {
           throw new Error('Unknown project action');
       }
 
-      EventBus.$emit('i-snackbar', {
-        color: 'success',
-        text,
-      });
+      if (e.action === 'restore') {
+        const emptyKeys = (await axios({
+          method: 'get',
+          url: `/api/project/${project.id}/keys`,
+          responseType: 'json',
+        })).data.filter((k) => k.empty);
+
+        this.restoreProjectResult = `Project ${projectName} restored. ${emptyKeys.length} empty keys added.`;
+        this.restoreProjectResultDialog = true;
+      } else {
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text,
+        });
+      }
 
       await this.loadProjects();
 
       switch (e.action) {
         case 'new':
+        case 'restore':
           await this.selectProject(e.item.id);
           break;
         case 'delete':

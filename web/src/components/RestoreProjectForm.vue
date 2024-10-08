@@ -22,7 +22,7 @@
     <v-file-input
       show-size
       truncate-length="15"
-      placeholder="Backup file"
+      :placeholder="$t('Backup file')"
       @change="setFile"
     ></v-file-input>
   </v-form>

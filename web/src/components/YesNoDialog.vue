@@ -12,6 +12,7 @@
         <v-spacer></v-spacer>
 
         <v-btn
+          v-if="!hideNoButton"
           color="blue darken-1"
           text
           @click="no()"
@@ -39,6 +40,7 @@ export default {
     text: String,
     yesButtonTitle: String,
     noButtonTitle: String,
+    hideNoButton: Boolean,
   },
 
   data() {
