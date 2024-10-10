@@ -273,4 +273,5 @@ export default {
   template: 'Modello',
   aliasUrlCopied: 'L\'URL dell\'alias è stato copiato negli appunti.',
   yes: 'Sì',
+  limit: 'Limite',
 };

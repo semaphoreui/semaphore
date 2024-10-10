@@ -273,4 +273,5 @@ export default {
   template: '템플릿',
   aliasUrlCopied: '별칭 URL이 클립보드에 복사되었습니다.',
   yes: '예',
+  limit: '한계',
 };

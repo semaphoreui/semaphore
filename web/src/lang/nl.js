@@ -273,4 +273,5 @@ export default {
   template: 'Sjabloon',
   aliasUrlCopied: 'De alias-URL is naar het klembord gekopieerd.',
   yes: 'Ja',
+  limit: 'Beperken',
 };

@@ -45,6 +45,12 @@
       :disabled="formSaving"
     />
 
+    <v-text-field
+      v-model="item.limit"
+      :label="$t('limit')"
+      :disabled="formSaving"
+    />
+
     <div v-for="(v) in template.survey_vars || []" :key="v.name">
 
       <v-text-field
@@ -143,19 +149,23 @@ export default {
   },
   computed: {
     args() {
-      return JSON.parse(this.item.arguments || '[]');
+      return JSON.parse(this.item.arguments || this.template.arguments || '[]');
     },
   },
 
   watch: {
     needReset(val) {
       if (val) {
-        this.item.template_id = this.templateId;
+        if (this.item != null) {
+          this.item.template_id = this.templateId;
+        }
       }
     },
 
     templateId(val) {
-      this.item.template_id = val;
+      if (this.item != null) {
+        this.item.template_id = val;
+      }
     },
 
     sourceTask(val) {
@@ -231,6 +241,11 @@ export default {
         url: `/api/project/${this.projectId}/templates/${this.templateId}`,
         responseType: 'json',
       })).data;
+
+      if (this.item != null) {
+        this.item.limit = this.template.limit;
+        this.item.arguments = this.template.arguments;
+      }
 
       this.buildTasks = this.template.type === 'deploy' ? (await axios({
         keys: 'get',

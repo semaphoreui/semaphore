@@ -273,4 +273,5 @@ export default {
   template: 'テンプレート',
   aliasUrlCopied: 'エイリアスURLがクリップボードにコピーされました。',
   yes: 'はい',
+  limit: '制限',
 };

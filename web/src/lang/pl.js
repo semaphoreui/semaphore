@@ -273,4 +273,5 @@ export default {
   template: 'Szablon',
   aliasUrlCopied: 'URL aliasu został skopiowany do schowka.',
   yes: 'Tak',
+  limit: 'Limit',
 };

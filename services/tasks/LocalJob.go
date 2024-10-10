@@ -375,12 +375,12 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
-	if t.Task.Limit != "" {
-		t.Log("--limit=" + t.Task.Limit)
-		taskExtraArgs = append(taskExtraArgs, "--limit="+t.Task.Limit)
+	if t.Task.Limit != nil && len(*t.Task.Limit) > 0 {
+		t.Log("--limit=" + *t.Task.Limit)
+		taskExtraArgs = append(taskExtraArgs, "--limit="+*t.Task.Limit)
 	}
 
-	args = append(args, templateExtraArgs...)
+	// args = append(args, templateExtraArgs...)
 	args = append(args, taskExtraArgs...)
 	args = append(args, playbookName)
 

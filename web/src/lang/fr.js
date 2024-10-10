@@ -273,4 +273,5 @@ export default {
   template: 'Modèle',
   aliasUrlCopied: 'L\'URL de l\'alias a été copiée dans le presse-papiers.',
   yes: 'Oui',
+  limit: 'Limite',
 };

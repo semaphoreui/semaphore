@@ -2,8 +2,9 @@ package db
 
 import (
 	"fmt"
-	"github.com/go-gorp/gorp/v3"
 	"time"
+
+	"github.com/go-gorp/gorp/v3"
 
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -24,7 +25,7 @@ type Task struct {
 	// override variables
 	Playbook    string  `db:"playbook" json:"playbook"`
 	Environment string  `db:"environment" json:"environment"`
-	Limit       string  `db:"hosts_limit" json:"limit"`
+	Limit       *string `db:"hosts_limit" json:"limit"`
 	Secret      string  `db:"-" json:"secret"`
 	Arguments   *string `db:"arguments" json:"arguments"`
 

@@ -84,6 +84,8 @@ type Template struct {
 
 	ViewID *int `db:"view_id" json:"view_id" backup:"-"`
 
+	Limit *string `db:"hosts_limit" json:"limit" backup:"-"`
+
 	LastTask *TaskWithTpl `db:"-" json:"last_task" backup:"-"`
 
 	Autorun bool `db:"autorun" json:"autorun"`

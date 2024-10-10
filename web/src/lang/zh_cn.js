@@ -273,4 +273,5 @@ export default {
   template: '模板',
   aliasUrlCopied: '别名 URL 已复制到剪贴板。',
   yes: '是',
+  limit: '限制',
 };

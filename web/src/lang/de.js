@@ -273,4 +273,5 @@ export default {
   template: 'Vorlage',
   aliasUrlCopied: 'Die Alias-URL wurde in die Zwischenablage kopiert.',
   yes: 'Ja',
+  limit: 'Limit',
 };
