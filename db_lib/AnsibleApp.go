@@ -69,7 +69,7 @@ func (t *AnsibleApp) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *AnsibleApp) InstallRequirements() error {
+func (t *AnsibleApp) InstallRequirements(environmentVars *[]string) error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}
