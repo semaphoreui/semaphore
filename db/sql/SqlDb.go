@@ -498,7 +498,7 @@ func (d *SqlDb) getObjectsByReferrer(referrerID int, referringObjectProps db.Obj
 	}
 
 	if orderColumn != "" {
-		q = q.OrderBy("pe." + orderColumn + " " + orderDirection)
+		q = q.OrderBy(squirrel.Expr("pe." + orderColumn + " " + orderDirection))
 	}
 
 	query, args, err := q.ToSql()
