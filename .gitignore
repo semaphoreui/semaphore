@@ -31,3 +31,4 @@ node_modules/
 __debug_bin*
 .task/
 /web/.env
+/.venv/

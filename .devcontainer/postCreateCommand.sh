@@ -2,6 +2,12 @@ go install github.com/go-task/task/v3/cmd/task@latest
 
 (cd ./web && npm install)
 
+python3 -m venv .venv
+
+source .venv/bin/activate
+
+pip3 install ansible
+
 task build
 
 ./bin/semaphore user add \

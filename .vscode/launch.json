@@ -8,7 +8,10 @@
             "mode": "auto",
             "program": "./cli/main.go",
             "args": ["server", "--config", ".devcontainer/config.json"],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/venv/bin/python"
+            }
         }
     ]
 }
