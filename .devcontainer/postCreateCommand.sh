@@ -4,9 +4,7 @@ go install github.com/go-task/task/v3/cmd/task@latest
 
 python3 -m venv .venv
 
-source .venv/bin/activate
-
-pip3 install ansible
+./.venv/bin/pip3 install ansible
 
 task build
 
