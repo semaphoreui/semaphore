@@ -10,8 +10,8 @@ task build
 
 ./bin/semaphore user add \
     --admin \
-    --login user123 \
-    --name User123 \
-    --email user123@example.com \
-    --password 123456 \
+    --login admin \
+    --name Admin \
+    --email admin@example.com \
+    --password changeme \
     --config ./.devcontainer/config.json
