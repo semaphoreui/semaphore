@@ -8,7 +8,26 @@ import vuetify from './plugins/vuetify';
 import './assets/scss/main.scss';
 import i18n from './plugins/i18';
 
-const convert = new Convert();
+const convert = new Convert({
+  colors: {
+    0: '#000',
+    1: '#A00',
+    2: '#0A0',
+    3: '#A50',
+    4: '#00F',
+    5: '#A0A',
+    6: '#0AA',
+    7: '#AAA',
+    8: '#555',
+    9: '#F55',
+    10: '#5F5',
+    11: '#FF5',
+    12: '#55F',
+    13: '#F5F',
+    14: '#5FF',
+    15: '#FFF',
+  },
+});
 
 axios.defaults.baseURL = document.baseURI;
 Vue.config.productionTip = false;
