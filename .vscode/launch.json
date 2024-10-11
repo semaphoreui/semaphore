@@ -10,7 +10,7 @@
             "args": ["server", "--config", ".devcontainer/config.json"],
             "cwd": "${workspaceFolder}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/venv/bin/python"
+                "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
             }
         }
     ]
