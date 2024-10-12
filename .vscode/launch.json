@@ -12,6 +12,19 @@
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
             }
+        }, 
+        {
+            "name": "Launch Server with remote Runner",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "./cli/main.go",
+            "args": ["server", "--config", ".devcontainer/config.json"],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
+                "SEMAPHORE_USE_REMOTE_RUNNER": "true"
+            }
         }
     ]
 }
