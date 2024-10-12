@@ -83,7 +83,7 @@ For more installation options, visit our [Installation page](https://semaphoreui
 
 ## Contribution
 * [Contribution Guide](https://github.com/semaphoreui/semaphore/blob/develop/CONTRIBUTING.md)
-* [Dev Container](https://codespaces.new/semaphoreui/semaphore)
+* [Dev Container](https://codespaces.new/semaphoreui/semaphore) (default user `admin` / `changeme`)
 
 ## License
 MIT © [Denis Gukov](https://github.com/fiftin)
