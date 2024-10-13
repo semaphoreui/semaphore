@@ -92,6 +92,8 @@ const (
 // */
 
 type RunnerConfig struct {
+	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+
 	Token string `json:"-" env:"SEMAPHORE_RUNNER_TOKEN"`
 
 	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`

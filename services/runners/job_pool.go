@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
 
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
@@ -219,9 +220,21 @@ func (p *JobPool) sendProgress() {
 
 	jsonBytes, err := json.Marshal(body)
 
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "sending progress",
+			"action":  "form request body",
+			"error":   "can not marshal json",
+		})
+	}
+
 	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "sending progress",
+			"action":  "create request",
+			"error":   "can not create request to the server",
+		})
 		return
 	}
 
@@ -229,7 +242,12 @@ func (p *JobPool) sendProgress() {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error making request:", err)
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "sending progress",
+			"action":  "send request",
+			"error":   "server returned an error",
+			"status":  resp.StatusCode,
+		})
 		return
 	}
 
@@ -238,48 +256,68 @@ func (p *JobPool) sendProgress() {
 
 func (p *JobPool) tryRegisterRunner() bool {
 
-	log.Info("Attempting to register on the server")
-
-	//if util.Config.Runner.Token != "" {
-	//	p.token = &util.Config.Runner.Token
-	//	return true
-	//}
-
-	// Can not restore runner configuration. Register new runner on the server.
-
-	registrationToken := ""
-
-	if registrationToken == "" {
-		panic("registration token cannot be empty")
-	}
-
 	log.Info("Registering a new runner")
+
+	if util.Config.Runner.RegistrationToken == "" {
+
+		util.LogErrorWithFields(fmt.Errorf("registration token cannot be empty"), log.Fields{
+			"context": "registration",
+			"action":  "form request",
+			"error":   "can not retrieve registration token",
+		})
+
+	}
 
 	client := &http.Client{}
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
-		RegistrationToken: registrationToken,
+		RegistrationToken: util.Config.Runner.RegistrationToken,
 		Webhook:           util.Config.Runner.Webhook,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "registration",
+			"action":  "form request",
+			"error":   "can not marshal json",
+		})
+		return false
+	}
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		log.Error("Registration: Error creating request:", err)
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "registration",
+			"action":  "create request",
+			"error":   "can not create request to the server",
+		})
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		log.Error("Registration: Error making request:", err)
+
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "registration",
+			"action":  "execute request",
+			"error":   "the server returned an error",
+			"status":  resp.StatusCode,
+		})
 		return false
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Registration: Error reading response body:", err)
+
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "registration",
+			"action":  "read response body",
+			"error":   "can not read server's response body",
+		})
+
 		return false
 	}
 
@@ -289,11 +327,25 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		fmt.Println("Registration: Error parsing JSON:", err)
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "registration",
+			"action":  "parsing result json",
+			"error":   "server's response has invalid format",
+		})
+
 		return false
 	}
 
 	err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
+
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{
+			"context": "registration",
+			"action":  "storing token",
+			"error":   "can not store token to the file",
+		})
+		return false
+	}
 
 	defer resp.Body.Close()
 
