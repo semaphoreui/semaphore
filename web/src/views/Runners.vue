@@ -163,7 +163,6 @@ export default {
   computed: {
     runnerUsageCommand() {
       return `SEMAPHORE_RUNNER_API_URL=${this.webHost}/internal \\
-SEMAPHORE_RUNNER_ID=${(this.newRunner || {}).id} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 semaphore runner --no-config`;
     },

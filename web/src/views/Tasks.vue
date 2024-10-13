@@ -42,11 +42,7 @@
       <template v-slot:item.location="{item}">
         <div v-if="item.location === 'queue'">Queue</div>
         <div v-else-if="item.runner_id">
-          Runner <router-link
-            :to="'/runners/' + item.runner_id"
-          >
-            #{{ item.runner_id }}
-          </router-link>
+          Runner #{{ item.runner_id }}
         </div>
         <div v-else>Local Running</div>
       </template>
