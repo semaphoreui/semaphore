@@ -1,5 +1,5 @@
 export default {
-  checkInterval: 'intervaloDeVerificacao',
+  checkInterval: 'intervaloDeVerificação',
   newCommitCheckInterval: 'Novo intervalo de verificação de commit',
   schedule: 'Agenda',
   newSchedule: 'Nova Agenda',
@@ -39,7 +39,7 @@ export default {
   newProject2: 'Novo Projeto...',
   demoMode: 'MODO DEMONSTRAÇÃO',
   task: 'Tarefa #{expr}',
-  youCanRunAnyTasks: 'Você pode executar qualquer tarefa',
+  youCanRunAnyTasks: 'Você pode executar quaisquer tarefas',
   youHaveReadonlyAccess: 'Você tem acesso somente leitura',
   taskTemplates: 'Modelos de Tarefa',
   inventory: 'Inventário',
@@ -266,6 +266,8 @@ export default {
   runnerUsage: 'Uso:',
   runnerToken: 'Token:',
   editRunner: 'Editar Executor',
+  deleteRunner: 'Excluir Executor',
+  askDeleteRunner: 'Você realmente deseja excluir o executor {runner}?',
   projectRestoreResult: 'Resultados da restauração do projeto',
   projectWithNameRestored: 'Projeto {projectName} restaurado com sucesso.',
   pleaseUpdateAccessKeys: 'Por favor, atualize-os antes de executar tarefas.',
@@ -273,4 +275,7 @@ export default {
   template: 'Modelo',
   aliasUrlCopied: 'A URL do alias foi copiada para a área de transferência.',
   yes: 'Sim',
+  activeTasks: 'Tarefas Ativas',
+  taskLocation: 'Localização',
+  empty: 'Vazio',
 };

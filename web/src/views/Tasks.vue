@@ -8,7 +8,7 @@
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('tasks') }}</v-toolbar-title>
+      <v-toolbar-title>{{ $t('activeTasks') }}</v-toolbar-title>
     </v-toolbar>
 
     <v-data-table
