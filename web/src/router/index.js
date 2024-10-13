@@ -1,6 +1,7 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 import RestoreProject from '@/views/project/RestoreProject.vue';
+import Tasks from '@/views/Tasks.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -110,6 +111,10 @@ const routes = [
   {
     path: '/runners',
     component: Runners,
+  },
+  {
+    path: '/tasks',
+    component: Tasks,
   },
   {
     path: '/apps',

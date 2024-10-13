@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
@@ -21,38 +22,47 @@ func TaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type taskLocation string
+
+const (
+	taskQueue   taskLocation = "queue"
+	taskRunning taskLocation = "running"
+)
+
 type taskRes struct {
-	TaskID     int    `json:"task_id"`
-	UserID     *int   `json:"user_id,omitempty"`
-	TemplateID int    `json:"template_id"`
-	Username   string `json:"username"`
-	RunnerID   *int   `json:"runner_id,omitempty"`
-	Status     string `json:"status"`
+	TaskID     int                    `json:"task_id"`
+	UserID     *int                   `json:"user_id,omitempty"`
+	TemplateID int                    `json:"template_id"`
+	Username   string                 `json:"username"`
+	RunnerID   *int                   `json:"runner_id,omitempty"`
+	Status     task_logger.TaskStatus `json:"status"`
+	Location   taskLocation           `json:"location"`
 }
 
 func GetTasks(w http.ResponseWriter, r *http.Request) {
 	pool := context.Get(r, "task_pool").(*task2.TaskPool)
 
-	var res struct {
-		Queue   []taskRes `json:"queue"`
-		Running []taskRes `json:"running"`
-	}
+	res := []taskRes{}
 
 	for _, task := range pool.Queue {
-		res.Queue = append(res.Queue, taskRes{
+		res = append(res, taskRes{
 			TaskID:     task.Task.ID,
 			UserID:     task.Task.UserID,
 			TemplateID: task.Task.TemplateID,
 			Username:   task.Username,
+			Status:     task.Task.Status,
+			Location:   taskQueue,
 		})
 	}
 
 	for _, task := range pool.RunningTasks {
-		res.Running = append(res.Running, taskRes{
+		res = append(res, taskRes{
 			TaskID:     task.Task.ID,
 			UserID:     task.Task.UserID,
 			TemplateID: task.Task.TemplateID,
 			Username:   task.Username,
+			Status:     task.Task.Status,
+			Location:   taskRunning,
 		})
 	}
 

@@ -108,26 +108,19 @@ export default {
     },
 
     getHeaders() {
-      return [
-        {
-          value: 'active',
-        }, {
-          text: this.$i18n.t('name'),
-          value: 'name',
-          width: '50%',
-        },
-        {
-          text: this.$i18n.t('webhook'),
-          value: 'webhook',
-        },
-        {
-          text: this.$i18n.t('maxNumberOfParallelTasks'),
-          value: 'max_parallel_tasks',
-        }, {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
-          sortable: false,
-        }];
+      return [{
+        text: this.$i18n.t('task_id'),
+        value: 'task_id',
+        width: '50%',
+      }, {
+        text: this.$i18n.t('username'),
+        value: 'username',
+        width: '50%',
+      }, {
+        text: this.$i18n.t('actions'),
+        value: 'actions',
+        sortable: false,
+      }];
     },
 
     async returnToProjects() {
@@ -135,15 +128,15 @@ export default {
     },
 
     getItemsUrl() {
-      return '/api/runners';
+      return '/api/tasks';
     },
 
     getSingleItemUrl() {
-      return `/api/runners/${this.itemId}`;
+      return `/api/tasks/${this.itemId}`;
     },
 
     getEventName() {
-      return 'i-runner';
+      return 'i-task';
     },
   },
 };
