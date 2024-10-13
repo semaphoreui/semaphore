@@ -73,7 +73,7 @@
 
     <YesNoDialog
       :title="$t('deleteRunner')"
-      :text="$t('askDeleteRunner')"
+      :text="$t('askDeleteRunner', {runner: itemId})"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />

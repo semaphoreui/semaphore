@@ -266,6 +266,8 @@ export default {
   runnerUsage: 'Usage:',
   runnerToken: 'Token:',
   editRunner: 'Edit Runner',
+  deleteRunner: 'Delete Runner',
+  askDeleteRunner: 'Do you really want to delete runner {runner}?',
   projectRestoreResult: 'Project restore results',
   projectWithNameRestored: 'Project {projectName} successfully restored.',
   pleaseUpdateAccessKeys: 'Please update them before running tasks.',
