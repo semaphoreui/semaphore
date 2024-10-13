@@ -11,7 +11,7 @@ import (
 
 func TaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		taskID, err := helpers.GetStrParam("task_id", w, r)
+		taskID, err := helpers.GetIntParam("task_id", w, r)
 		if err != nil {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 		}
@@ -61,18 +61,22 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 
 func DeleteTask(w http.ResponseWriter, r *http.Request) {
 
-	taskID := context.Get(r, "task_id").(string)
+	taskID := context.Get(r, "task_id").(int)
 
 	pool := context.Get(r, "task_pool").(*task2.TaskPool)
 
-	var task db.Task
+	var task *db.Task
 
 	for _, t := range pool.Queue {
 		if t.Task.ID == taskID {
-			task = t.Task
+			task = &t.Task
 			break
 		}
 	}
 
-	pool.StopTask(task, false)
+	if task != nil {
+		pool.StopTask(*task, false)
+	}
+
+	helpers.WriteJSON(w, http.StatusNoContent, nil)
 }
