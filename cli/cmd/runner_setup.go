@@ -22,8 +22,7 @@ var runnerSetupCmd = &cobra.Command{
 
 // nolint: gocyclo
 func doRunnerSetup() int {
-	var config *util.ConfigType
-	config = &util.ConfigType{}
+	config := &util.ConfigType{}
 
 	setup.InteractiveRunnerSetup(config)
 

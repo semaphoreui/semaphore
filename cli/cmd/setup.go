@@ -27,8 +27,8 @@ var setupCmd = &cobra.Command{
 
 // nolint: gocyclo
 func doSetup() int {
-	var config *util.ConfigType
-	config = &util.ConfigType{}
+	config := &util.ConfigType{}
+
 	config.GenerateSecrets()
 	setup.InteractiveSetup(config)
 

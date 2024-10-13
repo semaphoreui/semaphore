@@ -35,6 +35,18 @@ Complete documentation is available at https://ansible-semaphore.com.`,
 		_ = cmd.Help()
 		os.Exit(0)
 	},
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if persistentFlags.logLevel == "" {
+			return
+		}
+
+		lvl, err := log.ParseLevel(persistentFlags.logLevel)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		log.SetLevel(lvl)
+	},
 }
 
 func Execute() {
