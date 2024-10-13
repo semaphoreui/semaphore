@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 type vaultArgs struct {
@@ -16,8 +17,9 @@ func init() {
 }
 
 var vaultCmd = &cobra.Command{
-	Use:   "vault",
-	Short: "Manage access keys and other secrets",
+	Use:     "vaults",
+	Aliases: []string{"vault"},
+	Short:   "Manage access keys and other secrets",
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)
