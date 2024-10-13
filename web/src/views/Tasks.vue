@@ -1,12 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <YesNoDialog
-      :title="$t('deleteRunner')"
-      :text="$t('askDeleteRunner', item.name)"
-      v-model="deleteItemDialog"
-      @yes="deleteItem(itemId)"
-    />
-
     <v-toolbar flat>
       <v-btn
         icon
@@ -15,13 +8,7 @@
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('runners') }}</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-      >{{ $t('newRunner') }}
-      </v-btn>
+      <v-toolbar-title>{{ $t('tasks') }}</v-toolbar-title>
     </v-toolbar>
 
     <v-data-table
@@ -30,20 +17,38 @@
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
-      <template v-slot:item.active="{ item }">
-        <v-switch
-          v-model="item.active"
-          inset
-          @change="setActive(item.id, item.active)"
-        ></v-switch>
+      <template v-slot:item.task_id="{ item }">
+        <router-link
+          :to="'/project/' + item.project_id + '?t=' + item.task_id"
+        >
+          #{{ item.task_id }}
+        </router-link>
       </template>
 
-      <template v-slot:item.name="{ item }">{{ item.name || '&mdash;' }}</template>
+      <template v-slot:item.project_id="{ item }">
+        <router-link
+          :to="'/project/' + item.project_id"
+        >
+          #{{ item.project_id }}
+        </router-link>
+      </template>
 
-      <template v-slot:item.webhook="{ item }">{{ item.webhook || '&mdash;' }}</template>
+      <template v-slot:item.status="{item}">
+        <div class="pr-4">
+          <TaskStatus :status="item.status"/>
+        </div>
+      </template>
 
-      <template v-slot:item.max_parallel_tasks="{ item }">
-        {{ item.max_parallel_tasks || '∞' }}
+      <template v-slot:item.location="{item}">
+        <div v-if="item.location === 'queue'">Queue</div>
+        <div v-else-if="item.runner_id">
+          Runner <router-link
+            :to="'/runners/' + item.runner_id"
+          >
+            #{{ item.runner_id }}
+          </router-link>
+        </div>
+        <div v-else>Local Running</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -51,17 +56,9 @@
           <v-btn
             icon
             class="mr-1"
-            @click="askDeleteItem(item.id)"
+            @click="deleteItem(item.task_id)"
           >
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
-
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.id)"
-          >
-            <v-icon>mdi-pencil</v-icon>
+            <v-icon>mdi-stop</v-icon>
           </v-btn>
         </div>
       </template>
@@ -70,15 +67,14 @@
 </template>
 <script>
 import EventBus from '@/event-bus';
-import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
-import axios from 'axios';
+import TaskStatus from '@/components/TaskStatus.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   components: {
-    YesNoDialog,
+    TaskStatus,
   },
 
   props: {
@@ -91,35 +87,47 @@ export default {
     return {
       newRunnerTokenDialog: null,
       newRunner: null,
+      updateTimer: null,
     };
+  },
+
+  created() {
+    this.updateTimer = setInterval(() => {
+      this.loadItems();
+    }, 10000);
+  },
+
+  destroyed() {
+    clearInterval(this.updateTimer);
   },
 
   methods: {
 
-    async setActive(runnerId, active) {
-      await axios({
-        method: 'post',
-        url: `/api/runners/${runnerId}/active`,
-        responseType: 'json',
-        data: {
-          active,
-        },
-      });
+    stopTask(taskId) {
+      console.log(taskId);
     },
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('task_id'),
+        text: this.$i18n.t('task', {}),
         value: 'task_id',
-        width: '50%',
+      }, {
+        text: this.$i18n.t('project'),
+        value: 'project_id',
       }, {
         text: this.$i18n.t('username'),
         value: 'username',
-        width: '50%',
+      }, {
+        text: this.$i18n.t('status'),
+        value: 'status',
+      }, {
+        text: this.$i18n.t('location'),
+        value: 'location',
       }, {
         text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
+        width: 70,
       }];
     },
 

@@ -30,13 +30,14 @@ const (
 )
 
 type taskRes struct {
-	TaskID     int                    `json:"task_id"`
-	UserID     *int                   `json:"user_id,omitempty"`
-	TemplateID int                    `json:"template_id"`
-	Username   string                 `json:"username"`
-	RunnerID   *int                   `json:"runner_id,omitempty"`
-	Status     task_logger.TaskStatus `json:"status"`
-	Location   taskLocation           `json:"location"`
+	TaskID      int                    `json:"task_id"`
+	ProjectID   int                    `json:"project_id"`
+	Username    string                 `json:"username,omitempty"`
+	RunnerID    int                    `json:"runner_id,omitempty"`
+	Status      task_logger.TaskStatus `json:"status"`
+	Location    taskLocation           `json:"location"`
+	RunnerName  string                 `json:"runner_name,omitempty"`
+	ProjectName string                 `json:"project_name,omitempty"`
 }
 
 func GetTasks(w http.ResponseWriter, r *http.Request) {
@@ -46,23 +47,23 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 
 	for _, task := range pool.Queue {
 		res = append(res, taskRes{
-			TaskID:     task.Task.ID,
-			UserID:     task.Task.UserID,
-			TemplateID: task.Task.TemplateID,
-			Username:   task.Username,
-			Status:     task.Task.Status,
-			Location:   taskQueue,
+			TaskID:    task.Task.ID,
+			ProjectID: task.Task.ProjectID,
+			RunnerID:  task.RunnerID,
+			Username:  task.Username,
+			Status:    task.Task.Status,
+			Location:  taskQueue,
 		})
 	}
 
 	for _, task := range pool.RunningTasks {
 		res = append(res, taskRes{
-			TaskID:     task.Task.ID,
-			UserID:     task.Task.UserID,
-			TemplateID: task.Task.TemplateID,
-			Username:   task.Username,
-			Status:     task.Task.Status,
-			Location:   taskRunning,
+			TaskID:    task.Task.ID,
+			ProjectID: task.Task.ProjectID,
+			RunnerID:  task.RunnerID,
+			Username:  task.Username,
+			Status:    task.Task.Status,
+			Location:  taskRunning,
 		})
 	}
 
@@ -84,8 +85,21 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if task == nil {
+		for _, t := range pool.RunningTasks {
+			if t.Task.ID == taskID {
+				task = &t.Task
+				break
+			}
+		}
+	}
+
 	if task != nil {
-		pool.StopTask(*task, false)
+		err := pool.StopTask(*task, false)
+		if err != nil {
+			helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	helpers.WriteJSON(w, http.StatusNoContent, nil)
