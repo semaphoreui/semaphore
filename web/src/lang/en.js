@@ -248,6 +248,9 @@ export default {
   Build: 'Build',
   Deploy: 'Deploy',
   Run: 'Run',
+  ReBuild: 'Rebuild',
+  ReDeploy: 'Redeploy',
+  ReRun: 'Rerun',
   CreateDemoProject: 'Create Demo Project',
   LeaveProject: 'Leave Project',
   integration: 'Integration',
@@ -291,4 +294,9 @@ export default {
   taskLocation: 'Location',
   empty: 'Empty',
   noValues: 'No values',
+  addArg: 'Add Arg',
+
+  status_success: 'Success',
+  status_failed: 'Failed',
+  status_stopped: 'Stopped',
 };

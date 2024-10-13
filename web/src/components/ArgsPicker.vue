@@ -76,7 +76,7 @@
           {{ v.name }}
         </v-chip>
         <v-chip @click="editVar(null)">
-          + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('Add Arg') }}</span>
+          + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('addArg') }}</span>
         </v-chip>
       </v-chip-group>
     </fieldset>
