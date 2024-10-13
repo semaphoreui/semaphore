@@ -20,7 +20,7 @@ func init() {
 
 func registerRunner() {
 
-	util.ConfigInit(configPath, noConfig)
+	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	if runnerRegisterArgs.stdinRegistrationToken {
 		tokenBytes, err := io.ReadAll(os.Stdin)

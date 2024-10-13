@@ -44,6 +44,12 @@ func (e *ContextLogger) Panic(err error, action string, message string) {
 	}).Panic(message)
 }
 
+func (e *ContextLogger) Debug(message string) {
+	log.WithFields(log.Fields{
+		"context": e.Context,
+	}).Debug(message)
+}
+
 type JobPool struct {
 	// logger channel used to putting log records to database.
 	logger chan jobLogRecord
@@ -147,6 +153,8 @@ func (p *JobPool) Run() {
 		select {
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
+			logger.Debug("Checking queue")
+
 			if len(p.queue) == 0 {
 				break
 			}
@@ -155,7 +163,7 @@ func (p *JobPool) Run() {
 			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
+				logger.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
 				break
 			}
 

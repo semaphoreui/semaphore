@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
@@ -26,7 +27,7 @@ func doRunnerSetup() int {
 
 	setup.InteractiveRunnerSetup(config)
 
-	resultConfigPath := setup.SaveConfig(config, "config-runner.json", configPath)
+	resultConfigPath := setup.SaveConfig(config, "config-runner.json", persistentFlags.configPath)
 
 	util.ConfigInit(resultConfigPath, false)
 

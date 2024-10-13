@@ -7,7 +7,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cli/main.go",
-            "args": ["server", "--config", ".devcontainer/config.json"],
+            "args": ["server", "--config", "${workspaceFolder}/.devcontainer/config.json"],
             "cwd": "${workspaceFolder}",
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
@@ -19,7 +19,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cli/main.go",
-            "args": ["server", "--config", ".devcontainer/config.json"],
+            "args": ["server", "--config", "${workspaceFolder}/.devcontainer/config.json"],
             "cwd": "${workspaceFolder}",
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
@@ -32,7 +32,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cli/main.go",
-            "args": ["runner", "--config", ".devcontainer/config-runner.json"],
+            "args": ["runner", "start", "--config", "${workspaceFolder}/.devcontainer/config-runner.json"],
             "cwd": "${workspaceFolder}",
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
