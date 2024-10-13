@@ -81,9 +81,6 @@ func (p *JobPool) hasRunningJobs() bool {
 }
 
 func (p *JobPool) Register() (err error) {
-	//if util.Config.Runner.RegistrationToken == "" {
-	//	return fmt.Errorf("runner registration token required")
-	//}
 
 	if util.Config.Runner.TokenFile == "" {
 		return fmt.Errorf("runner token file required")
@@ -278,6 +275,7 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	if util.Config.Runner.RegistrationToken == "" {
 		logger.Error(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
+		return false
 	}
 
 	client := &http.Client{}
