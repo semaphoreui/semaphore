@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/api/helpers"
@@ -21,38 +22,48 @@ func TaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type taskLocation string
+
+const (
+	taskQueue   taskLocation = "queue"
+	taskRunning taskLocation = "running"
+)
+
 type taskRes struct {
-	TaskID     int    `json:"task_id"`
-	UserID     *int   `json:"user_id,omitempty"`
-	TemplateID int    `json:"template_id"`
-	Username   string `json:"username"`
-	RunnerID   *int   `json:"runner_id,omitempty"`
-	Status     string `json:"status"`
+	TaskID      int                    `json:"task_id"`
+	ProjectID   int                    `json:"project_id"`
+	Username    string                 `json:"username,omitempty"`
+	RunnerID    int                    `json:"runner_id,omitempty"`
+	Status      task_logger.TaskStatus `json:"status"`
+	Location    taskLocation           `json:"location"`
+	RunnerName  string                 `json:"runner_name,omitempty"`
+	ProjectName string                 `json:"project_name,omitempty"`
 }
 
 func GetTasks(w http.ResponseWriter, r *http.Request) {
 	pool := context.Get(r, "task_pool").(*task2.TaskPool)
 
-	var res struct {
-		Queue   []taskRes `json:"queue"`
-		Running []taskRes `json:"running"`
-	}
+	res := []taskRes{}
 
 	for _, task := range pool.Queue {
-		res.Queue = append(res.Queue, taskRes{
-			TaskID:     task.Task.ID,
-			UserID:     task.Task.UserID,
-			TemplateID: task.Task.TemplateID,
-			Username:   task.Username,
+		res = append(res, taskRes{
+			TaskID:    task.Task.ID,
+			ProjectID: task.Task.ProjectID,
+			RunnerID:  task.RunnerID,
+			Username:  task.Username,
+			Status:    task.Task.Status,
+			Location:  taskQueue,
 		})
 	}
 
 	for _, task := range pool.RunningTasks {
-		res.Running = append(res.Running, taskRes{
-			TaskID:     task.Task.ID,
-			UserID:     task.Task.UserID,
-			TemplateID: task.Task.TemplateID,
-			Username:   task.Username,
+		res = append(res, taskRes{
+			TaskID:    task.Task.ID,
+			ProjectID: task.Task.ProjectID,
+			RunnerID:  task.RunnerID,
+			Username:  task.Username,
+			Status:    task.Task.Status,
+			Location:  taskRunning,
 		})
 	}
 
@@ -74,8 +85,21 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if task == nil {
+		for _, t := range pool.RunningTasks {
+			if t.Task.ID == taskID {
+				task = &t.Task
+				break
+			}
+		}
+	}
+
 	if task != nil {
-		pool.StopTask(*task, false)
+		err := pool.StopTask(*task, false)
+		if err != nil {
+			helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	helpers.WriteJSON(w, http.StatusNoContent, nil)
