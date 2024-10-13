@@ -20,31 +20,41 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type ContextLogger struct {
+type JobLogger struct {
 	Context string
 }
 
-func (e *ContextLogger) Error(err error, action string, message string) {
+func (e *JobLogger) ActionError(err error, action string, message string) {
 	util.LogErrorWithFields(err, log.Fields{
+		"type":    "action",
 		"context": e.Context,
 		"action":  action,
 		"error":   message,
 	})
 }
 
-func (e *ContextLogger) Info(message string) {
+func (e *JobLogger) Info(message string) {
 	log.WithFields(log.Fields{
 		"context": e.Context,
 	}).Info(message)
 }
 
-func (e *ContextLogger) Panic(err error, action string, message string) {
+func (e *JobLogger) TaskInfo(message string, task int, status string) {
+	log.WithFields(log.Fields{
+		"type":    "task",
+		"context": e.Context,
+		"task":    task,
+		"status":  status,
+	}).Info(message)
+}
+
+func (e *JobLogger) Panic(err error, action string, message string) {
 	log.WithFields(log.Fields{
 		"context": e.Context,
 	}).Panic(message)
 }
 
-func (e *ContextLogger) Debug(message string) {
+func (e *JobLogger) Debug(message string) {
 	log.WithFields(log.Fields{
 		"context": e.Context,
 	}).Debug(message)
@@ -134,7 +144,7 @@ func (p *JobPool) Unregister() (err error) {
 }
 
 func (p *JobPool) Run() {
-	logger := ContextLogger{Context: "running"}
+	logger := JobLogger{Context: "running"}
 
 	if util.Config.Runner.Token == "" {
 		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
@@ -163,7 +173,7 @@ func (p *JobPool) Run() {
 			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				logger.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
+				logger.TaskInfo("Task dequeued", t.job.Task.ID, "failed")
 				break
 			}
 
@@ -192,12 +202,12 @@ func (p *JobPool) Run() {
 					runningJob.SetStatus(task_logger.TaskSuccessStatus)
 				}
 
-				logger.Info("Task " + strconv.Itoa(runningJob.job.Task.ID) + " finished (" + string(runningJob.status) + ")")
+				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
-			logger.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued")
-			logger.Info("Task " + strconv.Itoa(t.job.Task.ID) + " started")
+			logger.TaskInfo("Task dequeued", t.job.Task.ID, string(t.job.Task.Status))
+			logger.TaskInfo("Task started", t.job.Task.ID, string(t.job.Task.Status))
 
 		case <-requestTimer.C:
 
@@ -224,7 +234,7 @@ func (p *JobPool) Run() {
 
 func (p *JobPool) sendProgress() {
 
-	logger := ContextLogger{Context: "sending_progress"}
+	logger := JobLogger{Context: "sending_progress"}
 
 	client := &http.Client{}
 
@@ -245,7 +255,7 @@ func (p *JobPool) sendProgress() {
 		j.logRecords = make([]LogRecord, 0)
 
 		if j.status.IsFinished() {
-			logger.Info("Task " + strconv.Itoa(id) + " removed from running list")
+			logger.TaskInfo("Task removed from running list", id, string(j.status))
 			delete(p.runningJobs, id)
 		}
 	}
@@ -253,13 +263,13 @@ func (p *JobPool) sendProgress() {
 	jsonBytes, err := json.Marshal(body)
 
 	if err != nil {
-		logger.Error(err, "form request body", "can not marshal json")
+		logger.ActionError(err, "form request body", "can not marshal json")
 		return
 	}
 
 	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		logger.Error(err, "create request", "can not create request to the server")
+		logger.ActionError(err, "create request", "can not create request to the server")
 		return
 	}
 
@@ -268,7 +278,7 @@ func (p *JobPool) sendProgress() {
 	resp, err := client.Do(req)
 	if err != nil {
 
-		logger.Error(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 		return
 	}
 
@@ -277,12 +287,12 @@ func (p *JobPool) sendProgress() {
 
 func (p *JobPool) tryRegisterRunner() bool {
 
-	logger := ContextLogger{Context: "registration"}
+	logger := JobLogger{Context: "registration"}
 
 	log.Info("Registering a new runner")
 
 	if util.Config.Runner.RegistrationToken == "" {
-		logger.Error(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
+		logger.ActionError(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
 		return false
 	}
 
@@ -297,26 +307,26 @@ func (p *JobPool) tryRegisterRunner() bool {
 	})
 
 	if err != nil {
-		logger.Error(err, "form request", "can not marshal json")
+		logger.ActionError(err, "form request", "can not marshal json")
 		return false
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		logger.Error(err, "create request", "can not create request to the server")
+		logger.ActionError(err, "create request", "can not create request to the server")
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		logger.Error(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 		return false
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 
-		logger.Error(err, "read response body", "can not read server's response body")
+		logger.ActionError(err, "read response body", "can not read server's response body")
 		return false
 	}
 
@@ -326,14 +336,14 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		logger.Error(err, "parsing result json", "server's response has invalid format")
+		logger.ActionError(err, "parsing result json", "server's response has invalid format")
 		return false
 	}
 
 	err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 
 	if err != nil {
-		logger.Error(err, "store token", "can not store token to the file")
+		logger.ActionError(err, "store token", "can not store token to the file")
 		return false
 	}
 
@@ -345,10 +355,10 @@ func (p *JobPool) tryRegisterRunner() bool {
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
-	logger := ContextLogger{Context: "checking new jobs"}
+	logger := JobLogger{Context: "checking new jobs"}
 
 	if util.Config.Runner.Token == "" {
-		logger.Error(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
+		logger.ActionError(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
 		return
 	}
 
@@ -359,7 +369,7 @@ func (p *JobPool) checkNewJobs() {
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		logger.Error(err, "create request", "can not create request to the server")
+		logger.ActionError(err, "create request", "can not create request to the server")
 		return
 	}
 
@@ -368,13 +378,13 @@ func (p *JobPool) checkNewJobs() {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		logger.Error(err, "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
 		return
 	}
 
 	if resp.StatusCode >= 400 {
 
-		logger.Error(fmt.Errorf("error status code"), "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(fmt.Errorf("error status code"), "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
 		return
 	}
 
@@ -382,14 +392,14 @@ func (p *JobPool) checkNewJobs() {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error(err, "read response body", "can not read server's response body")
+		logger.ActionError(err, "read response body", "can not read server's response body")
 		return
 	}
 
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		logger.Error(err, "parsing result json", "server's response has invalid format")
+		logger.ActionError(err, "parsing result json", "server's response has invalid format")
 		return
 	}
 
@@ -487,6 +497,7 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		p.queue = append(p.queue, &taskRunner)
-		logger.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " enqueued")
+
+		logger.TaskInfo("Task enqueued", taskRunner.job.Task.ID, string(taskRunner.job.Task.Status))
 	}
 }
