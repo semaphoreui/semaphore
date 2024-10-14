@@ -88,6 +88,12 @@ if [ -z "${SEMAPHORE_DB_PORT}" ]; then
         postgres)
             SEMAPHORE_DB_PORT=5432
             ;;
+        bolt)
+            ;;
+        *)
+            echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
+            exit 1
+            ;;
     esac
 fi
 
@@ -143,7 +149,7 @@ ${SEMAPHORE_DB_HOST}
 EOF
     else
         cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_HOST}
+${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}
 ${SEMAPHORE_DB_USER}
 ${SEMAPHORE_DB_PASS}
 ${SEMAPHORE_DB}
