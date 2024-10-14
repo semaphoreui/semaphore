@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 type userArgs struct {
@@ -10,7 +11,7 @@ type userArgs struct {
 	name     string
 	email    string
 	password string
-	admin	 bool
+	admin    bool
 }
 
 var targetUserArgs userArgs
@@ -20,8 +21,9 @@ func init() {
 }
 
 var userCmd = &cobra.Command{
-	Use:   "user",
-	Short: "Manage users",
+	Use:     "users",
+	Aliases: []string{"user"},
+	Short:   "Manage users",
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)

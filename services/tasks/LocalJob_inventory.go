@@ -81,15 +81,15 @@ func (t *LocalJob) cloneInventoryRepo() error {
 func (t *LocalJob) installStaticInventory() error {
 	t.Log("installing static inventory")
 
-	path := t.tmpInventoryFullPath()
+	fullPath := t.tmpInventoryFullPath()
 
 	// create inventory file
-	return os.WriteFile(path, []byte(t.Inventory.Inventory), 0664)
+	return os.WriteFile(fullPath, []byte(t.Inventory.Inventory), 0664)
 }
 
 func (t *LocalJob) destroyInventoryFile() {
-	path := t.tmpInventoryFullPath()
-	if err := os.Remove(path); err != nil {
+	fullPath := t.tmpInventoryFullPath()
+	if err := os.Remove(fullPath); err != nil {
 		log.Error(err)
 	}
 }
@@ -105,8 +105,10 @@ func (t *LocalJob) destroyKeys() {
 		t.Log("Can't destroy inventory become user key, error: " + err.Error())
 	}
 
-	err = t.vaultFileInstallation.Destroy()
-	if err != nil {
-		t.Log("Can't destroy inventory vault password file, error: " + err.Error())
+	for _, vault := range t.vaultFileInstallations {
+		err = vault.Destroy()
+		if err != nil {
+			t.Log("Can't destroy inventory vault password file, error: " + err.Error())
+		}
 	}
 }

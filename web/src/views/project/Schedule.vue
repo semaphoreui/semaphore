@@ -3,7 +3,7 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="$t('save')"
-      :title="$t('Edit Schedule')"
+      :title="$t('editSchedule')"
       :max-width="500"
       @save="loadItems"
     >
@@ -27,21 +27,21 @@
     />
 
     <YesNoDialog
-      :title="$t('Delete Schedule')"
-      :text="$t('askDeleteEnv')"
+      :title="$t('deleteSchedule')"
+      :text="$t('askDeleteSchedule')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('Schedule') }}</v-toolbar-title>
+      <v-toolbar-title>{{ $t('schedule') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('New Schedule') }}
+      >{{ $t('newSchedule') }}
       </v-btn>
     </v-toolbar>
 
@@ -143,13 +143,13 @@ export default {
         value: 'active',
         sortable: false,
       }, {
-        text: this.$i18n.t('Name'),
+        text: this.$i18n.t('name'),
         value: 'name',
       }, {
         text: this.$i18n.t('Cron'),
         value: 'cron_format',
       }, {
-        text: this.$i18n.t('Template'),
+        text: this.$i18n.t('template'),
         value: 'tpl_name',
         width: '100%',
       }, {

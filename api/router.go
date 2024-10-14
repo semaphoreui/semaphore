@@ -15,6 +15,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/mux"
@@ -80,18 +81,20 @@ func Route() *mux.Router {
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
-	publicAPIRouter.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
-	routersAPI := r.PathPrefix(webPath + "api").Subrouter()
-	routersAPI.Use(StoreMiddleware, JSONMiddleware, runners.RunnerMiddleware)
-	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UpdateRunner).Methods("PUT")
-	routersAPI.Path("/runners/{runner_id}").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
+	internalAPI := publicAPIRouter.PathPrefix("/internal").Subrouter()
+	internalAPI.HandleFunc("/runners", runners.RegisterRunner).Methods("POST")
+
+	runnersAPI := internalAPI.PathPrefix("/runners").Subrouter()
+	runnersAPI.Use(runners.RunnerMiddleware)
+	runnersAPI.Path("").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
+	runnersAPI.Path("").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	runnersAPI.Path("").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
@@ -128,12 +131,28 @@ func Route() *mux.Router {
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
 
+	adminAPI.Path("/runners").HandlerFunc(getGlobalRunners).Methods("GET", "HEAD")
+	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
+
+	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
+	globalRunnersAPI.Use(globalRunnerMiddleware)
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(getGlobalRunner).Methods("GET", "HEAD")
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(updateGlobalRunner).Methods("PUT", "POST")
+	globalRunnersAPI.Path("/{runner_id}/active").HandlerFunc(setGlobalRunnerActive).Methods("POST")
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(deleteGlobalRunner).Methods("DELETE")
+
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
 	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
+
+	adminAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
+	tasksAPI := adminAPI.PathPrefix("/tasks").Subrouter()
+	tasksAPI.Use(tasks.TaskMiddleware)
+	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
+	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)
@@ -445,9 +464,17 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 }
 
 func getSystemInfo(w http.ResponseWriter, r *http.Request) {
+	host := ""
+
+	if util.WebHostURL != nil {
+		host = util.WebHostURL.String()
+	}
+
 	body := map[string]interface{}{
-		"version": util.Version(),
-		"ansible": util.AnsibleVersion(),
+		"version":           util.Version(),
+		"ansible":           util.AnsibleVersion(),
+		"web_host":          host,
+		"use_remote_runner": util.Config.UseRemoteRunner,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

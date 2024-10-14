@@ -23,7 +23,9 @@ func GetParsedTime(t time.Time) time.Time {
 }
 
 func ObjectToJSON(obj interface{}) *string {
-	if obj == nil || (reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) {
+	if obj == nil ||
+		(reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) ||
+		(reflect.ValueOf(obj).Kind() == reflect.Slice && reflect.ValueOf(obj).IsZero()) {
 		return nil
 	}
 	bytes, err := json.Marshal(obj)
@@ -256,11 +258,16 @@ type Store interface {
 	GetRunner(projectID int, runnerID int) (Runner, error)
 	GetRunners(projectID int) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
+	GetGlobalRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetGlobalRunners() ([]Runner, error)
+	GetGlobalRunners(activeOnly bool) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+
+	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
+	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
+	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 }
 
 var AccessKeyProps = ObjectProps{
@@ -415,6 +422,13 @@ var OptionProps = ObjectProps{
 	Type:              reflect.TypeOf(Option{}),
 	PrimaryColumnName: "key",
 	IsGlobal:          true,
+}
+
+var TemplateVaultProps = ObjectProps{
+	TableName:             "project__template_vault",
+	Type:                  reflect.TypeOf(TemplateVault{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "template_id",
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {

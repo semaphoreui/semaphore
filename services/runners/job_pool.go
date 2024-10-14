@@ -11,12 +11,54 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ansible-semaphore/semaphore/db"
+
 	"github.com/ansible-semaphore/semaphore/db_lib"
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
+
+type JobLogger struct {
+	Context string
+}
+
+func (e *JobLogger) ActionError(err error, action string, message string) {
+	util.LogErrorWithFields(err, log.Fields{
+		"type":    "action",
+		"context": e.Context,
+		"action":  action,
+		"error":   message,
+	})
+}
+
+func (e *JobLogger) Info(message string) {
+	log.WithFields(log.Fields{
+		"context": e.Context,
+	}).Info(message)
+}
+
+func (e *JobLogger) TaskInfo(message string, task int, status string) {
+	log.WithFields(log.Fields{
+		"type":    "task",
+		"context": e.Context,
+		"task":    task,
+		"status":  status,
+	}).Info(message)
+}
+
+func (e *JobLogger) Panic(err error, action string, message string) {
+	log.WithFields(log.Fields{
+		"context": e.Context,
+	}).Panic(message)
+}
+
+func (e *JobLogger) Debug(message string) {
+	log.WithFields(log.Fields{
+		"context": e.Context,
+	}).Debug(message)
+}
 
 type JobPool struct {
 	// logger channel used to putting log records to database.
@@ -29,7 +71,7 @@ type JobPool struct {
 
 	queue []*job
 
-	config *util.RunnerConfig
+	//token *string
 
 	processing int32
 }
@@ -54,21 +96,30 @@ func (p *JobPool) hasRunningJobs() bool {
 	return false
 }
 
-func (p *JobPool) Unregister() (err error) {
+func (p *JobPool) Register() (err error) {
 
-	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
-
-	if err != nil {
-		return
+	if util.Config.Runner.TokenFile == "" {
+		return fmt.Errorf("runner token file required")
 	}
 
-	if config.Token == "" {
+	ok := p.tryRegisterRunner()
+
+	if !ok {
+		return fmt.Errorf("runner registration failed")
+	}
+
+	return
+}
+
+func (p *JobPool) Unregister() (err error) {
+
+	if util.Config.Runner.Token == "" {
 		return fmt.Errorf("runner is not registered")
 	}
 
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners"
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -85,15 +136,20 @@ func (p *JobPool) Unregister() (err error) {
 		return
 	}
 
-	err = os.Remove(util.Config.Runner.ConfigFile)
-	if err != nil {
-		return
+	if util.Config.Runner.TokenFile != "" {
+		err = os.Remove(util.Config.Runner.TokenFile)
 	}
 
 	return
 }
 
 func (p *JobPool) Run() {
+	logger := JobLogger{Context: "running"}
+
+	if util.Config.Runner.Token == "" {
+		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
+	}
+
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(1 * time.Second)
 	p.runningJobs = make(map[int]*runningJob)
@@ -104,21 +160,11 @@ func (p *JobPool) Run() {
 	}()
 
 	for {
-
-		if p.tryRegisterRunner() {
-
-			log.Info("The runner has been started")
-
-			break
-		}
-
-		time.Sleep(5_000_000_000)
-	}
-
-	for {
 		select {
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
+			logger.Debug("Checking queue")
+
 			if len(p.queue) == 0 {
 				break
 			}
@@ -127,7 +173,7 @@ func (p *JobPool) Run() {
 			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued (failed)")
+				logger.TaskInfo("Task dequeued", t.job.Task.ID, "failed")
 				break
 			}
 
@@ -156,12 +202,12 @@ func (p *JobPool) Run() {
 					runningJob.SetStatus(task_logger.TaskSuccessStatus)
 				}
 
-				log.Info("Task " + strconv.Itoa(runningJob.job.Task.ID) + " finished (" + string(runningJob.status) + ")")
+				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
-			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " dequeued")
-			log.Info("Task " + strconv.Itoa(t.job.Task.ID) + " started")
+			logger.TaskInfo("Task dequeued", t.job.Task.ID, string(t.job.Task.Status))
+			logger.TaskInfo("Task started", t.job.Task.ID, string(t.job.Task.Status))
 
 		case <-requestTimer.C:
 
@@ -188,9 +234,11 @@ func (p *JobPool) Run() {
 
 func (p *JobPool) sendProgress() {
 
+	logger := JobLogger{Context: "sending_progress"}
+
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	body := RunnerProgress{
 		Jobs: nil,
@@ -207,24 +255,30 @@ func (p *JobPool) sendProgress() {
 		j.logRecords = make([]LogRecord, 0)
 
 		if j.status.IsFinished() {
-			log.Info("Task " + strconv.Itoa(id) + " removed from running list")
+			logger.TaskInfo("Task removed from running list", id, string(j.status))
 			delete(p.runningJobs, id)
 		}
 	}
 
 	jsonBytes, err := json.Marshal(body)
 
-	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		logger.ActionError(err, "form request body", "can not marshal json")
 		return
 	}
 
-	req.Header.Set("X-API-Token", p.config.Token)
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		logger.ActionError(err, "create request", "can not create request to the server")
+		return
+	}
+
+	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error making request:", err)
+
+		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 		return
 	}
 
@@ -232,34 +286,19 @@ func (p *JobPool) sendProgress() {
 }
 
 func (p *JobPool) tryRegisterRunner() bool {
-	if p.config != nil {
-		return true
-	}
 
-	log.Info("Attempting to register on the server")
-
-	config, err := util.LoadRunnerSettings(util.Config.Runner.ConfigFile)
-
-	if err != nil {
-		panic(err)
-	}
-
-	if config.Token != "" {
-		p.config = &config
-		return true
-	}
-
-	// Can not restore runner configuration. Register new runner on the server.
-
-	if util.Config.Runner.RegistrationToken == "" {
-		panic("registration token cannot be empty")
-	}
+	logger := JobLogger{Context: "registration"}
 
 	log.Info("Registering a new runner")
 
+	if util.Config.Runner.RegistrationToken == "" {
+		logger.ActionError(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
+		return false
+	}
+
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners"
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
@@ -267,39 +306,46 @@ func (p *JobPool) tryRegisterRunner() bool {
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 	})
 
+	if err != nil {
+		logger.ActionError(err, "form request", "can not marshal json")
+		return false
+	}
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		log.Error("Error creating request:", err)
+		logger.ActionError(err, "create request", "can not create request to the server")
 		return false
 	}
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
-		log.Error("Error making request:", err)
+		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 		return false
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+
+		logger.ActionError(err, "read response body", "can not read server's response body")
 		return false
 	}
 
-	err = json.Unmarshal(body, &config)
+	var res struct {
+		Token string `json:"token"`
+	}
+
+	err = json.Unmarshal(body, &res)
 	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
+		logger.ActionError(err, "parsing result json", "server's response has invalid format")
 		return false
 	}
 
-	configBytes, err := json.Marshal(config)
+	err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 
 	if err != nil {
-		panic("cannot save runner config")
+		logger.ActionError(err, "store token", "can not store token to the file")
+		return false
 	}
-
-	err = os.WriteFile(util.Config.Runner.ConfigFile, configBytes, 0644)
-
-	p.config = &config
 
 	defer resp.Body.Close()
 
@@ -309,28 +355,36 @@ func (p *JobPool) tryRegisterRunner() bool {
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
+	logger := JobLogger{Context: "checking new jobs"}
+
+	if util.Config.Runner.Token == "" {
+		logger.ActionError(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
+		return
+	}
+
 	client := &http.Client{}
 
-	url := util.Config.Runner.ApiURL + "/runners/" + strconv.Itoa(p.config.RunnerID)
+	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("GET", url, nil)
 
-	req.Header.Set("X-API-Token", p.config.Token)
-
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		logger.ActionError(err, "create request", "can not create request to the server")
 		return
 	}
+
+	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		fmt.Println("Error making request:", err)
+		logger.ActionError(err, "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
 		return
 	}
 
 	if resp.StatusCode >= 400 {
-		log.Error("Encountered error while checking for new jobs; server returned code ", resp.StatusCode)
+
+		logger.ActionError(fmt.Errorf("error status code"), "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
 		return
 	}
 
@@ -338,14 +392,14 @@ func (p *JobPool) checkNewJobs() {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error("Encountered error while checking for new jobs; unable to read response body:", err)
+		logger.ActionError(err, "read response body", "can not read server's response body")
 		return
 	}
 
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		log.Error("Checking new jobs, parsing JSON error:", err)
+		logger.ActionError(err, "parsing result json", "server's response has invalid format")
 		return
 	}
 
@@ -427,15 +481,23 @@ func (p *JobPool) checkNewJobs() {
 			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
 		}
 
-		if taskRunner.job.Template.VaultKeyID != nil {
-			taskRunner.job.Template.VaultKey = response.AccessKeys[*taskRunner.job.Template.VaultKeyID]
+		var vaults []db.TemplateVault
+		if taskRunner.job.Template.Vaults != nil {
+			for _, vault := range taskRunner.job.Template.Vaults {
+				vault := vault
+				key := response.AccessKeys[vault.VaultKeyID]
+				vault.Vault = &key
+				vaults = append(vaults, vault)
+			}
 		}
+		taskRunner.job.Template.Vaults = vaults
 
 		if taskRunner.job.Inventory.RepositoryID != nil {
 			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]
 		}
 
 		p.queue = append(p.queue, &taskRunner)
-		log.Info("Task " + strconv.Itoa(taskRunner.job.Task.ID) + " enqueued")
+
+		logger.TaskInfo("Task enqueued", taskRunner.job.Task.ID, string(taskRunner.job.Task.Status))
 	}
 }

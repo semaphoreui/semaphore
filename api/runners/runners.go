@@ -14,7 +14,7 @@ import (
 func RunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		token := r.Header.Get("X-API-Token")
+		token := r.Header.Get("X-Runner-Token")
 
 		if token == "" {
 			helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
@@ -23,18 +23,9 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		runnerID, err := helpers.GetIntParam("runner_id", w, r)
-
-		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "runner_id required",
-			})
-			return
-		}
-
 		store := helpers.Store(r)
 
-		runner, err := store.GetGlobalRunner(runnerID)
+		runner, err := store.GetGlobalRunnerByToken(token)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
@@ -98,12 +89,14 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
 			}
 
-			if tsk.Template.VaultKeyID != nil {
-				err := tsk.Template.VaultKey.DeserializeSecret()
-				if err != nil {
-					// TODO: return error
+			if tsk.Template.Vaults != nil {
+				for _, vault := range tsk.Template.Vaults {
+					err := vault.Vault.DeserializeSecret()
+					if err != nil {
+						// TODO: return error
+					}
+					data.AccessKeys[vault.VaultKeyID] = *vault.Vault
 				}
-				data.AccessKeys[*tsk.Template.VaultKeyID] = tsk.Template.VaultKey
 			}
 
 			if tsk.Inventory.RepositoryID != nil {
@@ -199,10 +192,11 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := util.RunnerConfig{
-		RunnerID: runner.ID,
-		Token:    runner.Token,
+	var res struct {
+		Token string `json:"token"`
 	}
+
+	res.Token = runner.Token
 
 	helpers.WriteJSON(w, http.StatusOK, res)
 }

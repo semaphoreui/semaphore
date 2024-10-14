@@ -56,6 +56,7 @@ func truncateAll() {
 		"project__inventory",
 		"project__repository",
 		"project__template",
+		"project__template_vault",
 		"project__schedule",
 		"project__user",
 		"user",

@@ -35,7 +35,7 @@
 
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('environment2') }}</v-toolbar-title>
+      <v-toolbar-title>{{ $t('environment') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"

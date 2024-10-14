@@ -76,11 +76,12 @@ RUN python3 -m venv /opt/semaphore/venv --system-site-packages && \
        MarkupSafe \
        packaging \
        pycparser \
+       pywinrm \
        PyYAML \
        redbaron \
        requests \
        resolvelib \
-       rply 
+       rply
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]

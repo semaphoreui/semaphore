@@ -11,7 +11,7 @@
       class="pb-2"
     >{{ formError }}</v-alert>
 
-    <v-select
+    <v-autocomplete
       v-model="item.user_id"
       :label="$t('user')"
       :items="users"
@@ -20,7 +20,7 @@
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"
-    ></v-select>
+    ></v-autocomplete>
 
     <v-select
       v-model="item.role"

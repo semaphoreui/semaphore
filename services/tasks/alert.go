@@ -352,11 +352,70 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 
 	if err != nil {
 		t.Log("Can't send microsoft teams alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
+	} else if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		t.Log("Can't send microsoft teams alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	}
 
 	t.Log("Sent successfully microsoft teams alert")
+}
+
+func (t *TaskRunner) sendDingTalkAlert() {
+	if !util.Config.DingTalkAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("dingtalk"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/dingtalk.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse dingtalk alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate dingtalk alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for dingtalk alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send dingtalk alert")
+
+	resp, err := http.Post(
+		util.Config.DingTalkUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send dingtalk alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send dingtalk alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully dingtalk alert")
+	}
 }
 
 func (t *TaskRunner) alertInfos() (string, string) {

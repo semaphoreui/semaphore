@@ -30,9 +30,9 @@ type LocalJob struct {
 	// Internal field
 	Process *os.Process
 
-	sshKeyInstallation    db.AccessKeyInstallation
-	becomeKeyInstallation db.AccessKeyInstallation
-	vaultFileInstallation db.AccessKeyInstallation
+	sshKeyInstallation     db.AccessKeyInstallation
+	becomeKeyInstallation  db.AccessKeyInstallation
+	vaultFileInstallations map[string]db.AccessKeyInstallation
 }
 
 func (t *LocalJob) Kill() {
@@ -173,26 +173,54 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 
 // nolint: gocyclo
 func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
-	//extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
+	if err != nil {
+		t.Log(err.Error())
+		t.Log("Error getting environment extra vars")
+		return
+	}
+
+	var templateExtraArgs []string
+	if t.Template.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
+		if err != nil {
+			t.Log("Invalid format of the template extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	var taskExtraArgs []string
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
+		if err != nil {
+			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	// Script to run
 	args = append(args, t.Template.Playbook)
 
-	//if err != nil {
-	//	t.Log(err.Error())
-	//	t.Log("Could not remove command environment, if existant it will be passed to --extra-vars. This is not fatal but be aware of side effects")
-	//	return
-	//}
+	// Include Environment Secret Vars
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type == db.EnvironmentSecretVar {
+			args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+		}
+	}
 
-	//for name, value := range extraVars {
-	//	if name == "semaphore_vars" {
-	//		continue
-	//	}
-	//	args = append(args, fmt.Sprintf("%s=%s", name, value))
-	//}
-	//
-	//for _, secret := range t.Environment.Secrets {
-	//	args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	//}
+	// Include extra args from template
+	args = append(args, templateExtraArgs...)
+
+	// Include ExtraVars and Survey Vars
+	for name, value := range extraVars {
+		if name != "semaphore_vars" {
+			args = append(args, fmt.Sprintf("%s=%s", name, value))
+		}
+	}
+
+	// Include extra args from task
+	args = append(args, taskExtraArgs...)
 
 	return
 }
@@ -307,9 +335,11 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--check")
 	}
 
-	if t.Template.VaultKeyID != nil {
-		args = append(args, "--ask-vault-pass")
-		inputMap[db.AccessKeyRoleAnsiblePasswordVault] = t.vaultFileInstallation.Password
+	for name, install := range t.vaultFileInstallations {
+		if install.Password != "" {
+			args = append(args, fmt.Sprintf("--vault-id=%s@prompt", name))
+			inputs[fmt.Sprintf("Vault password (%s):", name)] = install.Password
+		}
 	}
 
 	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
@@ -362,10 +392,6 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		inputs["BECOME password"] = line
 	}
 
-	if line, ok := inputMap[db.AccessKeyRoleAnsiblePasswordVault]; ok {
-		inputs["Vault password:"] = line
-	}
-
 	return
 }
 
@@ -408,6 +434,23 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
+	if t.Template.Type != db.TemplateTask {
+
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SEMAPHORE_TASK_TYPE=%s", t.Template.Type))
+
+		if incomingVersion != nil {
+			environmentVariables = append(
+				environmentVariables,
+				fmt.Sprintf("SEMAPHORE_TASK_INCOMING_VERSION=%s", *incomingVersion))
+		}
+
+		if t.Template.Type == db.TemplateBuild && t.Task.Version != nil {
+			environmentVariables = append(
+				environmentVariables,
+				fmt.Sprintf("SEMAPHORE_TASK_TARGET_VERSION=%s", *t.Task.Version))
+		}
+	}
+
 	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {
 		t.Process = p
 	})
@@ -448,8 +491,8 @@ func (t *LocalJob) prepareRun() error {
 		return err
 	}
 
-	if err := t.installVaultKeyFile(); err != nil {
-		t.Log("Failed to install vault password file: " + err.Error())
+	if err := t.installVaultKeyFiles(); err != nil {
+		t.Log("Failed to install vault password files: " + err.Error())
 		return err
 	}
 
@@ -528,12 +571,28 @@ func (t *LocalJob) checkoutRepository() error {
 	return nil
 }
 
-func (t *LocalJob) installVaultKeyFile() (err error) {
-	if t.Template.VaultKeyID == nil {
+func (t *LocalJob) installVaultKeyFiles() (err error) {
+	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
+
+	if t.Template.Vaults == nil || len(t.Template.Vaults) == 0 {
 		return nil
 	}
 
-	t.vaultFileInstallation, err = t.Template.VaultKey.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+	for _, vault := range t.Template.Vaults {
+		var name string
+		if vault.Name != nil {
+			name = *vault.Name
+		} else {
+			name = "default"
+		}
+
+		var install db.AccessKeyInstallation
+		install, err = vault.Vault.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+		if err != nil {
+			return
+		}
+		t.vaultFileInstallations[name] = install
+	}
 
 	return
 }

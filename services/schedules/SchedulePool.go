@@ -111,7 +111,7 @@ func (p *SchedulePool) Refresh() {
 	p.locker.Lock()
 	p.clear()
 	for _, schedule := range schedules {
-		if !schedule.Active {
+		if schedule.RepositoryID == nil && !schedule.Active {
 			continue
 		}
 

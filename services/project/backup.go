@@ -1,7 +1,9 @@
 package project
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/pkg/random"
@@ -106,71 +108,103 @@ func (b *BackupDB) makeUniqueNames() {
 	}, func(item *db.View, name string) {
 		item.Title = name
 	})
+
+	makeUniqueNames(b.integrations, func(item *db.Integration) string {
+		return item.Name
+	}, func(item *db.Integration, name string) {
+		item.Name = name
+	})
 }
 
-func (b *BackupDB) new(projectID int, store db.Store) (*BackupDB, error) {
-	var err error
+func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 
 	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.repositories, err = store.GetRepositories(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.keys, err = store.GetAccessKeys(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.views, err = store.GetViews(projectID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.inventories, err = store.GetInventories(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	b.environments, err = store.GetEnvironments(projectID, db.RetrieveQueryParams{})
 	if err != nil {
-		return nil, err
+		return
 	}
+
 	schedules, err := store.GetSchedules()
 	if err != nil {
-		return nil, err
+		return
 	}
+
 	b.schedules = getSchedulesByProject(projectID, schedules)
+
 	b.meta, err = store.GetProject(projectID)
 	if err != nil {
-		return nil, err
+		return
+	}
+
+	b.integrationProjAliases, err = store.GetIntegrationAliases(projectID, nil)
+	if err != nil {
+		return
+	}
+
+	b.integrations, err = store.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	b.integrationAliases = make(map[int][]db.IntegrationAlias)
+	b.integrationMatchers = make(map[int][]db.IntegrationMatcher)
+	b.integrationExtractValues = make(map[int][]db.IntegrationExtractValue)
+	for _, o := range b.integrations {
+		b.integrationAliases[o.ID], err = store.GetIntegrationAliases(projectID, &o.ID)
+		if err != nil {
+			return
+		}
+		b.integrationMatchers[o.ID], err = store.GetIntegrationMatchers(projectID, db.RetrieveQueryParams{}, o.ID)
+		if err != nil {
+			return
+		}
+		b.integrationExtractValues[o.ID], err = store.GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, o.ID)
+		if err != nil {
+			return
+		}
 	}
 
 	b.makeUniqueNames()
 
-	return b, nil
+	return
 }
 
 func (b *BackupDB) format() (*BackupFormat, error) {
-	keys := make([]BackupKey, len(b.keys))
+	keys := make([]BackupAccessKey, len(b.keys))
 	for i, o := range b.keys {
-		keys[i] = BackupKey{
-			Name: o.Name,
-			Type: o.Type,
+		keys[i] = BackupAccessKey{
+			o,
 		}
 	}
 
 	environments := make([]BackupEnvironment, len(b.environments))
 	for i, o := range b.environments {
 		environments[i] = BackupEnvironment{
-			Name:     o.Name,
-			ENV:      o.ENV,
-			JSON:     o.JSON,
-			Password: o.Password,
+			o,
 		}
 	}
 
@@ -185,9 +219,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
 		inventories[i] = BackupInventory{
-			Name:      o.Name,
-			Inventory: o.Inventory,
-			Type:      o.Type,
+			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
 		}
@@ -196,8 +228,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	views := make([]BackupView, len(b.views))
 	for i, o := range b.views {
 		views[i] = BackupView{
-			Name:     o.Title,
-			Position: o.Position,
+			o,
 		}
 	}
 
@@ -205,10 +236,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	for i, o := range b.repositories {
 		SSHKey, _ := findNameByID[db.AccessKey](o.SSHKeyID, b.keys)
 		repositories[i] = BackupRepository{
-			Name:      o.Name,
-			SSHKey:    SSHKey,
-			GitURL:    o.GitURL,
-			GitBranch: o.GitBranch,
+			Repository: o,
+			SSHKey:     SSHKey,
 		}
 	}
 
@@ -218,9 +247,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.ViewID != nil {
 			View, _ = findNameByID[db.View](*o.ViewID, b.views)
 		}
-		var VaultKey *string = nil
-		if o.VaultKeyID != nil {
-			VaultKey, _ = findNameByID[db.AccessKey](*o.VaultKeyID, b.keys)
+		var vaults []BackupTemplateVault = nil
+		for _, vault := range o.Vaults {
+			var vaultKey *string = nil
+			vaultKey, _ = findNameByID[db.AccessKey](vault.VaultKeyID, b.keys)
+			vaults = append(vaults, BackupTemplateVault{
+				TemplateVault: vault,
+				VaultKey:      *vaultKey,
+			})
+
 		}
 		var Environment *string = nil
 		if o.EnvironmentID != nil {
@@ -238,46 +273,101 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 
 		templates[i] = BackupTemplate{
-			Name:                    o.Name,
-			AllowOverrideArgsInTask: o.AllowOverrideArgsInTask,
-			Arguments:               o.Arguments,
-			Autorun:                 o.Autorun,
-			Description:             o.Description,
-			Playbook:                o.Playbook,
-			StartVersion:            o.StartVersion,
-			SuppressSuccessAlerts:   o.SuppressSuccessAlerts,
-			SurveyVars:              o.SurveyVarsJSON,
-			Type:                    o.Type,
-			View:                    View,
-			VaultKey:                VaultKey,
-			Repository:              *Repository,
-			Inventory:               Inventory,
-			Environment:             Environment,
-			BuildTemplate:           BuildTemplate,
-			Cron:                    getScheduleByTemplate(o.ID, b.schedules),
+			Template:      o,
+			View:          View,
+			Repository:    *Repository,
+			Inventory:     Inventory,
+			Environment:   Environment,
+			BuildTemplate: BuildTemplate,
+			Cron:          getScheduleByTemplate(o.ID, b.schedules),
+			Vaults:        vaults,
 		}
 	}
+
+	integrations := make([]BackupIntegration, len(b.integrations))
+	for i, o := range b.integrations {
+
+		var aliases []string
+
+		for _, a := range b.integrationAliases[o.ID] {
+			aliases = append(aliases, a.Alias)
+		}
+
+		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+
+		if tplName == nil {
+			continue
+		}
+
+		var keyName *string
+
+		if o.AuthSecretID != nil {
+			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
+		}
+
+		integrations[i] = BackupIntegration{
+			Integration:   o,
+			Aliases:       aliases,
+			Matchers:      b.integrationMatchers[o.ID],
+			ExtractValues: b.integrationExtractValues[o.ID],
+			Template:      *tplName,
+			AuthSecret:    keyName,
+		}
+	}
+
+	var integrationAliases []string
+
+	for _, alias := range b.integrationProjAliases {
+		integrationAliases = append(integrationAliases, alias.Alias)
+	}
+
 	return &BackupFormat{
 		Meta: BackupMeta{
-			Name:             b.meta.Name,
-			MaxParallelTasks: b.meta.MaxParallelTasks,
-			Alert:            b.meta.Alert,
-			AlertChat:        b.meta.AlertChat,
+			b.meta,
 		},
-		Inventories:  inventories,
-		Environments: environments,
-		Views:        views,
-		Repositories: repositories,
-		Keys:         keys,
-		Templates:    templates,
+		Inventories:        inventories,
+		Environments:       environments,
+		Views:              views,
+		Repositories:       repositories,
+		Keys:               keys,
+		Templates:          templates,
+		Integration:        integrations,
+		IntegrationAliases: integrationAliases,
 	}, nil
 }
 
 func GetBackup(projectID int, store db.Store) (*BackupFormat, error) {
 	backup := BackupDB{}
-	if _, err := backup.new(projectID, store); err != nil {
+	if err := backup.load(projectID, store); err != nil {
 		return nil, err
 	}
-
 	return backup.format()
+}
+
+func (b *BackupFormat) Marshal() (res string, err error) {
+	data, err := marshalValue(reflect.ValueOf(b))
+	if err != nil {
+		return
+	}
+
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	res = string(bytes)
+
+	return
+}
+
+func (b *BackupFormat) Unmarshal(res string) (err error) {
+	// Parse the JSON data into a map
+	var jsonData interface{}
+	if err = json.Unmarshal([]byte(res), &jsonData); err != nil {
+		return
+	}
+
+	// Start the recursive unmarshaling process
+	err = unmarshalValueWithBackupTags(jsonData, reflect.ValueOf(b))
+	return
 }

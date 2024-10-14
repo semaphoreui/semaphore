@@ -101,6 +101,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
        MarkupSafe \
        packaging \
        pycparser \
+       pywinrm \
        PyYAML \
        redbaron \
        requests \

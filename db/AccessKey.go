@@ -26,24 +26,29 @@ const (
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
 type AccessKey struct {
-	ID   int    `db:"id" json:"id"`
+	ID   int    `db:"id" json:"id" backup:"-"`
 	Name string `db:"name" json:"name" binding:"required"`
 	// 'ssh/login_password/none'
 	Type AccessKeyType `db:"type" json:"type" binding:"required"`
 
-	ProjectID *int `db:"project_id" json:"project_id"`
+	ProjectID *int `db:"project_id" json:"project_id" backup:"-"`
 
 	// Secret used internally, do not assign this field.
 	// You should use methods SerializeSecret to fill this field.
-	Secret *string `db:"secret" json:"-"`
+	Secret *string `db:"secret" json:"-" backup:"-"`
 
 	String         string        `db:"-" json:"string"`
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
 
-	EnvironmentID *int `db:"environment_id" json:"-"`
-	UserID        *int `db:"user_id" json:"-"`
+	// EnvironmentID is an ID of environment which owns the access key.
+	EnvironmentID *int `db:"environment_id" json:"-" backup:"-"`
+
+	// UserID is an ID of user which owns the access key.
+	UserID *int `db:"user_id" json:"-" backup:"-"`
+
+	Empty bool `db:"-" json:"empty,omitempty"`
 }
 
 type LoginPassword struct {
@@ -173,13 +178,33 @@ func (key *AccessKey) SerializeSecret() error {
 
 	switch key.Type {
 	case AccessKeyString:
+		if key.String == "" {
+			key.Secret = nil
+			return nil
+		}
 		plaintext = []byte(key.String)
 	case AccessKeySSH:
+		if key.SshKey.PrivateKey == "" {
+			if key.SshKey.Login != "" || key.SshKey.Passphrase != "" {
+				return fmt.Errorf("invalid ssh key")
+			}
+			key.Secret = nil
+			return nil
+		}
+
 		plaintext, err = json.Marshal(key.SshKey)
 		if err != nil {
 			return err
 		}
 	case AccessKeyLoginPassword:
+		if key.LoginPassword.Password == "" {
+			if key.LoginPassword.Login != "" {
+				return fmt.Errorf("invalid password key")
+			}
+			key.Secret = nil
+			return nil
+		}
+
 		plaintext, err = json.Marshal(key.LoginPassword)
 		if err != nil {
 			return err

@@ -215,6 +215,7 @@ func setAppActive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !helpers.Bind(w, r, &body) {
+		helpers.WriteErrorStatus(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 

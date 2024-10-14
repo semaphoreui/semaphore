@@ -13,75 +13,80 @@ type BackupDB struct {
 	inventories  []db.Inventory
 	environments []db.Environment
 	schedules    []db.Schedule
+
+	integrationProjAliases   []db.IntegrationAlias
+	integrations             []db.Integration
+	integrationAliases       map[int][]db.IntegrationAlias
+	integrationMatchers      map[int][]db.IntegrationMatcher
+	integrationExtractValues map[int][]db.IntegrationExtractValue
 }
 
 type BackupFormat struct {
-	Meta         BackupMeta          `json:"meta"`
-	Templates    []BackupTemplate    `json:"templates"`
-	Repositories []BackupRepository  `json:"repositories"`
-	Keys         []BackupKey         `json:"keys"`
-	Views        []BackupView        `json:"views"`
-	Inventories  []BackupInventory   `json:"inventories"`
-	Environments []BackupEnvironment `json:"environments"`
+	Meta               BackupMeta          `backup:"meta"`
+	Templates          []BackupTemplate    `backup:"templates"`
+	Repositories       []BackupRepository  `backup:"repositories"`
+	Keys               []BackupAccessKey   `backup:"keys"`
+	Views              []BackupView        `backup:"views"`
+	Inventories        []BackupInventory   `backup:"inventories"`
+	Environments       []BackupEnvironment `backup:"environments"`
+	Integration        []BackupIntegration `backup:"integrations"`
+	IntegrationAliases []string            `backup:"integration_aliases"`
 }
 
 type BackupMeta struct {
-	Name             string  `json:"name"`
-	Alert            bool    `json:"alert"`
-	AlertChat        *string `json:"alert_chat"`
-	MaxParallelTasks int     `json:"max_parallel_tasks"`
+	db.Project
 }
 
 type BackupEnvironment struct {
-	Name     string  `json:"name"`
-	Password *string `json:"password"`
-	JSON     string  `json:"json"`
-	ENV      *string `json:"env"`
+	db.Environment
 }
 
-type BackupKey struct {
-	Name string           `json:"name"`
-	Type db.AccessKeyType `json:"type"`
+type BackupAccessKey struct {
+	db.AccessKey
 }
 
 type BackupView struct {
-	Name     string `json:"name"`
-	Position int    `json:"position"`
+	db.View
 }
 
 type BackupInventory struct {
-	Name      string           `json:"name"`
-	Inventory string           `json:"inventory"`
-	SSHKey    *string          `json:"ssh_key"`
-	BecomeKey *string          `json:"become_key"`
-	Type      db.InventoryType `json:"type"`
+	db.Inventory
+	SSHKey    *string `backup:"ssh_key"`
+	BecomeKey *string `backup:"become_key"`
 }
 
 type BackupRepository struct {
-	Name      string  `json:"name"`
-	GitURL    string  `json:"git_url"`
-	GitBranch string  `json:"git_branch"`
-	SSHKey    *string `json:"ssh_key"`
+	db.Repository
+	SSHKey *string `backup:"ssh_key"`
 }
 
 type BackupTemplate struct {
-	Inventory               *string         `json:"inventory"`
-	Repository              string          `json:"repository"`
-	Environment             *string         `json:"environment"`
-	Name                    string          `json:"name"`
-	Playbook                string          `json:"playbook"`
-	Arguments               *string         `json:"arguments"`
-	AllowOverrideArgsInTask bool            `json:"allow_override_args_in_task"`
-	Description             *string         `json:"description"`
-	VaultKey                *string         `json:"vault_key"`
-	Type                    db.TemplateType `json:"type"`
-	StartVersion            *string         `json:"start_version"`
-	BuildTemplate           *string         `json:"build_template"`
-	View                    *string         `json:"view"`
-	Autorun                 bool            `json:"autorun"`
-	SurveyVars              *string         `json:"survey_vars"`
-	SuppressSuccessAlerts   bool            `json:"suppress_success_alerts"`
-	Cron                    *string         `json:"cron"`
+	db.Template
+
+	Inventory     *string               `backup:"inventory"`
+	Repository    string                `backup:"repository"`
+	Environment   *string               `backup:"environment"`
+	BuildTemplate *string               `backup:"build_template"`
+	View          *string               `backup:"view"`
+	Vaults        []BackupTemplateVault `backup:"vaults"`
+	Cron          *string               `backup:"cron"`
+
+	// Deprecated: Left here for compatibility with old backups
+	VaultKey *string `json:"vault_key"`
+}
+
+type BackupTemplateVault struct {
+	db.TemplateVault
+	VaultKey string `backup:"vault_key"`
+}
+
+type BackupIntegration struct {
+	db.Integration
+	Aliases       []string                     `backup:"aliases"`
+	Matchers      []db.IntegrationMatcher      `backup:"matchers"`
+	ExtractValues []db.IntegrationExtractValue `backup:"extract_values"`
+	Template      string                       `backup:"template"`
+	AuthSecret    *string                      `backup:"auth_secret"`
 }
 
 type BackupEntry interface {
@@ -98,7 +103,7 @@ func (e BackupInventory) GetName() string {
 	return e.Name
 }
 
-func (e BackupKey) GetName() string {
+func (e BackupAccessKey) GetName() string {
 	return e.Name
 }
 
@@ -107,7 +112,7 @@ func (e BackupRepository) GetName() string {
 }
 
 func (e BackupView) GetName() string {
-	return e.Name
+	return e.Title
 }
 
 func (e BackupTemplate) GetName() string {

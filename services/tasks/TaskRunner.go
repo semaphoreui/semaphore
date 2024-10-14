@@ -167,7 +167,7 @@ func (t *TaskRunner) run() {
 		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
-	templates, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
+	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
@@ -176,7 +176,7 @@ func (t *TaskRunner) run() {
 		return
 	}
 
-	for _, tpl := range templates {
+	for _, tpl := range tpls {
 		_, err = t.pool.AddTask(db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
@@ -249,10 +249,22 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	if t.Template.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+	if t.Task.InventoryID != nil {
+		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
-			return t.prepareError(err, "Template Inventory not found!")
+			if t.Template.InventoryID != nil {
+				t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+				if err != nil {
+					return t.prepareError(err, "Template Inventory not found!")
+				}
+			}
+		}
+	} else {
+		if t.Template.InventoryID != nil {
+			t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+			if err != nil {
+				return t.prepareError(err, "Template Inventory not found!")
+			}
 		}
 	}
 

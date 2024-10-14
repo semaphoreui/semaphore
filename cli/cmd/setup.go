@@ -3,13 +3,14 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
-	"os"
-	"strings"
 )
 
 func init() {
@@ -26,14 +27,14 @@ var setupCmd = &cobra.Command{
 
 // nolint: gocyclo
 func doSetup() int {
-	var config *util.ConfigType
-	config = &util.ConfigType{}
+	config := &util.ConfigType{}
+
 	config.GenerateSecrets()
 	setup.InteractiveSetup(config)
 
-	configPath := setup.SaveConfig(config)
+	resultConfigPath := setup.SaveConfig(config, "config.json", persistentFlags.configPath)
 
-	util.ConfigInit(configPath)
+	util.ConfigInit(resultConfigPath, false)
 
 	fmt.Println(" Pinging db..")
 
@@ -74,8 +75,8 @@ func doSetup() int {
 		fmt.Printf("\n You are all setup %v!\n", user.Name)
 	}
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", configPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", configPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", resultConfigPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", resultConfigPath)
 	fmt.Printf(" You can login with %v or %v.\n", user.Email, user.Username)
 
 	return 0

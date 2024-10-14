@@ -16,6 +16,8 @@ func removeSensitiveEnvs(envs []string) (res []string) {
 		"SEMAPHORE_DB_HOST",
 		"SEMAPHORE_DB_PASS",
 		"SEMAPHORE_LDAP_PASSWORD",
+		"SEMAPHORE_RUNNER_TOKEN",
+		"SEMAPHORE_RUNNER_ID",
 	}
 
 	for _, e := range envs {

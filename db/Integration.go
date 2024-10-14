@@ -37,9 +37,9 @@ const (
 )
 
 type IntegrationMatcher struct {
-	ID            int                        `db:"id" json:"id"`
+	ID            int                        `db:"id" json:"id" backup:"-"`
+	IntegrationID int                        `db:"integration_id" json:"integration_id" backup:"-"`
 	Name          string                     `db:"name" json:"name"`
-	IntegrationID int                        `db:"integration_id" json:"integration_id"`
 	MatchType     IntegrationMatchType       `db:"match_type" json:"match_type"`
 	Method        IntegrationMatchMethodType `db:"method" json:"method"`
 	BodyDataType  IntegrationBodyDataType    `db:"body_data_type" json:"body_data_type"`
@@ -55,9 +55,9 @@ const (
 )
 
 type IntegrationExtractValue struct {
-	ID            int                           `db:"id" json:"id"`
+	ID            int                           `db:"id" json:"id" backup:"-"`
+	IntegrationID int                           `db:"integration_id" json:"integration_id" backup:"-"`
 	Name          string                        `db:"name" json:"name"`
-	IntegrationID int                           `db:"integration_id" json:"integration_id"`
 	ValueSource   IntegrationExtractValueSource `db:"value_source" json:"value_source"`
 	BodyDataType  IntegrationBodyDataType       `db:"body_data_type" json:"body_data_type"`
 	Key           string                        `db:"key" json:"key"`
@@ -65,21 +65,21 @@ type IntegrationExtractValue struct {
 }
 
 type IntegrationAlias struct {
-	ID            int    `db:"id" json:"-"`
+	ID            int    `db:"id" json:"-" backup:"-"`
 	Alias         string `db:"alias" json:"alias"`
-	ProjectID     int    `db:"project_id" json:"project_id"`
-	IntegrationID *int   `db:"integration_id" json:"integration_id"`
+	ProjectID     int    `db:"project_id" json:"project_id" backup:"-"`
+	IntegrationID *int   `db:"integration_id" json:"integration_id" backup:"-"`
 }
 
 type Integration struct {
-	ID           int                   `db:"id" json:"id"`
+	ID           int                   `db:"id" json:"id" backup:"-"`
 	Name         string                `db:"name" json:"name"`
-	ProjectID    int                   `db:"project_id" json:"project_id"`
-	TemplateID   int                   `db:"template_id" json:"template_id"`
+	ProjectID    int                   `db:"project_id" json:"project_id" backup:"-"`
+	TemplateID   int                   `db:"template_id" json:"template_id" backup:"-"`
 	AuthMethod   IntegrationAuthMethod `db:"auth_method" json:"auth_method"`
-	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id"`
+	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id" backup:"-"`
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
-	AuthSecret   AccessKey             `db:"-" json:"-"`
+	AuthSecret   AccessKey             `db:"-" json:"-" backup:"-"`
 	Searchable   bool                  `db:"searchable" json:"searchable"`
 	TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
 }

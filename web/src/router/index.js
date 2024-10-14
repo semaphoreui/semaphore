@@ -1,5 +1,7 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
+import RestoreProject from '@/views/project/RestoreProject.vue';
+import Tasks from '@/views/Tasks.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -17,6 +19,7 @@ import New from '../views/project/New.vue';
 import Integrations from '../views/project/Integrations.vue';
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
 import Apps from '../views/Apps.vue';
+import Runners from '../views/Runners.vue';
 
 Vue.use(VueRouter);
 
@@ -24,6 +27,10 @@ const routes = [
   {
     path: '/project/new',
     component: New,
+  },
+  {
+    path: '/project/restore',
+    component: RestoreProject,
   },
   {
     path: '/project/:projectId',
@@ -100,6 +107,14 @@ const routes = [
   {
     path: '/users',
     component: Users,
+  },
+  {
+    path: '/runners',
+    component: Runners,
+  },
+  {
+    path: '/tasks',
+    component: Tasks,
   },
   {
     path: '/apps',

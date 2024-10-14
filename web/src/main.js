@@ -8,7 +8,26 @@ import vuetify from './plugins/vuetify';
 import './assets/scss/main.scss';
 import i18n from './plugins/i18';
 
-const convert = new Convert();
+const convert = new Convert({
+  colors: {
+    0: '#000',
+    1: '#A00',
+    2: '#0A0',
+    3: '#A50',
+    4: '#2196f3',
+    5: '#A0A',
+    6: '#0AA',
+    7: '#AAA',
+    8: '#555',
+    9: '#F55',
+    10: '#5F5',
+    11: '#FF5',
+    12: '#55F',
+    13: '#F5F',
+    14: '#5FF',
+    15: '#FFF',
+  },
+});
 
 axios.defaults.baseURL = document.baseURI;
 Vue.config.productionTip = false;
@@ -21,9 +40,9 @@ Vue.filter('formatDate', (value) => {
   const now = moment();
 
   if (now.isSame(date, 'day')) {
-    return `${date.fromNow()} (${date.format('LT')})`; // Display only time if today
+    return `${date.fromNow()} (${date.format('HH:mm')})`; // Display only time if today
   }
-  return date.format('L LT'); // Display only date otherwise
+  return date.format('L HH:mm'); // Display only date otherwise
 });
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
 Vue.filter('formatLog', (value) => (value ? convert.toHtml(String(value)) : value));
