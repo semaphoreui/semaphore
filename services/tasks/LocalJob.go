@@ -380,6 +380,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		taskExtraArgs = append(taskExtraArgs, "--limit="+*t.Task.Limit)
 	}
 
+	// override the args from task to template
 	// args = append(args, templateExtraArgs...)
 	args = append(args, taskExtraArgs...)
 	args = append(args, playbookName)
