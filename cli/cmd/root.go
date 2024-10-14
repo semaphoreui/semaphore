@@ -2,6 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -13,13 +17,13 @@ import (
 	"github.com/gorilla/handlers"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"net/http"
-	"os"
-	"strings"
 )
 
-var configPath string
-var noConfig bool
+var persistentFlags struct {
+	configPath string
+	noConfig   bool
+	logLevel   string
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
@@ -31,11 +35,24 @@ Complete documentation is available at https://ansible-semaphore.com.`,
 		_ = cmd.Help()
 		os.Exit(0)
 	},
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if persistentFlags.logLevel == "" {
+			return
+		}
+
+		lvl, err := log.ParseLevel(persistentFlags.logLevel)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		log.SetLevel(lvl)
+	},
 }
 
 func Execute() {
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
-	rootCmd.PersistentFlags().BoolVar(&noConfig, "no-config", false, "Don't use configuration file")
+	rootCmd.PersistentFlags().StringVar(&persistentFlags.logLevel, "log-level", "", "Log level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC")
+	rootCmd.PersistentFlags().StringVar(&persistentFlags.configPath, "config", "", "Configuration file path")
+	rootCmd.PersistentFlags().BoolVar(&persistentFlags.noConfig, "no-config", false, "Don't use configuration file")
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -98,7 +115,7 @@ func runService() {
 }
 
 func createStore(token string) db.Store {
-	util.ConfigInit(configPath, noConfig)
+	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	store := factory.CreateStore()
 
