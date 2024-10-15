@@ -12,7 +12,7 @@ func (m migration_2_10_27) PostApply(tx *gorp.Transaction) error {
 		_, _ = tx.Exec(m.db.PrepareQuery("alter table `task` modify `hosts_limit` text default null;"))
 	case gorp.PostgresDialect:
 		_, err := tx.Exec(
-			m.db.PrepareQuery("alter table `task` alter column `hosts_limit` type text, alter column `hosts_limit` set default null;"))
+			m.db.PrepareQuery("alter table `task` alter column `hosts_limit` type text, alter column `hosts_limit` drop not null, alter column `hosts_limit` set default null;"))
 		return err
 	}
 	return nil
