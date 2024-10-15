@@ -23,7 +23,7 @@ fi
 
 echoerr "Starting semaphore runner"
 if test "$#" -ne 1; then
-    exec /usr/local/bin/semaphore runner start --no-config"
+    exec /usr/local/bin/semaphore runner start --no-config
 else
     exec "$@"
 fi
