@@ -277,9 +277,12 @@ func (p *JobPool) sendProgress() {
 
 	resp, err := client.Do(req)
 	if err != nil {
-
-		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "the server returned error")
 		return
+	}
+
+	if resp.StatusCode >= 400 {
+		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 	}
 
 	defer resp.Body.Close()
@@ -318,8 +321,14 @@ func (p *JobPool) tryRegisterRunner() bool {
 	}
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+
+	if err != nil {
+		logger.ActionError(err, "send request", "unexpected error")
+		return false
+	}
+
+	if resp.StatusCode != 200 {
+		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 		return false
 	}
 
@@ -378,7 +387,7 @@ func (p *JobPool) checkNewJobs() {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		logger.ActionError(err, "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "upexpected error")
 		return
 	}
 

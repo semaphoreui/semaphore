@@ -53,6 +53,12 @@ export default {
       return '/api/runners';
     },
 
+    beforeSave() {
+      if (!this.item.max_parallel_tasks) {
+        this.item.max_parallel_tasks = 0;
+      }
+    },
+
     getSingleItemUrl() {
       return `/api/runners/${this.itemId}`;
     },
