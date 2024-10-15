@@ -5,6 +5,7 @@ services:
     image: docker.io/semaphoreui/runner:${SEMAPHORE_VERSION:-latest}
     restart: always
     environment:
+      SEMAPHORE_WEB_ROOT: ${SEMAPHORE_WEB_ROOT:-http://server:3000}
       SEMAPHORE_RUNNER_API_URL: ${SEMAPHORE_RUNNER_API_URL:-http://server:3000/internal}
       SEMAPHORE_RUNNER_REGISTRATION_TOKEN: ${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-H1wDyorbg6gTSwJlVwle2Fne}
 
