@@ -90,6 +90,9 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 // nolint: gocyclo
 func (p *TaskPool) Run() {
 	tickerDuration := time.Duration(int64(util.Config.TaskPoolTickerSec)) * time.Second
+	if tickerDuration.Seconds() == 0 {
+		tickerDuration = 5 * time.Second
+	}
 	ticker := time.NewTicker(tickerDuration)
 
 	defer func() {
