@@ -89,7 +89,8 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 
 // nolint: gocyclo
 func (p *TaskPool) Run() {
-	ticker := time.NewTicker(5 * time.Second)
+	tickerDuration := time.Duration(int64(util.Config.TaskPoolTickerSec)) * time.Second
+	ticker := time.NewTicker(tickerDuration)
 
 	defer func() {
 		close(p.resourceLocker)
@@ -193,12 +194,14 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 		return false
 	}
 
-	for _, r := range p.activeProj[t.Task.ProjectID] {
-		if r.Task.Status.IsFinished() {
-			continue
-		}
-		if r.Template.ID == t.Task.TemplateID {
-			return true
+	if !util.Config.TaskFreeConcurrencyMode {
+		for _, r := range p.activeProj[t.Task.ProjectID] {
+			if r.Task.Status.IsFinished() {
+				continue
+			}
+			if r.Template.ID == t.Task.TemplateID {
+				return true
+			}
 		}
 	}
 
