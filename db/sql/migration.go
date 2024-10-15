@@ -2,11 +2,12 @@ package sql
 
 import (
 	"fmt"
-	"github.com/go-gorp/gorp/v3"
 	"path"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/go-gorp/gorp/v3"
 
 	"github.com/ansible-semaphore/semaphore/db"
 	log "github.com/sirupsen/logrus"
@@ -179,6 +180,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		err = migration_2_8_26{db: d}.PostApply(tx)
 	case "2.8.42":
 		err = migration_2_8_42{db: d}.PostApply(tx)
+	case "2.10.27":
+		err = migration_2_10_27{db: d}.PostApply(tx)
 	}
 
 	if err != nil {
