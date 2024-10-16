@@ -106,6 +106,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		t.sendRocketChatAlert()
 		t.sendMicrosoftTeamsAlert()
 		t.sendDingTalkAlert()
+		t.sendGotifyAlert()
 	}
 
 	for _, l := range t.statusListeners {
