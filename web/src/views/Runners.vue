@@ -24,11 +24,12 @@
       v-model="newRunnerTokenDialog"
       :save-button-text="null"
       :title="$t('newRunnerToken')"
+      cancel-button-text="OK"
     >
       <template v-slot:form="{}">
         <div>
           <div class="mb-4">
-            <div>Token:</div>
+            <div>{{ $t('runnerToken') }}</div>
             <div style="position: relative;">
               <code
                 class="pa-2 mt-2"
@@ -46,8 +47,8 @@
             </div>
           </div>
 
-          <div>
-            <div>Usage:</div>
+          <div class="mb-4">
+            <div>{{ $t('runnerUsage') }}</div>
             <div style="position: relative;">
               <pre style="white-space: pre-wrap;
                           background: gray;
@@ -67,13 +68,35 @@
               </v-btn>
             </div>
           </div>
+
+          <div>
+            <div>{{ $t('runnerDockerCommand') }}</div>
+            <div style="position: relative;">
+              <pre style="white-space: pre-wrap;
+                          background: gray;
+                          color: white;
+                          border-radius: 10px;
+                          margin-top: 5px;"
+                   class="pa-2"
+              >{{ runnerDockerCommand }}</pre>
+
+              <v-btn
+                style="position: absolute; right: 10px; top: 10px;"
+                icon
+                color="white"
+                @click="copyToClipboard(runnerDockerCommand)"
+              >
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
+            </div>
+          </div>
         </div>
       </template>
     </EditDialog>
 
     <YesNoDialog
       :title="$t('deleteRunner')"
-      :text="$t('askDeleteRunner')"
+      :text="$t('askDeleteRunner', {runner: itemId})"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
@@ -158,14 +181,21 @@ export default {
 
   props: {
     webHost: String,
+    version: String,
   },
 
   computed: {
     runnerUsageCommand() {
-      return `SEMAPHORE_RUNNER_API_URL=${this.webHost}/internal \\
-SEMAPHORE_RUNNER_ID=${(this.newRunner || {}).id} \\
+      return `SEMAPHORE_WEB_ROOT=${this.webHost}/internal \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 semaphore runner --no-config`;
+    },
+
+    runnerDockerCommand() {
+      return `docker run \\
+-e SEMAPHORE_WEB_ROOT=${this.webHost} \\
+-e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+-d semaphoreui/runner:${this.version}`;
     },
   },
 

@@ -3,13 +3,14 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
-	"os"
-	"strings"
 )
 
 func init() {
@@ -26,12 +27,12 @@ var setupCmd = &cobra.Command{
 
 // nolint: gocyclo
 func doSetup() int {
-	var config *util.ConfigType
-	config = &util.ConfigType{}
+	config := &util.ConfigType{}
+
 	config.GenerateSecrets()
 	setup.InteractiveSetup(config)
 
-	resultConfigPath := setup.SaveConfig(config, "config.json", configPath)
+	resultConfigPath := setup.SaveConfig(config, "config.json", persistentFlags.configPath)
 
 	util.ConfigInit(resultConfigPath, false)
 

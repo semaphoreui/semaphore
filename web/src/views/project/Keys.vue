@@ -60,7 +60,7 @@
           small
           style="font-weight: bold;"
           class="ml-2"
-        >Empty</v-chip>
+        >{{ $t('empty') }}</v-chip>
       </template>
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>

@@ -352,7 +352,7 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 
 	if err != nil {
 		t.Log("Can't send microsoft teams alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
+	} else if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		t.Log("Can't send microsoft teams alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	}
 

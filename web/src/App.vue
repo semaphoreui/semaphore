@@ -285,7 +285,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>{{ $t('Schedule') }}</v-list-item-title>
+            <v-list-item-title>{{ $t('schedule') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
 
@@ -464,6 +464,20 @@
               </v-list-item>
 
               <v-list-item
+                key="tasks"
+                to="/tasks"
+                v-if="user.admin"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-check-all</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('activeTasks') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item
                 key="runners"
                 to="/runners"
                 v-if="user.admin && systemInfo.use_remote_runner"
@@ -513,6 +527,7 @@
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :webHost="(systemInfo || {}).web_host"
+        :version="(systemInfo || {version: ''}).version.split('-')[0]"
         :user="user"
       ></router-view>
     </v-main>
