@@ -418,6 +418,68 @@ func (t *TaskRunner) sendDingTalkAlert() {
 	}
 }
 
+func (t *TaskRunner) sendGotifyAlert() {
+	if !util.Config.GotifyAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("gotify"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/gotify.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse gotify alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate gotify alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for gotify alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send gotify alert")
+
+	resp, err := http.Post(
+		fmt.Sprintf(
+			"%s/message?token=%s",
+			util.Config.GotifyUrl,
+			util.Config.GotifyToken),
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send gotify alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send gotify alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully gotify alert")
+	}
+}
+
 func (t *TaskRunner) alertInfos() (string, string) {
 	version := ""
 
