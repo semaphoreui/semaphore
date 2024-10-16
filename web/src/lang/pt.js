@@ -290,6 +290,7 @@ export default {
   template: 'Modelo',
   aliasUrlCopied: 'A URL do alias foi copiada para a área de transferência.',
   yes: 'Sim',
+  limit: 'Limite',
   activeTasks: 'Tarefas Ativas',
   taskLocation: 'Localização',
   empty: 'Vazio',

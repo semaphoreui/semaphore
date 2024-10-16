@@ -18,8 +18,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
 			"name, playbook, arguments, allow_override_args_in_task, description, `type`, start_version,"+
-			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts, app)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"build_template_id, view_id, hosts_limit, autorun, survey_vars, suppress_success_alerts, app)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -33,6 +33,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.StartVersion,
 		template.BuildTemplateID,
 		template.ViewID,
+		template.Limit,
 		template.Autorun,
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
@@ -79,6 +80,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"start_version=?,"+
 		"build_template_id=?, "+
 		"view_id=?, "+
+		"hosts_limit=?, "+
 		"autorun=?, "+
 		"survey_vars=?, "+
 		"suppress_success_alerts=?, "+
@@ -96,6 +98,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.StartVersion,
 		template.BuildTemplateID,
 		template.ViewID,
+		template.Limit,
 		template.Autorun,
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
@@ -133,6 +136,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.build_template_id",
 		"pt.start_version",
 		"pt.view_id",
+		"pt.hosts_limit",
 		"pt.`app`",
 		"pt.survey_vars",
 		"pt.start_version",

@@ -290,6 +290,7 @@ export default {
   template: 'Sjabloon',
   aliasUrlCopied: 'De alias-URL is naar het klembord gekopieerd.',
   yes: 'Ja',
+  limit: 'Beperken',
   activeTasks: 'Actieve taken',
   taskLocation: 'Locatie',
   empty: 'Leeg',
