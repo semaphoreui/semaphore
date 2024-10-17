@@ -1,33 +1,36 @@
 import Vue from 'vue';
 import moment from 'moment';
 import axios from 'axios';
-import Convert from 'ansi-to-html';
+import { AnsiUp } from 'ansi_up';
 import App from './App.vue';
 import router from './router';
 import vuetify from './plugins/vuetify';
 import './assets/scss/main.scss';
 import i18n from './plugins/i18';
 
-const convert = new Convert({
-  colors: {
-    0: '#000',
-    1: '#A00',
-    2: '#0A0',
-    3: '#A50',
-    4: '#2196f3',
-    5: '#A0A',
-    6: '#0AA',
-    7: '#AAA',
-    8: '#555',
-    9: '#F55',
-    10: '#5F5',
-    11: '#FF5',
-    12: '#55F',
-    13: '#F5F',
-    14: '#5FF',
-    15: '#FFF',
-  },
-});
+const convert = new AnsiUp();
+convert.ansi_colors = [
+  [
+    { rgb: [0, 0, 0], class_name: 'ansi-black' },
+    { rgb: [170, 0, 0], class_name: 'ansi-red' },
+    { rgb: [0, 170, 0], class_name: 'ansi-green' },
+    { rgb: [170, 85, 0], class_name: 'ansi-yellow' },
+    { rgb: [33, 150, 243], class_name: 'ansi-blue' },
+    { rgb: [170, 0, 170], class_name: 'ansi-magenta' },
+    { rgb: [0, 170, 170], class_name: 'ansi-cyan' },
+    { rgb: [170, 170, 170], class_name: 'ansi-white' },
+  ],
+  [
+    { rgb: [85, 85, 85], class_name: 'ansi-bright-black' },
+    { rgb: [255, 85, 85], class_name: 'ansi-bright-red' },
+    { rgb: [85, 255, 85], class_name: 'ansi-bright-green' },
+    { rgb: [255, 255, 85], class_name: 'ansi-bright-yellow' },
+    { rgb: [85, 85, 255], class_name: 'ansi-bright-blue' },
+    { rgb: [255, 85, 255], class_name: 'ansi-bright-magenta' },
+    { rgb: [85, 255, 255], class_name: 'ansi-bright-cyan' },
+    { rgb: [255, 255, 255], class_name: 'ansi-bright-white' },
+  ],
+];
 
 axios.defaults.baseURL = document.baseURI;
 Vue.config.productionTip = false;
@@ -45,7 +48,7 @@ Vue.filter('formatDate', (value) => {
   return date.format('L HH:mm'); // Display only date otherwise
 });
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
-Vue.filter('formatLog', (value) => (value ? convert.toHtml(String(value)) : value));
+Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
 
 Vue.filter('formatMilliseconds', (value) => {
   if (value == null || value === '') {
