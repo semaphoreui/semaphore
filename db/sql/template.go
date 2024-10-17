@@ -18,8 +18,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
 			"name, playbook, arguments, allow_override_args_in_task, description, `type`, start_version,"+
-			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts, app)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts, app, git_branch)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -36,7 +36,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.Autorun,
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
-		template.App)
+		template.App,
+		template.GitBranch)
 
 	if err != nil {
 		return
@@ -82,7 +83,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"autorun=?, "+
 		"survey_vars=?, "+
 		"suppress_success_alerts=?, "+
-		"app=? "+
+		"app=?, "+
+		"`git_branch`=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -100,6 +102,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
 		template.App,
+		template.GitBranch,
 		template.ID,
 		template.ProjectID,
 	)
@@ -127,6 +130,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.repository_id",
 		"pt.environment_id",
 		"pt.name",
+		"pt.description",
 		"pt.playbook",
 		"pt.arguments",
 		"pt.allow_override_args_in_task",
@@ -134,6 +138,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.start_version",
 		"pt.view_id",
 		"pt.`app`",
+		"pt.`git_branch`",
 		"pt.survey_vars",
 		"pt.start_version",
 		"pt.`type`",
