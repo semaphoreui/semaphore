@@ -399,7 +399,12 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
-	err = t.prepareRun()
+	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
+	err = t.prepareRun(&environmentVariables)
 	if err != nil {
 		return err
 	}
@@ -421,11 +426,6 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		args, err = t.getShellArgs(username, incomingVersion)
 	}
 
-	if err != nil {
-		return
-	}
-
-	environmentVariables, err := t.getEnvironmentENV()
 	if err != nil {
 		return
 	}
@@ -457,7 +457,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 
 }
 
-func (t *LocalJob) prepareRun() error {
+func (t *LocalJob) prepareRun(environmentVars *[]string) error {
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
@@ -486,7 +486,7 @@ func (t *LocalJob) prepareRun() error {
 		return err
 	}
 
-	if err := t.App.InstallRequirements(); err != nil {
+	if err := t.App.InstallRequirements(environmentVars); err != nil {
 		t.Log("Running galaxy failed: " + err.Error())
 		return err
 	}

@@ -83,8 +83,8 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *TerraformApp) init() error {
-	cmd := t.makeCmd(t.Name, []string{"init"}, nil)
+func (t *TerraformApp) init(environmentVars *[]string) error {
+	cmd := t.makeCmd(t.Name, []string{"init"}, environmentVars)
 	t.Logger.LogCmd(cmd)
 	err := cmd.Start()
 	if err != nil {
@@ -94,8 +94,8 @@ func (t *TerraformApp) init() error {
 	return cmd.Wait()
 }
 
-func (t *TerraformApp) selectWorkspace(workspace string) error {
-	cmd := t.makeCmd(string(t.Name), []string{"workspace", "select", "-or-create=true", workspace}, nil)
+func (t *TerraformApp) selectWorkspace(workspace string, environmentVars *[]string) error {
+	cmd := t.makeCmd(string(t.Name), []string{"workspace", "select", "-or-create=true", workspace}, environmentVars)
 	t.Logger.LogCmd(cmd)
 	err := cmd.Start()
 	if err != nil {
@@ -105,8 +105,8 @@ func (t *TerraformApp) selectWorkspace(workspace string) error {
 	return cmd.Wait()
 }
 
-func (t *TerraformApp) InstallRequirements() (err error) {
-	err = t.init()
+func (t *TerraformApp) InstallRequirements(environmentVars *[]string) (err error) {
+	err = t.init(environmentVars)
 	if err != nil {
 		return
 	}
@@ -117,7 +117,7 @@ func (t *TerraformApp) InstallRequirements() (err error) {
 		workspace = t.Inventory.Inventory
 	}
 
-	err = t.selectWorkspace(workspace)
+	err = t.selectWorkspace(workspace, environmentVars)
 	return
 }
 
