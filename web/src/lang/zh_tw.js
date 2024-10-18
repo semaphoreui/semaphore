@@ -290,6 +290,7 @@ export default {
   template: '範本',
   aliasUrlCopied: '別名 URL 已複製到剪貼簿。',
   yes: '是',
+  limit: '限制',
   activeTasks: '活動任務',
   taskLocation: '位置',
   empty: '空',

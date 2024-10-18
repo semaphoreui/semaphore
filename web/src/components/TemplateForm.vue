@@ -231,6 +231,16 @@
           dense
         ></v-select>
 
+        <v-textarea
+          v-model="item.limit"
+          :label="$t('limit')"
+          :disabled="formSaving"
+          rows="1"
+          :auto-grow="true"
+          outlined
+          dense
+        ></v-textarea>
+
         <v-checkbox
           class="mt-0"
           :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
