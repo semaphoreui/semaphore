@@ -157,6 +157,13 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 		}
 	}
 
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &environmentVars)
+		if err != nil {
+			return
+		}
+	}
+
 	for key, val := range environmentVars {
 		res = append(res, fmt.Sprintf("%s=%s", key, val))
 	}
