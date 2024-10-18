@@ -652,6 +652,8 @@ definitions:
         type: string
       limit:
         type: string
+      git_branch:
+        type: string
   TaskOutput:
     type: object
     properties:
@@ -711,6 +713,9 @@ definitions:
       app:
         type: string
         example: ansible
+      git_branch:
+        type: string
+        example: main
       survey_vars:
         type: array
         items:
@@ -754,6 +759,9 @@ definitions:
         type: boolean
       app:
         type: string
+      git_branch:
+        type: string
+        example: main
   TemplateSurveyVar:
     type: object
     properties:
@@ -2163,6 +2171,8 @@ paths:
               environment:
                 type: string
               limit:
+                type: string
+              git_branch:
                 type: string
       responses:
         201:
