@@ -194,6 +194,9 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	}
 
 	for _, r := range p.activeProj[t.Task.ProjectID] {
+		if t.Repository.GitURL[0] == '/' {
+		        continue
+		}
 		if r.Task.Status.IsFinished() {
 			continue
 		}
