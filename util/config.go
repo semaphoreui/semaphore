@@ -206,6 +206,12 @@ type ConfigType struct {
 	Runner *RunnerConfig `json:"runner,omitempty"`
 }
 
+func NewConfigType() *ConfigType {
+	return &ConfigType{
+		LdapMappings: &ldapMappings{},
+	}
+}
+
 // Config exposes the application configuration storage for use in the application
 var Config *ConfigType
 
@@ -218,7 +224,7 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 func ConfigInit(configPath string, noConfigFile bool) {
 	fmt.Println("Loading config")
 
-	Config = &ConfigType{}
+	Config = NewConfigType()
 	Config.Apps = map[string]App{}
 
 	if !noConfigFile {
