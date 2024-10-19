@@ -43,22 +43,22 @@ type DbConfig struct {
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
 
-type ldapMappings struct {
+type LdapMappings struct {
 	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN" default:"dn"`
 	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL" default:"mail"`
 	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID" default:"uid"`
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
 }
 
-func (p *ldapMappings) GetUsernameClaim() string {
+func (p *LdapMappings) GetUsernameClaim() string {
 	return p.UID
 }
 
-func (p *ldapMappings) GetEmailClaim() string {
+func (p *LdapMappings) GetEmailClaim() string {
 	return p.Mail
 }
 
-func (p *ldapMappings) GetNameClaim() string {
+func (p *LdapMappings) GetNameClaim() string {
 	return p.CN
 }
 
@@ -163,7 +163,7 @@ type ConfigType struct {
 	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
 	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
-	LdapMappings     *ldapMappings `json:"ldap_mappings,omitempty"`
+	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
@@ -208,7 +208,7 @@ type ConfigType struct {
 
 func NewConfigType() *ConfigType {
 	return &ConfigType{
-		LdapMappings: &ldapMappings{},
+		LdapMappings: &LdapMappings{},
 	}
 }
 
