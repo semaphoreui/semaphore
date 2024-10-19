@@ -471,8 +471,8 @@ func (t *LocalJob) prepareRun() error {
 	}
 
 	// Override git branch from task if set
-	if t.Task.GitBranch != "" {
-		t.Repository.GitBranch = t.Task.GitBranch
+	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
+		t.Repository.GitBranch = *t.Task.GitBranch
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
