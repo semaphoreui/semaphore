@@ -653,7 +653,10 @@ definitions:
       limit:
         type: string
       git_branch:
-        type: string
+        type:
+          - string
+          - 'null'
+
   TaskOutput:
     type: object
     properties:
