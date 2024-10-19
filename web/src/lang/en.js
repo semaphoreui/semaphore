@@ -128,7 +128,7 @@ export default {
   key: '{expr}',
   surveyVariables: 'Survey Variables',
   addVariable: 'Add variable',
-  vaultName: 'Vault ID (name)',
+  vaultName: 'Vault ID (optional)',
   vaultNameDefault: 'Only one `default` (empty) name may exist',
   vaultNameUnique: 'Must be unique',
   vaults: 'Vaults',
