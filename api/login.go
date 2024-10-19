@@ -676,5 +676,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	redirectPath := mux.Vars(r)["redirect_path"]
 
-	http.Redirect(w, r, util.Config.WebHost+redirectPath, http.StatusTemporaryRedirect)
+	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
+	if err != nil {
+		log.Error(err)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	http.Redirect(w, r, redirectPath, http.StatusTemporaryRedirect)
 }
