@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/ansible-semaphore/semaphore/util/mailer"
@@ -485,8 +486,8 @@ func (t *TaskRunner) alertInfos() (string, string) {
 
 	if t.Task.Version != nil {
 		version = *t.Task.Version
-	} else if t.Task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
+	} else if t.Template.Type != db.TemplateTask {
+		version = "build " + *t.Task.GetIncomingVersion(t.pool.store)
 	} else {
 		version = ""
 	}
