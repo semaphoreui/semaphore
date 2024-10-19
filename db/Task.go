@@ -27,6 +27,7 @@ type Task struct {
 	Limit       string  `db:"hosts_limit" json:"limit"`
 	Secret      string  `db:"-" json:"secret"`
 	Arguments   *string `db:"arguments" json:"arguments"`
+	GitBranch   *string `db:"git_branch" json:"git_branch"`
 
 	UserID        *int `db:"user_id" json:"user_id"`
 	IntegrationID *int `db:"integration_id" json:"integration_id"`
