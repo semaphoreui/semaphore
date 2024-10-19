@@ -63,6 +63,16 @@ func (d *BoltDb) ExpireAPIToken(userID int, tokenID string) (err error) {
 	return
 }
 
+func (d *BoltDb) DeleteAPIToken(userID int, tokenID string) (err error) {
+	err = d.ExpireAPIToken(userID, tokenID)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(userID, db.TokenProps, strObjectID(tokenID), nil)
+	return
+}
+
 func (d *BoltDb) GetSession(userID int, sessionID int) (session db.Session, err error) {
 	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
 	return

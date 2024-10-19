@@ -141,7 +141,7 @@ func (d *BoltDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err
 	return
 }
 
-func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.User, err error) {
+func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.UserWithProjectRole, err error) {
 	var projectUsers []db.ProjectUser
 	err = d.getObjects(projectID, db.ProjectUserProps, params, nil, &projectUsers)
 	if err != nil {
@@ -153,8 +153,11 @@ func (d *BoltDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (
 		if err != nil {
 			return
 		}
-		usr.Admin = projUser.Admin
-		users = append(users, usr)
+		var usrWithRole = db.UserWithProjectRole{
+			User: usr,
+			Role: projUser.Role,
+		}
+		users = append(users, usrWithRole)
 	}
 	return
 }
@@ -167,9 +170,13 @@ func (d *BoltDb) DeleteProjectUser(projectID, userID int) error {
 	return d.deleteObject(projectID, db.ProjectUserProps, intObjectID(userID), nil)
 }
 
-//GetUser retrieves a user from the database by ID
+// GetUser retrieves a user from the database by ID
 func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 	err = d.getObject(0, db.UserProps, intObjectID(userID), &user)
+	return
+}
+
+func (d *BoltDb) GetUserCount() (count int, err error) {
 	return
 }
 
@@ -193,5 +200,13 @@ func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser
 	}
 
 	err = db.ErrNotFound
+	return
+}
+
+func (d *BoltDb) GetAllAdmins() (users []db.User, err error) {
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		user := i.(db.User)
+		return user.Admin
+	}, &users)
 	return
 }

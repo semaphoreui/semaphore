@@ -3,13 +3,14 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/factory"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
-	"os"
-	"strings"
 )
 
 func init() {
@@ -24,31 +25,22 @@ var setupCmd = &cobra.Command{
 	},
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func doSetup() int {
-	var config *util.ConfigType
-	for {
-		config = &util.ConfigType{}
-		config.GenerateSecrets()
-		setup.InteractiveSetup(config)
+	config := &util.ConfigType{}
 
-		if setup.AskConfigConfirmation(config) {
-			break
-		}
+	config.GenerateSecrets()
+	setup.InteractiveSetup(config)
 
-		fmt.Println()
-	}
+	resultConfigPath := setup.SaveConfig(config, "config.json", persistentFlags.configPath)
 
-	configPath := setup.SaveConfig(config)
-	util.Config = config
+	util.ConfigInit(resultConfigPath, false)
 
 	fmt.Println(" Pinging db..")
 
 	store := factory.CreateStore()
-	if err := store.Connect(); err != nil {
-		fmt.Printf("Cannot connect to database!\n %v\n", err.Error())
-		os.Exit(1)
-	}
+	defer store.Close("setup")
+	store.Connect("setup")
 
 	fmt.Println("Running db Migrations..")
 	if err := db.Migrate(store); err != nil {
@@ -83,8 +75,8 @@ func doSetup() int {
 		fmt.Printf("\n You are all setup %v!\n", user.Name)
 	}
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", configPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", configPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore server --config %v\n\n", resultConfigPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore server --config %v &\n\n", resultConfigPath)
 	fmt.Printf(" You can login with %v or %v.\n", user.Email, user.Username)
 
 	return 0

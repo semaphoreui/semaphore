@@ -2,12 +2,11 @@ package setup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ansible-semaphore/semaphore/util"
 )
@@ -21,6 +20,25 @@ Hello! You will now be guided through a setup to:
 4. Set up initial semaphore user & password
 
 `
+
+func InteractiveRunnerSetup(conf *util.ConfigType) {
+
+	askValue("Semaphore server URL", "", &conf.WebHost)
+
+	conf.Runner = &util.RunnerConfig{}
+
+	askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
+
+	haveToken := false
+	askConfirmation("Do you have runner token?", false, &haveToken)
+
+	if haveToken {
+		token := ""
+		askValue("Runner token", "", &token)
+
+		// TODO: write token
+	}
+}
 
 func InteractiveSetup(conf *util.ConfigType) {
 	fmt.Print(interactiveSetupBlurb)
@@ -50,7 +68,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askValue("Playbook path", defaultPlaybookPath, &conf.TmpPath)
 	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
-	askValue("Web root URL (optional, see https://github.com/ansible-semaphore/semaphore/wiki/Web-root-URL)", "", &conf.WebHost)
+	askValue("Public URL (optional, example: https://example.com/semaphore)", "", &conf.WebHost)
 
 	askConfirmation("Enable email alerts?", false, &conf.EmailAlert)
 	if conf.EmailAlert {
@@ -65,8 +83,24 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("Telegram chat ID", "", &conf.TelegramChat)
 	}
 
+	askConfirmation("Enable slack alerts?", false, &conf.SlackAlert)
+	if conf.SlackAlert {
+		askValue("Slack Webhook URL", "", &conf.SlackUrl)
+	}
+
+	askConfirmation("Enable Rocket.Chat alerts?", false, &conf.RocketChatAlert)
+	if conf.RocketChatAlert {
+		askValue("Rocket.Chat Webhook URL", "", &conf.RocketChatUrl)
+	}
+
+	askConfirmation("Enable Microsoft Team Channel alerts?", false, &conf.MicrosoftTeamsAlert)
+	if conf.MicrosoftTeamsAlert {
+		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
+	}
+
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
+		conf.LdapMappings = &util.LdapMappings{}
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
 		askConfirmation("Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
 		askValue("LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
@@ -86,10 +120,12 @@ func scanBoltDb(conf *util.ConfigType) {
 		workingDirectory = os.TempDir()
 	}
 	defaultBoltDBPath := filepath.Join(workingDirectory, "database.boltdb")
+	conf.BoltDb = &util.DbConfig{}
 	askValue("db filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
 }
 
 func scanMySQL(conf *util.ConfigType) {
+	conf.MySQL = &util.DbConfig{}
 	askValue("db Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
 	askValue("db User", "root", &conf.MySQL.Username)
 	askValue("db Password", "", &conf.MySQL.Password)
@@ -97,10 +133,17 @@ func scanMySQL(conf *util.ConfigType) {
 }
 
 func scanPostgres(conf *util.ConfigType) {
+	conf.Postgres = &util.DbConfig{}
 	askValue("db Hostname", "127.0.0.1:5432", &conf.Postgres.Hostname)
 	askValue("db User", "root", &conf.Postgres.Username)
 	askValue("db Password", "", &conf.Postgres.Password)
 	askValue("db Name", "semaphore", &conf.Postgres.DbName)
+	if conf.Postgres.Options == nil {
+		conf.Postgres.Options = make(map[string]string)
+	}
+	if _, exists := conf.Postgres.Options["sslmode"]; !exists {
+		conf.Postgres.Options["sslmode"] = "disable"
+	}
 }
 
 func scanErrorChecker(n int, err error) {
@@ -109,19 +152,34 @@ func scanErrorChecker(n int, err error) {
 	}
 }
 
-func SaveConfig(config *util.ConfigType) (configPath string) {
-	configDirectory, err := os.Getwd()
-	if err != nil {
-		configDirectory, err = os.UserConfigDir()
+type IConfig interface {
+	ToJSON() ([]byte, error)
+}
+
+func SaveConfig(config IConfig, defaultFilename string, requiredConfigPath string) (configPath string) {
+
+	if requiredConfigPath == "" {
+		configDirectory, err := os.Getwd()
 		if err != nil {
-			// Final fallback
-			configDirectory = "/etc/semaphore"
+			configDirectory, err = os.UserConfigDir()
+			if err != nil {
+				// Final fallback
+				configDirectory = "/etc/semaphore"
+			}
+			configDirectory = filepath.Join(configDirectory, "semaphore")
 		}
-		configDirectory = filepath.Join(configDirectory, "semaphore")
+
+		askValue("Config output directory", configDirectory, &configDirectory)
+		configPath = filepath.Join(configDirectory, defaultFilename)
+	} else {
+		configPath = requiredConfigPath
 	}
-	askValue("Config output directory", configDirectory, &configDirectory)
+
+	configDirectory := filepath.Dir(configPath)
 
 	fmt.Printf("Running: mkdir -p %v..\n", configDirectory)
+
+	var err error
 
 	if _, err = os.Stat(configDirectory); err != nil {
 		if os.IsNotExist(err) {
@@ -139,26 +197,12 @@ func SaveConfig(config *util.ConfigType) (configPath string) {
 		panic(err)
 	}
 
-	configPath = filepath.Join(configDirectory, "config.json")
-	if err = ioutil.WriteFile(configPath, bytes, 0644); err != nil {
+	if err = os.WriteFile(configPath, bytes, 0644); err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Configuration written to %v..\n", configPath)
 	return
-}
-
-func AskConfigConfirmation(config *util.ConfigType) bool {
-	bytes, err := config.ToJSON()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("\nGenerated configuration:\n %v\n\n", string(bytes))
-
-	var correct bool
-	askConfirmation("Is this correct?", true, &correct)
-	return correct
 }
 
 func askValue(prompt string, defaultValue string, item interface{}) {

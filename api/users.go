@@ -1,23 +1,44 @@
 package api
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 )
 
+type minimalUser struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+}
+
 func getUsers(w http.ResponseWriter, r *http.Request) {
+	currentUser := context.Get(r, "user").(*db.User)
 	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
 
 	if err != nil {
 		panic(err)
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, users)
+	if currentUser.Admin {
+		helpers.WriteJSON(w, http.StatusOK, users)
+	} else {
+		var result = make([]minimalUser, 0)
+
+		for _, user := range users {
+			result = append(result, minimalUser{
+				ID:       user.ID,
+				Name:     user.Name,
+				Username: user.Username,
+			})
+		}
+
+		helpers.WriteJSON(w, http.StatusOK, result)
+	}
 }
 
 func addUser(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +94,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	oldUser := context.Get(r, "_user").(db.User)
+	targetUser := context.Get(r, "_user").(db.User)
 	editor := context.Get(r, "user").(*db.User)
 
 	var user db.UserWithPwd
@@ -81,25 +102,25 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !editor.Admin && editor.ID != oldUser.ID {
+	if !editor.Admin && editor.ID != targetUser.ID {
 		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if editor.ID == oldUser.ID && oldUser.Admin != user.Admin {
+	if editor.ID == targetUser.ID && targetUser.Admin != user.Admin {
 		log.Warn("User can't edit his own role")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if oldUser.External && oldUser.Username != user.Username {
-		log.Warn("Username is not editable for external LDAP users")
+	if targetUser.External && targetUser.Username != user.Username {
+		log.Warn("Username is not editable for external users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	user.ID = oldUser.ID
+	user.ID = targetUser.ID
 	if err := helpers.Store(r).UpdateUser(user); err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -124,7 +145,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user.External {
-		log.Warn("Password is not editable for external LDAP users")
+		log.Warn("Password is not editable for external users")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

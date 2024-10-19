@@ -1,0 +1,6 @@
+{
+    "web_host": "http://localhost:3000",
+    "runner": {
+        "token_file": "/home/codespace/.semaphore-runner-token"
+    }
+}

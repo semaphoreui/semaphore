@@ -2,12 +2,14 @@ package sql
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/go-gorp/gorp/v3"
+	"path"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -32,14 +34,14 @@ func getVersionErrPath(version db.Migration) string {
 	return version.HumanoidVersion() + ".err.sql"
 }
 
-// getVersionSQL takes a path to an SQL file and returns it from packr as
+// getVersionSQL takes a path to an SQL file and returns it from embed.FS
 // a slice of strings separated by newlines
-func getVersionSQL(path string) (queries []string) {
-	sql, err := dbAssets.MustString(path)
+func getVersionSQL(name string) (queries []string) {
+	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
 	if err != nil {
 		panic(err)
 	}
-	queries = strings.Split(strings.ReplaceAll(sql, ";\r\n", ";\n"), ";\n")
+	queries = strings.Split(strings.ReplaceAll(string(sql), ";\r\n", ";\n"), ";\n")
 	for i := range queries {
 		queries[i] = strings.Trim(queries[i], "\r\n\t ")
 	}
@@ -140,6 +142,16 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
+	switch migration.Version {
+	case "2.10.24":
+		err = migration_2_10_24{db: d}.PreApply(tx)
+	}
+
+	if err != nil {
+		handleRollbackError(tx.Rollback())
+		return err
+	}
+
 	queries := getVersionSQL(getVersionPath(migration))
 	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
@@ -162,20 +174,21 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
-	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	switch migration.Version {
+	case "2.8.26":
+		err = migration_2_8_26{db: d}.PostApply(tx)
+	case "2.8.42":
+		err = migration_2_8_42{db: d}.PostApply(tx)
+	}
+
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
 	}
 
-	switch migration.Version {
-	case "2.8.26":
-		err = migration_2_8_26{db: d}.Apply(tx)
-	case "2.8.42":
-		err = migration_2_8_42{db: d}.Apply(tx)
-	}
-
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
 	if err != nil {
+		handleRollbackError(tx.Rollback())
 		return err
 	}
 
@@ -186,7 +199,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) TryRollbackMigration(version db.Migration) {
-	data := dbAssets.Bytes(getVersionErrPath(version))
+	data, _ := dbAssets.ReadFile(getVersionErrPath(version))
 	if len(data) == 0 {
 		fmt.Println("Rollback SQL does not exist.")
 		fmt.Println()

@@ -1,0 +1,27 @@
+version: "3.4"
+
+volumes:
+  mysql:
+
+services:
+  server:
+    environment:
+      SEMAPHORE_DB_DIALECT: mysql
+      SEMAPHORE_DB_HOST: db
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB_USER: ${MYSQL_USERNAME:-semaphore}
+      SEMAPHORE_DB_PASS: ${MYSQL_PASSWORD:-semaphore}
+      SEMAPHORE_DB: ${MYSQL_DATABASE:-semaphore}
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT:-root}
+      MYSQL_USER: ${MYSQL_USERNAME:-semaphore}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-semaphore}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-semaphore}
+    volumes:
+      - mysql:/var/lib/mysql

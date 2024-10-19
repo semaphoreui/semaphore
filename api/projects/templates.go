@@ -1,12 +1,14 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"fmt"
+	"github.com/ansible-semaphore/semaphore/util"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/gorilla/context"
-	"net/http"
-	"strconv"
+	log "github.com/sirupsen/logrus"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -70,31 +72,68 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
+
 	template.ProjectID = project.ID
-	template, err := helpers.Store(r).CreateTemplate(template)
+	newTemplate, err := helpers.Store(r).CreateTemplate(template)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	objType := db.EventTemplate
-	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &template.ID,
-		Description: &desc,
-	})
-
-	if err != nil {
-		log.Error(err)
+	if _, ok := util.Config.Apps[string(newTemplate.App)]; !ok {
+		helpers.WriteErrorStatus(w, "Invalid app id: "+string(newTemplate.App), http.StatusBadRequest)
+		return
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, template)
+	// Check workspace and create it if required.
+	if newTemplate.App.IsTerraform() {
+		var inv db.Inventory
+
+		if newTemplate.InventoryID == nil {
+			inv, err = helpers.Store(r).CreateInventory(db.Inventory{
+				Name:      newTemplate.Name + " - default",
+				ProjectID: project.ID,
+				HolderID:  &newTemplate.ID,
+				Type:      db.InventoryTerraformWorkspace,
+				Inventory: "default",
+			})
+
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+
+			newTemplate.InventoryID = &inv.ID
+			err = helpers.Store(r).UpdateTemplate(newTemplate)
+
+		} else {
+			inv, err = helpers.Store(r).GetInventory(project.ID, *newTemplate.InventoryID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+
+			inv.HolderID = &newTemplate.ID
+			err = helpers.Store(r).UpdateInventory(inv)
+		}
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+	}
+
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    newTemplate.ID,
+		Description: fmt.Sprintf("Template ID %d created", newTemplate.ID),
+	})
+
+	helpers.WriteJSON(w, http.StatusCreated, newTemplate)
 }
 
 // UpdateTemplate writes a template to an existing key in the database
@@ -103,6 +142,11 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	var template db.Template
 	if !helpers.Bind(w, r, &template) {
+		return
+	}
+
+	if _, ok := util.Config.Apps[string(template.App)]; !ok {
+		helpers.WriteErrorStatus(w, "Invalid app id: "+string(template.App), http.StatusBadRequest)
 		return
 	}
 
@@ -126,23 +170,26 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.Arguments = nil
 	}
 
+	if template.Type != db.TemplateDeploy {
+		template.BuildTemplateID = nil
+	}
+
+	if template.Type != db.TemplateBuild {
+		template.StartVersion = nil
+	}
+
 	err := helpers.Store(r).UpdateTemplate(template)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
-	objType := db.EventTemplate
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &template.ProjectID,
-		Description: &desc,
-		ObjectID:    &template.ID,
-		ObjectType:  &objType,
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldTemplate.ProjectID,
+		ObjectType:  db.EventTemplate,
+		ObjectID:    oldTemplate.ID,
+		Description: fmt.Sprintf("Template ID %d updated", template.ID),
 	})
 
 	if err != nil {
@@ -162,17 +209,13 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &tpl.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   tpl.ProjectID,
+		ObjectType:  db.EventTemplate,
+		ObjectID:    tpl.ID,
+		Description: fmt.Sprintf("Template ID %d deleted", tpl.ID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

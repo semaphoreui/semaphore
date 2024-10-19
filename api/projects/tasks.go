@@ -1,11 +1,13 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"errors"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 )
@@ -23,7 +25,11 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 
 	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID)
 
-	if err != nil {
+	if errors.Is(err, tasks.ErrInvalidSubscription) {
+		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
+		return
+	} else if err != nil {
+
 		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -33,7 +39,7 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTasksList returns a list of tasks for the current project in desc order to limit or error
-func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
+func GetTasksList(w http.ResponseWriter, r *http.Request, limit int) {
 	project := context.Get(r, "project").(db.Project)
 	tpl := context.Get(r, "template")
 
@@ -42,11 +48,11 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 	if tpl != nil {
 		tasks, err = helpers.Store(r).GetTemplateTasks(tpl.(db.Template).ProjectID, tpl.(db.Template).ID, db.RetrieveQueryParams{
-			Count: int(limit),
+			Count: limit,
 		})
 	} else {
 		tasks, err = helpers.Store(r).GetProjectTasks(project.ID, db.RetrieveQueryParams{
-			Count: int(limit),
+			Count: limit,
 		})
 	}
 
@@ -61,7 +67,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit uint64) {
 
 // GetAllTasks returns all tasks for the current project
 func GetAllTasks(w http.ResponseWriter, r *http.Request) {
-	GetTasksList(w, r, 0)
+	GetTasksList(w, r, 1000)
 }
 
 // GetLastTasks returns the hundred most recent tasks
@@ -71,7 +77,7 @@ func GetLastTasks(w http.ResponseWriter, r *http.Request) {
 	if err != nil || limit <= 0 || limit > 200 {
 		limit = 200
 	}
-	GetTasksList(w, r, uint64(limit))
+	GetTasksList(w, r, limit)
 }
 
 // GetTask returns a task based on its id
@@ -105,6 +111,23 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 }
 
 // GetTaskOutput returns the logged task output by id and writes it as json or returns error
+func GetTaskStages(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	var output []db.TaskOutput
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+
+	if err != nil {
+		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, output)
+}
+
+// GetTaskOutput returns the logged task output by id and writes it as json or returns error
 func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
@@ -121,6 +144,24 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
+func ConfirmTask(w http.ResponseWriter, r *http.Request) {
+	targetTask := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	if targetTask.ProjectID != project.ID {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err := helpers.TaskPool(r).ConfirmTask(targetTask)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func StopTask(w http.ResponseWriter, r *http.Request) {
 	targetTask := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
@@ -130,7 +171,15 @@ func StopTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.TaskPool(r).StopTask(targetTask)
+	var stopObj struct {
+		Force bool `json:"force"`
+	}
+
+	if !helpers.Bind(w, r, &stopObj) {
+		return
+	}
+
+	err := helpers.TaskPool(r).StopTask(targetTask, stopObj.Force)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

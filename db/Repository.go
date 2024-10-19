@@ -1,12 +1,14 @@
 package db
 
 import (
-	"github.com/ansible-semaphore/semaphore/util"
+	"fmt"
 	"os"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type RepositoryType string
@@ -14,21 +16,21 @@ type RepositoryType string
 const (
 	RepositoryGit   RepositoryType = "git"
 	RepositorySSH   RepositoryType = "ssh"
-	RepositoryHTTPS RepositoryType = "https"
+	RepositoryHTTP  RepositoryType = "https"
 	RepositoryFile  RepositoryType = "file"
 	RepositoryLocal RepositoryType = "local"
 )
 
 // Repository is the model for code stored in a git repository
 type Repository struct {
-	ID        int    `db:"id" json:"id"`
+	ID        int    `db:"id" json:"id" backup:"-"`
 	Name      string `db:"name" json:"name" binding:"required"`
-	ProjectID int    `db:"project_id" json:"project_id"`
+	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
 	GitURL    string `db:"git_url" json:"git_url" binding:"required"`
 	GitBranch string `db:"git_branch" json:"git_branch" binding:"required"`
-	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required"`
+	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
-	SSHKey AccessKey `db:"-" json:"-"`
+	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
 }
 
 func (r Repository) ClearCache() error {
@@ -36,6 +38,7 @@ func (r Repository) ClearCache() error {
 	if err != nil {
 		return err
 	}
+	defer dir.Close()
 
 	files, err := dir.ReadDir(0)
 	if err != nil {
@@ -75,18 +78,31 @@ func (r Repository) GetFullPath(templateID int) string {
 func (r Repository) GetGitURL() string {
 	url := r.GitURL
 
-	if r.GetType() == RepositoryHTTPS {
+	if r.GetType() == RepositoryHTTP {
 		auth := ""
 		switch r.SSHKey.Type {
 		case AccessKeyLoginPassword:
-			auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
-		case AccessKeyPAT:
-			auth = r.SSHKey.PAT
+			if r.SSHKey.LoginPassword.Login == "" {
+				auth = r.SSHKey.LoginPassword.Password
+			} else {
+				auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
+			}
 		}
 		if auth != "" {
 			auth += "@"
 		}
-		url = "https://" + auth + r.GitURL[8:]
+
+		re := regexp.MustCompile(`^(https?)://`)
+		m := re.FindStringSubmatch(url)
+		var protocol string
+
+		if m == nil {
+			panic(fmt.Errorf("invalid git url: %s", url))
+		}
+
+		protocol = m[1]
+
+		url = protocol + "://" + auth + r.GitURL[len(protocol)+3:]
 	}
 
 	return url
@@ -103,7 +119,14 @@ func (r Repository) GetType() RepositoryType {
 		return RepositorySSH
 	}
 
-	return RepositoryType(m[1])
+	protocol := m[1]
+
+	switch protocol {
+	case "http", "https":
+		return RepositoryHTTP
+	default:
+		return RepositoryType(protocol)
+	}
 }
 
 func (r Repository) Validate() error {

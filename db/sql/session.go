@@ -12,7 +12,7 @@ func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
 }
 
 func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
-	token.Created = db.GetParsedTime(time.Now())
+	token.Created = db.GetParsedTime(time.Now().UTC())
 	err := d.sql.Insert(&token)
 	return token, err
 }
@@ -27,10 +27,16 @@ func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
 	return
 }
 
-func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) (err error) {
-	res, err := d.exec("update user__token set expired=true where id=? and user_id=?", tokenID, userID)
+func (d *SqlDb) ExpireAPIToken(userID int, tokenID string) error {
+	return validateMutationResult(d.exec("update user__token set expired=true where id=? and user_id=?", tokenID, userID))
+}
 
-	return validateMutationResult(res, err)
+func (d *SqlDb) DeleteAPIToken(userID int, tokenID string) (err error) {
+	_, err = d.sql.Delete(db.APIToken{
+		ID:     tokenID,
+		UserID: userID,
+	})
+	return
 }
 
 func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err error) {
@@ -50,7 +56,7 @@ func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
 }
 
 func (d *SqlDb) TouchSession(userID int, sessionID int) error {
-	_, err := d.exec("update session set last_active=? where id=? and user_id=?", time.Now(), sessionID, userID)
+	_, err := d.exec("update session set last_active=? where id=? and user_id=?", time.Now().UTC(), sessionID, userID)
 
 	return err
 }

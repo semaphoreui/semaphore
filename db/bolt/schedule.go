@@ -16,7 +16,7 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 
 	for _, proj := range allProjects {
 		var projSchedules []db.Schedule
-		projSchedules, err = d.GetProjectSchedules(proj.ID)
+		projSchedules, err = d.getProjectSchedules(proj.ID, nil)
 		if err != nil {
 			return
 		}
@@ -26,24 +26,44 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 	return
 }
 
-func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.Schedule, err error) {
-	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, nil, &schedules)
+func (d *BoltDb) getProjectSchedules(projectID int, filter func(referringObj db.Schedule) bool) (schedules []db.Schedule, err error) {
+	schedules = []db.Schedule{}
+	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		return filter == nil || filter(referringObj.(db.Schedule))
+	}, &schedules)
 	return
 }
 
-func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
-	schedules = make([]db.Schedule, 0)
+func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
+	schedules = []db.ScheduleWithTpl{}
 
-	projSchedules, err := d.GetProjectSchedules(projectID)
+	orig, err := d.getProjectSchedules(projectID, func(s db.Schedule) bool {
+		return s.RepositoryID == nil
+	})
+
 	if err != nil {
 		return
 	}
 
-	for _, s := range projSchedules {
-		if s.TemplateID == templateID {
-			schedules = append(schedules, s)
+	for _, s := range orig {
+		var tpl db.Template
+		tpl, err = d.GetTemplate(projectID, s.TemplateID)
+		if err != nil {
+			return
 		}
+		schedules = append(schedules, db.ScheduleWithTpl{
+			Schedule:     s,
+			TemplateName: tpl.Name,
+		})
 	}
+
+	return
+}
+
+func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
+	schedules, err = d.getProjectSchedules(projectID, func(s db.Schedule) bool {
+		return s.TemplateID == templateID
+	})
 
 	return
 }
@@ -74,6 +94,15 @@ func (d *BoltDb) DeleteSchedule(projectID int, scheduleID int) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		return d.deleteSchedule(projectID, scheduleID, tx)
 	})
+}
+
+func (d *BoltDb) SetScheduleActive(projectID int, scheduleID int, active bool) error {
+	schedule, err := d.GetSchedule(projectID, scheduleID)
+	if err != nil {
+		return err
+	}
+	schedule.Active = active
+	return d.updateObject(projectID, db.ScheduleProps, schedule)
 }
 
 func (d *BoltDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string) error {

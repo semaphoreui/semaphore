@@ -1,12 +1,14 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"errors"
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
-	"net/http"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -76,6 +78,11 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	if err := db.ValidateRepository(helpers.Store(r), &repository); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newRepo, err := helpers.Store(r).CreateRepository(repository)
 
 	if err != nil {
@@ -83,22 +90,13 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventRepository
-
-	desc := "Repository (" + repository.GitURL + ") created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &newRepo.ProjectID,
-		ObjectType:  &objType,
-		ObjectID:    &newRepo.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   newRepo.ProjectID,
+		ObjectType:  db.EventRepository,
+		ObjectID:    newRepo.ID,
+		Description: fmt.Sprintf("Repository %s created", repository.GitURL),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -126,9 +124,12 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateRepository(repository)
+	if err := db.ValidateRepository(helpers.Store(r), &repository); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
-	if err != nil {
+	if err := helpers.Store(r).UpdateRepository(repository); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -137,22 +138,13 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		util.LogWarning(oldRepo.ClearCache())
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Repository (" + repository.GitURL + ") updated"
-	objType := db.EventRepository
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &repository.ProjectID,
-		Description: &desc,
-		ObjectID:    &repository.ID,
-		ObjectType:  &objType,
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldRepo.ProjectID,
+		ObjectType:  db.EventRepository,
+		ObjectID:    oldRepo.ID,
+		Description: fmt.Sprintf("Repository %s updated", repository.GitURL),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -164,7 +156,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	err = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
-	if err == db.ErrInvalidOperation {
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Repository is in use by one or more templates",
 			"inUse": true,
@@ -178,18 +170,14 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.LogWarning(repository.ClearCache())
-	user := context.Get(r, "user").(*db.User)
 
-	desc := "Repository (" + repository.GitURL + ") deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &repository.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   repository.ProjectID,
+		ObjectType:  db.EventRepository,
+		ObjectID:    repository.ID,
+		Description: fmt.Sprintf("Repository %s deleted", repository.GitURL),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

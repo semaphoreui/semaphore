@@ -7,11 +7,10 @@ import (
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"go.etcd.io/bbolt"
-	"math/rand"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -33,8 +32,10 @@ func (d emptyEnumerable) Next() (key []byte, value []byte) {
 }
 
 type BoltDb struct {
-	Filename string
-	db       *bbolt.DB
+	Filename    string
+	db          *bbolt.DB
+	connections map[string]bool
+	mu          sync.Mutex
 }
 
 type objectID interface {
@@ -70,14 +71,14 @@ func (d *BoltDb) Migrate() error {
 	return nil
 }
 
-func (d *BoltDb) Connect() error {
+func (d *BoltDb) openDbFile() {
 	var filename string
 	if d.Filename == "" {
 		config, err := util.Config.GetDBConfig()
 		if err != nil {
-			return err
+			panic(err)
 		}
-		filename = config.Hostname
+		filename = config.GetHostname()
 	} else {
 		filename = d.Filename
 	}
@@ -88,14 +89,89 @@ func (d *BoltDb) Connect() error {
 	})
 
 	if err != nil {
-		return err
+		panic(err)
 	}
-
-	return nil
 }
 
-func (d *BoltDb) Close() error {
-	return d.db.Close()
+func (d *BoltDb) openSession(token string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.connections == nil {
+		d.connections = make(map[string]bool)
+	}
+
+	if _, exists := d.connections[token]; exists {
+		// Use for debugging
+		panic(fmt.Errorf("Connection " + token + " already exists"))
+	}
+
+	if len(d.connections) > 0 {
+		d.connections[token] = true
+		return
+	}
+
+	d.openDbFile()
+
+	d.connections[token] = true
+}
+
+func (d *BoltDb) Connect(token string) {
+	if d.PermanentConnection() {
+		d.openDbFile()
+	} else {
+		d.openSession(token)
+	}
+}
+
+func (d *BoltDb) closeSession(token string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	_, exists := d.connections[token]
+
+	if !exists {
+		// Use for debugging
+		panic(fmt.Errorf("can not close closed connection " + token))
+	}
+
+	if len(d.connections) > 1 {
+		delete(d.connections, token)
+		return
+	}
+
+	err := d.db.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	d.db = nil
+	delete(d.connections, token)
+}
+
+func (d *BoltDb) Close(token string) {
+	if d.PermanentConnection() {
+		if err := d.db.Close(); err != nil {
+			panic(err)
+		}
+	} else {
+		d.closeSession(token)
+	}
+}
+
+func (d *BoltDb) PermanentConnection() bool {
+	config, err := util.Config.GetDBConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	isSessionConnection, ok := config.Options["sessionConnection"]
+
+	if ok && (isSessionConnection == "true" || isSessionConnection == "yes") {
+		return false
+	}
+
+	return true
 }
 
 func (d *BoltDb) IsInitialized() (initialized bool, err error) {
@@ -259,11 +335,14 @@ func marshalObject(obj interface{}) ([]byte, error) {
 	return json.Marshal(copyObject(obj, newType))
 }
 
-func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
-	objectsValue := reflect.ValueOf(objects).Elem()
-	objType := objectsValue.Type().Elem()
-
-	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
+func apply(
+	rawData enumerable,
+	props db.ObjectProps,
+	params db.RetrieveQueryParams,
+	filter func(interface{}) bool,
+	applier func(interface{}) error,
+) (err error) {
+	objType := props.Type
 
 	i := 0 // offset counter
 	n := 0 // number of added items
@@ -283,21 +362,55 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 			return
 		}
 
-		if filter != nil {
-			if !filter(obj) {
-				continue
-			}
+		if filter != nil && !filter(obj) {
+			continue
 		}
 
-		newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(obj))
-		objectsValue.Set(newObjectValues)
+		err = applier(obj)
+		if err != nil {
+			return
+		}
 
 		n++
 
-		if params.Count > 0 && n > params.Count {
+		if params.Count > 0 && n >= params.Count {
 			break
 		}
 	}
+
+	return
+}
+
+func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool) (n int, err error) {
+	n = 0
+
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(makeBucketId(props, bucketID))
+		if b == nil {
+			return db.ErrNotFound
+		}
+
+		c := b.Cursor()
+
+		return apply(c, db.TaskProps, params, filter, func(i interface{}) error {
+			n++
+			return nil
+		})
+	})
+
+	return
+}
+
+func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
+	objectsValue := reflect.ValueOf(objects).Elem()
+
+	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
+
+	err = apply(rawData, props, params, filter, func(i interface{}) error {
+		newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(i))
+		objectsValue.Set(newObjectValues)
+		return nil
+	})
 
 	sortable := false
 
@@ -317,7 +430,24 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 	return
 }
 
+func (d *BoltDb) getObjectsTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
+	b := tx.Bucket(makeBucketId(props, bucketID))
+	var c enumerable
+	if b == nil {
+		c = emptyEnumerable{}
+	} else {
+		c = b.Cursor()
+	}
+	return unmarshalObjects(c, props, params, filter, objects)
+}
+
 func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
+	return d.db.View(func(tx *bbolt.Tx) error {
+		return d.getObjectsTx(tx, bucketID, props, params, filter, objects)
+	})
+}
+
+func (d *BoltDb) apply(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, applier func(interface{}) error) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		var c enumerable
@@ -326,7 +456,8 @@ func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.Retrie
 		} else {
 			c = b.Cursor()
 		}
-		return unmarshalObjects(c, props, params, filter, objects)
+
+		return apply(c, props, params, nil, applier)
 	})
 }
 
@@ -356,23 +487,83 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProps, objectID objec
 	return d.db.Update(fn)
 }
 
+func (d *BoltDb) updateObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object interface{}) error {
+	b := tx.Bucket(makeBucketId(props, bucketID))
+	if b == nil {
+		return db.ErrNotFound
+	}
+
+	idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+	if err != nil {
+		return err
+	}
+
+	idValue := reflect.ValueOf(object).FieldByName(idFieldName)
+
+	var objID objectID
+
+	switch idValue.Kind() {
+	case reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64:
+		objID = intObjectID(idValue.Int())
+	case reflect.String:
+		objID = strObjectID(idValue.String())
+	}
+
+	if objID == nil {
+		return fmt.Errorf("unsupported ID type")
+	}
+
+	if b.Get(objID.ToBytes()) == nil {
+		return db.ErrNotFound
+	}
+
+	str, err := marshalObject(object)
+	if err != nil {
+		return err
+	}
+
+	return b.Put(objID.ToBytes(), str)
+}
+
 // updateObject updates data for object in database.
 func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object interface{}) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
+		return d.updateObjectTx(tx, bucketID, props, object)
+	})
+}
+
+func (d *BoltDb) createObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object interface{}) (interface{}, error) {
+	b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
+
+	if err != nil {
+		return nil, err
+	}
+
+	objPtr := reflect.ValueOf(&object).Elem()
+
+	tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
+	tmpObj.Set(objPtr.Elem())
+
+	var objID objectID
+
+	if props.PrimaryColumnName != "" {
+		idFieldName, err2 := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
+
+		if err2 != nil {
+			return nil, err2
 		}
 
-		idFieldName, err := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-		if err != nil {
-			return err
-		}
-
-		idValue := reflect.ValueOf(object).FieldByName(idFieldName)
-
-		var objID objectID
+		idValue := tmpObj.FieldByName(idFieldName)
 
 		switch idValue.Kind() {
 		case reflect.Int,
@@ -385,114 +576,101 @@ func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object interfa
 			reflect.Uint16,
 			reflect.Uint32,
 			reflect.Uint64:
-			objID = intObjectID(idValue.Int())
-		case reflect.String:
-			objID = strObjectID(idValue.String())
-		}
-
-		if objID == nil {
-			return fmt.Errorf("unsupported ID type")
-		}
-
-		if b.Get(objID.ToBytes()) == nil {
-			return db.ErrNotFound
-		}
-
-		str, err := marshalObject(object)
-		if err != nil {
-			return err
-		}
-
-		return b.Put(objID.ToBytes(), str)
-	})
-}
-
-func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (interface{}, error) {
-	err := d.db.Update(func(tx *bbolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
-
-		if err != nil {
-			return err
-		}
-
-		objPtr := reflect.ValueOf(&object).Elem()
-
-		tmpObj := reflect.New(objPtr.Elem().Type()).Elem()
-		tmpObj.Set(objPtr.Elem())
-
-		var objID objectID
-
-		if props.PrimaryColumnName != "" {
-			idFieldName, err2 := getFieldNameByTagSuffix(reflect.TypeOf(object), "db", props.PrimaryColumnName)
-
-			if err2 != nil {
-				return err2
-			}
-
-			idValue := tmpObj.FieldByName(idFieldName)
-
-			switch idValue.Kind() {
-			case reflect.Int,
-				reflect.Int8,
-				reflect.Int16,
-				reflect.Int32,
-				reflect.Int64,
-				reflect.Uint,
-				reflect.Uint8,
-				reflect.Uint16,
-				reflect.Uint32,
-				reflect.Uint64:
-				//if idValue.Int() == 0 {
+			if idValue.Int() == 0 {
 				id, err3 := b.NextSequence()
 				if err3 != nil {
-					return err3
+					return nil, err3
 				}
 				if props.SortInverted {
 					id = MaxID - id
 				}
 				idValue.SetInt(int64(id))
-				//}
+			}
 
-				objID = intObjectID(idValue.Int())
-			case reflect.String:
-				if idValue.String() == "" {
-					return fmt.Errorf("object ID can not be empty string")
-				}
-				objID = strObjectID(idValue.String())
-			case reflect.Invalid:
-				id, err3 := b.NextSequence()
-				if err3 != nil {
-					return err3
-				}
-				objID = intObjectID(id)
-			default:
-				return fmt.Errorf("unsupported ID type")
+			objID = intObjectID(idValue.Int())
+		case reflect.String:
+			if idValue.String() == "" {
+				return nil, fmt.Errorf("object ID can not be empty string")
 			}
-		} else {
-			id, err2 := b.NextSequence()
-			if err2 != nil {
-				return err2
-			}
-			if props.SortInverted {
-				id = MaxID - id
+			objID = strObjectID(idValue.String())
+		case reflect.Invalid:
+			id, err3 := b.NextSequence()
+			if err3 != nil {
+				return nil, err3
 			}
 			objID = intObjectID(id)
+		default:
+			return nil, fmt.Errorf("unsupported ID type")
 		}
-
-		if objID == nil {
-			return fmt.Errorf("object ID can not be nil")
+	} else {
+		id, err2 := b.NextSequence()
+		if err2 != nil {
+			return nil, err2
 		}
-
-		objPtr.Set(tmpObj)
-		str, err := marshalObject(object)
-		if err != nil {
-			return err
+		if props.SortInverted {
+			id = MaxID - id
 		}
+		objID = intObjectID(id)
+	}
 
-		return b.Put(objID.ToBytes(), str)
+	if objID == nil {
+		return nil, fmt.Errorf("object ID can not be nil")
+	}
+
+	objPtr.Set(tmpObj)
+	str, err := marshalObject(object)
+	if err != nil {
+		return nil, err
+	}
+
+	return object, b.Put(objID.ToBytes(), str)
+}
+
+func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (res interface{}, err error) {
+
+	_ = d.db.Update(func(tx *bbolt.Tx) error {
+		res, err = d.createObjectTx(tx, bucketID, props, object)
+		return err
 	})
 
-	return object, err
+	return
+}
+
+func (d *BoltDb) getIntegrationRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationReferrers, err error) {
+	//refs.IntegrationExtractors, err = d.getReferringObjectByParentID(projectID, objectProps, objectID, db.IntegrationExtractorProps)
+
+	return
+}
+
+func (d *BoltDb) getIntegrationExtractorChildrenRefs(integrationID int, objectProps db.ObjectProps, objectID int) (refs db.IntegrationExtractorChildReferrers, err error) {
+	//refs.IntegrationExtractors, err = d.getReferringObjectByParentID(objectID, objectProps, integrationID, db.IntegrationExtractorProps)
+	//if err != nil {
+	//	return
+	//}
+
+	return
+}
+
+func (d *BoltDb) getReferringObjectByParentID(parentID int, objProps db.ObjectProps, objID int, referringObjectProps db.ObjectProps) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
+
+	var referringObjectOfType = reflect.New(reflect.SliceOf(referringObjectProps.Type))
+	err = d.getObjects(parentID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		return isObjectReferredBy(objProps, intObjectID(objID), referringObj)
+	}, referringObjectOfType.Interface())
+
+	if err != nil {
+		return
+	}
+
+	for i := 0; i < referringObjectOfType.Elem().Len(); i++ {
+		referringObjs = append(referringObjs, db.ObjectReferrer{
+			ID:   int(referringObjectOfType.Elem().Index(i).FieldByName("ID").Int()),
+			Name: referringObjectOfType.Elem().Index(i).FieldByName("Name").String(),
+		})
+	}
+
+	return
 }
 
 func (d *BoltDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.ObjectReferrers, err error) {
@@ -647,15 +825,16 @@ func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProps, objID obje
 	return
 }
 
-func CreateTestStore() BoltDb {
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	fn := "/tmp/test_semaphore_db_" + strconv.Itoa(r.Int())
+func CreateTestStore() *BoltDb {
+	util.Config = &util.ConfigType{
+		BoltDb:  &util.DbConfig{},
+		Dialect: "bolt",
+	}
+
+	fn := "/tmp/test_semaphore_db_" + util.RandString(5)
 	store := BoltDb{
 		Filename: fn,
 	}
-	err := store.Connect()
-	if err != nil {
-		panic(err)
-	}
-	return store
+	store.Connect("test")
+	return &store
 }

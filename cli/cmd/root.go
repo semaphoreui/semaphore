@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/ansible-semaphore/semaphore/api"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -12,58 +15,67 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"go.etcd.io/bbolt"
-	"net/http"
-	"os"
 )
 
-var configPath string
+var persistentFlags struct {
+	configPath string
+	noConfig   bool
+	logLevel   string
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
-	Short: "Ansible Semaphore is a beautiful web UI for Ansible",
-	Long: `Ansible Semaphore is a beautiful web UI for Ansible.
+	Short: "Semaphore UI is a beautiful web UI for Ansible",
+	Long: `Semaphore UI is a beautiful web UI for Ansible.
 Source code is available at https://github.com/ansible-semaphore/semaphore.
 Complete documentation is available at https://ansible-semaphore.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)
 	},
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if persistentFlags.logLevel == "" {
+			return
+		}
+
+		lvl, err := log.ParseLevel(persistentFlags.logLevel)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		log.SetLevel(lvl)
+	},
 }
 
 func Execute() {
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Configuration file path")
+	rootCmd.PersistentFlags().StringVar(&persistentFlags.logLevel, "log-level", "", "Log level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC")
+	rootCmd.PersistentFlags().StringVar(&persistentFlags.configPath, "config", "", "Configuration file path")
+	rootCmd.PersistentFlags().BoolVar(&persistentFlags.noConfig, "no-config", false, "Don't use configuration file")
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func runService() {
-	store := createStore()
+	store := createStore("root")
 	taskPool := tasks.CreateTaskPool(store)
 	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
 
-	defer store.Close()
 	defer schedulePool.Destroy()
 
-	dialect, err := util.Config.GetDialect()
-	if err != nil {
-		panic(err)
+	util.Config.PrintDbInfo()
+
+	port := util.Config.Port
+
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
 	}
-	switch dialect {
-	case util.DbDriverMySQL:
-		fmt.Printf("MySQL %v@%v %v\n", util.Config.MySQL.Username, util.Config.MySQL.Hostname, util.Config.MySQL.DbName)
-	case util.DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", util.Config.BoltDb.Hostname)
-	case util.DbDriverPostgres:
-		fmt.Printf("Postgres %v@%v %v\n", util.Config.Postgres.Username, util.Config.Postgres.Hostname, util.Config.Postgres.DbName)
-	default:
-		panic(fmt.Errorf("database configuration not found"))
-	}
+
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
-	fmt.Printf("Semaphore %v\n", util.Version)
+	fmt.Printf("Semaphore %v\n", util.Version())
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 
@@ -89,33 +101,39 @@ func runService() {
 
 	fmt.Println("Server is running")
 
-	err = http.ListenAndServe(util.Config.Interface+util.Config.Port, cropTrailingSlashMiddleware(router))
+	if store.PermanentConnection() {
+		defer store.Close("root")
+	} else {
+		store.Close("root")
+	}
+
+	err := http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
 
 	if err != nil {
 		log.Panic(err)
 	}
 }
 
-func createStore() db.Store {
-	util.ConfigInit(configPath)
+func createStore(token string) db.Store {
+	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	store := factory.CreateStore()
 
-	if err := store.Connect(); err != nil {
-		switch err {
-		case bbolt.ErrTimeout:
-			fmt.Println("\n BoltDB supports only one connection at a time. You should stop Semaphore to use CLI.")
-		default:
-			fmt.Println("\n Have you run `semaphore setup`?")
-		}
-		os.Exit(1)
-	}
+	store.Connect(token)
 
 	err := db.Migrate(store)
 
 	if err != nil {
 		panic(err)
 	}
+
+	err = db.FillConfigFromDB(store)
+
+	if err != nil {
+		panic(err)
+	}
+
+	util.LookupDefaultApps()
 
 	return store
 }

@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/ansible-semaphore/semaphore/db"
-	trans "github.com/snikch/goodman/transaction"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	trans "github.com/snikch/goodman/transaction"
 )
 
 // STATE
@@ -18,23 +19,32 @@ var userKey *db.AccessKey
 var task *db.Task
 var schedule *db.Schedule
 var view *db.View
+var integration *db.Integration
+var integrationextractvalue *db.IntegrationExtractValue
+var integrationmatch *db.IntegrationMatcher
 
 // Runtime created simple ID values for some items we need to reference in other objects
-var repoID int64
-var inventoryID int64
-var environmentID int64
-var templateID int64
+var repoID int
+var inventoryID int
+var environmentID int
+var templateID int
+var integrationID int
+var integrationExtractValueID int
+var integrationMatchID int
 
 var capabilities = map[string][]string{
-	"user":        {},
-	"project":     {"user"},
-	"repository":  {"access_key"},
-	"inventory":   {"repository"},
-	"environment": {"repository"},
-	"template":    {"repository", "inventory", "environment", "view"},
-	"task":        {"template"},
-	"schedule":    {"template"},
-	"view":        {},
+	"user":                    {},
+	"project":                 {"user"},
+	"repository":              {"access_key"},
+	"inventory":               {"repository"},
+	"environment":             {"repository"},
+	"template":                {"repository", "inventory", "environment", "view"},
+	"task":                    {"template"},
+	"schedule":                {"template"},
+	"view":                    {},
+	"integration":             {"project", "template"},
+	"integrationextractvalue": {"integration"},
+	"integrationmatcher":      {"integration"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -45,7 +55,7 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 
 func addCapabilities(caps []string) {
 	dbConnect()
-	defer store.Sql().Db.Close()
+	defer store.Close("")
 	resolved := make([]string, 0)
 	uid := getUUID()
 	resolveCapability(caps, resolved, uid)
@@ -80,33 +90,72 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "access_key":
 			userKey = addAccessKey(&userProject.ID)
 		case "repository":
-			pRepo, err := store.Sql().Exec(
-				"insert into project__repository (project_id, git_url, ssh_key_id, name) values (?, ?, ?, ?)",
-				userProject.ID, "git@github.com/ansible,semaphore/semaphore", userKey.ID, "ITR-"+uid)
+			pRepo, err := store.CreateRepository(db.Repository{
+				ProjectID: userProject.ID,
+				GitURL:    "git@github.com/ansible,semaphore/semaphore",
+				GitBranch: "develop",
+				SSHKeyID:  userKey.ID,
+				Name:      "ITR-" + uid,
+			})
 			printError(err)
-			repoID, _ = pRepo.LastInsertId()
+			repoID = pRepo.ID
 		case "inventory":
-			res, err := store.Sql().Exec(
-				"insert into project__inventory (project_id, name, type, ssh_key_id, inventory) values (?, ?, ?, ?, ?)",
-				userProject.ID, "ITI-"+uid, "static", userKey.ID, "Test Inventory")
+			res, err := store.CreateInventory(db.Inventory{
+				ProjectID:   userProject.ID,
+				Name:        "ITI-" + uid,
+				Type:        "static",
+				SSHKeyID:    &userKey.ID,
+				BecomeKeyID: &userKey.ID,
+				Inventory:   "Test Inventory",
+			})
 			printError(err)
-			inventoryID, _ = res.LastInsertId()
+			inventoryID = res.ID
 		case "environment":
-			res, err := store.Sql().Exec(
-				"insert into project__environment (project_id, name, json, password) values (?, ?, ?, ?)",
-				userProject.ID, "ITI-"+uid, "{}", "test-pass")
+			pwd := "test-pass"
+			env := "{}"
+			res, err := store.CreateEnvironment(db.Environment{
+				ProjectID: userProject.ID,
+				Name:      "ITI-" + uid,
+				JSON:      "{}",
+				Password:  &pwd,
+				ENV:       &env,
+			})
 			printError(err)
-			environmentID, _ = res.LastInsertId()
+			environmentID = res.ID
 		case "template":
-			res, err := store.Sql().Exec(
-				"insert into project__template "+
-					"(project_id, inventory_id, repository_id, environment_id, name, playbook, arguments, allow_override_args_in_task, description, view_id) "+
-					"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				userProject.ID, inventoryID, repoID, environmentID, "Test-"+uid, "test-playbook.yml", "", false, "Hello, World!", view.ID)
+			args := "[]"
+			desc := "Hello, World!"
+			branch := "main"
+			res, err := store.CreateTemplate(db.Template{
+				ProjectID:               userProject.ID,
+				InventoryID:             &inventoryID,
+				RepositoryID:            repoID,
+				EnvironmentID:           &environmentID,
+				Name:                    "Test-" + uid,
+				Playbook:                "test-playbook.yml",
+				Arguments:               &args,
+				AllowOverrideArgsInTask: false,
+				Description:             &desc,
+				ViewID:                  &view.ID,
+				App:                     db.AppAnsible,
+				GitBranch:               &branch,
+			})
+
 			printError(err)
-			templateID, _ = res.LastInsertId()
+			templateID = res.ID
 		case "task":
 			task = addTask()
+		case "integration":
+			integration = addIntegration()
+			integrationID = integration.ID
+		case "integrationextractvalue":
+			integrationextractvalue = addIntegrationExtractValue()
+			integrationExtractValueID = integrationextractvalue.ID
+		case "integrationmatcher":
+			integrationmatch = addIntegrationMatcher()
+			integrationMatchID = integrationmatch.ID
+		default:
+			panic("unknown capability " + v)
 		}
 		resolved = append(resolved, v)
 	}
@@ -124,13 +173,16 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(userProject.ID) },
 	func() string { return strconv.Itoa(userPathTestUser.ID) },
 	func() string { return strconv.Itoa(userKey.ID) },
-	func() string { return strconv.Itoa(int(repoID)) },
-	func() string { return strconv.Itoa(int(inventoryID)) },
-	func() string { return strconv.Itoa(int(environmentID)) },
-	func() string { return strconv.Itoa(int(templateID)) },
+	func() string { return strconv.Itoa(repoID) },
+	func() string { return strconv.Itoa(inventoryID) },
+	func() string { return strconv.Itoa(environmentID) },
+	func() string { return strconv.Itoa(templateID) },
 	func() string { return strconv.Itoa(task.ID) },
 	func() string { return strconv.Itoa(schedule.ID) },
 	func() string { return strconv.Itoa(view.ID) },
+	func() string { return strconv.Itoa(integration.ID) },
+	func() string { return strconv.Itoa(integrationextractvalue.ID) },
+	func() string { return strconv.Itoa(integrationmatch.ID) },
 }
 
 // alterRequestPath with the above slice of functions
@@ -139,12 +191,14 @@ func alterRequestPath(t *trans.Transaction) {
 	exploded := make([]string, len(pathArgs))
 	copy(exploded, pathArgs)
 	for k, v := range pathSubPatterns {
+
 		pos, exists := stringInSlice(strconv.Itoa(k+1), exploded)
 		if exists {
 			pathArgs[pos] = v()
 		}
 	}
 	t.FullPath = strings.Join(pathArgs, "/")
+
 	t.Request.URI = t.FullPath
 }
 
@@ -158,6 +212,7 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("json", "{}", &request)
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
+		bodyFieldProcessor("become_key_id", userKey.ID, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
@@ -172,9 +227,21 @@ func alterRequestBody(t *trans.Transaction) {
 	if view != nil {
 		bodyFieldProcessor("view_id", view.ID, &request)
 	}
+
+	if integration != nil {
+		bodyFieldProcessor("integration_id", integration.ID, &request)
+	}
+	if integrationextractvalue != nil {
+		bodyFieldProcessor("value_id", integrationextractvalue.ID, &request)
+	}
+	if integrationmatch != nil {
+		bodyFieldProcessor("matcher_id", integrationmatch.ID, &request)
+	}
+
 	// Inject object ID to body for PUT requests
 	if strings.ToLower(t.Request.Method) == "put" {
-		putRequestPathRE := regexp.MustCompile(`/api/(?:project/\d+/)?\w+/(\d+)/?$`)
+
+		putRequestPathRE := regexp.MustCompile(`\w+/(\d+)/?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

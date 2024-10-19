@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{
@@ -104,7 +104,12 @@ func (c *connection) writePump() {
 
 // Handler is used by the router to handle the /ws endpoint
 func Handler(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	usr := context.Get(r, "user")
+	if usr == nil {
+		return
+	}
+
+	user := usr.(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		panic(err)

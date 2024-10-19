@@ -4,13 +4,15 @@ web/public/js/bundle.js
 web/public/css/*.*
 web/public/html/**/*.*
 web/public/fonts/*.*
-web2/.nyc_output
-web2/dist/**/*
+web/.nyc_output
+api/public/**/*
 /config.json
+/config-runner.json
+/config-runner-token.txt
 /.dredd/config.json
 /database.boltdb
 /database.boltdb.lock
-/database2.boltdb
+/database_test.boltdb
 .DS_Store
 node_modules/
 
@@ -18,8 +20,6 @@ node_modules/
 /semaphore.iml
 /bin/
 
-*-packr.go
-util/version.go
 /vendor/
 /coverage.out
 /public/package-lock.json
@@ -28,5 +28,7 @@ util/version.go
 .dredd/compiled_hooks
 .dredd/compiled_hooks.exe
 
-.vscode
 __debug_bin*
+.task/
+/web/.env
+/.venv/

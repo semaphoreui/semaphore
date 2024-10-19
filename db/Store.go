@@ -1,9 +1,10 @@
 package db
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 	"time"
@@ -22,7 +23,9 @@ func GetParsedTime(t time.Time) time.Time {
 }
 
 func ObjectToJSON(obj interface{}) *string {
-	if obj == nil || (reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) {
+	if obj == nil ||
+		(reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) ||
+		(reflect.ValueOf(obj).Kind() == reflect.Slice && reflect.ValueOf(obj).IsZero()) {
 		return nil
 	}
 	bytes, err := json.Marshal(obj)
@@ -38,6 +41,7 @@ type RetrieveQueryParams struct {
 	Count        int
 	SortBy       string
 	SortInverted bool
+	Filter       string
 }
 
 type ObjectReferrer struct {
@@ -49,6 +53,15 @@ type ObjectReferrers struct {
 	Templates    []ObjectReferrer `json:"templates"`
 	Inventories  []ObjectReferrer `json:"inventories"`
 	Repositories []ObjectReferrer `json:"repositories"`
+}
+
+type IntegrationReferrers struct {
+	IntegrationMatchers      []ObjectReferrer `json:"matchers"`
+	IntegrationExtractValues []ObjectReferrer `json:"values"`
+}
+
+type IntegrationExtractorChildReferrers struct {
+	Integrations []ObjectReferrer `json:"integrations"`
 }
 
 // ObjectProps describe database entities.
@@ -77,8 +90,16 @@ func (e *ValidationError) Error() string {
 }
 
 type Store interface {
-	Connect() error
-	Close() error
+	// Connect connects to the database.
+	// Token parameter used if PermanentConnection returns false.
+	// Token used for debugging of session connections.
+	Connect(token string)
+	Close(token string)
+
+	// PermanentConnection returns true if connection should be kept from start to finish of the app.
+	// This mode is suitable for MySQL and Postgres but not for BoltDB.
+	// For BoltDB we should reconnect for each request because BoltDB support only one connection at time.
+	PermanentConnection() bool
 
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
@@ -92,12 +113,19 @@ type Store interface {
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
 
+	GetOptions(params RetrieveQueryParams) (map[string]string, error)
+	GetOption(key string) (string, error)
+	SetOption(key string, value string) error
+	DeleteOption(key string) error
+	DeleteOptions(filter string) error
+
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
 	UpdateEnvironment(env Environment) error
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
+	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
 
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
@@ -116,11 +144,40 @@ type Store interface {
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
+	RekeyAccessKeys(oldKey string) error
+
+	CreateIntegration(integration Integration) (newIntegration Integration, err error)
+	GetIntegrations(projectID int, params RetrieveQueryParams) ([]Integration, error)
+	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
+	UpdateIntegration(integration Integration) error
+	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
+	DeleteIntegration(projectID int, integrationID int) error
+
+	CreateIntegrationExtractValue(projectId int, value IntegrationExtractValue) (newValue IntegrationExtractValue, err error)
+	GetIntegrationExtractValues(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationExtractValue, error)
+	GetIntegrationExtractValue(projectID int, valueID int, integrationID int) (value IntegrationExtractValue, err error)
+	UpdateIntegrationExtractValue(projectID int, integrationExtractValue IntegrationExtractValue) error
+	GetIntegrationExtractValueRefs(projectID int, valueID int, integrationID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationExtractValue(projectID int, valueID int, integrationID int) error
+
+	CreateIntegrationMatcher(projectID int, matcher IntegrationMatcher) (newMatcher IntegrationMatcher, err error)
+	GetIntegrationMatchers(projectID int, params RetrieveQueryParams, integrationID int) ([]IntegrationMatcher, error)
+	GetIntegrationMatcher(projectID int, matcherID int, integrationID int) (matcher IntegrationMatcher, err error)
+	UpdateIntegrationMatcher(projectID int, integrationMatcher IntegrationMatcher) error
+	GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (IntegrationExtractorChildReferrers, error)
+	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
+
+	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
+	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
+	GetIntegrationsByAlias(alias string) ([]Integration, error)
+	DeleteIntegrationAlias(projectID int, aliasID int) error
+	GetAllSearchableIntegrations() ([]Integration, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
 
+	GetUserCount() (int, error)
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
 	CreateUser(user UserWithPwd) (User, error)
@@ -134,6 +191,7 @@ type Store interface {
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 
 	GetProject(projectID int) (Project, error)
+	GetAllProjects() ([]Project, error)
 	GetProjects(userID int) ([]Project, error)
 	CreateProject(project Project) (Project, error)
 	DeleteProject(projectID int) error
@@ -147,14 +205,17 @@ type Store interface {
 	DeleteTemplate(projectID int, templateID int) error
 
 	GetSchedules() ([]Schedule, error)
+	GetProjectSchedules(projectID int) ([]ScheduleWithTpl, error)
 	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
 	SetScheduleCommitHash(projectID int, scheduleID int, hash string) error
+	SetScheduleActive(projectID int, scheduleID int, active bool) error
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
 
-	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]User, error)
+	GetAllAdmins() ([]User, error)
+	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
 	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
@@ -168,13 +229,14 @@ type Store interface {
 	CreateAPIToken(token APIToken) (APIToken, error)
 	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
+	DeleteAPIToken(userID int, tokenID string) error
 
 	GetSession(userID int, sessionID int) (Session, error)
 	CreateSession(session Session) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
 
-	CreateTask(task Task) (Task, error)
+	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
 
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
@@ -183,6 +245,8 @@ type Store interface {
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
+	CreateTaskStage(stage TaskStage) (TaskStage, error)
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
@@ -190,6 +254,20 @@ type Store interface {
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
 	SetViewPositions(projectID int, viewPositions map[int]int) error
+
+	GetRunner(projectID int, runnerID int) (Runner, error)
+	GetRunners(projectID int) ([]Runner, error)
+	DeleteRunner(projectID int, runnerID int) error
+	GetGlobalRunnerByToken(token string) (Runner, error)
+	GetGlobalRunner(runnerID int) (Runner, error)
+	GetGlobalRunners(activeOnly bool) ([]Runner, error)
+	DeleteGlobalRunner(runnerID int) error
+	UpdateRunner(runner Runner) error
+	CreateRunner(runner Runner) (Runner, error)
+
+	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
+	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
+	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 }
 
 var AccessKeyProps = ObjectProps{
@@ -199,6 +277,37 @@ var AccessKeyProps = ObjectProps{
 	ReferringColumnSuffix: "key_id",
 	SortableColumns:       []string{"name", "type"},
 	DefaultSortingColumn:  "name",
+}
+
+var IntegrationProps = ObjectProps{
+	TableName:             "project__integration",
+	Type:                  reflect.TypeOf(Integration{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "integration_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var IntegrationExtractValueProps = ObjectProps{
+	TableName:            "project__integration_extract_value",
+	Type:                 reflect.TypeOf(IntegrationExtractValue{}),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
+var IntegrationMatcherProps = ObjectProps{
+	TableName:            "project__integration_matcher",
+	Type:                 reflect.TypeOf(IntegrationMatcher{}),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
+var IntegrationAliasProps = ObjectProps{
+	TableName:         "project__integration_alias",
+	Type:              reflect.TypeOf(IntegrationAlias{}),
+	PrimaryColumnName: "id",
 }
 
 var EnvironmentProps = ObjectProps{
@@ -249,11 +358,12 @@ var ProjectUserProps = ObjectProps{
 }
 
 var ProjectProps = ObjectProps{
-	TableName:            "project",
-	Type:                 reflect.TypeOf(Project{}),
-	PrimaryColumnName:    "id",
-	DefaultSortingColumn: "name",
-	IsGlobal:             true,
+	TableName:             "project",
+	Type:                  reflect.TypeOf(Project{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "project_id",
+	DefaultSortingColumn:  "name",
+	IsGlobal:              true,
 }
 
 var UserProps = ObjectProps{
@@ -288,11 +398,37 @@ var TaskOutputProps = ObjectProps{
 	Type:      reflect.TypeOf(TaskOutput{}),
 }
 
+var TaskStageProps = ObjectProps{
+	TableName: "task__stage",
+	Type:      reflect.TypeOf(TaskStage{}),
+}
+
 var ViewProps = ObjectProps{
 	TableName:            "project__view",
 	Type:                 reflect.TypeOf(View{}),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "position",
+}
+
+var GlobalRunnerProps = ObjectProps{
+	TableName:         "runner",
+	Type:              reflect.TypeOf(Runner{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
+}
+
+var OptionProps = ObjectProps{
+	TableName:         "option",
+	Type:              reflect.TypeOf(Option{}),
+	PrimaryColumnName: "key",
+	IsGlobal:          true,
+}
+
+var TemplateVaultProps = ObjectProps{
+	TableName:             "project__template_vault",
+	Type:                  reflect.TypeOf(TemplateVault{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "template_id",
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
@@ -317,4 +453,72 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 	}
 
 	return
+}
+
+func StoreSession(store Store, token string, callback func()) {
+	if !store.PermanentConnection() {
+		store.Connect(token)
+	}
+
+	callback()
+
+	if !store.PermanentConnection() {
+		store.Close(token)
+	}
+}
+
+func ValidateRepository(store Store, repo *Repository) (err error) {
+	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
+
+	return
+}
+
+func ValidateInventory(store Store, inventory *Inventory) (err error) {
+	if inventory.SSHKeyID != nil {
+		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.BecomeKeyID != nil {
+		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if inventory.HolderID != nil {
+		_, err = store.GetTemplate(inventory.ProjectID, *inventory.HolderID)
+	}
+
+	return
+}
+
+type MapStringAnyField map[string]interface{}
+
+func (m *MapStringAnyField) Scan(value interface{}) error {
+	if value == nil {
+		*m = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, m)
+	case string:
+		return json.Unmarshal([]byte(v), m)
+	default:
+		return errors.New("unsupported type for MapStringAnyField")
+	}
+}
+
+// Value implements the driver.Valuer interface for MapStringAnyField
+func (m MapStringAnyField) Value() (driver.Value, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return json.Marshal(m)
 }

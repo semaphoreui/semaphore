@@ -1,13 +1,13 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"fmt"
+	"net/http"
+
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/services/schedules"
 	"github.com/gorilla/context"
-	"net/http"
-	"strconv"
 )
 
 // SchedulesMiddleware ensures a template exists and loads it to the context
@@ -42,6 +42,17 @@ func GetSchedule(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, schedule)
 }
 
+func GetProjectSchedules(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+
+	tplSchedules, err := helpers.Store(r).GetProjectSchedules(project.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, tplSchedules)
+}
 func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	templateID, err := helpers.GetIntParam("template_id", w, r)
@@ -101,19 +112,13 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	objType := db.EventSchedule
-	desc := "Schedule ID " + strconv.Itoa(schedule.ID) + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &schedule.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    schedule.ID,
+		Description: fmt.Sprintf("Schedule ID %d created", schedule.ID),
 	})
-	if err != nil {
-		log.Error(err)
-	}
 
 	refreshSchedulePool(r)
 
@@ -155,22 +160,43 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Schedule ID " + strconv.Itoa(schedule.ID) + " updated"
-	objType := db.EventSchedule
-
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &schedule.ProjectID,
-		Description: &desc,
-		ObjectID:    &schedule.ID,
-		ObjectType:  &objType,
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldSchedule.ProjectID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    oldSchedule.ID,
+		Description: fmt.Sprintf("Schedule ID %d updated", schedule.ID),
 	})
 
-	if err != nil {
-		log.Error(err)
+	refreshSchedulePool(r)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
+	oldSchedule := context.Get(r, "schedule").(db.Schedule)
+
+	var schedule struct {
+		Active bool `json:"active"`
 	}
+
+	if !helpers.Bind(w, r, &schedule) {
+		return
+	}
+
+	err := helpers.Store(r).SetScheduleActive(oldSchedule.ProjectID, oldSchedule.ID, schedule.Active)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldSchedule.ProjectID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    oldSchedule.ID,
+		Description: fmt.Sprintf("Schedule ID %d updated", oldSchedule.ID),
+	})
 
 	refreshSchedulePool(r)
 
@@ -187,17 +213,13 @@ func RemoveSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-	desc := "Schedule ID " + strconv.Itoa(schedule.ID) + " deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &schedule.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   schedule.ProjectID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    schedule.ID,
+		Description: fmt.Sprintf("Schedule ID %d deleted", schedule.ID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	refreshSchedulePool(r)
 

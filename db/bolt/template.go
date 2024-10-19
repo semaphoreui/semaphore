@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"errors"
 	"github.com/ansible-semaphore/semaphore/db"
 	"go.etcd.io/bbolt"
 )
@@ -18,6 +19,10 @@ func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, 
 		return
 	}
 	newTemplate = newTpl.(db.Template)
+	err = d.UpdateTemplateVaults(template.ProjectID, newTemplate.ID, template.Vaults)
+	if err != nil {
+		return
+	}
 	err = db.FillTemplate(d, &newTemplate)
 	return
 }
@@ -30,7 +35,11 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	}
 
 	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
-	return d.updateObject(template.ProjectID, db.TemplateProps, template)
+	err = d.updateObject(template.ProjectID, db.TemplateProps, template)
+	if err != nil {
+		return err
+	}
+	return d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
 }
 
 func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
@@ -55,7 +64,53 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 		return
 	}
 
-	err = db.FillTemplates(d, templates)
+	templatesMap := make(map[int]*db.Template)
+
+	for i := 0; i < len(templates); i++ {
+		templates[i].Vaults, err = d.GetTemplateVaults(projectID, templates[i].ID)
+		templatesMap[templates[i].ID] = &templates[i]
+	}
+
+	unfilledTemplateCount := len(templates)
+
+	var errEndOfTemplates = errors.New("no more templates to filling")
+
+	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) error {
+		task := i.(db.Task)
+
+		if task.ProjectID != projectID {
+			return nil
+		}
+
+		tpl, ok := templatesMap[task.TemplateID]
+		if !ok {
+			return nil
+		}
+
+		if tpl.LastTask != nil {
+			return nil
+		}
+
+		tpl.LastTask = &db.TaskWithTpl{
+			Task:             task,
+			TemplatePlaybook: tpl.Playbook,
+			TemplateAlias:    tpl.Name,
+			TemplateType:     tpl.Type,
+			TemplateApp:      tpl.App,
+		}
+
+		unfilledTemplateCount--
+
+		if unfilledTemplateCount <= 0 {
+			return errEndOfTemplates
+		}
+
+		return nil
+	})
+
+	if errors.Is(err, errEndOfTemplates) {
+		err = nil
+	}
 
 	return
 }
@@ -90,7 +145,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		return
 	}
 	for _, task := range tasks {
-		err = d.deleteTaskWithOutputs(projectID, task.ID, tx)
+		err = d.deleteTaskWithOutputs(projectID, task.ID, true, tx)
 		if err != nil {
 			return
 		}

@@ -3,33 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/sql"
-	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/snikch/goodman/transaction"
-	"math/rand"
 	"os"
-	"strconv"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/db/bolt"
+	"github.com/ansible-semaphore/semaphore/db/factory"
+	"github.com/ansible-semaphore/semaphore/db/sql"
+	"github.com/ansible-semaphore/semaphore/pkg/random"
+	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-gorp/gorp/v3"
+	"github.com/snikch/goodman/transaction"
 )
 
-var tablesShouldBeTruncated = [...]string {
-	"access_key",
-	"event",
-	"user__token",
-	"project",
-	"task__output",
-	"task",
-	"session",
-	"project__environment",
-	"project__inventory",
-	"project__repository",
-	"project__template",
-	"project__schedule",
-	"project__user",
-	"user",
-	"project__view",
-}
 // Test Runner User
 func addTestRunnerUser() {
 	uid := getUUID()
@@ -42,40 +28,77 @@ func addTestRunnerUser() {
 	}
 
 	dbConnect()
-	defer store.Sql().Db.Close()
+	defer store.Close("")
 
 	truncateAll()
 
-	if err := store.Sql().Insert(testRunnerUser); err != nil {
-		panic(err)
-	}
-	addToken(adminToken, testRunnerUser.ID)
-}
+	newUser, err := store.CreateUserWithoutPassword(*testRunnerUser)
 
-func truncateAll() {
-	tx, err := store.Sql().Begin()
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	if err == nil {
-		for _, tableName := range tablesShouldBeTruncated {
-			tx.Exec("TRUNCATE TABLE " + tableName)
-		}
-		tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
+	testRunnerUser.ID = newUser.ID
+
+	addToken(adminToken, testRunnerUser.ID)
+}
+
+func truncateAll() {
+	var tablesShouldBeTruncated = [...]string{
+		"access_key",
+		"event",
+		"user__token",
+		"project",
+		"task__output",
+		"task",
+		"session",
+		"project__environment",
+		"project__inventory",
+		"project__repository",
+		"project__template",
+		"project__template_vault",
+		"project__schedule",
+		"project__user",
+		"user",
+		"project__view",
+		"project__integration",
+		"project__integration_extract_value",
+		"project__integration_matcher",
 	}
 
-	if err := tx.Commit(); err != nil {
-		panic(err)
+	switch store.(type) {
+	case *bolt.BoltDb:
+		// Do nothing
+	case *sql.SqlDb:
+		switch store.(*sql.SqlDb).Sql().Dialect.(type) {
+		case gorp.PostgresDialect:
+			// Do nothing
+		case gorp.MySQLDialect:
+			tx, err := store.(*sql.SqlDb).Sql().Begin()
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = tx.Exec("SET FOREIGN_KEY_CHECKS = 0")
+			if err == nil {
+				for _, tableName := range tablesShouldBeTruncated {
+					tx.Exec("TRUNCATE TABLE " + tableName)
+				}
+				tx.Exec("SET FOREIGN_KEY_CHECKS = 1")
+			}
+
+			if err := tx.Commit(); err != nil {
+				panic(err)
+			}
+		}
 	}
 }
 
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
-	defer store.Sql().Db.Close()
-	deleteToken(adminToken, testRunnerUser.ID)
-	deleteObject(testRunnerUser)
+	defer store.Close("")
+	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
+	_ = store.DeleteUser(testRunnerUser.ID)
 }
 
 // Parameter Substitution
@@ -86,43 +109,58 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	_, err := store.Sql().Exec("insert into project__user (project_id, user_id, `admin`) values (?, ?, 1)", pid, user)
+	_, err := store.CreateProjectUser(db.ProjectUser{
+		ProjectID: pid,
+		UserID:    user,
+		Role:      db.ProjectOwner,
+	})
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
 func deleteUserProjectRelation(pid int, user int) {
-	_, err := store.Sql().Exec("delete from project__user where project_id=? and user_id=?", strconv.Itoa(pid), strconv.Itoa(user))
+	err := store.DeleteProjectUser(pid, user)
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
 func addAccessKey(pid *int) *db.AccessKey {
 	uid := getUUID()
 	secret := "5up3r53cr3t\n"
-	key := db.AccessKey{
+
+	key, err := store.CreateAccessKey(db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",
-		Secret:	   &secret,
+		Secret:    &secret,
 		ProjectID: pid,
-	}
-	if err := store.Sql().Insert(&key); err != nil {
-		fmt.Println(err)
+	})
+
+	if err != nil {
+		panic(err)
 	}
 	return &key
 }
 
 func addProject() *db.Project {
 	uid := getUUID()
+	chat := "Test"
 	project := db.Project{
-		Name:    "ITP-" + uid,
-		Created: time.Now(),
+		Name:      "ITP-" + uid,
+		Created:   time.Now(),
+		AlertChat: &chat,
 	}
-	if err := store.Sql().Insert(&project); err != nil {
-		fmt.Println(err)
+	project, err := store.CreateProject(project)
+	if err != nil {
+		panic(err)
 	}
+
+	err = store.UpdateProject(project)
+	if err != nil {
+		panic(err)
+	}
+
 	return &project
 }
 
@@ -132,23 +170,26 @@ func addUser() *db.User {
 		Created:  time.Now(),
 		Username: "ITU-" + uid,
 		Email:    "test@semaphore." + uid,
+		Name:     "ITU-" + uid,
 	}
-	if err := store.Sql().Insert(&user); err != nil {
-		fmt.Println(err)
+
+	user, err := store.CreateUserWithoutPassword(user)
+
+	if err != nil {
+		panic(err)
 	}
 	return &user
 }
 
-
 func addView() *db.View {
 	view, err := store.CreateView(db.View{
 		ProjectID: userProject.ID,
-		Title: "Test",
-		Position: 1,
+		Title:     "Test",
+		Position:  1,
 	})
 
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
 	return &view
@@ -158,77 +199,106 @@ func addSchedule() *db.Schedule {
 	schedule, err := store.CreateSchedule(db.Schedule{
 		TemplateID: int(templateID),
 		CronFormat: "* * * 1 *",
-		ProjectID: userProject.ID,
+		ProjectID:  userProject.ID,
 	})
 
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
 	return &schedule
 }
 
-
 func addTask() *db.Task {
 	t := db.Task{
-		TemplateID: int(templateID),
-		Status: "testing",
-		UserID: &userPathTestUser.ID,
-		Created: db.GetParsedTime(time.Now()),
+		ProjectID:  userProject.ID,
+		TemplateID: templateID,
+		Status:     "testing",
+		UserID:     &userPathTestUser.ID,
+		Created:    db.GetParsedTime(time.Now()),
 	}
-	if err := store.Sql().Insert(&t); err != nil {
-		fmt.Println(err)
+	t, err := store.CreateTask(t, 0)
+	if err != nil {
+		fmt.Println("error during insertion of task:")
+		if j, err := json.Marshal(t); err == nil {
+			fmt.Println(string(j))
+		} else {
+			fmt.Println("can not stringify task object")
+		}
+		panic(err)
 	}
 	return &t
 }
 
-func deleteObject(i interface{}) {
-	_, err := store.Sql().Delete(i)
+func addIntegration() *db.Integration {
+	integration, err := store.CreateIntegration(db.Integration{
+		ProjectID:  userProject.ID,
+		Name:       "Test Integration",
+		TemplateID: templateID,
+	})
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
+
+	return &integration
+}
+
+func addIntegrationExtractValue() *db.IntegrationExtractValue {
+	integrationextractvalue, err := store.CreateIntegrationExtractValue(userProject.ID, db.IntegrationExtractValue{
+		Name:          "Value",
+		IntegrationID: integrationID,
+		ValueSource:   db.IntegrationExtractBodyValue,
+		BodyDataType:  db.IntegrationBodyDataJSON,
+		Key:           "key",
+		Variable:      "var",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &integrationextractvalue
+}
+
+func addIntegrationMatcher() *db.IntegrationMatcher {
+	integrationmatch, err := store.CreateIntegrationMatcher(userProject.ID, db.IntegrationMatcher{
+		Name:          "matcher",
+		IntegrationID: integrationID,
+		MatchType:     "body",
+		Method:        "equals",
+		BodyDataType:  "json",
+		Key:           "key",
+		Value:         "value",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &integrationmatch
 }
 
 // Token Handling
 func addToken(tok string, user int) {
-	token := db.APIToken{
+	_, err := store.CreateAPIToken(db.APIToken{
 		ID:      tok,
 		Created: time.Now(),
 		UserID:  user,
 		Expired: false,
+	})
+	if err != nil {
+		panic(err)
 	}
-	if err := store.Sql().Insert(&token); err != nil {
-		fmt.Println(err)
-	}
-}
-
-func deleteToken(tok string, user int) {
-	token := db.APIToken{
-		ID:     tok,
-		UserID: user,
-	}
-	deleteObject(&token)
 }
 
 // HELPERS
-var r *rand.Rand
 var randSetup = false
 
 func getUUID() string {
 	if !randSetup {
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 		randSetup = true
 	}
-	return randomString(8)
-}
-func randomString(strlen int) string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := ""
-	for i := 0; i < strlen; i++ {
-		index := r.Intn(len(chars))
-		result += chars[index : index+1]
-	}
-	return result
+	return random.String(8)
 }
 
 func loadConfig() {
@@ -240,14 +310,12 @@ func loadConfig() {
 	}
 }
 
-var store sql.SqlDb
+var store db.Store
 
 func dbConnect() {
-	store = sql.SqlDb{}
+	store = factory.CreateStore()
 
-	if err := store.Connect(); err != nil {
-		panic(err)
-	}
+	store.Connect("")
 }
 
 func stringInSlice(a string, list []string) (int, bool) {
@@ -261,6 +329,7 @@ func stringInSlice(a string, list []string) (int, bool) {
 
 func printError(err error) {
 	if err != nil {
-		fmt.Println(err)
+		//fmt.Println(err)
+		panic(err)
 	}
 }

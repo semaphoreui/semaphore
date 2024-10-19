@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-//User is the model for an entity which has access to the API
+// User is the model for an entity which has access to the API
 type User struct {
 	ID       int       `db:"id" json:"id"`
 	Created  time.Time `db:"created" json:"created"`
@@ -17,6 +17,11 @@ type User struct {
 	Alert    bool      `db:"alert" json:"alert"`
 }
 
+type UserWithProjectRole struct {
+	Role ProjectUserRole `db:"role" json:"role"`
+	User
+}
+
 // UserWithPwd extends User structure with field for unhashed password received from JSON.
 type UserWithPwd struct {
 	Pwd string `db:"-" json:"password"` // unhashed password from JSON
@@ -24,5 +29,14 @@ type UserWithPwd struct {
 }
 
 func ValidateUser(user User) error {
+	if user.Username == "" {
+		return &ValidationError{Message: "Username cannot be empty"}
+	}
+	if user.Email == "" {
+		return &ValidationError{Message: "Email cannot be empty"}
+	}
+	if user.Name == "" {
+		return &ValidationError{Message: "Name cannot be empty"}
+	}
 	return nil
 }

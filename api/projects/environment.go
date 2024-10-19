@@ -1,13 +1,65 @@
 package projects
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"fmt"
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/db"
 	"net/http"
 
 	"github.com/gorilla/context"
 )
+
+func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
+	for _, secret := range env.Secrets {
+		err := secret.Validate()
+		if err != nil {
+			continue
+		}
+
+		var key db.AccessKey
+
+		switch secret.Operation {
+		case db.EnvironmentSecretCreate:
+			key, err = store.CreateAccessKey(db.AccessKey{
+				Name:          string(secret.Type) + "." + secret.Name,
+				String:        secret.Secret,
+				EnvironmentID: &env.ID,
+				ProjectID:     &env.ProjectID,
+				Type:          db.AccessKeyString,
+			})
+		case db.EnvironmentSecretDelete:
+			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
+
+			if err != nil {
+				continue
+			}
+
+			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+				continue
+			}
+
+			err = store.DeleteAccessKey(env.ProjectID, secret.ID)
+		case db.EnvironmentSecretUpdate:
+			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
+
+			if err != nil {
+				continue
+			}
+
+			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
+				continue
+			}
+
+			err = store.UpdateAccessKey(db.AccessKey{
+				Name:   string(secret.Type) + "." + secret.Name,
+				String: secret.Secret,
+				Type:   db.AccessKeyString,
+			})
+		}
+	}
+
+	return nil
+}
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
@@ -22,6 +74,11 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 		env, err := helpers.Store(r).GetEnvironment(project.ID, envID)
 
 		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		if err = db.FillEnvironmentSecrets(helpers.Store(r), &env, false); err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
@@ -90,6 +147,19 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldEnv.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    oldEnv.ID,
+		Description: fmt.Sprintf("Environment %s updated", env.Name),
+	})
+
+	if err := updateEnvironmentSecrets(helpers.Store(r), env); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -114,21 +184,17 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	objType := db.EventEnvironment
-
-	desc := "Environment " + newEnv.Name + " created"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &newEnv.ID,
-		ObjectType:  &objType,
-		ObjectID:    &newEnv.ID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   newEnv.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    newEnv.ID,
+		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
 
-	if err != nil {
-		log.Error(err)
+	if err = updateEnvironmentSecrets(helpers.Store(r), newEnv); err != nil {
+		//helpers.WriteError(w, err)
+		//return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -138,9 +204,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 	env := context.Get(r, "environment").(db.Environment)
 
-	var err error
-
-	err = helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
+	err := helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error": "Environment is in use by one or more templates",
@@ -154,18 +218,13 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := context.Get(r, "user").(*db.User)
-
-	desc := "Environment " + env.Name + " deleted"
-	_, err = helpers.Store(r).CreateEvent(db.Event{
-		UserID:      &user.ID,
-		ProjectID:   &env.ProjectID,
-		Description: &desc,
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   env.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    env.ID,
+		Description: fmt.Sprintf("Environment %s deleted", env.Name),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

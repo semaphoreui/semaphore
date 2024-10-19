@@ -1,0 +1,642 @@
+name: Dev
+
+'on':
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  build-local:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Install deps
+        run: |
+          task deps
+
+      - name: Run build
+        run: task build
+
+      - name: Check modification
+        run: |
+          git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
+
+      - name: Run tests
+        run: task test
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: semaphore
+          path: bin/semaphore
+          retention-days: 1
+
+  migrate-boltdb:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-local
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.json <<EOF
+            {
+              "bolt": {
+                "host": "/tmp/database.bolt"
+              },
+              "dialect": "bolt",
+              "email_alert": false
+            }
+          EOF
+
+      - name: Migrate database
+        run: |
+          chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+  migrate-mysql:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-local
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: p455w0rd
+          MYSQL_USER: semaphore
+          MYSQL_PASSWORD: p455w0rd
+          MYSQL_DATABASE: semaphore
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.json <<EOF
+            {
+              "mysql": {
+                "host": "localhost:3306",
+                "user": "semaphore",
+                "pass": "p455w0rd",
+                "name": "semaphore"
+              },
+              "dialect": "mysql",
+              "email_alert": false
+            }
+          EOF
+
+      - name: Migrate database
+        run: |
+          chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+  migrate-mariadb:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-local
+
+    services:
+      mariadb:
+        image: mariadb:10.4
+        env:
+          MARIADB_ROOT_PASSWORD: p455w0rd
+          MARIADB_USER: semaphore
+          MARIADB_PASSWORD: p455w0rd
+          MARIADB_DATABASE: semaphore
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.json <<EOF
+            {
+              "mysql": {
+                "host": "localhost:3306",
+                "user": "semaphore",
+                "pass": "p455w0rd",
+                "name": "semaphore"
+              },
+              "dialect": "mysql",
+              "email_alert": false
+            }
+          EOF
+
+      - name: Migrate database
+        run: |
+          chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+  migrate-postgres:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-local
+
+    services:
+      postgres:
+        image: postgres:12.18
+        env:
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: p455w0rd
+          POSTGRES_DB: semaphore
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.json <<EOF
+            {
+              "postgres": {
+                "host": "localhost:5432",
+                "user": "semaphore",
+                "pass": "p455w0rd",
+                "name": "semaphore",
+                "options": {
+                  "sslmode": "disable"
+                }
+              },
+              "dialect": "postgres",
+              "email_alert": false
+            }
+          EOF
+
+      - name: Migrate database
+        run: |
+          chmod +x ./semaphore && ./semaphore migrate --config config.json
+
+  integrate-boltdb:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-boltdb
+
+    env:
+      SEMAPHORE_DB_OPTIONS: '{"sessionConnection": "true"}'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          2
+          /tmp/database.bolt
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
+
+  integrate-mysql:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-mysql
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: p455w0rd
+          MYSQL_USER: semaphore
+          MYSQL_PASSWORD: p455w0rd
+          MYSQL_DATABASE: semaphore
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          1
+          localhost:3306
+          semaphore
+          p455w0rd
+          semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
+
+  integrate-mariadb:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-mariadb
+
+    services:
+      mariadb:
+        image: mariadb:10.4
+        env:
+          MARIADB_ROOT_PASSWORD: p455w0rd
+          MARIADB_USER: semaphore
+          MARIADB_PASSWORD: p455w0rd
+          MARIADB_DATABASE: semaphore
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          1
+          localhost:3306
+          semaphore
+          p455w0rd
+          semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
+
+  integrate-postgres:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-postgres
+
+    services:
+      postgres:
+        image: postgres:12.18
+        env:
+          POSTGRES_USER: semaphore
+          POSTGRES_PASSWORD: p455w0rd
+          POSTGRES_DB: semaphore
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          3
+          localhost:5432
+          semaphore
+          p455w0rd
+          semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task e2e:goodman
+          task e2e:deps
+          task e2e:hooks
+          task e2e:test
+
+  deploy-server:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    needs:
+      - integrate-boltdb
+      - integrate-mysql
+      - integrate-mariadb
+      - integrate-postgres
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Server meta
+        id: server
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/semaphore
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semui.co>
+          tags: |
+            type=raw,value=develop
+          flavor: |
+            latest=false
+
+      - name: Server build
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/server/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.server.outputs.labels }}
+          tags: ${{ steps.server.outputs.tags }}
+
+  deploy-runner:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    needs:
+      - integrate-boltdb
+      - integrate-mysql
+      - integrate-mariadb
+      - integrate-postgres
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Runner meta
+        id: runner
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/runner
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semui.co>
+          tags: |
+            type=raw,value=develop
+          flavor: |
+            latest=false
+
+      - name: Runner build
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/runner/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.runner.outputs.labels }}
+          tags: ${{ steps.runner.outputs.tags }}

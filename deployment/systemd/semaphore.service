@@ -1,11 +1,12 @@
 [Unit]
-Description=Ansible Semaphore
-Documentation=https://github.com/ansible-semaphore/semaphore
+Documentation=https://github.com/semaphoreui/semaphore
 Documentation=man:semaphore --help
+Description=Semaphore UI
 Requires=network.target
 After=network.target syslog.target
 
 [Service]
+EnvironmentFile=/etc/semaphore/env
 User=semaphore
 Group=semaphore
 ExecStart=/usr/bin/semaphore server --config /home/semaphore/config.json

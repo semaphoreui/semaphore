@@ -1,92 +1,92 @@
-# Ansible Semaphore
+# Semaphore UI
 
-[![Circle CI](https://circleci.com/gh/ansible-semaphore/semaphore.svg?style=svg&circle-token=3702872acf2bec629017fa7dd99fdbea56aef7df)](https://circleci.com/gh/ansible-semaphore/semaphore)
-[![Twitter](https://img.shields.io/twitter/follow/AnsibleSem?style=social&logo=twitter)](https://twitter.com/AnsibleSem)
-[![Snap](https://img.shields.io/badge/snap-semaphore-005c63)](https://snapcraft.io/semaphore)
-[![StackShare](https://img.shields.io/badge/tech-stack-008ff9)](https://stackshare.io/ansible-semaphore)
-[![Join the chat at https://gitter.im/AnsibleSemaphore/semaphore](https://img.shields.io/gitter/room/AnsibleSemaphore/semaphore?logo=gitter)](https://gitter.im/AnsibleSemaphore/semaphore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Modern UI for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
 
-<!-- [![Release](https://img.shields.io/github/v/release/ansible-semaphore/semaphore.svg)](https://stackshare.io/ansible-semaphore) -->
-<!-- [![Godoc Reference](https://pkg.go.dev/badge/github.com/ansible-semaphore/semaphore?utm_source=godoc)](https://godoc.org/github.com/ansible-semaphore/semaphore) -->
-<!-- [![Codacy Badge](https://api.codacy.com/project/badge/Grade/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ansible-semaphore/semaphore&amp;utm_campaign=Badge_Grade)
-[![Codacy Badge](https://api.codacy.com/project/badge/Coverage/89e0129c6ba64fe2b1ebe983f72a4eff)](https://www.codacy.com/app/ansible-semaphore/semaphore?utm_source=github.com&utm_medium=referral&utm_content=ansible-semaphore/semaphore&utm_campaign=Badge_Coverage) -->
-
-Ansible Semaphore is a modern UI for Ansible. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
-
-If your project has grown and deploying from the terminal is no longer for you then Ansible Semaphore is what you need.
-
-Follow Semaphore on Twitter ([AnsibleSem](https://twitter.com/AnsibleSem)) and StackShare ([ansible-semaphore](https://stackshare.io/ansible-semaphore)).
+[![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
+[![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
+<!-- [![devcontainer](https://img.shields.io/badge/dev_container-gray?style=for-the-badge&logo=github)](https://codespaces.new/semaphoreui/semaphore) -->
+<!-- [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/) -->
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
+If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ansible-semaphore/semaphore,rundeck/rundeck&type=Date)](https://star-history.com/#ansible-semaphore/semaphore,rundeck/rundeck&Date)
+## Live Demo
 
-
-<!--
-![image](https://user-images.githubusercontent.com/914224/134411082-48235676-06d2-4d4b-b674-4ffe1e8d0d0d.png)
-
-![semaphore](https://user-images.githubusercontent.com/914224/125253358-c214ed80-e312-11eb-952e-d96a1eba93f6.png)
--->
+Try the latest version of Semaphore at [https://cloud.semaphoreui.com](https://cloud.semaphoreui.com).
 
 
-<!--
-- [Releases](https://github.com/ansible-semaphore/semaphore/releases)
-- [Installation](https://docs.ansible-semaphore.com/administration-guide/installation)
-- [Docker Hub](https://hub.docker.com/r/ansiblesemaphore/semaphore/)
-- [Contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md)
-- [Troubleshooting](https://github.com/ansible-semaphore/semaphore/wiki/Troubleshooting)
-- [Roadmap](https://github.com/ansible-semaphore/semaphore/projects)
-- [UI Walkthrough](https://blog.strangeman.info/ansible/2017/08/05/semaphore-ui-guide.html) (external blog)
--->
+## What is Semaphore UI?
 
-## Installation
+Semaphore UI is a modern web interface for managing popular DevOps tools.
 
-https://docs.ansible-semaphore.com/administration-guide/installation
+Semaphore UI allows you to:
+* Easily run Ansible playbooks, Terraform and OpenTofu code, as well as Bash and PowerShell scripts.
+* Receive notifications about failed tasks.
+* Control access to your deployment system.
 
-[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/semaphore)
+## Key Concepts
 
-## Demo
+1. **Projects** is a collection of related resources, configurations, and tasks. Each project allows you to organize and manage your automation efforts in one place, defining the scope of tasks such as deploying applications, running scripts, or orchestrating cloud resources. Projects help group resources, inventories, task templates, and environments for streamlined automation workflows.
+2. **Task Templates** are reusable definitions of tasks that can be executed on demand or scheduled. A template specifies what actions should be performed, such as running Ansible playbooks, Terraform configurations, or other automation tasks. By using templates, you can standardize tasks and easily re-execute them with minimal effort, ensuring consistent results across different environments.
+3. **Task** is a specific instance of a job or operation executed by Semaphore. It refers to running a predefined action (like an Ansible playbook or a script) using a task template. Tasks can be initiated manually or automatically through schedules and are tracked to give you detailed feedback on the execution, including success, failure, and logs.
+4. **Schedules** allow you to automate task execution at specified times or intervals. This feature is useful for running periodic maintenance tasks, backups, or deployments without manual intervention. You can configure recurring schedules to ensure important automation tasks are performed regularly and on time.
+5. **Inventory** is a collection of target hosts (servers, virtual machines, containers, etc.) on which tasks will be executed. The inventory includes details about the managed nodes such as IP addresses, SSH credentials, and grouping information. It allows for dynamic control over which environments and hosts your automation will interact with.
+6. **Environment** refers to a configuration context that holds sensitive information such as environment variables and secrets used by tasks during execution. It separates sensitive data from task templates and allows you to switch between different setups while running the same task template across different environments securely.
 
-You can test latest version of Semaphore on https://demo.ansible-semaphore.com.
+## Getting Started
 
-## Docs
+You can install Semaphore using the following methods:
+* Docker
+* SaaS ([Semaphore Cloud](https://cloud.semaphoreui.com))
+* Deploy a VM from a marketplace (AWS, DigitalOcean, etc.)
+* Snap
+* Binary file
+* Debian or RPM package
 
-Admin and user docs: https://docs.ansible-semaphore.com
+### Docker
 
-API docs: https://ansible-semaphore.com/api/
+The most popular way to install Semaphore is via Docker.
 
-## Contributing
+```
+docker run -p 3000:3000 --name semaphore \
+	-e SEMAPHORE_DB_DIALECT=bolt \
+	-e SEMAPHORE_ADMIN=admin \
+	-e SEMAPHORE_ADMIN_PASSWORD=changeme \
+	-e SEMAPHORE_ADMIN_NAME=Admin \
+	-e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
+	-d semaphoreui/semaphore:latest
+```
 
-PR's & UX reviews are welcome!
+We recommend using the [Container Configurator](https://semaphoreui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
 
-Please follow the [contribution](https://github.com/ansible-semaphore/semaphore/blob/develop/CONTRIBUTING.md) guide. Any questions, please open an issue.
+### SaaS
 
-## Release Signing
+We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://cloud.semaphoreui.com).
 
-All releases after 2.5.1 are signed with the gpg public key
-`8CDE D132 5E96 F1D9 EABF 17D4 2C96 CF7D D27F AB82`
+### Deploy VM from Marketplace
+
+Supported cloud providers:
+* [Semaphore Run](https://cloud.semaphore.run/servers/new/semaphore)
+* [AWS](https://aws.amazon.com/marketplace/pp/prodview-5noeat2jipwca)
+* [Yandex Cloud](https://yandex.cloud/en-ru/marketplace/products/fastlix/semaphore)
+* DigitalOcean (coming soon)
+
+### Other Installation Methods
+
+For more installation options, visit our [Installation page](https://semaphoreui.com/install).
+
+## Documentation
+
+* [User Guide](https://docs.semaphoreui.com)
+* [API Reference](https://semaphoreui.com/api-docs)
+
+## Contribution
+* [Contribution Guide](https://github.com/semaphoreui/semaphore/blob/develop/CONTRIBUTING.md)
+* [Dev Container](https://codespaces.new/semaphoreui/semaphore) (default user `admin` / `changeme`)
 
 ## License
+MIT © [Denis Gukov](https://github.com/fiftin)
 
-MIT License
-
-Copyright (c) 2016 Castaway Consulting LLC
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+[![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
+[![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 

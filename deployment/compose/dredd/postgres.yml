@@ -1,0 +1,10 @@
+version: "3.4"
+
+services:
+  dredd:
+    environment:
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_CONFIG: '{"host": "db:5432","user": "semaphore","pass": "semaphore","name": "semaphore","options": {"sslmode": "disable"}}'
+    depends_on:
+      - server
+      - db

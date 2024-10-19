@@ -1,11 +1,12 @@
 package db
 
 import (
-	"github.com/ansible-semaphore/semaphore/util"
 	"math/rand"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 func TestRepository_GetSchema(t *testing.T) {
@@ -36,5 +37,39 @@ func TestRepository_ClearCache(t *testing.T) {
 	}
 	if !os.IsNotExist(err) {
 		t.Fatal(err)
+	}
+}
+
+func TestRepository_GetGitURL(t *testing.T) {
+	for _, v := range []struct {
+		Repository     Repository
+		ExpectedGitUrl string
+	}{
+		{
+			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
+				Type: AccessKeyLoginPassword,
+				LoginPassword: LoginPassword{
+					Login:    "login",
+					Password: "password",
+				},
+			},
+			},
+			ExpectedGitUrl: "https://login:password@github.com/user/project.git",
+		},
+		{
+			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
+				Type: AccessKeyLoginPassword,
+				LoginPassword: LoginPassword{
+					Password: "password",
+				},
+			},
+			},
+			ExpectedGitUrl: "https://password@github.com/user/project.git",
+		},
+	} {
+		gitUrl := v.Repository.GetGitURL()
+		if gitUrl != v.ExpectedGitUrl {
+			t.Error("wrong gitUrl", "expected: ", v.ExpectedGitUrl, " got: ", gitUrl)
+		}
 	}
 }

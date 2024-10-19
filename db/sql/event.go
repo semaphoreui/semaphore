@@ -1,8 +1,8 @@
 package sql
 
 import (
+	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/masterminds/squirrel"
 	"time"
 )
 
@@ -30,7 +30,7 @@ func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParam
 }
 
 func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
-	var created = time.Now()
+	var created = time.Now().UTC()
 
 	_, err = d.exec(
 		"insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",
@@ -54,7 +54,7 @@ func (d *SqlDb) GetUserEvents(userID int, params db.RetrieveQueryParams) ([]db.E
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
 		LeftJoin("project as p on event.project_id=p.id").
-		OrderBy("created desc").
+		OrderBy("id desc").
 		LeftJoin("project__user as pu on pu.project_id=p.id").
 		Where("p.id IS NULL or pu.user_id=?", userID)
 
@@ -65,7 +65,7 @@ func (d *SqlDb) GetEvents(projectID int, params db.RetrieveQueryParams) ([]db.Ev
 	q := squirrel.Select("event.*, p.name as project_name").
 		From("event").
 		LeftJoin("project as p on event.project_id=p.id").
-		OrderBy("created desc").
+		OrderBy("id desc").
 		Where("event.project_id=?", projectID)
 
 	return d.getEvents(q, params)

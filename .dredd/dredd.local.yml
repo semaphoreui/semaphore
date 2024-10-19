@@ -1,8 +1,7 @@
 dry-run: null
 hookfiles: ./.dredd/compiled_hooks
 language: go
-#server: context=dev task dc:up
-server-wait: 240
+server-wait: 5
 init: false
 custom: {}
 names: false

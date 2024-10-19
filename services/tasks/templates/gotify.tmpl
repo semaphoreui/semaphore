@@ -1,0 +1,9 @@
+{
+  "extras": {
+    "client::display": {
+      "contentType": "text/markdown"
+    }
+  },
+  "message": "Execution #: {{ .Task.ID }}   \nStatus: {{ .Task.Result }}   \nAuthor: {{ .Author }}   \n{{ if .Task.Version }}Version: {{ .Task.Version }}   \n{{ end }}[Task Link]({{ .Task.URL }})",
+  "title": "Task: {{ .Name }}"
+}

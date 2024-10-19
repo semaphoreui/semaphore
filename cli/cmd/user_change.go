@@ -41,7 +41,7 @@ func applyChangeUserArgsForUser(user db.User, store db.Store) {
 
 	if err := store.UpdateUser(db.UserWithPwd{
 		User: user,
-		Pwd: targetUserArgs.password,
+		Pwd:  targetUserArgs.password,
 	}); err != nil {
 		panic(err)
 	}
@@ -66,8 +66,8 @@ var userChangeByLoginCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		store := createStore()
-		defer store.Close()
+		store := createStore("")
+		defer store.Close("")
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, "")
 
@@ -96,8 +96,8 @@ var userChangeByEmailCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		store := createStore()
-		defer store.Close()
+		store := createStore("")
+		defer store.Close("")
 
 		user, err := store.GetUserByLoginOrEmail("", targetUserArgs.email)
 		if err != nil {

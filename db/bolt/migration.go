@@ -39,6 +39,14 @@ func (d *BoltDb) ApplyMigration(m db.Migration) (err error) {
 		err = migration_2_8_28{migration{d.db}}.Apply()
 	case "2.8.40":
 		err = migration_2_8_40{migration{d.db}}.Apply()
+	case "2.8.91":
+		err = migration_2_8_91{migration{d.db}}.Apply()
+	case "2.10.12":
+		err = migration_2_10_12{migration{d.db}}.Apply()
+	case "2.10.16":
+		err = migration_2_10_16{migration{d.db}}.Apply()
+	case "2.10.24":
+		err = migration_2_10_24{migration{d.db}}.Apply()
 	}
 
 	if err != nil {
@@ -86,8 +94,10 @@ func (d migration) getProjectIDs() (projectIDs []string, err error) {
 	return
 }
 
+// getObjects returns map of following format: map[OBJECT_ID]map[FIELD_NAME]interface{}
 func (d migration) getObjects(projectID string, objectPrefix string) (map[string]map[string]interface{}, error) {
-	repos := make(map[string]map[string]interface{})
+	repos := make(map[string]map[string]interface{}) // ???
+
 	err := d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__" + objectPrefix + "_" + projectID))
 		if b == nil {
@@ -99,6 +109,7 @@ func (d migration) getObjects(projectID string, objectPrefix string) (map[string
 			return json.Unmarshal(body, &r)
 		})
 	})
+
 	return repos, err
 }
 

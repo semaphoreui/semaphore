@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
 )
 
@@ -13,8 +13,8 @@ var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Execute migrations",
 	Run: func(cmd *cobra.Command, args []string) {
-		store := createStore()
-		defer store.Close()
-		fmt.Println("\n db migrations run on startup automatically")
+		store := createStore("migrate")
+		defer store.Close("migrate")
+		util.Config.PrintDbInfo()
 	},
 }
