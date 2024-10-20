@@ -43,9 +43,16 @@ Vue.filter('formatDate', (value) => {
   const now = moment();
 
   if (now.isSame(date, 'day')) {
-    return `${date.fromNow()} (${date.format('HH:mm')})`; // Display only time if today
+    // Display only time if today
+    return `${date.fromNow()} (${date.format('HH:mm')})`;
   }
-  return date.format('L HH:mm'); // Display only date otherwise
+
+  const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  const timeOptions = { hour12: false, hour: '2-digit', minute: '2-digit' };
+  const jsDate = date.toDate();
+
+  // Display only date otherwise
+  return `${jsDate.toLocaleDateString(undefined, dateOptions)} ${jsDate.toLocaleTimeString(undefined, timeOptions)}`;
 });
 Vue.filter('formatTime', (value) => (value ? moment(String(value)).format('LTS') : '—'));
 Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
