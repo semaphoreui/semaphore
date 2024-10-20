@@ -37,17 +37,17 @@ const (
 )
 
 type SurveyVarEnumValue struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name  string `json:"name" backup:"name"`
+	Value string `json:"value" backup:"value"`
 }
 
 type SurveyVar struct {
-	Name        string               `json:"name"`
-	Title       string               `json:"title"`
-	Required    bool                 `json:"required"`
-	Type        SurveyVarType        `json:"type"`
-	Description string               `json:"description"`
-	Values      []SurveyVarEnumValue `json:"values"`
+	Name        string               `json:"name" backup:"name"`
+	Title       string               `json:"title" backup:"title"`
+	Required    bool                 `json:"required" backup:"required"`
+	Type        SurveyVarType        `json:"type" backup:"type"`
+	Description string               `json:"description" backup:"description"`
+	Values      []SurveyVarEnumValue `json:"values" backup:"values"`
 }
 
 type TemplateFilter struct {
@@ -94,8 +94,8 @@ type Template struct {
 	// SurveyVarsJSON used internally for read from database.
 	// It is not used for store survey vars to database.
 	// Do not use it in your code. Use SurveyVars instead.
-	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
-	SurveyVars     []SurveyVar `db:"-" json:"survey_vars" backup:"-"`
+	SurveyVarsJSON *string     `db:"survey_vars" json:"-" backup:"-"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars" backup:"survey_vars"`
 
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
 

@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/ansible-semaphore/semaphore/db"
@@ -228,7 +229,10 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 			}
 		}
 
-		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+		if tpl.SurveyVarsJSON != nil {
+			err = json.Unmarshal([]byte(*tpl.SurveyVarsJSON), &tpl.SurveyVars)
+		}
+
 		if err != nil {
 			return
 		}
