@@ -137,6 +137,8 @@ type ConfigType struct {
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
+	GitCacheTime int `json:"git_cache_time" default:"0" env:"SEMAPHORE_GIT_CACHE_TIME"`
+
 	// web host
 	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`
 
@@ -190,6 +192,9 @@ type ConfigType struct {
 
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+
+	TaskFreeConcurrencyMode bool `json:"task_free_concurrency_mode" env:"SEMAPHORE_TASK_FREE_CONCURRENCY_MODE"`
+	TaskPoolTickerSec       int  `json:"task_pool_ticker_sec" default:"5" env:"SEMAPHORE_TASK_POOL_TICKER_SEC"`
 
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
