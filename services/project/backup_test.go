@@ -1,10 +1,11 @@
 package project
 
 import (
+	"testing"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/db/bolt"
 	"github.com/ansible-semaphore/semaphore/util"
-	"testing"
 )
 
 type testItem struct {
@@ -87,7 +88,7 @@ func TestBackupProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if str != `{"environments":[{"json":"{\"author\": \"Denis\", \"comment\": \"Hello, World!\"}","name":"test"}],"integration_aliases":[],"integrations":[],"inventories":[{"inventory":"","name":"","type":""}],"keys":[{"name":"","type":"none"}],"meta":{"alert":false,"max_parallel_tasks":0,"name":"Test 123","type":""},"repositories":[{"git_branch":"master","git_url":"git@example.com:test/test","name":"Test","ssh_key":""}],"templates":[{"allow_override_args_in_task":false,"app":"","autorun":false,"environment":"test","inventory":"","name":"Test","playbook":"test.yml","repository":"Test","suppress_success_alerts":false,"type":"","vaults":[]}],"views":[]}` {
+	if str != "{\"environments\":[{\"json\":\"{\\\"author\\\": \\\"Denis\\\", \\\"comment\\\": \\\"Hello, World!\\\"}\",\"name\":\"test\"}],\"integration_aliases\":[],\"integrations\":[],\"inventories\":[{\"inventory\":\"\",\"name\":\"\",\"type\":\"\"}],\"keys\":[{\"name\":\"\",\"type\":\"none\"}],\"meta\":{\"alert\":false,\"max_parallel_tasks\":0,\"name\":\"Test 123\",\"type\":\"\"},\"repositories\":[{\"git_branch\":\"master\",\"git_url\":\"git@example.com:test/test\",\"name\":\"Test\",\"ssh_key\":\"\"}],\"templates\":[{\"allow_override_args_in_task\":false,\"app\":\"\",\"autorun\":false,\"environment\":\"test\",\"inventory\":\"\",\"name\":\"Test\",\"playbook\":\"test.yml\",\"repository\":\"Test\",\"suppress_success_alerts\":false,\"survey_vars\":[],\"type\":\"\",\"vaults\":[]}],\"views\":[]}" {
 		t.Fatal("Invalid backup content")
 	}
 
