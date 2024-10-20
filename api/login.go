@@ -423,7 +423,8 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 	state := generateStateOauthCookie(w)
@@ -570,14 +571,16 @@ func getSecretFromFile(source string) (string, error) {
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	oauthState, err := r.Cookie("oauthstate")
+	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	if r.FormValue("state") != oauthState.Value {
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -586,14 +589,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -604,7 +607,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -643,7 +646,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -658,14 +661,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 		if err != nil {
 			log.Error(err.Error())
-			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 			return
 		}
 	}
 
 	if !user.External {
 		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -673,5 +676,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	redirectPath := mux.Vars(r)["redirect_path"]
 
-	http.Redirect(w, r, "/"+redirectPath, http.StatusTemporaryRedirect)
+	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
+	if err != nil {
+		log.Error(err)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	http.Redirect(w, r, redirectPath, http.StatusTemporaryRedirect)
 }

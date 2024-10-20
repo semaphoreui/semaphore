@@ -242,7 +242,7 @@ export default {
     },
 
     async oidcSignIn(provider) {
-      document.location = `/api/auth/oidc/${provider}/login${window.location.search}`;
+      document.location = `${document.baseURI}api/auth/oidc/${provider}/login`;
     },
   },
 };
