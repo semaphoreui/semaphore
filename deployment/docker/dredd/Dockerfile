@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/go/pkg --mount=type=cache,target=/root/.cache/go-
     task e2e:goodman && \
     task e2e:hooks
 
-FROM apiaryio/dredd:13.0.0
+FROM apiaryio/dredd:13.1.2
 
 RUN apk add --no-cache -U \
     bash git go
