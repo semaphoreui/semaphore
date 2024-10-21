@@ -2,7 +2,7 @@
   <div v-if="tasks != null">
     <EditDialog
         v-model="newTaskDialog"
-        :save-button-text="$t('re', {getActionButtonTitle: getActionButtonTitle()})"
+        :save-button-text="$t('Re' + getActionButtonTitle())"
         @save="onTaskCreated"
     >
       <template v-slot:title={}>
@@ -81,7 +81,7 @@
       <template v-slot:item.actions="{ item }">
         <v-btn text class="pl-1 pr-2" @click="createTask(item)">
           <v-icon class="pr-1">mdi-replay</v-icon>
-          Re{{ getActionButtonTitle() }}
+          {{ getActionButtonTitle() }}
         </v-btn>
       </template>
     </v-data-table>
@@ -175,7 +175,7 @@ export default {
       })).data;
     },
     getActionButtonTitle() {
-      return this.$i18n.t(TEMPLATE_TYPE_ACTION_TITLES[this.template.type]);
+      return this.$i18n.t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
     },
 
     onTaskCreated(e) {

@@ -24,7 +24,7 @@
       :label="$t('username')"
       :rules="[v => !!v || $t('user_name_required')]"
       required
-      :disabled="item.external || formSaving"
+      :disabled="formSaving"
     ></v-text-field>
 
     <v-text-field

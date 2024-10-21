@@ -47,7 +47,9 @@ func Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := backup.Unmarshal(buf.String()); err != nil {
+	str := buf.String()
+
+	if err := backup.Unmarshal(str); err != nil {
 		log.Error(err)
 		helpers.WriteError(w, err)
 		return

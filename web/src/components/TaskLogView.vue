@@ -57,6 +57,7 @@
         </v-col>
       </v-row>
     </v-container>
+
     <div class="task-log-records" ref="output">
       <div class="task-log-records__record" v-for="record in output" :key="record.id">
         <div class="task-log-records__time">

@@ -42,7 +42,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           text
           @click="close()"
         >
-          {{ $t('cancel') }}
+          {{ cancelButtonText || $t('cancel') }}
         </v-btn>
 
         <v-btn
@@ -74,13 +74,14 @@ export default {
     title: String,
     icon: String,
     iconColor: String,
-    saveButtonText: String,
     value: Boolean,
     maxWidth: Number,
     minContentHeight: Number,
     eventName: String,
     hideButtons: Boolean,
     dontCloseOnSave: Boolean,
+    cancelButtonText: String,
+    saveButtonText: String,
   },
 
   data() {

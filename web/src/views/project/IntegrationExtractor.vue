@@ -16,12 +16,12 @@
       </div>
 
       <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
-        {{ aliases == null ? 'Loading aliases...' : 'Add Alias' }}
+        {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
       </v-btn>
 
       <v-checkbox
         v-model="integration.searchable"
-        label="Available by project and global alias"
+        :label="$t('globalAlias')"
         @change="updateIntegration()"
       />
     </div>

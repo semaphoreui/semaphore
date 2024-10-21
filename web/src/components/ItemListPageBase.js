@@ -104,6 +104,8 @@ export default {
     },
 
     async deleteItem(itemId) {
+      this.itemId = itemId;
+
       try {
         const item = this.items.find((x) => x.id === itemId);
 

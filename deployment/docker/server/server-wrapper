@@ -80,22 +80,40 @@ case "$SEMAPHORE_DB_HOST" in
   *)
 esac
 
+if [ -z "${SEMAPHORE_DB_PORT}" ]; then
+    case ${SEMAPHORE_DB_DIALECT} in
+        mysql)
+            SEMAPHORE_DB_PORT=3306
+            ;;
+        postgres)
+            SEMAPHORE_DB_PORT=5432
+            ;;
+        bolt)
+            ;;
+        *)
+            echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
+            exit 1
+            ;;
+    esac
+fi
+
 # Ping database if it is not BoltDB
 if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
-  echoerr "Attempting to connect to database ${SEMAPHORE_DB} on ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT} with user ${SEMAPHORE_DB_USER} ..."
-  TIMEOUT=30
+    echoerr "Attempting to connect to database ${SEMAPHORE_DB} on ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT} with user ${SEMAPHORE_DB_USER} ..."
+    TIMEOUT=30
 
-  while ! $(nc -z "$SEMAPHORE_DB_HOST" "$SEMAPHORE_DB_PORT") >/dev/null 2>&1; do
-      TIMEOUT=$(expr $TIMEOUT - 1)
 
-      if [ $TIMEOUT -eq 0 ]; then
-          echoerr "Could not connect to database server. Exiting."
-          exit 1
-      fi
+    while ! $(nc -z "$SEMAPHORE_DB_HOST" "$SEMAPHORE_DB_PORT") >/dev/null 2>&1; do
+        TIMEOUT=$(expr $TIMEOUT - 1)
 
-      echo -n "."
-      sleep 1
-  done
+        if [ $TIMEOUT -eq 0 ]; then
+            echoerr "Could not connect to database server. Exiting."
+            exit 1
+        fi
+
+        echo -n "."
+        sleep 1
+    done
 fi
 
 if [ -n "${SEMAPHORE_DB_PORT}" ]; then
@@ -131,7 +149,7 @@ ${SEMAPHORE_DB_HOST}
 EOF
     else
         cat << EOF >> "${SEMAPHORE_TMP_PATH}/config.stdin"
-${SEMAPHORE_DB_HOST}
+${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}
 ${SEMAPHORE_DB_USER}
 ${SEMAPHORE_DB_PASS}
 ${SEMAPHORE_DB}

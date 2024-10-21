@@ -1,7 +1,9 @@
 package bolt
 
 import (
+	"encoding/json"
 	"errors"
+
 	"github.com/ansible-semaphore/semaphore/db"
 	"go.etcd.io/bbolt"
 )
@@ -67,7 +69,15 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	templatesMap := make(map[int]*db.Template)
 
 	for i := 0; i < len(templates); i++ {
-		templates[i].Vaults, err = d.GetTemplateVaults(projectID, templates[i].ID)
+
+		if templates[i].SurveyVarsJSON != nil {
+			err = json.Unmarshal([]byte(*templates[i].SurveyVarsJSON), &templates[i].SurveyVars)
+		}
+
+		if err != nil {
+			return
+		}
+
 		templatesMap[templates[i].ID] = &templates[i]
 	}
 

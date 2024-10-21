@@ -11,7 +11,7 @@ func init() {
 }
 
 func runRunner() {
-	util.ConfigInit(configPath, noConfig)
+	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	taskPool := runners.JobPool{}
 

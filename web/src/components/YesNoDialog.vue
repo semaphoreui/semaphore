@@ -1,22 +1,25 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <v-dialog
     v-model="dialog"
-    max-width="290"
+    :max-width="maxWidth || 290"
   >
     <v-card>
       <v-card-title class="headline">{{ title }}</v-card-title>
 
-      <v-card-text>{{ text }}</v-card-text>
+      <v-card-text>
+        <slot>{{ text }}</slot>
+      </v-card-text>
 
       <v-card-actions>
         <v-spacer></v-spacer>
 
         <v-btn
+          v-if="!hideNoButton"
           color="blue darken-1"
           text
           @click="no()"
         >
-          {{ noButtonTitle || 'Cancel' }}
+          {{ noButtonTitle || $t('cancel') }}
         </v-btn>
 
         <v-btn
@@ -24,7 +27,7 @@
           text
           @click="yes()"
         >
-          {{ yesButtonTitle || 'Yes' }}
+          {{ yesButtonTitle || $t('yes') }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -39,6 +42,8 @@ export default {
     text: String,
     yesButtonTitle: String,
     noButtonTitle: String,
+    hideNoButton: Boolean,
+    maxWidth: Number,
   },
 
   data() {

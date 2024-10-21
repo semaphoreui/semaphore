@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/ansible-semaphore/semaphore/cli/setup"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/spf13/cobra"
@@ -21,12 +22,11 @@ var runnerSetupCmd = &cobra.Command{
 
 // nolint: gocyclo
 func doRunnerSetup() int {
-	var config *util.ConfigType
-	config = &util.ConfigType{}
+	config := &util.ConfigType{}
 
 	setup.InteractiveRunnerSetup(config)
 
-	resultConfigPath := setup.SaveConfig(config, "config-runner.json", configPath)
+	resultConfigPath := setup.SaveConfig(config, "config-runner.json", persistentFlags.configPath)
 
 	util.ConfigInit(resultConfigPath, false)
 

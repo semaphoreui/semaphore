@@ -13,16 +13,24 @@ type BackupDB struct {
 	inventories  []db.Inventory
 	environments []db.Environment
 	schedules    []db.Schedule
+
+	integrationProjAliases   []db.IntegrationAlias
+	integrations             []db.Integration
+	integrationAliases       map[int][]db.IntegrationAlias
+	integrationMatchers      map[int][]db.IntegrationMatcher
+	integrationExtractValues map[int][]db.IntegrationExtractValue
 }
 
 type BackupFormat struct {
-	Meta         BackupMeta          `backup:"meta"`
-	Templates    []BackupTemplate    `backup:"templates"`
-	Repositories []BackupRepository  `backup:"repositories"`
-	Keys         []BackupAccessKey   `backup:"keys"`
-	Views        []BackupView        `backup:"views"`
-	Inventories  []BackupInventory   `backup:"inventories"`
-	Environments []BackupEnvironment `backup:"environments"`
+	Meta               BackupMeta          `backup:"meta"`
+	Templates          []BackupTemplate    `backup:"templates"`
+	Repositories       []BackupRepository  `backup:"repositories"`
+	Keys               []BackupAccessKey   `backup:"keys"`
+	Views              []BackupView        `backup:"views"`
+	Inventories        []BackupInventory   `backup:"inventories"`
+	Environments       []BackupEnvironment `backup:"environments"`
+	Integration        []BackupIntegration `backup:"integrations"`
+	IntegrationAliases []string            `backup:"integration_aliases"`
 }
 
 type BackupMeta struct {
@@ -70,6 +78,15 @@ type BackupTemplate struct {
 type BackupTemplateVault struct {
 	db.TemplateVault
 	VaultKey string `backup:"vault_key"`
+}
+
+type BackupIntegration struct {
+	db.Integration
+	Aliases       []string                     `backup:"aliases"`
+	Matchers      []db.IntegrationMatcher      `backup:"matchers"`
+	ExtractValues []db.IntegrationExtractValue `backup:"extract_values"`
+	Template      string                       `backup:"template"`
+	AuthSecret    *string                      `backup:"auth_secret"`
 }
 
 type BackupEntry interface {

@@ -3,5 +3,6 @@
   "features": {
     "ghcr.io/devcontainers/features/go:1": {},
     "ghcr.io/devcontainers/features/node:1": {}
-  }
+  },
+  "postCreateCommand": "./.devcontainer/postCreateCommand.sh"
 }

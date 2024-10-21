@@ -15,6 +15,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/api/helpers"
 	"github.com/ansible-semaphore/semaphore/api/projects"
 	"github.com/ansible-semaphore/semaphore/api/sockets"
+	"github.com/ansible-semaphore/semaphore/api/tasks"
 	"github.com/ansible-semaphore/semaphore/db"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/mux"
@@ -146,6 +147,12 @@ func Route() *mux.Router {
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
+
+	adminAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
+	tasksAPI := adminAPI.PathPrefix("/tasks").Subrouter()
+	tasksAPI.Use(tasks.TaskMiddleware)
+	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
+	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)

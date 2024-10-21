@@ -183,14 +183,6 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("view does not exist in views[].name")
 	}
 
-	if string(e.Type) == "deploy" && e.BuildTemplate == nil {
-		return fmt.Errorf("type is deploy but build_template is null")
-	}
-
-	if string(e.Type) != "deploy" && e.BuildTemplate != nil {
-		return fmt.Errorf("type is not deploy but build_template is not null")
-	}
-
 	if buildTemplate := getEntryByName[BackupTemplate](e.BuildTemplate, backup.Templates); string(e.Type) == "deploy" && buildTemplate == nil {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
@@ -274,6 +266,7 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 			return err
 		}
 	}
+
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
 			var VaultKeyID int
@@ -294,6 +287,55 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (e BackupIntegration) Restore(store db.Store, b *BackupDB) error {
+	var authSecretID *int
+
+	if e.AuthSecret == nil {
+		authSecretID = nil
+	} else if k := findEntityByName[db.AccessKey](e.AuthSecret, b.keys); k == nil {
+		authSecretID = nil
+	} else {
+		authSecretID = &((*k).ID)
+	}
+
+	tpl := findEntityByName[db.Template](&e.Template, b.templates)
+	if tpl == nil {
+		return fmt.Errorf("template does not exist in templates[].name")
+	}
+
+	integration := e.Integration
+	integration.ProjectID = b.meta.ID
+	integration.AuthSecretID = authSecretID
+	integration.TemplateID = tpl.ID
+
+	newIntegration, err := store.CreateIntegration(integration)
+	if err != nil {
+		return err
+	}
+	b.integrations = append(b.integrations, newIntegration)
+
+	for _, m := range e.Matchers {
+		m.IntegrationID = newIntegration.ID
+		_, _ = store.CreateIntegrationMatcher(b.meta.ID, m)
+	}
+
+	for _, v := range e.ExtractValues {
+		v.IntegrationID = newIntegration.ID
+		_, _ = store.CreateIntegrationExtractValue(b.meta.ID, v)
+	}
+
+	for _, a := range e.Aliases {
+		alias := db.IntegrationAlias{
+			Alias:         a,
+			ProjectID:     b.meta.ID,
+			IntegrationID: &newIntegration.ID,
+		}
+		_, _ = store.CreateIntegrationAlias(alias)
+	}
+
 	return nil
 }
 
@@ -397,6 +439,20 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 		if err := o.Restore(store, &b); err != nil {
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
+	}
+
+	for i, o := range backup.Integration {
+		if err := o.Restore(store, &b); err != nil {
+			return nil, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+		}
+	}
+
+	for _, o := range backup.IntegrationAliases {
+		alias := db.IntegrationAlias{
+			Alias:     o,
+			ProjectID: b.meta.ID,
+		}
+		_, _ = store.CreateIntegrationAlias(alias)
 	}
 
 	return &newProject, nil

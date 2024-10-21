@@ -49,8 +49,7 @@
       <div v-for="alias of (aliases || [])" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
         <v-btn icon
-               @click="copyToClipboard(
-                 alias.url, 'The alias URL  has been copied to the clipboard.')">
+               @click="copyToClipboard(alias.url, $t('aliasUrlCopied'))">
           <v-icon>mdi-content-copy</v-icon>
         </v-btn>
         <v-btn icon @click="deleteAlias(alias.id)">
@@ -137,19 +136,19 @@ export default {
     },
     getHeaders() {
       return [{
-        text: 'Name',
+        text: this.$i18n.t('name'),
         value: 'name',
         width: '33.33%',
         sortable: true,
       },
       {
-        text: 'Template',
+        text: this.$i18n.t('template'),
         value: 'template_id',
         width: '33.33%',
         sortable: true,
       },
       {
-        text: 'Actions',
+        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

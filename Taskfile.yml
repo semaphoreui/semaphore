@@ -160,6 +160,11 @@ tasks:
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml
 
+  e2e:test:local:
+    desc: Run end to end test for API with dredd
+    cmds:
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.local.yml
+
   release:prod:
     desc: Create and publish a release
     cmds:

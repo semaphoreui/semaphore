@@ -28,8 +28,8 @@ type resourceLock struct {
 }
 
 type TaskPool struct {
-	// queue contains list of tasks in status TaskWaitingStatus.
-	queue []*TaskRunner
+	// Queue contains list of tasks in status TaskWaitingStatus.
+	Queue []*TaskRunner
 
 	// register channel used to put tasks to queue.
 	register chan *TaskRunner
@@ -37,8 +37,8 @@ type TaskPool struct {
 	// activeProj ???
 	activeProj map[int]map[int]*TaskRunner
 
-	// runningTasks contains tasks with status TaskRunningStatus. Map key is a task ID.
-	runningTasks map[int]*TaskRunner
+	// RunningTasks contains tasks with status TaskRunningStatus. Map key is a task ID.
+	RunningTasks map[int]*TaskRunner
 
 	// logger channel used to putting log records to database.
 	logger chan logRecord
@@ -51,7 +51,7 @@ type TaskPool struct {
 var ErrInvalidSubscription = errors.New("has no active subscription")
 
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
-	for _, task := range p.runningTasks {
+	for _, task := range p.RunningTasks {
 		if task.RunnerID == runnerID {
 			res++
 		}
@@ -60,7 +60,7 @@ func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 }
 
 func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
-	for _, task := range p.runningTasks {
+	for _, task := range p.RunningTasks {
 		res = append(res, task)
 	}
 	return
@@ -68,7 +68,7 @@ func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
 
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 
-	for _, t := range p.queue {
+	for _, t := range p.Queue {
 		if t.Task.ID == id {
 			task = t
 			break
@@ -76,7 +76,7 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 	}
 
 	if task == nil {
-		for _, t := range p.runningTasks {
+		for _, t := range p.RunningTasks {
 			if t.Task.ID == id {
 				task = t
 				break
@@ -112,7 +112,7 @@ func (p *TaskPool) Run() {
 					p.activeProj[t.Task.ProjectID] = projTasks
 				}
 				projTasks[t.Task.ID] = t
-				p.runningTasks[t.Task.ID] = t
+				p.RunningTasks[t.Task.ID] = t
 				continue
 			}
 
@@ -123,7 +123,7 @@ func (p *TaskPool) Run() {
 				}
 			}
 
-			delete(p.runningTasks, t.Task.ID)
+			delete(p.RunningTasks, t.Task.ID)
 		}
 	}(p.resourceLocker)
 
@@ -144,7 +144,7 @@ func (p *TaskPool) Run() {
 		case task := <-p.register: // new task created by API or schedule
 
 			db.StoreSession(p.store, "new task", func() {
-				p.queue = append(p.queue, task)
+				p.Queue = append(p.Queue, task)
 				log.Debug(task)
 				msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
 				task.Log(msg)
@@ -153,22 +153,22 @@ func (p *TaskPool) Run() {
 			})
 
 		case <-ticker.C: // timer 5 seconds
-			if len(p.queue) == 0 {
+			if len(p.Queue) == 0 {
 				break
 			}
 
 			//get TaskRunner from top of queue
-			t := p.queue[0]
+			t := p.Queue[0]
 			if t.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
-				p.queue = p.queue[1:]
+				p.Queue = p.Queue[1:]
 				log.Info("Task " + strconv.Itoa(t.Task.ID) + " removed from queue")
 				break
 			}
 
 			if p.blocks(t) {
 				//move blocked TaskRunner to end of queue
-				p.queue = append(p.queue[1:], t)
+				p.Queue = append(p.Queue[1:], t)
 				break
 			}
 
@@ -177,7 +177,7 @@ func (p *TaskPool) Run() {
 
 			go t.run()
 
-			p.queue = p.queue[1:]
+			p.Queue = p.Queue[1:]
 			log.Info("Task " + strconv.Itoa(t.Task.ID) + " removed from queue")
 		}
 	}
@@ -185,7 +185,7 @@ func (p *TaskPool) Run() {
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
 
-	if util.Config.MaxParallelTasks > 0 && len(p.runningTasks) >= util.Config.MaxParallelTasks {
+	if util.Config.MaxParallelTasks > 0 && len(p.RunningTasks) >= util.Config.MaxParallelTasks {
 		return true
 	}
 
@@ -214,10 +214,10 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 
 func CreateTaskPool(store db.Store) TaskPool {
 	return TaskPool{
-		queue:          make([]*TaskRunner, 0), // queue of waiting tasks
+		Queue:          make([]*TaskRunner, 0), // queue of waiting tasks
 		register:       make(chan *TaskRunner), // add TaskRunner to queue
 		activeProj:     make(map[int]map[int]*TaskRunner),
-		runningTasks:   make(map[int]*TaskRunner),   // working tasks
+		RunningTasks:   make(map[int]*TaskRunner),   // working tasks
 		logger:         make(chan logRecord, 10000), // store log records to database
 		store:          store,
 		resourceLocker: make(chan *resourceLock),
