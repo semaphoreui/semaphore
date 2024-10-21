@@ -137,7 +137,7 @@ func (t *AnsibleApp) installRolesRequirements() (err error) {
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"))
 	return
 }
 
@@ -146,7 +146,7 @@ func (t *AnsibleApp) installCollectionsRequirements() (err error) {
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"))
 	return
 }
 
