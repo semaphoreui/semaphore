@@ -39,16 +39,13 @@
             }
         }, 
         {
-            "name": "Launch E2E Tests",
-            "type": "go",
+            "name": "Launch E2E Tests without Server",
+            "type": "pwa-node",
             "request": "launch",
-            "mode": "auto",
-            "program": "./cli/main.go",
-            "args": ["runner", "start", "--config", "${workspaceFolder}/.devcontainer/config-runner.json", "--log-level", "debug"],
+            "runtimeExecutable": "task",
+            "args": ["e2e:test:local"],
             "cwd": "${workspaceFolder}",
-            "env": {
-                "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
-            }
+            "console": "integratedTerminal",
         }
     ]
 }
