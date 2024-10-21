@@ -72,7 +72,7 @@
     <EditDialog
       v-model="taskLogDialog"
       save-button-text="Delete"
-      :max-width="90%"
+      :max-width="'90%'"
       :hide-buttons="true"
       @close="onTaskLogDialogClosed()"
     >
