@@ -10,7 +10,8 @@
             "args": ["server", "--config", "${workspaceFolder}/.devcontainer/config.json"],
             "cwd": "${workspaceFolder}",
             "env": {
-                "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+                "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
+                "SEMAPHORE_ADMIN_PASSWORD": "test123"
             }
         }, 
         {

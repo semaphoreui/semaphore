@@ -2,13 +2,14 @@ package db_lib
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/ansible-semaphore/semaphore/util"
 )
 
 type ShellApp struct {
@@ -44,7 +45,7 @@ func (t *ShellApp) makeCmd(command string, args []string, environmentVars *[]str
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
-	cmd.Env = removeSensitiveEnvs(os.Environ())
+	cmd.Env = []string{}
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
