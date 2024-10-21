@@ -37,6 +37,18 @@
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
             }
+        }, 
+        {
+            "name": "Launch E2E Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "./cli/main.go",
+            "args": ["runner", "start", "--config", "${workspaceFolder}/.devcontainer/config-runner.json", "--log-level", "debug"],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+            }
         }
     ]
 }
