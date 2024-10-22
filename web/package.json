@@ -48,7 +48,7 @@
     "plugin-error": "^2.0.1",
     "sass": "~1.32.12",
     "sass-loader": "^13.0.0",
-    "stylus": "^0.54.8",
+    "stylus": "^0.64.0",
     "stylus-loader": "^3.0.2",
     "through2": "^4.0.2",
     "vue-cli-plugin-vuetify": "~2.0.7",
