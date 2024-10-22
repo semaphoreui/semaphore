@@ -77,14 +77,6 @@
       v-if="item.type === 'ssh'"
     />
 
-    <v-text-field
-      v-model="item.client_script.script"
-      :label="$t('clientScript')"
-      v-if="item.type === 'client_script'"
-      :required="canEditSecrets"
-      :disabled="formSaving || !canEditSecrets"
-    />
-
     <v-checkbox
         v-model="item.override_secret"
         :label="$t('override')"
@@ -117,9 +109,6 @@ export default {
         id: 'login_password',
         name: `${this.$t('keyFormLoginPassword')}`,
       }, {
-        id: 'client_script',
-        name: `${this.$t('keyFormClientScript')}`,
-      }, {
         id: 'none',
         name: `${this.$t('keyFormNone')}`,
       }],
@@ -137,7 +126,6 @@ export default {
       return {
         ssh: {},
         login_password: {},
-        client_script: {},
       };
     },
 

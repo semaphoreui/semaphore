@@ -27,7 +27,19 @@
             />
 
             <v-select
+              v-model="editedVault.type"
+              :label="$t('type')"
+              :items="vaultTypes"
+              item-value="id"
+              item-text="name"
+              required
+              :rules="[v => !!v  || $t('type_required')]"
+              @change="updateType"
+            />
+
+            <v-select
               v-model="editedVault.vault_key_id"
+              v-if="editedVault.type === 'password'"
               :label="$t('vaultPassword2')"
               :items="vaultKeys"
               item-value="id"
@@ -35,6 +47,13 @@
               required
               :rules="[(v) => !!v || $t('vaultRequired')]"
             ></v-select>
+
+            <v-text-field
+              v-model="editedVault.script"
+              v-if="editedVault.type === 'script'"
+              :label="$t('vaultScript')"
+              :rules="[v => this.vaultScriptRules(v)]"
+            />
 
           </v-form>
         </v-card-text>
@@ -119,6 +138,13 @@ export default {
       modifiedVaults: null,
       formError: null,
       keys: null,
+      vaultTypes: [{
+        id: 'password',
+        name: `${this.$t('vaultTypePassword')}`,
+      }, {
+        id: 'script',
+        name: `${this.$t('vaultTypeScript')}`,
+      }],
     };
   },
 
@@ -127,7 +153,7 @@ export default {
       if (this.keys == null) {
         return null;
       }
-      return this.keys.filter((key) => ['login_password', 'client_script'].includes(key.type));
+      return this.keys.filter((key) => ['login_password'].includes(key.type));
     },
   },
 
@@ -147,10 +173,30 @@ export default {
       return true;
     },
 
+    vaultScriptRules(v) {
+      if (v == null || v === '') {
+        return this.$t('vaultScriptRequired');
+      }
+      if (v.match(/-client(\..*)?$/i) === null) {
+        return this.$t('vaultScriptClientRequired');
+      }
+      return true;
+    },
+
+    updateType() {
+      if (this.editedVault.type === 'password') {
+        this.editedVault.script = null;
+      } else {
+        this.editedVault.vault_key_id = null;
+      }
+    },
+
     editVault(index) {
       this.editedVault = index != null ? { ...this.modifiedVaults[index] } : {
         name: null,
         vault_key_id: null,
+        type: 'password',
+        script: null,
       };
       this.editedVaultIndex = index;
 

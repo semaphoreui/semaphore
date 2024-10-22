@@ -50,6 +50,14 @@ func (d *BoltDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db
 		for _, vault := range vaults {
 			vault.ProjectID = projectID
 			vault.TemplateID = templateID
+
+			switch vault.Type {
+			case "password":
+				vault.Script = nil
+			case "script":
+				vault.VaultKeyID = nil
+			}
+
 			_, err = d.createObjectTx(tx, projectID, db.TemplateVaultProps, vault)
 			if err != nil {
 				return err

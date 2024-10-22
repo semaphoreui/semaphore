@@ -13,7 +13,6 @@ import (
 	"github.com/ansible-semaphore/semaphore/util"
 	"io"
 	"path"
-	"strings"
 )
 
 type AccessKeyType string
@@ -23,7 +22,6 @@ const (
 	AccessKeyNone          AccessKeyType = "none"
 	AccessKeyLoginPassword AccessKeyType = "login_password"
 	AccessKeyString        AccessKeyType = "string"
-	AccessKeyClientScript  AccessKeyType = "client_script"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -43,7 +41,6 @@ type AccessKey struct {
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
-	ClientScript   ClientScript  `db:"-" json:"client_script"`
 
 	// EnvironmentID is an ID of environment which owns the access key.
 	EnvironmentID *int `db:"environment_id" json:"-" backup:"-"`
@@ -63,10 +60,6 @@ type SshKey struct {
 	Login      string `json:"login"`
 	Passphrase string `json:"passphrase"`
 	PrivateKey string `json:"private_key"`
-}
-
-type ClientScript struct {
-	Script string `json:"script"`
 }
 
 type AccessKeyRole int
@@ -132,8 +125,6 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (i
 		switch key.Type {
 		case AccessKeyLoginPassword:
 			installation.Password = key.LoginPassword.Password
-		case AccessKeyClientScript:
-			installation.Script = key.ClientScript.Script
 		default:
 			err = fmt.Errorf("access key type not supported for ansible password vault")
 		}
@@ -179,14 +170,6 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 		if key.LoginPassword.Password == "" {
 			return fmt.Errorf("password can not be empty")
 		}
-	case AccessKeyClientScript:
-		if key.ClientScript.Script == "" {
-			return fmt.Errorf("script can not be empty")
-		}
-		// Script must end with -client excluding extension
-		if !strings.HasSuffix(strings.TrimSuffix(key.ClientScript.Script, path.Ext(key.ClientScript.Script)), "-client") {
-			return fmt.Errorf("script must end with `-client`")
-		}
 	}
 
 	return nil
@@ -226,11 +209,6 @@ func (key *AccessKey) SerializeSecret() error {
 		}
 
 		plaintext, err = json.Marshal(key.LoginPassword)
-		if err != nil {
-			return err
-		}
-	case AccessKeyClientScript:
-		plaintext, err = json.Marshal(key.ClientScript)
 		if err != nil {
 			return err
 		}
@@ -291,12 +269,6 @@ func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
 		err = json.Unmarshal(secret, &loginPass)
 		if err == nil {
 			key.LoginPassword = loginPass
-		}
-	case AccessKeyClientScript:
-		clientScript := ClientScript{}
-		err = json.Unmarshal(secret, &clientScript)
-		if err == nil {
-			key.ClientScript = clientScript
 		}
 	}
 	return

@@ -336,7 +336,7 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none, ssh, login_password, client_script]
+        enum: [none, ssh, login_password]
         x-example: none
       project_id:
         type: integer
@@ -364,13 +364,6 @@ definitions:
             type: string
             x-example: private key
             example: private key
-      client_script:
-        type: object
-        properties:
-          script:
-            type: string
-            x-example: script-client.sh
-            example: script-client.sh
 
   AccessKey:
     type: object
@@ -382,7 +375,7 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none, ssh, login_password, client_script]
+        enum: [none, ssh, login_password]
       project_id:
         type: integer
       login_password:
@@ -407,13 +400,6 @@ definitions:
             type: string
             x-example: private key
             example: private key
-      client_script:
-        type: object
-        properties:
-          script:
-            type: string
-            x-example: script-client.sh
-            example: script-client.sh
 
   EnvironmentRequest:
     type: object
@@ -796,12 +782,21 @@ definitions:
   TemplateVault:
     type: object
     properties:
-      vault_key_id:
-        type: integer
-        minimum: 1
       name:
         type: string
         example: default
+      type:
+        type: string
+        enum: [password, script]
+        example: script
+      vault_key_id:
+        type:
+          - integer
+          - 'null'
+      script:
+        type:
+          - string
+          - 'null'
 
   ScheduleRequest:
     type: object
@@ -1674,7 +1669,7 @@ paths:
           in: query
           required: false
           type: string
-          enum: [none, ssh, login_password, client_script]
+          enum: [none, ssh, login_password]
           description: Filter by key type
           x-example: none
         - name: sort

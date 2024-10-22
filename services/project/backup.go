@@ -250,10 +250,12 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		var vaults []BackupTemplateVault = nil
 		for _, vault := range o.Vaults {
 			var vaultKey *string = nil
-			vaultKey, _ = findNameByID[db.AccessKey](vault.VaultKeyID, b.keys)
+			if vault.VaultKeyID != nil {
+				vaultKey, _ = findNameByID[db.AccessKey](*vault.VaultKeyID, b.keys)
+			}
 			vaults = append(vaults, BackupTemplateVault{
 				TemplateVault: vault,
-				VaultKey:      *vaultKey,
+				VaultKey:      vaultKey,
 			})
 
 		}
