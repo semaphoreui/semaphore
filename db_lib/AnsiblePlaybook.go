@@ -22,8 +22,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = p.GetFullPath()
 
-	cmd.Env = []string{}
-
+	cmd.Env = getEnvironmentVars()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")

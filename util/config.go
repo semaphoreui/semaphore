@@ -204,6 +204,8 @@ type ConfigType struct {
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
+
+	EnvironmentVars map[string]string `json:"environment_vars,omitempty" env:"SEMAPHORE_ENVIRONMENT_VARS"`
 }
 
 func NewConfigType() *ConfigType {
