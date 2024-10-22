@@ -2,6 +2,9 @@
 set -e
 echoerr() { printf "%s\n" "$*" >&2; }
 
+#
+# Read environment variables from file if envrionment variable ${1}_FILE is set
+#
 file_env() {
     local var=""
     local fileVar=""
@@ -37,12 +40,12 @@ export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-0.0.0.0}" # duplicate
 export SEMAPHORE_DB_PATH="${SEMAPHORE_DB_PATH:-/var/lib/semaphore}"
 export SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-}"
 
-file_env 'SEMAPHORE_DB_USER' 'semaphore'
-file_env 'SEMAPHORE_DB_PASS' 'semaphore'
-file_env 'SEMAPHORE_ADMIN' 'admin'
+file_env 'SEMAPHORE_DB_USER'
+file_env 'SEMAPHORE_DB_PASS'
+file_env 'SEMAPHORE_ADMIN'
 export SEMAPHORE_ADMIN_EMAIL="${SEMAPHORE_ADMIN_EMAIL:-admin@localhost}"
 export SEMAPHORE_ADMIN_NAME="${SEMAPHORE_ADMIN_NAME:-Semaphore Admin}"
-file_env 'SEMAPHORE_ADMIN_PASSWORD' 'semaphorepassword'
+file_env 'SEMAPHORE_ADMIN_PASSWORD'
 export SEMAPHORE_LDAP_ACTIVATED="${SEMAPHORE_LDAP_ACTIVATED:-no}"
 export SEMAPHORE_LDAP_HOST="${SEMAPHORE_LDAP_HOST:-}"
 export SEMAPHORE_LDAP_PORT="${SEMAPHORE_LDAP_PORT:-}"
@@ -65,6 +68,7 @@ file_env 'SEMAPHORE_ACCESS_KEY_ENCRYPTION'
     exit 1
 }
 
+
 #
 # Extract database host and port from config.json if they are not set
 #
@@ -77,6 +81,7 @@ if [ -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
         SEMAPHORE_DB_HOST=$(cat "${SEMAPHORE_CONFIG_PATH}/config.json" | jq ".${SEMAPHORE_DB_HOST}.host" -r)
     fi
 fi
+
 
 #
 # Remove port number from SEMAPHORE_DB_HOST and put it to SEMAPHORE_DB_PORT
