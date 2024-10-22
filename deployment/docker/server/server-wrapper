@@ -65,6 +65,9 @@ file_env 'SEMAPHORE_ACCESS_KEY_ENCRYPTION'
     exit 1
 }
 
+#
+# Extract database host and port from config.json if they are not set
+#
 if [ -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
     if [ -z "${SEMAPHORE_DB_DIALECT}" ]; then
         SEMAPHORE_DB_DIALECT=$(cat "${SEMAPHORE_CONFIG_PATH}/config.json" | jq ".dialect" -r)
