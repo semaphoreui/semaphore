@@ -236,6 +236,8 @@ EOF
     else
         "$1" setup - < "${TMP_STDIN_CONFIG_FILE}"
     fi
+
+    rm -f "${TMP_STDIN_CONFIG_FILE}"
 fi
 
 
