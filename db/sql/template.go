@@ -237,6 +237,11 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 			return
 		}
 
+		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+		if err != nil {
+			return
+		}
+
 		templates = append(templates, template)
 	}
 

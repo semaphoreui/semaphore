@@ -782,12 +782,21 @@ definitions:
   TemplateVault:
     type: object
     properties:
-      vault_key_id:
-        type: integer
-        minimum: 1
       name:
         type: string
         example: default
+      type:
+        type: string
+        enum: [password, script]
+        example: script
+      vault_key_id:
+        type:
+          - integer
+          - 'null'
+      script:
+        type:
+          - string
+          - 'null'
 
   ScheduleRequest:
     type: object

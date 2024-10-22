@@ -78,6 +78,12 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 			return
 		}
 
+		templates[i].Vaults, err = d.GetTemplateVaults(projectID, templates[i].ID)
+
+		if err != nil {
+			return
+		}
+
 		templatesMap[templates[i].ID] = &templates[i]
 	}
 
