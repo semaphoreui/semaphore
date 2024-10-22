@@ -133,11 +133,15 @@ export default {
 
   methods: {
     vaultNameRules(v) {
+      // Increase the max if we are editing an existing vault
+      const max = this.editedVaultIndex == null ? 0 : 1;
       if (v == null || v === '') {
-        if (this.modifiedVaults.some((vault) => vault.name === null)) {
+        if (this.modifiedVaults.filter((vault) => vault.name === null).length > max) {
           return this.$t('vaultNameDefault');
         }
-      } else if (this.modifiedVaults.some((vault) => vault.name === v.toLowerCase().trim())) {
+      } else if (
+        this.modifiedVaults.filter((vault) => vault.name === v.toLowerCase().trim()).length > max
+      ) {
         return this.$t('vaultNameUnique');
       }
       return true;
