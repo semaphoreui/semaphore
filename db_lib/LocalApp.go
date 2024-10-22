@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
@@ -9,8 +10,8 @@ import (
 
 func getEnvironmentVars() []string {
 	res := []string{}
-	for v, k := range util.Config.EnvironmentVars {
-		res = append(res, v+"="+k)
+	for k, v := range util.Config.EnvironmentVars {
+		res = append(res, fmt.Sprintf("%s=%s", k, v))
 	}
 	return res
 }
