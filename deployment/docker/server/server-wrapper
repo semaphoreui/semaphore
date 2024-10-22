@@ -65,6 +65,15 @@ file_env 'SEMAPHORE_ACCESS_KEY_ENCRYPTION'
     exit 1
 }
 
+if [ -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
+    if [ -z "${SEMAPHORE_DB_DIALECT}" ]; then
+        SEMAPHORE_DB_DIALECT=$(cat "${SEMAPHORE_CONFIG_PATH}/config.json" | jq ".dialect" -r)
+    fi
+
+    if [ -z "${SEMAPHORE_DB_HOST}" ]; then
+        SEMAPHORE_DB_HOST=$(cat "${SEMAPHORE_CONFIG_PATH}/config.json" | jq ".${SEMAPHORE_DB_HOST}.host" -r)
+    fi
+fi
 
 #
 # Remove port number from SEMAPHORE_DB_HOST and put it to SEMAPHORE_DB_PORT
@@ -120,28 +129,6 @@ if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
     done
 fi
 
-if [ -n "${SEMAPHORE_DB_PORT}" ]; then
-    SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}"
-fi
-
-case ${SEMAPHORE_DB_DIALECT} in
-    mysql)
-        SEMAPHORE_DB_DIALECT_ID=1
-        ;;
-    bolt)
-        SEMAPHORE_DB_DIALECT_ID=2
-        SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.boltdb
-        ;;
-    postgres)
-        SEMAPHORE_DB_DIALECT_ID=3
-        ;;
-    *)
-        echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
-        exit 1
-        ;;
-esac
-
-
 
 #
 # Generate new config.json if it does not exist
@@ -151,11 +138,36 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
 
     TMP_STDIN_CONFIG_FILE=$(mktemp)
 
+
     SEMAPHORE_TMP_PATH=${SEMAPHORE_TMP_PATH:-/tmp/semaphore}
     [ -d "${SEMAPHORE_TMP_PATH}" ] || mkdir -p "${SEMAPHORE_TMP_PATH}" || {
         echo "Can't create Semaphore tmp path ${SEMAPHORE_TMP_PATH}."
         exit 1
     }
+
+
+    if [ -n "${SEMAPHORE_DB_PORT}" ]; then
+        SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}"
+    fi
+
+
+    case ${SEMAPHORE_DB_DIALECT} in
+        mysql)
+            SEMAPHORE_DB_DIALECT_ID=1
+            ;;
+        bolt)
+            SEMAPHORE_DB_DIALECT_ID=2
+            SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.boltdb
+            ;;
+        postgres)
+            SEMAPHORE_DB_DIALECT_ID=3
+            ;;
+        *)
+            echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
+            exit 1
+            ;;
+    esac
+
 
     cat << EOF > "${TMP_STDIN_CONFIG_FILE}"
 ${SEMAPHORE_DB_DIALECT_ID}
@@ -207,6 +219,7 @@ ${SEMAPHORE_ADMIN_EMAIL}
 ${SEMAPHORE_ADMIN_NAME}
 ${SEMAPHORE_ADMIN_PASSWORD}
 EOF
+
 
     echoerr "Executing semaphore setup"
     if test "$#" -ne 1; then
