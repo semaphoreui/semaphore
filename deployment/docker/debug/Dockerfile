@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.20 as builder
 
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg \
     task deps && \
     task build:debug GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
-FROM alpine:3.19
+FROM alpine:3.20
 
 RUN apk add --no-cache -U \
 bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip build-base openssl-dev libffi-dev cargo && \
@@ -54,7 +54,7 @@ WORKDIR /home/semaphore
 USER 1001
 
 # renovate: datasource=pypi depName=ansible
-ENV ANSIBLE_VERSION 9.4.0
+ENV ANSIBLE_VERSION 10.5.0
 
 RUN mkdir /opt/semaphore/venv
 
