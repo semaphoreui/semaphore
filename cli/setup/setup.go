@@ -68,7 +68,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	askValue("Playbook path", defaultPlaybookPath, &conf.TmpPath)
 	conf.TmpPath = filepath.Clean(conf.TmpPath)
 
-	askValue("Public URL (optional, example: https://example.com/semaphore)", "", &conf.WebHost)
+	askValue("Public URL (required for OIDC authentication, example: https://example.com/semaphore)", "", &conf.WebHost)
 
 	askConfirmation("Enable email alerts?", false, &conf.EmailAlert)
 	if conf.EmailAlert {
@@ -112,6 +112,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
 		askValue("LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
 	}
+	scanOidcProviders(conf)
 }
 
 func scanBoltDb(conf *util.ConfigType) {
@@ -143,6 +144,51 @@ func scanPostgres(conf *util.ConfigType) {
 	}
 	if _, exists := conf.Postgres.Options["sslmode"]; !exists {
 		conf.Postgres.Options["sslmode"] = "disable"
+	}
+}
+
+func scanOidcProviders(conf *util.ConfigType) {
+	conf.OidcProviders = map[string]util.OidcProvider{}
+	for {
+		var addOidcProvider bool
+		askConfirmation("Add another OIDC provider?", false, &addOidcProvider)
+		if !addOidcProvider {
+			break
+		}
+		providerId := ""
+		for providerId == "" {
+			askValue("Provider configuration id (used in redirect url)", "", &providerId)
+		}
+		provider := util.OidcProvider{}
+
+		askValue("Display Name", "", &provider.DisplayName)
+		askValue("Client id", "", &provider.ClientID)
+		askValue("Client secret", "", &provider.ClientSecret)
+		askValue("Autodiscovery url", "", &provider.AutoDiscovery)
+		askValue("Issuer url", "", &provider.Endpoint.IssuerURL)
+		askValue("Auth url", "", &provider.Endpoint.AuthURL)
+		askValue("Token url", "", &provider.Endpoint.TokenURL)
+		askValue("User info url", "", &provider.Endpoint.UserInfoURL)
+
+		defaultRedirectUrl := conf.WebHost + "/api/auth/oidc/" + providerId + "/redirect/"
+		askValue("Redirect url", defaultRedirectUrl, &provider.RedirectURL)
+
+		rawScopes := ""
+		askValue("Scopes (comma separated)", "openid,profile,email", &rawScopes)
+		for _, scope := range strings.Split(rawScopes, ",") {
+			scope := strings.TrimSpace(scope)
+			provider.Scopes = append(provider.Scopes, scope)
+		}
+
+		askValue("Color", "", &provider.Color)
+		askValue("Icon", "", &provider.Icon)
+
+		askValue("Username claim", "", &provider.UsernameClaim)
+		askValue("Name claim", "", &provider.NameClaim)
+		askValue("Email claim", "", &provider.EmailClaim)
+		askValue("Order", "", &provider.Order)
+
+		conf.OidcProviders[providerId] = provider
 	}
 }
 
