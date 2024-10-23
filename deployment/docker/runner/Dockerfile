@@ -45,7 +45,7 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 #RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
 #RUN rm pulumi.tar.gz
 
-FROM alpine:3.19
+FROM alpine:3.20.3
 
 ARG TARGETARCH="amd64"
 
