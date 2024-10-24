@@ -290,6 +290,7 @@ export default {
   template: 'Plantilla',
   aliasUrlCopied: 'La URL del alias ha sido copiada al portapapeles.',
   yes: 'Sí',
+  limit: 'Límite',
   activeTasks: 'Tareas Activas',
   taskLocation: 'Ubicación',
   empty: 'Vacío',

@@ -290,6 +290,7 @@ export default {
   template: 'Шаблон',
   aliasUrlCopied: 'URL псевдонима скопирован в буфер обмена.',
   yes: 'Да',
+  limit: 'Предел',
   activeTasks: 'Активные задачи',
   taskLocation: 'Местоположение',
   empty: 'Пусто',

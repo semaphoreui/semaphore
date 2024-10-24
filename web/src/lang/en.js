@@ -292,6 +292,7 @@ export default {
   template: 'Template',
   aliasUrlCopied: 'The alias URL has been copied to the clipboard.',
   yes: 'Yes',
+  limit: 'Limit',
   activeTasks: 'Active Tasks',
   taskLocation: 'Location',
   empty: 'Empty',

@@ -290,6 +290,7 @@ export default {
   template: 'Szablon',
   aliasUrlCopied: 'URL aliasu został skopiowany do schowka.',
   yes: 'Tak',
+  limit: 'Limit',
   activeTasks: 'Aktywne zadania',
   taskLocation: 'Lokalizacja',
   empty: 'Pusty',
