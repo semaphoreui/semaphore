@@ -2,9 +2,11 @@ package tasks
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
+	"regexp"
 
 	"path"
 	"strconv"
@@ -381,8 +383,22 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	// override the args from task to template
-	// args = append(args, templateExtraArgs...)
-	args = append(args, taskExtraArgs...)
+	for _, taskArg := range taskExtraArgs {
+		for i, tmplArg := range templateExtraArgs {
+			ok, err := isCLIArgsOverridden(tmplArg, taskArg)
+			if err != nil {
+				t.Log(err.Error())
+			}
+
+			if ok {
+				t.Log("Overrideing template CLI with " + taskArg)
+				templateExtraArgs[i] = taskArg
+			}
+		}
+	}
+
+	args = append(args, templateExtraArgs...)
+	// args = append(args, taskExtraArgs...) // old implementation
 	args = append(args, playbookName)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
@@ -606,4 +622,31 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 	}
 
 	return
+}
+
+var errCliOverrideParseError = errors.New("the argument don't seem to be in required format")
+
+// ? not sure where this is belong since there are no helpers in services.
+func isCLIArgsOverridden(tmplArg string, taskArg string) (bool, error) {
+	tmplArgKeyReg, err := regexp.Compile(`=|\s`)
+	if err != nil {
+		return false, err
+	}
+	tmplArgKey := tmplArgKeyReg.Split(tmplArg, 2)
+
+	taskArgKeyReg, err := regexp.Compile(`=|\s`)
+	if err != nil {
+		return false, err
+	}
+	taskArgKey := taskArgKeyReg.Split(taskArg, 2)
+
+	if len(tmplArgKey) < 2 || len(taskArgKey) < 2 {
+		return false, errCliOverrideParseError
+	}
+
+	if tmplArgKey[0] == taskArgKey[0] && tmplArgKey[1] != taskArgKey[1] {
+		return true, nil
+	}
+
+	return false, nil
 }
