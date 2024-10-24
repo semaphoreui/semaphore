@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.20 as builder
 
 RUN apk add --no-cache -U \
     libc-dev curl nodejs npm git gcc zip unzip tar
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg \
 
 
 ENV OPENTOFU_VERSION="1.7.0"
-ENV TERRAFORM_VERSION="1.8.2"
+ENV TERRAFORM_VERSION="1.9.8"
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
@@ -45,11 +45,11 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 #RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
 #RUN rm pulumi.tar.gz
 
-FROM alpine:3.19
+FROM alpine:3.20
 
 ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
-ENV ANSIBLE_VERSION 9.4.0
+ENV ANSIBLE_VERSION 10.5.0
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U \
