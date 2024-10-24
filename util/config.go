@@ -43,22 +43,22 @@ type DbConfig struct {
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
 
-type ldapMappings struct {
+type LdapMappings struct {
 	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN" default:"dn"`
 	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL" default:"mail"`
 	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID" default:"uid"`
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
 }
 
-func (p *ldapMappings) GetUsernameClaim() string {
+func (p *LdapMappings) GetUsernameClaim() string {
 	return p.UID
 }
 
-func (p *ldapMappings) GetEmailClaim() string {
+func (p *LdapMappings) GetEmailClaim() string {
 	return p.Mail
 }
 
-func (p *ldapMappings) GetNameClaim() string {
+func (p *LdapMappings) GetNameClaim() string {
 	return p.CN
 }
 
@@ -163,10 +163,10 @@ type ConfigType struct {
 	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
 	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
-	LdapMappings     *ldapMappings `json:"ldap_mappings,omitempty"`
+	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams and DingTalk alerting
+	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
@@ -178,6 +178,9 @@ type ConfigType struct {
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
 	DingTalkAlert       bool   `json:"dingtalk_alert,omitempty" env:"SEMAPHORE_DINGTALK_ALERT"`
 	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
+	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
+	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
+	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty"`
@@ -203,6 +206,12 @@ type ConfigType struct {
 	Runner *RunnerConfig `json:"runner,omitempty"`
 }
 
+func NewConfigType() *ConfigType {
+	return &ConfigType{
+		LdapMappings: &LdapMappings{},
+	}
+}
+
 // Config exposes the application configuration storage for use in the application
 var Config *ConfigType
 
@@ -215,7 +224,7 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 func ConfigInit(configPath string, noConfigFile bool) {
 	fmt.Println("Loading config")
 
-	Config = &ConfigType{}
+	Config = NewConfigType()
 	Config.Apps = map[string]App{}
 
 	if !noConfigFile {

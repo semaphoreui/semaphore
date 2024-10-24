@@ -69,7 +69,7 @@ func (t *AnsibleApp) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *AnsibleApp) InstallRequirements() error {
+func (t *AnsibleApp) InstallRequirements(environmentVars *[]string) error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (t *AnsibleApp) getRepoPath() string {
 	return repo.GetFullPath()
 }
 
-func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requirementsFilePath string) error {
+func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
 
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
@@ -101,7 +101,7 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requ
 
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
-			requirementsType,
+			string(requirementsType),
 			"install",
 			"-r",
 			requirementsFilePath,
@@ -125,21 +125,28 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 	return path.Dir(playbookPath)
 }
 
+type GalaxyRequirementsType string
+
+const (
+	GalaxyRole       GalaxyRequirementsType = "role"
+	GalaxyCollection GalaxyRequirementsType = "collection"
+)
+
 func (t *AnsibleApp) installRolesRequirements() (err error) {
-	err = t.installGalaxyRequirementsFile("role", path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"))
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile("role", path.Join(t.getRepoPath(), "roles", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"))
 	return
 }
 
 func (t *AnsibleApp) installCollectionsRequirements() (err error) {
-	err = t.installGalaxyRequirementsFile("collection", path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile("collection", path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"))
 	return
 }
 

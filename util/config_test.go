@@ -116,9 +116,18 @@ func TestCastStringToBool(t *testing.T) {
 
 }
 
+func TestConfigInitialization(t *testing.T) {
+	var testLdapMappingsUID = "uid"
+
+	Config = NewConfigType()
+
+	// should not panic
+	Config.LdapMappings.UID = testLdapMappingsUID
+}
+
 func TestGetConfigValue(t *testing.T) {
 
-	Config = new(ConfigType)
+	Config = NewConfigType()
 
 	var testPort = "1337"
 	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="

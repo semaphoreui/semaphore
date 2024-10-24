@@ -7,6 +7,10 @@ python3 -m venv .venv
 ./.venv/bin/pip3 install ansible
 
 task build
+task e2e:goodman
+task e2e:hooks
+
+cp ./.devcontainer/config.json ./.dredd/config.json
 
 ./bin/semaphore user add \
     --admin \

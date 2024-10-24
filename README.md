@@ -2,7 +2,7 @@
 
 Modern UI for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
 
-[![telegram](https://img.shields.io/badge/discord_community-skyblue?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
+[![telegram](https://img.shields.io/badge/discord_community-510b80?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
 [![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
 <!-- [![devcontainer](https://img.shields.io/badge/dev_container-gray?style=for-the-badge&logo=github)](https://codespaces.new/semaphoreui/semaphore) -->
 <!-- [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/) -->
@@ -88,5 +88,4 @@ For more installation options, visit our [Installation page](https://semaphoreui
 ## License
 MIT © [Denis Gukov](https://github.com/fiftin)
 
-[![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui) 
-[![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-pink?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) 
+[![sponsor](https://img.shields.io/badge/become_a_sponsor-d9c7ff?style=for-the-badge&logo=github-sponsors)](https://github.com/sponsors/semaphoreui) [![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-0ba0e0?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) [![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui)

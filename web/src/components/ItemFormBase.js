@@ -110,19 +110,27 @@ export default {
     },
 
     async loadData() {
-      await this.beforeLoadData();
+      this.formError = null;
+      try {
+        await this.beforeLoadData();
 
-      if (this.isNew) {
-        this.item = this.getNewItem();
-      } else {
-        this.item = (await axios({
-          method: 'get',
-          url: this.getSingleItemUrl(),
-          responseType: 'json',
-        })).data;
+        if (this.isNew) {
+          this.item = this.getNewItem();
+        } else {
+          this.item = (await axios({
+            method: 'get',
+            url: this.getSingleItemUrl(),
+            responseType: 'json',
+          })).data;
+        }
+
+        await this.afterLoadData();
+      } catch (err) {
+        this.formError = getErrorMessage(err);
+        this.$emit('error', {
+          message: this.formError,
+        });
       }
-
-      await this.afterLoadData();
     },
 
     /**

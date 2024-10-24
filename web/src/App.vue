@@ -527,6 +527,7 @@
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :webHost="(systemInfo || {}).web_host"
+        :version="(systemInfo || {version: ''}).version.split('-')[0]"
         :user="user"
       ></router-view>
     </v-main>
