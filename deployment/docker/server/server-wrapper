@@ -121,7 +121,7 @@ fi
 # Ping database if it is not BoltDB
 #
 if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
-    echoerr "Pinging database on ${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}..."
+    echoerr "Pinging database on ${SEMAPHORE_DB_HOST} port ${SEMAPHORE_DB_PORT}..."
     TIMEOUT=30
 
 
