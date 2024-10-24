@@ -3,7 +3,6 @@ package db_lib
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
@@ -12,11 +11,10 @@ import (
 func getEnvironmentVars() []string {
 	res := []string{}
 
-	for _, env := range os.Environ() {
-		for _, allowed := range util.Config.ForwardedEnvVars {
-			if strings.HasPrefix(env, allowed+"=") {
-				res = append(res, env)
-			}
+	for _, e := range util.Config.ForwardedEnvVars {
+		v := os.Getenv(e)
+		if v != "" {
+			res = append(res, fmt.Sprintf("%s=%s", e, v))
 		}
 	}
 
