@@ -22,17 +22,12 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = p.GetFullPath()
 
-	cmd.Env = []string{}
-
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
 	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
-
-	// TODO: Following option doesn't work when password authentication used.
-	// 		 So, we need to check args for --ask-pass, --ask-become-pass or remove this code completely.
-	//       What reason to use this code: prevent hanging of semaphore when host key confirmation required.
-	//cmd.Env = append(cmd.Env, "ANSIBLE_SSH_ARGS=\"-o BatchMode=yes\"")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", os.Getenv("PATH")))
+	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
 		cmd.Env = append(cmd.Env, *environmentVars...)
