@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt"
-	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/db/sql"
-	"github.com/ansible-semaphore/semaphore/pkg/random"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/factory"
+	"github.com/semaphoreui/semaphore/db/sql"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/snikch/goodman/transaction"
 )

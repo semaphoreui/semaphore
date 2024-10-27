@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 	"reflect"
 	"strings"
 )

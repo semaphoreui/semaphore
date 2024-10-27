@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/semaphoreui/semaphore/db"
 
 func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
 	err = d.getObject(projectID, db.InventoryProps, inventoryID, &inventory)

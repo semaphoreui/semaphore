@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"net/http"
 	"net/url"
 	"runtime/debug"
@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 
 	"github.com/gorilla/mux"
 )

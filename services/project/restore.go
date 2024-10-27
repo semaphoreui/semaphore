@@ -3,8 +3,8 @@ package project
 import (
 	"fmt"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/schedules"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {

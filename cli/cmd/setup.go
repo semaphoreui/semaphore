@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/cli/setup"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/cli/setup"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/factory"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

@@ -11,11 +11,11 @@ body:
       value: |
         Please make sure to go through these steps **before opening an issue**:
         
-        - [ ] Read the [documentation](https://docs.ansible-semaphore.com/)
-          - [ ] Read the [troubleshooting guide](https://docs.ansible-semaphore.com/administration-guide/troubleshooting)
-          - [ ] Read the [documentation regarding manual installations](https://docs.ansible-semaphore.com/administration-guide/installation_manually) if you don't use docker
+        - [ ] Read the [documentation](https://docs.semaphoreui.com/)
+          - [ ] Read the [troubleshooting guide](https://docs.semaphoreui.com/administration-guide/troubleshooting)
+          - [ ] Read the [documentation regarding manual installations](https://docs.semaphoreui.com/administration-guide/installation_manually) if you don't use docker
 
-        - [ ] Check if there are existing [issues](https://github.com/ansible-semaphore/semaphore/issues) or [discussions](https://github.com/ansible-semaphore/semaphore/discussions) regarding your topic
+        - [ ] Check if there are existing [issues](https://github.com/semaphoreui/semaphore/issues) or [discussions](https://github.com/semaphoreui/semaphore/discussions) regarding your topic
 
   - type: textarea
     id: problem

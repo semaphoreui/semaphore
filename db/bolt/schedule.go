@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
 )
 
@@ -62,7 +62,7 @@ func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWith
 
 func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
 	schedules, err = d.getProjectSchedules(projectID, func(s db.Schedule) bool {
-		return s.TemplateID == templateID
+		return s.TemplateID == templateID && s.RepositoryID != nil
 	})
 
 	return

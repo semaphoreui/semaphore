@@ -1,7 +1,7 @@
 package project
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 type BackupDB struct {

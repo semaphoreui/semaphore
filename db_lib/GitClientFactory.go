@@ -1,6 +1,6 @@
 package db_lib
 
-import "github.com/ansible-semaphore/semaphore/util"
+import "github.com/semaphoreui/semaphore/util"
 
 func CreateDefaultGitClient() GitClient {
 	switch util.Config.GitClientId {

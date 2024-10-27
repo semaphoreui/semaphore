@@ -3,7 +3,7 @@ package bolt
 import (
 	"encoding/base64"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/gorilla/securecookie"
 	"go.etcd.io/bbolt"
 )

@@ -4,8 +4,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/ansible-semaphore/semaphore/services/runners"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

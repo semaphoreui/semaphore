@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/go-gorp/gorp/v3"
-
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 

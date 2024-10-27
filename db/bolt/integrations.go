@@ -3,7 +3,7 @@ package bolt
 import (
 	"errors"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"reflect"
 )
 

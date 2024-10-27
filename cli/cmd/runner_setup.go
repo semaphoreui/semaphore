@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/ansible-semaphore/semaphore/cli/setup"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/cli/setup"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

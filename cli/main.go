@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ansible-semaphore/semaphore/cli/cmd"
+	"github.com/semaphoreui/semaphore/cli/cmd"
 )
 
 func main() {

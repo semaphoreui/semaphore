@@ -6,13 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/api"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/services/schedules"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/api"
+	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/factory"
+	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	log "github.com/sirupsen/logrus"
@@ -29,8 +29,8 @@ var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Semaphore UI is a beautiful web UI for Ansible",
 	Long: `Semaphore UI is a beautiful web UI for Ansible.
-Source code is available at https://github.com/ansible-semaphore/semaphore.
-Complete documentation is available at https://ansible-semaphore.com.`,
+Source code is available at https://github.com/semaphoreui/semaphore.
+Complete documentation is available at https://semaphoreui.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)
