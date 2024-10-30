@@ -624,7 +624,7 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 	return
 }
 
-var errCliOverrideParseError = errors.New("the argument don't seem to be in required format")
+var errCliOverrideParseError = errors.New("the argument does not seem to be in required format")
 
 // ? not sure where this is belong since there are no helpers in services.
 func isCLIArgsOverridden(tmplArg string, taskArg string) (bool, error) {
