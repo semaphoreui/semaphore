@@ -2,6 +2,7 @@ package db_lib
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/util"
@@ -10,7 +11,7 @@ import (
 // contains checks if a slice contains a specific string
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
-		if s == item {
+		if strings.HasPrefix(s, item) {
 			return true
 		}
 	}
@@ -35,6 +36,7 @@ func TestGetEnvironmentVars(t *testing.T) {
 	expected := []string{
 		"SEMAPHORE_TEST=test123",
 		"ANSIBLE_FORCE_COLOR=False",
+		"PATH=",
 	}
 
 	if len(res) != len(expected) {

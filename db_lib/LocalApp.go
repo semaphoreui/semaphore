@@ -9,7 +9,9 @@ import (
 )
 
 func getEnvironmentVars() []string {
-	res := []string{}
+	res := []string{
+		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+	}
 
 	for _, e := range util.Config.ForwardedEnvVars {
 		v := os.Getenv(e)

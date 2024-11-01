@@ -161,8 +161,9 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	_, err = store.CreateTemplateVault(db.TemplateVault{
 		ProjectID:  projectID,
 		TemplateID: template.ID,
-		VaultKeyID: vaultKey.ID,
+		VaultKeyID: &vaultKey.ID,
 		Name:       nil,
+		Type:       "password",
 	})
 
 	if err != nil {
@@ -188,8 +189,9 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	_, err = store.CreateTemplateVault(db.TemplateVault{
 		ProjectID:  projectID,
 		TemplateID: template.ID,
-		VaultKeyID: vaultKey.ID,
+		VaultKeyID: &vaultKey.ID,
 		Name:       nil,
+		Type:       "password",
 	})
 
 	return

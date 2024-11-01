@@ -75,6 +75,7 @@ type AccessKeyInstallation struct {
 	SSHAgent *ssh.Agent
 	Login    string
 	Password string
+	Script   string
 }
 
 func (key AccessKeyInstallation) Destroy() error {
@@ -121,13 +122,15 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (i
 			installation.Login = key.SshKey.Login
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
-		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible user")
+		switch key.Type {
+		case AccessKeyLoginPassword:
+			installation.Password = key.LoginPassword.Password
+		default:
+			err = fmt.Errorf("access key type not supported for ansible password vault")
 		}
-		installation.Password = key.LoginPassword.Password
 	case AccessKeyRoleAnsibleBecomeUser:
 		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible user")
+			err = fmt.Errorf("access key type not supported for ansible become user")
 		}
 		installation.Login = key.LoginPassword.Login
 		installation.Password = key.LoginPassword.Password

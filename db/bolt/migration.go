@@ -47,6 +47,8 @@ func (d *BoltDb) ApplyMigration(m db.Migration) (err error) {
 		err = migration_2_10_16{migration{d.db}}.Apply()
 	case "2.10.24":
 		err = migration_2_10_24{migration{d.db}}.Apply()
+	case "2.10.33":
+		err = migration_2_10_33{migration{d.db}}.Apply()
 	}
 
 	if err != nil {

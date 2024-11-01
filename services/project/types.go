@@ -77,7 +77,7 @@ type BackupTemplate struct {
 
 type BackupTemplateVault struct {
 	db.TemplateVault
-	VaultKey string `backup:"vault_key"`
+	VaultKey *string `backup:"vault_key"`
 }
 
 type BackupIntegration struct {

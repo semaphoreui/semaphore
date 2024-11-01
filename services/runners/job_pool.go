@@ -494,8 +494,10 @@ func (p *JobPool) checkNewJobs() {
 		if taskRunner.job.Template.Vaults != nil {
 			for _, vault := range taskRunner.job.Template.Vaults {
 				vault := vault
-				key := response.AccessKeys[vault.VaultKeyID]
-				vault.Vault = &key
+				if vault.VaultKeyID != nil {
+					key := response.AccessKeys[*vault.VaultKeyID]
+					vault.Vault = &key
+				}
 				vaults = append(vaults, vault)
 			}
 		}

@@ -186,7 +186,7 @@ export default {
 
   computed: {
     runnerUsageCommand() {
-      return `SEMAPHORE_WEB_ROOT=${this.webHost}/internal \\
+      return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 semaphore runner --no-config`;
     },

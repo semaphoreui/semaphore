@@ -91,11 +91,13 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 
 			if tsk.Template.Vaults != nil {
 				for _, vault := range tsk.Template.Vaults {
-					err := vault.Vault.DeserializeSecret()
-					if err != nil {
-						// TODO: return error
+					if vault.VaultKeyID != nil {
+						err := vault.Vault.DeserializeSecret()
+						if err != nil {
+							// TODO: return error
+						}
+						data.AccessKeys[*vault.VaultKeyID] = *vault.Vault
 					}
-					data.AccessKeys[vault.VaultKeyID] = *vault.Vault
 				}
 			}
 
