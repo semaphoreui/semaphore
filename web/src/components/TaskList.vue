@@ -2,7 +2,7 @@
   <div v-if="tasks != null">
     <EditDialog
         v-model="newTaskDialog"
-        :save-button-text="$t('Re' + getActionButtonTitle())"
+        :save-button-text="$t(getActionButtonTitle())"
         @save="onTaskCreated"
     >
       <template v-slot:title={}>

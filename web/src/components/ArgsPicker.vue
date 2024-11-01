@@ -93,6 +93,7 @@ export default {
   watch: {
     vars(val) {
       this.var = val || [];
+      this.modifiedVars = (this.var || []).map((v) => ({ name: v }));
     },
   },
 
@@ -155,6 +156,7 @@ export default {
     },
 
     deleteVar(index) {
+      this.$emit('removed', this.modifiedVars[index].name);
       this.modifiedVars.splice(index, 1);
       this.$emit('change', this.modifiedVars.map((x) => x.name));
     },

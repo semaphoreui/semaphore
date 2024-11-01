@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"slices"
 
 	"path"
 	"strconv"
@@ -382,24 +383,38 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		taskExtraArgs = append(taskExtraArgs, "--limit="+*t.Task.Limit)
 	}
 
-	// override the args from task to template
+	for _, ra := range t.Task.RemovedArguments {
+		rai := slices.Index(templateExtraArgs, ra)
+		if rai != -1 {
+			templateExtraArgs = append(templateExtraArgs[:rai], templateExtraArgs[rai+1:]...)
+		}
+	}
+
 	for _, taskArg := range taskExtraArgs {
-		for i, tmplArg := range templateExtraArgs {
+		for tai, tmplArg := range templateExtraArgs {
 			ok, err := isCLIArgsOverridden(tmplArg, taskArg)
 			if err != nil {
 				t.Log(err.Error())
 			}
 
 			if ok {
-				t.Log("Overrideing template CLI with " + taskArg)
-				templateExtraArgs[i] = taskArg
+				templateExtraArgs = append(templateExtraArgs[:tai], templateExtraArgs[tai+1:]...)
+				break
 			}
+
+			if slices.Contains(templateExtraArgs, taskArg) {
+				templateExtraArgs = append(templateExtraArgs[:tai], templateExtraArgs[tai+1:]...)
+			}
+
 		}
 	}
+
+	templateExtraArgs = append(templateExtraArgs, taskExtraArgs...)
 
 	args = append(args, templateExtraArgs...)
 	// args = append(args, taskExtraArgs...) // old implementation
 	args = append(args, playbookName)
+	fmt.Println(args)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
 		inputs["SSH password:"] = line

@@ -22,12 +22,13 @@ type Task struct {
 	Diff   bool `db:"diff" json:"diff"`
 
 	// override variables
-	Playbook    string  `db:"playbook" json:"playbook"`
-	Environment string  `db:"environment" json:"environment"`
-	Limit       *string `db:"hosts_limit" json:"limit"`
-	Secret      string  `db:"-" json:"secret"`
-	Arguments   *string `db:"arguments" json:"arguments"`
-	GitBranch   *string `db:"git_branch" json:"git_branch"`
+	Playbook         string   `db:"playbook" json:"playbook"`
+	Environment      string   `db:"environment" json:"environment"`
+	Limit            *string  `db:"hosts_limit" json:"limit"`
+	Secret           string   `db:"-" json:"secret"`
+	Arguments        *string  `db:"arguments" json:"arguments"`
+	RemovedArguments []string `db:"-" json:"removed_arguments"`
+	GitBranch        *string  `db:"git_branch" json:"git_branch"`
 
 	UserID        *int `db:"user_id" json:"user_id"`
 	IntegrationID *int `db:"integration_id" json:"integration_id"`

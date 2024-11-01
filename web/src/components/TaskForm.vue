@@ -101,6 +101,7 @@
       v-if="template.allow_override_args_in_task"
       :vars="args"
       @change="setArgs"
+      @removed="setRemovedArgs"
     />
 
   </v-form>
@@ -149,7 +150,7 @@ export default {
   },
   computed: {
     args() {
-      return JSON.parse(this.item.arguments || this.template.arguments || '[]');
+      return JSON.parse(this.item.arguments || '[]');
     },
   },
 
@@ -182,6 +183,15 @@ export default {
   methods: {
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);
+    },
+
+    setRemovedArgs(arg) {
+      console.log(arg);
+      if (!this.item.removed_arguments) {
+        this.item.removed_arguments = [];
+      }
+
+      this.item.removed_arguments.push(arg);
     },
 
     getTaskMessage(task) {
@@ -225,13 +235,17 @@ export default {
       this.item.secret = JSON.stringify(this.editedSecretEnvironment);
     },
 
-    async afterLoadData() {
+    async beforeLoadData() {
       this.assignItem(this.sourceTask);
 
       this.item.template_id = this.templateId;
 
       if (!this.item.params) {
         this.item.params = {};
+      }
+
+      if (!this.item.removed_arguments) {
+        this.item.removed_arguments = [];
       }
 
       // this.advancedOptions = this.item.arguments != null;
@@ -242,16 +256,21 @@ export default {
         responseType: 'json',
       })).data;
 
-      if (this.item != null) {
-        this.item.limit = this.template.limit;
-        this.item.arguments = this.template.arguments;
-      }
-
       this.buildTasks = this.template.type === 'deploy' ? (await axios({
         keys: 'get',
         url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success`,
         responseType: 'json',
       })).data.filter((task) => task.status === 'success') : [];
+    },
+
+    afterLoadData() {
+      if (this.item != null) {
+        this.setArgs(JSON.parse(this.template.arguments));
+        this.item.limit = this.template.limit;
+      }
+
+      this.assignItem(this.sourceTask);
+      this.item.template_id = this.templateId;
 
       if (this.item.build_task_id == null
         && this.buildTasks.length > 0

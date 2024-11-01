@@ -657,6 +657,16 @@ definitions:
         type:
           - string
           - 'null'
+      arguments:
+        type: 
+          - string
+          - 'null'
+      removed_arguments:
+        type: 
+          - array
+          - 'null'
+        items:
+          type: string
 
   TaskOutput:
     type: object
