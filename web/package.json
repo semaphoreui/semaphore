@@ -47,7 +47,7 @@
     "gulp": "^5.0.0",
     "gulp-cli": "^3.0.0",
     "gulp-rename": "^2.0.0",
-    "nanoid": ">=3.1.31",
+    "nanoid": ">=5.0.9",
     "nyc": "^15.1.0",
     "openai": "^4.65.0",
     "plugin-error": "^2.0.1",
