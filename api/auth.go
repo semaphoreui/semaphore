@@ -67,6 +67,25 @@ type totpRequestBody struct {
 	Passcode string `json:"passcode"`
 }
 
+func startEmailVerification(w http.ResponseWriter, r *http.Request) {
+	session, ok := getSession(r)
+
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	store := helpers.Store(r)
+
+	err := store.SetSessionVerificationMethod(session.UserID, session.ID, db.SessionVerificationEmail)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	// TODO: send email code
+}
+
 // nolint: gocyclo
 func verifySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
@@ -77,6 +96,8 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch session.VerificationMethod {
+	case db.SessionVerificationEmail:
+		// TODO: implement email verification
 	case db.SessionVerificationTotp:
 		var body totpRequestBody
 		if !helpers.Bind(w, r, &body) {

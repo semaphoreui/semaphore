@@ -326,6 +326,7 @@ type Store interface {
 	CreateSession(session Session) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
+	SetSessionVerificationMethod(userID int, sessionID int, verificationMethod SessionVerificationMethod) error
 	VerifySession(userID int, sessionID int) error
 
 	CreateTask(task Task, maxTasks int) (Task, error)
