@@ -89,7 +89,7 @@ func (t *LocalJob) installStaticInventory() error {
 
 func (t *LocalJob) destroyInventoryFile() {
 	fullPath := t.tmpInventoryFullPath()
-	if err := os.Remove(fullPath); err != nil {
+	if err := os.RemoveAll(fullPath); err != nil {
 		log.Error(err)
 	}
 }
