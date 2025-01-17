@@ -3,9 +3,6 @@ package db_lib
 import (
 	"errors"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,6 +10,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 
 	ssh2 "golang.org/x/crypto/ssh"
 )
@@ -119,9 +119,9 @@ func (c GoGitClient) Pull(r GitRepository) error {
 	}
 
 	// Pull the latest changes from the origin remote and merge into the current branch
-	err = wt.Pull(&git.PullOptions{RemoteName: "origin", 
-				       Auth: authMethod, 
-				       RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
+	err = wt.Pull(&git.PullOptions{RemoteName: "origin",
+		Auth:              authMethod,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		r.Logger.Log("Unable to pull latest changes")
 		return err
@@ -167,7 +167,7 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 		Auth: authMethod,
 	})
 
-	if err != nil && err != git.NoErrAlreadyUpToDate {
+	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 		return false
 	}
 

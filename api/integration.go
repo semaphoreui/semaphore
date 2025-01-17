@@ -5,13 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/thedevsaddam/gojsonq/v2"
 )
@@ -257,7 +257,13 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		IntegrationID: &integration.ID,
 	}
 
-	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID)
+	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return

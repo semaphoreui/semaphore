@@ -2,7 +2,7 @@ package sql
 
 import (
 	"github.com/Masterminds/squirrel"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"time"
 )
 
@@ -11,8 +11,8 @@ func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err er
 
 	insertId, err := d.insert(
 		"id",
-		"insert into project(name, created, type) values (?, ?, ?)",
-		project.Name, project.Created, project.Type)
+		"insert into project(name, created, type, alert, alert_chat, max_parallel_tasks) values (?, ?, ?, ?, ?, ?)",
+		project.Name, project.Created, project.Type, project.Alert, project.AlertChat, project.MaxParallelTasks)
 
 	if err != nil {
 		return

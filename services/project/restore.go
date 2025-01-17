@@ -3,8 +3,8 @@ package project
 import (
 	"fmt"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/schedules"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -173,8 +173,10 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
-			if getEntryByName[BackupAccessKey](&vault.VaultKey, backup.Keys) == nil {
-				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+			if vault.VaultKey != nil {
+				if getEntryByName[BackupAccessKey](vault.VaultKey, backup.Keys) == nil {
+					return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+				}
 			}
 		}
 	}
@@ -270,16 +272,18 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
 			var VaultKeyID int
-			if k := findEntityByName[db.AccessKey](&vault.VaultKey, b.keys); k == nil {
-				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
-			} else {
-				VaultKeyID = k.ID
+			if vault.VaultKeyID != nil {
+				if k := findEntityByName[db.AccessKey](vault.VaultKey, b.keys); k == nil {
+					return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+				} else {
+					VaultKeyID = k.ID
+				}
 			}
 
 			tplVault := vault.TemplateVault
 			tplVault.ProjectID = b.meta.ID
 			tplVault.TemplateID = newTemplate.ID
-			tplVault.VaultKeyID = VaultKeyID
+			tplVault.VaultKeyID = &VaultKeyID
 
 			_, err := store.CreateTemplateVault(tplVault)
 			if err != nil {

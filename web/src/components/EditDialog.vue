@@ -8,6 +8,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     v-model="dialog"
     :max-width="maxWidth || 400"
     persistent
+    :fullscreen="expandable && fullscreen"
     :transition="false"
     :content-class="'item-dialog item-dialog--' + position"
   >
@@ -19,7 +20,22 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         </slot>
 
         <v-spacer></v-spacer>
-        <v-btn icon @click="close()">
+
+        <v-btn
+          icon
+          @click="toggleHelp()"
+          class="mr-3"
+          :style="{opacity: needHelp ? 1 : 0.3}"
+          v-if="helpButton"
+        >
+          <v-icon>mdi-help-box</v-icon>
+        </v-btn>
+
+        <v-btn icon @click="toggleFullscreen()" class="mr-3" v-if="expandable">
+          <v-icon>mdi-arrow-{{ fullscreen ? 'collapse' : 'expand' }}</v-icon>
+        </v-btn>
+
+        <v-btn icon @click="close()" style="margin-right: -6px;">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
@@ -31,6 +47,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           :onError="clearFlags"
           :needSave="needSave"
           :needReset="needReset"
+          :needHelp="needHelp"
         ></slot>
       </v-card-text>
 
@@ -42,7 +59,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           text
           @click="close()"
         >
-          {{ $t('cancel') }}
+          {{ cancelButtonText || $t('cancel') }}
         </v-btn>
 
         <v-btn
@@ -74,13 +91,20 @@ export default {
     title: String,
     icon: String,
     iconColor: String,
-    saveButtonText: String,
     value: Boolean,
     maxWidth: Number,
     minContentHeight: Number,
     eventName: String,
     hideButtons: Boolean,
     dontCloseOnSave: Boolean,
+    cancelButtonText: String,
+    saveButtonText: String,
+    expandable: Boolean,
+    name: {
+      type: String,
+      default: 'Unnamed',
+    },
+    helpButton: Boolean,
   },
 
   data() {
@@ -88,13 +112,15 @@ export default {
       dialog: false,
       needSave: false,
       needReset: false,
+      fullscreen: null,
+      needHelp: false,
     };
   },
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
       this.needReset = val;
+      this.$emit('input', val);
       if (val) {
         window.addEventListener('keydown', this.handleEscape);
       } else {
@@ -105,9 +131,25 @@ export default {
     async value(val) {
       this.dialog = val;
     },
+
+    fullscreen(val) {
+      if (val) {
+        localStorage.setItem(`EditDialog_${this.name}__fullscreen`, '1');
+      } else {
+        localStorage.removeItem(`EditDialog_${this.name}__fullscreen`);
+      }
+    },
+  },
+
+  created() {
+    this.fullscreen = localStorage.getItem(`EditDialog_${this.name}__fullscreen`) === '1';
   },
 
   methods: {
+    toggleHelp() {
+      this.needHelp = !this.needHelp;
+    },
+
     onSave(e) {
       if (this.dontCloseOnSave) {
         this.clearFlags();
@@ -115,6 +157,10 @@ export default {
       }
 
       this.close(e);
+    },
+
+    toggleFullscreen() {
+      this.fullscreen = !this.fullscreen;
     },
 
     close(e) {

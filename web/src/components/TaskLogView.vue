@@ -1,14 +1,33 @@
 <template>
-  <div class="task-log-view" :class="{'task-log-view--with-message': item.message}">
-    <v-alert
-      type="info"
-      text
-      v-if="item.message"
-    >{{ item.message }}
-    </v-alert>
+  <div
+    class="task-log-view"
+    :class="{'task-log-view--with-message': item.message || item.commit_message}"
+  >
 
-    <v-container class="pa-0 mb-2">
-      <v-row no-gutters>
+    <div class="overflow-auto text-no-wrap">
+      <v-alert
+        dense
+        class="d-inline-block mb-2 mr-2"
+        text
+        icon="mdi-message-outline"
+        v-if="item.message"
+      >
+        {{ item.message }}
+      </v-alert>
+
+      <v-alert
+        dense
+        class="d-inline-block mb-2"
+        text
+        icon="mdi-source-fork"
+        v-if="item.commit_message"
+      >
+        {{ item.commit_message }}
+      </v-alert>
+    </div>
+
+    <v-container fluid class="pa-0 mb-2 overflow-auto">
+      <v-row no-gutters class="flex-nowrap">
         <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
@@ -20,7 +39,7 @@
             </v-list-item>
           </v-list>
         </v-col>
-        <v-col>
+        <v-col class="pr-4">
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content v-if="item.user_id != null">
@@ -33,7 +52,7 @@
             </v-list-item>
           </v-list>
         </v-col>
-        <v-col>
+        <v-col class="pr-4">
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
@@ -58,7 +77,15 @@
       </v-row>
     </v-container>
 
-    <div class="task-log-records" ref="output">
+    <VirtualList
+      class="task-log-records"
+      :data-key="'id'"
+      :data-sources="output"
+      :data-component="itemComponent"
+      :estimate-size="22"
+      :keeps="60"
+      ref="records"
+    >
       <div class="task-log-records__record" v-for="record in output" :key="record.id">
         <div class="task-log-records__time">
           {{ record.time | formatTime }}
@@ -66,32 +93,24 @@
         <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
         </div>
       </div>
-    </div>
-
-    <div
-      v-if="item.status === 'waiting_confirmation'"
-      class="pl-4"
-      style="
-        background: white;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 55px;
-        display: flex;
-        align-items: center;
-      "
-    >
-      Please confirm this task.
-    </div>
+    </VirtualList>
 
     <v-btn
-      color="warning"
-      style="position: absolute; bottom: 10px; right: 170px; width: 150px;"
+      color="success"
+      style="position: absolute; bottom: 10px; right: 250px; width: 70px;"
       v-if="item.status === 'waiting_confirmation'"
       @click="confirmTask()"
     >
-      {{ $t('confirmTask') }}
+      <v-icon>mdi-check</v-icon>
+    </v-btn>
+
+    <v-btn
+      color="warning"
+      style="position: absolute; bottom: 10px; right: 170px; width: 70px;"
+      v-if="item.status === 'waiting_confirmation'"
+      @click="rejectTask()"
+    >
+      <v-icon>mdi-close</v-icon>
     </v-btn>
 
     <v-btn
@@ -110,8 +129,8 @@
 
 @import '~vuetify/src/styles/settings/_variables';
 
-.task-log-view {
-}
+$task-log-header-height: 62px + 64px + 8px;
+$task-log-message-height: 48px;
 
 .task-log-records {
   background: black;
@@ -124,7 +143,18 @@
 }
 
 .task-log-view--with-message .task-log-records {
-  height: calc(100vh - 300px);
+  height: calc(100vh - #{280px + $task-log-message-height});
+}
+
+.v-dialog--fullscreen {
+
+  .task-log-records {
+    height: calc(100vh - $task-log-header-height);
+  }
+
+  .task-log-view--with-message .task-log-records {
+    height: calc(100vh - #{$task-log-header-height + $task-log-message-height});
+  }
 }
 
 .task-log-records__record {
@@ -140,7 +170,7 @@
 
 .task-log-records__output {
   width: 100%;
-  white-space: pre;
+  white-space: pre-wrap;
 }
 
 @media #{map-get($display-breakpoints, 'sm-and-down')} {
@@ -157,17 +187,21 @@
 import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
+import VirtualList from 'vue-virtual-scroll-list';
+import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
 
 export default {
-  components: { TaskStatus },
+  components: { TaskStatus, VirtualList },
   props: {
     itemId: Number,
     projectId: Number,
   },
   data() {
     return {
+      itemComponent: TaskLogViewRecord,
       item: {},
       output: [],
+      outputBuffer: [],
       user: {},
     };
   },
@@ -186,13 +220,39 @@ export default {
 
   computed: {
     canStop() {
-      return ['running', 'stopping', 'waiting', 'starting', 'waiting_confirmation', 'confirmed'].includes(this.item.status);
+      return [
+        'running',
+        'stopping',
+        'waiting',
+        'starting',
+        'waiting_confirmation',
+        'confirmed',
+        'rejected',
+      ].includes(this.item.status);
     },
   },
 
   async created() {
+    this.outputInterval = setInterval(() => {
+      this.$nextTick(() => {
+        const len = this.outputBuffer.length;
+        if (len === 0) {
+          return;
+        }
+
+        this.output.push(...this.outputBuffer.splice(0, len));
+
+        if (this.$refs.records) {
+          this.$refs.records.scrollToBottom();
+        }
+      });
+    }, 500);
     socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
+  },
+
+  beforeDestroy() {
+    clearInterval(this.outputInterval);
   },
 
   methods: {
@@ -200,6 +260,15 @@ export default {
       await axios({
         method: 'post',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/confirm`,
+        responseType: 'json',
+        data: {},
+      });
+    },
+
+    async rejectTask() {
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/tasks/${this.itemId}/reject`,
         responseType: 'json',
         data: {},
       });
@@ -219,6 +288,8 @@ export default {
     reset() {
       this.item = {};
       this.output = [];
+      this.outputBuffer = [];
+      this.outputInterval = null;
       this.user = {};
     },
 
@@ -235,10 +306,17 @@ export default {
           });
           break;
         case 'log':
-          this.output.push(data);
-          setTimeout(() => {
-            this.$refs.output.scrollTop = this.$refs.output.scrollHeight;
-          }, 200);
+          this.outputBuffer.push({
+            ...data,
+            id: data.time + data.output,
+          });
+
+          // this.$nextTick(() => {
+          //   if (this.$refs.records) {
+          //     this.$refs.records.scrollToBottom();
+          //   }
+          // });
+
           break;
         default:
           break;
@@ -256,13 +334,16 @@ export default {
         method: 'get',
         url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
         responseType: 'json',
-      })).data;
+      })).data.map((item) => ({
+        ...item,
+        id: item.time + item.output,
+      }));
 
-      this.user = (await axios({
+      this.user = this.item.user_id ? (await axios({
         method: 'get',
         url: `/api/users/${this.item.user_id}`,
         responseType: 'json',
-      })).data;
+      })).data : null;
     },
   },
 };

@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg \
 
 
 ENV OPENTOFU_VERSION="1.7.0"
-ENV TERRAFORM_VERSION="1.8.2"
+ENV TERRAFORM_VERSION="1.10.3"
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
@@ -78,8 +78,8 @@ WORKDIR /home/semaphore
 
 # renovate: datasource=pypi depName=ansible
 
-ENV ANSIBLE_VERSION 9.4.0
-ENV MITOGEN_VERSION 0.3.8
+ENV ANSIBLE_VERSION 11.1.0
+ENV MITOGEN_VERSION 0.3.20
 
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 

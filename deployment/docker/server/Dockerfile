@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg \
 
 
 ENV OPENTOFU_VERSION="1.7.0"
-ENV TERRAFORM_VERSION="1.8.2"
+ENV TERRAFORM_VERSION="1.10.3"
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
@@ -56,7 +56,7 @@ ENV MITOGEN_VERSION 0.3.20
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U \
-    bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
+    bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip jq && \
     rm -rf /var/cache/apk/* && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \

@@ -2,8 +2,8 @@ package projects
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -50,11 +50,18 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 				continue
 			}
 
-			err = store.UpdateAccessKey(db.AccessKey{
-				Name:   string(secret.Type) + "." + secret.Name,
-				String: secret.Secret,
-				Type:   db.AccessKeyString,
-			})
+			updateKey := db.AccessKey{
+				ID:        key.ID,
+				ProjectID: key.ProjectID,
+				Name:      string(secret.Type) + "." + secret.Name,
+				Type:      db.AccessKeyString,
+			}
+			if secret.Secret != "" {
+				updateKey.String = secret.Secret
+				updateKey.OverrideSecret = true
+			}
+
+			err = store.UpdateAccessKey(updateKey)
 		}
 	}
 
@@ -197,7 +204,16 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		//return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	// Reload env
+	env, err = helpers.Store(r).GetEnvironment(newEnv.ProjectID, newEnv.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	// Use empty array to avoid null in JSON
+	env.Secrets = []db.EnvironmentSecret{}
+
+	helpers.WriteJSON(w, http.StatusCreated, env)
 }
 
 // RemoveEnvironment deletes an environment from the database

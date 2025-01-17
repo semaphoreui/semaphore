@@ -11,12 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,7 +25,7 @@ type JobLogger struct {
 }
 
 func (e *JobLogger) ActionError(err error, action string, message string) {
-	util.LogErrorWithFields(err, log.Fields{
+	util.LogErrorF(err, log.Fields{
 		"type":    "action",
 		"context": e.Context,
 		"action":  action,
@@ -186,7 +186,7 @@ func (p *JobPool) Run() {
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(task_logger.TaskRunningStatus)
 
-				err := runningJob.job.Run(t.username, t.incomingVersion)
+				err := runningJob.job.Run(t.username, t.incomingVersion, t.alias)
 
 				if runningJob.status.IsFinished() {
 					return
@@ -250,6 +250,7 @@ func (p *JobPool) sendProgress() {
 			ID:         id,
 			LogRecords: j.logRecords,
 			Status:     j.status,
+			Commit:     j.commit,
 		})
 
 		j.logRecords = make([]LogRecord, 0)
@@ -277,9 +278,12 @@ func (p *JobPool) sendProgress() {
 
 	resp, err := client.Do(req)
 	if err != nil {
-
-		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "the server returned error")
 		return
+	}
+
+	if resp.StatusCode >= 400 {
+		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 	}
 
 	defer resp.Body.Close()
@@ -318,8 +322,14 @@ func (p *JobPool) tryRegisterRunner() bool {
 	}
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		logger.ActionError(err, "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+
+	if err != nil {
+		logger.ActionError(err, "send request", "unexpected error")
+		return false
+	}
+
+	if resp.StatusCode != 200 {
+		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 		return false
 	}
 
@@ -378,7 +388,7 @@ func (p *JobPool) checkNewJobs() {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		logger.ActionError(err, "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(err, "send request", "unexpected error")
 		return
 	}
 
@@ -456,6 +466,7 @@ func (p *JobPool) checkNewJobs() {
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
+			alias:           newJob.Alias,
 
 			job: &tasks.LocalJob{
 				Task:        newJob.Task,
@@ -485,8 +496,10 @@ func (p *JobPool) checkNewJobs() {
 		if taskRunner.job.Template.Vaults != nil {
 			for _, vault := range taskRunner.job.Template.Vaults {
 				vault := vault
-				key := response.AccessKeys[vault.VaultKeyID]
-				vault.Vault = &key
+				if vault.VaultKeyID != nil {
+					key := response.AccessKeys[*vault.VaultKeyID]
+					vault.Vault = &key
+				}
 				vaults = append(vaults, vault)
 			}
 		}

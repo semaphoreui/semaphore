@@ -13,6 +13,7 @@ const TaskStatus = Object.freeze({
   STARTING: 'starting',
   WAITING_CONFIRMATION: 'waiting_confirmation',
   CONFIRMED: 'confirmed',
+  REJECTED: 'rejected',
   RUNNING: 'running',
   SUCCESS: 'success',
   ERROR: 'error',

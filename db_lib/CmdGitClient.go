@@ -2,12 +2,11 @@ package db_lib
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type CmdGitClient struct {
@@ -17,16 +16,7 @@ type CmdGitClient struct {
 func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, args ...string) *exec.Cmd {
 	cmd := exec.Command("git") //nolint: gas
 
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
-	if r.Repository.SSHKey.Type == db.AccessKeySSH {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_AUTH_SOCK=%s", c.keyInstallation.SSHAgent.SocketFile))
-		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-		if util.Config.SshConfigPath != "" {
-			sshCmd += " -F " + util.Config.SshConfigPath
-		}
-		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
-	}
+	cmd.Env = append(getEnvironmentVars(), c.keyInstallation.GetGitEnv()...)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:

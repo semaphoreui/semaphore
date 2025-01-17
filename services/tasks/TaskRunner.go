@@ -6,17 +6,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
 type Job interface {
-	Run(username string, incomingVersion *string) error
+	Run(username string, incomingVersion *string, alias string) error
 	Kill()
 }
 
@@ -41,6 +42,10 @@ type TaskRunner struct {
 
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
+
+	Alias string
+
+	logWG sync.WaitGroup
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
@@ -155,7 +160,7 @@ func (t *TaskRunner) run() {
 
 	}
 
-	err = t.job.Run(username, incomingVersion)
+	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
 		t.Log("Running app failed: " + err.Error())
@@ -171,6 +176,7 @@ func (t *TaskRunner) run() {
 		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
 	}, db.RetrieveQueryParams{})
+
 	if err != nil {
 		t.Log("Running app failed: " + err.Error())
 		return
@@ -181,7 +187,7 @@ func (t *TaskRunner) run() {
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
-		}, nil, tpl.ProjectID)
+		}, nil, tpl.ProjectID, tpl.App.NeedTaskAlias())
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
 			continue

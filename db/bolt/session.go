@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"reflect"
 	"time"
 )
@@ -85,6 +85,17 @@ func (d *BoltDb) ExpireSession(userID int, sessionID int) (err error) {
 		return
 	}
 	session.Expired = true
+	err = d.updateObject(userID, db.SessionProps, session)
+	return
+}
+
+func (d *BoltDb) VerifySession(userID int, sessionID int) (err error) {
+	var session db.Session
+	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
+	if err != nil {
+		return
+	}
+	session.Verified = true
 	err = d.updateObject(userID, db.SessionProps, session)
 	return
 }

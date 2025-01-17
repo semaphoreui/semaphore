@@ -1,13 +1,17 @@
 package api
 
 import (
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"bytes"
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
+	"image/png"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type minimalUser struct {
@@ -175,6 +179,87 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func totpQr(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
+
+	key, err := otp.NewKeyFromURL(user.Totp.URL)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	image, err := key.Image(256, 256)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	var buf bytes.Buffer
+	err = png.Encode(&buf, image)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	pngBytes := buf.Bytes()
+
+	//pngBytes, err := qrcode.Encode(user.Totp.URL, qrcode.Medium, 256)
+	//if err != nil {
+	//	helpers.WriteError(w, err)
+	//	return
+	//}
+
+	w.Header().Add("Content-Type", "image/png")
+	_, err = w.Write(pngBytes)
+}
+
+func enableTotp(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
+	if user.Totp != nil {
+		helpers.WriteErrorStatus(w, "TOTP already enabled", http.StatusBadRequest)
+		return
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "Semaphore",
+		AccountName: user.Email,
+	})
+
+	if err != nil {
+		http.Error(w, "Error generating key", http.StatusInternalServerError)
+		return
+	}
+
+	newTotp, err := helpers.Store(r).AddTotpVerification(user.ID, key.URL())
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, newTotp)
+}
+
+func disableTotp(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
+	if user.Totp == nil {
+		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
+		return
+	}
+
+	totpID, err := helpers.GetIntParam("totp_id", w, r)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = helpers.Store(r).DeleteTotpVerification(user.ID, totpID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

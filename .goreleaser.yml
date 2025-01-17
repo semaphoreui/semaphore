@@ -9,7 +9,7 @@ builds:
     env:
       - CGO_ENABLED=0
     main: ./cli/main.go
-    ldflags: -s -w -X github.com/ansible-semaphore/semaphore/util.Ver={{ .Version }} -X github.com/ansible-semaphore/semaphore/util.Commit={{ .ShortCommit }} -X github.com/ansible-semaphore/semaphore/util.Date={{ .Timestamp }}
+    ldflags: -s -w -X github.com/semaphoreui/semaphore/util.Ver={{ .Version }} -X github.com/semaphoreui/semaphore/util.Commit={{ .ShortCommit }} -X github.com/semaphoreui/semaphore/util.Date={{ .Timestamp }}
     tags:
       - netgo
     goos:
@@ -53,7 +53,7 @@ nfpms:
     description: Open Source alternative to Ansible Tower
     homepage: https://github.com/semaphoreui/semaphore
     vendor: Semaphore UI
-    maintainer: Semaphore UI <support@semui.co>
+    maintainer: Semaphore UI <support@semaphoreui.com>
     license: MIT
 
     formats:

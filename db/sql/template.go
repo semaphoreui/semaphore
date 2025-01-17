@@ -2,9 +2,10 @@ package sql
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
@@ -18,8 +19,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		"id",
 		"insert into project__template (project_id, inventory_id, repository_id, environment_id, "+
 			"name, playbook, arguments, allow_override_args_in_task, description, `type`, start_version,"+
-			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts, app)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"build_template_id, view_id, autorun, survey_vars, suppress_success_alerts, app, git_branch)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -36,7 +37,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.Autorun,
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
-		template.App)
+		template.App,
+		template.GitBranch)
 
 	if err != nil {
 		return
@@ -82,7 +84,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"autorun=?, "+
 		"survey_vars=?, "+
 		"suppress_success_alerts=?, "+
-		"app=? "+
+		"app=?, "+
+		"`git_branch`=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -100,6 +103,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		db.ObjectToJSON(template.SurveyVars),
 		template.SuppressSuccessAlerts,
 		template.App,
+		template.GitBranch,
 		template.ID,
 		template.ProjectID,
 	)
@@ -114,6 +118,11 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 
 func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 
+	pp, err := params.Validate(db.TemplateProps)
+	if err != nil {
+		return
+	}
+
 	templates = []db.Template{}
 
 	type templateWithLastTask struct {
@@ -127,6 +136,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.repository_id",
 		"pt.environment_id",
 		"pt.name",
+		"pt.description",
 		"pt.playbook",
 		"pt.arguments",
 		"pt.allow_override_args_in_task",
@@ -134,12 +144,17 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.start_version",
 		"pt.view_id",
 		"pt.`app`",
+		"pt.`git_branch`",
 		"pt.survey_vars",
 		"pt.start_version",
 		"pt.`type`",
 		"pt.`tasks`",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id").
 		From("project__template pt")
+
+	if filter.App != nil {
+		q = q.Where("pt.app=?", *filter.App)
+	}
 
 	if filter.ViewID != nil {
 		q = q.Where("pt.view_id=?", *filter.ViewID)
@@ -153,14 +168,14 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	}
 
 	order := "ASC"
-	if params.SortInverted {
+	if pp.SortInverted {
 		order = "DESC"
 	}
 
-	switch params.SortBy {
+	switch pp.SortBy {
 	case "name", "playbook":
 		q = q.Where("pt.project_id=?", projectID).
-			OrderBy("pt." + params.SortBy + " " + order)
+			OrderBy("pt." + pp.SortBy + " " + order)
 	case "inventory":
 		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
 			Where("pt.project_id=?", projectID).
@@ -221,6 +236,14 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 					break
 				}
 			}
+		}
+
+		if tpl.SurveyVarsJSON != nil {
+			err = json.Unmarshal([]byte(*tpl.SurveyVarsJSON), &tpl.SurveyVars)
+		}
+
+		if err != nil {
+			return
 		}
 
 		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)

@@ -1,5 +1,6 @@
 gin-bin
 build/
+/certs/
 web/public/js/bundle.js
 web/public/css/*.*
 web/public/html/**/*.*

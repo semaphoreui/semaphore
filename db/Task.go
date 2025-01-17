@@ -1,13 +1,33 @@
 package db
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/go-gorp/gorp/v3"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/go-gorp/gorp/v3"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 )
+
+type DefaultTaskParams struct {
+}
+
+type TerraformTaskParams struct {
+	Plan        bool `json:"plan"`
+	Destroy     bool `json:"destroy"`
+	AutoApprove bool `json:"auto_approve"`
+	Upgrade     bool `json:"upgrade"`
+	Reconfigure bool `json:"reconfigure"`
+}
+
+type AnsibleTaskParams struct {
+	Debug  bool `json:"debug"`
+	DryRun bool `json:"dry_run"`
+	Diff   bool `json:"diff"`
+}
 
 // Task is a model of a task which will be executed by the runner
 type Task struct {
@@ -27,6 +47,7 @@ type Task struct {
 	Limit       string  `db:"hosts_limit" json:"limit"`
 	Secret      string  `db:"-" json:"secret"`
 	Arguments   *string `db:"arguments" json:"arguments"`
+	GitBranch   *string `db:"git_branch" json:"git_branch"`
 
 	UserID        *int `db:"user_id" json:"user_id"`
 	IntegrationID *int `db:"integration_id" json:"integration_id"`
@@ -50,10 +71,36 @@ type Task struct {
 	Version *string `db:"version" json:"version"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id"`
+
+	Params MapStringAnyField `db:"params" json:"params"`
+}
+
+func (task *Task) FillParams(target interface{}) (err error) {
+	content, err := json.Marshal(task.Params)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(content, target)
+	return
 }
 
 func (task *Task) PreInsert(gorp.SqlExecutor) error {
 	task.Created = task.Created.UTC()
+
+	// Init params from old fields for backward compatibility
+
+	if task.Debug {
+		task.Params["debug"] = true
+	}
+
+	if task.DryRun {
+		task.Params["dry_run"] = true
+	}
+
+	if task.Diff {
+		task.Params["diff"] = true
+	}
+
 	return nil
 }
 
@@ -103,13 +150,24 @@ func (task *Task) GetUrl() *string {
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
-	return nil
+
+	var params interface{}
+	switch template.App {
+	case AppAnsible:
+		params = &AnsibleTaskParams{}
+	case AppTerraform, AppTofu:
+		params = &TerraformTaskParams{}
+	default:
+		params = &DefaultTaskParams{}
+	}
+
+	return task.FillParams(params)
 }
 
 func (task *TaskWithTpl) Fill(d Store) error {
 	if task.BuildTaskID != nil {
 		build, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			return nil
 		}
 		if err != nil {
@@ -134,7 +192,6 @@ type TaskWithTpl struct {
 // TaskOutput is the ansible log output from the task
 type TaskOutput struct {
 	TaskID int       `db:"task_id" json:"task_id"`
-	Task   string    `db:"task" json:"task"`
 	Time   time.Time `db:"time" json:"time"`
 	Output string    `db:"output" json:"output"`
 }
@@ -143,8 +200,8 @@ type TaskStageType string
 
 const (
 	TaskStageRepositoryClone TaskStageType = "repository_clone"
+	TaskStageScriptRun       TaskStageType = "script_run"
 	TaskStageTerraformPlan   TaskStageType = "terraform_plan"
-	TaskStageTerraformApply  TaskStageType = "terraform_apply"
 )
 
 type TaskStage struct {

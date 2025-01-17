@@ -3,9 +3,9 @@ package projects
 import (
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/gorilla/context"
@@ -58,7 +58,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	demoRepo, err = store.CreateRepository(db.Repository{
 		Name:      "Demo",
 		ProjectID: projectID,
-		GitURL:    "https://github.com/semaphoreui/demo-project.git",
+		GitURL:    "https://github.com/semaphoreui/semaphore-demo.git",
 		GitBranch: "main",
 		SSHKeyID:  noneKeyID,
 	})
@@ -161,8 +161,9 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	_, err = store.CreateTemplateVault(db.TemplateVault{
 		ProjectID:  projectID,
 		TemplateID: template.ID,
-		VaultKeyID: vaultKey.ID,
+		VaultKeyID: &vaultKey.ID,
 		Name:       nil,
+		Type:       "password",
 	})
 
 	if err != nil {
@@ -188,8 +189,9 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	_, err = store.CreateTemplateVault(db.TemplateVault{
 		ProjectID:  projectID,
 		TemplateID: template.ID,
-		VaultKeyID: vaultKey.ID,
+		VaultKeyID: &vaultKey.ID,
 		Name:       nil,
+		Type:       "password",
 	})
 
 	return

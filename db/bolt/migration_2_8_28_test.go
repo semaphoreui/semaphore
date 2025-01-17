@@ -2,8 +2,10 @@ package bolt
 
 import (
 	"encoding/json"
-	"go.etcd.io/bbolt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 )
 
 func TestMigration_2_8_28_Apply(t *testing.T) {
@@ -31,14 +33,10 @@ func TestMigration_2_8_28_Apply(t *testing.T) {
 		return err
 	})
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = migration_2_8_28{migration{store.db}}.Apply()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	var repo map[string]interface{}
 	err = store.db.View(func(tx *bbolt.Tx) error {
@@ -46,17 +44,10 @@ func TestMigration_2_8_28_Apply(t *testing.T) {
 		str := string(b.Get([]byte("0000000001")))
 		return json.Unmarshal([]byte(str), &repo)
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	if repo["git_url"].(string) != "git@github.com/test/test" {
-		t.Fatal("invalid url")
-	}
-
-	if repo["git_branch"].(string) != "main" {
-		t.Fatal("invalid branch")
-	}
+	assert.Equal(t, "git@github.com/test/test", repo["git_url"].(string), "invalid url")
+	assert.Equal(t, "main", repo["git_branch"].(string), "invalid branch")
 }
 
 func TestMigration_2_8_28_Apply2(t *testing.T) {
@@ -73,12 +64,8 @@ func TestMigration_2_8_28_Apply2(t *testing.T) {
 		return err
 	})
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = migration_2_8_28{migration{store.db}}.Apply()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	projectService "github.com/ansible-semaphore/semaphore/services/project"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	projectService "github.com/semaphoreui/semaphore/services/project"
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 )
@@ -47,7 +47,9 @@ func Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := backup.Unmarshal(buf.String()); err != nil {
+	str := buf.String()
+
+	if err := backup.Unmarshal(str); err != nil {
 		log.Error(err)
 		helpers.WriteError(w, err)
 		return

@@ -15,7 +15,6 @@
 
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TaskForm
-        v-if="['terraform', 'tofu'].includes(templateApp)"
         :project-id="projectId"
         item-id="new"
         :template-id="templateId"
@@ -23,25 +22,16 @@
         @error="onError"
         :need-save="needSave"
         :need-reset="needReset"
-      />
-      <TaskForm
-        v-else
-        :project-id="projectId"
-        item-id="new"
-        :template-id="templateId"
-        @save="onSave"
-        @error="onError"
-        :need-save="needSave"
-        :need-reset="needReset"
+        :source-task="sourceTask"
       />
     </template>
   </EditDialog>
 </template>
 <script>
+import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import TaskForm from './TaskForm.vue';
 import EditDialog from './EditDialog.vue';
 
-import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '../lib/constants';
 import EventBus from '../event-bus';
 
 export default {
@@ -56,6 +46,7 @@ export default {
     templateType: String,
     templateAlias: String,
     templateApp: String,
+    sourceTask: Object,
   },
   data() {
     return {

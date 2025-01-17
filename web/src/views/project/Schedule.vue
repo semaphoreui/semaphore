@@ -33,7 +33,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('schedule') }}</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -45,12 +45,18 @@
       </v-btn>
     </v-toolbar>
 
+    <v-divider />
+
     <v-data-table
       :headers="headers"
       :items="items"
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      style="
+          max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+          margin: auto;
+        "
     >
       <template v-slot:item.active="{ item }">
         <v-switch
@@ -75,23 +81,14 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-          >
+        <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.id)"
-          >
+          <v-btn @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </div>
+        </v-btn-toggle>
       </template>
 
       <template v-slot:expanded-item="{ headers, item }">

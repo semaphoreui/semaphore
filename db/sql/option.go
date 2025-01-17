@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/Masterminds/squirrel"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) SetOption(key string, value string) error {

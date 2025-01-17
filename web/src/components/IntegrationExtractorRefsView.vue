@@ -15,9 +15,13 @@
       </div>
 
       <div class="ml-6">
-        <span v-for="t in integrationExtractorRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
+        <span
+            v-for="t in integrationExtractorRefs[s.slug]"
+            class="object-refs-view__link-wrap"
+            :key="t.id"
+        >
           <router-link
-            :to="`/project/${projectId}/integration/${t.integrationId}/extractor/${t.itemId}`"
+            :to="`/project/${projectId}/integrations/${t.integrationId}/extractor/${t.itemId}`"
             class="object-refs-view__link">{{ t.name }}</router-link>
         </span>
       </div>

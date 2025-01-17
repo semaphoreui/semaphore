@@ -17,7 +17,7 @@
       <div class="ml-6">
         <span v-for="t in integrationRefs[s.slug]" class="object-refs-view__link-wrap" :key="t.id">
           <router-link
-            :to="`/project/${projectId}/integration/${t.id}`"
+            :to="`/project/${projectId}/integrations/${t.id}`"
             class="object-refs-view__link">{{ t.name }}</router-link>
         </span>
       </div>

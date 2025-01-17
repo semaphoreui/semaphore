@@ -1,14 +1,12 @@
 package projects
 
 import (
-	"net/http"
-	"strings"
-
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/random"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/util"
+	"net/http"
 )
 
 type publicAlias struct {
@@ -18,17 +16,9 @@ type publicAlias struct {
 
 func getPublicAlias(alias db.IntegrationAlias) publicAlias {
 
-	aliasURL := util.Config.WebHost
-
-	if !strings.HasSuffix(aliasURL, "/") {
-		aliasURL += "/"
-	}
-
-	aliasURL += "api/integrations/" + alias.Alias
-
 	return publicAlias{
 		ID:  alias.ID,
-		URL: aliasURL,
+		URL: util.GetPublicAliasURL("integrations", alias.Alias),
 	}
 }
 

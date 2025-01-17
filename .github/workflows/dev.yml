@@ -4,6 +4,7 @@ name: Dev
   push:
     branches:
       - develop
+      - 2-11-stable
   pull_request:
     branches:
       - develop
@@ -89,7 +90,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
           MYSQL_USER: semaphore
@@ -136,7 +137,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:10.4
+        image: mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
           MARIADB_USER: semaphore
@@ -183,7 +184,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:12.18
+        image: postgres:12.22
         env:
           POSTGRES_USER: semaphore
           POSTGRES_PASSWORD: p455w0rd
@@ -297,7 +298,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
           MYSQL_USER: semaphore
@@ -378,7 +379,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:10.4
+        image: mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
           MARIADB_USER: semaphore
@@ -459,7 +460,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:12.18
+        image: postgres:12.22
         env:
           POSTGRES_USER: semaphore
           POSTGRES_PASSWORD: p455w0rd
@@ -569,7 +570,7 @@ jobs:
             semaphoreui/semaphore
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |
@@ -624,7 +625,7 @@ jobs:
             semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |

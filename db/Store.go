@@ -4,10 +4,12 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"reflect"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
@@ -36,12 +38,19 @@ func ObjectToJSON(obj interface{}) *string {
 	return &str
 }
 
+type OwnershipFilter struct {
+	WithoutOwnerOnly bool
+	TemplateID       *int
+	EnvironmentID    *int
+}
+
 type RetrieveQueryParams struct {
 	Offset       int
 	Count        int
 	SortBy       string
 	SortInverted bool
 	Filter       string
+	Ownership    OwnershipFilter
 }
 
 type ObjectReferrer struct {
@@ -53,6 +62,8 @@ type ObjectReferrers struct {
 	Templates    []ObjectReferrer `json:"templates"`
 	Inventories  []ObjectReferrer `json:"inventories"`
 	Repositories []ObjectReferrer `json:"repositories"`
+	Integrations []ObjectReferrer `json:"integrations"`
+	Schedules    []ObjectReferrer `json:"schedules"`
 }
 
 type IntegrationReferrers struct {
@@ -62,6 +73,63 @@ type IntegrationReferrers struct {
 
 type IntegrationExtractorChildReferrers struct {
 	Integrations []ObjectReferrer `json:"integrations"`
+}
+
+func containsStr(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *RetrieveQueryParams) Validate(props ObjectProps) (res RetrieveQueryParams, err error) {
+
+	if p.Offset > 0 && p.Count <= 0 {
+		err = &ValidationError{"offset cannot be without limit"}
+		return
+	}
+
+	if p.Count < 0 {
+		err = &ValidationError{"count must be positive"}
+		return
+	}
+
+	if p.Offset < 0 {
+		err = &ValidationError{"offset must be positive"}
+		return
+	}
+
+	if p.SortBy != "" {
+		if !containsStr(props.SortableColumns, p.SortBy) {
+			err = &ValidationError{"invalid sort column"}
+			return
+		}
+	}
+
+	res = *p
+	return
+}
+
+func (f *OwnershipFilter) GetOwnerID(ownership ObjectProps) *int {
+	switch ownership.ReferringColumnSuffix {
+	case "template_id":
+		return f.TemplateID
+	case "environment_id":
+		return f.EnvironmentID
+	default:
+		return nil
+	}
+}
+
+func (f *OwnershipFilter) SetOwnerID(ownership ObjectProps, ownerID int) {
+	switch ownership.ReferringColumnSuffix {
+	case "template_id":
+		f.TemplateID = &ownerID
+	case "environment_id":
+		f.EnvironmentID = &ownerID
+	}
 }
 
 // ObjectProps describe database entities.
@@ -76,6 +144,8 @@ type ObjectProps struct {
 	SortableColumns       []string
 	DefaultSortingColumn  string
 	SortInverted          bool // sort from high to low object ID by default. It is useful for some NoSQL implementations.
+	Ownerships            []*ObjectProps
+	SelectColumns         []string
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -87,6 +157,24 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	return e.Message
+}
+
+type TaskStatUnit string
+
+const TaskStatUnitDay TaskStatUnit = "day"
+const TaskStatUnitWeek TaskStatUnit = "week"
+const TaskStatUnitMonth TaskStatUnit = "month"
+
+type TaskFilter struct {
+	Start  *time.Time `json:"start"`
+	End    *time.Time `json:"end"`
+	UserID *int       `json:"user_id"`
+}
+
+type TaskStat struct {
+	Date          string                         `json:"date"`
+	CountByStatus map[task_logger.TaskStatus]int `json:"count_by_status"`
+	AvgDuration   int                            `json:"avg_duration"`
 }
 
 type Store interface {
@@ -129,7 +217,7 @@ type Store interface {
 
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
-	GetInventories(projectID int, params RetrieveQueryParams) ([]Inventory, error)
+	GetInventories(projectID int, params RetrieveQueryParams, types []InventoryType) ([]Inventory, error)
 	UpdateInventory(inventory Inventory) error
 	CreateInventory(inventory Inventory) (Inventory, error)
 	DeleteInventory(projectID int, inventoryID int) error
@@ -187,6 +275,9 @@ type Store interface {
 	// Pwd should be present of you want update user password. Empty Pwd ignored.
 	UpdateUser(user UserWithPwd) error
 	SetUserPassword(userID int, password string) error
+	AddTotpVerification(userID int, url string) (UserTotp, error)
+	DeleteTotpVerification(userID int, totpID int) error
+
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 
@@ -235,6 +326,7 @@ type Store interface {
 	CreateSession(session Session) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
+	VerifySession(userID int, sessionID int) error
 
 	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
@@ -256,7 +348,7 @@ type Store interface {
 	SetViewPositions(projectID int, viewPositions map[int]int) error
 
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int) ([]Runner, error)
+	GetRunners(projectID int, activeOnly bool) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
 	GetGlobalRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
@@ -268,6 +360,8 @@ type Store interface {
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
+
+	GetTaskStats(projectID int, templateID *int, unit TaskStatUnit, filter TaskFilter) ([]TaskStat, error)
 }
 
 var AccessKeyProps = ObjectProps{
@@ -326,6 +420,7 @@ var InventoryProps = ObjectProps{
 	ReferringColumnSuffix: "inventory_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
+	Ownerships:            []*ObjectProps{&TemplateProps},
 }
 
 var RepositoryProps = ObjectProps{
@@ -341,14 +436,8 @@ var TemplateProps = ObjectProps{
 	Type:                  reflect.TypeOf(Template{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
-	SortableColumns:       []string{"name"},
+	SortableColumns:       []string{"name", "playbook", "inventory", "environment", "repository"},
 	DefaultSortingColumn:  "name",
-}
-
-var ScheduleProps = ObjectProps{
-	TableName:         "project__schedule",
-	Type:              reflect.TypeOf(Schedule{}),
-	PrimaryColumnName: "id",
 }
 
 var ProjectUserProps = ObjectProps{
@@ -366,11 +455,19 @@ var ProjectProps = ObjectProps{
 	IsGlobal:              true,
 }
 
+var ScheduleProps = ObjectProps{
+	TableName:         "project__schedule",
+	Type:              reflect.TypeOf(Schedule{}),
+	PrimaryColumnName: "id",
+	Ownerships:        []*ObjectProps{&ProjectProps},
+}
+
 var UserProps = ObjectProps{
 	TableName:         "user",
 	Type:              reflect.TypeOf(User{}),
 	PrimaryColumnName: "id",
 	IsGlobal:          true,
+	SortableColumns:   []string{"name", "username", "email", "role"},
 }
 
 var SessionProps = ObjectProps{
@@ -410,6 +507,12 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
+var RunnerProps = ObjectProps{
+	TableName:         "runner",
+	Type:              reflect.TypeOf(Runner{}),
+	PrimaryColumnName: "id",
+}
+
 var GlobalRunnerProps = ObjectProps{
 	TableName:         "runner",
 	Type:              reflect.TypeOf(Runner{}),
@@ -429,6 +532,12 @@ var TemplateVaultProps = ObjectProps{
 	Type:                  reflect.TypeOf(TemplateVault{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
+}
+
+var UserTotpProps = ObjectProps{
+	TableName:         "user__totp",
+	Type:              reflect.TypeOf(UserTotp{}),
+	PrimaryColumnName: "id",
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
@@ -490,8 +599,8 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 		return
 	}
 
-	if inventory.HolderID != nil {
-		_, err = store.GetTemplate(inventory.ProjectID, *inventory.HolderID)
+	if inventory.TemplateID != nil {
+		_, err = store.GetTemplate(inventory.ProjectID, *inventory.TemplateID)
 	}
 
 	return

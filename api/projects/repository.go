@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -98,7 +98,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Repository %s created", repository.GitURL),
 	})
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusCreated, newRepo)
 }
 
 // UpdateRepository updates the values of a repository in the database

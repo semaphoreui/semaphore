@@ -30,6 +30,7 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 		Subfield struct {
 			Value string `env:"TEST_VALUE_ENV_VAR"`
 		}
+		StringArr []string `env:"TEST_STRING_ARR"`
 	}
 
 	err := os.Setenv("TEST_FLAG", "yes")
@@ -43,6 +44,11 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 	}
 
 	err = os.Setenv("TEST_VALUE_ENV_VAR", "test_value")
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
 	if err != nil {
 		panic(err)
 	}
@@ -62,6 +68,18 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 
 	if val.Subfield.Value != "test_value" {
 		t.Error("Invalid value")
+	}
+
+	if val.StringArr == nil {
+		t.Error("Invalid array value")
+	}
+
+	if val.StringArr[0] != "test1" {
+		t.Error("Invalid array item value")
+	}
+
+	if val.StringArr[1] != "test2" {
+		t.Error("Invalid array item value")
 	}
 }
 
@@ -116,9 +134,18 @@ func TestCastStringToBool(t *testing.T) {
 
 }
 
+func TestConfigInitialization(t *testing.T) {
+	var testLdapMappingsUID = "uid"
+
+	Config = NewConfigType()
+
+	// should not panic
+	Config.LdapMappings.UID = testLdapMappingsUID
+}
+
 func TestGetConfigValue(t *testing.T) {
 
-	Config = new(ConfigType)
+	Config = NewConfigType()
 
 	var testPort = "1337"
 	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="

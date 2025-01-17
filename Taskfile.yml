@@ -68,7 +68,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/ansible-semaphore/semaphore"
+      IMPORT: "github.com/semaphoreui/semaphore"
 
   build:fe:
     desc: Build VueJS project
@@ -105,7 +105,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/ansible-semaphore/semaphore"
+      IMPORT: "github.com/semaphoreui/semaphore"
 
   lint:
     cmds:
@@ -159,6 +159,11 @@ tasks:
     desc: Run end to end test for API with dredd
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml
+
+  e2e:test:local:
+    desc: Run end to end test for API with dredd
+    cmds:
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.local.yml
 
   release:prod:
     desc: Create and publish a release

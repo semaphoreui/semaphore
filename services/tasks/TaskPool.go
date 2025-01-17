@@ -3,16 +3,17 @@ package tasks
 import (
 	"errors"
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/random"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -46,6 +47,8 @@ type TaskPool struct {
 	store db.Store
 
 	resourceLocker chan *resourceLock
+
+	aliases map[string]*TaskRunner
 }
 
 var ErrInvalidSubscription = errors.New("has no active subscription")
@@ -87,6 +90,10 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 	return
 }
 
+func (p *TaskPool) GetTaskByAlias(alias string) (task *TaskRunner) {
+	return p.aliases[alias]
+}
+
 // nolint: gocyclo
 func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)
@@ -124,6 +131,7 @@ func (p *TaskPool) Run() {
 			}
 
 			delete(p.RunningTasks, t.Task.ID)
+			delete(p.aliases, t.Alias)
 		}
 	}(p.resourceLocker)
 
@@ -221,6 +229,7 @@ func CreateTaskPool(store db.Store) TaskPool {
 		logger:         make(chan logRecord, 10000), // store log records to database
 		store:          store,
 		resourceLocker: make(chan *resourceLock),
+		aliases:        make(map[string]*TaskRunner),
 	}
 }
 
@@ -232,6 +241,18 @@ func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
 	}
 
 	tsk.SetStatus(task_logger.TaskConfirmed)
+
+	return nil
+}
+
+func (p *TaskPool) RejectTask(targetTask db.Task) error {
+	tsk := p.GetTask(targetTask.ID)
+
+	if tsk == nil { // task not active, but exists in database
+		return fmt.Errorf("task is not active")
+	}
+
+	tsk.SetStatus(task_logger.TaskRejected)
 
 	return nil
 }
@@ -320,7 +341,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 	return prefix + strconv.Itoa(newVer) + suffix
 }
 
-func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask db.Task, err error) {
+func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int, needAlias bool) (newTask db.Task, err error) {
 	taskObj.Created = time.Now()
 	taskObj.Status = task_logger.TaskWaitingStatus
 	taskObj.UserID = userID
@@ -360,6 +381,11 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int) (newTask
 	taskRunner := TaskRunner{
 		Task: newTask,
 		pool: p,
+	}
+
+	if needAlias {
+		taskRunner.Alias = random.String(32)
+		p.aliases[taskRunner.Alias] = &taskRunner
 	}
 
 	err = taskRunner.populateDetails()

@@ -3,7 +3,10 @@
     <IntegrationExtractorCrumb v-if="integration != null" :integration="integration"/>
 
     <div class="px-4 py-3">
-      <div v-for="alias of (aliases || [])" :key="alias.id">
+
+      <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There is no aliases.</div>
+
+      <div v-else v-for="alias of (aliases || [])" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
         <v-btn icon
                @click="copyToClipboard(

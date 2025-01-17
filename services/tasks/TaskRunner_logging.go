@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -54,8 +55,22 @@ func (t *TaskRunner) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go t.logPipe(bufio.NewReader(stderr))
-	go t.logPipe(bufio.NewReader(stdout))
+	go t.logPipe(stderr)
+	go t.logPipe(stdout)
+}
+
+func (t *TaskRunner) WaitLog() {
+	t.logWG.Wait()
+}
+
+func (t *TaskRunner) SetCommit(hash, message string) {
+
+	t.Task.CommitHash = &hash
+	t.Task.CommitMessage = message
+
+	if err := t.pool.store.UpdateTask(t.Task); err != nil {
+		t.panicOnError(err, "Failed to update task commit")
+	}
 }
 
 func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
@@ -106,6 +121,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		t.sendRocketChatAlert()
 		t.sendMicrosoftTeamsAlert()
 		t.sendDingTalkAlert()
+		t.sendGotifyAlert()
 	}
 
 	for _, l := range t.statusListeners {
@@ -116,34 +132,33 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 func (t *TaskRunner) panicOnError(err error, msg string) {
 	if err != nil {
 		t.Log(msg)
-		util.LogPanicWithFields(err, log.Fields{"error": msg})
+		util.LogPanicF(err, log.Fields{"error": msg})
 	}
 }
 
-func (t *TaskRunner) logPipe(reader *bufio.Reader) {
-	line, err := Readln(reader)
+func (t *TaskRunner) logPipe(reader io.Reader) {
+	t.logWG.Add(1)
 
-	for err == nil {
-		t.Log(line)
-		line, err = Readln(reader)
+	linesCh := make(chan string, 100000)
+
+	go func() {
+		defer t.logWG.Done()
+
+		for line := range linesCh {
+			t.Log(line)
+		}
+	}()
+
+	scanner := bufio.NewScanner(reader)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		linesCh <- line
 	}
 
-	if err != nil && err.Error() != "EOF" {
-		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
-		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read TaskRunner output"})
-	}
-}
+	close(linesCh)
 
-// Readln reads from the pipe
-func Readln(r *bufio.Reader) (string, error) {
-	var (
-		isPrefix = true
-		err      error
-		line, ln []byte
-	)
-	for isPrefix && err == nil {
-		line, isPrefix, err = r.ReadLine()
-		ln = append(ln, line...)
+	if scanner.Err() != nil && scanner.Err().Error() != "EOF" {
+		util.LogWarningF(scanner.Err(), log.Fields{"error": "Failed to read TaskRunner output"})
 	}
-	return string(ln), err
 }

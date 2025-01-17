@@ -1,12 +1,12 @@
 package tasks
 
 import (
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	task2 "github.com/ansible-semaphore/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/gorilla/context"
 )
 

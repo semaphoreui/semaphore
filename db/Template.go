@@ -24,6 +24,31 @@ const (
 	AppPulumi     TemplateApp = "pulumi"
 )
 
+func (t TemplateApp) InventoryTypes() []InventoryType {
+	switch t {
+	case AppAnsible:
+		return []InventoryType{InventoryStatic, InventoryStaticYaml, InventoryFile}
+	case AppTerraform:
+		return []InventoryType{InventoryTerraformWorkspace}
+	case AppTofu:
+		return []InventoryType{InventoryTofuWorkspace}
+	default:
+		return []InventoryType{}
+	}
+}
+
+func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
+	types := t.InventoryTypes()
+
+	for _, typ := range types {
+		if typ == inventoryType {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (t TemplateApp) IsTerraform() bool {
 	return t == AppTerraform || t == AppTofu
 }
@@ -36,24 +61,30 @@ const (
 	SurveyVarEnum TemplateType = "enum"
 )
 
+type TerraformTemplateParams struct {
+	AllowDestroy     bool `json:"allow_destroy"`
+	AllowAutoApprove bool `json:"allow_auto_approve"`
+}
+
 type SurveyVarEnumValue struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name  string `json:"name" backup:"name"`
+	Value string `json:"value" backup:"value"`
 }
 
 type SurveyVar struct {
-	Name        string               `json:"name"`
-	Title       string               `json:"title"`
-	Required    bool                 `json:"required"`
-	Type        SurveyVarType        `json:"type"`
-	Description string               `json:"description"`
-	Values      []SurveyVarEnumValue `json:"values"`
+	Name        string               `json:"name" backup:"name"`
+	Title       string               `json:"title" backup:"title"`
+	Required    bool                 `json:"required" backup:"required"`
+	Type        SurveyVarType        `json:"type" backup:"type"`
+	Description string               `json:"description" backup:"description"`
+	Values      []SurveyVarEnumValue `json:"values" backup:"values"`
 }
 
 type TemplateFilter struct {
 	ViewID          *int
 	BuildTemplateID *int
 	AutorunOnly     bool
+	App             *TemplateApp
 }
 
 // Template is a user defined model that is used to run a task
@@ -65,7 +96,7 @@ type Template struct {
 	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id" backup:"-"`
 
-	// Name as described in https://github.com/ansible-semaphore/semaphore/issues/188
+	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
@@ -88,17 +119,22 @@ type Template struct {
 
 	Autorun bool `db:"autorun" json:"autorun"`
 
+	// override variables
+	GitBranch *string `db:"git_branch" json:"git_branch"`
+
 	// SurveyVarsJSON used internally for read from database.
 	// It is not used for store survey vars to database.
 	// Do not use it in your code. Use SurveyVars instead.
-	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
-	SurveyVars     []SurveyVar `db:"-" json:"survey_vars" backup:"-"`
+	SurveyVarsJSON *string     `db:"survey_vars" json:"-" backup:"-"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars" backup:"survey_vars"`
 
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
 
 	App TemplateApp `db:"app" json:"app"`
 
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
+
+	TaskParams MapStringAnyField `db:"task_params" json:"task_params"`
 }
 
 func (tpl *Template) Validate() error {

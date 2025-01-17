@@ -3,7 +3,7 @@ package sql
 import (
 	"database/sql"
 	"errors"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
@@ -18,7 +18,13 @@ func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, 
 func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
 	keys = make([]db.AccessKey, 0)
 
-	q := d.makeObjectsQuery(projectID, db.AccessKeyProps, params).Where("pe.environment_id IS NULL")
+	q, err := d.makeObjectsQuery(projectID, db.AccessKeyProps, params)
+
+	if err != nil {
+		return
+	}
+
+	q = q.Where("pe.environment_id IS NULL")
 
 	query, args, err := q.ToSql()
 

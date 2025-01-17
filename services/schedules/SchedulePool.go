@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -76,10 +76,16 @@ func (r ScheduleRunner) Run() {
 		}
 	}
 
+	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
 	_, err = r.pool.taskPool.AddTask(db.Task{
 		TemplateID: schedule.TemplateID,
 		ProjectID:  schedule.ProjectID,
-	}, nil, schedule.ProjectID)
+	}, nil, schedule.ProjectID, tpl.App.NeedTaskAlias())
 
 	if err != nil {
 		log.Error(err)

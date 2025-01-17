@@ -15,6 +15,15 @@ type User struct {
 	Admin    bool      `db:"admin" json:"admin"`
 	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
+
+	Totp *UserTotp `db:"-" json:"totp,omitempty"`
+}
+
+type UserTotp struct {
+	ID      int       `db:"id" json:"id"`
+	Created time.Time `db:"created" json:"created"`
+	UserID  int       `db:"user_id" json:"user_id"`
+	URL     string    `db:"url" json:"url"`
 }
 
 type UserWithProjectRole struct {

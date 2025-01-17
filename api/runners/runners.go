@@ -3,12 +3,12 @@ package runners
 import (
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/services/runners"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func RunnerMiddleware(next http.Handler) http.Handler {
@@ -65,6 +65,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:            tsk.Username,
 				IncomingVersion:     tsk.IncomingVersion,
+				Alias:               tsk.Alias,
 				Task:                tsk.Task,
 				Template:            tsk.Template,
 				Inventory:           tsk.Inventory,
@@ -91,11 +92,13 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 
 			if tsk.Template.Vaults != nil {
 				for _, vault := range tsk.Template.Vaults {
-					err := vault.Vault.DeserializeSecret()
-					if err != nil {
-						// TODO: return error
+					if vault.VaultKeyID != nil {
+						err := vault.Vault.DeserializeSecret()
+						if err != nil {
+							// TODO: return error
+						}
+						data.AccessKeys[*vault.VaultKeyID] = *vault.Vault
 					}
-					data.AccessKeys[vault.VaultKeyID] = *vault.Vault
 				}
 			}
 
@@ -158,6 +161,10 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		}
 
 		tsk.SetStatus(job.Status)
+
+		if job.Commit != nil {
+			tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

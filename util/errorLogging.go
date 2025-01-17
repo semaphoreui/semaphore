@@ -5,12 +5,12 @@ import (
 )
 
 // LogWarning logs a warning with arbitrary field if error
-func LogWarning(err error){
-	LogWarningWithFields(err, log.Fields{"level": "Warn"})
+func LogWarning(err error) {
+	LogWarningF(err, log.Fields{"level": "Warn"})
 }
 
-// LogWarningWithFields logs a warning with added field context if error
-func LogWarningWithFields(err error, fields log.Fields){
+// LogWarningF logs a warning with added field context if error
+func LogWarningF(err error, fields log.Fields) {
 	if err != nil {
 		log.WithFields(fields).Warn(err.Error())
 	}
@@ -18,23 +18,23 @@ func LogWarningWithFields(err error, fields log.Fields){
 
 // LogError logs an error with arbitrary field if error
 func LogError(err error) {
-	LogErrorWithFields(err, log.Fields{"level": "Error"})
+	LogErrorF(err, log.Fields{"level": "Error"})
 }
 
-// LogErrorWithFields logs a error with added field context if error
-func LogErrorWithFields(err error, fields log.Fields) {
+// LogErrorF logs a error with added field context if error
+func LogErrorF(err error, fields log.Fields) {
 	if err != nil {
 		log.WithFields(fields).Error(err.Error())
 	}
 }
 
 // LogPanic logs and panics with arbitrary field if error
-func LogPanic(err error){
-	LogPanicWithFields(err, log.Fields{"level": "Panic"})
+func LogPanic(err error) {
+	LogPanicF(err, log.Fields{"level": "Panic"})
 }
 
-// LogPanicWithFields logs and panics with added field context if error
-func LogPanicWithFields(err error, fields log.Fields){
+// LogPanicF logs and panics with added field context if error
+func LogPanicF(err error, fields log.Fields) {
 	if err != nil {
 		log.WithFields(fields).Panic(err.Error())
 	}

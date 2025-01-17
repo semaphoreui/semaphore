@@ -84,6 +84,14 @@ type Integration struct {
 	TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
 }
 
+func (alias IntegrationAlias) ToAlias() Alias {
+	return Alias{
+		ID:        alias.ID,
+		Alias:     alias.Alias,
+		ProjectID: alias.ProjectID,
+	}
+}
+
 func (env *Integration) Validate() error {
 	if env.Name == "" {
 		return &ValidationError{"No Name set for integration"}

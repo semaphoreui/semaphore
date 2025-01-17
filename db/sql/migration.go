@@ -8,20 +8,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
-	changeRE        = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
-	//dropForeignKeyRE  = regexp.MustCompile(`^alter table \x60(\w+)\x60 drop foreign key \x60(\w+)\x60 /\* postgres:\x60(\w*)\x60 mysql:\x60(\w*)\x60 \*/$`)
-	dropForeignKey2RE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
+	autoIncrementRE  = regexp.MustCompile(`(?i)\bautoincrement\b`)
+	serialRE         = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE   = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE        = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE       = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE       = regexp.MustCompile(`(?i)\bif exists\b`)
+	changeRE         = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( autoincrement)?( not null)?$`)
+	dropForeignKeyRE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // getVersionPath is the humanoid version with the file format appended
@@ -62,7 +61,8 @@ func (d *SqlDb) prepareMigration(query string) string {
 			oldColumnName := m[2]
 			newColumnName := m[3]
 			columnType := m[4]
-			columnNotNull := m[5] != ""
+			//autoincrement := m[5] != ""
+			columnNotNull := m[6] != ""
 
 			var queries []string
 			queries = append(queries,
@@ -88,7 +88,7 @@ func (d *SqlDb) prepareMigration(query string) string {
 		query = tinyintRE.ReplaceAllString(query, "smallint")
 		query = longtextRE.ReplaceAllString(query, "text")
 		query = serialRE.ReplaceAllString(query, "serial primary key")
-		query = dropForeignKey2RE.ReplaceAllString(query, "drop constraint")
+		query = dropForeignKeyRE.ReplaceAllString(query, "drop constraint")
 		query = identifierQuoteRE.ReplaceAllString(query, "\"")
 	}
 	return query

@@ -4,6 +4,7 @@ name: Release
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - v*-rc*
 
 jobs:
   release:
@@ -83,7 +84,7 @@ jobs:
             semaphoreui/semaphore
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -109,7 +110,7 @@ jobs:
             semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |

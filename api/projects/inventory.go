@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 
 	"os"
 	"path/filepath"
@@ -56,7 +56,17 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	inventories, err := helpers.Store(r).GetInventories(project.ID, helpers.QueryParams(r.URL))
+	params := helpers.QueryParamsWithOwner(r.URL, db.InventoryProps)
+
+	app := r.URL.Query().Get("app")
+
+	var types []db.InventoryType
+
+	if app != "" {
+		types = db.TemplateApp(app).InventoryTypes()
+	}
+
+	inventories, err := helpers.Store(r).GetInventories(project.ID, params, types)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -84,7 +94,11 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
-	case db.InventoryStatic, db.InventoryStaticYaml, db.InventoryFile, db.InventoryTerraformWorkspace:
+	case db.InventoryStatic,
+		db.InventoryStaticYaml,
+		db.InventoryFile,
+		db.InventoryTofuWorkspace,
+		db.InventoryTerraformWorkspace:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -163,15 +177,13 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch inventory.Type {
+	case db.InventoryTerraformWorkspace, db.InventoryTofuWorkspace:
 	case db.InventoryStatic, db.InventoryStaticYaml:
-		break
 	case db.InventoryFile:
 		if !IsValidInventoryPath(inventory.Inventory) {
 			helpers.WriteErrorStatus(w, "Invalid inventory file pathname. Must be: path/to/inventory.", http.StatusBadRequest)
 			return
 		}
-	case db.InventoryTerraformWorkspace:
-		break
 	default:
 		helpers.WriteErrorStatus(w,
 			"unknown inventory type: "+string(inventory.Type),

@@ -2,7 +2,7 @@ package bolt
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
@@ -177,6 +177,12 @@ func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 }
 
 func (d *BoltDb) GetUserCount() (count int, err error) {
+	var users []db.User
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, nil, &users)
+	if err != nil {
+		return
+	}
+	count = len(users)
 	return
 }
 
@@ -209,4 +215,32 @@ func (d *BoltDb) GetAllAdmins() (users []db.User, err error) {
 		return user.Admin
 	}, &users)
 	return
+}
+
+func (d *BoltDb) AddTotpVerification(userID int, url string) (totp db.UserTotp, err error) {
+
+	current := make([]db.UserTotp, 0)
+	err = d.getObjects(userID, db.UserTotpProps, db.RetrieveQueryParams{}, nil, current)
+
+	if len(current) > 0 {
+		err = fmt.Errorf("already exists")
+		return
+	}
+
+	totp.UserID = userID
+	totp.URL = url
+	totp.Created = db.GetParsedTime(time.Now().UTC())
+
+	newTotp, err := d.createObject(userID, db.UserTotpProps, totp)
+
+	if err != nil {
+		return
+	}
+
+	totp = newTotp.(db.UserTotp)
+	return
+}
+
+func (d *BoltDb) DeleteTotpVerification(userID int, totpID int) error {
+	return d.deleteObject(userID, db.UserTotpProps, intObjectID(totpID), nil)
 }

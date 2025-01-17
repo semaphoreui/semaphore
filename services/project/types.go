@@ -1,7 +1,7 @@
 package project
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 type BackupDB struct {
@@ -77,7 +77,7 @@ type BackupTemplate struct {
 
 type BackupTemplateVault struct {
 	db.TemplateVault
-	VaultKey string `backup:"vault_key"`
+	VaultKey *string `backup:"vault_key"`
 }
 
 type BackupIntegration struct {

@@ -93,17 +93,22 @@ func main() {
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Add Integration Matcher > 204 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id} > Updates Integration Matcher > 204 > application/json", capabilityWrapper("integrationmatcher"))
 
+	h.Before("project > /api/project/{project_id}/keys > Add access key > 201 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
 	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
 
-	h.Before("project > /api/project/{project_id}/repositories > Add repository > 204 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/repositories > Add repository > 201 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Get repository > 200 > application/json", capabilityWrapper("repository"))
 	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
 	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
 
 	h.Before("project > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
+	h.Before("project > /api/project/{project_id}/inventory/{inventory_id} > Get inventory > 200 > application/json", capabilityWrapper("inventory"))
 	h.Before("project > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
 	h.Before("project > /api/project/{project_id}/inventory/{inventory_id} > Removes inventory > 204 > application/json", capabilityWrapper("inventory"))
 
+	h.Before("project > /api/project/{project_id}/environment > Add environment > 201 > application/json", capabilityWrapper("environment"))
+	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Get environment > 200 > application/json", capabilityWrapper("environment"))
 	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Update environment > 204 > application/json", capabilityWrapper("environment"))
 	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Removes environment > 204 > application/json", capabilityWrapper("environment"))
 

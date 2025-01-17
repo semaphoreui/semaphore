@@ -1,15 +1,20 @@
 module.exports = {
   root: true,
+
   env: {
     node: true,
   },
+
   extends: [
+    'plugin:import/recommended',
     'plugin:vue/essential',
     '@vue/airbnb',
   ],
+
   parserOptions: {
     parser: 'babel-eslint',
   },
+
   rules: {
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
@@ -19,6 +24,7 @@ module.exports = {
     'vue/valid-v-slot': 'off',
     'vue/multi-word-component-names': 'off',
   },
+
   overrides: [
     {
       files: [
@@ -30,4 +36,16 @@ module.exports = {
       },
     },
   ],
+
+  settings: {
+    'import/resolver': {
+      node: {
+        extensions: ['.js', '.vue'],
+      },
+      alias: {
+        map: ['@', './src'],
+        extensions: ['.vue', '.js'],
+      },
+    },
+  },
 };

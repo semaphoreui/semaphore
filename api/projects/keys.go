@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 
 	"github.com/gorilla/context"
 )
@@ -101,7 +101,14 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Access Key %s created", key.Name),
 	})
 
-	w.WriteHeader(http.StatusNoContent)
+	// Reload key to drop sensitive fields
+	key, err = helpers.Store(r).GetAccessKey(*newKey.ProjectID, newKey.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, key)
 }
 
 // UpdateKey updates key in database

@@ -123,4 +123,56 @@ export const APP_INVENTORY_TITLE = {
   tofu: 'OpenTofu Workspace',
 };
 
+export const APP_INVENTORY_TYPES = {
+  ansible: ['static', 'file', 'static-yaml'],
+  terraform: ['terraform-workspace'],
+  tofu: ['terraform-workspace'],
+};
+
 export const DEFAULT_APPS = Object.keys(APP_ICONS);
+
+export const ANSIBLE_FIELDS = {
+  playbook: {
+    label: 'playbookFilename',
+  },
+  inventory: {
+    label: 'inventory2',
+  },
+  repository: {
+    label: 'repository',
+  },
+  environment: {
+    label: 'environment3',
+  },
+  vault: {
+    label: 'vaultPassword2',
+  },
+};
+
+export const TERRAFORM_FIELDS = {
+  ...ANSIBLE_FIELDS,
+  playbook: {
+    label: 'Subdirectory path (Optional)',
+    optional: true,
+  },
+  inventory: {
+    label: 'Workspace (Optional)',
+  },
+  vault: undefined,
+};
+
+export const UNKNOWN_APP_FIELDS = {
+  ...ANSIBLE_FIELDS,
+  playbook: {
+    label: 'Script Filename *',
+  },
+  inventory: undefined,
+  vault: undefined,
+};
+
+export const APP_FIELDS = {
+  '': ANSIBLE_FIELDS,
+  ansible: ANSIBLE_FIELDS,
+  terraform: TERRAFORM_FIELDS,
+  tofu: TERRAFORM_FIELDS,
+};

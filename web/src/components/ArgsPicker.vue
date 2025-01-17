@@ -64,7 +64,7 @@
                          'rgba(200, 200, 200, 0.38)' :
                          'rgba(0, 0, 0, 0.38)'
                      }">
-      <legend style="padding: 0 3px;">{{ $t('Args') }}</legend>
+      <legend style="padding: 0 3px;">{{ title || $t('Args') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
         <v-chip
           v-for="(v, i) in modifiedVars"
@@ -89,6 +89,7 @@
 export default {
   props: {
     vars: Array,
+    title: String,
   },
   watch: {
     vars(val) {

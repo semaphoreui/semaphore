@@ -9,10 +9,10 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type LocalJob struct {
@@ -51,6 +51,10 @@ func (t *LocalJob) Log(msg string) {
 
 func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
 	t.Logger.SetStatus(status)
+}
+
+func (t *LocalJob) SetCommit(hash, message string) {
+	t.Logger.SetCommit(hash, message)
 }
 
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]interface{}, err error) {
@@ -181,22 +185,10 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 		return
 	}
 
-	var templateExtraArgs []string
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the template extra arguments, must be valid JSON")
-			return
-		}
-	}
-
-	var taskExtraArgs []string
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
-			return
-		}
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
 	}
 
 	// Script to run
@@ -210,7 +202,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 	}
 
 	// Include extra args from template
-	args = append(args, templateExtraArgs...)
+	args = append(args, templateArgs...)
 
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
@@ -220,7 +212,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 	}
 
 	// Include extra args from task
-	args = append(args, taskExtraArgs...)
+	args = append(args, taskArgs...)
 
 	return
 }
@@ -238,12 +230,31 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		return
 	}
 
+	var params db.TerraformTaskParams
+	err = t.Task.FillParams(&params)
+	if err != nil {
+		return
+	}
+
+	if params.Destroy {
+		args = append(args, "-destroy")
+	}
+
 	for name, value := range extraVars {
 		if name == "semaphore_vars" {
 			continue
 		}
 		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
+
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
+	}
+
+	args = append(args, templateArgs...)
+	args = append(args, taskArgs...)
 
 	for _, secret := range t.Environment.Secrets {
 		if secret.Type != db.EnvironmentSecretVar {
@@ -323,15 +334,22 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
-	if t.Task.Debug {
+	var params db.AnsibleTaskParams
+
+	err = t.Task.FillParams(&params)
+	if err != nil {
+		return
+	}
+
+	if params.Debug {
 		args = append(args, "-vvvv")
 	}
 
-	if t.Task.Diff {
+	if params.Diff {
 		args = append(args, "--diff")
 	}
 
-	if t.Task.DryRun {
+	if params.DryRun {
 		args = append(args, "--check")
 	}
 
@@ -339,6 +357,9 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		if install.Password != "" {
 			args = append(args, fmt.Sprintf("--vault-id=%s@prompt", name))
 			inputs[fmt.Sprintf("Vault password (%s):", name)] = install.Password
+		}
+		if install.Script != "" {
+			args = append(args, fmt.Sprintf("--vault-id=%s@%s", name, install.Script))
 		}
 	}
 
@@ -357,31 +378,19 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
-	var templateExtraArgs []string
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the template extra arguments, must be valid JSON")
-			return
-		}
-	}
-
-	var taskExtraArgs []string
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
-			return
-		}
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
 	}
 
 	if t.Task.Limit != "" {
 		t.Log("--limit=" + t.Task.Limit)
-		taskExtraArgs = append(taskExtraArgs, "--limit="+t.Task.Limit)
+		templateArgs = append(templateArgs, "--limit="+t.Task.Limit)
 	}
 
-	args = append(args, templateExtraArgs...)
-	args = append(args, taskExtraArgs...)
+	args = append(args, templateArgs...)
+	args = append(args, taskArgs...)
 	args = append(args, playbookName)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
@@ -395,19 +404,73 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	return
 }
 
-func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
+func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
 
-	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
-
-	err = t.prepareRun()
-	if err != nil {
-		return err
+	if t.Template.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
+		if err != nil {
+			err = fmt.Errorf("invalid format of the template extra arguments, must be valid JSON")
+			return
+		}
 	}
+
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgs)
+		if err != nil {
+			err = fmt.Errorf("invalid format of the TaskRunner extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	return
+}
+
+func (t *LocalJob) getParams() (params interface{}, err error) {
+	switch t.Template.App {
+	case db.AppAnsible:
+		params = &db.AnsibleTaskParams{}
+	case db.AppTerraform, db.AppTofu:
+		params = &db.TerraformTaskParams{}
+	default:
+		params = &db.DefaultTaskParams{}
+	}
+
+	err = t.Task.FillParams(params)
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
 	defer func() {
 		t.destroyKeys()
 		t.destroyInventoryFile()
 	}()
+
+	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
+
+	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
+	params, err := t.getParams()
+	if err != nil {
+		return
+	}
+
+	if t.Template.App.IsTerraform() && alias != "" {
+		environmentVariables = append(environmentVariables, "TF_HTTP_ADDRESS="+util.GetPublicAliasURL("terraform", alias))
+	}
+
+	err = t.prepareRun(environmentVariables, params)
+	if err != nil {
+		return err
+	}
 
 	var args []string
 	var inputs map[string]string
@@ -421,11 +484,6 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		args, err = t.getShellArgs(username, incomingVersion)
 	}
 
-	if err != nil {
-		return
-	}
-
-	environmentVariables, err := t.getEnvironmentENV()
 	if err != nil {
 		return
 	}
@@ -451,18 +509,35 @@ func (t *LocalJob) Run(username string, incomingVersion *string) (err error) {
 		}
 	}
 
-	return t.App.Run(args, &environmentVariables, inputs, func(p *os.Process) {
-		t.Process = p
+	return t.App.Run(db_lib.LocalAppRunningArgs{
+		CliArgs:         args,
+		EnvironmentVars: environmentVariables,
+		Inputs:          inputs,
+		TaskParams:      params,
+		Callback: func(p *os.Process) {
+			t.Process = p
+		},
 	})
 
 }
 
-func (t *LocalJob) prepareRun() error {
+func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) error {
+
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
+	}
+
+	// Override git branch from template if set
+	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
+		t.Repository.GitBranch = *t.Template.GitBranch
+	}
+
+	// Override git branch from task if set
+	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
+		t.Repository.GitBranch = *t.Task.GitBranch
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
@@ -486,7 +561,7 @@ func (t *LocalJob) prepareRun() error {
 		return err
 	}
 
-	if err := t.App.InstallRequirements(); err != nil {
+	if err := t.App.InstallRequirements(environmentVars, params); err != nil {
 		t.Log("Running galaxy failed: " + err.Error())
 		return err
 	}
@@ -556,25 +631,23 @@ func (t *LocalJob) checkoutRepository() error {
 
 	// store commit to TaskRunner table
 
-	//commitHash, err := repo.GetLastCommitHash()
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//commitMessage, _ := repo.GetLastCommitMessage()
-	//
-	//t.task.CommitHash = &commitHash
-	//t.task.CommitMessage = commitMessage
-	//
-	//return t.pool.store.UpdateTask(t.task)
+	commitHash, err := repo.GetLastCommitHash()
+
+	if err != nil {
+		return err
+	}
+
+	commitMessage, _ := repo.GetLastCommitMessage()
+
+	t.SetCommit(commitHash, commitMessage)
+
 	return nil
 }
 
 func (t *LocalJob) installVaultKeyFiles() (err error) {
 	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
 
-	if t.Template.Vaults == nil || len(t.Template.Vaults) == 0 {
+	if len(t.Template.Vaults) == 0 {
 		return nil
 	}
 
@@ -587,10 +660,16 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 		}
 
 		var install db.AccessKeyInstallation
-		install, err = vault.Vault.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
-		if err != nil {
-			return
+		if vault.Type == db.TemplateVaultPassword {
+			install, err = vault.Vault.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+			if err != nil {
+				return
+			}
 		}
+		if vault.Type == db.TemplateVaultScript && vault.Script != nil {
+			install.Script = *vault.Script
+		}
+
 		t.vaultFileInstallations[name] = install
 	}
 

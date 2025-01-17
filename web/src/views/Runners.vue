@@ -1,5 +1,19 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
+
+    <v-toolbar flat >
+      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+      <v-toolbar-title>
+        {{ $t('dashboard2') }}
+      </v-toolbar-title>
+    </v-toolbar>
+
+    <DashboardMenu
+      :project-id="projectId"
+      project-type=""
+      :can-update-project="can(USER_PERMISSIONS.updateProject)"
+    />
+
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
@@ -24,11 +38,12 @@
       v-model="newRunnerTokenDialog"
       :save-button-text="null"
       :title="$t('newRunnerToken')"
+      cancel-button-text="OK"
     >
       <template v-slot:form="{}">
         <div>
           <div class="mb-4">
-            <div>Token:</div>
+            <div>{{ $t('runnerToken') }}</div>
             <div style="position: relative;">
               <code
                 class="pa-2 mt-2"
@@ -46,8 +61,8 @@
             </div>
           </div>
 
-          <div>
-            <div>Usage:</div>
+          <div class="mb-4">
+            <div>{{ $t('runnerUsage') }}</div>
             <div style="position: relative;">
               <pre style="white-space: pre-wrap;
                           background: gray;
@@ -67,6 +82,28 @@
               </v-btn>
             </div>
           </div>
+
+          <div>
+            <div>{{ $t('runnerDockerCommand') }}</div>
+            <div style="position: relative;">
+              <pre style="white-space: pre-wrap;
+                          background: gray;
+                          color: white;
+                          border-radius: 10px;
+                          margin-top: 5px;"
+                   class="pa-2"
+              >{{ runnerDockerCommand }}</pre>
+
+              <v-btn
+                style="position: absolute; right: 10px; top: 10px;"
+                icon
+                color="white"
+                @click="copyToClipboard(runnerDockerCommand)"
+              >
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
+            </div>
+          </div>
         </div>
       </template>
     </EditDialog>
@@ -78,7 +115,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat>
+    <v-toolbar flat v-if="!projectId">
       <v-btn
         icon
         class="mr-4"
@@ -86,6 +123,7 @@
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
+
       <v-toolbar-title>{{ $t('runners') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
@@ -94,6 +132,21 @@
       >{{ $t('newRunner') }}
       </v-btn>
     </v-toolbar>
+
+    <v-alert
+      v-if="!premiumFeatures.project_runners"
+      type="info"
+      text
+      color="hsl(348deg, 86%, 61%)"
+      style="border-radius: 0;"
+    >
+      Project Runners available only in <b>PRO</b> version.
+      <v-btn
+        class="ml-2"
+        color="hsl(348deg, 86%, 61%)"
+        href="https://semaphoreui.com/pro"
+      >Upgrade</v-btn>
+    </v-alert>
 
     <v-data-table
       :headers="headers"
@@ -146,11 +199,13 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
+import DashboardMenu from '@/components/DashboardMenu.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   components: {
+    DashboardMenu,
     RunnerForm,
     YesNoDialog,
     EditDialog,
@@ -158,13 +213,23 @@ export default {
 
   props: {
     webHost: String,
+    version: String,
+    projectId: Number,
+    premiumFeatures: Object,
   },
 
   computed: {
     runnerUsageCommand() {
-      return `SEMAPHORE_RUNNER_API_URL=${this.webHost}/internal \\
+      return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 semaphore runner --no-config`;
+    },
+
+    runnerDockerCommand() {
+      return `docker run \\
+-e SEMAPHORE_WEB_ROOT=${this.webHost} \\
+-e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+-d semaphoreui/runner:${this.version}`;
     },
   },
 
@@ -238,10 +303,18 @@ semaphore runner --no-config`;
     },
 
     getItemsUrl() {
+      if (this.projectId) {
+        return `/api/project/${this.projectId}/runners`;
+      }
+
       return '/api/runners';
     },
 
     getSingleItemUrl() {
+      if (this.projectId) {
+        return `/api/project/${this.projectId}/runners/${this.itemId}`;
+      }
+
       return `/api/runners/${this.itemId}`;
     },
 

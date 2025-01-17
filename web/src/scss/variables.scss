@@ -10,3 +10,11 @@ $material-light: (
 );
 
 $tabs-bar-background-color: 'toolbar';
+
+:root {
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 960px;
+  --breakpoint-lg: 1264px;
+  --breakpoint-xl: 1904px;
+  --nav-drawer-width: 260px;
+}

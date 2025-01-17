@@ -3,11 +3,12 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,13 +17,13 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/random"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gorilla/mux"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -88,8 +89,8 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	}
 
 	// Bind as the user
-	userdn := sr.Entries[0].DN
-	if err = l.Bind(userdn, password); err != nil {
+	userDN := sr.Entries[0].DN
+	if err = l.Bind(userDN, password); err != nil {
 		return nil, err
 	}
 
@@ -149,13 +150,24 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 // createSession creates session for passed user and stores session details
 // in cookies.
 func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
+	var verificationMethod db.SessionVerificationMethod
+	verified := false
+	switch {
+	case user.Totp != nil:
+		verificationMethod = db.SessionVerificationTotp
+	default:
+		verificationMethod = db.SessionVerificationNone
+		verified = true
+	}
 	newSession, err := helpers.Store(r).CreateSession(db.Session{
-		UserID:     user.ID,
-		Created:    time.Now(),
-		LastActive: time.Now(),
-		IP:         r.Header.Get("X-Real-IP"),
-		UserAgent:  r.Header.Get("user-agent"),
-		Expired:    false,
+		UserID:             user.ID,
+		Created:            time.Now(),
+		LastActive:         time.Now(),
+		IP:                 r.Header.Get("X-Real-IP"),
+		UserAgent:          r.Header.Get("user-agent"),
+		Expired:            false,
+		VerificationMethod: verificationMethod,
+		Verified:           verified,
 	})
 
 	if err != nil {
@@ -171,9 +183,10 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:  "semaphore",
-		Value: encoded,
-		Path:  "/",
+		Name:     "semaphore",
+		Value:    encoded,
+		Path:     "/",
+		HttpOnly: true,
 	})
 }
 
@@ -202,8 +215,12 @@ func loginByPassword(store db.Store, login string, password string) (user db.Use
 func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
 	user, err = store.GetUserByLoginOrEmail(ldapUser.Username, ldapUser.Email)
 
-	if err == db.ErrNotFound {
+	if errors.Is(err, db.ErrNotFound) {
 		user, err = store.CreateUserWithoutPassword(ldapUser)
+	}
+
+	if err != nil {
+		return
 	}
 
 	if !user.External {
@@ -296,13 +313,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		if err == db.ErrNotFound {
+		if errors.Is(err, db.ErrNotFound) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		switch err.(type) {
-		case *db.ValidationError:
+		var validationError *db.ValidationError
+		switch {
+		case errors.As(err, &validationError):
 			// TODO: Return more informative error code.
 		}
 
@@ -317,10 +335,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 func logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:    "semaphore",
-		Value:   "",
-		Expires: time.Now().Add(24 * 7 * time.Hour * -1),
-		Path:    "/",
+		Name:     "semaphore",
+		Value:    "",
+		Expires:  time.Now().Add(24 * 7 * time.Hour * -1),
+		Path:     "/",
+		HttpOnly: true,
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -329,7 +348,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc.Provider, *oauth2.Config, error) {
 	provider, ok := util.Config.OidcProviders[id]
 	if !ok {
-		return nil, nil, fmt.Errorf("No such provider: %s", id)
+		return nil, nil, fmt.Errorf("no such provider: %s", id)
 	}
 	config := oidc.ProviderConfig{
 		IssuerURL:   provider.Endpoint.IssuerURL,
@@ -392,14 +411,14 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 		Scopes:       provider.Scopes,
 	}
 	if len(oauthConfig.RedirectURL) == 0 {
-		rurl, err := url.JoinPath(util.Config.WebHost, "api/auth/oidc", id, "redirect")
+		redirectURL, err := url.JoinPath(util.Config.WebHost, "api/auth/oidc", id, "redirect")
 		if err != nil {
 			return nil, nil, err
 		}
 
-		oauthConfig.RedirectURL = rurl
+		oauthConfig.RedirectURL = redirectURL
 
-		if rurl != redirectPath {
+		if redirectURL != redirectPath {
 			oauthConfig.RedirectURL += redirectPath
 		}
 	}
@@ -423,7 +442,8 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 	state := generateStateOauthCookie(w)
@@ -435,7 +455,10 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	expiration := time.Now().Add(365 * 24 * time.Hour)
 
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
 	oauthState := base64.URLEncoding.EncodeToString(b)
 	cookie := http.Cookie{Name: "oauthstate", Value: oauthState, Expires: expiration}
 	http.SetCookie(w, &cookie)
@@ -570,14 +593,16 @@ func getSecretFromFile(source string) (string, error) {
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	oauthState, err := r.Cookie("oauthstate")
+	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	if r.FormValue("state") != oauthState.Value {
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -586,14 +611,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -604,7 +629,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -643,7 +668,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -658,14 +683,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 		if err != nil {
 			log.Error(err.Error())
-			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 			return
 		}
 	}
 
 	if !user.External {
 		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
-		http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -673,5 +698,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	redirectPath := mux.Vars(r)["redirect_path"]
 
-	http.Redirect(w, r, "/"+redirectPath, http.StatusTemporaryRedirect)
+	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
+	if err != nil {
+		log.Error(err)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	http.Redirect(w, r, redirectPath, http.StatusTemporaryRedirect)
 }

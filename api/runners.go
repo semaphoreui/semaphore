@@ -1,21 +1,13 @@
 package api
 
 import (
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/gorilla/context"
 )
-
-//type minimalGlobalRunner struct {
-//	ID               int    `json:"id"`
-//	Name             string `json:"name"`
-//	Active           bool   `json:"active"`
-//	Webhook          string `db:"webhook" json:"webhook"`
-//	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
-//}
 
 func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
 	runners, err := helpers.Store(r).GetGlobalRunners(false)

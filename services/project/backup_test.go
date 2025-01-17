@@ -1,10 +1,12 @@
 package project
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt"
-	"github.com/ansible-semaphore/semaphore/util"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
 )
 
 type testItem struct {
@@ -21,17 +23,13 @@ func TestBackupProject(t *testing.T) {
 	proj, err := store.CreateProject(db.Project{
 		Name: "Test 123",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Type:      db.AccessKeyNone,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
@@ -40,26 +38,20 @@ func TestBackupProject(t *testing.T) {
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	inv, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 		ID:        1,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	env, err := store.CreateEnvironment(db.Environment{
 		ProjectID: proj.ID,
 		Name:      "test",
 		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Test",
@@ -69,37 +61,20 @@ func TestBackupProject(t *testing.T) {
 		InventoryID:   &inv.ID,
 		EnvironmentID: &env.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	backup, err := GetBackup(proj.ID, store)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if backup.Meta.ID != proj.ID {
-		t.Fatal("backup meta ID wrong")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, proj.ID, backup.Meta.ID)
 
 	str, err := backup.Marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if str != `{"environments":[{"json":"{\"author\": \"Denis\", \"comment\": \"Hello, World!\"}","name":"test"}],"integration_aliases":[],"integrations":[],"inventories":[{"inventory":"","name":"","type":""}],"keys":[{"name":"","type":"none"}],"meta":{"alert":false,"max_parallel_tasks":0,"name":"Test 123","type":""},"repositories":[{"git_branch":"master","git_url":"git@example.com:test/test","name":"Test","ssh_key":""}],"templates":[{"allow_override_args_in_task":false,"app":"","autorun":false,"environment":"test","inventory":"","name":"Test","playbook":"test.yml","repository":"Test","suppress_success_alerts":false,"type":"","vaults":[]}],"views":[]}` {
-		t.Fatal("Invalid backup content")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "{\"environments\":[{\"json\":\"{\\\"author\\\": \\\"Denis\\\", \\\"comment\\\": \\\"Hello, World!\\\"}\",\"name\":\"test\"}],\"integration_aliases\":[],\"integrations\":[],\"inventories\":[{\"inventory\":\"\",\"name\":\"\",\"type\":\"\"}],\"keys\":[{\"name\":\"\",\"type\":\"none\"}],\"meta\":{\"alert\":false,\"max_parallel_tasks\":0,\"name\":\"Test 123\",\"type\":\"\"},\"repositories\":[{\"git_branch\":\"master\",\"git_url\":\"git@example.com:test/test\",\"name\":\"Test\",\"ssh_key\":\"\"}],\"templates\":[{\"allow_override_args_in_task\":false,\"app\":\"\",\"autorun\":false,\"environment\":\"test\",\"inventory\":\"\",\"name\":\"Test\",\"playbook\":\"test.yml\",\"repository\":\"Test\",\"suppress_success_alerts\":false,\"survey_vars\":[],\"task_params\":{},\"type\":\"\",\"vaults\":[]}],\"views\":[]}", str)
 
 	restoredBackup := &BackupFormat{}
 	err = restoredBackup.Unmarshal(str)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if restoredBackup.Meta.Name != proj.Name {
-		t.Fatal("backup meta ID wrong")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, proj.Name, restoredBackup.Meta.Name)
 
 	user, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "3412341234123",
@@ -110,19 +85,11 @@ func TestBackupProject(t *testing.T) {
 			Admin:    true,
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	restoredProj, err := restoredBackup.Restore(user, store)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if restoredProj.Name != proj.Name {
-		t.Fatal("backup meta ID wrong")
-	}
-
+	assert.NoError(t, err)
+	assert.Equal(t, proj.Name, restoredProj.Name)
 }
 
 func isUnique(items []testItem) bool {
@@ -157,7 +124,5 @@ func TestMakeUniqueNames(t *testing.T) {
 		item.Name = name
 	})
 
-	if !isUnique(items) {
-		t.Fatal("Not unique names")
-	}
+	assert.True(t, isUnique(items), "Not unique names")
 }

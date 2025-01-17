@@ -55,6 +55,7 @@
       :title="$t('editUser')"
       v-if="user"
       event-name="i-user"
+      :hide-buttons="hideUserDialogButtons"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <UserForm
@@ -65,15 +66,18 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="user.admin"
+          @hide-action-buttons="hideUserDialogButtons = true"
+          @show-action-buttons="hideUserDialogButtons = false"
         />
       </template>
     </EditDialog>
 
     <EditDialog
       v-model="taskLogDialog"
-      save-button-text="Delete"
       :max-width="1000"
       :hide-buttons="true"
+      :expandable="true"
+      name="TaskLogDialog"
       @close="onTaskLogDialogClosed()"
     >
       <template v-slot:title={}>
@@ -236,7 +240,7 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>{{ $t('newProject') }}</v-list-item-title>
+            <v-list-item-title>{{ $t('newProject2') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -244,7 +248,7 @@
       <v-list class="pt-0" v-if="!project">
         <v-list-item key="new_project" :to="`/project/restore`">
           <v-list-item-icon>
-            <v-icon>mdi-plus</v-icon>
+            <v-icon>mdi-restore</v-icon>
           </v-list-item-icon>
 
           <v-list-item-content>
@@ -527,6 +531,8 @@
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :webHost="(systemInfo || {}).web_host"
+        :version="(systemInfo || {version: ''}).version.split('-')[0]"
+        :premiumFeatures="((systemInfo || {premium_features: {}}).premium_features)"
         :user="user"
       ></router-view>
     </v-main>
@@ -581,10 +587,6 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
-
-.v-alert__wrapper {
-  overflow: auto;
-}
 
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
@@ -646,23 +648,38 @@
   height: 64px !important;
 }
 
-.v-data-table-header {
+.v-data-table .v-data-footer {
+  margin-left: 16px !important;
+  margin-right: 16px !important;
 }
 
-.v-data-table > .v-data-table__wrapper > table > thead > tr:last-child > th {
-  text-transform: uppercase;
-  white-space: nowrap;
+.v-data-table__wrapper {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
 }
 
-.v-data-table > .v-data-table__wrapper > table > tbody > tr {
-  background: transparent !important;
+.v-data-table {
+  td:first-child, th:first-child {
+    padding-left: 2px !important;
+  }
+  td:last-child, th:last-child {
+    padding-right: 2px !important;
+  }
 
-  & > td {
+  .v-data-table__wrapper > table > thead > tr:last-child > th {
+    text-transform: uppercase;
     white-space: nowrap;
   }
 
-  & > td:first-child {
-    //font-weight: bold !important;
+  .v-data-table__wrapper > table > tbody > tr {
+    background: transparent !important;
+    &:hover {
+      background-color: rgba(143, 143, 143, 0.04) !important;
+    }
+
+    & > td {
+      white-space: nowrap;
+    }
   }
 }
 
@@ -700,6 +717,12 @@
   }
 }
 
+@import '~vuetify/src/styles/styles.sass';
+@media #{map-get($display-breakpoints, 'xl-only')} {
+  .CenterToScreen {
+    transform: translateX(-130px);
+  }
+}
 </style>
 
 <script>
@@ -815,6 +838,7 @@ export default {
       newProjectDialog: null,
       newProjectType: '',
       userDialog: null,
+      hideUserDialogButtons: false,
       passwordDialog: null,
       restoreProjectDialog: null,
       restoreProjectResult: null,
@@ -891,10 +915,6 @@ export default {
       return this.projects.find((x) => x.id === this.projectId);
     },
 
-    isAuthenticated() {
-      return document.cookie.includes('semaphore=');
-    },
-
     templatesUrl() {
       let viewId = localStorage.getItem(`project${this.projectId}__lastVisitedViewId`);
       if (viewId) {
@@ -908,14 +928,6 @@ export default {
   },
 
   async created() {
-    if (!this.isAuthenticated) {
-      if (this.$route.path !== '/auth/login') {
-        await this.$router.push({ path: '/auth/login' });
-      }
-      this.state = 'success';
-      return;
-    }
-
     if (localStorage.getItem('darkMode') === '1') {
       this.darkMode = true;
     }
@@ -924,6 +936,14 @@ export default {
       await this.loadData();
       this.state = 'success';
     } catch (err) {
+      if (err.response && err.response.status === 401) {
+        if (this.$route.path !== '/auth/login') {
+          await this.$router.push({ path: '/auth/login' });
+        }
+        this.state = 'success';
+        return;
+      }
+
       EventBus.$emit('i-snackbar', {
         color: 'error',
         text: getErrorMessage(err),
@@ -1060,6 +1080,7 @@ export default {
   },
 
   methods: {
+
     async onSubscriptionKeyUpdates() {
       EventBus.$emit('i-snackbar', {
         color: 'success',
@@ -1155,10 +1176,6 @@ export default {
     },
 
     async loadUserInfo() {
-      if (!this.isAuthenticated) {
-        return;
-      }
-
       this.user = (await axios({
         method: 'get',
         url: '/api/user',

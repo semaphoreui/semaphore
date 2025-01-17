@@ -180,14 +180,6 @@ EOF
     fi
 fi
 
-if test -f "${SEMAPHORE_CONFIG_PATH}/packages.txt"; then
-    echoerr "Installing additional system dependencies"
-    apk add --no-cache --upgrade \
-        $(cat "${SEMAPHORE_CONFIG_PATH}/packages.txt" | xargs)
-else
-    echoerr "No additional system dependencies to install"
-fi
-
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
     pip3 install --upgrade \

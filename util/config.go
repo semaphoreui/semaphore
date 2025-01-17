@@ -36,29 +36,29 @@ const (
 type DbConfig struct {
 	Dialect string `json:"-"`
 
-	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST"`
+	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
 	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
 	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
-	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB"`
+	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
 
-type ldapMappings struct {
+type LdapMappings struct {
 	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN" default:"dn"`
 	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL" default:"mail"`
 	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID" default:"uid"`
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
 }
 
-func (p *ldapMappings) GetUsernameClaim() string {
+func (p *LdapMappings) GetUsernameClaim() string {
 	return p.UID
 }
 
-func (p *ldapMappings) GetEmailClaim() string {
+func (p *LdapMappings) GetEmailClaim() string {
 	return p.Mail
 }
 
-func (p *ldapMappings) GetNameClaim() string {
+func (p *LdapMappings) GetNameClaim() string {
 	return p.CN
 }
 
@@ -112,6 +112,13 @@ type RunnerConfig struct {
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
+type TLSConfig struct {
+	Enabled          bool   `json:"enabled" env:"SEMAPHORE_TLS_ENABLED"`
+	CertFile         string `json:"cert_file" env:"SEMAPHORE_TLS_CERT_FILE"`
+	KeyFile          string `json:"key_file" env:"SEMAPHORE_TLS_KEY_FILE"`
+	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -122,7 +129,8 @@ type ConfigType struct {
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	TLS  *TLSConfig `json:"tls,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -163,10 +171,10 @@ type ConfigType struct {
 	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
 	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
-	LdapMappings     *ldapMappings `json:"ldap_mappings,omitempty"`
+	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams and DingTalk alerting
+	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
@@ -178,6 +186,9 @@ type ConfigType struct {
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
 	DingTalkAlert       bool   `json:"dingtalk_alert,omitempty" env:"SEMAPHORE_DINGTALK_ALERT"`
 	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
+	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
+	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
+	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty"`
@@ -201,6 +212,16 @@ type ConfigType struct {
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
+
+	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
+
+	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+}
+
+func NewConfigType() *ConfigType {
+	return &ConfigType{
+		LdapMappings: &LdapMappings{},
+	}
 }
 
 // Config exposes the application configuration storage for use in the application
@@ -215,12 +236,13 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 func ConfigInit(configPath string, noConfigFile bool) {
 	fmt.Println("Loading config")
 
-	Config = &ConfigType{}
+	Config = NewConfigType()
 	Config.Apps = map[string]App{}
 
 	if !noConfigFile {
 		loadConfigFile(configPath)
 	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -611,7 +633,7 @@ func AnsibleVersion() string {
 func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	// fetch releases
 	gh := github.NewClient(nil)
-	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "ansible-semaphore", "semaphore", nil)
+	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "semaphoreui", "semaphore", nil)
 	if err != nil {
 		return
 	}
@@ -664,6 +686,16 @@ func (d *DbConfig) GetHostname() string {
 	return d.Hostname
 }
 
+// GetConnectionString constructs the database connection string based on the current configuration.
+// It supports MySQL, BoltDB, and PostgreSQL dialects.
+// If the dialect is unsupported, it returns an error.
+//
+// Parameters:
+// - includeDbName: a boolean indicating whether to include the database name in the connection string.
+//
+// Returns:
+// - connectionString: the constructed database connection string.
+// - err: an error if the dialect is unsupported.
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	dbName := d.GetDbName()
 	dbUser := d.GetUsername()
@@ -706,7 +738,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"postgres://%s:%s@%s",
+				"postgres://%s:%s@%s/postgres",
 				dbUser,
 				url.QueryEscape(dbPass),
 				dbHost)
@@ -718,11 +750,17 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	return
 }
 
+// PrintDbInfo prints the database connection information based on the current configuration.
+// It retrieves the database dialect and prints the corresponding connection details.
+// If the dialect is not found, it panics with an error message.
 func (conf *ConfigType) PrintDbInfo() {
+	// Get the database dialect
 	dialect, err := conf.GetDialect()
 	if err != nil {
 		panic(err)
 	}
+
+	// Print database connection information based on the dialect
 	switch dialect {
 	case DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
@@ -836,12 +874,26 @@ func LookupDefaultApps() {
 	}
 }
 
-func PrintDebug() {
-	envs := os.Environ()
-	for _, e := range envs {
-		fmt.Println(e)
+func GetPublicAliasURL(scope string, alias string) string {
+	aliasURL := Config.WebHost
+	port := Config.Port
+	if port == "" {
+		port = "3000"
 	}
 
-	b, _ := Config.ToJSON()
-	fmt.Println(string(b))
+	if strings.HasPrefix(port, ":") {
+		port = port[1:]
+	}
+
+	if aliasURL == "" {
+		aliasURL = "http://localhost:" + port
+	}
+
+	if !strings.HasSuffix(aliasURL, "/") {
+		aliasURL += "/"
+	}
+
+	aliasURL += "api/" + scope + "/" + alias
+
+	return aliasURL
 }

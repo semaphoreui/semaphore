@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type RemoteJob struct {
@@ -66,7 +66,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	return
 }
 
-func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
+func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
 	tsk := t.taskPool.GetTask(t.Task.ID)
 
@@ -76,10 +76,22 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	tsk.IncomingVersion = incomingVersion
 	tsk.Username = username
+	tsk.Alias = alias
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
-		runners, err = t.taskPool.store.GetGlobalRunners(true)
+		var projectRunners []db.Runner
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true)
+		if err != nil {
+			return
+		}
+		var globalRunners []db.Runner
+		globalRunners, err = t.taskPool.store.GetGlobalRunners(true)
+		if err != nil {
+			return
+		}
+		runners = append(runners, projectRunners...)
+		runners = append(runners, globalRunners...)
 	})
 
 	if err != nil {
@@ -95,7 +107,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string) (err error) {
 
 	for _, r := range runners {
 		n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
-		if n < r.MaxParallelTasks {
+		if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
 			runner = &r
 			break
 		}

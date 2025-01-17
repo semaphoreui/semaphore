@@ -3,7 +3,7 @@ name: Beta
 'on':
   push:
     tags:
-      - v*-beta
+      - v*-beta*
 
 jobs:
   prerelease:
@@ -83,7 +83,7 @@ jobs:
             semaphoreui/semaphore
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -109,7 +109,7 @@ jobs:
             semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
