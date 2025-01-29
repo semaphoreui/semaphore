@@ -56,12 +56,15 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
+	store := helpers.Store(r)
 	var integrations []db.Integration
+	var level db.IntegrationAliasLevel
 
 	if util.Config.IntegrationAlias != "" && integrationAlias == util.Config.IntegrationAlias {
-		integrations, err = helpers.Store(r).GetAllSearchableIntegrations()
+		integrations, err = store.GetAllSearchableIntegrations()
+		level = db.IntegrationAliasGlobal
 	} else {
-		integrations, err = helpers.Store(r).GetIntegrationsByAlias(integrationAlias)
+		integrations, level, err = store.GetIntegrationsByAlias(integrationAlias)
 	}
 
 	if err != nil {
@@ -77,7 +80,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 		project, ok := projects[integration.ProjectID]
 		if !ok {
-			project, err = helpers.Store(r).GetProject(integrations[0].ProjectID)
+			project, err = store.GetProject(integrations[0].ProjectID)
 			if err != nil {
 				log.Error(err)
 				return
@@ -89,7 +92,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			panic("")
 		}
 
-		err = db.FillIntegration(helpers.Store(r), &integration)
+		err = db.FillIntegration(store, &integration)
 		if err != nil {
 			log.Error(err)
 			return
@@ -139,26 +142,28 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		var matchers []db.IntegrationMatcher
-		matchers, err = helpers.Store(r).GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
-		if err != nil {
-			log.Error(err)
-		}
-
-		var matched = false
-
-		for _, matcher := range matchers {
-			if Match(matcher, r.Header, payload) {
-				matched = true
-				continue
-			} else {
-				matched = false
-				break
+		if level != db.IntegrationAliasSingle {
+			var matchers []db.IntegrationMatcher
+			matchers, err = store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
+			if err != nil {
+				log.Error(err)
 			}
-		}
 
-		if !matched {
-			continue
+			var matched = false
+
+			for _, matcher := range matchers {
+				if Match(matcher, r.Header, payload) {
+					matched = true
+					continue
+				} else {
+					matched = false
+					break
+				}
+			}
+
+			if !matched {
+				continue
+			}
 		}
 
 		RunIntegration(integration, project, r, payload)

@@ -45,7 +45,7 @@ func (d *SqlDb) GetIntegrationAliases(projectID int, integrationID *int) (res []
 	return
 }
 
-func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err error) {
+func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, level db.IntegrationAliasLevel, err error) {
 
 	var aliasObj db.IntegrationAlias
 
@@ -66,6 +66,7 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err 
 	}
 
 	if aliasObj.IntegrationID == nil {
+		level = db.IntegrationAliasProject
 		var projIntegrations []db.Integration
 		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{})
 		if err != nil {
@@ -77,6 +78,7 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err 
 			}
 		}
 	} else {
+		level = db.IntegrationAliasSingle
 		var integration db.Integration
 		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
 		res = append(res, integration)

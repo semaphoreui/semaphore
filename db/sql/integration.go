@@ -252,7 +252,7 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 func (d *SqlDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
 	q := squirrel.Select("*").From(db.IntegrationProps.TableName)
 
-	q = q.Where("searchable")
+	q = q.Where("integration_id is null")
 
 	query, args, err := q.ToSql()
 
