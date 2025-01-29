@@ -13,7 +13,7 @@
 
     <div v-if="integration.searchable" class="px-4">
       <v-alert type="info" text class="d-inline-block">
-        Matchers allow your integration to be found by a project alias.
+        Matchers allow the integration to be found by a project alias.
       </v-alert>
     </div>
 
