@@ -359,10 +359,10 @@
 
           <v-list-item>
             <v-switch
+              class="DarkModeSwitch"
               v-model="darkMode"
-              inset
-              :label="$t('darkMode')"
-              persistent-hint
+              prepend-icon="mdi-white-balance-sunny"
+              append-icon="mdi-weather-night"
             ></v-switch>
 
             <v-spacer/>
@@ -582,6 +582,22 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+
+.DarkModeSwitch {
+  .v-input__prepend-outer {
+    transform: translateY(1px);
+    .v-icon {
+      color: #cacaca !important;
+    }
+  }
+  .v-input__append-outer {
+    margin-left: 5px;
+    transform: translateY(-1px);
+    .v-icon {
+      color: #2196f3 !important;
+    }
+  }
+}
 
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
