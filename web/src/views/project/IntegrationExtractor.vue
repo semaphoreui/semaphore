@@ -12,9 +12,9 @@
     </div>
 
     <div v-if="integration.searchable" class="px-4">
-<!--      <v-alert type="info" text class="d-inline-block">-->
-<!--        You need one or more Matchers.-->
-<!--      </v-alert>-->
+      <v-alert type="info" text class="d-inline-block">
+        Matchers allow your integration to be found by a project alias.
+      </v-alert>
     </div>
 
     <div v-else class="px-4 pb-6">
