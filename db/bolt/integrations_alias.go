@@ -53,6 +53,12 @@ func (d *BoltDb) GetIntegrationsByAlias(alias string) (res []db.Integration, lev
 		if err != nil {
 			return
 		}
+
+		if integration.Searchable {
+			err = db.ErrNotFound
+			return
+		}
+
 		res = append(res, integration)
 	}
 

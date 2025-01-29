@@ -2,8 +2,22 @@
   <div>
     <IntegrationExtractorCrumb v-if="integration != null" :integration="integration"/>
 
-    <div class="px-4 py-3">
+    <div class="px-4 pt-3 pb-2">
+      <v-switch
+         class="mt-0"
+        v-model="integration.searchable"
+        :label="$t('globalAlias')"
+        @change="updateIntegration()"
+      />
+    </div>
 
+    <div v-if="integration.searchable" class="px-4">
+<!--      <v-alert type="info" text class="d-inline-block">-->
+<!--        You need one or more Matchers.-->
+<!--      </v-alert>-->
+    </div>
+
+    <div v-else class="px-4 pb-6">
       <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There is no aliases.</div>
 
       <div v-else v-for="alias of (aliases || [])" :key="alias.id">
@@ -18,19 +32,21 @@
         </v-btn>
       </div>
 
-      <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
+      <v-btn
+        color="primary"
+        @click="addAlias()"
+        :disabled="aliases == null"
+      >
         {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
       </v-btn>
-
-      <v-checkbox
-        v-model="integration.searchable"
-        :label="$t('globalAlias')"
-        @change="updateIntegration()"
-      />
     </div>
 
+    <v-divider />
+
+    <IntegrationMatcher class="mb-6" v-if="integration.searchable" />
+
     <IntegrationExtractValue/>
-    <IntegrationMatcher/>
+
   </div>
 </template>
 <script>

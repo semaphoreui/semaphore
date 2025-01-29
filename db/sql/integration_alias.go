@@ -81,6 +81,16 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, leve
 		level = db.IntegrationAliasSingle
 		var integration db.Integration
 		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
+
+		if err != nil {
+			return
+		}
+
+		if integration.Searchable {
+			err = db.ErrNotFound
+			return
+		}
+
 		res = append(res, integration)
 	}
 

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"net/http"
 	"strings"
@@ -57,15 +56,8 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
 	store := helpers.Store(r)
-	var integrations []db.Integration
-	var level db.IntegrationAliasLevel
 
-	if util.Config.IntegrationAlias != "" && integrationAlias == util.Config.IntegrationAlias {
-		integrations, err = store.GetAllSearchableIntegrations()
-		level = db.IntegrationAliasGlobal
-	} else {
-		integrations, level, err = store.GetIntegrationsByAlias(integrationAlias)
-	}
+	integrations, level, err := store.GetIntegrationsByAlias(integrationAlias)
 
 	if err != nil {
 		log.Error(err)
@@ -142,7 +134,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if level != db.IntegrationAliasSingle {
+		if level == db.IntegrationAliasSingle {
 			var matchers []db.IntegrationMatcher
 			matchers, err = store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {

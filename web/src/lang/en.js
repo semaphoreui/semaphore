@@ -266,7 +266,7 @@ export default {
   DeleteIntegrationMsg: 'Are you sure you want to delete this Integration?',
   AddAlias: 'Add Alias',
   LoadAlias: 'Loading aliases...',
-  globalAlias: 'Available by project and global alias',
+  globalAlias: 'Use project alias',
   matcher: 'Matcher',
   matchType: 'Match Type',
   newMatcher: 'New Matcher',

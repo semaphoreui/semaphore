@@ -74,8 +74,7 @@ type IntegrationAlias struct {
 type IntegrationAliasLevel int
 
 const (
-	IntegrationAliasGlobal IntegrationAliasLevel = iota
-	IntegrationAliasProject
+	IntegrationAliasProject = iota
 	IntegrationAliasSingle
 )
 
