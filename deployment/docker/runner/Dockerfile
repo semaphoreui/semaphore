@@ -90,23 +90,23 @@ RUN export MITOGEN_VERSION=$(curl -s https://api.github.com/repos/mitogen-hq/mit
     pip3 install --upgrade pip>=25 \
         ansible==${ANSIBLE_VERSION} \
         mitogen==${MITOGEN_VERSION} \
-        appdirs \
-        baron \
-        boto3 \
-        botocore \
-        cffi \
-        cryptography \
-        Jinja2 \
-        jmespath \
-        MarkupSafe \
-        packaging \
-        pycparser \
-        pywinrm \
-        PyYAML \
-        redbaron \
-        requests \
-        resolvelib \
-        rply \
+        appdirs>=1.4 \
+        baron>=0.10 \
+        boto3>=1.36 \
+        botocore>=1.36 \
+        cffi>=1.17 \
+        cryptography>=44 \
+        Jinja2>=3 \
+        jmespath>=1 \
+        MarkupSafe>=3 \
+        packaging>=24 \
+        pycparser>=2 \
+        pywinrm>=0.5 \
+        PyYAML>=6 \
+        redbaron>=0.9 \
+        requests>=2 \
+        resolvelib>=1 \
+        rply>=0.7 \
       && \
       echo -e "\nstrategy = mitogen_linear" >>/etc/ansible/ansible.cfg && \
       echo "strategy_plugins = /opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv/lib/python3.11/site-packages/ansible_mitogen/plugins/strategy" >>/etc/ansible/ansible.cfg && \
