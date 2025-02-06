@@ -87,7 +87,7 @@ RUN export MITOGEN_VERSION=$(curl -s https://api.github.com/repos/mitogen-hq/mit
     mkdir -p ${VIRTUAL_ENV} && \
     python3 -m venv ${VIRTUAL_ENV} --system-site-packages && \
     source ${VIRTUAL_ENV}/bin/activate && \
-    pip3 install --upgrade pip \
+    pip3 install --upgrade pip>=25 \
         ansible==${ANSIBLE_VERSION} \
         mitogen==${MITOGEN_VERSION} \
         appdirs \
