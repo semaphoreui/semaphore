@@ -19,3 +19,6 @@ if test "$#" -ne 1; then
 else
     exec "$@"
 fi
+
+source /opt/semaphore/.env && export $(cut -d= -f1 < /opt/semaphore/.env)
+export PATH="$VIRTUAL_ENV/bin:$PATH"

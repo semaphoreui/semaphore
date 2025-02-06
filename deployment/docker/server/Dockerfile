@@ -49,9 +49,6 @@ FROM alpine:3.19
 
 ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
-ARG ANSIBLE_VERSION=11.1.0
-ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
-ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U \
     bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip jq && \
@@ -80,43 +77,44 @@ RUN chown -R semaphore:0 /usr/local/bin/server-wrapper && \
 
 WORKDIR /home/semaphore
 
-RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo && \
-     mkdir -p ${ANSIBLE_VENV_PATH} && \
-     python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
-     source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip \
-       ansible==${ANSIBLE_VERSION} \
-       mitogen==${MITOGEN_VERSION} \
-       appdirs \
-       baron \
-       boto3 \
-       botocore \
-       cffi \
-       cryptography \
-       Jinja2 \
-       jmespath \
-       MarkupSafe \
-       packaging \
-       pycparser \
-       pywinrm \
-       PyYAML \
-       redbaron \
-       requests \
-       resolvelib \
-       rply \
-       && \
-     apk del python3-dev build-base openssl-dev libffi-dev cargo && \
-     rm -rf /var/cache/apk/* && \
-     find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
-     chown -R semaphore:0 /opt/semaphore
-
-RUN echo -e "\nstrategy = mitogen_linear" >>/etc/ansible/ansible.cfg
-RUN echo "strategy_plugins = /opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv/lib/python3.11/site-packages/ansible_mitogen/plugins/strategy" >>/etc/ansible/ansible.cfg
+RUN export MITOGEN_VERSION=$(curl -s https://api.github.com/repos/mitogen-hq/mitogen/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "v([0-9.]+)".*/\1/') && \
+    export ANSIBLE_MAJOR_COMPAT_VERSION=$(curl -s https://raw.githubusercontent.com/mitogen-hq/mitogen/master/tox.ini | grep "    ansible" | cut -d " " -f6 | grep ansible | tail -n1 | cut -d "=" -f2 | cut -d "." -f1) && \
+    export ANSIBLE_VERSION=$(pip index versions ansible | tr ',' '\n'| tr -d '()' | grep " ${ANSIBLE_MAJOR_COMPAT_VERSION}." | head -n1 | cut -d ' ' -f2) && \
+    export VIRTUAL_ENV=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv && \
+    echo "VIRTUAL_ENV=${VIRTUAL_ENV}" | tee -a /opt/semaphore/.env && \
+    apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo && \
+    mkdir -p ${VIRTUAL_ENV} && \
+    python3 -m venv ${VIRTUAL_ENV} --system-site-packages && \
+    source ${VIRTUAL_ENV}/bin/activate && \
+    pip3 install --upgrade pip \
+        ansible==${ANSIBLE_VERSION} \
+        mitogen==${MITOGEN_VERSION} \
+        appdirs \
+        baron \
+        boto3 \
+        botocore \
+        cffi \
+        cryptography \
+        Jinja2 \
+        jmespath \
+        MarkupSafe \
+        packaging \
+        pycparser \
+        pywinrm \
+        PyYAML \
+        redbaron \
+        requests \
+        resolvelib \
+        rply \
+      && \
+      echo -e "\nstrategy = mitogen_linear" >>/etc/ansible/ansible.cfg && \
+      echo "strategy_plugins = /opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv/lib/python3.11/site-packages/ansible_mitogen/plugins/strategy" >>/etc/ansible/ansible.cfg && \
+    apk del python3-dev build-base openssl-dev libffi-dev cargo && \
+    rm -rf /var/cache/apk/* && \
+    find ${VIRTUAL_ENV} -iname __pycache__ | xargs rm -rf && \
+    chown -R semaphore:0 /opt/semaphore
 
 USER 1001
-
-ENV VIRTUAL_ENV="$ANSIBLE_VENV_PATH"
-ENV PATH="$ANSIBLE_VENV_PATH/bin:$PATH"
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]

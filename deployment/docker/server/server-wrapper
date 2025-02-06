@@ -34,6 +34,9 @@ file_env() {
     unset "${1}_FILE"
 }
 
+source /opt/semaphore/.env && export $(cut -d= -f1 < /opt/semaphore/.env)
+export PATH="$VIRTUAL_ENV/bin:$PATH"
+
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
 export SEMAPHORE_DB_PATH="${SEMAPHORE_DB_PATH:-/var/lib/semaphore}"
 export SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-}"
