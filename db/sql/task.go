@@ -97,12 +97,23 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 		return err
 	}
 
-	_, err = d.exec(
-		"update task set status=?, start=?, `end`=? where id=?",
-		task.Status,
-		task.Start,
-		task.End,
-		task.ID)
+	if task.CommitHash != nil {
+		_, err = d.exec(
+			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=? where id=?",
+			task.Status,
+			task.Start,
+			task.End,
+			task.CommitHash,
+			task.CommitMessage,
+			task.ID)
+	} else {
+		_, err = d.exec(
+			"update task set status=?, start=?, `end`=? where id=?",
+			task.Status,
+			task.Start,
+			task.End,
+			task.ID)
+	}
 
 	return err
 }

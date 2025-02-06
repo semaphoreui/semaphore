@@ -31,6 +31,7 @@ type BackupFormat struct {
 	Environments       []BackupEnvironment `backup:"environments"`
 	Integration        []BackupIntegration `backup:"integrations"`
 	IntegrationAliases []string            `backup:"integration_aliases"`
+	Schedules          []BackupSchedule    `backup:"schedules"`
 }
 
 type BackupMeta struct {
@@ -43,6 +44,11 @@ type BackupEnvironment struct {
 
 type BackupAccessKey struct {
 	db.AccessKey
+}
+
+type BackupSchedule struct {
+	db.Schedule
+	Template string `backup:"template"`
 }
 
 type BackupView struct {

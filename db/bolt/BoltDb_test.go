@@ -36,7 +36,7 @@ func TestMarshalObject_UserWithPwd(t *testing.T) {
 	require.NoError(t, err)
 
 	str := string(bytes)
-	expected := `{"id":0,"created":"0001-01-01T00:00:00Z","username":"fiftin","name":"","email":"","password":"345345234523452345234","admin":false,"external":false,"alert":false}`
+	expected := `{"id":0,"created":"0001-01-01T00:00:00Z","username":"fiftin","name":"","email":"","password":"345345234523452345234","admin":false,"external":false,"alert":false,"pro":false}`
 	assert.Equal(t, expected, str)
 
 	fmt.Println(str)

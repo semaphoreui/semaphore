@@ -83,7 +83,7 @@
       :data-sources="output"
       :data-component="itemComponent"
       :estimate-size="22"
-      :keeps="60"
+      :keeps="100"
       ref="records"
     >
       <div class="task-log-records__record" v-for="record in output" :key="record.id">
@@ -149,7 +149,7 @@ $task-log-message-height: 48px;
 .v-dialog--fullscreen {
 
   .task-log-records {
-    height: calc(100vh - $task-log-header-height);
+    height: calc(100vh - #{$task-log-header-height});
   }
 
   .task-log-view--with-message .task-log-records {
@@ -203,6 +203,7 @@ export default {
       output: [],
       outputBuffer: [],
       user: {},
+      autoScroll: true,
     };
   },
 
@@ -240,11 +241,26 @@ export default {
           return;
         }
 
+        const scrollContainer = this.$refs.records.$el;
+
+        // Check if the current position is already at the bottom
+        const currentScrollTop = scrollContainer.scrollTop;
+        const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+        // Add a new item to the list
         this.output.push(...this.outputBuffer.splice(0, len));
 
-        if (this.$refs.records) {
-          this.$refs.records.scrollToBottom();
-        }
+        // If the user is already at the bottom, keep it scrolled to the bottom
+        // Otherwise, maintain the current scroll position
+        this.$nextTick(() => {
+          if (Math.abs(currentScrollTop - maxScrollTop) <= 1) {
+            // User is at the bottom, scroll to the bottom
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          } else {
+            // User is not at the bottom, preserve current scroll position
+            scrollContainer.scrollTop = currentScrollTop;
+          }
+        });
       });
     }, 500);
     socket.addListener((data) => this.onWebsocketDataReceived(data));

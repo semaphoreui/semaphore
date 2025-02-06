@@ -1,8 +1,11 @@
 package api
 
 import (
+	"bufio"
+	"bytes"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 
@@ -27,7 +30,8 @@ func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
 
 type runnerWithToken struct {
 	db.Runner
-	Token string `json:"token"`
+	Token      string `json:"token"`
+	PrivateKey string `json:"private_key"`
 }
 
 func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +41,30 @@ func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runner.ProjectID = nil
+
+	var privateKey []byte
+
+	if runner.PublicKey == nil {
+		var b bytes.Buffer
+		privateKeyFile := bufio.NewWriter(&b)
+
+		publicKey, err := util.GeneratePrivateKey(privateKeyFile)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		err = privateKeyFile.Flush()
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		privateKey = b.Bytes()
+
+		runner.PublicKey = &publicKey
+	}
+
 	newRunner, err := helpers.Store(r).CreateRunner(runner)
 
 	if err != nil {
@@ -46,8 +74,9 @@ func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, runnerWithToken{
-		Runner: newRunner,
-		Token:  newRunner.Token,
+		Runner:     newRunner,
+		Token:      newRunner.Token,
+		PrivateKey: string(privateKey),
 	})
 }
 

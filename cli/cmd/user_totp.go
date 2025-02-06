@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pquerna/otp/totp"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -58,11 +59,18 @@ var totpEnableCmd = &cobra.Command{
 			panic(err)
 		}
 
-		totp, err := store.AddTotpVerification(user.ID, key.URL())
+		code, hash, err := util.GenerateRecoveryCode()
 		if err != nil {
 			panic(err)
 		}
 
+		totp, err := store.AddTotpVerification(user.ID, key.URL(), hash)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println()
+		fmt.Println("Recovery code: ", code)
 		fmt.Println()
 		fmt.Println(totp.URL)
 		fmt.Println()

@@ -13,6 +13,10 @@ func (e View) GetName() string {
 	return e.Title
 }
 
+func (e Schedule) GetName() string {
+	return e.Name
+}
+
 func (e Template) GetID() int {
 	return e.ID
 }

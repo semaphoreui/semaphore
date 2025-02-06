@@ -203,25 +203,22 @@
           v-if="needField('environment')"
         ></v-select>
 
-        <TemplateVaults
-          v-if="itemTypeIndex === 0 && needField('vault')"
-          :project-id="this.projectId"
-          :vaults="item.vaults"
-          @change="setTemplateVaults"
-        ></TemplateVaults>
-
       </v-col>
 
       <v-col cols="12" md="6" class="pb-0">
 
         <TemplateVaults
-          v-if="itemTypeIndex > 0 && needField('vault')"
+          v-if="needField('vault')"
           :project-id="this.projectId"
-          :vaults="item.vaults"
+          :vaults="vaults"
           @change="setTemplateVaults"
         ></TemplateVaults>
 
-        <SurveyVars style="margin-top: -10px;" :vars="item.survey_vars" @change="setSurveyVars"/>
+        <SurveyVars
+          style="margin-top: -10px;"
+          :vars="surveyVars"
+          @change="setSurveyVars"
+        />
 
         <v-select
           v-model="item.view_id"
@@ -358,7 +355,7 @@ export default {
         lint: true,
         indentWithTabs: false,
       },
-      item: null,
+      item: {},
       inventory: null,
       repositories: null,
       environment: null,
@@ -396,6 +393,19 @@ export default {
   },
 
   computed: {
+    surveyVars() {
+      if (this.sourceItemId != null && this.item.survey_vars === undefined) {
+        throw new Error();
+      }
+      return this.item.survey_vars;
+    },
+
+    vaults() {
+      if (this.sourceItemId != null && this.item.vaults === undefined) {
+        throw new Error();
+      }
+      return this.item.vaults;
+    },
 
     isLoaded() {
       if (this.isNew && this.sourceItemId == null) {
@@ -432,44 +442,58 @@ export default {
 
     async afterLoadData() {
       if (this.sourceItemId) {
-        this.item = (await axios({
-          keys: 'get',
+        const item = (await axios({
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
           responseType: 'json',
         })).data;
-        this.item.id = null;
+
+        item.id = null;
+
+        if (item.vaults) {
+          for (let i = 0; i < item.vaults.length; i += 1) {
+            item.vaults[i].id = null;
+          }
+        }
+
+        const sourceSchedule = (await axios({
+          url: `/api/project/${this.projectId}/templates/${this.sourceItemId}/schedules`,
+          responseType: 'json',
+        })).data[0];
+
+        if (sourceSchedule != null) {
+          this.cronFormat = sourceSchedule.cron_format;
+          this.cronRepositoryId = sourceSchedule.repository_id;
+          this.cronVisible = this.cronRepositoryId != null;
+        }
+
+        this.item = item;
       }
 
       this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;
 
       this.repositories = (await axios({
-        keys: 'get',
         url: `/api/project/${this.projectId}/repositories`,
         responseType: 'json',
       })).data;
 
       this.inventory = [
         ...(await axios({
-          keys: 'get',
           url: `/api/project/${this.projectId}/inventory?app=${this.app}&template_id=${this.itemId}`,
           responseType: 'json',
         })).data,
 
         ...(await axios({
-          keys: 'get',
           url: `/api/project/${this.projectId}/inventory?app=${this.app}`,
           responseType: 'json',
         })).data,
       ];
 
       this.environment = (await axios({
-        keys: 'get',
         url: `/api/project/${this.projectId}/environment`,
         responseType: 'json',
       })).data;
 
       const template = (await axios({
-        keys: 'get',
         url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
       })).data;
@@ -504,13 +528,11 @@ export default {
       this.buildTemplates.push(...deploys);
 
       this.schedules = this.isNew ? [] : (await axios({
-        keys: 'get',
         url: `/api/project/${this.projectId}/templates/${this.itemId}/schedules`,
         responseType: 'json',
       })).data;
 
       this.views = (await axios({
-        keys: 'get',
         url: `/api/project/${this.projectId}/views`,
         responseType: 'json',
       })).data;

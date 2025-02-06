@@ -71,6 +71,13 @@ type IntegrationAlias struct {
 	IntegrationID *int   `db:"integration_id" json:"integration_id" backup:"-"`
 }
 
+type IntegrationAliasLevel int
+
+const (
+	IntegrationAliasProject = iota
+	IntegrationAliasSingle
+)
+
 type Integration struct {
 	ID           int                   `db:"id" json:"id" backup:"-"`
 	Name         string                `db:"name" json:"name"`

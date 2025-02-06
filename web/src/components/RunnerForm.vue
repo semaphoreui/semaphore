@@ -35,8 +35,11 @@
     ></v-text-field>
 
     <v-checkbox
+      class="mt-0"
       v-model="item.active"
       :label="$t('enabled')"
+      :disabled="formSaving"
+      hide-details
     ></v-checkbox>
   </v-form>
 </template>
@@ -47,7 +50,9 @@ export default {
   props: {
     isAdmin: Boolean,
   },
+
   mixins: [ItemFormBase],
+
   methods: {
     getItemsUrl() {
       return '/api/runners';

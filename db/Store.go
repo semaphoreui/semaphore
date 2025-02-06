@@ -257,14 +257,14 @@ type Store interface {
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
 	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
-	GetIntegrationsByAlias(alias string) ([]Integration, error)
+	GetIntegrationsByAlias(alias string) ([]Integration, IntegrationAliasLevel, error)
 	DeleteIntegrationAlias(projectID int, aliasID int) error
-	GetAllSearchableIntegrations() ([]Integration, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
 
+	GetProUserCount() (int, error)
 	GetUserCount() (int, error)
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
@@ -275,7 +275,7 @@ type Store interface {
 	// Pwd should be present of you want update user password. Empty Pwd ignored.
 	UpdateUser(user UserWithPwd) error
 	SetUserPassword(userID int, password string) error
-	AddTotpVerification(userID int, url string) (UserTotp, error)
+	AddTotpVerification(userID int, url string, recoveryHash string) (UserTotp, error)
 	DeleteTotpVerification(userID int, totpID int) error
 
 	GetUser(userID int) (User, error)
@@ -508,16 +508,20 @@ var ViewProps = ObjectProps{
 }
 
 var RunnerProps = ObjectProps{
-	TableName:         "runner",
-	Type:              reflect.TypeOf(Runner{}),
-	PrimaryColumnName: "id",
+	TableName:            "runner",
+	Type:                 reflect.TypeOf(Runner{}),
+	DefaultSortingColumn: "id",
+	PrimaryColumnName:    "id",
+	SortInverted:         true,
 }
 
 var GlobalRunnerProps = ObjectProps{
-	TableName:         "runner",
-	Type:              reflect.TypeOf(Runner{}),
-	PrimaryColumnName: "id",
-	IsGlobal:          true,
+	TableName:            "runner",
+	Type:                 reflect.TypeOf(Runner{}),
+	PrimaryColumnName:    "id",
+	DefaultSortingColumn: "id",
+	SortInverted:         true,
+	IsGlobal:             true,
 }
 
 var OptionProps = ObjectProps{

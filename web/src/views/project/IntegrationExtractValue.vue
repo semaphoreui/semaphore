@@ -129,18 +129,18 @@ export default {
         value: 'value_source',
         sortable: false,
       },
-      {
-        text: 'Body Data Type',
-        value: 'body_data_type',
-        sortable: false,
-      },
+      // {
+      //   text: 'Body Data Type',
+      //   value: 'body_data_type',
+      //   sortable: false,
+      // },
       {
         text: 'Key',
         value: 'key',
         sortable: false,
       },
       {
-        text: 'Environment Variable',
+        text: 'Variable',
         value: 'variable',
         sortable: false,
       },

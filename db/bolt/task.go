@@ -1,9 +1,10 @@
 package bolt
 
 import (
+	"time"
+
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
-	"time"
 )
 
 func (d *BoltDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
@@ -91,6 +92,7 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 func (d *BoltDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
 	task.Created = time.Now()
+	task.ID = 0
 	res, err := d.createObject(0, db.TaskProps, task)
 	if err != nil {
 		return

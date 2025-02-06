@@ -193,7 +193,9 @@
         <v-btn
           color="hsl(348deg, 86%, 61%)"
           href="https://semaphoreui.com/pro"
-        >Upgrade
+        >
+          Learn more
+          <v-icon>mdi-chevron-right</v-icon>
         </v-btn>
       </v-alert>
 

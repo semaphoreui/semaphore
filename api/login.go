@@ -153,12 +153,13 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	var verificationMethod db.SessionVerificationMethod
 	verified := false
 	switch {
-	case user.Totp != nil:
+	case user.Totp != nil && util.Config.Auth.Totp.Enabled:
 		verificationMethod = db.SessionVerificationTotp
 	default:
 		verificationMethod = db.SessionVerificationNone
 		verified = true
 	}
+
 	newSession, err := helpers.Store(r).CreateSession(db.Session{
 		UserID:             user.ID,
 		Created:            time.Now(),
@@ -171,7 +172,9 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 	})
 
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
+		return
 	}
 
 	encoded, err := util.Cookie.Encode("semaphore", map[string]interface{}{
@@ -238,9 +241,18 @@ type loginMetadataOidcProvider struct {
 	Icon  string `json:"icon"`
 }
 
+type LoginTotpAuthMethod struct {
+	AllowRecovery bool `json:"allow_recovery"`
+}
+
+type LoginAuthMethods struct {
+	Totp *LoginTotpAuthMethod `json:"totp,omitempty"`
+}
+
 type loginMetadata struct {
 	OidcProviders     []loginMetadataOidcProvider `json:"oidc_providers"`
 	LoginWithPassword bool                        `json:"login_with_password"`
+	AuthMethods       LoginAuthMethods            `json:"auth_methods"`
 }
 
 // nolint: gocyclo
@@ -267,6 +279,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 			b := util.Config.OidcProviders[config.OidcProviders[j].ID]
 			return a.Order < b.Order
 		})
+
+		if util.Config.Auth.Totp.Enabled {
+			config.AuthMethods.Totp = &LoginTotpAuthMethod{
+				AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
+			}
+		}
 
 		helpers.WriteJSON(w, http.StatusOK, config)
 		return

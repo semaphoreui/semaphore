@@ -409,11 +409,18 @@ export default {
       }
 
       if (data.task_id !== template.last_task_id) {
-        Object.assign(template.last_task, (await axios({
+        const lastTask = (await axios({
           method: 'get',
           url: `/api/project/${this.projectId}/tasks/${data.task_id}`,
           responseType: 'json',
-        })).data);
+        })).data;
+
+        if (template.last_task) {
+          Object.assign(template.last_task, lastTask);
+        } else {
+          template.last_task = lastTask;
+        }
+
         template.last_task_id = data.task_id;
       }
 

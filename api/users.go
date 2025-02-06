@@ -106,6 +106,12 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !editor.Admin && (user.Pro && !targetUser.Pro) {
+		log.Warn(editor.Username + " is not permitted to mark users as Pro")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	if !editor.Admin && editor.ID != targetUser.ID {
 		log.Warn(editor.Username + " is not permitted to edit users")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -187,6 +193,11 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 func totpQr(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "_user").(db.User)
 
+	if user.Totp == nil {
+		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusNotFound)
+		return
+	}
+
 	key, err := otp.NewKeyFromURL(user.Totp.URL)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -207,18 +218,18 @@ func totpQr(w http.ResponseWriter, r *http.Request) {
 	}
 	pngBytes := buf.Bytes()
 
-	//pngBytes, err := qrcode.Encode(user.Totp.URL, qrcode.Medium, 256)
-	//if err != nil {
-	//	helpers.WriteError(w, err)
-	//	return
-	//}
-
 	w.Header().Add("Content-Type", "image/png")
 	_, err = w.Write(pngBytes)
 }
 
 func enableTotp(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "_user").(db.User)
+
+	if !util.Config.Auth.Totp.Enabled {
+		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
+		return
+	}
+
 	if user.Totp != nil {
 		helpers.WriteErrorStatus(w, "TOTP already enabled", http.StatusBadRequest)
 		return
@@ -234,11 +245,23 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTotp, err := helpers.Store(r).AddTotpVerification(user.ID, key.URL())
+	var code, hash string
+
+	if util.Config.Auth.Totp.AllowRecovery {
+		code, hash, err = util.GenerateRecoveryCode()
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+	}
+
+	newTotp, err := helpers.Store(r).AddTotpVerification(user.ID, key.URL(), hash)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	newTotp.RecoveryCode = code
 
 	helpers.WriteJSON(w, http.StatusOK, newTotp)
 }

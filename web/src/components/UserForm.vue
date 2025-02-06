@@ -1,13 +1,38 @@
 <template>
   <div>
+
+    <EditDialog
+      v-model="passwordDialog"
+      save-button-text="Save"
+      :title="$t('changePassword')"
+      v-if="item"
+      event-name="i-user"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <ChangePasswordForm
+          :project-id="projectId"
+          :item-id="item.id"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
+
     <v-tabs v-model="tab">
       <v-tab key="settings">Settings</v-tab>
-      <v-tab key="2fa">2FA</v-tab>
+      <v-tab
+        key="2fa"
+        v-if="!isNew || authMethods.totp"
+      >
+        Security
+      </v-tab>
     </v-tabs>
 
-    <v-divider class="mb-6" style="margin-top: -1px;" />
+    <v-divider class="mb-6" style="margin-top: -1px;"/>
 
-    <v-tabs-items v-model="tab">
+    <v-tabs-items v-model="tab" style="overflow: unset;">
       <v-tab-item key="settings">
         <v-form
           ref="form"
@@ -19,7 +44,8 @@
             :value="formError"
             color="error"
             class="pb-2"
-          >{{ formError }}</v-alert>
+          >{{ formError }}
+          </v-alert>
 
           <v-text-field
             v-model="item.name"
@@ -51,6 +77,7 @@
           </v-text-field>
 
           <v-text-field
+            v-if="isNew"
             v-model="item.password"
             :label="$t('password')"
             type="password"
@@ -59,33 +86,50 @@
             :disabled="item.external || formSaving"
           ></v-text-field>
 
-          <v-row>
-            <v-col>
+          <v-row class="pb-5 pt-2">
+            <v-col cols="6">
               <v-checkbox
-                v-model="item.admin"
-                :label="$t('adminUser')"
-                v-if="isAdmin"
-              ></v-checkbox>
-            </v-col>
-            <v-col>
-              <v-checkbox
+                dense
+                hide-details
                 v-model="item.alert"
                 :label="$t('sendAlerts')"
+              ></v-checkbox>
+            </v-col>
+            <v-col cols="6" v-if="isAdmin">
+              <v-checkbox
+                dense
+                hide-details
+                v-model="item.admin"
+                :label="$t('adminUser')"
               ></v-checkbox>
             </v-col>
           </v-row>
         </v-form>
       </v-tab-item>
-      <v-tab-item key="2fa" class="pb-4">
-        <v-switch
-          class="mt-0"
-          v-model="totpEnabled"
-          label="Time-based one-time password"
-        ></v-switch>
-        <img
-          v-if="totpQrUrl"
-          :src="totpQrUrl"
-          style="
+
+      <v-tab-item key="2fa" class="pb-4" v-if="item != null">
+
+        <div v-if="!isNew">
+          <div class="title mb-3">Password</div>
+          <v-btn color="primary" @click="passwordDialog = true;">Change password</v-btn>
+        </div>
+
+        <div
+          :class="{'pt-10': !isNew}"
+          v-if="authMethods.totp"
+        >
+          <div class="title mb-2">Two-factor authentication</div>
+
+          <v-switch
+            class="mt-0"
+            v-model="totpEnabled"
+            label="Time-based one-time password"
+          ></v-switch>
+
+          <img
+            v-if="totpQrUrl"
+            :src="totpQrUrl"
+            style="
         width: 100%;
         aspect-ratio: 1;
         border-radius: 4px;
@@ -94,8 +138,32 @@
         border: 10px solid white;
         background-color: white;
       "
-          alt="QR code"
-        />
+            alt="QR code"
+          />
+
+          <div
+            v-if="authMethods.totp.allow_recovery && item.totp && item.totp.recovery_code"
+            class="mt-5 pb-3"
+          >
+            <div class="subtitle-1 mb-2">Recovery code</div>
+            <div style="position: relative;">
+              <code
+                style="font-size: 18px; background-color: #e03755;"
+              >
+                {{ item.totp.recovery_code }}
+              </code>
+              <v-btn
+                style="position: absolute; right: -4px; top: -12px;"
+                icon
+                large
+                color="white"
+                @click="copyToClipboard(item.totp.recovery_code)"
+              >
+                <v-icon>mdi-content-copy</v-icon>
+              </v-btn>
+            </div>
+          </div>
+        </div>
       </v-tab-item>
     </v-tabs-items>
   </div>
@@ -103,16 +171,22 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import EventBus from '@/event-bus';
+import EditDialog from '@/components/EditDialog.vue';
+import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 
 export default {
+  components: { ChangePasswordForm, EditDialog },
   props: {
     isAdmin: Boolean,
+    authMethods: Object,
   },
 
   mixins: [ItemFormBase],
 
   data() {
     return {
+      passwordDialog: null,
       totpEnabled: false,
       totpQrUrl: null,
 
@@ -159,6 +233,21 @@ export default {
       } else {
         this.totpEnabled = true;
         this.totpQrUrl = `/api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+      }
+    },
+
+    async copyToClipboard(text) {
+      try {
+        await window.navigator.clipboard.writeText(text);
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'The recovery code has been copied to your clipboard.',
+        });
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Can't copy the recovery code: ${e.message}`,
+        });
       }
     },
 

@@ -67,6 +67,70 @@ type totpRequestBody struct {
 	Passcode string `json:"passcode"`
 }
 
+type totpRecoveryRequestBody struct {
+	RecoveryCode string `json:"recovery_code"`
+}
+
+func recoverySession(w http.ResponseWriter, r *http.Request) {
+	session, ok := getSession(r)
+
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	switch session.VerificationMethod {
+	case db.SessionVerificationTotp:
+		if !util.Config.Auth.Totp.Enabled || !util.Config.Auth.Totp.AllowRecovery {
+			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
+			return
+		}
+
+		var body totpRecoveryRequestBody
+		if !helpers.Bind(w, r, &body) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		store := helpers.Store(r)
+
+		user, err := store.GetUser(session.UserID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if user.Totp == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if !util.VerifyRecoveryCode(body.RecoveryCode, user.Totp.RecoveryHash) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		err = store.DeleteTotpVerification(user.ID, user.Totp.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = store.VerifySession(session.UserID, session.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	case db.SessionVerificationNone:
+		w.WriteHeader(http.StatusNoContent)
+		return
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 // nolint: gocyclo
 func verifySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
@@ -78,6 +142,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationTotp:
+		if !util.Config.Auth.Totp.Enabled {
+			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
+			return
+		}
+
 		var body totpRequestBody
 		if !helpers.Bind(w, r, &body) {
 			w.WriteHeader(http.StatusBadRequest)

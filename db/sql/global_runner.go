@@ -66,13 +66,14 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into runner (project_id, token, webhook, max_parallel_tasks, name, active) values (?, ?, ?, ?, ?, ?)",
+		"insert into runner (project_id, token, webhook, max_parallel_tasks, name, active, public_key) values (?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
-		runner.Active)
+		runner.Active,
+		runner.PublicKey)
 
 	if err != nil {
 		return

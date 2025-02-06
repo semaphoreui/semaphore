@@ -132,6 +132,10 @@ export default {
     };
   },
 
+  created() {
+    this.params = this.value;
+  },
+
   methods: {
     updateValue(prop, value) {
       this.params[prop] = value;

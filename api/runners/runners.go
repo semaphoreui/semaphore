@@ -1,14 +1,20 @@
 package runners
 
 import (
-	"net/http"
-
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
+	"net/http"
 )
 
 func RunnerMiddleware(next http.Handler) http.Handler {
@@ -44,6 +50,45 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 		context.Set(r, "runner", runner)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func loadPublicKey(keyData []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(keyData)
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("invalid public key")
+	}
+	pub, err := x509.ParsePKCS1PublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pub, nil
+}
+
+func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
+	// For a 2048-bit key, pub.Size() == 256 bytes
+	// PKCS#1 v1.5 overhead = 11 bytes, so max plaintext per chunk = 256 - 11 = 245
+	rsaBlockSize := pub.Size()        // 256 for 2048-bit
+	maxChunkSize := rsaBlockSize - 11 // 245
+
+	var encryptedBuffer bytes.Buffer
+
+	for start := 0; start < len(plaintext); start += maxChunkSize {
+		end := start + maxChunkSize
+		if end > len(plaintext) {
+			end = len(plaintext)
+		}
+		chunk := plaintext[start:end]
+
+		encryptedChunk, err := rsa.EncryptPKCS1v15(rand.Reader, pub, chunk)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt chunk failed: %w", err)
+		}
+
+		// Append the encrypted chunk (always 256 bytes for 2048-bit key)
+		encryptedBuffer.Write(encryptedChunk)
+	}
+
+	return encryptedBuffer.Bytes(), nil
 }
 
 func GetRunner(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +165,38 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, data)
+	if runner.PublicKey != nil {
+
+		publicKey, err := loadPublicKey([]byte(*runner.PublicKey))
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		message, err := json.Marshal(data)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		encryptedBytes, err := chunkRSAEncrypt(publicKey, message)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/octet-stream")
+
+		_, err = w.Write(encryptedBytes)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+	} else {
+		helpers.WriteJSON(w, http.StatusOK, data)
+	}
+
 }
 
 func UpdateRunner(w http.ResponseWriter, r *http.Request) {
@@ -190,6 +266,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	runner, err := helpers.Store(r).CreateRunner(db.Runner{
 		Webhook:          register.Webhook,
 		MaxParallelTasks: register.MaxParallelTasks,
+		PublicKey:        register.PublicKey,
 	})
 
 	if err != nil {

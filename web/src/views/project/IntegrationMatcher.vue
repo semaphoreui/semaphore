@@ -131,11 +131,6 @@ export default {
         sortable: true,
       },
       {
-        text: 'Method',
-        value: 'method',
-        sortable: true,
-      },
-      {
         text: 'Body Data Type',
         value: 'body_data_type',
         sortable: false,
@@ -146,12 +141,17 @@ export default {
         sortable: true,
       },
       {
+        text: 'Method',
+        value: 'method',
+        sortable: true,
+      },
+      {
         text: 'Value',
         value: 'value',
         sortable: true,
       },
       {
-        text: 'Actions',
+        text: '',
         value: 'actions',
         sortable: false,
       }];

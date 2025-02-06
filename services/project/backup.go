@@ -114,6 +114,13 @@ func (b *BackupDB) makeUniqueNames() {
 	}, func(item *db.Integration, name string) {
 		item.Name = name
 	})
+
+	makeUniqueNames(b.schedules, func(item *db.Schedule) string {
+		return item.Name
+	}, func(item *db.Schedule, name string) {
+		item.Name = name
+	})
+
 }
 
 func (b *BackupDB) load(projectID int, store db.Store) (err error) {
@@ -203,6 +210,21 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 }
 
 func (b *BackupDB) format() (*BackupFormat, error) {
+	schedules := make([]BackupSchedule, len(b.schedules))
+	for i, o := range b.schedules {
+
+		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+
+		if tplName == nil {
+			continue
+		}
+
+		schedules[i] = BackupSchedule{
+			o,
+			*tplName,
+		}
+	}
+
 	keys := make([]BackupAccessKey, len(b.keys))
 	for i, o := range b.keys {
 		keys[i] = BackupAccessKey{
@@ -344,6 +366,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Templates:          templates,
 		Integration:        integrations,
 		IntegrationAliases: integrationAliases,
+		Schedules:          schedules,
 	}, nil
 }
 

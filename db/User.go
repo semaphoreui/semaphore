@@ -15,15 +15,18 @@ type User struct {
 	Admin    bool      `db:"admin" json:"admin"`
 	External bool      `db:"external" json:"external"`
 	Alert    bool      `db:"alert" json:"alert"`
+	Pro      bool      `db:"pro" json:"pro"`
 
 	Totp *UserTotp `db:"-" json:"totp,omitempty"`
 }
 
 type UserTotp struct {
-	ID      int       `db:"id" json:"id"`
-	Created time.Time `db:"created" json:"created"`
-	UserID  int       `db:"user_id" json:"user_id"`
-	URL     string    `db:"url" json:"url"`
+	ID           int       `db:"id" json:"id"`
+	Created      time.Time `db:"created" json:"created"`
+	UserID       int       `db:"user_id" json:"user_id"`
+	URL          string    `db:"url" json:"url"`
+	RecoveryHash string    `db:"recovery_hash" json:"-"`
+	RecoveryCode string    `db:"-" json:"recovery_code,omitempty"`
 }
 
 type UserWithProjectRole struct {

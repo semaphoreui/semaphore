@@ -45,8 +45,13 @@ func getQueryForParams(q squirrel.SelectBuilder, prefix string, props db.ObjectP
 		orderDirection = "DESC"
 	}
 
-	orderColumn := props.DefaultSortingColumn
-	if pp.SortBy != "" {
+	var orderColumn string
+	if pp.SortBy == "" {
+		orderColumn = props.DefaultSortingColumn
+		if props.SortInverted {
+			orderDirection = "DESC"
+		}
+	} else {
 		orderColumn = pp.SortBy
 	}
 

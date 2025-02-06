@@ -70,22 +70,24 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 			return err
 		}
 		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=?, password=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
 			user.Alert,
 			user.Admin,
+			user.Pro,
 			string(pwdHash),
 			user.ID)
 	} else {
 		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
 			user.Alert,
 			user.Admin,
+			user.Pro,
 			user.ID)
 	}
 
@@ -213,6 +215,15 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 	return
 }
 
+func (d *SqlDb) GetProUserCount() (count int, err error) {
+
+	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user` where pro"))
+
+	count = int(cnt)
+
+	return
+}
+
 func (d *SqlDb) GetUserCount() (count int, err error) {
 
 	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user`"))
@@ -276,16 +287,18 @@ func (d *SqlDb) GetAllAdmins() (users []db.User, err error) {
 	return
 }
 
-func (d *SqlDb) AddTotpVerification(userID int, url string) (totp db.UserTotp, err error) {
+func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string) (totp db.UserTotp, err error) {
 
 	totp.UserID = userID
 	totp.URL = url
+	totp.RecoveryHash = recoveryHash
 	totp.Created = db.GetParsedTime(time.Now().UTC())
 
 	res, err := d.exec(
-		"insert into user__totp (user_id, url, created) values (?, ?, ?)",
+		"insert into user__totp (user_id, url, recovery_hash, created) values (?, ?, ?, ?)",
 		totp.UserID,
 		totp.URL,
+		totp.RecoveryHash,
 		totp.Created)
 
 	if err != nil {
