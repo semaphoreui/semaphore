@@ -87,11 +87,7 @@ RUN export MITOGEN_VERSION=$(curl -s https://api.github.com/repos/mitogen-hq/mit
     mkdir -p ${VIRTUAL_ENV} && \
     python3 -m venv ${VIRTUAL_ENV} --system-site-packages && \
     source ${VIRTUAL_ENV}/bin/activate && \
-    pip3 install --upgrade pip \
-        ansible==${ANSIBLE_VERSION} \
-        mitogen==${MITOGEN_VERSION} \
-        boto3 botocore requests pywinrm \
-      && \
+    pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} mitogen==${MITOGEN_VERSION} boto3 botocore requests pywinrm && \
       echo -e "\nstrategy = mitogen_linear" >>/etc/ansible/ansible.cfg && \
       echo "strategy_plugins = /opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv/lib/python3.11/site-packages/ansible_mitogen/plugins/strategy" >>/etc/ansible/ansible.cfg && \
     apk del python3-dev build-base openssl-dev libffi-dev cargo && \
