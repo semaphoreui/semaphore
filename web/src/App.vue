@@ -61,6 +61,7 @@
       :expandable="true"
       name="TaskLogDialog"
       @close="onTaskLogDialogClosed()"
+      no-body-paddings
     >
       <template v-slot:title={}>
         <div class="text-truncate" style="max-width: calc(100% - 36px);">

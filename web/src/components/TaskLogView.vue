@@ -4,7 +4,7 @@
     :class="{'task-log-view--with-message': item.message || item.commit_message}"
   >
 
-    <div class="overflow-auto text-no-wrap">
+    <div class="overflow-auto text-no-wrap px-5">
       <v-alert
         dense
         class="d-inline-block mb-2 mr-2"
@@ -26,7 +26,7 @@
       </v-alert>
     </div>
 
-    <v-container fluid class="pa-0 mb-2 overflow-auto">
+    <v-container fluid class="py-0 px-5 mb-2 overflow-auto">
       <v-row no-gutters class="flex-nowrap">
         <v-col>
           <v-list two-line subheader class="pa-0">
@@ -138,7 +138,7 @@ $task-log-message-height: 48px;
   height: calc(100vh - 280px);
   overflow: auto;
   font-family: monospace;
-  margin: 0 -24px;
+  margin: 0;
   padding: 5px 10px 50px;
 }
 

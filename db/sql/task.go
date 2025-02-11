@@ -59,7 +59,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 		return
 	}
 
-	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created>?", templateID, oldestTask.Created)
+	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created<?", templateID, oldestTask.Created)
 
 	if err != nil {
 		return

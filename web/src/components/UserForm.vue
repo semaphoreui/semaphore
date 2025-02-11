@@ -107,7 +107,7 @@
         </v-form>
       </v-tab-item>
 
-      <v-tab-item key="2fa" class="pb-4" v-if="item != null">
+      <v-tab-item key="2fa" v-if="item != null">
 
         <div v-if="!isNew">
           <div class="title mb-3">Password</div>
@@ -211,7 +211,13 @@ export default {
             url: `/api/users/${this.itemId}/2fas/totp`,
             responseType: 'json',
           })).data;
-          this.totpQrUrl = `/api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+
+          // let baseURI = document.baseURI;
+          // if (baseURI.endsWith('/')) {
+          //   baseURI = baseURI.substring(0, baseURI.length - 1);
+          // }
+
+          this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
         }
       } else if (this.item.totp != null) {
         await axios({
@@ -232,7 +238,7 @@ export default {
         this.totpQrUrl = null;
       } else {
         this.totpEnabled = true;
-        this.totpQrUrl = `/api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+        this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
       }
     },
 

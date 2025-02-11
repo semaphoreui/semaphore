@@ -40,7 +40,13 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         </v-btn>
       </v-card-title>
 
-      <v-card-text :class="{'pb-0': !hideButtons}" :style="{minHeight: minContentHeight + 'px'}">
+      <v-card-text
+        :class="{
+          'pb-0': !hideButtons,
+          'pa-0': noBodyPaddings,
+        }"
+        :style="{minHeight: minContentHeight + 'px'}"
+      >
         <slot
           name="form"
           :onSave="onSave"
@@ -105,6 +111,7 @@ export default {
       default: 'Unnamed',
     },
     helpButton: Boolean,
+    noBodyPaddings: Boolean,
   },
 
   data() {
