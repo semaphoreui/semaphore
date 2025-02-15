@@ -35,6 +35,7 @@ file_env() {
 }
 
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
+export ANSIBLE_VENV_PATH="/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv"
 export SEMAPHORE_DB_PATH="${SEMAPHORE_DB_PATH:-/var/lib/semaphore}"
 export SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-}"
 
@@ -252,10 +253,25 @@ fi
 #
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
+    source ${ANSIBLE_VENV_PATH}/bin/activate
     pip3 install --upgrade \
         -r "${SEMAPHORE_CONFIG_PATH}/requirements.txt"
+    deactivate
+
 else
     echoerr "No additional python dependencies to install"
+fi
+#
+# Install additional ansible dependencies
+#
+if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.yml"; then
+    echoerr "Installing additional ansible dependencies"
+    source ${ANSIBLE_VENV_PATH}/bin/activate
+    ansible-galaxy collection install --upgrade -r "${SEMAPHORE_CONFIG_PATH}/requirements.yml"
+    ansible-galaxy role install --force -r "${SEMAPHORE_CONFIG_PATH}/requirements.yml"
+    deactivate
+else
+    echoerr "No additional ansible dependencies to install"
 fi
 
 
