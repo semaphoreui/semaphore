@@ -86,6 +86,7 @@ func (t *AnsibleApp) getRepoPath() string {
 		Repository: t.Repository,
 		Client:     CreateDefaultGitClient(),
 	}
+	// TODO: Should this where the path gets suffixed? Oor inside GetFullPath?
 
 	return repo.GetFullPath()
 }
