@@ -83,7 +83,7 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name, path) values (?, ?, ?, ?, ?)",
+		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name, path) values (?, ?, ?, ?, ?, ?)",
 		repository.ProjectID,
 		repository.GitURL,
 		repository.GitBranch,
