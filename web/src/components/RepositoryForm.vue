@@ -97,7 +97,7 @@
     <v-text-field
       v-model.trim="item.path"
       :label="$t('path')"
-      :rules="[v => isPosixPath(v) != null || $t('invalidPath')]"
+      :rules="[v => isValidPath(v) != false || $t('invalidPath')]"
       required
       :disabled="formSaving || type === 'local'"
     ></v-text-field>
@@ -196,7 +196,7 @@ export default {
       return `/api/project/${this.projectId}/repositories/${this.itemId}`;
     },
 
-    isPosixPath(path) {
+    isValidPath(path) {
       // TODO Write this.
       // Always accept an empty path
       if (path == null || path === '') {
