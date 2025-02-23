@@ -43,6 +43,7 @@ create table `project__repository` (
 	`project_id` int not null,
 	`git_url` text not null,
 	`ssh_key_id` int not null,
+	`path` varchar(255) not null,
 
 	foreign key (`project_id`) references project(`id`) on delete cascade,
 	foreign key (`ssh_key_id`) references access_key(`id`)

@@ -306,4 +306,5 @@ export default {
   status_success: 'Success',
   status_failed: 'Failed',
   status_stopped: 'Stopped',
+  invalidPath: 'Invalid path',
 };

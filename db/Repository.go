@@ -31,6 +31,7 @@ type Repository struct {
 	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
+	Path   string    `db:"path" json:"path" backup:"-"`
 }
 
 func (r Repository) ClearCache() error {
