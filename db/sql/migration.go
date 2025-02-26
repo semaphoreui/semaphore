@@ -145,8 +145,6 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 	switch migration.Version {
 	case "2.10.24":
 		err = migration_2_10_24{db: d}.PreApply(tx)
-	case "2.12.6":
-		err = migration_2_12_6{db: d}.PreApply(tx)
 	}
 
 	if err != nil {
@@ -181,8 +179,6 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		err = migration_2_8_26{db: d}.PostApply(tx)
 	case "2.8.42":
 		err = migration_2_8_42{db: d}.PostApply(tx)
-	case "2.12.6":
-		err = migration_2_12_6{db: d}.PostApply(tx)
 	}
 
 	if err != nil {

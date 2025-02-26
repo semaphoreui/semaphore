@@ -86,9 +86,8 @@ func (t *AnsibleApp) getRepoPath() string {
 		Repository: t.Repository,
 		Client:     CreateDefaultGitClient(),
 	}
-	// TODO: Should this where the path gets suffixed? Oor inside GetFullPath?
 
-	return repo.GetFullPath()
+	return path.Join(repo.GetFullPath(), t.Repository.Path)
 }
 
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
