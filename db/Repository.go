@@ -69,11 +69,15 @@ func (r Repository) GetDirName(templateID int) string {
 	return r.getDirNamePrefix() + strconv.Itoa(templateID)
 }
 
+func (r Repository) GetAnsiblePath(templateID int) string {
+	return path.Join(r.GetFullPath(templateID), r.Path)
+}
+
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
-		return path.Join(r.GetGitURL(), r.Path)
+		return r.GetGitURL()
 	}
-	return path.Join(util.Config.TmpPath, r.GetDirName(templateID), r.Path)
+	return path.Join(util.Config.TmpPath, r.GetDirName(templateID))
 }
 
 func (r Repository) GetGitURL() string {
