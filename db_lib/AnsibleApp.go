@@ -86,6 +86,7 @@ func (t *AnsibleApp) getRepoPath() string {
 		Repository: t.Repository,
 		Client:     CreateDefaultGitClient(),
 	}
+
 	return repo.GetFullPath()
 }
 
