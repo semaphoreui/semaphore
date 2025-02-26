@@ -71,9 +71,9 @@ func (r Repository) GetDirName(templateID int) string {
 
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
-		return r.GetGitURL()
+		return path.Join(r.GetGitURL(), r.Path)
 	}
-	return path.Join(util.Config.TmpPath, r.GetDirName(templateID))
+	return path.Join(util.Config.TmpPath, r.GetDirName(templateID), r.Path)
 }
 
 func (r Repository) GetGitURL() string {

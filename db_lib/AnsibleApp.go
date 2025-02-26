@@ -86,8 +86,7 @@ func (t *AnsibleApp) getRepoPath() string {
 		Repository: t.Repository,
 		Client:     CreateDefaultGitClient(),
 	}
-
-	return path.Join(repo.GetFullPath(), t.Repository.Path)
+	return repo.GetFullPath()
 }
 
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
