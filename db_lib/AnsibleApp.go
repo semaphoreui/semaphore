@@ -87,7 +87,7 @@ func (t *AnsibleApp) getRepoPath() string {
 		Client:     CreateDefaultGitClient(),
 	}
 
-	return repo.GetFullPath()
+	return repo.GetAnsiblePath()
 }
 
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {

@@ -20,7 +20,7 @@ type AnsiblePlaybook struct {
 
 func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
 	cmd := exec.Command(command, args...) //nolint: gas
-	cmd.Dir = p.GetFullPath()
+	cmd.Dir = p.getAnsiblePath()
 
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
 	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
@@ -82,7 +82,7 @@ func (p AnsiblePlaybook) RunGalaxy(args []string) error {
 	return p.runCmd("ansible-galaxy", args)
 }
 
-func (p AnsiblePlaybook) GetFullPath() (path string) {
-	path = p.Repository.GetFullPath(p.TemplateID)
+func (p AnsiblePlaybook) getAnsiblePath() (path string) {
+	path = p.Repository.GetAnsiblePath(p.TemplateID)
 	return
 }

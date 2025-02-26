@@ -34,6 +34,10 @@ type GitRepository struct {
 	Client     GitClient
 }
 
+func (r GitRepository) GetAnsiblePath() string {
+	return path.Join(r.GetFullPath(), r.Repository.Path)
+}
+
 func (r GitRepository) GetFullPath() string {
 	if r.TmpDirName != "" {
 		return path.Join(util.Config.TmpPath, r.TmpDirName)
