@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/url"
 	"os"
@@ -19,6 +18,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
@@ -212,6 +213,9 @@ type ConfigType struct {
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
+	// When the flag is set, personal roles are created for each task. Fix https://github.com/semaphoreui/semaphore/pull/2316
+	UsePersonalTaskRoles bool `json:"use_personal_task_roles,omitempty" env:"SEMAPHORE_USE_PERSONAL_TASK_ROLES"`
+
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	// feature switches
@@ -290,8 +294,8 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
 	}
 
-	//If the configPath option has been set try to load and decode it
-	//var usedPath string
+	// If the configPath option has been set try to load and decode it
+	// var usedPath string
 
 	if configPath == "" {
 		cwd, err := os.Getwd()
@@ -328,8 +332,8 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 }
 
 func loadDefaultsToObject(obj interface{}) error {
-	var t = reflect.TypeOf(obj)
-	var v = reflect.ValueOf(obj)
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
 
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -384,7 +388,6 @@ func loadDefaultsToObject(obj interface{}) error {
 }
 
 func loadConfigDefaults() {
-
 	err := loadDefaultsToObject(Config)
 	if err != nil {
 		panic(err)
@@ -392,17 +395,14 @@ func loadConfigDefaults() {
 }
 
 func castStringToInt(value string) int {
-
 	valueInt, err := strconv.Atoi(value)
 	if err != nil {
 		panic(err)
 	}
 	return valueInt
-
 }
 
 func castStringToBool(value string) bool {
-
 	var valueBool bool
 	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
 		valueBool = true
@@ -410,7 +410,6 @@ func castStringToBool(value string) bool {
 		valueBool = false
 	}
 	return valueBool
-
 }
 
 func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok bool) {
@@ -456,18 +455,15 @@ func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok 
 }
 
 func setConfigValue(attribute reflect.Value, value interface{}) {
-
 	if attribute.IsValid() {
 		value, _ = CastValueToKind(value, attribute.Kind())
 		attribute.Set(reflect.ValueOf(value))
 	} else {
 		panic(fmt.Errorf("got non-existent config attribute"))
 	}
-
 }
 
 func getConfigValue(path string) string {
-
 	attribute := reflect.ValueOf(Config)
 	nested_path := strings.Split(path, ".")
 
@@ -484,8 +480,8 @@ func getConfigValue(path string) string {
 }
 
 func validate(value interface{}) error {
-	var t = reflect.TypeOf(value)
-	var v = reflect.ValueOf(value)
+	t := reflect.TypeOf(value)
+	v := reflect.ValueOf(value)
 
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -533,17 +529,15 @@ func validate(value interface{}) error {
 }
 
 func validateConfig() {
-
 	err := validate(Config)
-
 	if err != nil {
 		panic(err)
 	}
 }
 
 func loadEnvironmentToObject(obj interface{}) error {
-	var t = reflect.TypeOf(obj)
-	var v = reflect.ValueOf(obj)
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
 
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -814,7 +808,6 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	var dialect string
 	dialect, err = conf.GetDialect()
-
 	if err != nil {
 		return
 	}
@@ -846,6 +839,10 @@ func (conf *ConfigType) GenerateSecrets() {
 	conf.AccessKeyEncryption = base64.StdEncoding.EncodeToString(accessKeyEncryption)
 }
 
+func (conf *ConfigType) FullPathToPersonalTaskRoles(taskID int) string {
+	return path.Join(conf.TmpPath, "tasks", strconv.Itoa(taskID))
+}
+
 var appCommands = map[string]string{
 	"ansible":   "ansible-playbook",
 	"terraform": "terraform",
@@ -863,14 +860,12 @@ var appPriorities = map[string]int{
 }
 
 func LookupDefaultApps() {
-
 	for appID, cmd := range appCommands {
 		if _, ok := Config.Apps[appID]; ok {
 			continue
 		}
 
 		_, err := exec.LookPath(cmd)
-
 		if err != nil {
 			continue
 		}
@@ -909,7 +904,6 @@ func GetPublicHost() string {
 	}
 
 	return aliasURL
-
 }
 
 func GetPublicAliasURL(scope string, alias string) string {
@@ -925,7 +919,6 @@ func GetPublicAliasURL(scope string, alias string) string {
 }
 
 func GenerateRecoveryCode() (code string, hash string, err error) {
-
 	buf := make([]byte, 10)
 	_, err = io.ReadFull(rand.Reader, buf)
 	if err != nil {

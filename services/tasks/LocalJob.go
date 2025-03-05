@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-
 	"path"
 	"strconv"
 
@@ -58,7 +57,6 @@ func (t *LocalJob) SetCommit(hash, message string) {
 }
 
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]interface{}, err error) {
-
 	extraVars = make(map[string]interface{})
 
 	if t.Environment.JSON != "" {
@@ -178,7 +176,6 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 // nolint: gocyclo
 func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
-
 	if err != nil {
 		t.Log(err.Error())
 		t.Log("Error getting environment extra vars")
@@ -219,11 +216,9 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 
 // nolint: gocyclo
 func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, err error) {
-
 	args = []string{}
 
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
-
 	if err != nil {
 		t.Log(err.Error())
 		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
@@ -268,7 +263,6 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 
 // nolint: gocyclo
 func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
-
 	inputMap := make(map[db.AccessKeyRole]string)
 	inputs = make(map[string]string)
 
@@ -405,7 +399,6 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 }
 
 func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
-
 	if t.Template.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
 		if err != nil {
@@ -428,7 +421,9 @@ func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err e
 func (t *LocalJob) getParams() (params interface{}, err error) {
 	switch t.Template.App {
 	case db.AppAnsible:
-		params = &db.AnsibleTaskParams{}
+		params = &db.AnsibleTaskParams{
+			TaskID: t.Task.ID,
+		}
 	case db.AppTerraform, db.AppTofu:
 		params = &db.TerraformTaskParams{}
 	default:
@@ -436,7 +431,6 @@ func (t *LocalJob) getParams() (params interface{}, err error) {
 	}
 
 	err = t.Task.FillParams(params)
-
 	if err != nil {
 		return
 	}
@@ -445,10 +439,13 @@ func (t *LocalJob) getParams() (params interface{}, err error) {
 }
 
 func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (err error) {
-
 	defer func() {
 		t.destroyKeys()
 		t.destroyInventoryFile()
+
+		if util.Config.UsePersonalTaskRoles {
+			t.destroyTaskRoles()
+		}
 	}()
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
@@ -456,6 +453,11 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	environmentVariables, err := t.getEnvironmentENV()
 	if err != nil {
 		return
+	}
+
+	if util.Config.UsePersonalTaskRoles {
+		environmentVariables = append(environmentVariables,
+			fmt.Sprintf("ANSIBLE_ROLES_PATH=%s", util.Config.FullPathToPersonalTaskRoles(t.Task.ID)))
 	}
 
 	params, err := t.getParams()
@@ -518,11 +520,9 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 			t.Process = p
 		},
 	})
-
 }
 
 func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) error {
-
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
 	if err := checkTmpDir(util.Config.TmpPath); err != nil {
@@ -583,7 +583,6 @@ func (t *LocalJob) updateRepository() error {
 	}
 
 	err := repo.ValidateRepo()
-
 	if err != nil {
 		if !os.IsNotExist(err) {
 			err = os.RemoveAll(repo.GetFullPath())
@@ -610,7 +609,6 @@ func (t *LocalJob) updateRepository() error {
 }
 
 func (t *LocalJob) checkoutRepository() error {
-
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
@@ -619,7 +617,6 @@ func (t *LocalJob) checkoutRepository() error {
 	}
 
 	err := repo.ValidateRepo()
-
 	if err != nil {
 		return err
 	}
@@ -632,7 +629,6 @@ func (t *LocalJob) checkoutRepository() error {
 	// store commit to TaskRunner table
 
 	commitHash, err := repo.GetLastCommitHash()
-
 	if err != nil {
 		return err
 	}
