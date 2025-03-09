@@ -11,7 +11,7 @@
   "dependencies": {
     "@mdi/font": "^5.9.55",
     "ansi_up": "^6.0.2",
-    "axios": "^0.29.0",
+    "axios": "^1.8.2",
     "chart.js": "^3.8.0",
     "chartjs-adapter-moment": "^1.0.1",
     "core-js": "^3.39.0",
