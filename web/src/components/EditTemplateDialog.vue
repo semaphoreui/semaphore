@@ -1,7 +1,7 @@
 <template>
   <EditDialog
       v-if="isAppsLoaded"
-      :max-width="700"
+      :max-width="1200"
       :min-content-height="457"
       v-model="dialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
@@ -10,6 +10,7 @@
       :title="(itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
         ' \'' + getAppTitle(itemApp) + '\''"
       @save="onSave"
+      :content-class="`EditTemplateDialog EditTemplateDialog--${id}`"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TemplateForm
@@ -21,10 +22,27 @@
           :need-reset="needReset"
           :source-item-id="sourceItemId"
           :app="itemApp"
+          @resize="onFormResize"
       />
     </template>
   </EditDialog>
 </template>
+
+<style lang="scss">
+.EditTemplateDialog {
+  width: auto;
+  .v-card__text {
+    overflow-x: auto;
+  }
+}
+
+@media #{map-get($display-breakpoints, 'sm-and-down')} {
+  .EditTemplateDialog {
+    width: auto !important;
+  }
+}
+</style>
+
 <script>
 
 import TemplateForm from './TemplateForm.vue';
@@ -49,6 +67,7 @@ export default {
 
   data() {
     return {
+      id: Math.round(Math.random() * 1000000),
       dialog: false,
     };
   },
@@ -64,6 +83,11 @@ export default {
   },
 
   methods: {
+    onFormResize(e) {
+      const contentEl = document.querySelector(`.EditTemplateDialog--${this.id}`);
+      contentEl.style.width = `${e.width + 50}px`;
+    },
+
     onSave(e) {
       this.$emit('save', e);
     },

@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/context"
 )
 
-func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
-	runners, err := helpers.Store(r).GetGlobalRunners(false)
+func getAllRunners(w http.ResponseWriter, r *http.Request) {
+	runners, err := helpers.Store(r).GetAllRunners(false, false)
 
 	if err != nil {
 		panic(err)

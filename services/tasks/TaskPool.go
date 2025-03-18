@@ -397,10 +397,11 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, projectID int, needAlia
 
 	var job Job
 
-	if util.Config.UseRemoteRunner {
+	if util.Config.UseRemoteRunner || taskRunner.Template.RunnerTag != nil {
 		job = &RemoteJob{
-			Task:     taskRunner.Task,
-			taskPool: p,
+			RunnerTag: taskRunner.Template.RunnerTag,
+			Task:      taskRunner.Task,
+			taskPool:  p,
 		}
 	} else {
 		app := db_lib.CreateApp(

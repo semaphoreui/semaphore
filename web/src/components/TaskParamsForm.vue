@@ -1,7 +1,7 @@
 <template>
   <div v-if="app === 'ansible'">
     <v-row no-gutters class="mt-6">
-      <v-col cols="12" sm="6">
+      <v-col cols="12" sm="6" v-if="templateParams.allow_debug">
         <v-checkbox
           class="mt-0"
           :input-value="params.debug"
@@ -118,6 +118,7 @@ export default {
   props: {
     value: Object,
     app: String,
+    templateParams: Object,
   },
 
   watch: {

@@ -306,4 +306,19 @@ export default {
   status_success: 'Success',
   status_failed: 'Failed',
   status_stopped: 'Stopped',
+
+  tag: 'Tag',
+  tag_required: 'Tag is required',
+  allowInventoryInTask: 'Ask Inventory on launch',
+  allowLimitInTask: 'Ask Limit on launch',
+  addLimit: 'Add limit',
+  allowDebug: 'Allow debug',
+
+  addTag: 'Add tag',
+  skipTags: 'Skip tags',
+  addSkippedTag: 'Add skipped tag',
+
+  tags: 'Tags',
+
+  limit: 'Limit',
 };

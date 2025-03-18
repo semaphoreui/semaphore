@@ -274,8 +274,19 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	}
 
 	Cookie = securecookie.New(hash, encryption)
-	WebHostURL, _ = url.Parse(Config.WebHost)
-	if len(WebHostURL.String()) == 0 {
+
+	if Config.WebHost != "" {
+		var err error
+		WebHostURL, err = url.Parse(Config.WebHost)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if len(WebHostURL.String()) == 0 {
+			WebHostURL = nil
+		}
+	} else {
 		WebHostURL = nil
 	}
 

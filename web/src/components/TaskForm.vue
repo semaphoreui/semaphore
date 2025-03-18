@@ -17,6 +17,7 @@
       dark
       dismissible
       dense
+      @input="item.commit_hash=null"
       v-model="hasCommit"
       class="overflow-hidden mt-2"
     >
@@ -103,12 +104,23 @@
       dense
       required
       :disabled="formSaving"
-      v-if="needField('inventory')"
+      v-if="needField('inventory') && (template.task_params || {}).allow_override_inventory"
       hide-details
     ></v-select>
 
-    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item.params" :app="template.app" />
-    <TaskParamsForm v-else v-model="item.params" :app="template.app" />
+    <TaskParamsForm
+      v-if="template.app === 'ansible'"
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params"
+    />
+
+    <TaskParamsForm
+      v-else
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params"
+    />
 
     <ArgsPicker
       v-if="template.allow_override_args_in_task"

@@ -36,12 +36,18 @@ func (d *BoltDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *BoltDb) GetGlobalRunners(activeOnly bool) (runners []db.Runner, err error) {
+func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
 		runner := i.(db.Runner)
+
+		if globalOnly && runner.ProjectID != nil {
+			return false
+		}
+
 		if activeOnly {
 			return runner.Active
 		}
+
 		return true
 	}, &runners)
 	return

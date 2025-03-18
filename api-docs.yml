@@ -715,6 +715,8 @@ definitions:
         type:
           - string
           - 'null'
+      message:
+        type: string
 
   TaskOutput:
     type: object
@@ -2334,6 +2336,8 @@ paths:
               limit:
                 type: string
               git_branch:
+                type: string
+              message:
                 type: string
       responses:
         201:

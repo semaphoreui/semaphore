@@ -43,7 +43,7 @@ echo "create database semaphore;" | mysql -uroot -p
 5) Compile, set up & run
 
 ```
-task compile
+task build
 go run cli/main.go setup
 go run cli/main.go service --config ./config.json
 ```
@@ -64,7 +64,7 @@ As Dredd and the application database config may differ it expects it's own conf
 
 1) Build Dredd hooks:
     ````bash
-    task compile:api:hooks
+    task e2e:hooks
     ```
 2) Install Dredd globally
     ```bash

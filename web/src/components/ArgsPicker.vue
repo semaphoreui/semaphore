@@ -20,7 +20,7 @@
             </v-alert>
 
             <v-text-field
-              :label="$t('arg')"
+              :label="argTitle || $t('arg')"
               v-model.trim="editedVar.name"
               :rules="[(v) => !!v || $t('arg_required')]"
               required
@@ -76,7 +76,10 @@
           {{ v.name }}
         </v-chip>
         <v-chip @click="editVar(null)">
-          + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('addArg') }}</span>
+          + <span
+                class="ml-1"
+                v-if="modifiedVars.length === 0"
+            >{{ addArgTitle || $t('addArg') }}</span>
         </v-chip>
       </v-chip-group>
     </fieldset>
@@ -90,6 +93,8 @@ export default {
   props: {
     vars: Array,
     title: String,
+    addArgTitle: String,
+    argTitle: String,
   },
   watch: {
     vars(val) {

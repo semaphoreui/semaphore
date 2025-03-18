@@ -806,6 +806,10 @@ func (d *SqlDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUni
 		q = q.Where("template_id=?", *templateID)
 	}
 
+	if filter.UserID != nil {
+		q = q.Where("user_id=?", *filter.UserID)
+	}
+
 	if filter.Start != nil {
 		q = q.Where("start>=?", *filter.Start)
 	}

@@ -7,7 +7,6 @@
         {{ $t('dashboard2') }}
       </v-toolbar-title>
     </v-toolbar>
-    <v-divider />
 
     <DashboardMenu
       v-if="projectId"
@@ -24,7 +23,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <RunnerForm
-          :project-id="projectId"
+          :project-id="projectId || itemProjectId"
           :item-id="itemId"
           @save="onSave"
           @error="onError"
@@ -243,6 +242,16 @@
       </v-btn>
     </v-toolbar>
 
+    <v-btn
+      v-else-if="premiumFeatures.project_runners"
+      style="position: absolute; right: 15px; top: 15px;"
+      color="primary"
+      @click="editItem('new')"
+    >{{ $t('newRunner') }}
+    </v-btn>
+
+    <v-divider v-if="!projectId" />
+
     <v-alert
       v-if="!premiumFeatures.project_runners"
       type="info"
@@ -288,6 +297,15 @@
 
       <template v-slot:item.max_parallel_tasks="{ item }">
         {{ item.max_parallel_tasks || '∞' }}
+      </template>
+
+      <template v-slot:item.project_id="{ item }">
+        {{ item.project_id ? `#${item.project_id}` : '&mdash;' }}
+      </template>
+
+      <template v-slot:item.tag="{ item }">
+        <code v-if="item.tag">{{ item.tag }}</code>
+        <span v-else>&mdash;</span>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -340,6 +358,10 @@ export default {
   },
 
   computed: {
+    itemProjectId() {
+      return this.getProjectIdOfItem(this.itemId);
+    },
+
     runnerConfigCommand() {
       return `{
   "web_host": "${this.webHost}",
@@ -390,6 +412,19 @@ semaphore runner start --no-config`;
   },
 
   methods: {
+    getProjectIdOfItem(itemId) {
+      if (!itemId || itemId === 'new') {
+        return null;
+      }
+
+      const item = this.items.find((x) => x.id === itemId);
+      if (item) {
+        return item.project_id;
+      }
+
+      return null;
+    },
+
     async downloadFile(content, type, name) {
       const a = document.createElement('a');
       const blob = new Blob([content], { type });
@@ -424,9 +459,15 @@ semaphore runner start --no-config`;
     },
 
     async setActive(runnerId, active) {
+      const projectId = this.projectId || this.getProjectIdOfItem(runnerId);
+
+      const url = projectId
+        ? `/api/project/${projectId}/runners/${runnerId}/active`
+        : `/api/runners/${runnerId}/active`;
+
       await axios({
         method: 'post',
-        url: `/api/runners/${runnerId}/active`,
+        url,
         responseType: 'json',
         data: {
           active,
@@ -443,13 +484,19 @@ semaphore runner start --no-config`;
           value: 'name',
           width: '50%',
         },
+        ...(this.projectId ? [] : [{
+          text: this.$i18n.t('project'),
+          value: 'project_id',
+        }]),
         {
           text: this.$i18n.t('webhook'),
           value: 'webhook',
-        },
-        {
-          text: this.$i18n.t('maxNumberOfParallelTasks'),
-          value: 'max_parallel_tasks',
+        }, {
+          text: this.$i18n.t('tag'),
+          value: 'tag',
+        // }, {
+        //   text: this.$i18n.t('maxNumberOfParallelTasks'),
+        //   value: 'max_parallel_tasks',
         }, {
           text: this.$i18n.t('actions'),
           value: 'actions',

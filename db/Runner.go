@@ -16,6 +16,7 @@ type Runner struct {
 	MaxParallelTasks int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 	Active           bool   `db:"active" json:"active"`
 	Name             string `db:"name" json:"name"`
+	Tag              string `db:"tag" json:"tag"`
 
 	PublicKey *string `db:"public_key" json:"-"`
 }

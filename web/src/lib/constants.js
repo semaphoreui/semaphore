@@ -131,7 +131,7 @@ export const APP_INVENTORY_TYPES = {
 
 export const DEFAULT_APPS = Object.keys(APP_ICONS);
 
-export const ANSIBLE_FIELDS = {
+const BASE_FIELDS = {
   playbook: {
     label: 'playbookFilename',
   },
@@ -144,13 +144,35 @@ export const ANSIBLE_FIELDS = {
   environment: {
     label: 'environment3',
   },
+  allow_override_inventory: {
+    label: 'allowInventoryInTask',
+  },
+};
+
+export const ANSIBLE_FIELDS = {
+  ...BASE_FIELDS,
   vault: {
     label: 'vaultPassword2',
+  },
+  limit: {
+    label: 'limit',
+  },
+  allow_override_limit: {
+    label: 'allowLimitInTask',
+  },
+  allow_debug: {
+    label: 'allowDebug',
+  },
+  tags: {
+    label: 'tags',
+  },
+  skip_tags: {
+    label: 'skipTags',
   },
 };
 
 export const TERRAFORM_FIELDS = {
-  ...ANSIBLE_FIELDS,
+  ...BASE_FIELDS,
   playbook: {
     label: 'Subdirectory path (Optional)',
     optional: true,
@@ -158,16 +180,14 @@ export const TERRAFORM_FIELDS = {
   inventory: {
     label: 'Workspace (Optional)',
   },
-  vault: undefined,
 };
 
 export const UNKNOWN_APP_FIELDS = {
-  ...ANSIBLE_FIELDS,
+  ...BASE_FIELDS,
   playbook: {
     label: 'Script Filename *',
   },
   inventory: undefined,
-  vault: undefined,
 };
 
 export const APP_FIELDS = {

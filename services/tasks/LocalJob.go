@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"strings"
+
 	"path"
 	"strconv"
 
@@ -328,6 +330,13 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
+	var tplParams db.AnsibleTemplateParams
+
+	err = t.Template.FillParams(&tplParams)
+	if err != nil {
+		return
+	}
+
 	var params db.AnsibleTaskParams
 
 	err = t.Task.FillParams(&params)
@@ -335,7 +344,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		return
 	}
 
-	if params.Debug {
+	if tplParams.AllowDebug && params.Debug {
 		args = append(args, "-vvvv")
 	}
 
@@ -378,9 +387,27 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		return
 	}
 
-	if t.Task.Limit != "" {
+	var limit string
+
+	if len(tplParams.Limit) > 0 {
+		limit = strings.Join(tplParams.Limit, ",")
+	}
+
+	if t.Task.Limit != "" && tplParams.AllowOverrideLimit {
 		t.Log("--limit=" + t.Task.Limit)
-		templateArgs = append(templateArgs, "--limit="+t.Task.Limit)
+		limit = t.Task.Limit
+	}
+
+	if limit != "" {
+		templateArgs = append(templateArgs, "--limit="+limit)
+	}
+
+	if len(tplParams.Tags) > 0 {
+		templateArgs = append(templateArgs, "--tags="+strings.Join(tplParams.Tags, ","))
+	}
+
+	if len(tplParams.SkipTags) > 0 {
+		templateArgs = append(templateArgs, "--skip-tags="+strings.Join(tplParams.SkipTags, ","))
 	}
 
 	args = append(args, templateArgs...)

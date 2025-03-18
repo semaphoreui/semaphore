@@ -255,7 +255,12 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	if t.Task.InventoryID != nil {
+	canOverrideInventory, err := t.Template.CanOverrideInventory()
+	if err != nil {
+		return err
+	}
+
+	if canOverrideInventory && t.Task.InventoryID != nil {
 		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
 			if t.Template.InventoryID != nil {

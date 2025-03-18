@@ -718,6 +718,10 @@
   margin-left: 10px !important;
 }
 
+.v-slide-group__prev--disabled {
+  display: none !important;
+}
+
 @media (min-width: 960px) {
   .v-app-bar__nav-icon {
     display: none !important;
@@ -768,6 +772,9 @@ const LANGUAGES = {
   },
   de: {
     title: 'German',
+  },
+  nl: {
+    title: 'Dutch (Netherlands)',
   },
   zh_cn: {
     title: '中文(大陆)',

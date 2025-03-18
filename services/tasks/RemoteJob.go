@@ -13,8 +13,9 @@ import (
 )
 
 type RemoteJob struct {
-	Task     db.Task
-	taskPool *TaskPool
+	RunnerTag *string
+	Task      db.Task
+	taskPool  *TaskPool
 }
 
 type runnerWebhookPayload struct {
@@ -81,12 +82,12 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
 		var projectRunners []db.Runner
-		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true)
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, t.RunnerTag)
 		if err != nil {
 			return
 		}
 		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetGlobalRunners(true)
+		globalRunners, err = t.taskPool.store.GetAllRunners(true, true)
 		if err != nil {
 			return
 		}

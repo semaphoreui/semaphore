@@ -392,7 +392,6 @@ export default {
       images: [
         'dind-runner:latest',
       ],
-      advancedOptions: false,
 
       json: '{}',
       extraVars: [],
@@ -488,7 +487,7 @@ export default {
           operation = 'create';
         } else if (s.remove) {
           operation = 'delete';
-        } else if (s.value !== '') {
+        } else {
           operation = 'update';
         }
         return {

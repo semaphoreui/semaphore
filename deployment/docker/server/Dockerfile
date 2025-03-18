@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/go/pkg \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 
-ENV OPENTOFU_VERSION="1.7.0"
+ENV OPENTOFU_VERSION="1.9.0"
 ENV TERRAFORM_VERSION="1.10.3"
 #ENV PULUMI_VERSION="3.116.1"
 #ENV POWERSHELL_VERSION="3.116.1"
@@ -92,6 +92,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      chown -R semaphore:0 /opt/semaphore
 
 USER 1001
+EXPOSE 3000
 
 ENV VIRTUAL_ENV="$ANSIBLE_VENV_PATH"
 ENV PATH="$ANSIBLE_VENV_PATH/bin:$PATH"

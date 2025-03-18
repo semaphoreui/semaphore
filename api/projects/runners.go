@@ -12,7 +12,7 @@ import (
 
 func GetRunners(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
-	runners, err := helpers.Store(r).GetRunners(project.ID, false)
+	runners, err := helpers.Store(r).GetRunners(project.ID, false, nil)
 
 	if err != nil {
 		panic(err)
