@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/smtp"
 	"strings"
-	"text/template"
+	"html/template"
 	"time"
 )
 
@@ -60,7 +60,7 @@ func Send(
 		To:      r.Replace(to),
 		From:    r.Replace(from),
 		Subject: r.Replace(subject),
-		Body:    content,
+		Body:    template.HTMLEscapeString(content),
 	})
 
 	if err != nil {
