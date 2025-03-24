@@ -34,7 +34,7 @@
     "@vue/cli-service": "^5.0.6",
     "@vue/eslint-config-airbnb": "^6.0.0",
     "@vue/test-utils": "^2.0.0",
-    "babel-eslint": "^10.1.0",
+    "@babel/eslint-parser": "^7.11.0",
     "chai": "^5.0.0",
     "dotenv": "^16.4.5",
     "dredd": "^14.0.0",
