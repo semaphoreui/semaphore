@@ -42,7 +42,7 @@
     "eslint-import-resolver-alias": "^1.1.2",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-vue": "^9.1.1",
-    "eslint-plugin-vuejs-accessibility": "^1.2.0",
+    "eslint-plugin-vuejs-accessibility": "^2.0.0",
     "glob-parent": ">=5.1.2",
     "gulp": "^5.0.0",
     "gulp-cli": "^3.0.0",
