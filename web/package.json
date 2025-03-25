@@ -32,7 +32,7 @@
     "@vue/cli-plugin-router": "^5.0.6",
     "@vue/cli-plugin-unit-mocha": "^5.0.6",
     "@vue/cli-service": "^5.0.6",
-    "@vue/eslint-config-airbnb": "^6.0.0",
+    "@vue/eslint-config-airbnb": "^8.0.0",
     "@vue/test-utils": "^2.0.0",
     "babel-eslint": "^10.1.0",
     "chai": "^5.0.0",
