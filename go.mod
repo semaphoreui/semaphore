@@ -25,7 +25,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
-	go.etcd.io/bbolt v1.3.9
+	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.32.0
 	golang.org/x/oauth2 v0.21.0
 )
