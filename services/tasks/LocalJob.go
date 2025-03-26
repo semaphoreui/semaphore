@@ -484,7 +484,9 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 
 	if util.Config.UsePersonalTaskRoles {
 		environmentVariables = append(environmentVariables,
-			fmt.Sprintf("ANSIBLE_ROLES_PATH=%s", util.Config.FullPathToPersonalTaskRoles(t.Task.ID)))
+			fmt.Sprintf("ANSIBLE_ROLES_PATH=%s", util.Config.FullPathToPersonalTaskRoles(t.Task.ID)),
+			fmt.Sprintf("ANSIBLE_COLLECTIONS_PATH=%s", util.Config.FullPathToPersonalTaskRoles(t.Task.ID)),
+		)
 	}
 
 	params, err := t.getParams()
