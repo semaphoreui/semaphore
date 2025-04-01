@@ -1,1 +1,1 @@
-alter table `project__template` add column `extra_vars_json` longtext not null default '{}';
+alter table `project__template` add column `extra_vars_json` longtext null;

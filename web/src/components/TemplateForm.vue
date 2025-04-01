@@ -586,10 +586,6 @@ export default {
     },
 
     async afterLoadData() {
-      if (!this.item.extra_vars_json) {
-        this.item.extra_vars_json = '{}';
-      }
-
       if (this.sourceItemId) {
         const item = (await axios({
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
@@ -721,10 +717,6 @@ export default {
       this.item.app = this.app;
 
       this.item.arguments = JSON.stringify(this.args);
-
-      if (!this.item.extra_vars_json) {
-        this.item.extra_vars_json = '{}';
-      }
     },
 
     async afterSave(newItem) {
