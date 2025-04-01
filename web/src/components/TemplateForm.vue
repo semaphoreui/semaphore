@@ -328,6 +328,18 @@
         v-if="needField('allow_debug')"
       />
 
+      <div>
+        {{ $t('templateExtraVariablesJson') }}
+        <codemirror
+          :style="{ border: '1px solid lightgray',
+                    resize: 'vertical', overflow: 'auto',
+                    maxHeight: '400px', minHeight: '50px' }"
+          v-model="item.extra_vars_json"
+          :options="cmOptions"
+          :placeholder="$t('enterTemplateExtraVariablesJson')"
+        />
+      </div>
+
       <!--        <v-checkbox-->
       <!--          class="mt-0"-->
       <!--          :label="$t('allowLimitInTask')"-->
@@ -343,6 +355,10 @@
 <style lang="scss">
 .CodeMirror-placeholder {
   color: #a4a4a4 !important;
+}
+
+.CodeMirror {
+  height: 100%;
 }
 
 .TemplateFormBody {
@@ -380,6 +396,7 @@
 import axios from 'axios';
 
 import ItemFormBase from '@/components/ItemFormBase';
+import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/lint/json-lint.js';
@@ -397,6 +414,7 @@ export default {
     TemplateVaults,
     ArgsPicker,
     SurveyVars,
+    codemirror,
   },
 
   props: {
@@ -568,6 +586,10 @@ export default {
     },
 
     async afterLoadData() {
+      if (!this.item.extra_vars_json) {
+        this.item.extra_vars_json = '{}';
+      }
+
       if (this.sourceItemId) {
         const item = (await axios({
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
@@ -699,6 +721,10 @@ export default {
       this.item.app = this.app;
 
       this.item.arguments = JSON.stringify(this.args);
+
+      if (!this.item.extra_vars_json) {
+        this.item.extra_vars_json = '{}';
+      }
     },
 
     async afterSave(newItem) {

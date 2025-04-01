@@ -321,4 +321,7 @@ export default {
   tags: 'Tags',
 
   limit: 'Limit',
+
+  templateExtraVariablesJson: 'Extra variables',
+  enterTemplateExtraVariablesJson: 'Enter extra variables JSON...',
 };

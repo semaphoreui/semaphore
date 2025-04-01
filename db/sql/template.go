@@ -19,12 +19,12 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 			"project_id, inventory_id, repository_id, environment_id, name, "+
 			"playbook, arguments, allow_override_args_in_task, description, `type`, "+
 			"start_version, build_template_id, view_id, autorun, survey_vars, "+
-			"suppress_success_alerts, app, git_branch, runner_tag, task_params)"+
+			"suppress_success_alerts, app, git_branch, runner_tag, task_params, extra_vars_json)"+
 			"values ("+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
-			"?, ?, ?, ?, ?)",
+			"?, ?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -48,6 +48,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.GitBranch,
 		template.RunnerTag,
 		template.TaskParams,
+		template.ExtraVarsJSON,
 	)
 
 	if err != nil {
@@ -97,7 +98,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"app=?, "+
 		"`git_branch`=?, "+
 		"task_params=?, "+
-		"runner_tag=? "+
+		"runner_tag=?, "+
+		"extra_vars_json=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -118,6 +120,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.GitBranch,
 		template.TaskParams,
 		template.RunnerTag,
+		template.ExtraVarsJSON,
 		template.ID,
 		template.ProjectID,
 	)

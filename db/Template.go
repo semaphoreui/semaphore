@@ -146,6 +146,8 @@ type Template struct {
 	TaskParams MapStringAnyField `db:"task_params" json:"task_params"`
 
 	RunnerTag *string `db:"runner_tag" json:"runner_tag"`
+
+	ExtraVarsJSON string `db:"extra_vars_json" json:"extra_vars_json"`
 }
 
 func (tpl *Template) FillParams(target interface{}) error {
@@ -191,6 +193,10 @@ func (tpl *Template) Validate() error {
 		if !json.Valid([]byte(*tpl.Arguments)) {
 			return &ValidationError{"template arguments must be valid JSON"}
 		}
+	}
+
+	if tpl.ExtraVarsJSON != "" && !json.Valid([]byte(tpl.ExtraVarsJSON)) {
+		return &ValidationError{"Extra variables must be valid JSON"}
 	}
 
 	return nil

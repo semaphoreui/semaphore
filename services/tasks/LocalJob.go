@@ -100,6 +100,7 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]interface{})
 	extraSecretVars := make(map[string]interface{})
+	extraTemplateVars := make(map[string]interface{})
 
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
@@ -115,7 +116,15 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 	}
 	t.Secret = "{}"
 
+	if t.Template.ExtraVarsJSON != "" && t.Template.ExtraVarsJSON != "{}" {
+		err = json.Unmarshal([]byte(t.Template.ExtraVarsJSON), &extraTemplateVars)
+		if err != nil {
+			return
+		}
+	}
+
 	maps.Copy(extraVars, extraSecretVars)
+	maps.Copy(extraVars, extraTemplateVars)
 
 	taskDetails := make(map[string]interface{})
 

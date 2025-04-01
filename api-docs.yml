@@ -796,6 +796,9 @@ definitions:
         type: integer
       autorun:
         type: boolean
+      extra_vars_json:
+        type: string
+        example: '{}'
 
   Template:
     type: object
@@ -860,6 +863,9 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/TemplateVault"
+      extra_vars_json:
+        type: string
+        example: '{}'
 
   TemplateSurveyVar:
     type: object
