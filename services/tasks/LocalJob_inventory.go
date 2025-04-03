@@ -84,12 +84,19 @@ func (t *LocalJob) installStaticInventory() error {
 	fullPath := t.tmpInventoryFullPath()
 
 	// create inventory file
-	return os.WriteFile(fullPath, []byte(t.Inventory.Inventory), 0664)
+	return os.WriteFile(fullPath, []byte(t.Inventory.Inventory), 0o664)
 }
 
 func (t *LocalJob) destroyInventoryFile() {
 	fullPath := t.tmpInventoryFullPath()
 	if err := os.Remove(fullPath); err != nil {
+		log.Error(err)
+	}
+}
+
+func (t *LocalJob) destroyTaskRoles() {
+	fullPath := util.Config.FullPathToPersonalTaskRoles(t.Task.ID)
+	if err := os.RemoveAll(fullPath); err != nil {
 		log.Error(err)
 	}
 }

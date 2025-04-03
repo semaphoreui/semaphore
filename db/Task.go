@@ -12,8 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-type DefaultTaskParams struct {
-}
+type DefaultTaskParams struct{}
 
 type TerraformTaskParams struct {
 	Plan        bool `json:"plan"`
@@ -27,6 +26,7 @@ type AnsibleTaskParams struct {
 	Debug  bool `json:"debug"`
 	DryRun bool `json:"dry_run"`
 	Diff   bool `json:"diff"`
+	TaskID int
 }
 
 // Task is a model of a task which will be executed by the runner
@@ -123,7 +123,6 @@ func (task *Task) GetIncomingVersion(d Store) *string {
 	}
 
 	buildTask, err := d.GetTask(task.ProjectID, *task.BuildTaskID)
-
 	if err != nil {
 		return nil
 	}
@@ -150,7 +149,6 @@ func (task *Task) GetUrl() *string {
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
-
 	var params interface{}
 	switch template.App {
 	case AppAnsible:

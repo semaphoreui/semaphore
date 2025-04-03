@@ -2,6 +2,7 @@ package db_lib
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func getMD5Hash(filepath string) (string, error) {
@@ -45,7 +47,7 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 		return err
 	}
 
-	return os.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
+	return os.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0o644)
 }
 
 type AnsibleApp struct {
@@ -69,16 +71,6 @@ func (t *AnsibleApp) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *AnsibleApp) InstallRequirements(environmentVars []string, params interface{}) error {
-	if err := t.installCollectionsRequirements(); err != nil {
-		return err
-	}
-	if err := t.installRolesRequirements(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (t *AnsibleApp) getRepoPath() string {
 	repo := GitRepository{
 		Logger:     t.Logger,
@@ -90,8 +82,65 @@ func (t *AnsibleApp) getRepoPath() string {
 	return repo.GetFullPath()
 }
 
-func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
+func (t *AnsibleApp) installRequirementsForPersonalTask(taskID int) error {
+	if err := t.installGalaxyRequirementsFileForPersonalTask(GalaxyRole, taskID); err != nil {
+		return err
+	}
+	if err := t.installGalaxyRequirementsFileForPersonalTask(GalaxyCollection, taskID); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (t *AnsibleApp) installRequirements() error {
+	if err := t.installCollectionsRequirements(); err != nil {
+		return err
+	}
+	if err := t.installRolesRequirements(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *AnsibleApp) InstallRequirements(environmentVars []string, params interface{}) error {
+	if !util.Config.UsePersonalTaskRoles {
+		return t.installRequirements()
+	}
+
+	ansibleParams, ok := params.(*db.AnsibleTaskParams)
+	if !ok {
+		return errors.New("undefined type task parameters")
+	}
+
+	return t.installRequirementsForPersonalTask(ansibleParams.TaskID)
+}
+
+func (t *AnsibleApp) installGalaxyRequirementsFileForPersonalTask(requirementsType GalaxyRequirementsType, taskID int) error {
+	requirementsFilePath := path.Join(t.GetPlaybookDir(), string(requirementsType)+"s", "requirements.yml")
+
+	if _, err := os.Stat(requirementsFilePath); err != nil {
+		t.Log("No " + requirementsFilePath + " file found. Skip galaxy install process.\n")
+		return nil
+	}
+
+	if err := t.runGalaxy([]string{
+		string(requirementsType),
+		"install",
+		"-r",
+		requirementsFilePath,
+		"--force",
+		"-p",
+		util.Config.FullPathToPersonalTaskRoles(taskID),
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
 	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
