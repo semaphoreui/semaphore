@@ -4,7 +4,7 @@ go 1.21.0
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.11.0
+	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/creack/pty v1.1.24
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/go-gorp/gorp/v3 v3.1.0
