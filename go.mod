@@ -27,7 +27,7 @@ require (
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
 	go.etcd.io/bbolt v1.3.9
 	golang.org/x/crypto v0.32.0
-	golang.org/x/oauth2 v0.21.0
+	golang.org/x/oauth2 v0.29.0
 )
 
 require (
