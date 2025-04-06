@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
 	go.etcd.io/bbolt v1.3.9
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.37.0
 	golang.org/x/oauth2 v0.21.0
 )
 
