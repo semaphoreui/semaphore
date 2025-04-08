@@ -137,7 +137,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:11.7
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
           MARIADB_USER: semaphore
@@ -379,7 +379,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:11.7
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
           MARIADB_USER: semaphore
