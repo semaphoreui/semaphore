@@ -12,7 +12,7 @@
     "@mdi/font": "^5.9.55",
     "ansi_up": "^6.0.2",
     "axios": "^1.8.3",
-    "chart.js": "^3.8.0",
+    "chart.js": "^4.0.0",
     "chartjs-adapter-moment": "^1.0.1",
     "core-js": "^3.40.0",
     "cron-parser": "^4.9.0",
