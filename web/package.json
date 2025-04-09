@@ -18,7 +18,7 @@
     "cron-parser": "^4.9.0",
     "moment": "^2.29.4",
     "vue": "^2.6.14",
-    "vue-chartjs": "^4.0.0",
+    "vue-chartjs": "^5.0.0",
     "vue-codemirror": "^4.0.6",
     "vue-i18n": "^8.18.2",
     "vue-router": "^3.5.4",
