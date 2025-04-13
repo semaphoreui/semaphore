@@ -1,5 +1,5 @@
 ---
-swagger: '2.0'
+swagger: '3.0'
 info:
   title: Semaphore API
   description: |
@@ -189,9 +189,8 @@ definitions:
             playbook:
               type: string
             arguments:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             description:
               type: string
             allow_override_args_in_task:
@@ -199,29 +198,24 @@ definitions:
             suppress_success_alerts:
               type: boolean
             cron:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             build_template:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             autorun:
               type: boolean
             survey_vars:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             start_version:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             type:
               type: string
             vault_key:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             allow_override_branch_in_task:
               type: boolean
       repositories:
@@ -267,13 +261,11 @@ definitions:
             inventory:
               type: string
             ssh_key:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             become_key:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             type:
               type: string
               enum: [static, static-yaml, file]
@@ -285,15 +277,13 @@ definitions:
             name:
               type: string
             password:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
             json:
               type: string
             env:
-              type:
-                - string
-                - 'null'
+              type: string
+              nullable: true
 
   APIToken:
     type: object
