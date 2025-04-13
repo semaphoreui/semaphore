@@ -9,7 +9,6 @@ id = 4b78a8de-205e-4066-b878-601252efa8c0
 
 [config.relations.collections]
 rootDirectory = postman/collections
-files[] = {"id":"2979975-f6c0ce76-0bb2-4833-8e73-b35e3e51896d","path":"Semaphore API.json","metaData":{}}
 
 [config.relations.collections.metaData]
 
