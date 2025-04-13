@@ -5,7 +5,7 @@ info:
   description: |
     Semaphore API provides endpoints for managing and interacting with the Semaphore UI.
     This documentation outlines the available operations and data models.
-  version: "2.13.0"
+  version: "2.14.0-beta1"
 
 host: localhost:3000
 
