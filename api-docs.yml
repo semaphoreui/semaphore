@@ -32,6 +32,8 @@ schemes:
 basePath: /api
 
 definitions:
+  App:
+    type: object
 
   Pong:
     type: string
@@ -300,7 +302,7 @@ definitions:
         type: string
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+      #        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       expired:
         type: boolean
       user_id:
@@ -341,7 +343,7 @@ definitions:
         example: Test
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+      #        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
       alert_chat:
@@ -1901,7 +1903,7 @@ paths:
         201:
           description: Repository created
           schema:
-              $ref: "#/definitions/Repository"
+            $ref: "#/definitions/Repository"
 
   /project/{project_id}/repositories/{repository_id}:
     parameters:
@@ -1909,13 +1911,13 @@ paths:
       - $ref: "#/parameters/repository_id"
     get:
       tags:
-          - project
+        - project
       summary: Get repository
       responses:
         200:
           description: repository object
           schema:
-              $ref: "#/definitions/Repository"
+            $ref: "#/definitions/Repository"
     put:
       tags:
         - project
@@ -2073,7 +2075,7 @@ paths:
         200:
           description: environment object
           schema:
-              $ref: "#/definitions/Environment"
+            $ref: "#/definitions/Environment"
     put:
       tags:
         - project
@@ -2430,24 +2432,13 @@ paths:
             content-type:
               type: string
               x-example: text/plain; charset=utf-8
-
-#  /runners:
-#    post:
-#      tags:
-#        - project
-#      summary: Starts a job
-#      parameters:
-#        - name: task
-#          in: body
-#          required: true
-#          schema:
-#            type: object
-#            properties:
-#              registration_token:
-#                type: string
-#                example: test123
-#      responses:
-#        201:
-#          description: Task queued
-#          schema:
-#            $ref: "#/definitions/Runner"
+  /apps:
+    get:
+      summary: Get apps
+      responses:
+        200:
+          description: Apps
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/App"
