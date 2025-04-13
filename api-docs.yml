@@ -43,7 +43,7 @@ definitions:
       auth:
         type: string
         description: Username/Email address
-        x-example: user@semaphore.com
+        x-example: user@semaphoreui.com
       password:
         type: string
         format: password
