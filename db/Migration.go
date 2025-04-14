@@ -81,6 +81,9 @@ func GetMigrations() []Migration {
 		{Version: "2.12.3"},
 		{Version: "2.12.4"},
 		{Version: "2.12.5"},
+		{Version: "2.12.15"},
+		{Version: "2.13.0"},
+		{Version: "2.14.0"},
 	}
 }
 
@@ -97,9 +100,9 @@ func Migrate(d Store) error {
 		}
 
 		didRun = true
-		fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
+		fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now().UTC())
 		if err := d.ApplyMigration(version); err != nil {
-			fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
+			fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now().UTC())
 			d.TryRollbackMigration(version)
 			return err
 		}

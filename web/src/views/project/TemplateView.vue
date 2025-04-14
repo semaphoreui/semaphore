@@ -12,22 +12,24 @@
       :template-app="item.app"
     />
 
-    <EditTemplateDialogue
+    <EditTemplateDialog
       v-model="editDialog"
       :project-id="projectId"
       :item-app="item.app"
       :item-id="itemId"
       @save="loadData()"
-    ></EditTemplateDialogue>
+      :premium-features="premiumFeatures"
+    ></EditTemplateDialog>
 
-    <EditTemplateDialogue
+    <EditTemplateDialog
       v-model="copyDialog"
       :project-id="projectId"
       :item-app="item.app"
       item-id="new"
       :source-item-id="itemId"
       @save="onTemplateCopied"
-    ></EditTemplateDialogue>
+      :premium-features="premiumFeatures"
+    ></EditTemplateDialog>
 
     <ObjectRefsDialog
       object-title="template"
@@ -124,7 +126,7 @@ import {
 } from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
-import EditTemplateDialogue from '@/components/EditTemplateDialog.vue';
+import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
 
 export default {
@@ -132,7 +134,7 @@ export default {
     YesNoDialog,
     ObjectRefsDialog,
     NewTaskDialog,
-    EditTemplateDialogue,
+    EditTemplateDialog,
   },
 
   props: {

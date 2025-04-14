@@ -34,3 +34,5 @@ __debug_bin*
 .task/
 /web/.env
 /.venv/
+
+/events.log

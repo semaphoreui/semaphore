@@ -20,7 +20,7 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
-		cmd.Dir = util.Config.TmpPath
+		cmd.Dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
 	case GitRepositoryFullPath:
 		cmd.Dir = r.GetFullPath()
 	default:
@@ -80,7 +80,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		"--recursive",
 		"--branch",
 		r.Repository.GitBranch,
-		r.Repository.GetGitURL(),
+		r.Repository.GetGitURL(false),
 		dirName)
 }
 
@@ -130,7 +130,7 @@ func (c CmdGitClient) GetLastCommitHash(r GitRepository) (hash string, err error
 }
 
 func (c CmdGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err error) {
-	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", r.Repository.GetGitURL(), r.Repository.GitBranch)
+	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", r.Repository.GetGitURL(false), r.Repository.GitBranch)
 	if err != nil {
 		return
 	}

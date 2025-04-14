@@ -106,7 +106,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !util.VerifyRecoveryCode(body.RecoveryCode, user.Totp.RecoveryHash) {
-			w.WriteHeader(http.StatusBadRequest)
+			helpers.WriteErrorStatus(w, "INVALID_RECOVERY_CODE", http.StatusUnauthorized)
 			return
 		}
 
@@ -166,7 +166,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !totp.Validate(body.Passcode, key.Secret()) {
-			w.WriteHeader(http.StatusBadRequest)
+			helpers.WriteErrorStatus(w, "INVALID_PASSCODE", http.StatusUnauthorized)
 			return
 		}
 

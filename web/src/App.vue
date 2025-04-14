@@ -500,6 +500,19 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item
+                key="tokens"
+                to="/tokens"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-api</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('api_tokens') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="sign_out" @click="signOut()">
                 <v-list-item-icon>
                   <v-icon>mdi-exit-to-app</v-icon>
@@ -718,6 +731,10 @@
   margin-left: 10px !important;
 }
 
+.v-slide-group__prev--disabled {
+  display: none !important;
+}
+
 @media (min-width: 960px) {
   .v-app-bar__nav-icon {
     display: none !important;
@@ -768,6 +785,9 @@ const LANGUAGES = {
   },
   de: {
     title: 'German',
+  },
+  nl: {
+    title: 'Dutch (Netherlands)',
   },
   zh_cn: {
     title: '中文(大陆)',

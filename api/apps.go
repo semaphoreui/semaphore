@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/gorilla/context"
 	"net/http"
 	"reflect"
 	"sort"
@@ -155,7 +155,7 @@ func setAppOption(store db.Store, appID string, field string, val interface{}) e
 
 	options := db.ConvertFlatToNested(opts)
 
-	_ = db.AssignMapToStruct(options, util.Config)
+	_ = util.AssignMapToStruct(options, util.Config)
 
 	return nil
 }

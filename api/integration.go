@@ -127,6 +127,12 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				log.Error("Invalid verification token")
 				continue
 			}
+		case db.IntegrationAuthBasic:
+			var username, password, auth = r.BasicAuth()
+			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
+				log.Error("Invalid BasicAuth: incorrect login or password")
+				continue
+			}
 		case db.IntegrationAuthNone:
 			// Do nothing
 		default:

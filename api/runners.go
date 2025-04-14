@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/context"
 )
 
-func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
-	runners, err := helpers.Store(r).GetGlobalRunners(false)
+func getAllRunners(w http.ResponseWriter, r *http.Request) {
+	runners, err := helpers.Store(r).GetAllRunners(false, false)
 
 	if err != nil {
 		panic(err)
@@ -130,6 +130,21 @@ func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func clearGlobalRunnerCache(w http.ResponseWriter, r *http.Request) {
+	runner := context.Get(r, "runner").(*db.Runner)
+
+	store := helpers.Store(r)
+
+	err := store.ClearRunnerCache(*runner)
+
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 

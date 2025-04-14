@@ -2,10 +2,10 @@ package mailer
 
 import (
 	"bytes"
+	"html/template"
 	"net"
 	"net/smtp"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -97,17 +97,12 @@ func plainauth(
 	to string,
 	body *bytes.Buffer,
 ) error {
+	auth := PlainOrLoginAuth(username, password, host)
+	//auth := smtp.PlainAuth("", username, password, host)
+
 	return smtp.SendMail(
-		net.JoinHostPort(
-			host,
-			port,
-		),
-		smtp.PlainAuth(
-			"",
-			username,
-			password,
-			host,
-		),
+		net.JoinHostPort(host, port),
+		auth,
 		from,
 		[]string{to},
 		body.Bytes(),
@@ -121,12 +116,7 @@ func anonymous(
 	to string,
 	body *bytes.Buffer,
 ) error {
-	c, err := smtp.Dial(
-		net.JoinHostPort(
-			host,
-			port,
-		),
-	)
+	c, err := smtp.Dial(net.JoinHostPort(host, port))
 
 	if err != nil {
 		return err

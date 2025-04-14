@@ -61,9 +61,21 @@ const (
 	SurveyVarEnum TemplateType = "enum"
 )
 
+type AnsibleTemplateParams struct {
+	AllowDebug             bool     `json:"allow_debug"`
+	AllowOverrideInventory bool     `json:"allow_override_inventory"`
+	AllowOverrideLimit     bool     `json:"allow_override_limit"`
+	AllowOverrideTags      bool     `json:"allow_override_tags"`
+	AllowOverrideSkipTags  bool     `json:"allow_override_skip_tags"`
+	Limit                  []string `json:"limit"`
+	Tags                   []string `json:"tags"`
+	SkipTags               []string `json:"skip_tags"`
+}
+
 type TerraformTemplateParams struct {
 	AllowDestroy     bool `json:"allow_destroy"`
 	AllowAutoApprove bool `json:"allow_auto_approve"`
+	AutoApprove      bool `json:"auto_approve"`
 }
 
 type SurveyVarEnumValue struct {
@@ -135,6 +147,33 @@ type Template struct {
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
 
 	TaskParams MapStringAnyField `db:"task_params" json:"task_params"`
+
+	RunnerTag *string `db:"runner_tag" json:"runner_tag"`
+
+	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task"`
+}
+
+func (tpl *Template) FillParams(target interface{}) error {
+	content, err := json.Marshal(tpl.TaskParams)
+	if err != nil {
+		return nil
+	}
+	err = json.Unmarshal(content, target)
+	return err
+}
+
+func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
+	switch tpl.App {
+	case AppAnsible, "":
+		var params AnsibleTemplateParams
+		err = tpl.FillParams(&params)
+		if err != nil {
+			return
+		}
+		ok = params.AllowOverrideInventory
+	}
+
+	return
 }
 
 func (tpl *Template) Validate() error {

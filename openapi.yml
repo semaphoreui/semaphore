@@ -1,0 +1,2757 @@
+---
+openapi: 3.0.1
+info:
+  title: Semaphore API
+  description: |
+    Semaphore API provides endpoints for managing and interacting with the Semaphore UI.
+    This documentation outlines the available operations and data models.
+  version: 2.14.0-beta1
+servers:
+  - url: http://localhost:3000/api
+  - url: https://portal.semaphoreui.com/api
+security:
+  - bearerAuth: []
+  - bearer: []
+  - cookie: []
+tags:
+  - name: authentication
+    description: Authentication, Logout & API Tokens
+  - name: project
+    description: Everything related to a project
+  - name: user
+    description: User-related API
+  - name: integration
+    description: Integration API
+paths:
+  "/ping":
+    get:
+      summary: PING test
+      responses:
+        '200':
+          description: Successful "PONG" reply
+          headers:
+            content-type:
+              schema:
+                type: string
+          content:
+            text/plain:
+              schema:
+                "$ref": "#/components/schemas/Pong"
+      security: []
+  "/ws":
+    get:
+      summary: Websocket handler
+      responses:
+        '200':
+          description: OK
+          content: {}
+        '401':
+          description: not authenticated
+          content: {}
+  "/info":
+    get:
+      summary: Fetches information about semaphore
+      description: you must be authenticated to use this
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/InfoType"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/InfoType"
+  "/auth/login":
+    get:
+      tags:
+        - authentication
+      summary: Fetches login metadata
+      description: Fetches metadata for login, such as available OIDC providers
+      responses:
+        '200':
+          description: Login metadata
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/LoginMetadata"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/LoginMetadata"
+      security: []
+    post:
+      tags:
+        - authentication
+      summary: Performs Login
+      description: Upon success you will be logged in
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Login"
+        required: true
+      responses:
+        '204':
+          description: You are logged in
+          content: {}
+        '400':
+          description: something in body is missing / is invalid
+          content: {}
+      security: []
+      x-codegen-request-body-name: Login Body
+  "/auth/logout":
+    post:
+      tags:
+        - authentication
+      summary: Destroys current session
+      responses:
+        '204':
+          description: Your session was successfully nuked
+          content: {}
+  "/auth/oidc/{provider_id}/login":
+    get:
+      tags:
+        - authentication
+      summary: Begin OIDC authentication flow and redirect to OIDC provider
+      description: The user agent is redirected to this endpoint when chosing to sign
+        in via OIDC
+      responses:
+        '302':
+          description: Redirection to the OIDC provider on success, or to the login
+            page on error
+          content: {}
+    parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: mysso
+  "/auth/oidc/{provider_id}/redirect":
+    get:
+      tags:
+        - authentication
+      summary: Finish OIDC authentication flow, upon succes you will be logged in
+      description: The user agent is redirected here by the OIDC provider to complete
+        authentication
+      responses:
+        '302':
+          description: Redirection to the Semaphore root URL on success, or to the
+            login page on error
+          content: {}
+    parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: mysso
+  "/user/":
+    get:
+      tags:
+        - user
+      summary: Fetch logged in user
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/User"
+  "/user/tokens":
+    get:
+      tags:
+        - authentication
+        - user
+      summary: Fetch API tokens for user
+      responses:
+        '200':
+          description: API Tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/APIToken"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/APIToken"
+    post:
+      tags:
+        - authentication
+        - user
+      summary: Create an API token
+      responses:
+        '201':
+          description: API Token
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/APIToken"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/APIToken"
+  "/user/tokens/{api_token_id}":
+    delete:
+      tags:
+        - authentication
+        - user
+      summary: Expires API token
+      responses:
+        '204':
+          description: Expired API Token
+          content: {}
+    parameters:
+      - name: api_token_id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: kwofd61g93-yuqvex8efmhjkgnbxlo8mp1tin6spyhu=
+  "/users":
+    get:
+      tags:
+        - user
+      summary: Fetches all users
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/User"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/User"
+    post:
+      tags:
+        - user
+      summary: Creates a user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UserRequest"
+        required: true
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/User"
+        '400':
+          description: User creation failed
+          content: {}
+      x-codegen-request-body-name: User
+  "/users/{user_id}/":
+    get:
+      tags:
+        - user
+      summary: Fetches a user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/User"
+    put:
+      tags:
+        - user
+      summary: Updates user details
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UserPutRequest"
+        required: true
+      responses:
+        '204':
+          description: User Updated
+          content: {}
+      x-codegen-request-body-name: User
+    delete:
+      tags:
+        - user
+      summary: Deletes user
+      responses:
+        '204':
+          description: User deleted
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/user_id"
+  "/users/{user_id}/password":
+    post:
+      tags:
+        - user
+      summary: Updates user password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  format: password
+        required: true
+      responses:
+        '204':
+          description: Password updated
+          content: {}
+      x-codegen-request-body-name: Password
+    parameters:
+      - "$ref": "#/components/parameters/user_id"
+  "/projects":
+    get:
+      tags:
+        - projects
+      summary: Get projects
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Project"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Project"
+    post:
+      tags:
+        - projects
+      summary: Create a new project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProjectRequest"
+        required: true
+      responses:
+        '201':
+          description: Created project
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Project"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Project"
+      x-codegen-request-body-name: Project
+  "/projects/restore":
+    post:
+      tags:
+        - projects
+      summary: Restore Project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProjectBackup"
+        required: true
+      responses:
+        '200':
+          description: Created project
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Project"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Project"
+      x-codegen-request-body-name: Backup
+  "/events":
+    get:
+      summary: Get Events related to Semaphore and projects you are part of
+      responses:
+        '200':
+          description: Array of events in chronological order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Event"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Event"
+  "/events/last":
+    get:
+      summary: Get last 200 Events related to Semaphore and projects you are part
+        of
+      responses:
+        '200':
+          description: Array of events in chronological order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Event"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Event"
+  "/project/{project_id}/":
+    get:
+      tags:
+        - project
+      summary: Fetch project
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Project"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Project"
+    put:
+      tags:
+        - project
+      summary: Update project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - "$ref": "#/components/schemas/ProjectRequest"
+                - type: object
+                  properties:
+                    id:
+                      minimum: 1
+                      type: integer
+        required: true
+      responses:
+        '204':
+          description: Project saved
+          content: {}
+      x-codegen-request-body-name: Project
+    delete:
+      tags:
+        - project
+      summary: Delete project
+      responses:
+        '204':
+          description: Project deleted
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/backup":
+    get:
+      tags:
+        - project
+      summary: Backup A Project
+      responses:
+        '200':
+          description: Backup
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProjectBackup"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/ProjectBackup"
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/role":
+    get:
+      tags:
+        - project
+      summary: Fetch permissions of the current user for project
+      responses:
+        '200':
+          description: Permissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                    example: owner
+                  permissions:
+                    type: number
+                    example: 0
+            text/plain; charset=utf-8:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                    example: owner
+                  permissions:
+                    type: number
+                    example: 0
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/events":
+    get:
+      tags:
+        - project
+      summary: Get Events related to this project
+      responses:
+        '200':
+          description: Array of events in chronological order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Event"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Event"
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/users":
+    get:
+      tags:
+        - project
+      summary: Get users linked to project
+      parameters:
+        - name: sort
+          in: query
+          description: sorting name
+          required: true
+          schema:
+            type: string
+            enum:
+              - name
+              - username
+              - email
+              - role
+          example: email
+        - name: order
+          in: query
+          description: ordering manner
+          required: true
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+          example: desc
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/ProjectUser"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/ProjectUser"
+    post:
+      tags:
+        - project
+      summary: Link user to project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  minimum: 2
+                  type: integer
+                role:
+                  type: string
+                  example: owner
+                  enum:
+                    - owner
+                    - manager
+                    - task_runner
+                    - guest
+        required: true
+      responses:
+        '204':
+          description: User added
+          content: {}
+      x-codegen-request-body-name: User
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/users/{user_id}":
+    put:
+      tags:
+        - project
+      summary: Update user role
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  example: owner
+                  enum:
+                    - owner
+                    - manager
+                    - task_runner
+                    - guest
+        required: true
+      responses:
+        '204':
+          description: User updated
+          content: {}
+      x-codegen-request-body-name: Project User
+    delete:
+      tags:
+        - project
+      summary: Removes user from project
+      responses:
+        '204':
+          description: User removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/user_id"
+  "/project/{project_id}/integrations":
+    get:
+      tags:
+        - project
+      summary: get all integrations
+      responses:
+        '200':
+          description: integration
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Integration"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Integration"
+    post:
+      tags:
+        - project
+      summary: create a new integration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/IntegrationRequest"
+        required: true
+      responses:
+        '201':
+          description: Integration Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Integration"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Integration"
+      x-codegen-request-body-name: Integration
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/integrations/{integration_id}":
+    put:
+      tags:
+        - project
+      summary: Update Integration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/IntegrationRequest"
+        required: true
+      responses:
+        '204':
+          description: Integration updated
+          content: {}
+      x-codegen-request-body-name: Integration
+    delete:
+      tags:
+        - project
+      summary: Remove integration
+      responses:
+        '204':
+          description: integration removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/integration_id"
+  "/project/{project_id}/integrations/{integration_id}/values":
+    get:
+      tags:
+        - integration
+      summary: Get Integration Extracted Values linked to integration extractor
+      responses:
+        '200':
+          description: Integration Extracted Value
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/IntegrationExtractValue"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/IntegrationExtractValue"
+    post:
+      tags:
+        - project
+      summary: Add Integration Extracted Value
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/IntegrationExtractValue"
+        required: true
+      responses:
+        '201':
+          description: Integration Extract Value Created
+          content: {}
+        '400':
+          description: Bad Integration Extract Value params
+          content: {}
+      x-codegen-request-body-name: Integration Extracted Value
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/integration_id"
+  "/project/{project_id}/integrations/{integration_id}/values/{extractvalue_id}":
+    put:
+      tags:
+        - integration
+      summary: Updates Integration ExtractValue
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/IntegrationExtractValueRequest"
+        required: true
+      responses:
+        '204':
+          description: Integration Extract Value updated
+          content: {}
+        '400':
+          description: Bad integration extract value parameter
+          content: {}
+      x-codegen-request-body-name: Integration ExtractValue
+    delete:
+      tags:
+        - integration
+      summary: Removes integration extract value
+      responses:
+        '204':
+          description: integration extract value removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/integration_id"
+      - "$ref": "#/components/parameters/extractvalue_id"
+  "/project/{project_id}/integrations/{integration_id}/matchers":
+    get:
+      tags:
+        - integration
+      summary: Get Integration Matcher linked to integration extractor
+      responses:
+        '200':
+          description: Integration Matcher
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/IntegrationMatcher"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/IntegrationMatcher"
+    post:
+      tags:
+        - project
+      summary: Add Integration Matcher
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/IntegrationMatcher"
+        required: true
+      responses:
+        '200':
+          description: Integration Matcher Created
+          content: {}
+        '400':
+          description: Bad Integration Matcher params
+          content: {}
+      x-codegen-request-body-name: Integration Matcher
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/integration_id"
+  "/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}":
+    put:
+      tags:
+        - integration
+      summary: Updates Integration Matcher
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/IntegrationMatcherRequest"
+        required: true
+      responses:
+        '204':
+          description: Integration Matcher updated
+          content: {}
+        '400':
+          description: Bad integration matcher parameter
+          content: {}
+      x-codegen-request-body-name: Integration Matcher
+    delete:
+      tags:
+        - integration
+      summary: Removes integration matcher
+      responses:
+        '204':
+          description: integration matcher removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/integration_id"
+      - "$ref": "#/components/parameters/matcher_id"
+  "/project/{project_id}/keys":
+    get:
+      tags:
+        - project
+      summary: Get access keys linked to project
+      parameters:
+        - name: Key type
+          in: query
+          description: Filter by key type
+          schema:
+            type: string
+            enum:
+              - none
+              - ssh
+              - login_password
+          example: none
+        - name: sort
+          in: query
+          description: sorting name
+          required: true
+          schema:
+            type: string
+            enum:
+              - name
+              - type
+          example: type
+        - name: order
+          in: query
+          description: ordering manner
+          required: true
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+          example: asc
+      responses:
+        '200':
+          description: Access Keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/AccessKey"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/AccessKey"
+    post:
+      tags:
+        - project
+      summary: Add access key
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AccessKeyRequest"
+        required: true
+      responses:
+        '201':
+          description: Access Key created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AccessKey"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/AccessKey"
+        '400':
+          description: Bad type
+          content: {}
+      x-codegen-request-body-name: Access Key
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/keys/{key_id}":
+    put:
+      tags:
+        - project
+      summary: Updates access key
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AccessKeyRequest"
+        required: true
+      responses:
+        '204':
+          description: Key updated
+          content: {}
+        '400':
+          description: Bad type
+          content: {}
+      x-codegen-request-body-name: Access Key
+    delete:
+      tags:
+        - project
+      summary: Removes access key
+      responses:
+        '204':
+          description: access key removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/key_id"
+  "/project/{project_id}/repositories":
+    get:
+      tags:
+        - project
+      summary: Get repositories
+      parameters:
+        - name: sort
+          in: query
+          description: sorting name
+          required: true
+          schema:
+            type: string
+            enum:
+              - name
+              - git_url
+              - ssh_key
+        - name: order
+          in: query
+          description: ordering manner
+          required: true
+          schema:
+            type: string
+            format: asc/desc
+            enum:
+              - asc
+              - desc
+      responses:
+        '200':
+          description: repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Repository"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Repository"
+    post:
+      tags:
+        - project
+      summary: Add repository
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RepositoryRequest"
+        required: true
+      responses:
+        '201':
+          description: Repository created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Repository"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Repository"
+      x-codegen-request-body-name: Repository
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/repositories/{repository_id}":
+    get:
+      tags:
+        - project
+      summary: Get repository
+      responses:
+        '200':
+          description: repository object
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Repository"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Repository"
+    put:
+      tags:
+        - project
+      summary: Updates repository
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RepositoryRequest"
+        required: true
+      responses:
+        '204':
+          description: Repository updated
+          content: {}
+        '400':
+          description: Bad request
+          content: {}
+      x-codegen-request-body-name: Repository
+    delete:
+      tags:
+        - project
+      summary: Removes repository
+      responses:
+        '204':
+          description: repository removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/repository_id"
+  "/project/{project_id}/inventory":
+    get:
+      tags:
+        - project
+      summary: Get inventory
+      parameters:
+        - name: sort
+          in: query
+          description: sorting name
+          required: true
+          schema:
+            type: string
+            enum:
+              - name
+              - type
+        - name: order
+          in: query
+          description: ordering manner
+          required: true
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+      responses:
+        '200':
+          description: inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Inventory"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Inventory"
+    post:
+      tags:
+        - project
+      summary: create inventory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/InventoryRequest"
+        required: true
+      responses:
+        '201':
+          description: inventory created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Inventory"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Inventory"
+      x-codegen-request-body-name: Inventory
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/inventory/{inventory_id}":
+    get:
+      tags:
+        - project
+      summary: Get inventory
+      responses:
+        '200':
+          description: inventory object
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Inventory"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Inventory"
+    put:
+      tags:
+        - project
+      summary: Updates inventory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/InventoryRequest"
+        required: true
+      responses:
+        '204':
+          description: Inventory updated
+          content: {}
+      x-codegen-request-body-name: Inventory
+    delete:
+      tags:
+        - project
+      summary: Removes inventory
+      responses:
+        '204':
+          description: inventory removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/inventory_id"
+  "/project/{project_id}/environment":
+    get:
+      tags:
+        - project
+      summary: Get environment
+      parameters:
+        - name: sort
+          in: query
+          description: sorting name
+          required: true
+          schema:
+            type: string
+            format: name
+          example: name
+        - name: order
+          in: query
+          description: ordering manner
+          required: true
+          schema:
+            type: string
+            format: asc/desc
+          example: desc
+      responses:
+        '200':
+          description: environment
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Environment"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Environment"
+    post:
+      tags:
+        - project
+      summary: Add environment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/EnvironmentRequest"
+        required: true
+      responses:
+        '201':
+          description: Environment created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Environment"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Environment"
+      x-codegen-request-body-name: environment
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/environment/{environment_id}":
+    get:
+      tags:
+        - project
+      summary: Get environment
+      responses:
+        '200':
+          description: environment object
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Environment"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Environment"
+    put:
+      tags:
+        - project
+      summary: Update environment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/EnvironmentRequest"
+        required: true
+      responses:
+        '204':
+          description: Environment Updated
+          content: {}
+      x-codegen-request-body-name: environment
+    delete:
+      tags:
+        - project
+      summary: Removes environment
+      responses:
+        '204':
+          description: environment removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/environment_id"
+  "/project/{project_id}/templates":
+    get:
+      tags:
+        - project
+      summary: Get template
+      parameters:
+        - name: sort
+          in: query
+          description: sorting name
+          required: true
+          schema:
+            type: string
+            enum:
+              - name
+              - playbook
+              - ssh_key
+              - inventory
+              - environment
+              - repository
+        - name: order
+          in: query
+          description: ordering manner
+          required: true
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+      responses:
+        '200':
+          description: template
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Template"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Template"
+    post:
+      tags:
+        - project
+      summary: create template
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TemplateRequest"
+        required: true
+      responses:
+        '201':
+          description: template created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Template"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Template"
+      x-codegen-request-body-name: template
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/templates/{template_id}":
+    get:
+      tags:
+        - project
+      summary: Get template
+      responses:
+        '200':
+          description: template object
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Template"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Template"
+    put:
+      tags:
+        - project
+      summary: Updates template
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TemplateRequest"
+        required: true
+      responses:
+        '204':
+          description: template updated
+          content: {}
+      x-codegen-request-body-name: template
+    delete:
+      tags:
+        - project
+      summary: Removes template
+      responses:
+        '204':
+          description: template removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/template_id"
+  "/project/{project_id}/schedules/{schedule_id}":
+    get:
+      tags:
+        - schedule
+      summary: Get schedule
+      responses:
+        '200':
+          description: Schedule
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Schedule"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Schedule"
+    put:
+      tags:
+        - schedule
+      summary: Updates schedule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ScheduleRequest"
+        required: true
+      responses:
+        '204':
+          description: schedule updated
+          content: {}
+      x-codegen-request-body-name: schedule
+    delete:
+      tags:
+        - schedule
+      summary: Deletes schedule
+      responses:
+        '204':
+          description: schedule deleted
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/schedule_id"
+  "/project/{project_id}/schedules":
+    post:
+      tags:
+        - schedule
+      summary: create schedule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ScheduleRequest"
+        required: true
+      responses:
+        '201':
+          description: schedule created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Schedule"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Schedule"
+      x-codegen-request-body-name: schedule
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/views":
+    get:
+      tags:
+        - project
+      summary: Get view
+      responses:
+        '200':
+          description: view
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/View"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/View"
+    post:
+      tags:
+        - project
+      summary: create view
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ViewRequest"
+        required: true
+      responses:
+        '201':
+          description: view created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/View"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/View"
+      x-codegen-request-body-name: view
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/views/{view_id}":
+    get:
+      tags:
+        - project
+      summary: Get view
+      responses:
+        '200':
+          description: view object
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/View"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/View"
+    put:
+      tags:
+        - project
+      summary: Updates view
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ViewRequest"
+        required: true
+      responses:
+        '204':
+          description: view updated
+          content: {}
+      x-codegen-request-body-name: view
+    delete:
+      tags:
+        - project
+      summary: Removes view
+      responses:
+        '204':
+          description: view removed
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/view_id"
+  "/project/{project_id}/tasks":
+    get:
+      tags:
+        - project
+      summary: Get Tasks related to current project
+      responses:
+        '200':
+          description: Array of tasks in chronological order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Task"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Task"
+    post:
+      tags:
+        - project
+      summary: Starts a job
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                template_id:
+                  type: integer
+                debug:
+                  type: boolean
+                dry_run:
+                  type: boolean
+                diff:
+                  type: boolean
+                playbook:
+                  type: string
+                environment:
+                  type: string
+                limit:
+                  type: string
+                git_branch:
+                  type: string
+                message:
+                  type: string
+        required: true
+      responses:
+        '201':
+          description: Task queued
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Task"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Task"
+      x-codegen-request-body-name: task
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/tasks/last":
+    get:
+      tags:
+        - project
+      summary: Get last 200 Tasks related to current project
+      responses:
+        '200':
+          description: Array of tasks in chronological order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Task"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Task"
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/tasks/{task_id}/stop":
+    post:
+      tags:
+        - project
+      summary: Stop a job
+      responses:
+        '204':
+          description: Task queued
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/task_id"
+  "/project/{project_id}/tasks/{task_id}":
+    get:
+      tags:
+        - project
+      summary: Get a single task
+      responses:
+        '200':
+          description: Task
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Task"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/Task"
+    delete:
+      tags:
+        - project
+      summary: Deletes task (including output)
+      responses:
+        '204':
+          description: task deleted
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/task_id"
+  "/project/{project_id}/tasks/{task_id}/output":
+    get:
+      tags:
+        - project
+      summary: Get task output
+      responses:
+        '200':
+          description: output
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/TaskOutput"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/TaskOutput"
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/task_id"
+  "/project/{project_id}/tasks/{task_id}/raw_output":
+    get:
+      tags:
+        - project
+      summary: Get task raw output
+      responses:
+        '200':
+          description: output
+          headers:
+            content-type:
+              schema:
+                type: string
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/task_id"
+  "/apps":
+    get:
+      summary: Get apps
+      responses:
+        '200':
+          description: Apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/App"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/App"
+components:
+  schemas:
+    App:
+      type: object
+    Pong:
+      type: string
+      x-example: pong
+    Login:
+      type: object
+      properties:
+        auth:
+          type: string
+          description: Username/Email address
+        password:
+          type: string
+          description: Password
+          format: password
+    LoginMetadata:
+      type: object
+      properties:
+        oidc_providers:
+          type: array
+          description: List of OIDC providers
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: ID of the provider, used in the login URL
+              name:
+                type: string
+                description: Text to show on the login button
+    UserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Integration Test User
+        username:
+          type: string
+          example: test-user
+        email:
+          type: string
+          example: test@ansiblesemaphore.test
+        password:
+          type: string
+          format: password
+        alert:
+          type: boolean
+        admin:
+          type: boolean
+        external:
+          type: boolean
+    UserPutRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Integration Test User2
+        username:
+          type: string
+          example: test-user2
+        email:
+          type: string
+          example: test2@ansiblesemaphore.test
+        alert:
+          type: boolean
+        admin:
+          type: boolean
+    User:
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        created:
+          type: string
+        alert:
+          type: boolean
+        admin:
+          type: boolean
+        external:
+          type: boolean
+    ProjectUser:
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+            - owner
+            - manager
+            - task_runner
+            - guest
+    ProjectBackup:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            name:
+              type: string
+            alert:
+              type: boolean
+            max_parallel_tasks:
+              minimum: 0
+              type: integer
+        templates:
+          type: array
+          items:
+            type: object
+            properties:
+              inventory:
+                type: string
+              repository:
+                type: string
+              environment:
+                type: string
+              view:
+                type: string
+              name:
+                type: string
+              playbook:
+                type: string
+              description:
+                type: string
+              allow_override_args_in_task:
+                type: boolean
+              suppress_success_alerts:
+                type: boolean
+              autorun:
+                type: boolean
+              type:
+                type: string
+              allow_override_branch_in_task:
+                type: boolean
+        repositories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              git_url:
+                type: string
+              git_branch:
+                type: string
+              ssh_key:
+                type: string
+        keys:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum:
+                  - ssh
+                  - login_password
+                  - none
+        views:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              position:
+                minimum: 0
+                type: integer
+        inventories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              inventory:
+                type: string
+              type:
+                type: string
+                enum:
+                  - static
+                  - static-yaml
+                  - file
+        environments:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              json:
+                type: string
+      example:
+        meta:
+          name: homelab
+          alert: true
+          alert_chat: Test
+          max_parallel_tasks: 0
+        templates:
+          - inventory: Build
+            repository: Demo
+            environment: Empty
+            name: Build
+            playbook: build.yml
+            arguments: "[]"
+            allow_override_args_in_task: false
+            description: Build Job
+            type: build
+            start_version: 1.0.0
+            view: Build
+            autorun: false
+            survey_vars: []
+            suppress_success_alerts: false
+            cron: "* * * * *"
+        repositories:
+          - name: Demo
+            git_url: https://github.com/semaphoreui/semaphore-demo.git
+            git_branch: main
+            ssh_key: None
+        keys:
+          - name: None
+            type: none
+          - name: Vault Password
+            type: login_password
+        views:
+          - title: Build
+            position: 0
+        inventories:
+          - name: Build
+            inventory: ''
+            ssh_key: None
+            become_key: None
+            type: static
+          - name: Dev
+            inventory: ''
+            ssh_key: None
+            become_key: None
+            type: file
+          - name: Prod
+            inventory: ''
+            ssh_key: None
+            become_key: None
+            type: file
+        environments:
+          - name: Empty
+            json: "{}"
+    APIToken:
+      type: object
+      properties:
+        id:
+          type: string
+        created:
+          type: string
+        expired:
+          type: boolean
+        user_id:
+          minimum: 1
+          type: integer
+    ProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Test
+        alert:
+          type: boolean
+        max_parallel_tasks:
+          minimum: 0
+          type: integer
+        demo:
+          type: boolean
+          description: Create Demo project resources?
+    Project:
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+        name:
+          type: string
+          example: Test
+        created:
+          type: string
+        alert:
+          type: boolean
+        max_parallel_tasks:
+          minimum: 0
+          type: integer
+    AccessKeyRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: None
+        type:
+          type: string
+          enum:
+            - none
+            - ssh
+            - login_password
+        project_id:
+          minimum: 1
+          type: integer
+        override_secret:
+          type: boolean
+        login_password:
+          type: object
+          properties:
+            password:
+              type: string
+              example: password
+            login:
+              type: string
+              example: username
+        ssh:
+          type: object
+          properties:
+            login:
+              type: string
+              example: user
+            passphrase:
+              type: string
+              example: passphrase
+            private_key:
+              type: string
+              example: private key
+    AccessKey:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Test
+        type:
+          type: string
+          enum:
+            - none
+            - ssh
+            - login_password
+        project_id:
+          type: integer
+    EnvironmentSecret:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - env
+            - var
+    EnvironmentSecretRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        secret:
+          type: string
+        type:
+          type: string
+          enum:
+            - env
+            - var
+        operation:
+          type: string
+          enum:
+            - create
+            - update
+            - delete
+    EnvironmentRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Test
+        project_id:
+          minimum: 1
+          type: integer
+        password:
+          type: string
+        json:
+          type: string
+          example: "{}"
+        env:
+          type: string
+          example: "{}"
+        secrets:
+          type: array
+          items:
+            "$ref": "#/components/schemas/EnvironmentSecretRequest"
+    Environment:
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+        name:
+          type: string
+          example: Test
+        project_id:
+          minimum: 1
+          type: integer
+        password:
+          type: string
+        json:
+          type: string
+          example: "{}"
+        env:
+          type: string
+          example: "{}"
+        secrets:
+          type: array
+          items:
+            "$ref": "#/components/schemas/EnvironmentSecret"
+    InventoryRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Test
+        project_id:
+          minimum: 1
+          type: integer
+        inventory:
+          type: string
+        ssh_key_id:
+          minimum: 1
+          type: integer
+        become_key_id:
+          minimum: 1
+          type: integer
+        repository_id:
+          minimum: 1
+          type: integer
+        type:
+          type: string
+          enum:
+            - static
+            - static-yaml
+            - file
+            - terraform-workspace
+    Inventory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Test
+        project_id:
+          type: integer
+        inventory:
+          type: string
+        ssh_key_id:
+          type: integer
+        become_key_id:
+          type: integer
+        repository_id:
+          type: integer
+        type:
+          type: string
+          enum:
+            - static
+            - static-yaml
+            - file
+            - terraform-workspace
+    Integration:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: deploy
+        project_id:
+          minimum: 1
+          type: integer
+        template_id:
+          minimum: 1
+          type: integer
+    IntegrationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: deploy
+        project_id:
+          type: integer
+        template_id:
+          type: integer
+    IntegrationExtractValueRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: deploy
+        value_source:
+          type: string
+          enum:
+            - body
+            - header
+        body_data_type:
+          type: string
+          enum:
+            - json
+            - xml
+            - string
+        key:
+          type: string
+          example: key
+        variable:
+          type: string
+          example: variable
+    IntegrationExtractValue:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: extract this value
+        value_source:
+          type: string
+          enum:
+            - body
+            - header
+        body_data_type:
+          type: string
+          enum:
+            - json
+            - xml
+            - string
+        key:
+          type: string
+          example: key
+        variable:
+          type: string
+          example: variable
+        integration_id:
+          type: integer
+    IntegrationMatcherRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: deploy
+        match_type:
+          type: string
+          enum:
+            - body
+            - header
+        method:
+          type: string
+          enum:
+            - equals
+            - unequals
+            - contains
+        body_data_type:
+          type: string
+          enum:
+            - json
+            - xml
+            - string
+        key:
+          type: string
+          example: key
+        value:
+          type: string
+          example: value
+    IntegrationMatcher:
+      type: object
+      properties:
+        id:
+          type: integer
+        integration_id:
+          type: integer
+        name:
+          type: string
+          example: deploy
+        match_type:
+          type: string
+          enum:
+            - body
+            - header
+        method:
+          type: string
+          enum:
+            - equals
+            - unequals
+            - contains
+        body_data_type:
+          type: string
+          enum:
+            - json
+            - xml
+            - string
+        key:
+          type: string
+          example: key
+        value:
+          type: string
+          example: value
+    RepositoryRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Test
+        project_id:
+          type: integer
+        git_url:
+          type: string
+          example: git@example.com
+        git_branch:
+          type: string
+          example: master
+        ssh_key_id:
+          type: integer
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Test
+        project_id:
+          type: integer
+        git_url:
+          type: string
+          example: git@example.com
+        git_branch:
+          type: string
+          example: master
+        ssh_key_id:
+          type: integer
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 23
+        template_id:
+          type: integer
+        status:
+          type: string
+        debug:
+          type: boolean
+        playbook:
+          type: string
+        environment:
+          type: string
+        secret:
+          type: string
+        limit:
+          type: string
+        message:
+          type: string
+    TaskOutput:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          example: 23
+        time:
+          type: string
+          format: date-time
+        output:
+          type: string
+    TemplateRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        project_id:
+          minimum: 1
+          type: integer
+        inventory_id:
+          minimum: 1
+          type: integer
+        repository_id:
+          minimum: 1
+          type: integer
+        environment_id:
+          minimum: 1
+          type: integer
+        view_id:
+          minimum: 1
+          type: integer
+        vaults:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TemplateVault"
+        name:
+          type: string
+          example: Test
+        playbook:
+          type: string
+          example: test.yml
+        arguments:
+          type: string
+          example: "[]"
+        description:
+          type: string
+          example: Hello, World!
+        allow_override_args_in_task:
+          type: boolean
+          example: false
+        limit:
+          type: string
+          example: ''
+        suppress_success_alerts:
+          type: boolean
+        app:
+          type: string
+          example: ansible
+        git_branch:
+          type: string
+          example: main
+        survey_vars:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TemplateSurveyVar"
+        type:
+          type: string
+          enum:
+            - ''
+            - build
+            - deploy
+        start_version:
+          type: string
+        build_template_id:
+          type: integer
+        autorun:
+          type: boolean
+    Template:
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+        project_id:
+          minimum: 1
+          type: integer
+        inventory_id:
+          minimum: 1
+          type: integer
+        repository_id:
+          type: integer
+        environment_id:
+          minimum: 1
+          type: integer
+        view_id:
+          minimum: 1
+          type: integer
+        name:
+          type: string
+          example: Test
+        playbook:
+          type: string
+          example: test.yml
+        arguments:
+          type: string
+          example: "[]"
+        description:
+          type: string
+          example: Hello, World!
+        allow_override_args_in_task:
+          type: boolean
+          example: false
+        suppress_success_alerts:
+          type: boolean
+        app:
+          type: string
+        git_branch:
+          type: string
+          example: main
+        type:
+          type: string
+          enum:
+            - ''
+            - build
+            - deploy
+        autorun:
+          type: boolean
+        survey_vars:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TemplateSurveyVar"
+        vaults:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TemplateVault"
+    TemplateSurveyVar:
+      type: object
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          example: int
+          enum:
+            - ''
+            - int
+            - enum
+            - secret
+        required:
+          type: boolean
+        values:
+          type: array
+          items:
+            "$ref": "#/components/schemas/TemplateSurveyVarValue"
+    TemplateSurveyVarValue:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+    TemplateVault:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: default
+        type:
+          type: string
+          example: script
+          enum:
+            - password
+            - script
+    ScheduleRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        cron_format:
+          type: string
+          example: "* * * 1 *"
+        project_id:
+          type: integer
+        template_id:
+          type: integer
+        name:
+          type: string
+        active:
+          type: boolean
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: integer
+        cron_format:
+          type: string
+        project_id:
+          type: integer
+        template_id:
+          type: integer
+        name:
+          type: string
+        active:
+          type: boolean
+    ViewRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Test
+        project_id:
+          minimum: 1
+          type: integer
+        position:
+          minimum: 1
+          type: integer
+    View:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        project_id:
+          type: integer
+        position:
+          type: integer
+    Runner:
+      type: object
+      properties:
+        token:
+          type: string
+    Event:
+      type: object
+      properties:
+        project_id:
+          type: integer
+        user_id:
+          type: integer
+        description:
+          type: string
+    InfoType:
+      type: object
+      properties:
+        version:
+          type: string
+        updateBody:
+          type: string
+        update:
+          type: object
+          properties:
+            tag_name:
+              type: string
+  parameters:
+    project_id:
+      name: project_id
+      in: path
+      description: Project ID
+      required: true
+      schema:
+        type: integer
+      example: 1
+    user_id:
+      name: user_id
+      in: path
+      description: User ID
+      required: true
+      schema:
+        type: integer
+      example: 2
+    key_id:
+      name: key_id
+      in: path
+      description: key ID
+      required: true
+      schema:
+        type: integer
+      example: 3
+    repository_id:
+      name: repository_id
+      in: path
+      description: repository ID
+      required: true
+      schema:
+        type: integer
+      example: 4
+    inventory_id:
+      name: inventory_id
+      in: path
+      description: inventory ID
+      required: true
+      schema:
+        type: integer
+      example: 5
+    environment_id:
+      name: environment_id
+      in: path
+      description: environment ID
+      required: true
+      schema:
+        type: integer
+      example: 6
+    template_id:
+      name: template_id
+      in: path
+      description: template ID
+      required: true
+      schema:
+        type: integer
+      example: 7
+    task_id:
+      name: task_id
+      in: path
+      description: task ID
+      required: true
+      schema:
+        type: integer
+      example: 8
+    schedule_id:
+      name: schedule_id
+      in: path
+      description: schedule ID
+      required: true
+      schema:
+        type: integer
+      example: 9
+    view_id:
+      name: view_id
+      in: path
+      description: view ID
+      required: true
+      schema:
+        type: integer
+      example: 10
+    integration_id:
+      name: integration_id
+      in: path
+      description: integration ID
+      required: true
+      schema:
+        type: integer
+      example: 11
+    extractvalue_id:
+      name: extractvalue_id
+      in: path
+      description: extractValue ID
+      required: true
+      schema:
+        type: integer
+      example: 12
+    matcher_id:
+      name: matcher_id
+      in: path
+      description: matcher ID
+      required: true
+      schema:
+        type: integer
+      example: 13
+  securitySchemes:
+    cookie:
+      type: apiKey
+      name: Cookie
+      in: header
+    bearer:
+      type: apiKey
+      name: Authorization
+      in: header
+x-original-swagger-version: '2.0'

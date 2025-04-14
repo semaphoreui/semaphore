@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine3.19 as golang
+FROM golang:1.24-alpine3.21 as golang
 
 RUN apk add --no-cache -U \
     curl git
@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/go/pkg --mount=type=cache,target=/root/.cache/go-
     task e2e:goodman && \
     task e2e:hooks
 
-FROM apiaryio/dredd:13.1.2
+FROM apiaryio/dredd:14.0.0
 
 RUN apk add --no-cache -U \
     bash git go

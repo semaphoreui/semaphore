@@ -21,10 +21,12 @@
       class="mb-2"
     ></v-text-field>
 
-    <v-tabs grow v-model="tab" class="mb-7">
+    <v-tabs grow v-model="tab">
       <v-tab key="variables">Variables</v-tab>
       <v-tab key="secrets">Secrets</v-tab>
     </v-tabs>
+
+    <v-divider style="margin-top: -1px;" class="mb-7" />
 
     <v-tabs-items v-model="tab">
       <v-tab-item key="variables">
@@ -82,7 +84,7 @@
             v-if="extraVars != null"
             :items="extraVars"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 EnvironmentForm__fields"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -140,7 +142,7 @@
           <v-data-table
             :items="env"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 EnvironmentForm__fields"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -213,7 +215,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'var')"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 EnvironmentForm__fields"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -272,7 +274,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'env')"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 EnvironmentForm__fields"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -320,6 +322,30 @@
 
   </v-form>
 </template>
+
+<style lang="scss">
+.vue-codemirror {
+  border-radius: 6px !important;
+}
+.CodeMirror {
+  border-radius: 5px !important;
+}
+.EnvironmentForm__fields {
+  .v-data-table__wrapper {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    td {
+      border-bottom: 0 !important;
+    }
+    td:last-child {
+      padding-right: 15px !important;
+    }
+    td:first-child {
+      padding-left: 5px !important;
+    }
+  }
+}
+</style>
 
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
@@ -392,7 +418,6 @@ export default {
       images: [
         'dind-runner:latest',
       ],
-      advancedOptions: false,
 
       json: '{}',
       extraVars: [],
@@ -488,7 +513,7 @@ export default {
           operation = 'create';
         } else if (s.remove) {
           operation = 'delete';
-        } else if (s.value !== '') {
+        } else {
           operation = 'update';
         }
         return {

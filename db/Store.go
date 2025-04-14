@@ -335,7 +335,8 @@ type Store interface {
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
-	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
+	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
+
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
 	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
@@ -348,14 +349,16 @@ type Store interface {
 	SetViewPositions(projectID int, viewPositions map[int]int) error
 
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int, activeOnly bool) ([]Runner, error)
+	GetRunners(projectID int, activeOnly bool, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
 	GetGlobalRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetGlobalRunners(activeOnly bool) ([]Runner, error)
+	GetAllRunners(activeOnly bool, globalOnly bool) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+	TouchRunner(runner Runner) (err error)
+	ClearRunnerCache(runner Runner) (err error)
 
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)

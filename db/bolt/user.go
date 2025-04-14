@@ -26,7 +26,7 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 	}
 
 	user.Password = ""
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(time.Now().UTC())
 
 	usr, err := d.createObject(0, db.UserProps, user)
 
@@ -63,7 +63,7 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(time.Now().UTC())
 
 	usr, err := d.createObject(0, db.UserProps, user)
 

@@ -10,7 +10,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     persistent
     :fullscreen="expandable && fullscreen"
     :transition="false"
-    :content-class="'item-dialog item-dialog--' + position"
+    :content-class="`item-dialog item-dialog item-dialog--${position} ${contentClass}`"
   >
     <v-card>
       <v-card-title>
@@ -45,7 +45,9 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           'pb-0': !hideButtons,
           'pa-0': noBodyPaddings,
         }"
-        :style="{minHeight: minContentHeight + 'px'}"
+        :style="{
+          minHeight: minContentHeight + 'px'
+        }"
       >
         <slot
           name="form"
@@ -93,6 +95,7 @@ import EventBus from '@/event-bus';
 
 export default {
   props: {
+    contentClass: String,
     position: String,
     title: String,
     icon: String,

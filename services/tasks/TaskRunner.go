@@ -111,7 +111,7 @@ func (t *TaskRunner) run() {
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
 		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
-		now := time.Now()
+		now := time.Now().UTC()
 		t.Task.End = &now
 		t.saveStatus()
 		t.createTaskEvent()
@@ -255,7 +255,12 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	if t.Task.InventoryID != nil {
+	canOverrideInventory, err := t.Template.CanOverrideInventory()
+	if err != nil {
+		return err
+	}
+
+	if canOverrideInventory && t.Task.InventoryID != nil {
 		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
 			if t.Template.InventoryID != nil {
@@ -335,7 +340,7 @@ func checkTmpDir(path string) error {
 	var err error
 	if _, err = os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(path, 0700)
+			return os.MkdirAll(path, 0755)
 		}
 	}
 	return err

@@ -1,7 +1,7 @@
 <template>
   <div v-if="app === 'ansible'">
-    <v-row no-gutters class="mt-6">
-      <v-col cols="12" sm="6">
+    <v-row no-gutters>
+      <v-col v-if="templateParams.allow_debug">
         <v-checkbox
           class="mt-0"
           :input-value="params.debug"
@@ -12,7 +12,7 @@
           </template>
         </v-checkbox>
       </v-col>
-      <v-col cols="12" sm="6">
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.dry_run"
@@ -23,7 +23,7 @@
           </template>
         </v-checkbox>
       </v-col>
-      <v-col cols="12" sm="6">
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.diff"
@@ -37,8 +37,8 @@
     </v-row>
   </div>
   <div v-else-if="app === 'terraform' || app === 'tofu'">
-    <v-row no-gutters class="mt-6">
-      <v-col cols="12" sm="6">
+    <v-row no-gutters>
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.plan"
@@ -50,7 +50,7 @@
         </v-checkbox>
       </v-col>
 
-      <v-col cols="12" sm="6">
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.destroy"
@@ -62,7 +62,7 @@
         </v-checkbox>
       </v-col>
 
-      <v-col cols="12">
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.auto_approve"
@@ -74,7 +74,7 @@
         </v-checkbox>
       </v-col>
 
-      <v-col cols="12" sm="6">
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.upgrade"
@@ -86,7 +86,7 @@
         </v-checkbox>
       </v-col>
 
-      <v-col cols="12">
+      <v-col>
         <v-checkbox
           class="mt-0"
           :input-value="params.reconfigure"
@@ -107,17 +107,32 @@
 </style>
 
 <script>
+const TERRAFORM_APP_PARAMS = [
+  'plan',
+  'auto_approve',
+  'destroy',
+  'reconfigure',
+  'upgrade',
+];
 
 const APP_PARAMS = {
-  terraform: ['plan', 'auto_approve', 'destroy', 'reconfigure'],
-  tofu: ['plan', 'auto_approve', 'destroy', 'reconfigure'],
-  ansible: ['diff', 'debug', 'dry_run'],
+  terraform: TERRAFORM_APP_PARAMS,
+  tofu: TERRAFORM_APP_PARAMS,
+  ansible: [
+    'diff',
+    'debug',
+    'dry_run',
+    'tags',
+    'skip_tags',
+    'limit',
+  ],
 };
 
 export default {
   props: {
     value: Object,
     app: String,
+    templateParams: Object,
   },
 
   watch: {

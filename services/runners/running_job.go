@@ -35,11 +35,11 @@ func (p *runningJob) AddLogListener(l task_logger.LogListener) {
 }
 
 func (p *runningJob) Log(msg string) {
-	p.LogWithTime(time.Now(), msg)
+	p.LogWithTime(time.Now().UTC(), msg)
 }
 
 func (p *runningJob) Logf(format string, a ...any) {
-	p.LogfWithTime(time.Now(), format, a...)
+	p.LogfWithTime(time.Now().UTC(), format, a...)
 }
 
 func (p *runningJob) LogWithTime(now time.Time, msg string) {

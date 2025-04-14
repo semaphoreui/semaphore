@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"bytes"
 	"errors"
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -9,6 +10,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -116,13 +118,13 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// GetTaskOutput returns the logged task output by id and writes it as json or returns error
+// GetTaskStages returns the logged task stages by id and writes it as json or returns error
 func GetTaskStages(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{})
 
 	if err != nil {
 		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
@@ -139,7 +141,7 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{})
 
 	if err != nil {
 		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
@@ -148,6 +150,62 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, output)
+}
+
+// ansiCodeRE is a regex to remove ANSI escape sequences from a string.
+// ANSI escape sequences are typically in the form: \x1b[<parameters><letter>
+var ansiCodeRE = regexp.MustCompile("\x1b\\[[0-9;]*[a-zA-Z]")
+
+func outputToBytes(lines []db.TaskOutput) []byte {
+	var buffer bytes.Buffer
+	for _, line := range lines {
+		output := ansiCodeRE.ReplaceAllString(line.Output, "")
+		buffer.WriteString(output)
+		buffer.WriteByte('\n')
+	}
+	return buffer.Bytes()
+}
+
+func GetTaskRawOutput(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	const chunkSize = 10000
+	offset := 0
+
+	eof := false
+	for !eof {
+		var output []db.TaskOutput
+		output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{Offset: offset, Count: chunkSize})
+
+		if err != nil {
+			if offset == 0 {
+				util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			util.LogErrorF(err, log.Fields{"error": "Cannot get task output from database"})
+			return
+		}
+
+		if offset == 0 {
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+		}
+
+		readSize := len(output)
+
+		if readSize > 0 {
+			offset += readSize
+			data := outputToBytes(output)
+			if _, err := w.Write(data); err != nil {
+				return
+			}
+		}
+
+		eof = readSize < chunkSize
+	}
 }
 
 func ConfirmTask(w http.ResponseWriter, r *http.Request) {

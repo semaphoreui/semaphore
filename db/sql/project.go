@@ -88,6 +88,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	statements := []string{
+		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
 		"delete from project__user where project_id=?",
 		"delete from project__repository where project_id=?",

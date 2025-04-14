@@ -2,6 +2,7 @@ package db_lib
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -24,6 +25,12 @@ type ProgressWrapper struct {
 }
 
 func (t ProgressWrapper) Write(p []byte) (n int, err error) {
+	s := string(p)
+
+	if strings.HasPrefix(s, "Counting objects:") || strings.HasPrefix(s, "Compressing objects:") {
+		return len(p), nil
+	}
+
 	t.Logger.Log(string(p))
 	return len(p), nil
 }
@@ -39,7 +46,6 @@ func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 		publicKey, sshErr := ssh.NewPublicKeys(r.Repository.SSHKey.SshKey.Login, []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
 
 		if sshErr != nil {
-			r.Logger.Log("Unable to creating ssh auth method")
 			return nil, sshErr
 		}
 		publicKey.HostKeyCallback = ssh2.InsecureIgnoreHostKey()
@@ -65,7 +71,7 @@ func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
-		dir = util.Config.TmpPath
+		dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
 	case GitRepositoryFullPath:
 		dir = r.GetFullPath()
 	default:
@@ -85,7 +91,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 	}
 
 	cloneOpt := &git.CloneOptions{
-		URL:               r.Repository.GetGitURL(),
+		URL:               r.Repository.GetGitURL(true),
 		Progress:          ProgressWrapper{r.Logger},
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),

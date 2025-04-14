@@ -12,7 +12,7 @@ func TestGetViews(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "Test1",
 	})
 
@@ -55,7 +55,7 @@ func TestSetViewPositions(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "Test1",
 	})
 
@@ -132,7 +132,7 @@ func TestGetView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "Test1",
 	})
 
@@ -165,7 +165,7 @@ func TestUpdateView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "Test1",
 	})
 
@@ -205,7 +205,7 @@ func TestCreateView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "Test1",
 	})
 
@@ -238,7 +238,7 @@ func TestDeleteView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "Test1",
 	})
 

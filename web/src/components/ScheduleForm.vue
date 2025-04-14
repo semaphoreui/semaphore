@@ -330,7 +330,7 @@ export default {
 
   methods: {
     nextRunTime() {
-      return parser.parseExpression(this.item.cron_format).next();
+      return parser.parseExpression(this.item.cron_format).next().toString();
     },
 
     refreshCheckboxes() {

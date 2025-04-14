@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 as builder
 
 RUN apk add --no-cache -U \
     libc-dev curl nodejs npm git gcc zip unzip tar
@@ -24,9 +24,10 @@ RUN --mount=type=cache,target=/go/pkg \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 
-ENV OPENTOFU_VERSION="1.7.0"
-ENV TERRAFORM_VERSION="1.10.3"
+ENV OPENTOFU_VERSION="1.9.0"
+ENV TERRAFORM_VERSION="1.11.3"
 #ENV PULUMI_VERSION="3.116.1"
+#ENV POWERSHELL_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
     tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /tmp && \
@@ -45,7 +46,7 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 #RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
 #RUN rm pulumi.tar.gz
 
-FROM alpine:3.19
+FROM alpine:3.21
 
 ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
@@ -95,6 +96,7 @@ RUN export MITOGEN_VERSION=$(curl -s https://api.github.com/repos/mitogen-hq/mit
     chown -R semaphore:0 /opt/semaphore
 
 USER 1001
+EXPOSE 3000
 
 # Preventing ansible zombie processes. Tini kills zombies.
 ENTRYPOINT ["/sbin/tini", "--"]

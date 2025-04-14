@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -34,30 +33,7 @@ type Repository struct {
 }
 
 func (r Repository) ClearCache() error {
-	dir, err := os.Open(util.Config.TmpPath)
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-
-	files, err := dir.ReadDir(0)
-	if err != nil {
-		return err
-	}
-
-	for _, f := range files {
-		if !f.IsDir() {
-			continue
-		}
-		if strings.HasPrefix(f.Name(), r.getDirNamePrefix()) {
-			err = os.RemoveAll(path.Join(util.Config.TmpPath, f.Name()))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return util.ClearDir(util.Config.GetProjectTmpDir(r.ProjectID), true, r.getDirNamePrefix())
 }
 
 func (r Repository) getDirNamePrefix() string {
@@ -65,18 +41,22 @@ func (r Repository) getDirNamePrefix() string {
 }
 
 func (r Repository) GetDirName(templateID int) string {
-	return r.getDirNamePrefix() + strconv.Itoa(templateID)
+	return r.getDirNamePrefix() + "template_" + strconv.Itoa(templateID)
 }
 
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
-		return r.GetGitURL()
+		return r.GetGitURL(true)
 	}
-	return path.Join(util.Config.TmpPath, r.GetDirName(templateID))
+	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID))
 }
 
-func (r Repository) GetGitURL() string {
+func (r Repository) GetGitURL(secure bool) string {
 	url := r.GitURL
+
+	if secure {
+		return url
+	}
 
 	if r.GetType() == RepositoryHTTP {
 		auth := ""

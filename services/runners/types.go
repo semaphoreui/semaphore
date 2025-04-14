@@ -24,6 +24,9 @@ type RunnerState struct {
 	CurrentJobs []JobState
 	NewJobs     []JobData            `json:"new_jobs" binding:"required"`
 	AccessKeys  map[int]db.AccessKey `json:"access_keys" binding:"required"`
+
+	ClearCache          bool `json:"clear_cache,omitempty"`
+	CacheCleanProjectID *int `json:"cache_clean_project_id,omitempty"`
 }
 
 type JobState struct {

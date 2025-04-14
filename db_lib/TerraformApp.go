@@ -71,7 +71,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(t.Template.ProjectID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
@@ -256,13 +256,14 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	}
 
 	params := args.TaskParams.(*db.TerraformTaskParams)
+	tplParams := args.TemplateParams.(*db.TerraformTemplateParams)
 
 	if t.PlanHasNoChanges || params.Plan {
 		t.Logger.SetStatus(task_logger.TaskSuccessStatus)
 		return nil
 	}
 
-	if params.AutoApprove {
+	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
 		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	}

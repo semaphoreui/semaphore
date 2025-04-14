@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -80,6 +81,55 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 
 	if val.StringArr[1] != "test2" {
 		t.Error("Invalid array item value")
+	}
+}
+
+func TestLoadEnvironmentToObject_Arr(t *testing.T) {
+	var val struct {
+		StringArr []string `env:"TEST_STRING_ARR"`
+	}
+
+	err := os.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
+	if err != nil {
+		panic(err)
+	}
+
+	err = loadEnvironmentToObject(&val)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if val.StringArr == nil {
+		t.Error("Invalid array value")
+	}
+
+	if val.StringArr[0] != "test1" {
+		t.Error("Invalid array item value")
+	}
+
+	if val.StringArr[1] != "test2" {
+		t.Error("Invalid array item value")
+	}
+}
+
+func TestLoadEnvironmentToObject_Map(t *testing.T) {
+	type User struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+	var val struct {
+		Users map[string]User `env:"TEST_USERS"`
+	}
+
+	err := os.Setenv("TEST_USERS", "{\"test\":{\"name\":\"test\",\"age\":5}}")
+	if err != nil {
+		panic(err)
+	}
+
+	err = loadEnvironmentToObject(&val)
+
+	if val.Users["test"].Name != "test" {
+		t.Error("Invalid field value")
 	}
 }
 
@@ -210,8 +260,8 @@ func TestSetConfigValue(t *testing.T) {
 
 	setConfigValue(configValue.FieldByName("Port"), testPort)
 	setConfigValue(configValue.FieldByName("CookieHash"), testCookieHash)
-	setConfigValue(configValue.FieldByName("MaxParallelTasks"), testMaxParallelTasks)
-	setConfigValue(configValue.FieldByName("LdapNeedTLS"), testLdapNeedTls)
+	setConfigValue(configValue.FieldByName("MaxParallelTasks"), strconv.Itoa(testMaxParallelTasks))
+	setConfigValue(configValue.FieldByName("LdapNeedTLS"), "true")
 	//setConfigValue(configValue.FieldByName("BoltDb.Hostname"), testDbHost)
 	setConfigValue(configValue.FieldByName("EmailSecure"), testEmailSecure)
 

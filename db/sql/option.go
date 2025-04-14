@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"database/sql"
 	"errors"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
@@ -12,7 +11,7 @@ func (d *SqlDb) SetOption(key string, value string) error {
 
 	if errors.Is(err, db.ErrNotFound) {
 		_, err = d.insert(
-			"key",
+			"", // don't provide because it is not auto-generated
 			"insert into `option` (`key`, `value`) values (?, ?)",
 			key, value)
 	} else if err == nil {
@@ -65,10 +64,6 @@ func (d *SqlDb) getOption(key string) (value string, err error) {
 	var opt db.Option
 
 	err = d.selectOne(&opt, query, args...)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
 
 	value = opt.Value
 

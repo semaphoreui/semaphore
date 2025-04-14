@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"database/sql"
 	"errors"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
@@ -128,10 +127,6 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 		projectID,
 		userID)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
 	return user, err
 }
 
@@ -193,10 +188,6 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 
 	err = d.selectOne(&user, "select * from `user` where id=?", userID)
 
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
-
 	if err != nil {
 		return
 	}
@@ -208,7 +199,7 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 		user.Totp = &totp
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
 
@@ -259,10 +250,6 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		d.PrepareQuery("select * from `user` where email=? or username=?"),
 		email, login)
 
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
-
 	if err != nil {
 		return
 	}
@@ -274,7 +261,7 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		user.Totp = &totp
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
 

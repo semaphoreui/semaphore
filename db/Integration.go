@@ -12,6 +12,7 @@ const (
 	IntegrationAuthGitHub = "github"
 	IntegrationAuthToken  = "token"
 	IntegrationAuthHmac   = "hmac"
+	IntegrationAuthBasic  = "basic"
 )
 
 type IntegrationMatchType string

@@ -11,7 +11,7 @@ func TestGetTemplateVaults(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "TestProject",
 	})
 	if err != nil {
@@ -50,7 +50,7 @@ func TestCreateTemplateVault(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "TestProject",
 	})
 	if err != nil {
@@ -89,7 +89,7 @@ func TestUpdateTemplateVaults(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 		Name:    "TestProject",
 	})
 	if err != nil {

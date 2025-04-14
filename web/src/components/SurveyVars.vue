@@ -1,5 +1,5 @@
 <template>
-  <div class="pb-6">
+  <div class="pb-6" style="margin-top: -10px;">
     <v-dialog
       v-model="editDialog"
       hide-overlay

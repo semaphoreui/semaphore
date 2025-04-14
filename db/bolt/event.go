@@ -73,7 +73,7 @@ func (d *BoltDb) getEvents(c enumerable, params db.RetrieveQueryParams, filter f
 
 func (d *BoltDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	newEvent = evt
-	newEvent.Created = time.Now()
+	newEvent.Created = time.Now().UTC()
 
 	err = d.db.Update(func(tx *bbolt.Tx) error {
 		b, err2 := tx.CreateBucketIfNotExists([]byte("events"))

@@ -121,13 +121,33 @@ type TLSConfig struct {
 	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
 }
 
+type EmailAuthConfig struct {
+	Enabled bool `json:"enabled" env:"SEMAPHORE_EMAIL_2TP_ENABLED"`
+}
+
 type TotpConfig struct {
 	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
 	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
 }
 
+type RecaptchaConfig struct {
+	Enabled string `json:"enabled,omitempty" env:"SEMAPHORE_RECAPTCHA_ENABLED"`
+	SiteKey string `json:"site_key,omitempty" env:"SEMAPHORE_RECAPTCHA_SITE_KEY"`
+}
+
 type AuthConfig struct {
-	Totp *TotpConfig `json:"totp,omitempty"`
+	Recaptcha *RecaptchaConfig `json:"recaptcha,omitempty"`
+	Totp      *TotpConfig      `json:"totp,omitempty"`
+	Email     *EmailAuthConfig `json:"email,omitempty"`
+}
+
+type EventLogType struct {
+	Enabled bool   `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
+	Path    string `json:"path,omitempty" env:"SEMAPHORE_EVENT_LOG_PATH"`
+}
+
+type ConfigLog struct {
+	Events *EventLogType `json:"events,omitempty"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -204,7 +224,7 @@ type ConfigType struct {
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
 
 	// oidc settings
-	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
 
 	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
 	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
@@ -229,6 +249,8 @@ type ConfigType struct {
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+
+	Log *ConfigLog `json:"log,omitempty"`
 }
 
 func NewConfigType() *ConfigType {
@@ -239,6 +261,54 @@ func NewConfigType() *ConfigType {
 
 // Config exposes the application configuration storage for use in the application
 var Config *ConfigType
+
+func ClearDir(dir string, preserveFiles bool, prefix string) error {
+	d, err := os.Open(dir)
+
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	defer d.Close()
+
+	files, err := d.ReadDir(0)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if preserveFiles && !f.IsDir() {
+			continue
+		}
+
+		if prefix != "" && !strings.HasPrefix(f.Name(), prefix) {
+			continue
+		}
+
+		err = os.RemoveAll(path.Join(dir, f.Name()))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (conf *ConfigType) ClearTmpDir() error {
+	return ClearDir(conf.TmpPath, false, "")
+}
+
+func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
+	return path.Join(conf.TmpPath, fmt.Sprintf("project_%d", projectID))
+}
+
+func (conf *ConfigType) ClearProjectTmpDir(projectID int) error {
+	return ClearDir(conf.GetProjectTmpDir(projectID), false, "")
+}
 
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
@@ -270,8 +340,19 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	}
 
 	Cookie = securecookie.New(hash, encryption)
-	WebHostURL, _ = url.Parse(Config.WebHost)
-	if len(WebHostURL.String()) == 0 {
+
+	if Config.WebHost != "" {
+		var err error
+		WebHostURL, err = url.Parse(Config.WebHost)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if len(WebHostURL.String()) == 0 {
+			WebHostURL = nil
+		}
+	} else {
 		WebHostURL = nil
 	}
 
@@ -377,7 +458,7 @@ func loadDefaultsToObject(obj interface{}) error {
 			continue
 		}
 
-		setConfigValue(fieldValue, defaultVar)
+		setConfigValue(fieldValue, defaultVar) // defaultVar always string!!!
 	}
 
 	return nil
@@ -413,20 +494,130 @@ func castStringToBool(value string) bool {
 
 }
 
+func AssignMapToStruct[P *S, S any](m map[string]interface{}, s P) error {
+	v := reflect.ValueOf(s).Elem()
+	return assignMapToStructRecursive(m, v)
+}
+
+func cloneStruct(origValue reflect.Value) reflect.Value {
+	// Create a new instance of the same type as the original struct
+	cloneValue := reflect.New(origValue.Type()).Elem()
+
+	// Iterate over the fields of the struct
+	for i := 0; i < origValue.NumField(); i++ {
+		// Get the field value
+		fieldValue := origValue.Field(i)
+		// Set the field value in the clone
+		cloneValue.Field(i).Set(fieldValue)
+	}
+
+	// Return the cloned struct
+	return cloneValue
+}
+
+func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Value) error {
+	structType := structValue.Type()
+
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" {
+			jsonTag = field.Name
+		} else {
+			jsonTag = strings.Split(jsonTag, ",")[0]
+		}
+
+		if value, ok := m[jsonTag]; ok {
+			fieldValue := structValue.FieldByName(field.Name)
+			if fieldValue.CanSet() {
+
+				val := reflect.ValueOf(value)
+
+				switch fieldValue.Kind() {
+				case reflect.Struct:
+
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for nested struct field %s but got %T", field.Name, value)
+					}
+
+					mapValue, ok := value.(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("cannot assign value of type %T to field %s of type %s", value, field.Name, field.Type)
+					}
+					err := assignMapToStructRecursive(mapValue, fieldValue)
+					if err != nil {
+						return err
+					}
+				case reflect.Map:
+					if fieldValue.IsNil() {
+						mapValue := reflect.MakeMap(fieldValue.Type())
+						fieldValue.Set(mapValue)
+					}
+
+					// Handle map
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
+					}
+
+					for _, key := range val.MapKeys() {
+						mapElemValue := val.MapIndex(key)
+						mapElemType := fieldValue.Type().Elem()
+
+						srcVal := fieldValue.MapIndex(key)
+						var mapElem reflect.Value
+						if srcVal.IsValid() {
+							mapElem = cloneStruct(srcVal)
+						} else {
+							mapElem = reflect.New(mapElemType).Elem()
+						}
+
+						if mapElemType.Kind() == reflect.Struct {
+							if err := assignMapToStructRecursive(mapElemValue.Interface().(map[string]interface{}), mapElem); err != nil {
+								return err
+							}
+						} else {
+							if mapElemValue.Type().ConvertibleTo(mapElemType) {
+								mapElem.Set(mapElemValue.Convert(mapElemType))
+							} else {
+								newVal, converted := CastValueToKind(mapElemValue.Interface(), mapElemType.Kind())
+								if !converted {
+									return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+										mapElemValue.Type(), mapElemType)
+								}
+
+								mapElem.Set(reflect.ValueOf(newVal))
+							}
+
+						}
+
+						fieldValue.SetMapIndex(key, mapElem)
+					}
+
+				default:
+					// Handle simple types
+					if val.Type().ConvertibleTo(fieldValue.Type()) {
+						fieldValue.Set(val.Convert(fieldValue.Type()))
+					} else {
+
+						newVal, converted := CastValueToKind(val.Interface(), fieldValue.Type().Kind())
+						if !converted {
+							return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+								val.Type(), val)
+						}
+
+						fieldValue.Set(reflect.ValueOf(newVal))
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok bool) {
 	res = value
 
 	switch kind {
-	case reflect.Slice:
-		if reflect.ValueOf(value).Kind() == reflect.String {
-			var arr []string
-			err := json.Unmarshal([]byte(value.(string)), &arr)
-			if err != nil {
-				panic(err)
-			}
-			res = arr
-			ok = true
-		}
 	case reflect.String:
 		ok = true
 	case reflect.Int:
@@ -439,27 +630,38 @@ func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok 
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
-	case reflect.Map:
-		if reflect.ValueOf(value).Kind() == reflect.String {
-			mapValue := make(map[string]string)
-			err := json.Unmarshal([]byte(value.(string)), &mapValue)
-			if err != nil {
-				panic(err)
-			}
-			res = mapValue
-			ok = true
-		}
 	default:
 	}
 
 	return
 }
 
-func setConfigValue(attribute reflect.Value, value interface{}) {
+func setConfigValue(attribute reflect.Value, value string) {
 
 	if attribute.IsValid() {
-		value, _ = CastValueToKind(value, attribute.Kind())
-		attribute.Set(reflect.ValueOf(value))
+		kind := attribute.Kind()
+
+		switch kind {
+		case reflect.Slice:
+			var arr []string
+			err := json.Unmarshal([]byte(value), &arr)
+			if err != nil {
+				panic(err)
+			}
+			attribute.Set(reflect.ValueOf(arr))
+		case reflect.Map:
+			mapType := attribute.Type()
+			mapValue := reflect.New(mapType)
+			err := json.Unmarshal([]byte(value), mapValue.Interface())
+			if err != nil {
+				panic(err)
+			}
+			attribute.Set(mapValue.Elem())
+		default:
+			newValue, _ := CastValueToKind(value, kind)
+			attribute.Set(reflect.ValueOf(newValue))
+		}
+
 	} else {
 		panic(fmt.Errorf("got non-existent config attribute"))
 	}
@@ -583,7 +785,7 @@ func loadEnvironmentToObject(obj interface{}) error {
 			continue
 		}
 
-		setConfigValue(fieldValue, envValue)
+		setConfigValue(fieldValue, envValue) // envValue always string!!!
 	}
 
 	return nil

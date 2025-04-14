@@ -122,7 +122,7 @@ func runService() {
 						if err2 != nil {
 							log.Panic(err2)
 						}
-						target += webHost.Scheme + webHost.Host + r.URL.Path
+						target += webHost.Host + r.URL.Path
 					} else {
 						hostParts := strings.Split(r.Host, ":")
 						host := hostParts[0]
@@ -138,7 +138,7 @@ func runService() {
 						return
 					}
 
-					http.Redirect(w, nil, target, http.StatusTemporaryRedirect)
+					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 				}))
 				if err != nil {
 					log.Panic(err)

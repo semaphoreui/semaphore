@@ -21,6 +21,23 @@ const (
 	TaskFailStatus          TaskStatus = "error"
 )
 
+func (s TaskStatus) IsValid() bool {
+	switch s {
+	case TaskWaitingStatus,
+		TaskStartingStatus,
+		TaskWaitingConfirmation,
+		TaskConfirmed,
+		TaskRejected,
+		TaskRunningStatus,
+		TaskStoppingStatus,
+		TaskStoppedStatus,
+		TaskSuccessStatus,
+		TaskFailStatus:
+		return true
+	}
+	return false
+}
+
 func (s TaskStatus) IsNotifiable() bool {
 	return s == TaskSuccessStatus || s == TaskFailStatus || s == TaskWaitingConfirmation
 }

@@ -134,15 +134,17 @@ func Route() *mux.Router {
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
-	tokenAPI.HandleFunc("/tokens/{token_id}", expireAPIToken).Methods("DELETE")
+	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
 
-	adminAPI.Path("/runners").HandlerFunc(getGlobalRunners).Methods("GET", "HEAD")
+	adminAPI.Path("/runners").HandlerFunc(getAllRunners).Methods("GET", "HEAD")
 	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
+
+	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
 	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerMiddleware)
@@ -150,6 +152,7 @@ func Route() *mux.Router {
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(updateGlobalRunner).Methods("PUT", "POST")
 	globalRunnersAPI.Path("/{runner_id}/active").HandlerFunc(setGlobalRunnerActive).Methods("POST")
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(deleteGlobalRunner).Methods("DELETE")
+	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(clearGlobalRunnerCache).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
@@ -221,6 +224,8 @@ func Route() *mux.Router {
 	projectUserAPI.Path("/tasks").HandlerFunc(projects.GetAllTasks).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/tasks/last", projects.GetLastTasks).Methods("GET", "HEAD")
 
+	projectUserAPI.Path("/stats").HandlerFunc(projects.GetTaskStats).Methods("GET", "HEAD")
+
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
@@ -245,6 +250,7 @@ func Route() *mux.Router {
 	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projects.UpdateRunner).Methods("PUT", "POST")
 	projectRunnersAPI.Path("/{runner_id}/active").HandlerFunc(projects.SetRunnerActive).Methods("POST")
 	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projects.DeleteRunner).Methods("DELETE")
+	projectRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(projects.ClearRunnerCache).Methods("DELETE")
 
 	//
 	// Updating and deleting project
@@ -256,6 +262,10 @@ func Route() *mux.Router {
 	meAPI := authenticatedAPI.Path("/project/{project_id}/me").Subrouter()
 	meAPI.Use(projects.ProjectMiddleware)
 	meAPI.HandleFunc("", projects.LeftProject).Methods("DELETE")
+
+	cacheAPI := authenticatedAPI.Path("/project/{project_id}/cache").Subrouter()
+	cacheAPI.Use(projects.ProjectMiddleware)
+	cacheAPI.HandleFunc("", projects.ClearCache).Methods("DELETE")
 
 	//
 	// Manage project users
@@ -338,6 +348,7 @@ func Route() *mux.Router {
 	projectTaskManagement.Use(projects.GetTaskMiddleware)
 
 	projectTaskManagement.HandleFunc("/{task_id}/output", projects.GetTaskOutput).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}/raw_output", projects.GetTaskRawOutput).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", projects.GetTask).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", projects.RemoveTask).Methods("DELETE")
 
@@ -528,6 +539,8 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 			"project_runners":   false,
 			"terraform_backend": false,
 		},
+
+		"git_client": util.Config.GitClientId,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

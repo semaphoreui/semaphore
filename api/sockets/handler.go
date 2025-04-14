@@ -121,7 +121,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	user := usr.(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	c := &connection{

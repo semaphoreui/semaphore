@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"strings"
 
 	"path"
 	"strconv"
@@ -334,6 +335,13 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
+	var tplParams db.AnsibleTemplateParams
+
+	err = t.Template.FillParams(&tplParams)
+	if err != nil {
+		return
+	}
+
 	var params db.AnsibleTaskParams
 
 	err = t.Task.FillParams(&params)
@@ -341,7 +349,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		return
 	}
 
-	if params.Debug {
+	if tplParams.AllowDebug && params.Debug {
 		args = append(args, "-vvvv")
 	}
 
@@ -384,9 +392,49 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		return
 	}
 
-	if t.Task.Limit != "" {
-		t.Log("--limit=" + t.Task.Limit)
-		templateArgs = append(templateArgs, "--limit="+t.Task.Limit)
+	var limit string
+	var tags string
+	var skipTags string
+
+	// Fill fields from template
+	if len(tplParams.Limit) > 0 {
+		limit = strings.Join(tplParams.Limit, ",")
+	}
+
+	if len(tplParams.Tags) > 0 {
+		tags = strings.Join(tplParams.Tags, ",")
+	}
+
+	if len(tplParams.SkipTags) > 0 {
+		skipTags = strings.Join(tplParams.SkipTags, ",")
+	}
+
+	// Fill fields from task
+
+	if tplParams.AllowOverrideLimit {
+		limit = strings.Join(params.Limit, ",")
+	}
+
+	if tplParams.AllowOverrideTags {
+		tags = strings.Join(params.Tags, ",")
+	}
+
+	if tplParams.AllowOverrideSkipTags {
+		skipTags = strings.Join(params.SkipTags, ",")
+	}
+
+	// Add final args
+
+	if limit != "" {
+		templateArgs = append(templateArgs, "--limit="+limit)
+	}
+
+	if tags != "" {
+		templateArgs = append(templateArgs, "--tags="+tags)
+	}
+
+	if skipTags != "" {
+		templateArgs = append(templateArgs, "--skip-tags="+skipTags)
 	}
 
 	args = append(args, templateArgs...)
@@ -425,6 +473,21 @@ func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err e
 	return
 }
 
+func (t *LocalJob) getTemplateParams() (interface{}, error) {
+	var params interface{}
+	switch t.Template.App {
+	case db.AppAnsible:
+		params = &db.AnsibleTemplateParams{}
+	case db.AppTerraform, db.AppTofu:
+		params = &db.TerraformTemplateParams{}
+	default:
+		return nil, nil
+	}
+
+	err := t.Template.FillParams(params)
+	return params, err
+}
+
 func (t *LocalJob) getParams() (params interface{}, err error) {
 	switch t.Template.App {
 	case db.AppAnsible:
@@ -454,6 +517,11 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
 	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
+	tplParams, err := t.getTemplateParams()
 	if err != nil {
 		return
 	}
@@ -514,6 +582,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		EnvironmentVars: environmentVariables,
 		Inputs:          inputs,
 		TaskParams:      params,
+		TemplateParams:  tplParams,
 		Callback: func(p *os.Process) {
 			t.Process = p
 		},
@@ -524,8 +593,8 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
-
-	if err := checkTmpDir(util.Config.TmpPath); err != nil {
+	
+	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
 	}
@@ -562,7 +631,7 @@ func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) erro
 	}
 
 	if err := t.App.InstallRequirements(environmentVars, params); err != nil {
-		t.Log("Running galaxy failed: " + err.Error())
+		t.Log("Failed to install requirements: " + err.Error())
 		return err
 	}
 

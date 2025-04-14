@@ -1,6 +1,9 @@
 package db
 
-import "testing"
+import (
+	"github.com/semaphoreui/semaphore/util"
+	"testing"
+)
 
 func TestConfig_assignMapToStruct(t *testing.T) {
 	type Address struct {
@@ -14,30 +17,30 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 	}
 
 	type User struct {
-		//Name    string            `json:"name"`
-		//Age     int               `json:"age"`
-		//Email   string            `json:"email"`
-		//Address Address           `json:"address"`
+		Name    string            `json:"name"`
+		Age     int               `json:"age"`
+		Email   string            `json:"email"`
+		Address Address           `json:"address"`
 		Details map[string]Detail `json:"details"`
 	}
 
 	johnData := map[string]interface{}{
-		//"name":  "John Doe",
-		//"age":   30,
-		//"email": "john.doe@example.com",
-		//"address": map[string]interface{}{
-		//	"street": "123 Main St",
-		//	"city":   "Anytown",
-		//},
+		"name":  "John Doe",
+		"age":   30,
+		"email": "john.doe@example.com",
+		"address": map[string]interface{}{
+			"street": "123 Main St",
+			"city":   "Anytown",
+		},
 		"details": map[string]interface{}{
-			//"occupation": map[string]interface{}{
-			//	"value":       "engineer",
-			//	"description": "Works with computers",
-			//},
-			//"hobby": map[string]interface{}{
-			//	"value":       "hiking",
-			//	"description": "Enjoys the outdoors",
-			//},
+			"occupation": map[string]interface{}{
+				"value":       "engineer",
+				"description": "Works with computers",
+			},
+			"hobby": map[string]interface{}{
+				"value":       "hiking",
+				"description": "Enjoys the outdoors",
+			},
 			"interests": map[string]interface{}{
 				"description": "Ho ho ho",
 			},
@@ -51,7 +54,7 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 		Description: "Follows current events",
 	}
 
-	err := AssignMapToStruct(johnData, &john)
+	err := util.AssignMapToStruct(johnData, &john)
 
 	if err != nil {
 		t.Fatal(err)

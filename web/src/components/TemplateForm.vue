@@ -3,17 +3,38 @@
     <v-row>
       <v-col>
         <v-skeleton-loader
-            type="table-heading, list-item-two-line, image, table-tfoot"
+          type="
+            table-heading,
+            list-item-two-line,
+            list-item-two-line,
+            image,
+            table-tfoot"
         ></v-skeleton-loader>
       </v-col>
       <v-col>
         <v-skeleton-loader
-            type="table-heading, list-item-two-line, image, table-tfoot"
+          type="
+            table-heading,
+            list-item-two-line,
+            list-item-two-line,
+            image,
+            table-tfoot"
+        ></v-skeleton-loader>
+      </v-col>
+      <v-col v-if="needAppBlock">
+        <v-skeleton-loader
+          type="
+            table-heading,
+            list-item-two-line,
+            list-item-two-line,
+            image,
+            table-tfoot"
         ></v-skeleton-loader>
       </v-col>
     </v-row>
   </div>
   <v-form
+    class="mt-1"
     v-else
     ref="form"
     lazy-validation
@@ -68,12 +89,13 @@
     <v-alert
       :value="formError"
       color="error"
-      class="pb-2"
     >{{ formError }}
     </v-alert>
 
     <v-row>
-      <v-col cols="12" md="6" class="pb-0">
+      <v-col>
+        <h2 class="mb-4">{{ $t('template_common_options') }}</h2>
+
         <v-card
           class="mb-6"
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
@@ -140,20 +162,13 @@
           :disabled="formSaving"
         ></v-text-field>
 
-        <v-textarea
-          v-model="item.description"
-          :label="$t('description')"
-          :disabled="formSaving"
-          rows="1"
-          :auto-grow="true"
-          outlined
-          dense
-        ></v-textarea>
-
         <v-text-field
           v-model="item.playbook"
           :label="fieldLabel('playbook')"
-          :rules="isFieldRequired('playbook') ? [v => !!v || $t('playbook_filename_required')] : []"
+          :rules="
+              isFieldRequired('playbook')
+              ? [v => !!v || $t('playbook_filename_required')]
+              : []"
           outlined
           dense
           :required="isFieldRequired('playbook')"
@@ -203,24 +218,9 @@
           v-if="needField('environment')"
         ></v-select>
 
-      </v-col>
-
-      <v-col cols="12" md="6" class="pb-0">
-
-        <TemplateVaults
-          v-if="needField('vault')"
-          :project-id="this.projectId"
-          :vaults="vaults"
-          @change="setTemplateVaults"
-        ></TemplateVaults>
-
-        <SurveyVars
-          style="margin-top: -10px;"
-          :vars="surveyVars"
-          @change="setSurveyVars"
-        />
-
         <v-select
+          class="mb-3"
+          style="max-height: 60px;"
           v-model="item.view_id"
           :label="$t('view')"
           clearable
@@ -231,60 +231,197 @@
           outlined
           dense
         ></v-select>
-
-        <v-checkbox
-          class="mt-0"
-          :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
-          v-model="cronVisible"
-        />
-
-        <v-select
-          v-if="cronVisible"
-          v-model="cronRepositoryId"
-          :label="$t('repository2')"
-          :placeholder="$t('cronChecksNewCommitBeforeRun')"
-          :rules="[v => !!v || $t('repository_required')]"
-          :items="repositories"
-          item-value="id"
-          item-text="name"
-          clearable
-          :disabled="formSaving"
-          outlined
-          dense
-        ></v-select>
-
-        <v-select
-          v-if="cronVisible"
-          v-model="cronFormat"
-          :label="$t('checkInterval')"
-          :hint="$t('newCommitCheckInterval')"
-          item-value="cron"
-          item-text="title"
-          :items="cronFormats"
-          :disabled="formSaving"
-          outlined
-          dense
-        />
-
-        <v-checkbox
-          class="mt-0"
-          :label="$t('suppressSuccessAlerts')"
-          v-model="item.suppress_success_alerts"
-        />
-
-        <ArgsPicker
-          :vars="args"
-          @change="setArgs"
-          title="CLI args"
-        />
-
-        <v-checkbox
-          class="mt-0"
-          :label="$t('allowCliArgsInTask')"
-          v-model="item.allow_override_args_in_task"
-        />
-
       </v-col>
+
+      <v-col>
+        <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
+
+        <div class="mb-4">
+          <v-text-field
+            v-model="item.git_branch"
+            :label="fieldLabel('branch')"
+            outlined
+            dense
+            :disabled="formSaving"
+            :placeholder="$t('branch')"
+          ></v-text-field>
+
+          <v-text-field
+            v-if="premiumFeatures.project_runners"
+            v-model="item.runner_tag"
+            :label="fieldLabel('runner_tag')"
+            outlined
+            dense
+            :disabled="formSaving"
+            :placeholder="$t('runner_tag')"
+          ></v-text-field>
+
+          <SurveyVars
+            :vars="surveyVars"
+            @change="setSurveyVars"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
+            v-model="cronVisible"
+          />
+
+          <v-select
+            v-if="cronVisible"
+            v-model="cronRepositoryId"
+            :label="$t('repository2')"
+            :placeholder="$t('cronChecksNewCommitBeforeRun')"
+            :rules="[v => !!v || $t('repository_required')]"
+            :items="repositories"
+            item-value="id"
+            item-text="name"
+            clearable
+            :disabled="formSaving"
+            outlined
+            dense
+          ></v-select>
+
+          <v-select
+            v-if="cronVisible"
+            v-model="cronFormat"
+            :label="$t('checkInterval')"
+            :hint="$t('newCommitCheckInterval')"
+            item-value="cron"
+            item-text="title"
+            :items="cronFormats"
+            :disabled="formSaving"
+            outlined
+            dense
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('suppressSuccessAlerts')"
+            v-model="item.suppress_success_alerts"
+          />
+
+          <ArgsPicker
+            :vars="args"
+            @change="setArgs"
+            title="CLI args"
+          />
+        </div>
+
+        <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
+        <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowCliArgsInTask')"
+            v-model="item.allow_override_args_in_task"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allow_override_branch')"
+            v-model="item.allow_override_branch_in_task"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowInventoryInTask')"
+            v-model="(item.task_params || {}).allow_override_inventory"
+            v-if="needField('allow_override_inventory')"
+          />
+        </div>
+      </v-col>
+
+      <v-col v-if="needAppBlock">
+        <div class="mb-3">
+          <h2 class="mb-4">
+            {{ $t('template_app_options', {app: getAppTitle(app, true)}) }}
+          </h2>
+
+          <ArgsPicker
+            v-if="needField('limit')"
+            :vars="item.task_params.limit"
+            @change="setLimit"
+            :title="$t('limit')"
+            :arg-title="$t('limit')"
+            :add-arg-title="$t('addLimit')"
+          />
+
+          <ArgsPicker
+            v-if="needField('tags')"
+            :vars="item.task_params.tags"
+            @change="setTags"
+            :title="$t('tags')"
+            :arg-title="$t('tag')"
+            :add-arg-title="$t('addTag')"
+          />
+
+          <ArgsPicker
+            v-if="needField('skip_tags')"
+            :vars="item.task_params.skip_tags"
+            @change="setSkipTags"
+            :title="$t('skipTags')"
+            :arg-title="$t('tag')"
+            :add-arg-title="$t('addSkippedTag')"
+          />
+
+          <TemplateVaults
+            v-if="needField('vault')"
+            :project-id="this.projectId"
+            :vaults="vaults"
+            @change="setTemplateVaults"
+          ></TemplateVaults>
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('auto_approve')"
+            v-model="(item.task_params || {}).auto_approve"
+            v-if="needField('auto_approve')"
+          />
+
+        </div>
+
+        <h2 class="mb-4">
+          {{ $t('template_app_prompts', {app: getAppTitle(app, true)}) }}
+        </h2>
+        <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowLimitInTask')"
+            v-model="(item.task_params || {}).allow_override_limit"
+            v-if="needField('allow_override_limit')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('tags')"
+            v-model="(item.task_params || {}).allow_override_tags"
+            v-if="needField('allow_override_tags')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('skipTags')"
+            v-model="(item.task_params || {}).allow_override_skip_tags"
+            v-if="needField('allow_override_skip_tags')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowDebug')"
+            v-model="item.task_params.allow_debug"
+            v-if="needField('allow_debug')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('auto_approve')"
+            v-model="item.task_params.allow_auto_approve"
+            v-if="needField('allow_auto_approve')"
+          />
+
+        </div>
+      </v-col>
+
     </v-row>
   </v-form>
 </template>
@@ -305,15 +442,13 @@ import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
-import {
-  TEMPLATE_TYPE_ICONS,
-  TEMPLATE_TYPE_TITLES,
-} from '@/lib/constants';
+import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
+import AppsMixin from '@/components/AppsMixin';
 import SurveyVars from './SurveyVars';
 
 export default {
-  mixins: [ItemFormBase, AppFieldsMixin],
+  mixins: [ItemFormBase, AppFieldsMixin, AppsMixin],
 
   components: {
     TemplateVaults,
@@ -324,6 +459,7 @@ export default {
   props: {
     sourceItemId: Number,
     app: String,
+    premiumFeatures: Object,
   },
 
   data() {
@@ -355,7 +491,9 @@ export default {
         lint: true,
         indentWithTabs: false,
       },
-      item: {},
+      item: {
+        task_params: {},
+      },
       inventory: null,
       repositories: null,
       environment: null,
@@ -369,7 +507,6 @@ export default {
       helpDialog: null,
       helpKey: null,
 
-      advancedOptions: false,
       args: [],
     };
   },
@@ -393,6 +530,21 @@ export default {
   },
 
   computed: {
+
+    appBlockTitle() {
+      switch (this.app) {
+        case '':
+        case 'ansible':
+          return this.$t('ansible_playbook_options');
+        default:
+          return this.app;
+      }
+    },
+
+    needAppBlock() {
+      return ['', 'ansible', 'ansible', 'tofu'].includes(this.app);
+    },
+
     surveyVars() {
       if (this.sourceItemId != null && this.item.survey_vars === undefined) {
         throw new Error();
@@ -423,6 +575,18 @@ export default {
   },
 
   methods: {
+    setSkipTags(tags) {
+      this.item.task_params.skip_tags = tags;
+    },
+
+    setTags(tags) {
+      this.item.task_params.tags = tags;
+    },
+
+    setLimit(limit) {
+      this.item.task_params.limit = limit;
+    },
+
     setArgs(args) {
       this.args = args;
     },
@@ -441,6 +605,10 @@ export default {
     },
 
     async afterLoadData() {
+      if (!this.item.task_params) {
+        this.item.task_params = {};
+      }
+
       if (this.sourceItemId) {
         const item = (await axios({
           url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
@@ -468,8 +636,6 @@ export default {
 
         this.item = item;
       }
-
-      this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;
 
       this.repositories = (await axios({
         url: `/api/project/${this.projectId}/repositories`,

@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"database/sql"
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -62,10 +61,6 @@ func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (template db.Schedule
 		"select * from project__schedule where project_id=? and id=?",
 		projectID,
 		scheduleID)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
 
 	return
 }

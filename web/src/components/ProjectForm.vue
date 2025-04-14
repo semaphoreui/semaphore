@@ -56,6 +56,11 @@ export default {
     getSingleItemUrl() {
       return `/api/project/${this.itemId}`;
     },
+    beforeSave() {
+      if (this.item.max_parallel_tasks === '') {
+        this.item.max_parallel_tasks = 0;
+      }
+    },
   },
 };
 </script>

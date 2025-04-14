@@ -79,12 +79,12 @@ func (t *TaskRunner) sendMailAlert() {
 	for _, uid := range t.users {
 		user, err := t.pool.store.GetUser(uid)
 
-		if !user.Alert {
+		if err != nil {
+			util.LogError(err)
 			continue
 		}
 
-		if err != nil {
-			util.LogError(err)
+		if !user.Alert {
 			continue
 		}
 

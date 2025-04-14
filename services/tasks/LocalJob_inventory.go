@@ -41,7 +41,7 @@ func (t *LocalJob) tmpInventoryFilename() string {
 }
 
 func (t *LocalJob) tmpInventoryFullPath() string {
-	pathname := path.Join(util.Config.TmpPath, t.tmpInventoryFilename())
+	pathname := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
 		pathname += ".yml"
 	}
@@ -57,7 +57,7 @@ func (t *LocalJob) cloneInventoryRepo() error {
 
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
-		TmpDirName: t.tmpInventoryFilename(),
+		TmpDirName: t.Inventory.Repository.GetDirName(t.Template.ID) + "_inventory_" + strconv.Itoa(t.Inventory.ID),
 		Repository: *t.Inventory.Repository,
 		Client:     db_lib.CreateDefaultGitClient(),
 	}

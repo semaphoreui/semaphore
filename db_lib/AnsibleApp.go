@@ -133,20 +133,42 @@ const (
 )
 
 func (t *AnsibleApp) installRolesRequirements() (err error) {
+	// default roles path
 	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"))
 	if err != nil {
 		return
 	}
 	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"))
+	if err != nil {
+		return
+	}
+
+	// alternative roles path
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"))
+	if err != nil {
+		return
+	}
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"))
 	return
 }
 
 func (t *AnsibleApp) installCollectionsRequirements() (err error) {
+	// default collections path
 	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
 	if err != nil {
 		return
 	}
 	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"))
+	if err != nil {
+		return
+	}
+
+	// alternative collections path
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	if err != nil {
+		return
+	}
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"))
 	return
 }
 

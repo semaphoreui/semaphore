@@ -14,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -94,8 +95,26 @@ func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
 func GetRunner(w http.ResponseWriter, r *http.Request) {
 	runner := context.Get(r, "runner").(db.Runner)
 
+	clearCache := false
+
+	err := helpers.Store(r).TouchRunner(runner)
+	if err != nil {
+		log.Error(err)
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if runner.CleaningRequested != nil && (runner.Touched == nil || runner.CleaningRequested.After(*runner.Touched)) {
+		clearCache = true
+	}
+
 	data := runners.RunnerState{
 		AccessKeys: make(map[int]db.AccessKey),
+		ClearCache: clearCache,
+	}
+
+	if clearCache {
+		data.CacheCleanProjectID = runner.ProjectID
 	}
 
 	tasks := helpers.TaskPool(r).GetRunningTasks()
@@ -223,17 +242,21 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		tsk := taskPool.GetTask(job.ID)
 
 		if tsk == nil {
-			// TODO: log
 			continue
 		}
 
 		if tsk.RunnerID != runner.ID {
-			// TODO: add error message
-			continue
+			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
+			return
 		}
 
 		for _, logRecord := range job.LogRecords {
 			tsk.LogWithTime(logRecord.Time, logRecord.Message)
+		}
+
+		if !job.Status.IsValid() {
+			helpers.WriteErrorStatus(w, "Invalid task status", http.StatusBadRequest)
+			return
 		}
 
 		tsk.SetStatus(job.Status)

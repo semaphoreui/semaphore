@@ -91,7 +91,7 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 }
 
 func (d *BoltDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
-	task.Created = time.Now()
+	task.Created = time.Now().UTC()
 	task.ID = 0
 	res, err := d.createObject(0, db.TaskProps, task)
 	if err != nil {
@@ -229,7 +229,7 @@ func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) error {
 	})
 }
 
-func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOutput, err error) {
+func (d *BoltDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (outputs []db.TaskOutput, err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
 
@@ -237,7 +237,7 @@ func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOut
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskOutputProps, db.RetrieveQueryParams{}, nil, &outputs)
+	err = d.getObjects(taskID, db.TaskOutputProps, params, nil, &outputs)
 
 	return
 }

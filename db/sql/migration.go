@@ -169,7 +169,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		if err != nil {
 			handleRollbackError(tx.Rollback())
 			log.Warnf("\n ERR! Query: %s\n\n", q)
-			log.Fatalf(err.Error())
+			log.Fatal(err.Error())
 			return err
 		}
 	}
@@ -186,7 +186,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now().UTC())
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err

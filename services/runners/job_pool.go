@@ -544,6 +544,26 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
+	if response.ClearCache {
+		if response.CacheCleanProjectID == nil {
+			if err2 := util.Config.ClearTmpDir(); err2 != nil {
+				logger.ActionError(
+					err2,
+					"cleaning cache",
+					"cannot clear tmp directory",
+				)
+			}
+		} else {
+			if err2 := util.Config.ClearProjectTmpDir(*response.CacheCleanProjectID); err2 != nil {
+				logger.ActionError(
+					err2,
+					"cleaning cache",
+					"cannot clear project "+strconv.Itoa(*response.CacheCleanProjectID)+" tmp directory",
+				)
+			}
+		}
+	}
+
 	for _, currJob := range response.CurrentJobs {
 		runJob, exists := p.runningJobs[currJob.ID]
 

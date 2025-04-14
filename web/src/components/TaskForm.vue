@@ -17,6 +17,7 @@
       dark
       dismissible
       dense
+      @input="item.commit_hash=null"
       v-model="hasCommit"
       class="overflow-hidden mt-2"
     >
@@ -92,8 +93,21 @@
       />
     </div>
 
+    <div class="pt-3"></div>
+
+    <v-text-field
+      v-model="git_branch"
+      :label="fieldLabel('branch')"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+      v-if="
+        needField('allow_override_branch')
+        && template.allow_override_branch_in_task"
+    />
+
     <v-select
-      class="mt-3"
       v-model="inventory_id"
       :label="fieldLabel('inventory')"
       :items="inventory"
@@ -103,12 +117,49 @@
       dense
       required
       :disabled="formSaving"
-      v-if="needField('inventory')"
-      hide-details
+      v-if="needField('inventory') && (template.task_params || {}).allow_override_inventory"
     ></v-select>
 
-    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item.params" :app="template.app" />
-    <TaskParamsForm v-else v-model="item.params" :app="template.app" />
+    <ArgsPicker
+      v-if="needField('limit') && (template.task_params || {}).allow_override_limit"
+      :vars="item.params.limit"
+      @change="setLimit"
+      :title="$t('limit')"
+      :arg-title="$t('limit')"
+      :add-arg-title="$t('addLimit')"
+    />
+
+    <ArgsPicker
+      v-if="needField('tags') && (template.task_params || {}).allow_override_tags"
+      :vars="item.params.tags"
+      @change="setTags"
+      :title="$t('tags')"
+      :arg-title="$t('tags')"
+      :add-arg-title="$t('addTag')"
+    />
+
+    <ArgsPicker
+      v-if="needField('skip_tags') && (template.task_params || {}).allow_override_limit"
+      :vars="item.params.skip_tags"
+      @change="setSkipTags"
+      :title="$t('skipTags')"
+      :arg-title="$t('tag')"
+      :add-arg-title="$t('addSkippedTag')"
+    />
+
+    <TaskParamsForm
+      v-if="template.app === 'ansible'"
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params || {}"
+    />
+
+    <TaskParamsForm
+      v-else
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params || {}"
+    />
 
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
@@ -177,6 +228,15 @@ export default {
         this.item.inventory_id = newValue;
       },
     },
+
+    git_branch: {
+      get() {
+        return (this.item || {}).git_branch || this.template.git_branch;
+      },
+      set(newValue) {
+        this.item.git_branch = newValue;
+      },
+    },
   },
 
   watch: {
@@ -208,6 +268,19 @@ export default {
   },
 
   methods: {
+
+    setSkipTags(tags) {
+      this.item.params.skip_tags = tags;
+    },
+
+    setTags(tags) {
+      this.item.params.tags = tags;
+    },
+
+    setLimit(limit) {
+      this.item.params.limit = limit;
+    },
+
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);
     },
@@ -286,6 +359,12 @@ export default {
         && this.buildTasks.length > 0) {
         this.item.build_task_id = this.buildTasks[0].id;
       }
+
+      ['tags', 'limit', 'skip_tags'].forEach((param) => {
+        if (!this.item.params[param]) {
+          this.item.params[param] = (this.template.task_params || {})[param];
+        }
+      });
     },
 
     getInventoryUrl() {

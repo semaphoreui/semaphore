@@ -6,7 +6,7 @@ import (
 )
 
 func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
-	project.Created = time.Now()
+	project.Created = time.Now().UTC()
 
 	newProject, err := d.createObject(0, db.ProjectProps, project)
 

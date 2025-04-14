@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"database/sql"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
@@ -183,15 +182,6 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 
 	err = d.selectOne(&task, query, args...)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
 	return
 }
 
@@ -224,7 +214,7 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	return
 }
 
-func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutput, err error) {
+func (d *SqlDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (output []db.TaskOutput, err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
 
@@ -232,8 +222,19 @@ func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutpu
 		return
 	}
 
-	_, err = d.selectAll(&output,
-		"select task_id, time, output from task__output where task_id=? order by id",
-		taskID)
+	q := squirrel.Select("task_id", "time", "output").
+		From("task__output").
+		Where("task_id=?", taskID)
+
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count)).Offset(uint64(params.Offset))
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&output, query, args...)
 	return
 }

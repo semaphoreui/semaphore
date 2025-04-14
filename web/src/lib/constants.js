@@ -107,6 +107,16 @@ export const APP_ICONS = {
   },
 };
 
+export const APP_SHORT_TITLE = {
+  ansible: 'Ansible',
+  terraform: 'Terraform',
+  tofu: 'OpenTofu',
+  bash: 'Bash',
+  pulumi: 'Pulumi',
+  python: 'Python',
+  powershell: 'PowerShell',
+};
+
 export const APP_TITLE = {
   ansible: 'Ansible Playbook',
   terraform: 'Terraform Code',
@@ -131,7 +141,7 @@ export const APP_INVENTORY_TYPES = {
 
 export const DEFAULT_APPS = Object.keys(APP_ICONS);
 
-export const ANSIBLE_FIELDS = {
+const BASE_FIELDS = {
   playbook: {
     label: 'playbookFilename',
   },
@@ -144,13 +154,47 @@ export const ANSIBLE_FIELDS = {
   environment: {
     label: 'environment3',
   },
+  allow_override_inventory: {
+    label: 'allowInventoryInTask',
+  },
+  git_branch: {
+    label: 'branch',
+  },
+  allow_override_branch: {
+    label: 'allow_override_branch',
+  },
+};
+
+export const ANSIBLE_FIELDS = {
+  ...BASE_FIELDS,
   vault: {
     label: 'vaultPassword2',
+  },
+  limit: {
+    label: 'limit',
+  },
+  allow_override_limit: {
+    label: 'allowLimitInTask',
+  },
+  allow_debug: {
+    label: 'allowDebug',
+  },
+  tags: {
+    label: 'tags',
+  },
+  skip_tags: {
+    label: 'skipTags',
+  },
+  allow_override_tags: {
+    label: 'tags',
+  },
+  allow_override_skip_tags: {
+    label: 'skipTags',
   },
 };
 
 export const TERRAFORM_FIELDS = {
-  ...ANSIBLE_FIELDS,
+  ...BASE_FIELDS,
   playbook: {
     label: 'Subdirectory path (Optional)',
     optional: true,
@@ -158,16 +202,23 @@ export const TERRAFORM_FIELDS = {
   inventory: {
     label: 'Workspace (Optional)',
   },
-  vault: undefined,
+  auto_approve: {
+    label: 'auto_approve',
+  },
+  allow_auto_approve: {
+    label: 'auto_approve',
+  },
+  allow_destroy: {
+    label: 'auto_destroy',
+  },
 };
 
 export const UNKNOWN_APP_FIELDS = {
-  ...ANSIBLE_FIELDS,
+  ...BASE_FIELDS,
   playbook: {
     label: 'Script Filename *',
   },
   inventory: undefined,
-  vault: undefined,
 };
 
 export const APP_FIELDS = {
