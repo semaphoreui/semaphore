@@ -614,12 +614,13 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("Failed to retrieve OAuth state cookie: %v", err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	if r.FormValue("state") != oauthState.Value {
+		log.Warn("OAuth state mismatch")
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
@@ -628,14 +629,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("Failed to get OIDC provider: %v", err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
-		log.Error(fmt.Errorf("no such provider: %s", pid))
+		log.Errorf("No such OIDC provider: %s", pid)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
@@ -643,39 +644,43 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	verifier := _oidc.Verifier(&oidc.Config{ClientID: oauth.ClientID})
 
 	code := r.URL.Query().Get("code")
+	if code == "" {
+		log.Warn("Missing authorization code in request")
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
 
 	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("Failed to exchange authorization code: %v", err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	var claims claimResult
-
-	// Extract the ID Token from OAuth2 token.
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 
 	if ok && rawIDToken != "" {
-		var idToken *oidc.IDToken
-		// Parse and verify ID Token payload.
-		idToken, err = verifier.Verify(ctx, rawIDToken)
-
-		if err == nil {
-			claims, err = claimOidcToken(idToken, provider)
+		idToken, err := verifier.Verify(ctx, rawIDToken)
+		if err != nil {
+			log.Errorf("Failed to verify ID token: %v", err)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
 		}
+		claims, err = claimOidcToken(idToken, provider)
 	} else {
-		var userInfo *oidc.UserInfo
-		userInfo, err = _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
+		userInfo, err := _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
+		if err != nil {
+			log.Errorf("Failed to retrieve user info: %v", err)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
 
-		if err == nil {
-
-			if userInfo.Email == "" {
-				claims, err = claimOidcUserInfo(userInfo, provider)
-			} else {
-				claims.email = userInfo.Email
-				claims.name = userInfo.Profile
-			}
+		if userInfo.Email == "" {
+			claims, err = claimOidcUserInfo(userInfo, provider)
+		} else {
+			claims.email = userInfo.Email
+			claims.name = userInfo.Profile
 		}
 
 		claims.username = getRandomUsername()
@@ -685,13 +690,13 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("Failed to parse claims: %v", err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
-	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email) // ignore username because it creates a lot of problems
-	if err != nil {
+	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email)
+	if errors.Is(err, db.ErrNotFound) {
 		user = db.User{
 			Username: claims.username,
 			Name:     claims.name,
@@ -699,15 +704,15 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			External: true,
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
-		if err != nil {
-			log.Error(err.Error())
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-			return
-		}
+	}
+	if err != nil {
+		log.Errorf("Failed to create or retrieve user: %v", err)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
 	}
 
 	if !user.External {
-		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
+		log.Errorf("OIDC user '%s' conflicts with local user", user.Username)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
@@ -715,10 +720,9 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	createSession(w, r, user)
 
 	redirectPath := mux.Vars(r)["redirect_path"]
-
 	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("Failed to construct redirect path: %v", err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
