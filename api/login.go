@@ -661,23 +661,33 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 
 	if ok && rawIDToken != "" {
-		idToken, err := verifier.Verify(ctx, rawIDToken)
-		if err != nil {
-			log.Errorf("Failed to verify ID token: %v", err)
+		idToken, err2 := verifier.Verify(ctx, rawIDToken)
+		if err2 != nil {
+			log.Errorf("Failed to verify ID token: %v", err2)
 			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 			return
 		}
-		claims, err = claimOidcToken(idToken, provider)
+		claims, err2 = claimOidcToken(idToken, provider)
+		if err2 != nil {
+			log.Errorf("Failed to parse ID token claims: %v", err2)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
 	} else {
-		userInfo, err := _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
-		if err != nil {
-			log.Errorf("Failed to retrieve user info: %v", err)
+		userInfo, err2 := _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
+		if err2 != nil {
+			log.Errorf("Failed to retrieve user info: %v", err2)
 			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 			return
 		}
 
 		if userInfo.Email == "" {
-			claims, err = claimOidcUserInfo(userInfo, provider)
+			claims, err2 = claimOidcUserInfo(userInfo, provider)
+			if err2 != nil {
+				log.Errorf("Failed to parse user info claims: %v", err2)
+				http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+				return
+			}
 		} else {
 			claims.email = userInfo.Email
 			claims.name = userInfo.Profile
@@ -689,14 +699,15 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err != nil {
-		log.Errorf("Failed to parse claims: %v", err)
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
-	}
-
 	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email)
+
 	if errors.Is(err, db.ErrNotFound) {
+		if util.Config.OidcProviders[pid].DisableUserCreation {
+			log.Errorf("OIDC user '%s' not found and user creation is disabled", claims.email)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
 		user = db.User{
 			Username: claims.username,
 			Name:     claims.name,
@@ -705,6 +716,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 	}
+
 	if err != nil {
 		log.Errorf("Failed to create or retrieve user: %v", err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
