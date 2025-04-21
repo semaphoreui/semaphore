@@ -158,7 +158,7 @@ export default {
   duration: 'Dauer',
   stop: 'Stoppen',
   forceStop: 'Zwangsstop',
-  rawLog: 'Rohprotokoll',
+  raw_log: 'Rohprotokoll',
 
   confirmTask: 'Bestätigen',
   deleteTeamMember: 'Teammitglied löschen',

@@ -158,7 +158,7 @@ export default {
   duration: '期間',
   stop: '停止',
   forceStop: '強制停止',
-  rawLog: '生ログ',
+  raw_log: '生ログ',
 
   confirmTask: '確認',
   deleteTeamMember: 'チームメンバーを削除',

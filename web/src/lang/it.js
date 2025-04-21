@@ -158,7 +158,7 @@ export default {
   duration: 'Durata',
   stop: 'Ferma',
   forceStop: 'Ferma forzatamente',
-  rawLog: 'Log grezzo',
+  raw_log: 'Log grezzo',
 
   confirmTask: 'Conferma',
   deleteTeamMember: 'Elimina membro del team',

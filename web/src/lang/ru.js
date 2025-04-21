@@ -158,7 +158,7 @@ export default {
   duration: 'Продолжительность',
   stop: 'Остановить',
   forceStop: 'Принудительная остановка',
-  rawLog: 'Сырой лог',
+  raw_log: 'Сырой лог',
 
   confirmTask: 'Подтвердить',
   deleteTeamMember: 'Удалить участника команды',

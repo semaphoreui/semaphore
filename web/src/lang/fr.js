@@ -158,7 +158,7 @@ export default {
   duration: 'Durée',
   stop: 'Arrêter',
   forceStop: 'Arrêt forcé',
-  rawLog: 'Journal brut',
+  raw_log: 'Journal brut',
 
   confirmTask: 'Confirmer',
   deleteTeamMember: 'Supprimer le membre de l\'équipe',

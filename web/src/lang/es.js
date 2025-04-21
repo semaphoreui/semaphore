@@ -158,7 +158,7 @@ export default {
   duration: 'Duración',
   stop: 'Detener',
   forceStop: 'Detener Forzosamente',
-  rawLog: 'Registro en bruto',
+  raw_log: 'Registro en bruto',
 
   confirmTask: 'Confirmar',
   deleteTeamMember: 'Eliminar miembro del equipo',

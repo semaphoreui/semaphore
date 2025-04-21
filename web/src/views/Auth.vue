@@ -174,6 +174,7 @@
                 required
                 :disabled="signInProcess"
                 v-if="loginWithPassword"
+                data-testid="auth-username"
               ></v-text-field>
 
               <v-text-field
@@ -186,6 +187,7 @@
                 @keyup.enter.native="signIn"
                 style="margin-bottom: 20px;"
                 v-if="loginWithPassword"
+                data-testid="auth-password"
               ></v-text-field>
 
               <v-btn
@@ -196,6 +198,7 @@
                 block
                 v-if="loginWithPassword"
                 rounded
+                data-testid="auth-signin"
               >
                 {{ $t('signIn') }}
               </v-btn>

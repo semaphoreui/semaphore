@@ -158,7 +158,7 @@ export default {
   duration: '지속 시간',
   stop: '중지',
   forceStop: '강제 중지',
-  rawLog: '원시 로그',
+  raw_log: '원시 로그',
 
   confirmTask: '확인',
   deleteTeamMember: '팀 멤버 삭제',

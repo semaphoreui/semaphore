@@ -132,7 +132,8 @@
       class="task-log-action-button"
       style="right: 20px; width: 150px;"
       target="_blank"
-    >{{ $t('rawLog') }}</v-btn>
+      data-testid="task-rawlog"
+    >{{ $t('raw_log') }}</v-btn>
 
   </div>
 </template>

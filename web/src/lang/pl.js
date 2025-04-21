@@ -158,7 +158,7 @@ export default {
   duration: 'Czas trwania',
   stop: 'Zatrzymaj',
   forceStop: 'Wymuś zatrzymanie',
-  rawLog: 'Surowy dziennik',
+  raw_log: 'Surowy dziennik',
 
   confirmTask: 'Potwierdź',
   deleteTeamMember: 'Usuń członka zespołu',

@@ -40,7 +40,7 @@
             }
         }, 
         {
-            "name": "Launch E2E Tests without Server",
+            "name": "Launch Dredd Tests without Server",
             "type": "pwa-node",
             "request": "launch",
             "runtimeExecutable": "task",

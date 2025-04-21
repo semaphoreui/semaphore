@@ -158,7 +158,7 @@ export default {
   duration: '持续时间',
   stop: '停止',
   forceStop: '强制停止',
-  rawLog: '原始日志',
+  raw_log: '原始日志',
 
   confirmTask: '确认',
   deleteTeamMember: '删除团队成员',
