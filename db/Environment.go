@@ -100,11 +100,7 @@ func (env *Environment) Validate() (err error) {
 
 	err = validateJSON(*env.ENV, true)
 	if err != nil {
-		if err.Error() == "values must be scalar" {
-			err = &ValidationError{"Environment variables " + err.Error()}
-		} else {
-			err = &ValidationError{"Environment variables must be valid JSON"}
-		}
+		err = &ValidationError{"Environment variables " + err.Error()}
 	}
 
 	return

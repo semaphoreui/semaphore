@@ -13,5 +13,5 @@ test('saving variables with empty names is prohibited', async ({ page, login }) 
   await page.getByRole('textbox', { name: 'Value' }).fill('Test');
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByTestId('varGroup-error').waitFor({timeout: 1000});
-  await expect(page.getByTestId('varGroup-error')).toHaveText('Environment variable name is required');
+  await expect(page.getByTestId('varGroup-error')).toHaveText('Environment variables key can not be empty');
 });
