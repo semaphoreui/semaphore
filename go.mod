@@ -12,6 +12,7 @@ require (
 	github.com/go-sql-driver/mysql v1.9.2
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/gorilla/context v1.1.2
+	github.com/gorilla/csrf v1.7.3
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/securecookie v1.1.2

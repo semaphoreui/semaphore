@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"github.com/gorilla/context"
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -21,11 +22,13 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	var user struct {
 		db.User
-		CanCreateProject bool `json:"can_create_project"`
+		CanCreateProject bool   `json:"can_create_project"`
+		CsrfToken        string `json:"csrf_token"`
 	}
 
 	user.User = *context.Get(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
+	user.CsrfToken = csrf.Token(r)
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }
