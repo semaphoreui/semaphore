@@ -72,7 +72,7 @@ As Dredd and the application database config may differ it expects it's own conf
 1) Build Dredd hooks:
 
     ```bash
-    task e2e:hooks
+    task dredd:hooks
     ```
 2) Install Dredd globally
 

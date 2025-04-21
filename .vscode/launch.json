@@ -44,7 +44,7 @@
             "type": "pwa-node",
             "request": "launch",
             "runtimeExecutable": "task",
-            "args": ["e2e:test:local"],
+            "args": ["dredd:test:local"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         }, 
