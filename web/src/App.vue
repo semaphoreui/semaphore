@@ -240,7 +240,11 @@
 
       <v-list class="pt-0" v-if="project">
 
-        <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
+        <v-list-item
+          key="dashboard"
+          :to="`/project/${projectId}/history`"
+          data-testid="sidebar-dashboard"
+        >
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
           </v-list-item-icon>
@@ -250,7 +254,12 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item v-if="project.type === ''" key="templates" :to="templatesUrl">
+        <v-list-item
+          v-if="project.type === ''"
+          key="templates"
+          :to="templatesUrl"
+          data-testid="sidebar-templates"
+        >
           <v-list-item-icon>
             <v-icon>mdi-check-all</v-icon>
           </v-list-item-icon>
@@ -264,6 +273,7 @@
           v-if="project.type === ''"
           key="schedule"
           :to="`/project/${projectId}/schedule`"
+          data-testid="sidebar-schedule"
         >
           <v-list-item-icon>
             <v-icon>mdi-clock-outline</v-icon>
@@ -278,6 +288,7 @@
           v-if="project.type === ''"
           key="inventory"
           :to="`/project/${projectId}/inventory`"
+          data-testid="sidebar-inventory"
         >
           <v-list-item-icon>
             <v-icon>mdi-monitor-multiple</v-icon>
@@ -292,6 +303,7 @@
           v-if="project.type === ''"
           key="environment"
           :to="`/project/${projectId}/environment`"
+          data-testid="sidebar-environment"
         >
           <v-list-item-icon>
             <v-icon>mdi-code-braces</v-icon>
@@ -306,6 +318,7 @@
           v-if="project.type === ''"
           key="keys"
           :to="`/project/${projectId}/keys`"
+          data-testid="sidebar-keys"
         >
           <v-list-item-icon>
             <v-icon>mdi-key-change</v-icon>
@@ -334,6 +347,7 @@
           v-if="project.type === ''"
           key="integrations"
           :to="`/project/${projectId}/integrations`"
+          data-testid="sidebar-integrations"
         >
           <v-list-item-icon>
             <v-icon>mdi-connection</v-icon>
@@ -344,7 +358,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="team" :to="`/project/${projectId}/team`">
+        <v-list-item
+          key="team"
+          :to="`/project/${projectId}/team`"
+          data-testid="sidebar-team"
+        >
           <v-list-item-icon>
             <v-icon>mdi-account-multiple</v-icon>
           </v-list-item-icon>
@@ -503,6 +521,7 @@
               <v-list-item
                 key="tokens"
                 to="/tokens"
+                data-testid="sidebar-tokens"
               >
                 <v-list-item-icon>
                   <v-icon>mdi-api</v-icon>
@@ -513,7 +532,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="sign_out" @click="signOut()">
+              <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
                 <v-list-item-icon>
                   <v-icon>mdi-exit-to-app</v-icon>
                 </v-list-item-icon>
