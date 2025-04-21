@@ -44,6 +44,7 @@
     <v-alert
       :value="formError"
       color="error"
+      data-testid="varGroup-error"
     >{{ formError }}</v-alert>
 
     <v-text-field
@@ -97,7 +98,7 @@
             </v-btn>
           </v-btn-toggle>
 
-          <v-btn icon @click="addExtraVar()">
+          <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
             <v-icon>
               mdi-plus
             </v-icon>
@@ -190,7 +191,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addEnvVar()">
+            <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -262,7 +263,7 @@
             </v-tooltip>
 
             <v-spacer />
-            <v-btn icon @click="addSecret('var')">
+            <v-btn icon @click="addSecret('var')"  data-testid="varGroup-addSecretVar">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -321,7 +322,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addSecret('env')">
+            <v-btn icon @click="addSecret('env')"  data-testid="varGroup-addSecretEnv">
               <v-icon>
                 mdi-plus
               </v-icon>

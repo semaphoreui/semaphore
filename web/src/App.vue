@@ -148,6 +148,7 @@
               class="app__project-selector"
               v-bind="attrs"
               v-on="on"
+              data-testid="sidebar-currentProject"
             >
               <v-list-item-icon>
                 <v-avatar
@@ -194,6 +195,7 @@
           <v-list-item
             @click="newProjectDialog = true; newProjectType = '';"
             v-if="user.can_create_project"
+            data-testid="sidebar-newProject"
           >
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
@@ -204,7 +206,11 @@
             </v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="restoreProjectDialog = true" v-if="user.can_create_project">
+          <v-list-item
+            @click="restoreProjectDialog = true"
+            v-if="user.can_create_project"
+            data-testid="sidebar-restoreProject"
+          >
             <v-list-item-icon>
               <v-icon>mdi-backup-restore</v-icon>
             </v-list-item-icon>

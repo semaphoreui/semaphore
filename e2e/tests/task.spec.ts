@@ -1,10 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
-test('test', async ({ page }) => {
-  await page.goto('http://localhost:8080/auth/login');
-  await page.getByTestId('auth-username').fill('fiftin');
-  await page.getByTestId('auth-password').fill('150986');
-  await page.getByTestId('auth-signin').click();
+test('run task from demo project', async ({ page, login, project }) => {
+  await login(true);
+  await project('task_runner');
 
   await page.getByTestId('sidebar-templates').click();
   
