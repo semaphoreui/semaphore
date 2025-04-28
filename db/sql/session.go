@@ -56,7 +56,7 @@ func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err e
 }
 
 func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
-	res, err := d.exec("update session set expired=1 where id=? and user_id=?", sessionID, userID)
+	res, err := d.exec("update session set expired=true where id=? and user_id=?", sessionID, userID)
 
 	return validateMutationResult(res, err)
 }
