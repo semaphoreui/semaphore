@@ -31,25 +31,6 @@
     </YesNoDialog>
 
     <EditDialog
-      v-model="passwordDialog"
-      save-button-text="Save"
-      :title="$t('changePassword')"
-      v-if="user"
-      event-name="i-user"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <ChangePasswordForm
-          :project-id="projectId"
-          :item-id="user.id"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
-
-    <EditDialog
       v-model="userDialog"
       save-button-text="Save"
       :title="$t('editUser')"
@@ -66,36 +47,19 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="user.admin"
+          :auth-methods="(systemInfo || {auth_methods: {}}).auth_methods"
           @hide-action-buttons="hideUserDialogButtons = true"
           @show-action-buttons="hideUserDialogButtons = false"
         />
       </template>
     </EditDialog>
 
-    <EditDialog
+    <TaskLogDialog
       v-model="taskLogDialog"
-      :max-width="1000"
-      :hide-buttons="true"
-      :expandable="true"
-      name="TaskLogDialog"
       @close="onTaskLogDialogClosed()"
-    >
-      <template v-slot:title={}>
-        <div class="text-truncate" style="max-width: calc(100% - 36px);">
-          <router-link
-            class="breadcrumbs__item breadcrumbs__item--link"
-            :to="`/project/${projectId}/templates/${template ? template.id : null}`"
-            @click="taskLogDialog = false"
-          >{{ template ? template.name : null }}
-          </router-link>
-          <v-icon>mdi-chevron-right</v-icon>
-          <span class="breadcrumbs__item">{{ $t('task', {expr: task ? task.id : null}) }}</span>
-        </div>
-      </template>
-      <template v-slot:form="{}">
-        <TaskLogView :project-id="projectId" :item-id="task ? task.id : null"/>
-      </template>
-    </EditDialog>
+      :project-id="projectId"
+      :item-id="taskId"
+    />
 
     <EditDialog
       v-model="newProjectDialog"
@@ -165,6 +129,7 @@
               class="app__project-selector"
               v-bind="attrs"
               v-on="on"
+              data-testid="sidebar-currentProject"
             >
               <v-list-item-icon>
                 <v-avatar
@@ -211,6 +176,7 @@
           <v-list-item
             @click="newProjectDialog = true; newProjectType = '';"
             v-if="user.can_create_project"
+            data-testid="sidebar-newProject"
           >
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
@@ -221,7 +187,11 @@
             </v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="restoreProjectDialog = true" v-if="user.can_create_project">
+          <v-list-item
+            @click="restoreProjectDialog = true"
+            v-if="user.can_create_project"
+            data-testid="sidebar-restoreProject"
+          >
             <v-list-item-icon>
               <v-icon>mdi-backup-restore</v-icon>
             </v-list-item-icon>
@@ -243,10 +213,8 @@
             <v-list-item-title>{{ $t('newProject2') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-      </v-list>
 
-      <v-list class="pt-0" v-if="!project">
-        <v-list-item key="new_project" :to="`/project/restore`">
+        <v-list-item key="restore_project" :to="`/project/restore`">
           <v-list-item-icon>
             <v-icon>mdi-restore</v-icon>
           </v-list-item-icon>
@@ -259,7 +227,11 @@
 
       <v-list class="pt-0" v-if="project">
 
-        <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
+        <v-list-item
+          key="dashboard"
+          :to="`/project/${projectId}/history`"
+          data-testid="sidebar-dashboard"
+        >
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
           </v-list-item-icon>
@@ -269,7 +241,12 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item v-if="project.type === ''" key="templates" :to="templatesUrl">
+        <v-list-item
+          v-if="project.type === ''"
+          key="templates"
+          :to="templatesUrl"
+          data-testid="sidebar-templates"
+        >
           <v-list-item-icon>
             <v-icon>mdi-check-all</v-icon>
           </v-list-item-icon>
@@ -283,6 +260,7 @@
           v-if="project.type === ''"
           key="schedule"
           :to="`/project/${projectId}/schedule`"
+          data-testid="sidebar-schedule"
         >
           <v-list-item-icon>
             <v-icon>mdi-clock-outline</v-icon>
@@ -297,6 +275,7 @@
           v-if="project.type === ''"
           key="inventory"
           :to="`/project/${projectId}/inventory`"
+          data-testid="sidebar-inventory"
         >
           <v-list-item-icon>
             <v-icon>mdi-monitor-multiple</v-icon>
@@ -311,6 +290,7 @@
           v-if="project.type === ''"
           key="environment"
           :to="`/project/${projectId}/environment`"
+          data-testid="sidebar-environment"
         >
           <v-list-item-icon>
             <v-icon>mdi-code-braces</v-icon>
@@ -325,6 +305,7 @@
           v-if="project.type === ''"
           key="keys"
           :to="`/project/${projectId}/keys`"
+          data-testid="sidebar-keys"
         >
           <v-list-item-icon>
             <v-icon>mdi-key-change</v-icon>
@@ -353,6 +334,7 @@
           v-if="project.type === ''"
           key="integrations"
           :to="`/project/${projectId}/integrations`"
+          data-testid="sidebar-integrations"
         >
           <v-list-item-icon>
             <v-icon>mdi-connection</v-icon>
@@ -363,7 +345,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="team" :to="`/project/${projectId}/team`">
+        <v-list-item
+          key="team"
+          :to="`/project/${projectId}/team`"
+          data-testid="sidebar-team"
+        >
           <v-list-item-icon>
             <v-icon>mdi-account-multiple</v-icon>
           </v-list-item-icon>
@@ -379,23 +365,33 @@
 
           <v-list-item>
             <v-switch
+              class="DarkModeSwitch"
               v-model="darkMode"
-              inset
-              :label="$t('darkMode')"
-              persistent-hint
+              prepend-icon="mdi-white-balance-sunny"
+              append-icon="mdi-weather-night"
             ></v-switch>
 
             <v-spacer/>
 
-            <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
+            <v-menu
+              top
+              min-width="150"
+              max-width="235"
+              nudge-top="12"
+              :position-x="50"
+              absolute
+            >
               <template v-slot:activator="{on, attrs}">
                 <v-btn
                   icon
-                  x-large
                   v-bind="attrs"
                   v-on="on"
                 >
-                  <span style="font-size: 30px;">{{ lang.flag }}</span>
+                  <img
+                    style="border-radius: 30px; max-width: 100%;"
+                    :src="`flags/${lang.flag}.svg`"
+                    alt=""
+                  />
                 </v-btn>
               </template>
 
@@ -407,7 +403,11 @@
                 >
 
                   <v-list-item-icon>
-                    {{ lang.flag }}
+                    <v-img
+                      style="border-radius: 20px; max-width: 24px;"
+                      :src="`flags/${lang.flag}.svg`"
+                      alt=""
+                    />
                   </v-list-item-icon>
 
                   <v-list-item-content>
@@ -505,7 +505,21 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="sign_out" @click="signOut()">
+              <v-list-item
+                key="tokens"
+                to="/tokens"
+                data-testid="sidebar-tokens"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-api</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('api_tokens') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
                 <v-list-item-icon>
                   <v-icon>mdi-exit-to-app</v-icon>
                 </v-list-item-icon>
@@ -530,10 +544,10 @@
         :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
-        :webHost="(systemInfo || {}).web_host"
-        :version="(systemInfo || {version: ''}).version.split('-')[0]"
-        :premiumFeatures="((systemInfo || {premium_features: {}}).premium_features)"
         :user="user"
+        :premiumFeatures="((systemInfo || {premium_features: {}}).premium_features)"
+        :authMethods="(systemInfo || {auth_methods: {}}).auth_methods"
+        :systemInfo="systemInfo"
       ></router-view>
     </v-main>
 
@@ -588,6 +602,25 @@
 </template>
 <style lang="scss">
 
+.DarkModeSwitch {
+  .v-input__prepend-outer {
+    transform: translateY(1px);
+
+    .v-icon {
+      color: #cacaca !important;
+    }
+  }
+
+  .v-input__append-outer {
+    margin-left: 5px;
+    transform: translateY(-1px);
+
+    .v-icon {
+      color: #2196f3 !important;
+    }
+  }
+}
+
 .v-dialog > .v-card > .v-card__title {
   flex-wrap: nowrap;
   overflow: hidden;
@@ -599,7 +632,6 @@
 
 .v-data-table tbody tr.v-data-table__expanded__content {
   box-shadow: none !important;
-
 }
 
 .v-data-table a {
@@ -662,6 +694,7 @@
   td:first-child, th:first-child {
     padding-left: 2px !important;
   }
+
   td:last-child, th:last-child {
     padding-right: 2px !important;
   }
@@ -673,6 +706,7 @@
 
   .v-data-table__wrapper > table > tbody > tr {
     background: transparent !important;
+
     &:hover {
       background-color: rgba(143, 143, 143, 0.04) !important;
     }
@@ -706,6 +740,10 @@
   margin-left: 10px !important;
 }
 
+.v-slide-group__prev--disabled {
+  display: none !important;
+}
+
 @media (min-width: 960px) {
   .v-app-bar__nav-icon {
     display: none !important;
@@ -729,14 +767,14 @@
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 import EditDialog from '@/components/EditDialog.vue';
-import TaskLogView from '@/components/TaskLogView.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
-import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import TaskLogDialog from '@/components/TaskLogDialog.vue';
+import delay from '@/lib/delay';
 
 const PROJECT_COLORS = [
   'red',
@@ -747,62 +785,59 @@ const PROJECT_COLORS = [
 
 const LANGUAGES = {
   en: {
-    flag: '🇺🇸',
     title: 'English',
   },
   es: {
-    flag: '🇨🇱',
     title: 'Español',
   },
   ru: {
-    flag: '🇷🇺',
     title: 'Russian',
   },
   de: {
-    flag: '🇩🇪',
     title: 'German',
   },
+  nl: {
+    title: 'Dutch (Netherlands)',
+  },
   zh_cn: {
-    flag: '🇨🇳',
     title: '中文(大陆)',
   },
   zh_tw: {
-    flag: '🇹🇼',
     title: '中文(台灣)',
   },
   fr: {
-    flag: '🇫🇷',
     title: 'French',
   },
   it: {
-    flag: '🇮🇹',
     title: 'Italian',
   },
   pl: {
-    flag: '🇵🇱️',
     title: 'Polish',
   },
   pt: {
-    flag: '🇵🇹',
     title: 'Portuguese',
   },
   pt_br: {
-    flag: '🇧🇷',
     title: 'Português do Brasil',
   },
 };
 
 function getLangInfo(locale) {
-  let res = LANGUAGES[locale];
+  let lang = locale;
+  let res = LANGUAGES[lang];
 
   // failback short i18n
   if (!res) {
-    res = LANGUAGES[locale.split('_')[0]];
+    lang = lang.split('_')[0];
+    res = LANGUAGES[lang];
   }
 
   if (!res) {
-    res = LANGUAGES.en;
+    lang = 'en';
+    res = LANGUAGES[lang];
   }
+
+  res.flag = lang;
 
   return res;
 }
@@ -816,12 +851,11 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    TaskLogDialog,
     YesNoDialog,
     RestoreProjectForm,
-    ChangePasswordForm,
     UserForm,
     EditDialog,
-    TaskLogView,
     ProjectForm,
   },
   data() {
@@ -839,13 +873,12 @@ export default {
       newProjectType: '',
       userDialog: null,
       hideUserDialogButtons: false,
-      passwordDialog: null,
       restoreProjectDialog: null,
       restoreProjectResult: null,
       restoreProjectResultDialog: null,
 
       taskLogDialog: null,
-      task: null,
+      taskId: null,
       template: null,
       darkMode: false,
       languages: [
@@ -856,6 +889,7 @@ export default {
         },
         ...Object.keys(LANGUAGES).map((lang) => ({
           id: lang,
+          flag: lang,
           ...LANGUAGES[lang],
         })),
       ],
@@ -972,20 +1006,11 @@ export default {
       if (parseInt(this.$route.query.t || '', 10) !== e.taskId) {
         const query = { ...this.$route.query, t: e.taskId };
         await this.$router.replace({ query });
+        return;
       }
 
-      this.task = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/${e.taskId}`,
-        responseType: 'json',
-      })).data;
-
-      this.template = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.task.template_id}`,
-        responseType: 'json',
-      })).data;
-
+      this.taskId = e.taskId;
+      await delay(1);
       this.taskLogDialog = true;
     });
 
@@ -1122,6 +1147,10 @@ export default {
           EventBus.$emit('i-show-task', { taskId });
         }
       }
+
+      if ((this.projects || []).length > 0 && this.$route.query.new_project != null) {
+        EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
+      }
     },
 
     async trySelectMostSuitableProject() {
@@ -1238,17 +1267,24 @@ export default {
       this.snackbarColor = '';
       this.snackbarText = '';
 
-      socket.stop();
+      try {
+        (await axios({
+          method: 'post',
+          url: '/api/auth/logout',
+          responseType: 'json',
+        }));
 
-      (await axios({
-        method: 'post',
-        url: '/api/auth/logout',
-        responseType: 'json',
-      }));
+        socket.stop();
 
-      if (this.$route.path !== '/auth/login') {
-        await this.$router.push({ path: '/auth/login' });
-        this.state = 'success';
+        if (this.$route.path !== '/auth/login') {
+          await this.$router.push({ path: '/auth/login' });
+          this.state = 'success';
+        }
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
       }
     },
 

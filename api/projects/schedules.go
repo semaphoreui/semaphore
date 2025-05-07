@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/schedules"
-	"github.com/gorilla/context"
 )
 
 // SchedulesMiddleware ensures a template exists and loads it to the context
@@ -63,7 +63,7 @@ func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tplSchedules, err := helpers.Store(r).GetTemplateSchedules(project.ID, templateID)
+	tplSchedules, err := helpers.Store(r).GetTemplateSchedules(project.ID, templateID, true)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

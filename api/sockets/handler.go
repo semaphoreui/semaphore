@@ -3,12 +3,13 @@ package sockets
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"net/http"
 	"time"
 
-	"github.com/semaphoreui/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,10 +23,10 @@ var upgrader = websocket.Upgrader{
 
 const (
 	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
+	writeWait = 2 * 10 * time.Second
 
 	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
+	pongWait = 2 * 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
@@ -44,13 +45,16 @@ type connection struct {
 func (c *connection) readPump() {
 	defer func() {
 		h.unregister <- c
-		util.LogErrorWithFields(c.ws.Close(), log.Fields{"error": "Error closing websocket"})
+		_ = c.ws.Close()
 	}()
 
 	c.ws.SetReadLimit(maxMessageSize)
-	util.LogErrorWithFields(c.ws.SetReadDeadline(time.Now().Add(pongWait)), log.Fields{"error": "Socket state corrupt"})
+
+	util.LogErrorF(c.ws.SetReadDeadline(tz.Now().Add(pongWait)), log.Fields{"error": "Cannot set read deadline"})
+
 	c.ws.SetPongHandler(func(string) error {
-		util.LogErrorWithFields(c.ws.SetReadDeadline(time.Now().Add(pongWait)), log.Fields{"error": "Socket state corrupt"})
+		err := c.ws.SetReadDeadline(tz.Now().Add(pongWait))
+		util.LogErrorF(err, log.Fields{"error": "Cannot set read deadline"})
 		return nil
 	})
 
@@ -69,7 +73,11 @@ func (c *connection) readPump() {
 
 // write writes a message with the given message type and payload.
 func (c *connection) write(mt int, payload []byte) error {
-	util.LogErrorWithFields(c.ws.SetWriteDeadline(time.Now().Add(writeWait)), log.Fields{"error": "Socket state corrupt"})
+
+	err := c.ws.SetWriteDeadline(tz.Now().Add(writeWait))
+
+	util.LogErrorF(err, log.Fields{"error": "Cannot set write deadline"})
+
 	return c.ws.WriteMessage(mt, payload)
 }
 
@@ -79,23 +87,34 @@ func (c *connection) writePump() {
 
 	defer func() {
 		ticker.Stop()
-		util.LogError(c.ws.Close())
+		_ = c.ws.Close()
 	}()
 
 	for {
 		select {
 		case message, ok := <-c.send:
 			if !ok {
-				util.LogError(c.write(websocket.CloseMessage, []byte{}))
+				if err := c.write(websocket.CloseMessage, []byte{}); err != nil {
+					log.WithError(err).WithFields(log.Fields{
+						"context": "websocket",
+						"user_id": c.userID,
+					}).Debug("Cannot send close message")
+				}
 				return
 			}
 			if err := c.write(websocket.TextMessage, message); err != nil {
-				util.LogError(err)
+				log.WithError(err).WithFields(log.Fields{
+					"context": "websocket",
+					"user_id": c.userID,
+				}).Debug("Cannot send text message")
 				return
 			}
 		case <-ticker.C:
 			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
-				util.LogError(err)
+				log.WithError(err).WithFields(log.Fields{
+					"context": "websocket",
+					"user_id": c.userID,
+				}).Debug("Cannot send ping message")
 				return
 			}
 		}
@@ -112,7 +131,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	user := usr.(*db.User)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	c := &connection{

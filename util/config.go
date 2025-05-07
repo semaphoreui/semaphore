@@ -2,6 +2,8 @@ package util
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,6 +19,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/natefinch/lumberjack.v2"
+
 	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
 )
@@ -31,6 +37,14 @@ const (
 	DbDriverMySQL    = "mysql"
 	DbDriverBolt     = "bolt"
 	DbDriverPostgres = "postgres"
+)
+
+type EventLogAction string
+
+const (
+	EventLogCreate EventLogAction = "create"
+	EventLogUpdate EventLogAction = "update"
+	EventLogDelete EventLogAction = "delete"
 )
 
 type DbConfig struct {
@@ -93,10 +107,9 @@ const (
 
 type RunnerConfig struct {
 	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-
-	Token string `json:"-" env:"SEMAPHORE_RUNNER_TOKEN"`
-
-	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
+	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -119,6 +132,87 @@ type TLSConfig struct {
 	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
 }
 
+type EmailAuthConfig struct {
+	Enabled bool `json:"enabled" env:"SEMAPHORE_EMAIL_2TP_ENABLED"`
+}
+
+type TotpConfig struct {
+	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
+	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+}
+
+type RecaptchaConfig struct {
+	Enabled string `json:"enabled,omitempty" env:"SEMAPHORE_RECAPTCHA_ENABLED"`
+	SiteKey string `json:"site_key,omitempty" env:"SEMAPHORE_RECAPTCHA_SITE_KEY"`
+}
+
+type AuthConfig struct {
+	Recaptcha *RecaptchaConfig `json:"recaptcha,omitempty"`
+	Totp      *TotpConfig      `json:"totp,omitempty"`
+	Email     *EmailAuthConfig `json:"email,omitempty"`
+}
+
+type EventLogType struct {
+	Format  FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
+	Enabled bool               `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
+	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
+}
+
+type EventLogRecord struct {
+	Action        string  `json:"action"`
+	UserID        *int    `json:"user,omitempty"`
+	IntegrationID *int    `json:"integration,omitempty"`
+	ProjectID     *int    `json:"project,omitempty"`
+	Description   *string `json:"description,omitempty"`
+}
+
+type FileLogFormat string
+
+const (
+	FileLogJSON FileLogFormat = "json"
+	FileLogRaw  FileLogFormat = "raw"
+)
+
+type TaskLogType struct {
+	Enabled      bool               `json:"enabled" env:"SEMAPHORE_TASK_LOG_ENABLED"`
+	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
+	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
+	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
+}
+
+type TaskLogRecord struct {
+	Username     string                 `json:"username,omitempty"`
+	TaskID       int                    `json:"task"`
+	ProjectID    int                    `json:"project"`
+	TemplateID   int                    `json:"template"`
+	TemplateName string                 `json:"template_name"`
+	UserID       *int                   `json:"user,omitempty"`
+	Description  *string                `json:"-"`
+	RunnerID     *int                   `json:"runner,omitempty"`
+	Status       task_logger.TaskStatus `json:"status"`
+}
+
+type ConfigLog struct {
+	Events *EventLogType `json:"events,omitempty"`
+	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+}
+
+type ConfigProcess struct {
+	User   string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
+	UID    *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
+	Chroot string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
+	GID    *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+}
+
+type ScheduleConfig struct {
+	Timezone string `json:"timezone,omitempty" env:"SEMAPHORE_SCHEDULE_TIMEZONE" default:"UTC"`
+}
+
+type DebuggingConfig struct {
+	ApiDelay     string `json:"api_delay,omitempty" env:"SEMAPHORE_API_DELAY"`
+	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -131,6 +225,8 @@ type ConfigType struct {
 	// if : is missing it will be corrected
 	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
+
+	Auth *AuthConfig `json:"auth,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -156,13 +252,15 @@ type ConfigType struct {
 	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
-	EmailAlert    bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
-	EmailSender   string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
-	EmailHost     string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
-	EmailPort     string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
-	EmailUsername string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
-	EmailSecure   bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
+	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
+	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
+	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
+	EmailUsername      string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
+	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
+	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
 
 	// ldap settings
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
@@ -191,7 +289,7 @@ type ConfigType struct {
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
 
 	// oidc settings
-	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
 
 	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
 	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
@@ -216,6 +314,14 @@ type ConfigType struct {
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+
+	Log *ConfigLog `json:"log,omitempty"`
+
+	Process *ConfigProcess `json:"process,omitempty"`
+
+	Schedule *ScheduleConfig `json:"schedule,omitempty"`
+
+	Debugging *DebuggingConfig `json:"debugging,omitempty"`
 }
 
 func NewConfigType() *ConfigType {
@@ -227,20 +333,68 @@ func NewConfigType() *ConfigType {
 // Config exposes the application configuration storage for use in the application
 var Config *ConfigType
 
+func ClearDir(dir string, preserveFiles bool, prefix string) error {
+	d, err := os.Open(dir)
+
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	defer d.Close()
+
+	files, err := d.ReadDir(0)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if preserveFiles && !f.IsDir() {
+			continue
+		}
+
+		if prefix != "" && !strings.HasPrefix(f.Name(), prefix) {
+			continue
+		}
+
+		err = os.RemoveAll(path.Join(dir, f.Name()))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (conf *ConfigType) ClearTmpDir() error {
+	return ClearDir(conf.TmpPath, false, "")
+}
+
+func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
+	return path.Join(conf.TmpPath, fmt.Sprintf("project_%d", projectID))
+}
+
+func (conf *ConfigType) ClearProjectTmpDir(projectID int) error {
+	return ClearDir(conf.GetProjectTmpDir(projectID), false, "")
+}
+
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit(configPath string, noConfigFile bool) {
+func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	fmt.Println("Loading config")
 
 	Config = NewConfigType()
 	Config.Apps = map[string]App{}
 
 	if !noConfigFile {
-		loadConfigFile(configPath)
+		usedConfigPath = loadConfigFile(configPath)
 	}
 
 	loadConfigEnvironment()
@@ -257,8 +411,19 @@ func ConfigInit(configPath string, noConfigFile bool) {
 	}
 
 	Cookie = securecookie.New(hash, encryption)
-	WebHostURL, _ = url.Parse(Config.WebHost)
-	if len(WebHostURL.String()) == 0 {
+
+	if Config.WebHost != "" {
+		var err error
+		WebHostURL, err = url.Parse(Config.WebHost)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if len(WebHostURL.String()) == 0 {
+			WebHostURL = nil
+		}
+	} else {
 		WebHostURL = nil
 	}
 
@@ -268,9 +433,11 @@ func ConfigInit(configPath string, noConfigFile bool) {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
 	}
+
+	return
 }
 
-func loadConfigFile(configPath string) {
+func loadConfigFile(configPath string) (usedConfigPath *string) {
 	if configPath == "" {
 		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
 	}
@@ -297,6 +464,7 @@ func loadConfigFile(configPath string) {
 				continue
 			}
 			decodeConfig(file)
+			usedConfigPath = &p
 			break
 		}
 		exitOnConfigFileError(err)
@@ -304,8 +472,11 @@ func loadConfigFile(configPath string) {
 		p := configPath
 		file, err := os.Open(p)
 		exitOnConfigFileError(err)
+		usedConfigPath = &p
 		decodeConfig(file)
 	}
+
+	return
 }
 
 func loadDefaultsToObject(obj interface{}) error {
@@ -358,7 +529,7 @@ func loadDefaultsToObject(obj interface{}) error {
 			continue
 		}
 
-		setConfigValue(fieldValue, defaultVar)
+		setConfigValue(fieldValue, defaultVar) // defaultVar always string!!!
 	}
 
 	return nil
@@ -394,20 +565,130 @@ func castStringToBool(value string) bool {
 
 }
 
+func AssignMapToStruct[P *S, S any](m map[string]interface{}, s P) error {
+	v := reflect.ValueOf(s).Elem()
+	return assignMapToStructRecursive(m, v)
+}
+
+func cloneStruct(origValue reflect.Value) reflect.Value {
+	// Create a new instance of the same type as the original struct
+	cloneValue := reflect.New(origValue.Type()).Elem()
+
+	// Iterate over the fields of the struct
+	for i := 0; i < origValue.NumField(); i++ {
+		// Get the field value
+		fieldValue := origValue.Field(i)
+		// Set the field value in the clone
+		cloneValue.Field(i).Set(fieldValue)
+	}
+
+	// Return the cloned struct
+	return cloneValue
+}
+
+func assignMapToStructRecursive(m map[string]interface{}, structValue reflect.Value) error {
+	structType := structValue.Type()
+
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" {
+			jsonTag = field.Name
+		} else {
+			jsonTag = strings.Split(jsonTag, ",")[0]
+		}
+
+		if value, ok := m[jsonTag]; ok {
+			fieldValue := structValue.FieldByName(field.Name)
+			if fieldValue.CanSet() {
+
+				val := reflect.ValueOf(value)
+
+				switch fieldValue.Kind() {
+				case reflect.Struct:
+
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for nested struct field %s but got %T", field.Name, value)
+					}
+
+					mapValue, ok := value.(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("cannot assign value of type %T to field %s of type %s", value, field.Name, field.Type)
+					}
+					err := assignMapToStructRecursive(mapValue, fieldValue)
+					if err != nil {
+						return err
+					}
+				case reflect.Map:
+					if fieldValue.IsNil() {
+						mapValue := reflect.MakeMap(fieldValue.Type())
+						fieldValue.Set(mapValue)
+					}
+
+					// Handle map
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
+					}
+
+					for _, key := range val.MapKeys() {
+						mapElemValue := val.MapIndex(key)
+						mapElemType := fieldValue.Type().Elem()
+
+						srcVal := fieldValue.MapIndex(key)
+						var mapElem reflect.Value
+						if srcVal.IsValid() {
+							mapElem = cloneStruct(srcVal)
+						} else {
+							mapElem = reflect.New(mapElemType).Elem()
+						}
+
+						if mapElemType.Kind() == reflect.Struct {
+							if err := assignMapToStructRecursive(mapElemValue.Interface().(map[string]interface{}), mapElem); err != nil {
+								return err
+							}
+						} else {
+							if mapElemValue.Type().ConvertibleTo(mapElemType) {
+								mapElem.Set(mapElemValue.Convert(mapElemType))
+							} else {
+								newVal, converted := CastValueToKind(mapElemValue.Interface(), mapElemType.Kind())
+								if !converted {
+									return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+										mapElemValue.Type(), mapElemType)
+								}
+
+								mapElem.Set(reflect.ValueOf(newVal))
+							}
+
+						}
+
+						fieldValue.SetMapIndex(key, mapElem)
+					}
+
+				default:
+					// Handle simple types
+					if val.Type().ConvertibleTo(fieldValue.Type()) {
+						fieldValue.Set(val.Convert(fieldValue.Type()))
+					} else {
+
+						newVal, converted := CastValueToKind(val.Interface(), fieldValue.Type().Kind())
+						if !converted {
+							return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+								val.Type(), val)
+						}
+
+						fieldValue.Set(reflect.ValueOf(newVal))
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok bool) {
 	res = value
 
 	switch kind {
-	case reflect.Slice:
-		if reflect.ValueOf(value).Kind() == reflect.String {
-			var arr []string
-			err := json.Unmarshal([]byte(value.(string)), &arr)
-			if err != nil {
-				panic(err)
-			}
-			res = arr
-			ok = true
-		}
 	case reflect.String:
 		ok = true
 	case reflect.Int:
@@ -420,27 +701,38 @@ func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok 
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
-	case reflect.Map:
-		if reflect.ValueOf(value).Kind() == reflect.String {
-			mapValue := make(map[string]string)
-			err := json.Unmarshal([]byte(value.(string)), &mapValue)
-			if err != nil {
-				panic(err)
-			}
-			res = mapValue
-			ok = true
-		}
 	default:
 	}
 
 	return
 }
 
-func setConfigValue(attribute reflect.Value, value interface{}) {
+func setConfigValue(attribute reflect.Value, value string) {
 
 	if attribute.IsValid() {
-		value, _ = CastValueToKind(value, attribute.Kind())
-		attribute.Set(reflect.ValueOf(value))
+		kind := attribute.Kind()
+
+		switch kind {
+		case reflect.Slice:
+			var arr []string
+			err := json.Unmarshal([]byte(value), &arr)
+			if err != nil {
+				panic(err)
+			}
+			attribute.Set(reflect.ValueOf(arr))
+		case reflect.Map:
+			mapType := attribute.Type()
+			mapValue := reflect.New(mapType)
+			err := json.Unmarshal([]byte(value), mapValue.Interface())
+			if err != nil {
+				panic(err)
+			}
+			attribute.Set(mapValue.Elem())
+		default:
+			newValue, _ := CastValueToKind(value, kind)
+			attribute.Set(reflect.ValueOf(newValue))
+		}
+
 	} else {
 		panic(fmt.Errorf("got non-existent config attribute"))
 	}
@@ -535,6 +827,10 @@ func loadEnvironmentToObject(obj interface{}) error {
 		fieldType := t.Field(i)
 		fieldValue := v.Field(i)
 
+		if !fieldType.IsExported() {
+			continue
+		}
+
 		if fieldType.Type.Kind() == reflect.Struct {
 			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
 			if err != nil {
@@ -564,7 +860,7 @@ func loadEnvironmentToObject(obj interface{}) error {
 			continue
 		}
 
-		setConfigValue(fieldValue, envValue)
+		setConfigValue(fieldValue, envValue) // envValue always string!!!
 	}
 
 	return nil
@@ -874,7 +1170,7 @@ func LookupDefaultApps() {
 	}
 }
 
-func GetPublicAliasURL(scope string, alias string) string {
+func GetPublicHost() string {
 	aliasURL := Config.WebHost
 	port := Config.Port
 	if port == "" {
@@ -889,6 +1185,13 @@ func GetPublicAliasURL(scope string, alias string) string {
 		aliasURL = "http://localhost:" + port
 	}
 
+	return aliasURL
+
+}
+
+func GetPublicAliasURL(scope string, alias string) string {
+	aliasURL := GetPublicHost()
+
 	if !strings.HasSuffix(aliasURL, "/") {
 		aliasURL += "/"
 	}
@@ -896,4 +1199,28 @@ func GetPublicAliasURL(scope string, alias string) string {
 	aliasURL += "api/" + scope + "/" + alias
 
 	return aliasURL
+}
+
+func GenerateRecoveryCode() (code string, hash string, err error) {
+
+	buf := make([]byte, 10)
+	_, err = io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return
+	}
+
+	code = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf)
+
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+	if err != nil {
+		return
+	}
+
+	hash = string(hashBytes)
+	return
+}
+
+func VerifyRecoveryCode(inputCode, storedHash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(inputCode))
+	return err == nil
 }

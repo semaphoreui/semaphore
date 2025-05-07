@@ -1,8 +1,7 @@
 <template>
   <EditDialog
       v-if="isAppsLoaded"
-      :max-width="700"
-      :min-content-height="457"
+      :max-width="dialogWidth"
       v-model="dialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"
@@ -10,6 +9,7 @@
       :title="(itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
         ' \'' + getAppTitle(itemApp) + '\''"
       @save="onSave"
+      :content-class="`EditTemplateDialog EditTemplateDialog--${id}`"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TemplateForm
@@ -21,10 +21,16 @@
           :need-reset="needReset"
           :source-item-id="sourceItemId"
           :app="itemApp"
+          :premium-features="premiumFeatures"
+          :task-type="taskType"
       />
     </template>
   </EditDialog>
 </template>
+
+<style lang="scss">
+</style>
+
 <script>
 
 import TemplateForm from './TemplateForm.vue';
@@ -45,12 +51,25 @@ export default {
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
+    premiumFeatures: Object,
+    taskType: String,
   },
 
   data() {
     return {
+      id: Math.round(Math.random() * 1000000),
       dialog: false,
     };
+  },
+
+  computed: {
+    dialogWidth() {
+      if (['ansible', 'terraform', 'tofu'].includes(this.itemApp)) {
+        return 1200;
+      }
+
+      return 800;
+    },
   },
 
   watch: {

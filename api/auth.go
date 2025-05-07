@@ -19,7 +19,6 @@ func getSession(r *http.Request) (*db.Session, bool) {
 	// fetch session from cookie
 	cookie, err := r.Cookie("semaphore")
 	if err != nil {
-		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
 
@@ -55,7 +54,6 @@ func getSession(r *http.Request) (*db.Session, bool) {
 			log.Error(err)
 		}
 
-		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
 
@@ -86,6 +84,92 @@ func startEmailVerification(w http.ResponseWriter, r *http.Request) {
 	// TODO: send email code
 }
 
+type totpRecoveryRequestBody struct {
+	RecoveryCode string `json:"recovery_code"`
+}
+
+// recoverySession handles the recovery of a user session using a recovery code.
+// It validates the recovery code provided by the user and, if valid, verifies the session.
+// If the recovery code is invalid or recovery is not allowed, it returns an appropriate HTTP status code.
+//
+// HTTP Request:
+// - Method: POST
+// - Body: JSON object containing the recovery code (e.g., {"recovery_code": "code"}).
+//
+// Responses:
+// - 204 No Content: Recovery successful, session verified.
+// - 400 Bad Request: Invalid request body or user does not have TOTP enabled.
+// - 401 Unauthorized: Invalid recovery code or session not found.
+// - 403 Forbidden: TOTP recovery is disabled.
+// - 500 Internal Server Error: An unexpected error occurred.
+//
+// Preconditions:
+// - The session must exist and be valid.
+// - TOTP recovery must be enabled in the configuration.
+//
+// Parameters:
+// - w: The HTTP response writer.
+// - r: The HTTP request.
+func recoverySession(w http.ResponseWriter, r *http.Request) {
+	session, ok := getSession(r)
+
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	switch session.VerificationMethod {
+	case db.SessionVerificationTotp:
+		if !util.Config.Auth.Totp.Enabled || !util.Config.Auth.Totp.AllowRecovery {
+			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
+			return
+		}
+
+		var body totpRecoveryRequestBody
+		if !helpers.Bind(w, r, &body) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		store := helpers.Store(r)
+
+		user, err := store.GetUser(session.UserID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if user.Totp == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if !util.VerifyRecoveryCode(body.RecoveryCode, user.Totp.RecoveryHash) {
+			helpers.WriteErrorStatus(w, "INVALID_RECOVERY_CODE", http.StatusUnauthorized)
+			return
+		}
+
+		err = store.DeleteTotpVerification(user.ID, user.Totp.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = store.VerifySession(session.UserID, session.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	case db.SessionVerificationNone:
+		w.WriteHeader(http.StatusNoContent)
+		return
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 // nolint: gocyclo
 func verifySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
@@ -99,6 +183,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	case db.SessionVerificationEmail:
 		// TODO: implement email verification
 	case db.SessionVerificationTotp:
+		if !util.Config.Auth.Totp.Enabled {
+			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
+			return
+		}
+
 		var body totpRequestBody
 		if !helpers.Bind(w, r, &body) {
 			w.WriteHeader(http.StatusBadRequest)
@@ -118,7 +207,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !totp.Validate(body.Passcode, key.Secret()) {
-			w.WriteHeader(http.StatusBadRequest)
+			helpers.WriteErrorStatus(w, "INVALID_PASSCODE", http.StatusUnauthorized)
 			return
 		}
 

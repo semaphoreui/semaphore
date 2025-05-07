@@ -4,7 +4,7 @@
     :class="{'task-log-view--with-message': item.message || item.commit_message}"
   >
 
-    <div class="overflow-auto text-no-wrap">
+    <div class="overflow-auto text-no-wrap px-5">
       <v-alert
         dense
         class="d-inline-block mb-2 mr-2"
@@ -26,14 +26,14 @@
       </v-alert>
     </div>
 
-    <v-container fluid class="pa-0 mb-2 overflow-auto">
+    <v-container fluid class="py-0 px-5 mb-2 overflow-auto">
       <v-row no-gutters class="flex-nowrap">
         <v-col>
           <v-list two-line subheader class="pa-0">
             <v-list-item class="pa-0">
               <v-list-item-content>
                 <div class="pr-4">
-                  <TaskStatus :status="item.status"/>
+                  <TaskStatus :status="item.status" data-testid="task-status" />
                 </div>
               </v-list-item-content>
             </v-list-item>
@@ -77,7 +77,15 @@
       </v-row>
     </v-container>
 
-    <div class="task-log-records" ref="output">
+    <VirtualList
+      class="task-log-records"
+      :data-key="'id'"
+      :data-sources="output"
+      :data-component="itemComponent"
+      :estimate-size="22"
+      :keeps="100"
+      ref="records"
+    >
       <div class="task-log-records__record" v-for="record in output" :key="record.id">
         <div class="task-log-records__time">
           {{ record.time | formatTime }}
@@ -85,11 +93,12 @@
         <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
         </div>
       </div>
-    </div>
+    </VirtualList>
 
     <v-btn
       color="success"
-      style="position: absolute; bottom: 10px; right: 250px; width: 70px;"
+      class="task-log-action-button"
+      style="right: 260px; width: 70px;"
       v-if="item.status === 'waiting_confirmation'"
       @click="confirmTask()"
     >
@@ -98,7 +107,8 @@
 
     <v-btn
       color="warning"
-      style="position: absolute; bottom: 10px; right: 170px; width: 70px;"
+      class="task-log-action-button"
+      style="right: 180px; width: 70px;"
       v-if="item.status === 'waiting_confirmation'"
       @click="rejectTask()"
     >
@@ -107,12 +117,23 @@
 
     <v-btn
       color="error"
-      style="position: absolute; bottom: 10px; right: 10px; width: 150px;"
+      class="task-log-action-button"
+      style="right: 20px; width: 150px;"
       v-if="canStop"
       @click="stopTask(item.status === 'stopping')"
     >
       {{ item.status === 'stopping' ? $t('forceStop') : $t('stop') }}
     </v-btn>
+
+    <v-btn
+      v-if="isTaskStopped"
+      color="blue-grey"
+      :href="rawLogURL"
+      class="task-log-action-button"
+      style="right: 20px; width: 150px;"
+      target="_blank"
+      data-testid="task-rawLog"
+    >{{ $t('raw_log') }}</v-btn>
 
   </div>
 </template>
@@ -124,13 +145,18 @@
 $task-log-header-height: 62px + 64px + 8px;
 $task-log-message-height: 48px;
 
+.task-log-action-button {
+  position: absolute;
+  bottom: 10px;
+}
+
 .task-log-records {
   background: black;
   color: white;
   height: calc(100vh - 280px);
   overflow: auto;
   font-family: monospace;
-  margin: 0 -24px;
+  margin: 0;
   padding: 5px 10px 50px;
 }
 
@@ -141,7 +167,7 @@ $task-log-message-height: 48px;
 .v-dialog--fullscreen {
 
   .task-log-records {
-    height: calc(100vh - $task-log-header-height);
+    height: calc(100vh - #{$task-log-header-height});
   }
 
   .task-log-view--with-message .task-log-records {
@@ -179,18 +205,27 @@ $task-log-message-height: 48px;
 import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
+import VirtualList from 'vue-virtual-scroll-list';
+import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
+import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
-  components: { TaskStatus },
+  components: { TaskStatus, VirtualList },
+
+  mixins: [ProjectMixin],
+
   props: {
-    itemId: Number,
+    item: Object,
     projectId: Number,
   },
+
   data() {
     return {
-      item: {},
+      itemComponent: TaskLogViewRecord,
       output: [],
+      outputBuffer: [],
       user: {},
+      autoScroll: true,
     };
   },
 
@@ -207,6 +242,24 @@ export default {
   },
 
   computed: {
+    itemId() {
+      return this.item?.id;
+    },
+
+    isTaskStopped() {
+      return [
+        'stopped',
+        'error',
+        'success',
+        'canceled',
+        'rejected',
+      ].includes(this.item.status);
+    },
+
+    rawLogURL() {
+      return `/api/project/${this.projectId}/tasks/${this.itemId}/raw_output`;
+    },
+
     canStop() {
       return [
         'running',
@@ -221,8 +274,41 @@ export default {
   },
 
   async created() {
+    this.outputInterval = setInterval(() => {
+      this.$nextTick(() => {
+        const len = this.outputBuffer.length;
+        if (len === 0) {
+          return;
+        }
+
+        const scrollContainer = this.$refs.records.$el;
+
+        // Check if the current position is already at the bottom
+        const currentScrollTop = scrollContainer.scrollTop;
+        const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+        // Add a new item to the list
+        this.output.push(...this.outputBuffer.splice(0, len));
+
+        // If the user is already at the bottom, keep it scrolled to the bottom
+        // Otherwise, maintain the current scroll position
+        this.$nextTick(() => {
+          if (Math.abs(currentScrollTop - maxScrollTop) <= 1) {
+            // User is at the bottom, scroll to the bottom
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          } else {
+            // User is not at the bottom, preserve current scroll position
+            scrollContainer.scrollTop = currentScrollTop;
+          }
+        });
+      });
+    }, 500);
     socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
+  },
+
+  beforeDestroy() {
+    clearInterval(this.outputInterval);
   },
 
   methods: {
@@ -256,8 +342,9 @@ export default {
     },
 
     reset() {
-      this.item = {};
       this.output = [];
+      this.outputBuffer = [];
+      this.outputInterval = null;
       this.user = {};
     },
 
@@ -274,10 +361,10 @@ export default {
           });
           break;
         case 'log':
-          this.output.push(data);
-          setTimeout(() => {
-            this.$refs.output.scrollTop = this.$refs.output.scrollHeight;
-          }, 200);
+          this.outputBuffer.push({
+            ...data,
+            id: data.time + data.output,
+          });
           break;
         default:
           break;
@@ -285,23 +372,26 @@ export default {
     },
 
     async loadData() {
-      this.item = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/${this.itemId}`,
-        responseType: 'json',
-      })).data;
+      [
+        this.output,
+        this.user,
+      ] = await Promise.all([
 
-      this.output = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
-        responseType: 'json',
-      })).data;
+        (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
+          responseType: 'json',
+        })).data.map((item) => ({
+          ...item,
+          id: item.time + item.output,
+        })),
 
-      this.user = this.item.user_id ? (await axios({
-        method: 'get',
-        url: `/api/users/${this.item.user_id}`,
-        responseType: 'json',
-      })).data : null;
+        this.item.user_id ? (await axios({
+          method: 'get',
+          url: `/api/users/${this.item.user_id}`,
+          responseType: 'json',
+        })).data : null,
+      ]);
     },
   },
 };

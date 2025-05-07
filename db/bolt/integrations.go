@@ -171,24 +171,3 @@ func (d *BoltDb) deleteIntegration(projectID int, integrationID int, tx *bbolt.T
 func (d *BoltDb) GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (db.IntegrationExtractorChildReferrers, error) {
 	return d.getIntegrationExtractorChildrenRefs(projectID, db.IntegrationMatcherProps, matcherID)
 }
-
-func (d *BoltDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
-	integrations = make([]db.Integration, 0)
-
-	projects, err := d.GetAllProjects()
-	if err != nil {
-		return
-	}
-
-	for _, project := range projects {
-		var projectIntegrations []db.Integration
-		projectIntegrations, err = d.GetIntegrations(project.ID, db.RetrieveQueryParams{})
-		if err != nil {
-			return
-		}
-
-		integrations = append(integrations, projectIntegrations...)
-	}
-
-	return
-}

@@ -1,12 +1,11 @@
 package sql
 
 import (
-	"database/sql"
 	"errors"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -17,7 +16,7 @@ func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err er
 	}
 
 	user.Password = ""
-	user.Created = db.GetParsedTime(time.Now().UTC())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.sql.Insert(&user)
 
@@ -43,7 +42,7 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
-	user.Created = db.GetParsedTime(time.Now().UTC())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.sql.Insert(&user.User)
 
@@ -70,22 +69,24 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 			return err
 		}
 		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=?, password=? where id=?",
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=?, password=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
 			user.Alert,
 			user.Admin,
+			user.Pro,
 			string(pwdHash),
 			user.ID)
 	} else {
 		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=? where id=?",
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=? where id=?",
 			user.Name,
 			user.Username,
 			user.Email,
 			user.Alert,
 			user.Admin,
+			user.Pro,
 			user.ID)
 	}
 
@@ -125,10 +126,6 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 		"select * from project__user where project_id=? and user_id=?",
 		projectID,
 		userID)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
 
 	return user, err
 }
@@ -191,10 +188,6 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 
 	err = d.selectOne(&user, "select * from `user` where id=?", userID)
 
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
-
 	if err != nil {
 		return
 	}
@@ -206,9 +199,18 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 		user.Totp = &totp
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
+
+	return
+}
+
+func (d *SqlDb) GetProUserCount() (count int, err error) {
+
+	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user` where pro"))
+
+	count = int(cnt)
 
 	return
 }
@@ -248,10 +250,6 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		d.PrepareQuery("select * from `user` where email=? or username=?"),
 		email, login)
 
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
-
 	if err != nil {
 		return
 	}
@@ -263,7 +261,7 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		user.Totp = &totp
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
 
@@ -276,16 +274,18 @@ func (d *SqlDb) GetAllAdmins() (users []db.User, err error) {
 	return
 }
 
-func (d *SqlDb) AddTotpVerification(userID int, url string) (totp db.UserTotp, err error) {
+func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string) (totp db.UserTotp, err error) {
 
 	totp.UserID = userID
 	totp.URL = url
-	totp.Created = db.GetParsedTime(time.Now().UTC())
+	totp.RecoveryHash = recoveryHash
+	totp.Created = db.GetParsedTime(tz.Now())
 
 	res, err := d.exec(
-		"insert into user__totp (user_id, url, created) values (?, ?, ?)",
+		"insert into user__totp (user_id, url, recovery_hash, created) values (?, ?, ?, ?)",
 		totp.UserID,
 		totp.URL,
+		totp.RecoveryHash,
 		totp.Created)
 
 	if err != nil {

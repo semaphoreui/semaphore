@@ -27,17 +27,85 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 	conf.Runner = &util.RunnerConfig{}
 
-	askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
+	needTokenFile := false
+	askConfirmation("Do you want to store token in external file?", false, &needTokenFile)
 
-	haveToken := false
-	askConfirmation("Do you have runner token?", false, &haveToken)
-
-	if haveToken {
-		token := ""
-		askValue("Runner token", "", &token)
-
-		// TODO: write token
+	if needTokenFile {
+		askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
 	}
+
+	needToken := false
+	askConfirmation("Do you have runner's token?", false, &needToken)
+
+	if needToken {
+		token := ""
+		for {
+			askValue("Enter valid runner token", "", &token)
+
+			if token == "" {
+				fmt.Println("Invalid token")
+				continue
+			}
+			break
+		}
+
+		conf.Runner.Token = token
+
+		hasPrivateKey := false
+		askConfirmation("Do you have runner's private key file?", false, &hasPrivateKey)
+
+		if hasPrivateKey {
+			pkFile := ""
+			for {
+				askValue("Enter path to the private key file", "", &pkFile)
+
+				if pkFile == "" {
+					fmt.Println("Invalid private key file path")
+					continue
+				}
+				break
+			}
+			conf.Runner.PrivateKeyFile = pkFile
+		}
+
+		return
+	}
+
+	needRegistration := false
+	askConfirmation("Do you want to register new runner on the server?", false, &needRegistration)
+	if needRegistration {
+		regToken := ""
+
+		for {
+			askValue("Enter runner registration token", "", &regToken)
+
+			if regToken == "" {
+				fmt.Println("Invalid registration token")
+				continue
+			}
+
+			break
+		}
+
+		conf.Runner.RegistrationToken = regToken
+
+		pkFile := ""
+		for {
+			askValue("Enter path to the private key file (will be generated if not exists)", "", &pkFile)
+
+			if pkFile == "" {
+				fmt.Println("Invalid private key file path")
+				continue
+			}
+			break
+		}
+
+		conf.Runner.PrivateKeyFile = pkFile
+
+		return
+	}
+
+	return
 }
 
 func InteractiveSetup(conf *util.ConfigType) {

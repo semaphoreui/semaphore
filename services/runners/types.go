@@ -24,6 +24,9 @@ type RunnerState struct {
 	CurrentJobs []JobState
 	NewJobs     []JobData            `json:"new_jobs" binding:"required"`
 	AccessKeys  map[int]db.AccessKey `json:"access_keys" binding:"required"`
+
+	ClearCache          bool `json:"clear_cache,omitempty"`
+	CacheCleanProjectID *int `json:"cache_clean_project_id,omitempty"`
 }
 
 type JobState struct {
@@ -53,9 +56,10 @@ type JobProgress struct {
 }
 
 type RunnerRegistration struct {
-	RegistrationToken string `json:"registration_token" binding:"required"`
-	Webhook           string `json:"webhook"`
-	MaxParallelTasks  int    `db:"max_parallel_tasks" json:"max_parallel_tasks"`
+	RegistrationToken string  `json:"registration_token" binding:"required"`
+	Webhook           string  `json:"webhook,omitempty"`
+	MaxParallelTasks  int     `json:"max_parallel_tasks"`
+	PublicKey         *string `json:"public_key,omitempty"`
 }
 
 type jobLogRecord struct {

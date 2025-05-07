@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"go.etcd.io/bbolt"
 	"time"
 )
@@ -90,7 +91,8 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 }
 
 func (d *BoltDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
-	task.Created = time.Now()
+	task.Created = tz.Now()
+	task.ID = 0
 	res, err := d.createObject(0, db.TaskProps, task)
 	if err != nil {
 		return
@@ -227,7 +229,7 @@ func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) error {
 	})
 }
 
-func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOutput, err error) {
+func (d *BoltDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (outputs []db.TaskOutput, err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
 
@@ -235,7 +237,27 @@ func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOut
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskOutputProps, db.RetrieveQueryParams{}, nil, &outputs)
+	err = d.getObjects(taskID, db.TaskOutputProps, params, nil, &outputs)
 
+	return
+}
+
+func (d *BoltDb) EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error {
+	return nil
+}
+
+func (d *BoltDb) CreateTaskStageResult(taskID int, stageID int, result map[string]any) error {
+	return nil
+}
+
+func (d *BoltDb) GetTaskStagesByType(projectID int, taskID int, stage db.TaskStageType) (res []db.TaskStage, err error) {
+	return
+}
+
+func (d *BoltDb) GetTaskStageResult(projectID int, taskID int, stageID int) (res db.TaskStageResult, err error) {
+	return
+}
+
+func (d *BoltDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (res []db.TaskOutput, err error) {
 	return
 }

@@ -3,6 +3,7 @@ package sql
 import (
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/go-gorp/gorp/v3"
@@ -45,8 +46,13 @@ func getQueryForParams(q squirrel.SelectBuilder, prefix string, props db.ObjectP
 		orderDirection = "DESC"
 	}
 
-	orderColumn := props.DefaultSortingColumn
-	if pp.SortBy != "" {
+	var orderColumn string
+	if pp.SortBy == "" {
+		orderColumn = props.DefaultSortingColumn
+		if props.SortInverted {
+			orderDirection = "DESC"
+		}
+	} else {
 		orderColumn = pp.SortBy
 	}
 
@@ -118,9 +124,13 @@ func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...interf
 
 	switch d.sql.Dialect.(type) {
 	case gorp.PostgresDialect:
-		query += " returning " + primaryKeyColumnName
-
-		err := d.sql.QueryRow(d.PrepareQuery(query), args...).Scan(&insertId)
+		var err error
+		if primaryKeyColumnName != "" {
+			query += " returning " + primaryKeyColumnName
+			err = d.sql.QueryRow(d.PrepareQuery(query), args...).Scan(&insertId)
+		} else {
+			_, err = d.sql.Exec(d.PrepareQuery(query), args...)
+		}
 
 		if err != nil {
 			return 0, err
@@ -147,8 +157,19 @@ func (d *SqlDb) exec(query string, args ...interface{}) (sql.Result, error) {
 	return d.sql.Exec(q, args...)
 }
 
+func (d *SqlDb) execTx(tx *gorp.Transaction, query string, args ...interface{}) (sql.Result, error) {
+	q := d.PrepareQuery(query)
+	return tx.Exec(q, args...)
+}
+
 func (d *SqlDb) selectOne(holder interface{}, query string, args ...interface{}) error {
-	return d.sql.SelectOne(holder, d.PrepareQuery(query), args...)
+	err := d.sql.SelectOne(holder, d.PrepareQuery(query), args...)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		err = db.ErrNotFound
+	}
+
+	return err
 }
 
 func (d *SqlDb) selectAll(i interface{}, query string, args ...interface{}) ([]interface{}, error) {
@@ -220,10 +241,6 @@ func (d *SqlDb) getObject(projectID int, props db.ObjectProps, objectID int, obj
 	}
 
 	err = d.selectOne(object, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
 
 	return
 }
@@ -501,10 +518,6 @@ func (d *SqlDb) getObjectByReferrer(referrerID int, referringObjectProps db.Obje
 	}
 
 	err = d.selectOne(object, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
 
 	return
 }
@@ -799,6 +812,10 @@ func (d *SqlDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUni
 
 	if templateID != nil {
 		q = q.Where("template_id=?", *templateID)
+	}
+
+	if filter.UserID != nil {
+		q = q.Where("user_id=?", *filter.UserID)
 	}
 
 	if filter.Start != nil {

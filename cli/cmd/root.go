@@ -122,7 +122,7 @@ func runService() {
 						if err2 != nil {
 							log.Panic(err2)
 						}
-						target += webHost.Scheme + webHost.Host + r.URL.Path
+						target += webHost.Host + r.URL.Path
 					} else {
 						hostParts := strings.Split(r.Host, ":")
 						host := hostParts[0]
@@ -138,7 +138,7 @@ func runService() {
 						return
 					}
 
-					http.Redirect(w, nil, target, http.StatusTemporaryRedirect)
+					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 				}))
 				if err != nil {
 					log.Panic(err)
@@ -157,18 +157,23 @@ func runService() {
 	}
 
 	if err != nil {
-		log.Panic(err)
+		log.WithError(err).Panic("Error starting server")
 	}
 }
 
-func createStore(token string) db.Store {
+func createStoreWithMigrationVersion(token string, undoTo *string, applyTo *string) db.Store {
 	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	store := factory.CreateStore()
 
 	store.Connect(token)
 
-	err := db.Migrate(store)
+	var err error
+	if undoTo != nil {
+		err = db.Rollback(store, *undoTo)
+	} else {
+		err = db.Migrate(store, applyTo)
+	}
 
 	if err != nil {
 		panic(err)
@@ -183,4 +188,8 @@ func createStore(token string) db.Store {
 	util.LookupDefaultApps()
 
 	return store
+}
+
+func createStore(token string) db.Store {
+	return createStoreWithMigrationVersion(token, nil, nil)
 }

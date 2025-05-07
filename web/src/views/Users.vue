@@ -18,6 +18,7 @@
           :is-admin="true"
           @hide-action-buttons="hideEditDialogButtons = true"
           @show-action-buttons="hideEditDialogButtons = false"
+          :auth-methods="authMethods"
         />
       </template>
     </EditDialog>
@@ -99,6 +100,10 @@ import UserForm from '@/components/UserForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
+
+  props: {
+    authMethods: Object,
+  },
 
   components: {
     YesNoDialog,

@@ -74,8 +74,9 @@
 
     <codemirror
       :class="{
-        'vue-codemirror--static': item.type === 'static',
-        'vue-codemirror--static-yaml': item.type === 'static-yaml',
+        'InventoryEditor': true,
+        'InventoryEditor--static': item.type === 'static',
+        'InventoryEditor--static-yaml': item.type === 'static-yaml',
       }"
       :style="{ border: '1px solid lightgray' }"
       v-model.trim="item.inventory"
@@ -115,15 +116,15 @@
   </v-form>
 </template>
 <style>
-.CodeMirror {
+.InventoryEditor .CodeMirror {
   height: 160px !important;
 }
 
-.v-dialog--fullscreen .vue-codemirror--static .CodeMirror {
+.v-dialog--fullscreen .InventoryEditor--static .CodeMirror {
   height: calc(100vh - 540px) !important;
 }
 
-.v-dialog--fullscreen .vue-codemirror--static-yaml .CodeMirror {
+.v-dialog--fullscreen .InventoryEditor--static-yaml .CodeMirror {
   height: calc(100vh - 600px) !important;
 }
 </style>

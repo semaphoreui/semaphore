@@ -71,12 +71,14 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.TmpPath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(t.Template.ProjectID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
 		cmd.Env = append(cmd.Env, environmentVars...)
 	}
+
+	cmd.SysProcAttr = util.Config.GetSysProcAttr()
 
 	return cmd
 }
@@ -141,7 +143,13 @@ func (t *TerraformApp) init(environmentVars []string, params *db.TerraformTaskPa
 		return err
 	}
 
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
@@ -157,12 +165,19 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string) error {
 	cmd := t.makeCmd(t.Name, []string{"workspace", "select", "-or-create=true", workspace}, environmentVars)
 	t.Logger.LogCmd(cmd)
+
 	err := cmd.Start()
 	if err != nil {
 		return err
 	}
 
-	return cmd.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) InstallRequirements(environmentVars []string, params interface{}) (err error) {
@@ -204,8 +219,16 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	if err != nil {
 		return err
 	}
+
 	cb(cmd.Process)
-	return cmd.Wait()
+
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
@@ -218,7 +241,14 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 		return err
 	}
 	cb(cmd.Process)
-	return cmd.Wait()
+
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	t.Logger.WaitLog()
+	return nil
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
@@ -228,13 +258,14 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	}
 
 	params := args.TaskParams.(*db.TerraformTaskParams)
+	tplParams := args.TemplateParams.(*db.TerraformTemplateParams)
 
 	if t.PlanHasNoChanges || params.Plan {
 		t.Logger.SetStatus(task_logger.TaskSuccessStatus)
 		return nil
 	}
 
-	if params.AutoApprove {
+	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
 		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	}

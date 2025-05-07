@@ -58,9 +58,11 @@
     ></v-select>
 
     <TaskParamsForm
+      class="mt-6"
       v-if="item.template_id"
       v-model="item.task_params"
       :app="(template || {}).app"
+      :template-params="(template || {}).task_params || {}"
     />
   </v-form>
 </template>
@@ -82,11 +84,17 @@ export default {
         id: 'github',
         title: 'GitHub Webhooks',
       }, {
+        id: 'bitbucket',
+        title: 'Bitbucket Webhooks',
+      }, {
         id: 'token',
         title: 'Token',
       }, {
         id: 'hmac',
         title: 'HMAC',
+      }, {
+        id: 'basic',
+        title: 'BasicAuth',
       }],
       keys: null,
     };
@@ -101,7 +109,7 @@ export default {
 
   computed: {
     isLoaded() {
-      return this.keys != null;
+      return this.item && this.keys != null;
     },
 
     loginPasswordKeys() {

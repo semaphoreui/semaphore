@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"bytes"
 	"errors"
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -30,13 +31,19 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID, tpl.App.NeedTaskAlias())
+	newTask, err := helpers.TaskPool(r).AddTask(
+		taskObj,
+		&user.ID,
+		user.Username,
+		project.ID,
+		tpl.App.NeedTaskAlias(),
+	)
 
 	if errors.Is(err, tasks.ErrInvalidSubscription) {
 		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
 		return
 	} else if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Cannot write new event to database"})
+		util.LogErrorF(err, log.Fields{"error": "Cannot write new event to database"})
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -63,7 +70,7 @@ func GetTasksList(w http.ResponseWriter, r *http.Request, limit int) {
 	}
 
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get tasks list from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -99,14 +106,14 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 
 		if err != nil {
-			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task_id from request"})
+			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task_id from request"})
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		task, err := helpers.Store(r).GetTask(project.ID, taskID)
 		if err != nil {
-			util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task from database"})
+			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task from database"})
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -116,16 +123,16 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// GetTaskOutput returns the logged task output by id and writes it as json or returns error
+// GetTaskStages returns the logged task stages by id and writes it as json or returns error
 func GetTaskStages(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{})
 
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -139,15 +146,67 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
 	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{})
 
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, output)
+}
+
+func outputToBytes(lines []db.TaskOutput) []byte {
+	var buffer bytes.Buffer
+	for _, line := range lines {
+		output := util.ClearFromAnsiCodes(line.Output)
+		buffer.WriteString(output)
+		buffer.WriteByte('\n')
+	}
+	return buffer.Bytes()
+}
+
+func GetTaskRawOutput(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
+	const chunkSize = 10000
+	offset := 0
+
+	eof := false
+	for !eof {
+		var output []db.TaskOutput
+		output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{Offset: offset, Count: chunkSize})
+
+		if err != nil {
+			if offset == 0 {
+				util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			util.LogErrorF(err, log.Fields{"error": "Cannot get task output from database"})
+			return
+		}
+
+		if offset == 0 {
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+		}
+
+		readSize := len(output)
+
+		if readSize > 0 {
+			offset += readSize
+			data := outputToBytes(output)
+			if _, err := w.Write(data); err != nil {
+				return
+			}
+		}
+
+		eof = readSize < chunkSize
+	}
 }
 
 func ConfirmTask(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +294,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).DeleteTaskWithOutputs(project.ID, targetTask.ID)
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -283,7 +342,7 @@ func GetTaskStats(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := helpers.Store(r).GetTaskStats(project.ID, tplID, db.TaskStatUnitDay, filter)
 	if err != nil {
-		util.LogErrorWithFields(err, log.Fields{"error": "Bad request. Cannot get task stats from database"})
+		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task stats from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

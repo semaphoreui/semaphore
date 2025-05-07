@@ -3,6 +3,7 @@ package cmd
 import (
 	"io"
 	"os"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
@@ -20,7 +21,7 @@ func init() {
 
 func registerRunner() {
 
-	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
+	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	if runnerRegisterArgs.stdinRegistrationToken {
 		tokenBytes, err := io.ReadAll(os.Stdin)
@@ -32,11 +33,13 @@ func registerRunner() {
 			panic("Empty token")
 		}
 
-		util.Config.Runner.Token = string(tokenBytes)
+		util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
 	}
 
 	taskPool := runners.JobPool{}
-	err := taskPool.Register()
+
+	err := taskPool.Register(configFile)
+
 	if err != nil {
 		panic(err)
 	}

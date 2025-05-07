@@ -1,0 +1,1 @@
+alter table `user` add column pro boolean not null default false;

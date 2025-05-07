@@ -102,6 +102,17 @@ func (key *AccessKeyInstallation) Destroy() error {
 }
 
 func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error) {
+
+	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))
+
+	var socketFile string
+
+	if key.ProjectID == nil {
+		socketFile = path.Join(util.Config.TmpPath, socketFilename)
+	} else {
+		socketFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), socketFilename)
+	}
+
 	sshAgent := ssh.Agent{
 		Logger: logger,
 		Keys: []ssh.AgentKey{
@@ -110,7 +121,7 @@ func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error
 				Passphrase: []byte(key.SshKey.Passphrase),
 			},
 		},
-		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))),
+		SocketFile: socketFile,
 	}
 
 	return sshAgent, sshAgent.Listen()

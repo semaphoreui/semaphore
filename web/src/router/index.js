@@ -23,6 +23,8 @@ import Integrations from '../views/project/Integrations.vue';
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
 import Apps from '../views/Apps.vue';
 import Runners from '../views/Runners.vue';
+import Stats from '../views/project/Stats.vue';
+import Tokens from '../views/Tokens.vue';
 
 Vue.use(VueRouter);
 
@@ -42,6 +44,10 @@ const routes = [
   {
     path: '/project/:projectId/history',
     component: History,
+  },
+  {
+    path: '/project/:projectId/stats',
+    component: Stats,
   },
   {
     path: '/project/:projectId/activity',
@@ -144,6 +150,10 @@ const routes = [
   {
     path: '/apps',
     component: Apps,
+  },
+  {
+    path: '/tokens',
+    component: Tokens,
   },
 ];
 

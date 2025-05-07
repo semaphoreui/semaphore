@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/services/tasks"
 	"net/http"
 	"net/url"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
@@ -114,14 +116,33 @@ func WriteError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	switch e := err.(type) {
-	case *db.ValidationError:
-		WriteErrorStatus(w, e.Error(), http.StatusBadRequest)
+	var validationError *db.ValidationError
+	switch {
+	case errors.As(err, &validationError):
+		WriteErrorStatus(w, validationError.Error(), http.StatusBadRequest)
 	default:
 		log.Error(err)
 		debug.PrintStack()
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+func QueryParamsForProps(url *url.URL, props db.ObjectProps) (params db.RetrieveQueryParams) {
+	sortBy := ""
+
+	if url.Query().Get("sort") != "" {
+		i := slices.Index(props.SortableColumns, url.Query().Get("sort"))
+		if i != -1 {
+			sortBy = props.SortableColumns[i]
+		}
+	}
+
+	params = db.RetrieveQueryParams{
+		SortBy:       sortBy,
+		SortInverted: url.Query().Get("order") == "desc",
+	}
+
+	return
 }
 
 func QueryParams(url *url.URL) db.RetrieveQueryParams {
@@ -132,7 +153,7 @@ func QueryParams(url *url.URL) db.RetrieveQueryParams {
 }
 
 func QueryParamsWithOwner(url *url.URL, props db.ObjectProps) db.RetrieveQueryParams {
-	res := QueryParams(url)
+	res := QueryParamsForProps(url, props)
 
 	hasOwnerFilter := false
 
@@ -142,8 +163,8 @@ func QueryParamsWithOwner(url *url.URL, props db.ObjectProps) db.RetrieveQueryPa
 			continue
 		}
 
-		id, err := strconv.Atoi(s)
-		if err != nil {
+		id, err2 := strconv.Atoi(s)
+		if err2 != nil {
 			continue
 		}
 

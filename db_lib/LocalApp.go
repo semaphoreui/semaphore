@@ -32,6 +32,7 @@ type LocalAppRunningArgs struct {
 	EnvironmentVars []string
 	Inputs          map[string]string
 	TaskParams      interface{}
+	TemplateParams  interface{}
 	Callback        func(*os.Process)
 }
 

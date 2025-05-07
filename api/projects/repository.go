@@ -3,12 +3,11 @@ package projects
 import (
 	"errors"
 	"fmt"
-	"net/http"
-
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
+	"net/http"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -52,7 +51,9 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 	project := context.Get(r, "project").(db.Project)
 
-	repos, err := helpers.Store(r).GetRepositories(project.ID, helpers.QueryParams(r.URL))
+	params := helpers.QueryParamsForProps(r.URL, db.RepositoryProps)
+
+	repos, err := helpers.Store(r).GetRepositories(project.ID, params)
 
 	if err != nil {
 		helpers.WriteError(w, err)

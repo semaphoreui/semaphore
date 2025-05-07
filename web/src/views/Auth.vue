@@ -73,120 +73,204 @@
       justify-center
       class="pa-0"
     >
-      <v-form
-        ref="signInForm"
-        lazy-validation
-        v-model="signInFormValid"
-        style="width: 300px;"
-      >
-
-        <v-img
-          width="80"
-          height="80"
-          transition="0"
-          src="favicon.png"
-          style="margin: auto;"
-          class="mb-4"
-        />
-
-        <h3 class="text-center mb-8">{{ $t('semaphore') }}</h3>
-
-        <h3 v-if="verification" class="text-center mb-3 mt-0">Two-step verification</h3>
-
-        <v-alert
-          :value="signInError != null"
-          color="error"
-          style="margin-bottom: 20px;"
-        >{{ signInError }}
-        </v-alert>
-
-        <div v-if="verification">
-
-          <div class="text-center mb-2">
-            Open the two-step verification app on your mobile device to get your verification code.
-          </div>
-          <v-otp-input
-            v-model="verificationCode"
-            length="6"
-            @finish="verify()"
-          ></v-otp-input>
-
-          <v-divider class="my-6" />
-
-          <div class="text-center">
-            <a @click="signOut()">{{ $t('Return to login') }}</a>
-          </div>
-        </div>
-
-        <div v-else>
-          <v-text-field
-            v-model="username"
-            v-bind:label='$t("username")'
-            :rules="[v => !!v || $t('username_required')]"
-            required
-            :disabled="signInProcess"
-            v-if="loginWithPassword"
-          ></v-text-field>
-
-          <v-text-field
-            v-model="password"
-            :label="$t('password')"
-            :rules="[v => !!v || $t('password_required')]"
-            type="password"
-            required
-            :disabled="signInProcess"
-            @keyup.enter.native="signIn"
-            style="margin-bottom: 20px;"
-            v-if="loginWithPassword"
-          ></v-text-field>
-
-          <v-btn
-            color="primary"
-            @click="signIn"
-            :disabled="signInProcess"
-            block
-            v-if="loginWithPassword"
+      <v-card class="px-5 py-5" style="margin-bottom: 10%; border-radius: 15px;">
+        <v-card-text>
+          <v-form
+            ref="signInForm"
+            lazy-validation
+            v-model="signInFormValid"
+            style="width: 350px;"
           >
-            {{ $t('signIn') }}
-          </v-btn>
 
-          <v-btn
-            v-for="provider in oidcProviders"
-            :color="provider.color || 'secondary'"
-            dark
-            class="mt-2"
-            @click="oidcSignIn(provider.id)"
-            block
-            :key="provider.id"
-          >
-            <v-icon
-              left
-              dark
-              v-if="provider.icon"
-            >
-              mdi-{{ provider.icon }}
-            </v-icon>
+            <v-img
+              width="80"
+              height="80"
+              transition="0"
+              src="favicon.png"
+              style="margin: auto;"
+              class="mb-4"
+            />
 
-            {{ provider.name }}
-          </v-btn>
+            <h2 v-if="screen === 'verification'" class="text-center pt-4 pb-6">
+              Two-step verification
+            </h2>
 
-          <div class="text-center mt-6" v-if="loginWithPassword">
-            <a @click="loginHelpDialog = true">{{ $t('dontHaveAccountOrCantSignIn') }}</a>
-          </div>
+            <h2 v-else-if="screen === 'recovery'" class="text-center pt-4 pb-6">
+              Account recovery
+            </h2>
 
-        </div>
-      </v-form>
+            <h2 v-else class="text-center pt-4 pb-6">
+              Log in to your account
+            </h2>
+
+            <v-alert
+              :value="signInError != null"
+              color="error"
+              style="margin-bottom: 20px;"
+            >{{ signInError }}
+            </v-alert>
+
+            <div v-if="screen === 'verification'">
+              <div class="text-center mb-4">
+                Open the two-step verification app on your mobile device to
+                get your verification code.
+              </div>
+
+              <v-otp-input
+                v-model="verificationCode"
+                length="6"
+                @finish="verify()"
+              ></v-otp-input>
+
+              <v-divider class="my-6" />
+
+              <div class="text-center">
+                <a @click="signOut()" class="mr-6">{{ $t('Return to login') }}</a>
+                <a
+                  v-if="authMethods.totp && authMethods.totp.allow_recovery"
+                  @click="screen = 'recovery'"
+                >
+                  {{ $t('Use recovery code') }}
+                </a>
+              </div>
+            </div>
+
+            <div v-else-if="screen === 'recovery'">
+              <div class="text-center mb-2">
+                Use your recovery code to regain access to your account.
+              </div>
+
+              <v-text-field
+                class="mt-6"
+                outlined
+                v-model="recoveryCode"
+                @keyup.enter.native="signIn"
+                :label="$t('Recovery code')"
+                :rules="[v => !!v || $t('recoveryCode_required')]"
+                required
+              />
+
+              <div>
+                <v-btn
+                  style="width: 100%;"
+                  color="primary"
+                  @click="recovery()"
+                >
+                  Send
+                </v-btn>
+              </div>
+
+              <div class="text-center pt-6">
+                <a @click="screen = 'verification'">{{ $t('Return to verification') }}</a>
+              </div>
+
+            </div>
+
+            <div v-else>
+              <v-text-field
+                v-model="username"
+                v-bind:label='$t("username")'
+                :rules="[v => !!v || $t('username_required')]"
+                required
+                :disabled="signInProcess"
+                v-if="loginWithPassword"
+                data-testid="auth-username"
+              ></v-text-field>
+
+              <v-text-field
+                v-model="password"
+                :label="$t('password')"
+                :rules="[v => !!v || $t('password_required')]"
+                type="password"
+                required
+                :disabled="signInProcess"
+                @keyup.enter.native="signIn"
+                style="margin-bottom: 20px;"
+                v-if="loginWithPassword"
+                data-testid="auth-password"
+              ></v-text-field>
+
+              <v-btn
+                large
+                color="primary"
+                @click="signIn"
+                :disabled="signInProcess"
+                block
+                v-if="loginWithPassword"
+                rounded
+                data-testid="auth-signin"
+              >
+                {{ $t('signIn') }}
+              </v-btn>
+
+              <div
+                class="auth__divider"
+                v-if="loginWithPassword && oidcProviders.length > 0"
+              >or</div>
+
+              <v-btn
+                large
+                v-for="provider in oidcProviders"
+                :color="provider.color || 'secondary'"
+                dark
+                class="mt-3"
+                @click="oidcSignIn(provider.id)"
+                block
+                :key="provider.id"
+                rounded
+              >
+                <v-icon
+                  left
+                  dark
+                  v-if="provider.icon"
+                >
+                  mdi-{{ provider.icon }}
+                </v-icon>
+
+                {{ provider.name }}
+              </v-btn>
+
+              <div class="text-center mt-6" v-if="loginWithPassword">
+                <a @click="loginHelpDialog = true">{{ $t('dontHaveAccountOrCantSignIn') }}</a>
+              </div>
+
+            </div>
+          </v-form>
+        </v-card-text>
+      </v-card>
     </v-container>
   </div>
 </template>
 <style lang="scss">
+.auth__divider {
+  margin-top: 15px;
+  margin-bottom: 5px;
+
+  display: flex;
+  &:before, &:after {
+    margin-top: 10px;
+    width: 100%;
+    content: "";
+    border-top: 1px solid rgba(128, 128, 128, 0.51);
+  }
+
+  &:before {
+    margin-right: 10px;
+  }
+
+  &:after {
+    margin-left: 10px;
+  }
+}
 .auth {
   height: 100vh;
+  background: #80808024;
 }
 </style>
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
+import EventBus from '@/event-bus';
 
 export default {
   data() {
@@ -202,10 +286,13 @@ export default {
 
       oidcProviders: [],
       loginWithPassword: null,
+      authMethods: {},
 
-      verification: null,
+      screen: null,
+
       verificationCode: null,
       verificationMethod: null,
+      recoveryCode: null,
     };
   },
 
@@ -217,18 +304,12 @@ export default {
         document.location = document.baseURI + window.location.search;
         break;
       case 'unauthenticated':
-        await axios({
-          method: 'get',
-          url: '/api/auth/login',
-          responseType: 'json',
-        }).then((resp) => {
-          this.oidcProviders = resp.data.oidc_providers;
-          this.loginWithPassword = resp.data.login_with_password;
-        });
+        await this.loadLoginData();
         break;
       case 'unverified':
-        this.verification = true;
+        this.screen = 'verification';
         this.verificationMethod = verificationMethod;
+        await this.loadLoginData();
         break;
       default:
         throw new Error(`Unknown authentication status: ${status}`);
@@ -236,15 +317,56 @@ export default {
   },
 
   methods: {
-    async signOut() {
-      (await axios({
-        method: 'post',
-        url: '/api/auth/logout',
+    async loadLoginData() {
+      await axios({
+        method: 'get',
+        url: '/api/auth/login',
         responseType: 'json',
-      }));
+      }).then((resp) => {
+        this.oidcProviders = resp.data.oidc_providers;
+        this.loginWithPassword = resp.data.login_with_password;
+        this.authMethods = resp.data.auth_methods || {};
+      });
+    },
 
-      const { location } = document;
-      document.location = location;
+    async recovery() {
+      this.signInProcess = true;
+
+      try {
+        await axios({
+          method: 'post',
+          url: '/api/auth/recovery',
+          responseType: 'json',
+          data: {
+            recovery_code: this.recoveryCode,
+          },
+        });
+
+        const { location } = document;
+        document.location = location;
+      } catch (e) {
+        this.signInError = getErrorMessage(e);
+      } finally {
+        this.signInProcess = false;
+      }
+    },
+
+    async signOut() {
+      try {
+        (await axios({
+          method: 'post',
+          url: '/api/auth/logout',
+          responseType: 'json',
+        }));
+
+        const { location } = document;
+        document.location = location;
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(e),
+        });
+      }
     },
 
     makePasswordExample() {
@@ -302,7 +424,7 @@ export default {
         document.location = document.baseURI + window.location.search;
       } catch (err) {
         if (err.response.status === 401) {
-          this.signInError = this.$t('incorrectUsrPwd');
+          this.signInError = this.$t('Incorrect verification code.');
         } else {
           this.signInError = getErrorMessage(err);
         }
@@ -342,7 +464,13 @@ export default {
     },
 
     async oidcSignIn(provider) {
-      document.location = `${document.baseURI}api/auth/oidc/${provider}/login`;
+      let query = '';
+
+      if (this.$route.query.new_project === 'premium') {
+        query = '?redirect=/project/premium';
+      }
+
+      document.location = `${document.baseURI}api/auth/oidc/${provider}/login${query}`;
     },
   },
 };

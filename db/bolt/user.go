@@ -3,8 +3,8 @@ package bolt
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -26,7 +26,7 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 	}
 
 	user.Password = ""
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	usr, err := d.createObject(0, db.UserProps, user)
 
@@ -63,7 +63,7 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	usr, err := d.createObject(0, db.UserProps, user)
 
@@ -170,9 +170,44 @@ func (d *BoltDb) DeleteProjectUser(projectID, userID int) error {
 	return d.deleteObject(projectID, db.ProjectUserProps, intObjectID(userID), nil)
 }
 
+func (d *BoltDb) getTotp(userID int) (res *db.UserTotp, err error) {
+
+	current := make([]db.UserTotp, 0)
+	err = d.getObjects(userID, db.UserTotpProps, db.RetrieveQueryParams{}, nil, &current)
+
+	if err != nil {
+		return
+	}
+
+	if len(current) > 0 {
+		res = &current[0]
+	}
+
+	return
+}
+
 // GetUser retrieves a user from the database by ID
 func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 	err = d.getObject(0, db.UserProps, intObjectID(userID), &user)
+	if err != nil {
+		return
+	}
+
+	user.Totp, err = d.getTotp(userID)
+
+	return
+}
+
+func (d *BoltDb) GetProUserCount() (count int, err error) {
+	var users []db.User
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		user := i.(db.User)
+		return user.Pro
+	}, &users)
+	if err != nil {
+		return
+	}
+	count = len(users)
 	return
 }
 
@@ -198,14 +233,23 @@ func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser
 		return
 	}
 
+	found := false
+
 	for _, user := range users {
 		if user.Username == login || user.Email == email {
 			existingUser = user
-			return
+			found = true
+			break
 		}
 	}
 
-	err = db.ErrNotFound
+	if !found {
+		err = db.ErrNotFound
+		return
+	}
+
+	existingUser.Totp, err = d.getTotp(existingUser.ID)
+
 	return
 }
 
@@ -217,10 +261,10 @@ func (d *BoltDb) GetAllAdmins() (users []db.User, err error) {
 	return
 }
 
-func (d *BoltDb) AddTotpVerification(userID int, url string) (totp db.UserTotp, err error) {
+func (d *BoltDb) AddTotpVerification(userID int, url string, recoveryHash string) (totp db.UserTotp, err error) {
 
 	current := make([]db.UserTotp, 0)
-	err = d.getObjects(userID, db.UserTotpProps, db.RetrieveQueryParams{}, nil, current)
+	err = d.getObjects(userID, db.UserTotpProps, db.RetrieveQueryParams{}, nil, &current)
 
 	if len(current) > 0 {
 		err = fmt.Errorf("already exists")
@@ -229,7 +273,8 @@ func (d *BoltDb) AddTotpVerification(userID int, url string) (totp db.UserTotp, 
 
 	totp.UserID = userID
 	totp.URL = url
-	totp.Created = db.GetParsedTime(time.Now().UTC())
+	totp.RecoveryHash = recoveryHash
+	totp.Created = db.GetParsedTime(tz.Now())
 
 	newTotp, err := d.createObject(userID, db.UserTotpProps, totp)
 

@@ -13,7 +13,7 @@ import i18n from './plugins/i18';
 const convert = new AnsiUp();
 convert.ansi_colors = [
   [
-    { rgb: [0, 0, 0], class_name: 'ansi-black' },
+    { rgb: [85, 85, 85], class_name: 'ansi-black' },
     { rgb: [170, 0, 0], class_name: 'ansi-red' },
     { rgb: [0, 170, 0], class_name: 'ansi-green' },
     { rgb: [170, 85, 0], class_name: 'ansi-yellow' },

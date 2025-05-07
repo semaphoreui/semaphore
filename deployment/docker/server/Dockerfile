@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 as builder
 
 RUN apk add --no-cache -U \
     libc-dev curl nodejs npm git gcc zip unzip tar
@@ -24,9 +24,10 @@ RUN --mount=type=cache,target=/go/pkg \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
 
-ENV OPENTOFU_VERSION="1.7.0"
-ENV TERRAFORM_VERSION="1.10.1"
+ENV OPENTOFU_VERSION="1.9.0"
+ENV TERRAFORM_VERSION="1.11.3"
 #ENV PULUMI_VERSION="3.116.1"
+#ENV POWERSHELL_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
     tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /tmp && \
@@ -36,20 +37,12 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
     unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
     rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 
-#RUN if [ "$TARGETARCH" = "amd64" ]; then \
-#      export PULUMI_ARCH="x64"; \
-#    else \
-#      export PULUMI_ARCH="${TARGETARCH}"; \
-#    fi && \
-#    wget -O pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v${PULUMI_VERSION}/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz
-#RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
-#RUN rm pulumi.tar.gz
-
-FROM alpine:3.19
+FROM alpine:3.21
 
 ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
-ENV ANSIBLE_VERSION 11.1.0
+ARG ANSIBLE_VERSION=11.1.0
+ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U \
@@ -90,6 +83,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      chown -R semaphore:0 /opt/semaphore
 
 USER 1001
+EXPOSE 3000
 
 ENV VIRTUAL_ENV="$ANSIBLE_VENV_PATH"
 ENV PATH="$ANSIBLE_VENV_PATH/bin:$PATH"

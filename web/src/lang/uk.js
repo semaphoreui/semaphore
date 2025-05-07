@@ -169,7 +169,7 @@ export default {
   buildTemplate: 'Шаблон збірки',
   autorun: 'Автоматичний запуск',
   playbookFilename: 'Назва файлу плейбуку *',
-  exampleSiteyml: 'Приклад: site.yml',
+  exampleSiteyml: 'Приклад: deploy/site.yml',
   inventory2: 'Інвентар *',
   repository: 'Репозиторій',
   environment3: 'Середовище *',

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"strings"
 
 	"path"
 	"strconv"
@@ -16,18 +17,17 @@ import (
 )
 
 type LocalJob struct {
-	// Received constant fields
 	Task        db.Task
 	Template    db.Template
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Secret      string
-	Logger      task_logger.Logger
+	Secret      string             // Secret contains secrets received from Survey variables
+	Logger      task_logger.Logger // Logger allows to send logs and status to the server
 
 	App db_lib.LocalApp
 
-	// Internal field
+	killed  bool // killed means that API request to stop the job has been received
 	Process *os.Process
 
 	sshKeyInstallation     db.AccessKeyInstallation
@@ -35,10 +35,17 @@ type LocalJob struct {
 	vaultFileInstallations map[string]db.AccessKeyInstallation
 }
 
+func (t *LocalJob) IsKilled() bool {
+	return t.killed
+}
+
 func (t *LocalJob) Kill() {
+	t.killed = true
+
 	if t.Process == nil {
 		return
 	}
+
 	err := t.Process.Kill()
 	if err != nil {
 		t.Log(err.Error())
@@ -185,22 +192,10 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 		return
 	}
 
-	var templateExtraArgs []string
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the template extra arguments, must be valid JSON")
-			return
-		}
-	}
-
-	var taskExtraArgs []string
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
-			return
-		}
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
 	}
 
 	// Script to run
@@ -214,7 +209,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 	}
 
 	// Include extra args from template
-	args = append(args, templateExtraArgs...)
+	args = append(args, templateArgs...)
 
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
@@ -224,7 +219,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 	}
 
 	// Include extra args from task
-	args = append(args, taskExtraArgs...)
+	args = append(args, taskArgs...)
 
 	return
 }
@@ -258,6 +253,15 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		}
 		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
+
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
+	}
+
+	args = append(args, templateArgs...)
+	args = append(args, taskArgs...)
 
 	for _, secret := range t.Environment.Secrets {
 		if secret.Type != db.EnvironmentSecretVar {
@@ -337,6 +341,13 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		}
 	}
 
+	var tplParams db.AnsibleTemplateParams
+
+	err = t.Template.FillParams(&tplParams)
+	if err != nil {
+		return
+	}
+
 	var params db.AnsibleTaskParams
 
 	err = t.Task.FillParams(&params)
@@ -344,8 +355,16 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		return
 	}
 
-	if params.Debug {
-		args = append(args, "-vvvv")
+	if tplParams.AllowDebug && params.Debug {
+		if params.DebugLevel < 1 {
+			params.DebugLevel = 4
+		}
+
+		if params.DebugLevel > 6 {
+			params.DebugLevel = 6
+		}
+
+		args = append(args, "-"+strings.Repeat("v", params.DebugLevel))
 	}
 
 	if params.Diff {
@@ -381,31 +400,59 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
-	var templateExtraArgs []string
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the template extra arguments, must be valid JSON")
-			return
-		}
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		t.Log(err.Error())
+		return
 	}
 
-	var taskExtraArgs []string
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskExtraArgs)
-		if err != nil {
-			t.Log("Invalid format of the TaskRunner extra arguments, must be valid JSON")
-			return
-		}
+	var limit string
+	var tags string
+	var skipTags string
+
+	// Fill fields from template
+	if len(tplParams.Limit) > 0 {
+		limit = strings.Join(tplParams.Limit, ",")
 	}
 
-	if t.Task.Limit != "" {
-		t.Log("--limit=" + t.Task.Limit)
-		taskExtraArgs = append(taskExtraArgs, "--limit="+t.Task.Limit)
+	if len(tplParams.Tags) > 0 {
+		tags = strings.Join(tplParams.Tags, ",")
 	}
 
-	args = append(args, templateExtraArgs...)
-	args = append(args, taskExtraArgs...)
+	if len(tplParams.SkipTags) > 0 {
+		skipTags = strings.Join(tplParams.SkipTags, ",")
+	}
+
+	// Fill fields from task
+
+	if tplParams.AllowOverrideLimit {
+		limit = strings.Join(params.Limit, ",")
+	}
+
+	if tplParams.AllowOverrideTags {
+		tags = strings.Join(params.Tags, ",")
+	}
+
+	if tplParams.AllowOverrideSkipTags {
+		skipTags = strings.Join(params.SkipTags, ",")
+	}
+
+	// Add final args
+
+	if limit != "" {
+		templateArgs = append(templateArgs, "--limit="+limit)
+	}
+
+	if tags != "" {
+		templateArgs = append(templateArgs, "--tags="+tags)
+	}
+
+	if skipTags != "" {
+		templateArgs = append(templateArgs, "--skip-tags="+skipTags)
+	}
+
+	args = append(args, templateArgs...)
+	args = append(args, taskArgs...)
 	args = append(args, playbookName)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
@@ -417,6 +464,42 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	return
+}
+
+func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
+
+	if t.Template.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
+		if err != nil {
+			err = fmt.Errorf("invalid format of the template extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgs)
+		if err != nil {
+			err = fmt.Errorf("invalid format of the TaskRunner extra arguments, must be valid JSON")
+			return
+		}
+	}
+
+	return
+}
+
+func (t *LocalJob) getTemplateParams() (interface{}, error) {
+	var params interface{}
+	switch t.Template.App {
+	case db.AppAnsible:
+		params = &db.AnsibleTemplateParams{}
+	case db.AppTerraform, db.AppTofu:
+		params = &db.TerraformTemplateParams{}
+	default:
+		return nil, nil
+	}
+
+	err := t.Template.FillParams(params)
+	return params, err
 }
 
 func (t *LocalJob) getParams() (params interface{}, err error) {
@@ -448,6 +531,11 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
 	environmentVariables, err := t.getEnvironmentENV()
+	if err != nil {
+		return
+	}
+
+	tplParams, err := t.getTemplateParams()
 	if err != nil {
 		return
 	}
@@ -503,11 +591,17 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		}
 	}
 
+	if t.killed {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		return nil
+	}
+
 	return t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         args,
 		EnvironmentVars: environmentVariables,
 		Inputs:          inputs,
 		TaskParams:      params,
+		TemplateParams:  tplParams,
 		Callback: func(p *os.Process) {
 			t.Process = p
 		},
@@ -519,7 +613,7 @@ func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) erro
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
-	if err := checkTmpDir(util.Config.TmpPath); err != nil {
+	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
 	}
@@ -556,7 +650,7 @@ func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) erro
 	}
 
 	if err := t.App.InstallRequirements(environmentVars, params); err != nil {
-		t.Log("Running galaxy failed: " + err.Error())
+		t.Log("Failed to install requirements: " + err.Error())
 		return err
 	}
 
@@ -641,7 +735,7 @@ func (t *LocalJob) checkoutRepository() error {
 func (t *LocalJob) installVaultKeyFiles() (err error) {
 	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
 
-	if t.Template.Vaults == nil || len(t.Template.Vaults) == 0 {
+	if len(t.Template.Vaults) == 0 {
 		return nil
 	}
 

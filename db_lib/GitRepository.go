@@ -36,7 +36,7 @@ type GitRepository struct {
 
 func (r GitRepository) GetFullPath() string {
 	if r.TmpDirName != "" {
-		return path.Join(util.Config.TmpPath, r.TmpDirName)
+		return path.Join(util.Config.GetProjectTmpDir(r.Repository.ProjectID), r.TmpDirName)
 	}
 	return r.Repository.GetFullPath(r.TemplateID)
 }

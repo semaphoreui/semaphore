@@ -11,7 +11,7 @@ func (d *BoltDb) GetRunner(projectID int, runnerID int) (runner db.Runner, err e
 	return
 }
 
-func (d *BoltDb) GetRunners(projectID int, activeOnly bool) (runners []db.Runner, err error) {
+func (d *BoltDb) GetRunners(projectID int, activeOnly bool, tag *string) (runners []db.Runner, err error) {
 	runners = make([]db.Runner, 0)
 	return
 }

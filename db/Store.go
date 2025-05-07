@@ -257,14 +257,14 @@ type Store interface {
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
 	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
-	GetIntegrationsByAlias(alias string) ([]Integration, error)
+	GetIntegrationsByAlias(alias string) ([]Integration, IntegrationAliasLevel, error)
 	DeleteIntegrationAlias(projectID int, aliasID int) error
-	GetAllSearchableIntegrations() ([]Integration, error)
 
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
 
+	GetProUserCount() (int, error)
 	GetUserCount() (int, error)
 	GetUsers(params RetrieveQueryParams) ([]User, error)
 	CreateUserWithoutPassword(user User) (User, error)
@@ -275,7 +275,7 @@ type Store interface {
 	// Pwd should be present of you want update user password. Empty Pwd ignored.
 	UpdateUser(user UserWithPwd) error
 	SetUserPassword(userID int, password string) error
-	AddTotpVerification(userID int, url string) (UserTotp, error)
+	AddTotpVerification(userID int, url string, recoveryHash string) (UserTotp, error)
 	DeleteTotpVerification(userID int, totpID int) error
 
 	GetUser(userID int) (User, error)
@@ -294,10 +294,11 @@ type Store interface {
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
+	SetTemplateDescription(projectID int, templateID int, description string) error
 
 	GetSchedules() ([]Schedule, error)
 	GetProjectSchedules(projectID int) ([]ScheduleWithTpl, error)
-	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
+	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
 	SetScheduleCommitHash(projectID int, scheduleID int, hash string) error
@@ -336,10 +337,17 @@ type Store interface {
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
-	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
+	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
+
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
-	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
+	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
+	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
+
+	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
+	GetTaskStagesByType(projectID int, taskID int, stage TaskStageType) ([]TaskStage, error)
+	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
+	GetTaskStageOutputs(projectID int, taskID int, stageID int) ([]TaskOutput, error)
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
@@ -349,14 +357,16 @@ type Store interface {
 	SetViewPositions(projectID int, viewPositions map[int]int) error
 
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int, activeOnly bool) ([]Runner, error)
+	GetRunners(projectID int, activeOnly bool, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
-	GetGlobalRunnerByToken(token string) (Runner, error)
+	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetGlobalRunners(activeOnly bool) ([]Runner, error)
+	GetAllRunners(activeOnly bool, globalOnly bool) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+	TouchRunner(runner Runner) (err error)
+	ClearRunnerCache(runner Runner) (err error)
 
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
@@ -501,6 +511,11 @@ var TaskStageProps = ObjectProps{
 	Type:      reflect.TypeOf(TaskStage{}),
 }
 
+var TaskStageResultProps = ObjectProps{
+	TableName: "task__stage_result",
+	Type:      reflect.TypeOf(TaskStageResult{}),
+}
+
 var ViewProps = ObjectProps{
 	TableName:            "project__view",
 	Type:                 reflect.TypeOf(View{}),
@@ -508,17 +523,13 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
-var RunnerProps = ObjectProps{
-	TableName:         "runner",
-	Type:              reflect.TypeOf(Runner{}),
-	PrimaryColumnName: "id",
-}
-
 var GlobalRunnerProps = ObjectProps{
-	TableName:         "runner",
-	Type:              reflect.TypeOf(Runner{}),
-	PrimaryColumnName: "id",
-	IsGlobal:          true,
+	TableName:            "runner",
+	Type:                 reflect.TypeOf(Runner{}),
+	PrimaryColumnName:    "id",
+	DefaultSortingColumn: "id",
+	SortInverted:         true,
+	IsGlobal:             true,
 }
 
 var OptionProps = ObjectProps{

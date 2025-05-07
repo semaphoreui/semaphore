@@ -3,12 +3,14 @@ package runners
 import (
 	"bufio"
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"io"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
-	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,6 +22,8 @@ type runningJob struct {
 
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
+
+	logWG sync.WaitGroup
 }
 
 func (p *runningJob) AddStatusListener(l task_logger.StatusListener) {
@@ -31,11 +35,11 @@ func (p *runningJob) AddLogListener(l task_logger.LogListener) {
 }
 
 func (p *runningJob) Log(msg string) {
-	p.LogWithTime(time.Now(), msg)
+	p.LogWithTime(tz.Now(), msg)
 }
 
 func (p *runningJob) Logf(format string, a ...any) {
-	p.LogfWithTime(time.Now(), format, a...)
+	p.LogfWithTime(tz.Now(), format, a...)
 }
 
 func (p *runningJob) LogWithTime(now time.Time, msg string) {
@@ -59,8 +63,12 @@ func (p *runningJob) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go p.logPipe(bufio.NewReader(stderr))
-	go p.logPipe(bufio.NewReader(stdout))
+	go p.logPipe(stderr)
+	go p.logPipe(stdout)
+}
+
+func (p *runningJob) WaitLog() {
+	p.logWG.Wait()
 }
 
 func (p *runningJob) SetCommit(hash, message string) {
@@ -83,15 +91,22 @@ func (p *runningJob) SetStatus(status task_logger.TaskStatus) {
 	}
 }
 
-func (p *runningJob) logPipe(reader *bufio.Reader) {
-	line, err := tasks.Readln(reader)
-	for err == nil {
+func (p *runningJob) logPipe(reader io.Reader) {
+	p.logWG.Add(1)
+	defer p.logWG.Done()
+
+	scanner := bufio.NewScanner(reader)
+
+	for scanner.Scan() {
+		line := scanner.Text()
 		p.Log(line)
-		line, err = tasks.Readln(reader)
 	}
 
-	if err != nil && err.Error() != "EOF" {
+	if scanner.Err() != nil && scanner.Err().Error() != "EOF" {
 		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
-		util.LogWarningWithFields(err, log.Fields{"error": "Failed to read TaskRunner output"})
+		log.WithError(scanner.Err()).WithFields(log.Fields{
+			"context": "task_log",
+			"task_id": p.job.Task.ID,
+		}).Debug("failed to read log")
 	}
 }

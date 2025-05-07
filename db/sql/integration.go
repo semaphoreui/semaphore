@@ -87,14 +87,15 @@ func (d *SqlDb) CreateIntegrationExtractValue(projectId int, value db.Integratio
 
 	insertID, err := d.insert("id",
 		"insert into project__integration_extract_value "+
-			"(value_source, body_data_type, `key`, `variable`, `name`, integration_id) values "+
-			"(?, ?, ?, ?, ?, ?)",
+			"(value_source, body_data_type, `key`, `variable`, `name`, integration_id, variable_type) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		value.ValueSource,
 		value.BodyDataType,
 		value.Key,
 		value.Variable,
 		value.Name,
-		value.IntegrationID)
+		value.IntegrationID,
+		value.VariableType)
 
 	if err != nil {
 		return
@@ -145,12 +146,13 @@ func (d *SqlDb) UpdateIntegrationExtractValue(projectID int, integrationExtractV
 	}
 
 	_, err = d.exec(
-		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=? where `id`=?",
+		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=?, `variable_type`=? where `id`=?",
 		integrationExtractValue.ValueSource,
 		integrationExtractValue.BodyDataType,
 		integrationExtractValue.Key,
 		integrationExtractValue.Variable,
 		integrationExtractValue.Name,
+		integrationExtractValue.VariableType,
 		integrationExtractValue.ID)
 
 	return err
@@ -247,20 +249,4 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 		integrationMatcher.ID)
 
 	return err
-}
-
-func (d *SqlDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
-	q := squirrel.Select("*").From(db.IntegrationProps.TableName)
-
-	q = q.Where("searchable")
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	_, err = d.selectAll(&integrations, query, args...)
-
-	return
 }

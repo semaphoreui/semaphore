@@ -11,6 +11,12 @@ Modern UI for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
 
 If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
 
+## Gratitude
+
+Thank you, [Stefan](https://github.com/stefanux) and [steadfasterX](https://github.com/steadfasterX), for supporting the project. Your support is invaluable.
+
+Thank you, [Thomas](https://github.com/tboerger) and [Brian](https://github.com/Omicron7), for excellent contriubutions. You solved issues that no one else would have taken on.
+
 ## Live Demo
 
 Try the latest version of Semaphore at [https://portal.semaphoreui.com](https://portal.semaphoreui.com).
@@ -27,22 +33,26 @@ Semaphore UI allows you to:
 
 ## Key Concepts
 
-1. **Projects** is a collection of related resources, configurations, and tasks. Each project allows you to organize and manage your automation efforts in one place, defining the scope of tasks such as deploying applications, running scripts, or orchestrating cloud resources. Projects help group resources, inventories, task templates, and environments for streamlined automation workflows.
-2. **Task Templates** are reusable definitions of tasks that can be executed on demand or scheduled. A template specifies what actions should be performed, such as running Ansible playbooks, Terraform configurations, or other automation tasks. By using templates, you can standardize tasks and easily re-execute them with minimal effort, ensuring consistent results across different environments.
-3. **Task** is a specific instance of a job or operation executed by Semaphore. It refers to running a predefined action (like an Ansible playbook or a script) using a task template. Tasks can be initiated manually or automatically through schedules and are tracked to give you detailed feedback on the execution, including success, failure, and logs.
-4. **Schedules** allow you to automate task execution at specified times or intervals. This feature is useful for running periodic maintenance tasks, backups, or deployments without manual intervention. You can configure recurring schedules to ensure important automation tasks are performed regularly and on time.
-5. **Inventory** is a collection of target hosts (servers, virtual machines, containers, etc.) on which tasks will be executed. The inventory includes details about the managed nodes such as IP addresses, SSH credentials, and grouping information. It allows for dynamic control over which environments and hosts your automation will interact with.
-6. **Environment** refers to a configuration context that holds sensitive information such as environment variables and secrets used by tasks during execution. It separates sensitive data from task templates and allows you to switch between different setups while running the same task template across different environments securely.
+1. **Projects** is a collection of related resources, configurations, and tasks.
+2. **Task Templates** are reusable definitions of tasks that can be executed on demand or scheduled.
+3. **Task** is a specific instance of a job or operation executed by Semaphore.
+4. **Schedules** allow you to automate task execution at specified times or intervals.
+5. **Inventory** is a collection of target hosts (servers, virtual machines, containers, etc.) on which tasks will be executed.
+6. **Variable Group** refers to a configuration context that holds sensitive information such as environment variables and secrets used by tasks during execution.
 
 ## Getting Started
 
 You can install Semaphore using the following methods:
-* Docker
-* SaaS ([Semaphore Cloud](https://portal.semaphoreui.com))
-* Deploy a VM from a marketplace (AWS, DigitalOcean, etc.)
-* Snap
-* Binary file
-* Debian or RPM package
+* [Docker](https://semaphoreui.com/install/docker)
+* [SaaS](https://portal.semaphoreui.com)
+* Deploy a VM from a marketplace:
+  * [AWS](https://aws.amazon.com/marketplace/pp/prodview-xavlsdkqybxtq)
+  * [DigitalOcean](https://marketplace.digitalocean.com/apps/semaphore?refcode=b55d7c0077b8&action=deploy)
+  * [Vultr](https://www.vultr.com/marketplace/apps/semaphore)
+  * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
+* [Snap](http://snapcraft.io/semaphore)
+* [Binary file](https://semaphoreui.com/install/binary)
+* [Debian or RPM package](https://semaphoreui.com/install/binary)
 
 ### Docker
 
@@ -64,14 +74,6 @@ We recommend using the [Container Configurator](https://semaphoreui.com/install/
 
 We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://portal.semaphoreui.com).
 
-### Deploy VM from Marketplace
-
-Supported cloud providers:
-* [Semaphore Run](https://cloud.semaphore.run/servers/new/semaphore)
-* [AWS](https://aws.amazon.com/marketplace/pp/prodview-5noeat2jipwca)
-* [Yandex Cloud](https://yandex.cloud/en-ru/marketplace/products/fastlix/semaphore)
-* DigitalOcean (coming soon)
-
 ### Other Installation Methods
 
 For more installation options, visit our [Installation page](https://semaphoreui.com/install).
@@ -80,12 +82,13 @@ For more installation options, visit our [Installation page](https://semaphoreui
 
 * [User Guide](https://docs.semaphoreui.com)
 * [API Reference](https://semaphoreui.com/api-docs)
+* [Postman Collection](https://www.postman.com/semaphoreui)
 
 ## Contribution
+
 * [Contribution Guide](https://github.com/semaphoreui/semaphore/blob/develop/CONTRIBUTING.md)
 * [Dev Container](https://codespaces.new/semaphoreui/semaphore) (default user `admin` / `changeme`)
 
 ## License
-MIT © [Denis Gukov](https://github.com/fiftin)
 
-[![sponsor](https://img.shields.io/badge/become_a_sponsor-d9c7ff?style=for-the-badge&logo=github-sponsors)](https://github.com/sponsors/semaphoreui) [![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-0ba0e0?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) [![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui)
+MIT © [Denis Gukov](https://github.com/fiftin)

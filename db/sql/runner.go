@@ -11,7 +11,7 @@ func (d *SqlDb) GetRunner(projectID int, runnerID int) (runner db.Runner, err er
 	return
 }
 
-func (d *SqlDb) GetRunners(projectID int, activeOnly bool) (runners []db.Runner, err error) {
+func (d *SqlDb) GetRunners(projectID int, activeOnly bool, tag *string) (runners []db.Runner, err error) {
 	runners = make([]db.Runner, 0)
 	return
 }

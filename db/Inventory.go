@@ -3,7 +3,6 @@ package db
 type InventoryType string
 
 const (
-	//InventoryNone       InventoryType = "none"
 	InventoryStatic     InventoryType = "static"
 	InventoryStaticYaml InventoryType = "static-yaml"
 	// InventoryFile means that it is path to the Ansible inventory file
@@ -11,6 +10,10 @@ const (
 	InventoryTerraformWorkspace InventoryType = "terraform-workspace"
 	InventoryTofuWorkspace      InventoryType = "tofu-workspace"
 )
+
+func (i InventoryType) IsStatic() bool {
+	return i == InventoryStatic || i == InventoryStaticYaml
+}
 
 // Inventory is the model of an ansible inventory file
 type Inventory struct {

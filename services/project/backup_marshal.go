@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/db"
 	"reflect"
 )
 
@@ -107,7 +108,7 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 
 func setBasicType(data interface{}, v reflect.Value) error {
 	if !v.CanSet() {
-		return fmt.Errorf("cannot set value of type %v", v.Type())
+		return fmt.Errorf("cannot set value")
 	}
 
 	switch v.Kind() {
@@ -212,6 +213,16 @@ func unmarshalValueWithBackupTags(data interface{}, v reflect.Value) error {
 			}
 		}
 		v.Set(slice)
+		return nil
+	}
+
+	if v.Type() == reflect.TypeOf(db.MapStringAnyField{}) {
+		// Data should be a map
+		m, ok := data.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("expected object for map[string]interface{}, got %T", data)
+		}
+		v.Set(reflect.ValueOf(db.MapStringAnyField(m)))
 		return nil
 	}
 

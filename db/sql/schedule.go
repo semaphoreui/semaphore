@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"database/sql"
+	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -63,10 +63,6 @@ func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (template db.Schedule
 		projectID,
 		scheduleID)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
 	return
 }
 
@@ -89,11 +85,23 @@ func (d *SqlDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithT
 	return
 }
 
-func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
-	_, err = d.selectAll(&schedules,
-		"SELECT * FROM project__schedule WHERE project_id=? AND template_id=? AND repository_id IS NOT NULL",
-		projectID,
-		templateID)
+func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) (schedules []db.Schedule, err error) {
+
+	q := squirrel.Select("*").
+		From("project__schedule").
+		Where("project_id=?", projectID).
+		Where("template_id=?", templateID)
+
+	if onlyCommitCheckers {
+		q = q.Where("repository_id IS NOT NULL")
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&schedules, query, args...)
 	return
 }
 
