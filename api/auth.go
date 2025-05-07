@@ -65,25 +65,6 @@ type totpRequestBody struct {
 	Passcode string `json:"passcode"`
 }
 
-func startEmailVerification(w http.ResponseWriter, r *http.Request) {
-	session, ok := getSession(r)
-
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	store := helpers.Store(r)
-
-	err := store.SetSessionVerificationMethod(session.UserID, session.ID, db.SessionVerificationEmail)
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
-	// TODO: send email code
-}
-
 type totpRecoveryRequestBody struct {
 	RecoveryCode string `json:"recovery_code"`
 }
@@ -170,7 +151,6 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// nolint: gocyclo
 func verifySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
 
@@ -181,10 +161,8 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationEmail:
-		// TODO: implement email verification
-		if !util.Config.Auth.Email.Enabled {
-			helpers.WriteErrorStatus(w, "EMAIL_VERIFICATION_DISABLED", http.StatusForbidden)
-		}
+		verifySessionByEmail(w, r)
+		return
 
 	case db.SessionVerificationTotp:
 		if !util.Config.Auth.Totp.Enabled {
