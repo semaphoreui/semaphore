@@ -132,21 +132,9 @@ type TLSConfig struct {
 	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
 }
 
-type EmailAuthConfig struct {
-	Enabled                  bool     `json:"enabled" env:"SEMAPHORE_EMAIL_2TP_ENABLED"`
-	AllowLoginAsExternalUser bool     `json:"allow_login_as_external_user" env:"SEMAPHORE_EMAIL_2TP_ALLOW_LOGIN_AS_EXTERNAL_USER"`
-	AllowCreateExternalUsers bool     `json:"allow_create_external_user" env:"SEMAPHORE_EMAIL_2TP_ALLOW_CREATE_EXTERNAL_USER"`
-	AllowedDomains           []string `json:"allowed_domains" env:"SEMAPHORE_EMAIL_2TP_ALLOWED_DOMAINS"`
-}
-
 type TotpConfig struct {
 	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
 	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
-}
-
-type AuthConfig struct {
-	Totp  *TotpConfig      `json:"totp,omitempty"`
-	Email *EmailAuthConfig `json:"email,omitempty"`
 }
 
 type EventLogType struct {
