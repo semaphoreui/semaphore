@@ -9,5 +9,4 @@ create table user__totp(
 );
 
 alter table `session` add column verification_method int not null default 0;
-alter table `session` add column verification_data text;
 alter table `session` add column verified boolean not null default false;
