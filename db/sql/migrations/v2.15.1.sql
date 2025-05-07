@@ -1,4 +1,4 @@
-create table user__email(
+create table user__email_otp(
    `id` integer primary key autoincrement,
    `user_id` int NOT NULL,
    `code` varchar(250) NOT NULL,
@@ -6,3 +6,5 @@ create table user__email(
    unique (`code`),
    foreign key (`user_id`) references `user`(`id`) on delete cascade
 );
+
+alter table `user` add `mfa_method` varchar(20);

@@ -133,7 +133,10 @@ type TLSConfig struct {
 }
 
 type EmailAuthConfig struct {
-	Enabled bool `json:"enabled" env:"SEMAPHORE_EMAIL_2TP_ENABLED"`
+	Enabled                  bool     `json:"enabled" env:"SEMAPHORE_EMAIL_2TP_ENABLED"`
+	AllowLoginAsExternalUser bool     `json:"allow_login_as_external_user" env:"SEMAPHORE_EMAIL_2TP_ALLOW_LOGIN_AS_EXTERNAL_USER"`
+	AllowCreateExternalUsers bool     `json:"allow_create_external_user" env:"SEMAPHORE_EMAIL_2TP_ALLOW_CREATE_EXTERNAL_USER"`
+	AllowedDomains           []string `json:"allowed_domains" env:"SEMAPHORE_EMAIL_2TP_ALLOWED_DOMAINS"`
 }
 
 type TotpConfig struct {
@@ -141,15 +144,9 @@ type TotpConfig struct {
 	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
 }
 
-type RecaptchaConfig struct {
-	Enabled string `json:"enabled,omitempty" env:"SEMAPHORE_RECAPTCHA_ENABLED"`
-	SiteKey string `json:"site_key,omitempty" env:"SEMAPHORE_RECAPTCHA_SITE_KEY"`
-}
-
 type AuthConfig struct {
-	Recaptcha *RecaptchaConfig `json:"recaptcha,omitempty"`
-	Totp      *TotpConfig      `json:"totp,omitempty"`
-	Email     *EmailAuthConfig `json:"email,omitempty"`
+	Totp  *TotpConfig      `json:"totp,omitempty"`
+	Email *EmailAuthConfig `json:"email,omitempty"`
 }
 
 type EventLogType struct {
