@@ -182,6 +182,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	switch session.VerificationMethod {
 	case db.SessionVerificationEmail:
 		// TODO: implement email verification
+		if !util.Config.Auth.Email.Enabled {
+			helpers.WriteErrorStatus(w, "EMAIL_VERIFICATION_DISABLED", http.StatusForbidden)
+		}
+
 	case db.SessionVerificationTotp:
 		if !util.Config.Auth.Totp.Enabled {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
