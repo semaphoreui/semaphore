@@ -384,13 +384,23 @@ export default {
   },
 
   props: {
-    webHost: String,
-    version: String,
+    systemInfo: Object,
     projectId: Number,
-    premiumFeatures: Object,
   },
 
   computed: {
+    webHost() {
+      return this.systemInfo?.web_host || '';
+    },
+
+    premiumFeatures() {
+      return this.systemInfo?.premium_features || {};
+    },
+
+    version() {
+      return (this.systemInfo?.version || '').split('-')[0];
+    },
+
     itemProjectId() {
       return this.getProjectIdOfItem(this.itemId);
     },

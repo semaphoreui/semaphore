@@ -23,6 +23,14 @@ tags:
   - name: integration
     description: Integration API
 paths:
+  /debug/gc:
+    post:
+      summary: Garbage collector
+      description: Run the garbage collector
+      responses:
+        '204':
+          description: Successful "OK" reply
+
   "/ping":
     get:
       summary: PING test
@@ -2233,6 +2241,11 @@ components:
         variable:
           type: string
           example: variable
+        variable_type:
+          type: string
+          enum:
+            - environment
+            - task
     IntegrationExtractValue:
       type: object
       properties:
@@ -2258,6 +2271,11 @@ components:
         variable:
           type: string
           example: variable
+        variable_type:
+          type: string
+          enum:
+            - environment
+            - task
         integration_id:
           type: integer
     IntegrationMatcherRequest:

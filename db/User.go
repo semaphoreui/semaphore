@@ -29,6 +29,13 @@ type UserTotp struct {
 	RecoveryCode string    `db:"-" json:"recovery_code,omitempty"`
 }
 
+type UserEmailOtp struct {
+	ID      int       `db:"id" json:"id"`
+	Created time.Time `db:"created" json:"created"`
+	UserID  int       `db:"user_id" json:"user_id"`
+	Code    string    `db:"code" json:"code"`
+}
+
 type UserWithProjectRole struct {
 	Role ProjectUserRole `db:"role" json:"role"`
 	User

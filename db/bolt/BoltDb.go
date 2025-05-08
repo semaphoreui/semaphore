@@ -94,10 +94,6 @@ func makeBucketId(props db.ObjectProps, ids ...int) []byte {
 	return []byte(id)
 }
 
-func (d *BoltDb) Migrate() error {
-	return nil
-}
-
 func (d *BoltDb) openDbFile() {
 	var filename string
 	if d.Filename == "" {
@@ -210,19 +206,23 @@ func (d *BoltDb) IsInitialized() (initialized bool, err error) {
 	return
 }
 
+func (d *BoltDb) getObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, objectID objectID, object interface{}) (err error) {
+	b := tx.Bucket(makeBucketId(props, bucketID))
+	if b == nil {
+		return db.ErrNotFound
+	}
+
+	str := b.Get(objectID.ToBytes())
+	if str == nil {
+		return db.ErrNotFound
+	}
+
+	return unmarshalObject(str, object, props.SelectColumns)
+}
+
 func (d *BoltDb) getObject(bucketID int, props db.ObjectProps, objectID objectID, object interface{}) (err error) {
 	err = d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-
-		str := b.Get(objectID.ToBytes())
-		if str == nil {
-			return db.ErrNotFound
-		}
-
-		return unmarshalObject(str, object, props.SelectColumns)
+		return d.getObjectTx(tx, bucketID, props, objectID, object)
 	})
 
 	return
@@ -997,6 +997,10 @@ func CreateTestStore() *BoltDb {
 	util.Config = &util.ConfigType{
 		BoltDb:  &util.DbConfig{},
 		Dialect: "bolt",
+		Log: &util.ConfigLog{
+			Events: &util.EventLogType{},
+			Tasks:  &util.TaskLogType{},
+		},
 	}
 
 	fn := "/tmp/test_semaphore_db_" + util.RandString(5)

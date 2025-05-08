@@ -5,10 +5,10 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
-	"time"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
-func (d *SqlDb) GetGlobalRunnerByToken(token string) (runner db.Runner, err error) {
+func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {
 
 	runners := make([]db.Runner, 0)
 
@@ -59,14 +59,14 @@ func (d *SqlDb) ClearRunnerCache(runner db.Runner) (err error) {
 	if runner.ProjectID == nil {
 		_, err = d.exec(
 			"update `runner` set `cleaning_requested`=? where id=?",
-			time.Now().UTC(),
+			tz.Now(),
 			runner.ID)
 		return
 	}
 
 	_, err = d.exec(
 		"update `runner` set `cleaning_requested`=? where id=? and project_id=?",
-		time.Now().UTC(),
+		tz.Now(),
 		runner.ID,
 		runner.ProjectID)
 
@@ -77,14 +77,14 @@ func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
 	if runner.ProjectID == nil {
 		_, err = d.exec(
 			"update `runner` set `touched`=? where id=?",
-			time.Now().UTC(),
+			tz.Now(),
 			runner.ID)
 		return
 	}
 
 	_, err = d.exec(
 		"update `runner` set `touched`=? where id=? and project_id=?",
-		time.Now().UTC(),
+		tz.Now(),
 		runner.ID,
 		runner.ProjectID)
 

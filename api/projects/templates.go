@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	log "github.com/sirupsen/logrus"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -149,6 +148,34 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusCreated, newTemplate)
 }
 
+func UpdateTemplateDescription(w http.ResponseWriter, r *http.Request) {
+	template := context.Get(r, "template").(db.Template)
+
+	var tpl struct {
+		Description string `json:"description"`
+	}
+
+	if !helpers.Bind(w, r, &tpl) {
+		return
+	}
+
+	err := helpers.Store(r).SetTemplateDescription(template.ProjectID, template.ID, tpl.Description)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   template.ProjectID,
+		ObjectType:  db.EventTemplate,
+		ObjectID:    template.ID,
+		Description: fmt.Sprintf("Template ID %d description updated", template.ID),
+	})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // UpdateTemplate writes a template to an existing key in the database
 func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	oldTemplate := context.Get(r, "template").(db.Template)
@@ -204,10 +231,6 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    oldTemplate.ID,
 		Description: fmt.Sprintf("Template ID %d updated", template.ID),
 	})
-
-	if err != nil {
-		log.Error(err)
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

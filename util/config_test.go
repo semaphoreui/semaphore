@@ -388,6 +388,7 @@ func TestValidateConfig(t *testing.T) {
 	var testDbDialect = DbDriverBolt
 	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
 	var testMaxParallelTasks = 0
+	var testEmailTlsMinVersion = "1.2"
 
 	Config.Port = testPort
 	Config.Dialect = testDbDialect
@@ -396,6 +397,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.GitClientId = GoGitClientId
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
+	Config.EmailTlsMinVersion = testEmailTlsMinVersion
 	validateConfig()
 
 	Config.Port = "INVALID"

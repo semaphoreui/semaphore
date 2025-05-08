@@ -32,7 +32,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 
 		store := helpers.Store(r)
 
-		runner, err := store.GetGlobalRunnerByToken(token)
+		runner, err := store.GetRunnerByToken(token)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
@@ -99,7 +99,10 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).TouchRunner(runner)
 	if err != nil {
-		log.Error(err)
+		log.WithFields(log.Fields{
+			"runner_id": runner.ID,
+			"context":   "runner",
+		}).WithError(err).Error("runner touch failed")
 		helpers.WriteError(w, err)
 		return
 	}

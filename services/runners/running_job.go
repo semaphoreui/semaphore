@@ -3,6 +3,7 @@ package runners
 import (
 	"bufio"
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"io"
 	"os/exec"
 	"sync"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
-	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,11 +35,11 @@ func (p *runningJob) AddLogListener(l task_logger.LogListener) {
 }
 
 func (p *runningJob) Log(msg string) {
-	p.LogWithTime(time.Now().UTC(), msg)
+	p.LogWithTime(tz.Now(), msg)
 }
 
 func (p *runningJob) Logf(format string, a ...any) {
-	p.LogfWithTime(time.Now().UTC(), format, a...)
+	p.LogfWithTime(tz.Now(), format, a...)
 }
 
 func (p *runningJob) LogWithTime(now time.Time, msg string) {
@@ -104,6 +104,9 @@ func (p *runningJob) logPipe(reader io.Reader) {
 
 	if scanner.Err() != nil && scanner.Err().Error() != "EOF" {
 		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
-		util.LogWarningF(scanner.Err(), log.Fields{"error": "Failed to read TaskRunner output"})
+		log.WithError(scanner.Err()).WithFields(log.Fields{
+			"context": "task_log",
+			"task_id": p.job.Task.ID,
+		}).Debug("failed to read log")
 	}
 }

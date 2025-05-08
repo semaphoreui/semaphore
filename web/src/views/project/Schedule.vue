@@ -15,6 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :timezone="systemInfo.schedule_timezone || 'UTC'"
         />
       </template>
     </EditDialog>
@@ -117,6 +118,9 @@ import axios from 'axios';
 export default {
   components: { TaskList, ScheduleForm },
   mixins: [ItemListPageBase],
+  props: {
+    systemInfo: Object,
+  },
   data() {
     return {
       openedItems: [],

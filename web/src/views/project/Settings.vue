@@ -49,6 +49,7 @@
               @click="backupProject"
               :disabled="backupProgress"
               min-width="170"
+              data-testid="settings-exportProject"
             >{{ $t('backup') }}
             </v-btn>
 
@@ -79,6 +80,7 @@
               @click="clearCache"
               :disabled="clearCacheProgress"
               min-width="170"
+              data-testid="settings-clearCache"
             >{{ $t('clear_cache') }}</v-btn>
 
             <v-progress-linear
@@ -106,6 +108,7 @@
               color="error"
               min-width="170"
               @click="deleteProjectDialog = true"
+              data-testid="settings-deleteProject"
             >{{ $t('deleteProject2') }}
             </v-btn>
           </v-col>

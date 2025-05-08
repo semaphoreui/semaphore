@@ -158,7 +158,7 @@ export default {
   duration: 'Duur',
   stop: 'Stop',
   forceStop: 'Force Stop',
-  rawLog: 'Ruwe log',
+  raw_log: 'Ruwe log',
 
   confirmTask: 'Bevestigen',
   deleteTeamMember: 'Teamlid Verwijderen',

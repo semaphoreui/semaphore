@@ -19,7 +19,6 @@ func getSession(r *http.Request) (*db.Session, bool) {
 	// fetch session from cookie
 	cookie, err := r.Cookie("semaphore")
 	if err != nil {
-		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
 
@@ -55,7 +54,6 @@ func getSession(r *http.Request) (*db.Session, bool) {
 			log.Error(err)
 		}
 
-		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
 
@@ -71,6 +69,28 @@ type totpRecoveryRequestBody struct {
 	RecoveryCode string `json:"recovery_code"`
 }
 
+// recoverySession handles the recovery of a user session using a recovery code.
+// It validates the recovery code provided by the user and, if valid, verifies the session.
+// If the recovery code is invalid or recovery is not allowed, it returns an appropriate HTTP status code.
+//
+// HTTP Request:
+// - Method: POST
+// - Body: JSON object containing the recovery code (e.g., {"recovery_code": "code"}).
+//
+// Responses:
+// - 204 No Content: Recovery successful, session verified.
+// - 400 Bad Request: Invalid request body or user does not have TOTP enabled.
+// - 401 Unauthorized: Invalid recovery code or session not found.
+// - 403 Forbidden: TOTP recovery is disabled.
+// - 500 Internal Server Error: An unexpected error occurred.
+//
+// Preconditions:
+// - The session must exist and be valid.
+// - TOTP recovery must be enabled in the configuration.
+//
+// Parameters:
+// - w: The HTTP response writer.
+// - r: The HTTP request.
 func recoverySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
 
@@ -131,7 +151,6 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// nolint: gocyclo
 func verifySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
 
@@ -141,6 +160,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch session.VerificationMethod {
+	case db.SessionVerificationEmail:
+		verifySessionByEmail(w, r)
+		return
+
 	case db.SessionVerificationTotp:
 		if !util.Config.Auth.Totp.Enabled {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)

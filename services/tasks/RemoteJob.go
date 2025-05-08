@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"net/http"
 	"time"
 
@@ -16,6 +18,7 @@ type RemoteJob struct {
 	RunnerTag *string
 	Task      db.Task
 	taskPool  *TaskPool
+	killed    bool
 }
 
 type runnerWebhookPayload struct {
@@ -30,6 +33,12 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if runner.Webhook == "" {
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"runner_id": runner.ID,
+		"task_id":   tsk.Task.ID,
+		"action":    action,
+	}).Infof("Calling runner webhook")
 
 	var jsonBytes []byte
 	jsonBytes, err = json.Marshal(runnerWebhookPayload{
@@ -63,6 +72,12 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		err = fmt.Errorf("webhook returned incorrect status")
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"runner_id": runner.ID,
+		"task_id":   tsk.Task.ID,
+		"action":    action,
+	}).Infof("Runner webhook returned %d", resp.StatusCode)
 
 	return
 }
@@ -127,12 +142,12 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	tsk.RunnerID = runner.ID
 
-	startTime := time.Now()
+	startTime := tz.Now()
 
 	taskTimedOut := false
 
 	for {
-		if util.Config.MaxTaskDurationSec > 0 && int(time.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
+		if util.Config.MaxTaskDurationSec > 0 && int(tz.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
 			taskTimedOut = true
 			break
 		}
@@ -162,5 +177,10 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 }
 
 func (t *RemoteJob) Kill() {
+	t.killed = true
 	// Do nothing because you can't kill remote process
+}
+
+func (t *RemoteJob) IsKilled() bool {
+	return t.killed
 }

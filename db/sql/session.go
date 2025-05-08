@@ -4,9 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"regexp"
-	"time"
 )
+
+func (d *SqlDb) SetSessionVerificationMethod(userID int, sessionID int, verificationMethod db.SessionVerificationMethod) error {
+	return nil
+}
 
 func (d *SqlDb) VerifySession(userID int, sessionID int) error {
 	_, err := d.exec("update session set verified = true where id=? and user_id=?", sessionID, userID)
@@ -20,7 +24,7 @@ func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
 }
 
 func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
-	token.Created = db.GetParsedTime(time.Now().UTC())
+	token.Created = db.GetParsedTime(tz.Now())
 	err := d.sql.Insert(&token)
 	return token, err
 }
@@ -61,13 +65,13 @@ func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err e
 }
 
 func (d *SqlDb) ExpireSession(userID int, sessionID int) error {
-	res, err := d.exec("update session set expired=1 where id=? and user_id=?", sessionID, userID)
+	res, err := d.exec("update session set expired=true where id=? and user_id=?", sessionID, userID)
 
 	return validateMutationResult(res, err)
 }
 
 func (d *SqlDb) TouchSession(userID int, sessionID int) error {
-	_, err := d.exec("update session set last_active=? where id=? and user_id=?", time.Now().UTC(), sessionID, userID)
+	_, err := d.exec("update session set last_active=? where id=? and user_id=?", tz.Now(), sessionID, userID)
 
 	return err
 }

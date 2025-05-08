@@ -33,7 +33,7 @@
             <v-list-item class="pa-0">
               <v-list-item-content>
                 <div class="pr-4">
-                  <TaskStatus :status="item.status"/>
+                  <TaskStatus :status="item.status" data-testid="task-status" />
                 </div>
               </v-list-item-content>
             </v-list-item>
@@ -132,7 +132,8 @@
       class="task-log-action-button"
       style="right: 20px; width: 150px;"
       target="_blank"
-    >{{ $t('rawLog') }}</v-btn>
+      data-testid="task-rawLog"
+    >{{ $t('raw_log') }}</v-btn>
 
   </div>
 </template>
@@ -206,17 +207,21 @@ import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
 import VirtualList from 'vue-virtual-scroll-list';
 import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
+import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
   components: { TaskStatus, VirtualList },
+
+  mixins: [ProjectMixin],
+
   props: {
-    itemId: Number,
+    item: Object,
     projectId: Number,
   },
+
   data() {
     return {
       itemComponent: TaskLogViewRecord,
-      item: {},
       output: [],
       outputBuffer: [],
       user: {},
@@ -237,6 +242,10 @@ export default {
   },
 
   computed: {
+    itemId() {
+      return this.item?.id;
+    },
+
     isTaskStopped() {
       return [
         'stopped',
@@ -333,7 +342,6 @@ export default {
     },
 
     reset() {
-      this.item = {};
       this.output = [];
       this.outputBuffer = [];
       this.outputInterval = null;
@@ -357,13 +365,6 @@ export default {
             ...data,
             id: data.time + data.output,
           });
-
-          // this.$nextTick(() => {
-          //   if (this.$refs.records) {
-          //     this.$refs.records.scrollToBottom();
-          //   }
-          // });
-
           break;
         default:
           break;
@@ -371,26 +372,26 @@ export default {
     },
 
     async loadData() {
-      this.item = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/${this.itemId}`,
-        responseType: 'json',
-      })).data;
+      [
+        this.output,
+        this.user,
+      ] = await Promise.all([
 
-      this.output = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
-        responseType: 'json',
-      })).data.map((item) => ({
-        ...item,
-        id: item.time + item.output,
-      }));
+        (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/tasks/${this.itemId}/output`,
+          responseType: 'json',
+        })).data.map((item) => ({
+          ...item,
+          id: item.time + item.output,
+        })),
 
-      this.user = this.item.user_id ? (await axios({
-        method: 'get',
-        url: `/api/users/${this.item.user_id}`,
-        responseType: 'json',
-      })).data : null;
+        this.item.user_id ? (await axios({
+          method: 'get',
+          url: `/api/users/${this.item.user_id}`,
+          responseType: 'json',
+        })).data : null,
+      ]);
     },
   },
 };

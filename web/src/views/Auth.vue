@@ -174,6 +174,7 @@
                 required
                 :disabled="signInProcess"
                 v-if="loginWithPassword"
+                data-testid="auth-username"
               ></v-text-field>
 
               <v-text-field
@@ -186,6 +187,7 @@
                 @keyup.enter.native="signIn"
                 style="margin-bottom: 20px;"
                 v-if="loginWithPassword"
+                data-testid="auth-password"
               ></v-text-field>
 
               <v-btn
@@ -196,6 +198,7 @@
                 block
                 v-if="loginWithPassword"
                 rounded
+                data-testid="auth-signin"
               >
                 {{ $t('signIn') }}
               </v-btn>
@@ -267,6 +270,7 @@
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
+import EventBus from '@/event-bus';
 
 export default {
   data() {
@@ -348,14 +352,21 @@ export default {
     },
 
     async signOut() {
-      (await axios({
-        method: 'post',
-        url: '/api/auth/logout',
-        responseType: 'json',
-      }));
+      try {
+        (await axios({
+          method: 'post',
+          url: '/api/auth/logout',
+          responseType: 'json',
+        }));
 
-      const { location } = document;
-      document.location = location;
+        const { location } = document;
+        document.location = location;
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(e),
+        });
+      }
     },
 
     makePasswordExample() {

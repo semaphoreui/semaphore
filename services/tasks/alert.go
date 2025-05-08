@@ -92,6 +92,7 @@ func (t *TaskRunner) sendMailAlert() {
 
 		if err := mailer.Send(
 			util.Config.EmailSecure,
+			util.Config.EmailTls,
 			util.Config.EmailHost,
 			util.Config.EmailPort,
 			util.Config.EmailUsername,

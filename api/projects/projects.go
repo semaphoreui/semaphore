@@ -249,6 +249,22 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	}
 
 	template, err = store.CreateTemplate(db.Template{
+		Name:            "Apply infrastructure (Terragrunt)",
+		Type:            db.TemplateTask,
+		Playbook:        "",
+		ProjectID:       projectID,
+		EnvironmentID:   &emptyEnvID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
+		App:             db.AppTerragrunt,
+		ViewID:          &buildView.ID,
+	})
+
+	if err != nil {
+		return
+	}
+
+	template, err = store.CreateTemplate(db.Template{
 		Name:            "Print system info (Bash)",
 		Type:            db.TemplateTask,
 		Playbook:        "print_system_info.sh",

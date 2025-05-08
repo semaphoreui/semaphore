@@ -134,6 +134,7 @@ export default {
   addVariable: 'Add variable',
   vaultName: 'Vault ID (optional)',
   vaultNameDefault: 'Only one `default` (empty) name may exist',
+  default_value: 'Default value',
   vaultNameUnique: 'Must be unique',
   vaultTypePassword: 'Password',
   vaultTypeScript: 'Client Script',
@@ -158,7 +159,7 @@ export default {
   duration: 'Duration',
   stop: 'Stop',
   forceStop: 'Force Stop',
-  rawLog: 'Raw log',
+  raw_log: 'Raw log',
 
   confirmTask: 'Confirm',
   deleteTeamMember: 'Delete team member',
@@ -319,8 +320,9 @@ export default {
 
   api_tokens: 'API Tokens',
 
-  // Terraform/OpenTofu
+  // Terraform/OpenTofu/Terragrunt
   auto_approve: 'Auto approve',
+  auto_destroy: 'Allow destroy',
 
   // Ansible
   tag: 'Tag',
@@ -345,4 +347,8 @@ export default {
   project_stats: 'Stats',
   allow_override_branch: 'Branch',
   template_common_options: 'Common options',
+
+  template_tasks: 'Tasks',
+  template_details: 'Details',
+  template_tf_workspaces: 'Workspaces',
 };

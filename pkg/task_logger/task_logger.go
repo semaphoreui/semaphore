@@ -2,7 +2,6 @@ package task_logger
 
 import (
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -53,8 +52,34 @@ func (s TaskStatus) Format() (res string) {
 		res += "⏹️"
 	case TaskWaitingConfirmation:
 		res += "⚠️"
+	default:
+		res += "❓"
 	}
-	res += strings.ToUpper(string(s))
+
+	switch s {
+	case TaskWaitingStatus:
+		res += "WAITING"
+	case TaskStartingStatus:
+		res += "STARTING"
+	case TaskWaitingConfirmation:
+		res += "WAITING_CONFIRMATION"
+	case TaskConfirmed:
+		res += "CONFIRMED"
+	case TaskRejected:
+		res += "REJECTED"
+	case TaskRunningStatus:
+		res += "RUNNING"
+	case TaskStoppingStatus:
+		res += "STOPPING"
+	case TaskStoppedStatus:
+		res += "STOPPED"
+	case TaskSuccessStatus:
+		res += "SUCCESS"
+	case TaskFailStatus:
+		res += "ERROR"
+	default:
+		res += "UNKNOWN"
+	}
 
 	return
 }

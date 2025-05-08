@@ -285,10 +285,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   integrate-mysql:
     runs-on: ubuntu-latest
@@ -366,10 +366,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   integrate-mariadb:
     runs-on: ubuntu-latest
@@ -447,10 +447,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   integrate-postgres:
     runs-on: ubuntu-latest
@@ -527,10 +527,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   deploy-server:
     runs-on: ubuntu-latest

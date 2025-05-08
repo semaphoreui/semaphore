@@ -44,6 +44,31 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	return d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
 }
 
+func (d *BoltDb) setTemplateDescriptionTx(projectID int, templateID int, description string, tx *bbolt.Tx) error {
+
+	template, err := d.getRawTemplateTx(projectID, templateID, tx)
+	if err != nil {
+		return err
+	}
+	if description == "" {
+		template.Description = nil
+	} else {
+		template.Description = &description
+	}
+
+	err = d.updateObjectTx(tx, projectID, db.TemplateProps, template)
+
+	return err
+}
+
+func (d *BoltDb) SetTemplateDescription(projectID int, templateID int, description string) error {
+	err := d.db.Update(func(tx *bbolt.Tx) error {
+		return d.setTemplateDescriptionTx(projectID, templateID, description, tx)
+	})
+
+	return err
+}
+
 func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	var ftr = func(tpl interface{}) bool {
 		template := tpl.(db.Template)
@@ -128,6 +153,11 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	return
 }
 
+func (d *BoltDb) getRawTemplateTx(projectID int, templateID int, tx *bbolt.Tx) (template db.Template, err error) {
+	err = d.getObjectTx(tx, projectID, db.TemplateProps, intObjectID(templateID), &template)
+	return
+}
+
 func (d *BoltDb) getRawTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
 	return
@@ -164,7 +194,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		}
 	}
 
-	schedules, err := d.GetTemplateSchedules(projectID, templateID)
+	schedules, err := d.GetTemplateSchedules(projectID, templateID, false)
 	if err != nil {
 		return
 	}

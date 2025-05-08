@@ -1,18 +1,17 @@
 package bolt
 
 import (
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"sort"
 	"testing"
-	"time"
-
-	"github.com/semaphoreui/semaphore/db"
 )
 
 func TestGetViews(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now().UTC(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -55,7 +54,7 @@ func TestSetViewPositions(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now().UTC(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -132,7 +131,7 @@ func TestGetView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now().UTC(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -165,7 +164,7 @@ func TestUpdateView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now().UTC(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -205,7 +204,7 @@ func TestCreateView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now().UTC(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -238,7 +237,7 @@ func TestDeleteView(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now().UTC(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 

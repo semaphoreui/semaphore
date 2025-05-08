@@ -17,18 +17,17 @@ import (
 )
 
 type LocalJob struct {
-	// Received constant fields
 	Task        db.Task
 	Template    db.Template
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Secret      string
-	Logger      task_logger.Logger
+	Secret      string             // Secret contains secrets received from Survey variables
+	Logger      task_logger.Logger // Logger allows to send logs and status to the server
 
 	App db_lib.LocalApp
 
-	// Internal field
+	killed  bool // killed means that API request to stop the job has been received
 	Process *os.Process
 
 	sshKeyInstallation     db.AccessKeyInstallation
@@ -36,10 +35,17 @@ type LocalJob struct {
 	vaultFileInstallations map[string]db.AccessKeyInstallation
 }
 
+func (t *LocalJob) IsKilled() bool {
+	return t.killed
+}
+
 func (t *LocalJob) Kill() {
+	t.killed = true
+
 	if t.Process == nil {
 		return
 	}
+
 	err := t.Process.Kill()
 	if err != nil {
 		t.Log(err.Error())
@@ -350,7 +356,15 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	}
 
 	if tplParams.AllowDebug && params.Debug {
-		args = append(args, "-vvvv")
+		if params.DebugLevel < 1 {
+			params.DebugLevel = 4
+		}
+
+		if params.DebugLevel > 6 {
+			params.DebugLevel = 6
+		}
+
+		args = append(args, "-"+strings.Repeat("v", params.DebugLevel))
 	}
 
 	if params.Diff {
@@ -478,7 +492,7 @@ func (t *LocalJob) getTemplateParams() (interface{}, error) {
 	switch t.Template.App {
 	case db.AppAnsible:
 		params = &db.AnsibleTemplateParams{}
-	case db.AppTerraform, db.AppTofu:
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		params = &db.TerraformTemplateParams{}
 	default:
 		return nil, nil
@@ -492,7 +506,7 @@ func (t *LocalJob) getParams() (params interface{}, err error) {
 	switch t.Template.App {
 	case db.AppAnsible:
 		params = &db.AnsibleTaskParams{}
-	case db.AppTerraform, db.AppTofu:
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		params = &db.TerraformTaskParams{}
 	default:
 		params = &db.DefaultTaskParams{}
@@ -546,7 +560,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	switch t.Template.App {
 	case db.AppAnsible:
 		args, inputs, err = t.getPlaybookArgs(username, incomingVersion)
-	case db.AppTerraform, db.AppTofu:
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		args, err = t.getTerraformArgs(username, incomingVersion)
 	default:
 		args, err = t.getShellArgs(username, incomingVersion)
@@ -577,6 +591,11 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		}
 	}
 
+	if t.killed {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		return nil
+	}
+
 	return t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         args,
 		EnvironmentVars: environmentVariables,
@@ -593,7 +612,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 func (t *LocalJob) prepareRun(environmentVars []string, params interface{}) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
-	
+
 	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err

@@ -15,9 +15,6 @@ import (
 )
 
 func TestTaskRunnerRun(t *testing.T) {
-	util.Config = &util.ConfigType{
-		TmpPath: "/tmp",
-	}
 
 	store := bolt.CreateTestStore()
 

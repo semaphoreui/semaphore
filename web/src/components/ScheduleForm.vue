@@ -22,7 +22,7 @@
       class="mb-4"
     ></v-text-field>
 
-    <v-select
+    <v-autocomplete
       v-model="item.template_id"
       :label="$t('Template')"
       :items="templates"
@@ -46,6 +46,7 @@
       required
       :disabled="formSaving"
       @input="refreshCheckboxes()"
+      :suffix="timezone + ' time'"
     ></v-text-field>
 
     <div v-if="!rawCron">
@@ -66,7 +67,8 @@
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="m in MONTHS" :key="m.id"
+            v-for="m in MONTHS"
+            :key="m.id"
             :value="m.id"
             :label="m.title"
             v-model="months"
@@ -111,7 +113,10 @@
       </div>
 
       <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
-        <div class="mt-4">Hours</div>
+        <div class="mt-4 d-flex justify-space-between">
+          <span>Hours</span>
+          <b style="color: red;">{{ timezone + ' time' }}</b>
+        </div>
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"
@@ -328,15 +333,28 @@ export default {
     })).data;
   },
 
+  props: {
+    timezone: String,
+  },
+
   methods: {
     nextRunTime() {
-      return parser.parseExpression(this.item.cron_format).next().toString();
+      return parser.parseExpression(this.item.cron_format, {
+        tz: this.timezone,
+      }).next().toString();
     },
 
     refreshCheckboxes() {
       const fields = JSON.parse(
-        JSON.stringify(parser.parseExpression(this.item.cron_format).fields),
+        JSON.stringify(parser.parseExpression(this.item.cron_format, {
+          tz: this.timezone,
+        }).fields),
       );
+
+      this.months = [];
+      this.weekdays = [];
+      this.hours = [];
+      this.minutes = [];
 
       if (this.isHourly(this.item.cron_format)) {
         this.minutes = fields.minute;
@@ -356,7 +374,6 @@ export default {
         this.weekdays = fields.dayOfWeek;
         this.timing = 'weekly';
       } else {
-        this.months = [];
         this.weekdays = [];
       }
 
@@ -365,7 +382,6 @@ export default {
         this.timing = 'monthly';
       } else {
         this.months = [];
-        this.weekdays = [];
       }
 
       if (this.isYearly(this.item.cron_format)) {

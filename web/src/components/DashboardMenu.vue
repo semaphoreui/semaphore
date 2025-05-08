@@ -5,6 +5,7 @@
         v-if="projectType === ''"
         key="history"
         :to="`/project/${projectId}/history`"
+        data-testid="dashboard-history"
       >{{ $t('history') }}
       </v-tab>
 
@@ -12,6 +13,7 @@
         v-if="projectType === ''"
         key="stats"
         :to="`/project/${projectId}/stats`"
+        data-testid="dashboard-stats"
       >{{ $t('project_stats') }}</v-tab>
 
       <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
@@ -20,6 +22,7 @@
         v-if="canUpdateProject"
         key="settings"
         :to="`/project/${projectId}/settings`"
+        data-testid="dashboard-settings"
       >{{ $t('settings') }}
       </v-tab>
 
@@ -27,6 +30,7 @@
         v-if="projectType === ''"
         key="runners"
         :to="`/project/${projectId}/runners`"
+        data-testid="dashboard-runners"
       >
         {{ $t('runners') }}
         <v-icon class="ml-1" large color="hsl(348deg, 86%, 61%)">mdi-professional-hexagon</v-icon>

@@ -138,29 +138,29 @@ tasks:
     cmds:
       - go test -v -coverprofile=coverage.out ./...
 
-  e2e:goodman:
+  dredd:goodman:
     desc: Installs goodman which is required by dredd
     cmds:
       - go install github.com/snikch/goodman/cmd/goodman@latest
 
-  e2e:deps:
+  dredd:deps:
     desc: Installs dredd dep for integration testing
     dir: web
     cmds:
       - npm install dredd@13.1.2
 
-  e2e:hooks:
+  dredd:hooks:
     desc: Compile required dredd hooks built
     dir: ./.dredd/hooks
     cmds:
       - go build -o ../compiled_hooks{{ if eq OS "windows" }}.exe{{ end }}
 
-  e2e:test:
+  dredd:test:
     desc: Run end to end test for API with dredd
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml
 
-  e2e:test:local:
+  dredd:test:local:
     desc: Run end to end test for API with dredd
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.local.yml

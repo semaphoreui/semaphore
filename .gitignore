@@ -36,3 +36,4 @@ __debug_bin*
 /.venv/
 
 /events.log
+/tasks.log

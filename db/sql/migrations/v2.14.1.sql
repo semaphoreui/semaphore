@@ -1,0 +1,2 @@
+alter table `project__integration_extract_value` add `variable_type` varchar(255);
+update `project__integration_extract_value` set `variable_type` = 'environment' where `variable_type` is null or `variable_type` = '';

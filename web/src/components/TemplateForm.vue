@@ -1,14 +1,14 @@
 <template>
-  <div v-if="!isLoaded">
+  <div v-if="!isLoaded" :style="{ height: `${loaderHeight}px` }" class="mt-1">
     <v-row>
       <v-col>
         <v-skeleton-loader
           type="
             table-heading,
-            list-item-two-line,
-            list-item-two-line,
             image,
-            table-tfoot"
+            list-item-two-line,
+            list-item-two-line,
+            list-item-two-line"
         ></v-skeleton-loader>
       </v-col>
       <v-col>
@@ -17,8 +17,8 @@
             table-heading,
             list-item-two-line,
             list-item-two-line,
-            image,
-            table-tfoot"
+            list-item-two-line,
+            article"
         ></v-skeleton-loader>
       </v-col>
       <v-col v-if="needAppBlock">
@@ -26,9 +26,9 @@
           type="
             table-heading,
             list-item-two-line,
+            article,
             list-item-two-line,
-            image,
-            table-tfoot"
+            article"
         ></v-skeleton-loader>
       </v-col>
     </v-row>
@@ -92,7 +92,7 @@
     >{{ formError }}
     </v-alert>
 
-    <v-row>
+    <v-row class="mb-0">
       <v-col>
         <h2 class="mb-4">{{ $t('template_common_options') }}</h2>
 
@@ -325,7 +325,7 @@
           <v-checkbox
             class="mt-0"
             :label="$t('allowInventoryInTask')"
-            v-model="(item.task_params || {}).allow_override_inventory"
+            v-model="allow_override_inventory"
             v-if="needField('allow_override_inventory')"
           />
         </div>
@@ -374,7 +374,7 @@
           <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
-            v-model="(item.task_params || {}).auto_approve"
+            v-model="item.task_params.auto_approve"
             v-if="needField('auto_approve')"
           />
 
@@ -387,21 +387,21 @@
           <v-checkbox
             class="mt-0"
             :label="$t('allowLimitInTask')"
-            v-model="(item.task_params || {}).allow_override_limit"
+            v-model="item.task_params.allow_override_limit"
             v-if="needField('allow_override_limit')"
           />
 
           <v-checkbox
             class="mt-0"
             :label="$t('tags')"
-            v-model="(item.task_params || {}).allow_override_tags"
+            v-model="item.task_params.allow_override_tags"
             v-if="needField('allow_override_tags')"
           />
 
           <v-checkbox
             class="mt-0"
             :label="$t('skipTags')"
-            v-model="(item.task_params || {}).allow_override_skip_tags"
+            v-model="item.task_params.allow_override_skip_tags"
             v-if="needField('allow_override_skip_tags')"
           />
 
@@ -460,6 +460,7 @@ export default {
     sourceItemId: Number,
     app: String,
     premiumFeatures: Object,
+    taskType: String,
   },
 
   data() {
@@ -517,6 +518,7 @@ export default {
         if (this.item != null) {
           this.item.template_id = this.templateId;
         }
+        this.inventory = null;
       }
     },
 
@@ -530,6 +532,34 @@ export default {
   },
 
   computed: {
+    allow_override_inventory: {
+      get() {
+        return this.item.task_params.allow_override_inventory;
+      },
+      set(newValue) {
+        this.item.task_params.allow_override_inventory = newValue;
+      },
+    },
+
+    loaderHeight() {
+      switch (this.taskType) {
+        case 'build':
+          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+            return 626;
+          }
+          return 560;
+        case 'deploy':
+          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+            return 676;
+          }
+          return 610;
+        default:
+          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+            return 564;
+          }
+          return 514;
+      }
+    },
 
     appBlockTitle() {
       switch (this.app) {
@@ -546,23 +576,23 @@ export default {
     },
 
     surveyVars() {
-      if (this.sourceItemId != null && this.item.survey_vars === undefined) {
-        throw new Error();
-      }
+      // if (this.sourceItemId != null && this.item.survey_vars === undefined) {
+      //   throw new Error();
+      // }
       return this.item.survey_vars;
     },
 
     vaults() {
-      if (this.sourceItemId != null && this.item.vaults === undefined) {
-        throw new Error();
-      }
+      // if (this.sourceItemId != null && this.item.vaults === undefined) {
+      //   throw new Error();
+      // }
       return this.item.vaults;
     },
 
     isLoaded() {
-      if (this.isNew && this.sourceItemId == null) {
-        return true;
-      }
+      // if (this.isNew && this.sourceItemId == null) {
+      //   return true;
+      // }
 
       return this.repositories != null
         && this.inventory != null
@@ -604,69 +634,41 @@ export default {
       this.helpDialog = true;
     },
 
-    async afterLoadData() {
-      if (!this.item.task_params) {
-        this.item.task_params = {};
-      }
+    getNewItem() {
+      return {
+        task_params: {},
+      };
+    },
 
-      if (this.sourceItemId) {
-        const item = (await axios({
-          url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
-          responseType: 'json',
-        })).data;
+    async loadRelativeData() {
+      let templates;
+      let inventory1;
+      let inventory2;
 
-        item.id = null;
+      [
+        this.repositories,
+        inventory1,
+        inventory2,
+        this.schedules,
+        this.views,
+        this.environment,
+        templates,
+      ] = await Promise.all([
+        this.loadProjectResources('repositories'),
+        this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
+        this.loadProjectEndpoint(`/inventory?app=${this.app}`),
+        this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
+        this.loadProjectResources('views'),
+        this.loadProjectResources('environment'),
+        this.loadProjectResources('templates'),
+      ]);
 
-        if (item.vaults) {
-          for (let i = 0; i < item.vaults.length; i += 1) {
-            item.vaults[i].id = null;
-          }
-        }
-
-        const sourceSchedule = (await axios({
-          url: `/api/project/${this.projectId}/templates/${this.sourceItemId}/schedules`,
-          responseType: 'json',
-        })).data[0];
-
-        if (sourceSchedule != null) {
-          this.cronFormat = sourceSchedule.cron_format;
-          this.cronRepositoryId = sourceSchedule.repository_id;
-          this.cronVisible = this.cronRepositoryId != null;
-        }
-
-        this.item = item;
-      }
-
-      this.repositories = (await axios({
-        url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
-
-      this.inventory = [
-        ...(await axios({
-          url: `/api/project/${this.projectId}/inventory?app=${this.app}&template_id=${this.itemId}`,
-          responseType: 'json',
-        })).data,
-
-        ...(await axios({
-          url: `/api/project/${this.projectId}/inventory?app=${this.app}`,
-          responseType: 'json',
-        })).data,
-      ];
-
-      this.environment = (await axios({
-        url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      const template = (await axios({
-        url: `/api/project/${this.projectId}/templates`,
-        responseType: 'json',
-      })).data;
+      this.inventory = [...inventory1, ...inventory2];
 
       const builds = [];
       const deploys = [];
-      template.forEach((t) => {
+
+      templates.forEach((t) => {
         switch (t.type) {
           case 'build':
             if (builds.length === 0) {
@@ -683,8 +685,6 @@ export default {
           default:
             break;
         }
-
-        this.args = JSON.parse(this.item.arguments || '[]');
       });
 
       this.buildTemplates = builds;
@@ -692,16 +692,38 @@ export default {
         this.buildTemplates.push({ divider: true });
       }
       this.buildTemplates.push(...deploys);
+    },
 
-      this.schedules = this.isNew ? [] : (await axios({
-        url: `/api/project/${this.projectId}/templates/${this.itemId}/schedules`,
-        responseType: 'json',
-      })).data;
+    async afterLoadData() {
+      if (this.sourceItemId) {
+        const item = await this.loadProjectResource('templates', this.sourceItemId);
 
-      this.views = (await axios({
-        url: `/api/project/${this.projectId}/views`,
-        responseType: 'json',
-      })).data;
+        item.id = null;
+
+        if (item.vaults) {
+          for (let i = 0; i < item.vaults.length; i += 1) {
+            item.vaults[i].id = null;
+          }
+        }
+
+        const sourceSchedule = (await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`))[0];
+
+        if (sourceSchedule != null) {
+          this.cronFormat = sourceSchedule.cron_format;
+          this.cronRepositoryId = sourceSchedule.repository_id;
+          this.cronVisible = this.cronRepositoryId != null;
+        }
+
+        this.item = item;
+      }
+
+      if (!this.item.task_params) {
+        this.item.task_params = {};
+      }
+
+      this.args = JSON.parse(this.item.arguments || '[]');
+
+      await this.loadRelativeData();
 
       if (this.schedules.length > 0) {
         const schedule = this.schedules.find((s) => s.repository_id != null);

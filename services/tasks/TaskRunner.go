@@ -3,11 +3,12 @@ package tasks
 import (
 	"encoding/json"
 	"errors"
+	"github.com/semaphoreui/semaphore/services/tasks/hooks"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -19,6 +20,7 @@ import (
 type Job interface {
 	Run(username string, incomingVersion *string, alias string) error
 	Kill()
+	IsKilled() bool
 }
 
 type TaskRunner struct {
@@ -27,6 +29,9 @@ type TaskRunner struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
+
+	currentStage  *db.TaskStage
+	currentOutput *db.TaskOutput
 
 	users     []int
 	alert     bool
@@ -84,19 +89,54 @@ func (t *TaskRunner) kill() {
 }
 
 func (t *TaskRunner) createTaskEvent() {
-	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " finished - " + strings.ToUpper(string(t.Task.Status))
 
-	_, err := t.pool.store.CreateEvent(db.Event{
+	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")"
+
+	if t.Task.Status.IsFinished() {
+		desc += " finished with status " + strings.ToUpper(string(t.Task.Status))
+
+		hook := hooks.GetHook(t.Template.App)
+		if hook != nil {
+			go hook.End(t.pool.store, t.Task.ProjectID, t.Task.ID)
+		}
+	} else {
+		desc += " " + strings.ToUpper(string(t.Task.Status))
+	}
+
+	objType := db.EventTask
+	event := db.Event{
 		UserID:      t.Task.UserID,
 		ProjectID:   &t.Task.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.Task.ID,
 		Description: &desc,
-	})
+	}
+
+	var runnerID *int
+	if t.RunnerID > 0 {
+		runnerID = &t.RunnerID
+	}
+
+	if err := util.Config.Log.Tasks.Write(util.TaskLogRecord{
+		ProjectID:    t.Task.ProjectID,
+		TemplateID:   t.Template.ID,
+		TemplateName: t.Template.Name,
+		TaskID:       t.Task.ID,
+		UserID:       t.Task.UserID,
+		Description:  &desc,
+		Username:     t.Username,
+		RunnerID:     runnerID,
+		Status:       t.Task.Status,
+	}); err != nil {
+		log.Error(err)
+	}
+
+	_, err := t.pool.store.CreateEvent(event)
 
 	if err != nil {
-		t.panicOnError(err, "Fatal error inserting an event")
+		msg := "Fatal error inserting an event"
+		t.Log(msg)
+		log.WithError(err).Error(msg)
 	}
 }
 
@@ -111,7 +151,7 @@ func (t *TaskRunner) run() {
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
 		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
-		now := time.Now().UTC()
+		now := tz.Now()
 		t.Task.End = &now
 		t.saveStatus()
 		t.createTaskEvent()
@@ -124,26 +164,12 @@ func (t *TaskRunner) run() {
 	}
 
 	t.SetStatus(task_logger.TaskStartingStatus)
-
-	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " is running"
-
-	_, err := t.pool.store.CreateEvent(db.Event{
-		UserID:      t.Task.UserID,
-		ProjectID:   &t.Task.ProjectID,
-		ObjectType:  &objType,
-		ObjectID:    &t.Task.ID,
-		Description: &desc,
-	})
-
-	if err != nil {
-		t.Log("Fatal error inserting an event")
-		panic(err)
-	}
+	t.createTaskEvent()
 
 	t.Log("Started: " + strconv.Itoa(t.Task.ID))
 	t.Log("Run TaskRunner with template: " + t.Template.Name + "\n")
 
+	var err error
 	var username string
 	var incomingVersion *string
 
@@ -163,8 +189,13 @@ func (t *TaskRunner) run() {
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
-		t.Log("Running app failed: " + err.Error())
-		t.SetStatus(task_logger.TaskFailStatus)
+		if t.job.IsKilled() {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			log.WithError(err).Warn("Failed to run task")
+			t.Log("Failed to run task: " + err.Error())
+			t.SetStatus(task_logger.TaskFailStatus)
+		}
 		return
 	}
 
@@ -183,11 +214,18 @@ func (t *TaskRunner) run() {
 	}
 
 	for _, tpl := range tpls {
-		_, err = t.pool.AddTask(db.Task{
+		task := db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
-		}, nil, tpl.ProjectID, tpl.App.NeedTaskAlias())
+		}
+		_, err = t.pool.AddTask(
+			task,
+			nil,
+			"",
+			tpl.ProjectID,
+			tpl.App.NeedTaskAlias(),
+		)
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
 			continue

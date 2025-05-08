@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"net/http"
 	"net/url"
 	"os"
@@ -128,7 +129,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	ldapUser := db.User{
 		Username: strings.ToLower(claims.username),
-		Created:  time.Now().UTC(),
+		Created:  tz.Now(),
 		Name:     claims.name,
 		Email:    claims.email,
 		External: true,
@@ -162,8 +163,8 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
 
 	newSession, err := helpers.Store(r).CreateSession(db.Session{
 		UserID:             user.ID,
-		Created:            time.Now().UTC(),
-		LastActive:         time.Now().UTC(),
+		Created:            tz.Now(),
+		LastActive:         tz.Now(),
 		IP:                 r.Header.Get("X-Real-IP"),
 		UserAgent:          r.Header.Get("user-agent"),
 		Expired:            false,
@@ -351,11 +352,32 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// logout handles the user logout process by expiring the current session
+// and clearing the session cookie.
+//
+// Behavior:
+//   - If a valid session exists, it is expired in the database.
+//   - The session cookie is cleared by setting its value to an empty string
+//     and its expiration date to a past time.
+//
+// Responses:
+// - 204 No Content: Logout successful.
+// - 500 Internal Server Error: An error occurred while expiring the session.
 func logout(w http.ResponseWriter, r *http.Request) {
+
+	if session, ok := getSession(r); ok {
+		err := helpers.Store(r).ExpireSession(session.UserID, session.ID)
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "semaphore",
 		Value:    "",
-		Expires:  time.Now().Add(24 * 7 * time.Hour * -1),
+		Expires:  tz.Now().Add(24 * 7 * time.Hour * -1),
 		Path:     "/",
 		HttpOnly: true,
 	})
@@ -470,7 +492,7 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func generateStateOauthCookie(w http.ResponseWriter) string {
-	expiration := time.Now().Add(365 * 24 * time.Hour)
+	expiration := tz.Now().Add(365 * 24 * time.Hour)
 
 	b := make([]byte, 16)
 	_, err := rand.Read(b)

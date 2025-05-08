@@ -10,6 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/semaphoreui/semaphore/api/debug"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/semaphoreui/semaphore/api/runners"
 
 	"github.com/gorilla/mux"
@@ -21,7 +25,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-var startTime = time.Now().UTC()
+var startTime = tz.Now()
 
 //go:embed public/*
 var publicAssets embed.FS
@@ -59,10 +63,30 @@ func pongHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }
 
+// DelayMiddleware adds artificial delay to simulate slow network conditions
+func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(delay)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // Route declares all routes
 func Route() *mux.Router {
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
+
+	if util.Config.Debugging.ApiDelay != "" {
+		delay, err := time.ParseDuration(util.Config.Debugging.ApiDelay)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"context": "debugging",
+			}).Panic("Invalid API delay format")
+		}
+		r.Use(DelayMiddleware(delay))
+	}
 
 	webPath := "/"
 	if util.WebHostURL != nil {
@@ -82,6 +106,7 @@ func Route() *mux.Router {
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
+	publicAPIRouter.HandleFunc("/auth/verify/email", startEmailVerification).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/verify", verifySession).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/recovery", recoverySession).Methods("POST")
 
@@ -145,6 +170,10 @@ func Route() *mux.Router {
 	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
 
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
+
+	debugAPI := adminAPI.PathPrefix("/debug").Subrouter()
+	debugAPI.Path("/gc").HandlerFunc(debug.GC).Methods("POST")
+	debugAPI.Path("/pprof/dump").HandlerFunc(debug.Dump).Methods("POST")
 
 	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerMiddleware)
@@ -330,6 +359,7 @@ func Route() *mux.Router {
 	projectTmplManagement.Use(projects.TemplatesMiddleware)
 
 	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
+	projectTmplManagement.HandleFunc("/{template_id}/description", projects.UpdateTemplateDescription).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.RemoveTemplate).Methods("DELETE")
 	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/refs", projects.GetTemplateRefs).Methods("GET", "HEAD")
@@ -541,6 +571,8 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		},
 
 		"git_client": util.Config.GitClientId,
+
+		"schedule_timezone": util.Config.Schedule.Timezone,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

@@ -3,10 +3,10 @@ package sql
 import (
 	"fmt"
 	"github.com/go-gorp/gorp/v3"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
@@ -35,10 +35,15 @@ func getVersionErrPath(version db.Migration) string {
 
 // getVersionSQL takes a path to an SQL file and returns it from embed.FS
 // a slice of strings separated by newlines
-func getVersionSQL(name string) (queries []string) {
+func getVersionSQL(name string, ignoreErrors bool) (queries []string) {
 	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
 	if err != nil {
-		panic(err)
+		if ignoreErrors {
+			log.WithError(err).Warnf("migration %s not found", name)
+			return nil
+		} else {
+			panic(err)
+		}
 	}
 	queries = strings.Split(strings.ReplaceAll(string(sql), ";\r\n", ";\n"), ";\n")
 	for i := range queries {
@@ -152,7 +157,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	queries := getVersionSQL(getVersionPath(migration))
+	queries := getVersionSQL(getVersionPath(migration), false)
 	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
@@ -186,7 +191,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now().UTC())
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, tz.Now())
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
@@ -199,23 +204,41 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) TryRollbackMigration(version db.Migration) {
-	data, _ := dbAssets.ReadFile(getVersionErrPath(version))
-	if len(data) == 0 {
-		fmt.Println("Rollback SQL does not exist.")
-		fmt.Println()
-		return
+	var err error
+
+	tx, err := d.sql.Begin()
+	if err != nil {
+		panic(err)
 	}
 
-	queries := getVersionSQL(getVersionErrPath(version))
+	defer func() {
+		if err == nil {
+			err = tx.Commit()
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context": "migration",
+					"version": version.Version,
+				}).Error("failed to commit undo migration transaction")
+			}
+		} else {
+			_ = tx.Rollback()
+			log.Error(err)
+		}
+	}()
+
+	queries := getVersionSQL(getVersionErrPath(version), true)
+
 	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 		q := d.prepareMigration(query)
 		if q == "" {
 			continue
 		}
-		if _, err := d.exec(q); err != nil {
+		if _, err = d.execTx(tx, q); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}
 	}
+
+	_, err = d.execTx(tx, "delete from migrations where version=?", version.Version)
 }

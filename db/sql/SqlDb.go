@@ -157,6 +157,11 @@ func (d *SqlDb) exec(query string, args ...interface{}) (sql.Result, error) {
 	return d.sql.Exec(q, args...)
 }
 
+func (d *SqlDb) execTx(tx *gorp.Transaction, query string, args ...interface{}) (sql.Result, error) {
+	q := d.PrepareQuery(query)
+	return tx.Exec(q, args...)
+}
+
 func (d *SqlDb) selectOne(holder interface{}, query string, args ...interface{}) error {
 	err := d.sql.SelectOne(holder, d.PrepareQuery(query), args...)
 

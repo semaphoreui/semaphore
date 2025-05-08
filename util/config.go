@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/url"
 	"os"
@@ -19,6 +18,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
@@ -34,6 +37,14 @@ const (
 	DbDriverMySQL    = "mysql"
 	DbDriverBolt     = "bolt"
 	DbDriverPostgres = "postgres"
+)
+
+type EventLogAction string
+
+const (
+	EventLogCreate EventLogAction = "create"
+	EventLogUpdate EventLogAction = "update"
+	EventLogDelete EventLogAction = "delete"
 )
 
 type DbConfig struct {
@@ -121,33 +132,70 @@ type TLSConfig struct {
 	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
 }
 
-type EmailAuthConfig struct {
-	Enabled bool `json:"enabled" env:"SEMAPHORE_EMAIL_2TP_ENABLED"`
-}
-
 type TotpConfig struct {
 	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
 	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
 }
 
-type RecaptchaConfig struct {
-	Enabled string `json:"enabled,omitempty" env:"SEMAPHORE_RECAPTCHA_ENABLED"`
-	SiteKey string `json:"site_key,omitempty" env:"SEMAPHORE_RECAPTCHA_SITE_KEY"`
-}
-
-type AuthConfig struct {
-	Recaptcha *RecaptchaConfig `json:"recaptcha,omitempty"`
-	Totp      *TotpConfig      `json:"totp,omitempty"`
-	Email     *EmailAuthConfig `json:"email,omitempty"`
-}
-
 type EventLogType struct {
-	Enabled bool   `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
-	Path    string `json:"path,omitempty" env:"SEMAPHORE_EVENT_LOG_PATH"`
+	Format  FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
+	Enabled bool               `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
+	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
+}
+
+type EventLogRecord struct {
+	Action        string  `json:"action"`
+	UserID        *int    `json:"user,omitempty"`
+	IntegrationID *int    `json:"integration,omitempty"`
+	ProjectID     *int    `json:"project,omitempty"`
+	Description   *string `json:"description,omitempty"`
+}
+
+type FileLogFormat string
+
+const (
+	FileLogJSON FileLogFormat = "json"
+	FileLogRaw  FileLogFormat = "raw"
+)
+
+type TaskLogType struct {
+	Enabled      bool               `json:"enabled" env:"SEMAPHORE_TASK_LOG_ENABLED"`
+	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
+	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
+	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
+}
+
+type TaskLogRecord struct {
+	Username     string                 `json:"username,omitempty"`
+	TaskID       int                    `json:"task"`
+	ProjectID    int                    `json:"project"`
+	TemplateID   int                    `json:"template"`
+	TemplateName string                 `json:"template_name"`
+	UserID       *int                   `json:"user,omitempty"`
+	Description  *string                `json:"-"`
+	RunnerID     *int                   `json:"runner,omitempty"`
+	Status       task_logger.TaskStatus `json:"status"`
 }
 
 type ConfigLog struct {
 	Events *EventLogType `json:"events,omitempty"`
+	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+}
+
+type ConfigProcess struct {
+	User   string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
+	UID    *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
+	Chroot string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
+	GID    *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+}
+
+type ScheduleConfig struct {
+	Timezone string `json:"timezone,omitempty" env:"SEMAPHORE_SCHEDULE_TIMEZONE" default:"UTC"`
+}
+
+type DebuggingConfig struct {
+	ApiDelay     string `json:"api_delay,omitempty" env:"SEMAPHORE_API_DELAY"`
+	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -189,13 +237,15 @@ type ConfigType struct {
 	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
-	EmailAlert    bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
-	EmailSender   string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
-	EmailHost     string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
-	EmailPort     string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
-	EmailUsername string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
-	EmailSecure   bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
+	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
+	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
+	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
+	EmailUsername      string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
+	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
+	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
 
 	// ldap settings
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
@@ -251,6 +301,12 @@ type ConfigType struct {
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
 	Log *ConfigLog `json:"log,omitempty"`
+
+	Process *ConfigProcess `json:"process,omitempty"`
+
+	Schedule *ScheduleConfig `json:"schedule,omitempty"`
+
+	Debugging *DebuggingConfig `json:"debugging,omitempty"`
 }
 
 func NewConfigType() *ConfigType {
@@ -756,6 +812,10 @@ func loadEnvironmentToObject(obj interface{}) error {
 		fieldType := t.Field(i)
 		fieldValue := v.Field(i)
 
+		if !fieldType.IsExported() {
+			continue
+		}
+
 		if fieldType.Type.Kind() == reflect.Struct {
 			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
 			if err != nil {
@@ -1052,6 +1112,7 @@ var appCommands = map[string]string{
 	"ansible":   "ansible-playbook",
 	"terraform": "terraform",
 	"tofu":      "tofu",
+	"terragrunt": "terragrunt",
 	"bash":      "bash",
 }
 
@@ -1059,6 +1120,7 @@ var appPriorities = map[string]int{
 	"ansible":    1000,
 	"terraform":  900,
 	"tofu":       800,
+	"terragrunt": 850,
 	"bash":       700,
 	"powershell": 600,
 	"python":     500,

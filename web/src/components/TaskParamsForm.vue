@@ -5,12 +5,27 @@
         <v-checkbox
           class="mt-0"
           :input-value="params.debug"
+          v-model="params.debug"
           @change="updateValue('debug', $event)"
+          hide-details
         >
           <template v-slot:label>
-            <div class="text-no-wrap">{{ $t('debug') }} <code>--vvvv</code></div>
+            <div class="text-no-wrap">
+              {{ $t('debug') }} <code>-{{ "v".repeat(params.debug_level || 4) }}</code>
+            </div>
           </template>
         </v-checkbox>
+        <v-slider
+          :disabled="!params.debug"
+          class="ml-7 mb-2"
+          style="max-width: 100px;"
+          v-model="params.debug_level"
+          @change="updateValue('debug_level', $event)"
+          step="1"
+          min="1"
+          max="6"
+          hide-details
+        ></v-slider>
       </v-col>
       <v-col>
         <v-checkbox
@@ -36,7 +51,7 @@
       </v-col>
     </v-row>
   </div>
-  <div v-else-if="app === 'terraform' || app === 'tofu'">
+  <div v-else-if="app === 'terraform' || app === 'tofu' || app === 'terragrunt'">
     <v-row no-gutters>
       <v-col>
         <v-checkbox
@@ -118,9 +133,11 @@ const TERRAFORM_APP_PARAMS = [
 const APP_PARAMS = {
   terraform: TERRAFORM_APP_PARAMS,
   tofu: TERRAFORM_APP_PARAMS,
+  terragrunt: TERRAFORM_APP_PARAMS,
   ansible: [
     'diff',
     'debug',
+    'debug_level',
     'dry_run',
     'tags',
     'skip_tags',
@@ -143,12 +160,17 @@ export default {
 
   data() {
     return {
-      params: {},
+      params: {
+        debug_level: 4,
+      },
     };
   },
 
   created() {
-    this.params = this.value;
+    this.params = {
+      ...this.value,
+      debug_level: this.value.debug_level || 4,
+    };
   },
 
   methods: {

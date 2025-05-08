@@ -1,13 +1,5 @@
 <template>
   <v-container fluid class="pb-0">
-    <v-alert
-      text
-      dense
-      class="mb-0 ml-4 mr-4 mb-6 d-inline-block"
-      v-if="template.description"
-    >{{ template.description }}
-    </v-alert>
-
     <v-row class="mb-2">
       <v-col>
         <v-list subheader>

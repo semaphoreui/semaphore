@@ -9,6 +9,13 @@ func LogWarning(err error) {
 	LogWarningF(err, log.Fields{"level": "Warn"})
 }
 
+// LogDebugF logs a debug with added field context if error
+func LogDebugF(err error, fields log.Fields) {
+	if err != nil {
+		log.WithFields(fields).Debug(err.Error())
+	}
+}
+
 // LogWarningF logs a warning with added field context if error
 func LogWarningF(err error, fields log.Fields) {
 	if err != nil {

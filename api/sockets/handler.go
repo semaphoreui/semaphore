@@ -3,6 +3,7 @@ package sockets
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"net/http"
 	"time"
 
@@ -49,10 +50,10 @@ func (c *connection) readPump() {
 
 	c.ws.SetReadLimit(maxMessageSize)
 
-	util.LogErrorF(c.ws.SetReadDeadline(time.Now().Add(pongWait)), log.Fields{"error": "Cannot set read deadline"})
+	util.LogErrorF(c.ws.SetReadDeadline(tz.Now().Add(pongWait)), log.Fields{"error": "Cannot set read deadline"})
 
 	c.ws.SetPongHandler(func(string) error {
-		err := c.ws.SetReadDeadline(time.Now().Add(pongWait))
+		err := c.ws.SetReadDeadline(tz.Now().Add(pongWait))
 		util.LogErrorF(err, log.Fields{"error": "Cannot set read deadline"})
 		return nil
 	})
@@ -73,7 +74,7 @@ func (c *connection) readPump() {
 // write writes a message with the given message type and payload.
 func (c *connection) write(mt int, payload []byte) error {
 
-	err := c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	err := c.ws.SetWriteDeadline(tz.Now().Add(writeWait))
 
 	util.LogErrorF(err, log.Fields{"error": "Cannot set write deadline"})
 
@@ -93,18 +94,27 @@ func (c *connection) writePump() {
 		select {
 		case message, ok := <-c.send:
 			if !ok {
-				util.LogErrorF(c.write(websocket.CloseMessage, []byte{}), log.Fields{
-					"error": "Cannot send close message",
-				})
+				if err := c.write(websocket.CloseMessage, []byte{}); err != nil {
+					log.WithError(err).WithFields(log.Fields{
+						"context": "websocket",
+						"user_id": c.userID,
+					}).Debug("Cannot send close message")
+				}
 				return
 			}
 			if err := c.write(websocket.TextMessage, message); err != nil {
-				util.LogErrorF(err, log.Fields{"error": "Cannot send text message"})
+				log.WithError(err).WithFields(log.Fields{
+					"context": "websocket",
+					"user_id": c.userID,
+				}).Debug("Cannot send text message")
 				return
 			}
 		case <-ticker.C:
 			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
-				util.LogErrorF(err, log.Fields{"error": "Cannot send ping message"})
+				log.WithError(err).WithFields(log.Fields{
+					"context": "websocket",
+					"user_id": c.userID,
+				}).Debug("Cannot send ping message")
 				return
 			}
 		}

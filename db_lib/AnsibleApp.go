@@ -92,7 +92,7 @@ func (t *AnsibleApp) getRepoPath() string {
 
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
 
-	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
+	requirementsHashFilePath := fmt.Sprintf("%s_%s.md5", requirementsFilePath, requirementsType)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.Log("No " + requirementsFilePath + " file found. Skip galaxy install process.\n")

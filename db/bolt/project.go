@@ -2,11 +2,11 @@ package bolt
 
 import (
 	"github.com/semaphoreui/semaphore/db"
-	"time"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {
-	project.Created = time.Now().UTC()
+	project.Created = tz.Now()
 
 	newProject, err := d.createObject(0, db.ProjectProps, project)
 

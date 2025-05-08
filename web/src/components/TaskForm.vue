@@ -33,7 +33,7 @@
     </v-alert>
 
     <v-select
-      v-if="template.type === 'deploy'"
+      v-if="buildTasks != null && template.type === 'deploy'"
       v-model="item.build_task_id"
       :label="$t('buildVersion')"
       :items="buildTasks"
@@ -43,6 +43,13 @@
       required
       :disabled="formSaving"
     />
+
+    <v-skeleton-loader
+      v-else-if="template.type === 'deploy'"
+      type="card"
+      height="54"
+      style="margin-bottom: 16px; margin-top: 4px;"
+    ></v-skeleton-loader>
 
     <v-text-field
       v-model="item.message"
@@ -117,8 +124,15 @@
       dense
       required
       :disabled="formSaving"
-      v-if="needField('inventory') && (template.task_params || {}).allow_override_inventory"
+      v-if="inventory != null && needInventory"
     ></v-select>
+
+    <v-skeleton-loader
+      v-else-if="needInventory"
+      type="card"
+      height="46"
+      style="margin-bottom: 16px; margin-top: 4px;"
+    ></v-skeleton-loader>
 
     <ArgsPicker
       v-if="needField('limit') && (template.task_params || {}).allow_override_limit"
@@ -183,7 +197,7 @@ export default {
   mixins: [ItemFormBase, AppFieldsMixin],
 
   props: {
-    templateId: Number,
+    template: Object,
     sourceTask: Object,
   },
 
@@ -194,7 +208,6 @@ export default {
 
   data() {
     return {
-      template: null,
       buildTasks: null,
       hasCommit: null,
       editedEnvironment: null,
@@ -212,6 +225,10 @@ export default {
   },
 
   computed: {
+    needInventory() {
+      return this.needField('inventory') && this.template.task_params?.allow_override_inventory;
+    },
+
     args() {
       return JSON.parse(this.item.arguments || '[]');
     },
@@ -243,16 +260,17 @@ export default {
     needReset(val) {
       if (val) {
         if (this.item) {
-          this.item.template_id = this.templateId;
+          this.item.template_id = this.template.id;
         }
+        this.buildTasks = null;
         this.inventory = null;
-        this.template = null;
+        // this.template = null;
       }
     },
 
-    templateId(val) {
+    template(val) {
       if (this.item) {
-        this.item.template_id = val;
+        this.item.template_id = val?.id;
       }
     },
 
@@ -316,10 +334,7 @@ export default {
     },
 
     isLoaded() {
-      return this.item != null
-        && this.template != null
-        && this.buildTasks != null
-        && this.inventory != null;
+      return this.item != null && this.template != null;
     },
 
     beforeSave() {
@@ -330,29 +345,29 @@ export default {
     async afterLoadData() {
       this.assignItem(this.sourceTask);
 
-      this.item.template_id = this.templateId;
+      this.item.template_id = this.template.id;
 
       if (!this.item.params) {
         this.item.params = {};
       }
 
-      this.template = (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.templateId}`,
-        responseType: 'json',
-      })).data;
+      [
+        this.buildTasks,
+        this.inventory,
+      ] = await Promise.all([
 
-      this.buildTasks = this.template.type === 'deploy' ? (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success`,
-        responseType: 'json',
-      })).data.filter((task) => task.status === 'success') : [];
+        this.template.type === 'deploy' ? (await axios({
+          keys: 'get',
+          url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success&limit=20`,
+          responseType: 'json',
+        })).data.filter((task) => task.status === 'success') : [],
 
-      this.inventory = (await axios({
-        keys: 'get',
-        url: this.getInventoryUrl(),
-        responseType: 'json',
-      })).data;
+        this.needInventory ? (await axios({
+          keys: 'get',
+          url: this.getInventoryUrl(),
+          responseType: 'json',
+        })).data : [],
+      ]);
 
       if (this.item.build_task_id == null
         && this.buildTasks.length > 0
@@ -365,6 +380,18 @@ export default {
           this.item.params[param] = (this.template.task_params || {})[param];
         }
       });
+
+      const defaultVars = (this.template.survey_vars || [])
+        .filter((s) => s.default_value)
+        .reduce((res, curr) => ({
+          ...res,
+          [curr.name]: curr.default_value,
+        }), {});
+
+      this.editedEnvironment = {
+        ...defaultVars,
+        ...this.editedEnvironment,
+      };
     },
 
     getInventoryUrl() {
@@ -372,7 +399,7 @@ export default {
       switch (this.app) {
         case 'terraform':
         case 'tofu':
-          res += `&template_id=${this.templateId}`;
+          res += `&template_id=${this.template.id}`;
           break;
         default:
           break;

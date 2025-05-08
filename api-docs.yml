@@ -588,6 +588,9 @@ definitions:
       variable:
         type: string
         example: variable
+      variable_type:
+        type: string
+        enum: [environment, task]
 
   IntegrationExtractValue:
     type: object
@@ -609,6 +612,9 @@ definitions:
       variable:
         type: string
         example: variable
+      variable_type:
+        type: string
+        enum: [environment, task]
       integration_id:
         type: integer
 
@@ -1118,6 +1124,14 @@ parameters:
     x-example: 13
 
 paths:
+  /debug/gc:
+    post:
+      summary: Garbage collector
+      description: Run the garbage collector
+      responses:
+        204:
+          description: Successful "OK" reply
+
   /ping:
     get:
       summary: PING test

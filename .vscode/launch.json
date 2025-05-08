@@ -40,13 +40,25 @@
             }
         }, 
         {
-            "name": "Launch E2E Tests without Server",
+            "name": "Launch Dredd Tests without Server",
             "type": "pwa-node",
             "request": "launch",
             "runtimeExecutable": "task",
-            "args": ["e2e:test:local"],
+            "args": ["dredd:test:local"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
-        }
+        }, 
+        {
+            "name": "Launch Server (LOCAL)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "./cli/main.go",
+            "args": ["server", "--config", "./config.json"],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DEBUG_DELAY": "1s"
+            }
+        }, 
     ]
 }

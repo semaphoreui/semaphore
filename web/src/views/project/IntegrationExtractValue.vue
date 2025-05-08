@@ -65,6 +65,9 @@
       <template v-slot:item.variable="{ item }">
         <code>{{ item.variable }}</code>
       </template>
+      <template v-slot:item.variable_type="{ item }">
+        <code>{{ item.variable_type }}</code>
+      </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -142,6 +145,11 @@ export default {
       {
         text: 'Variable',
         value: 'variable',
+        sortable: false,
+      },
+      {
+        text: 'Variable Type',
+        value: 'variable_type',
         sortable: false,
       },
       {

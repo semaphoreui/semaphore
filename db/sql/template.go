@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/json"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -136,6 +137,18 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 
 	return err
 }
+func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, description string) (err error) {
+
+	_, err = d.exec("update project__template set "+
+		"description=? "+
+		"where id=? and project_id=?",
+		description,
+		templateID,
+		projectID,
+	)
+
+	return
+}
 
 func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 
@@ -171,6 +184,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		"pt.`type`",
 		"pt.`tasks`",
 		"pt.runner_tag",
+		"pt.task_params",
 		"pt.allow_override_branch_in_task",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id").
 		From("project__template pt")
@@ -262,7 +276,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		}
 
 		if tpl.SurveyVarsJSON != nil {
-			err = json.Unmarshal([]byte(*tpl.SurveyVarsJSON), &tpl.SurveyVars)
+			err = json.Unmarshal([]byte(*tpl.SurveyVarsJSON), &template.SurveyVars)
 		}
 
 		if err != nil {

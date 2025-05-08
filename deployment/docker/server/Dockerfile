@@ -26,6 +26,7 @@ RUN --mount=type=cache,target=/go/pkg \
 
 ENV OPENTOFU_VERSION="1.9.0"
 ENV TERRAFORM_VERSION="1.11.3"
+ENV TERRAGRUNT_VERSION="0.78.0"
 #ENV PULUMI_VERSION="3.116.1"
 #ENV POWERSHELL_VERSION="3.116.1"
 
@@ -37,14 +38,8 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
     unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
     rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 
-#RUN if [ "$TARGETARCH" = "amd64" ]; then \
-#      export PULUMI_ARCH="x64"; \
-#    else \
-#      export PULUMI_ARCH="${TARGETARCH}"; \
-#    fi && \
-#    wget -O pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v${PULUMI_VERSION}/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz
-#RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
-#RUN rm pulumi.tar.gz
+RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TARGETARCH} && \
+    chmod +x /tmp/terragrunt
 
 FROM alpine:3.21
 
@@ -70,6 +65,7 @@ COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /u
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
 COPY --from=builder /tmp/terraform /usr/local/bin/
+COPY --from=builder /tmp/terragrunt /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/server-wrapper && \
     chmod +x /usr/local/bin/server-wrapper && \

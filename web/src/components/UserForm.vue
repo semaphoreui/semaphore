@@ -68,7 +68,7 @@
             :label="$t('email')"
             :rules="[v => !!v || $t('email_required')]"
             required
-            :disabled="item.external || formSaving"
+            :disabled="!isNew && item.external || formSaving"
           >
 
             <template v-slot:append>
@@ -81,8 +81,8 @@
             v-model="item.password"
             :label="$t('password')"
             type="password"
-            :required="isNew"
-            :rules="isNew ? [v => !!v || $t('password_required')] : []"
+            :required="isNew && !item.external"
+            :rules="isNew && !item.external ? [v => !!v || $t('password_required')] : []"
             :disabled="item.external || formSaving"
           ></v-text-field>
 
@@ -101,6 +101,15 @@
                 hide-details
                 v-model="item.admin"
                 :label="$t('adminUser')"
+              ></v-checkbox>
+            </v-col>
+            <v-col cols="6" v-if="isAdmin">
+              <v-checkbox
+                :disabled="!isNew"
+                dense
+                hide-details
+                v-model="item.external"
+                :label="$t('external')"
               ></v-checkbox>
             </v-col>
           </v-row>

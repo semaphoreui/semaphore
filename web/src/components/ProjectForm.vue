@@ -17,17 +17,20 @@
       :rules="[v => !!v || $t('project_name_required')]"
       required
       :disabled="formSaving"
+      data-testid="newProject-name"
     ></v-text-field>
 
     <v-checkbox
       v-model="item.alert"
       :label="$t('allowAlertsForThisProject')"
+      data-testid="newProject-alert"
     ></v-checkbox>
 
     <v-text-field
       v-model="item.alert_chat"
       :label="$t('telegramChatIdOptional')"
       :disabled="formSaving"
+      data-testid="newProject-tg"
     ></v-text-field>
 
     <v-text-field
@@ -42,6 +45,15 @@
       type="number"
       :step="1"
     ></v-text-field>
+
+    <v-switch
+      v-if="itemId === 'new'"
+      v-model="item.demo"
+      label="Demo"
+      style="position: absolute; left: 24px; bottom: 15px;"
+      hide-details
+    />
+
   </v-form>
 </template>
 <script>

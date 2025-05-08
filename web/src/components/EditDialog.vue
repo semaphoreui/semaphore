@@ -10,9 +10,9 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     persistent
     :fullscreen="expandable && fullscreen"
     :transition="false"
-    :content-class="`item-dialog item-dialog item-dialog--${position} ${contentClass}`"
+    :content-class="`item-dialog item-dialog--${position} ${contentClass || ''}`"
   >
-    <v-card>
+    <v-card :data-testid="testId">
       <v-card-title>
         <slot name="title">
           <v-icon v-if="icon" :color="iconColor" class="mr-3">{{ icon }}</v-icon>
@@ -35,7 +35,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           <v-icon>mdi-arrow-{{ fullscreen ? 'collapse' : 'expand' }}</v-icon>
         </v-btn>
 
-        <v-btn icon @click="close()" style="margin-right: -6px;">
+        <v-btn icon @click="close()" style="margin-right: -6px;" data-testid="editDialog-close">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
@@ -75,6 +75,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
           text
           @click="needSave = true"
           v-if="saveButtonText != null"
+          data-testid="editDialog-save"
         >
           {{ saveButtonText }}
         </v-btn>
@@ -95,6 +96,7 @@ import EventBus from '@/event-bus';
 
 export default {
   props: {
+    testId: String,
     contentClass: String,
     position: String,
     title: String,
@@ -115,6 +117,7 @@ export default {
     },
     helpButton: Boolean,
     noBodyPaddings: Boolean,
+    noEscape: Boolean,
   },
 
   data() {
@@ -192,7 +195,7 @@ export default {
     },
 
     handleEscape(ev) {
-      if (ev.key === 'Escape' && this.dialog !== false) {
+      if (ev.key === 'Escape' && this.dialog !== false && !this.noEscape) {
         this.close();
       }
     },

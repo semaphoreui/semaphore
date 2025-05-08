@@ -22,6 +22,7 @@
           :source-item-id="sourceItemId"
           :app="itemApp"
           :premium-features="premiumFeatures"
+          :task-type="taskType"
       />
     </template>
   </EditDialog>
@@ -51,6 +52,7 @@ export default {
     itemId: [String, Number],
     sourceItemId: Number,
     premiumFeatures: Object,
+    taskType: String,
   },
 
   data() {

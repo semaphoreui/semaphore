@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/services/tasks"
 	"net/http"
 	"net/url"
 	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"

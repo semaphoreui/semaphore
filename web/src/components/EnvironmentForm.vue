@@ -6,10 +6,45 @@
     v-if="item != null"
     class="pb-3"
   >
+
+    <v-dialog
+      v-model="envEditorDialog"
+      max-width="800"
+      persistent
+      :transition="false"
+    >
+      <div style="position: relative;">
+        <codemirror
+          class="EnvironmentMaximizedEditor"
+          :style="{ border: '1px solid lightgray' }"
+          v-model="json"
+          :options="cmOptions"
+          :placeholder="$t('enterExtraVariablesJson')"
+        />
+
+        <v-btn
+          dark
+          fab
+          small
+          color="blue-grey"
+          v-if="extraVarsEditMode === 'json'"
+          style="
+            position: absolute;
+            right: 0;
+            top: 0;
+            margin: 10px;
+          "
+          @click="envEditorDialog = false"
+        >
+          <v-icon>mdi-arrow-collapse</v-icon>
+        </v-btn>
+      </div>
+    </v-dialog>
+
     <v-alert
       :value="formError"
       color="error"
-      class="pb-2"
+      data-testid="varGroup-error"
     >{{ formError }}</v-alert>
 
     <v-text-field
@@ -63,7 +98,7 @@
             </v-btn>
           </v-btn-toggle>
 
-          <v-btn icon @click="addExtraVar()">
+          <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
             <v-icon>
               mdi-plus
             </v-icon>
@@ -71,20 +106,41 @@
 
         </v-subheader>
 
-        <codemirror
-          v-if="extraVarsEditMode === 'json'"
-          :style="{ border: '1px solid lightgray' }"
-          v-model="json"
-          :options="cmOptions"
-          :placeholder="$t('enterExtraVariablesJson')"
-        />
+        <div v-if="extraVarsEditMode === 'json'" style="position: relative;">
+          <codemirror
+            :class="{
+              'EnvironmentEditor': true,
+            }"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="json"
+            :options="cmOptions"
+            :placeholder="$t('enterExtraVariablesJson')"
+          />
 
+          <v-btn
+            dark
+            fab
+            small
+            color="blue-grey"
+            v-if="extraVarsEditMode === 'json'"
+            style="
+              position: absolute;
+              right: 0;
+              top: 0;
+              margin: 10px;
+            "
+            @click="envEditorDialog = true"
+          >
+            <v-icon>mdi-arrow-expand</v-icon>
+          </v-btn>
+
+        </div>
         <div v-else-if="extraVarsEditMode === 'table'">
           <v-data-table
             v-if="extraVars != null"
             :items="extraVars"
             :items-per-page="-1"
-            class="elevation-1 EnvironmentForm__fields"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -124,7 +180,9 @@
             </template>
           </v-data-table>
 
-          <v-alert color="error" v-else>Can't be displayed as table.</v-alert>
+          <v-alert color="warning" v-else>
+            Oops! This JSON structure is a little too complex to display as a table.
+          </v-alert>
         </div>
 
         <div>
@@ -133,7 +191,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addEnvVar()">
+            <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -142,7 +200,7 @@
           <v-data-table
             :items="env"
             :items-per-page="-1"
-            class="elevation-1 EnvironmentForm__fields"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -205,7 +263,7 @@
             </v-tooltip>
 
             <v-spacer />
-            <v-btn icon @click="addSecret('var')">
+            <v-btn icon @click="addSecret('var')"  data-testid="varGroup-addSecretVar">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -215,7 +273,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'var')"
             :items-per-page="-1"
-            class="elevation-1 EnvironmentForm__fields"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -264,7 +322,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addSecret('env')">
+            <v-btn icon @click="addSecret('env')"  data-testid="varGroup-addSecretEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -274,7 +332,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'env')"
             :items-per-page="-1"
-            class="elevation-1 EnvironmentForm__fields"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -322,31 +380,19 @@
 
   </v-form>
 </template>
-
 <style lang="scss">
-.vue-codemirror {
-  border-radius: 6px !important;
+.EnvironmentEditor {
+  .CodeMirror {
+    height: 160px !important;
+  }
 }
-.CodeMirror {
-  border-radius: 5px !important;
-}
-.EnvironmentForm__fields {
-  .v-data-table__wrapper {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    td {
-      border-bottom: 0 !important;
-    }
-    td:last-child {
-      padding-right: 15px !important;
-    }
-    td:first-child {
-      padding-left: 5px !important;
-    }
+.EnvironmentMaximizedEditor {
+  .CodeMirror {
+    font-size: 14px;
+    height: 600px !important;
   }
 }
 </style>
-
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
@@ -373,6 +419,12 @@ export default {
   },
 
   watch: {
+    envEditorDialog(val) {
+      this.$emit('maximize', {
+        maximized: val,
+      });
+    },
+
     extraVarsEditMode(val) {
       let extraVars;
 
@@ -436,6 +488,7 @@ export default {
       },
 
       extraVarsEditMode: 'json',
+      envEditorDialog: false,
     };
   },
 

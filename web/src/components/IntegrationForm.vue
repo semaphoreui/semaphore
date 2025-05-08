@@ -84,6 +84,9 @@ export default {
         id: 'github',
         title: 'GitHub Webhooks',
       }, {
+        id: 'bitbucket',
+        title: 'Bitbucket Webhooks',
+      }, {
         id: 'token',
         title: 'Token',
       }, {

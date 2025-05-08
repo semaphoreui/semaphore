@@ -31,6 +31,8 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, environmentVars...)
 
+	cmd.SysProcAttr = util.Config.GetSysProcAttr()
+
 	return cmd
 }
 

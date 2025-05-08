@@ -277,6 +277,8 @@ type Store interface {
 	SetUserPassword(userID int, password string) error
 	AddTotpVerification(userID int, url string, recoveryHash string) (UserTotp, error)
 	DeleteTotpVerification(userID int, totpID int) error
+	AddEmailOtpVerification(userID int, code string) (UserEmailOtp, error)
+	DeleteEmailOtpVerification(userID int, totpID int) error
 
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
@@ -294,10 +296,11 @@ type Store interface {
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
+	SetTemplateDescription(projectID int, templateID int, description string) error
 
 	GetSchedules() ([]Schedule, error)
 	GetProjectSchedules(projectID int) ([]ScheduleWithTpl, error)
-	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
+	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
 	SetScheduleCommitHash(projectID int, scheduleID int, hash string) error
@@ -326,6 +329,7 @@ type Store interface {
 	CreateSession(session Session) (Session, error)
 	ExpireSession(userID int, sessionID int) error
 	TouchSession(userID int, sessionID int) error
+	SetSessionVerificationMethod(userID int, sessionID int, verificationMethod SessionVerificationMethod) error
 	VerifySession(userID int, sessionID int) error
 
 	CreateTask(task Task, maxTasks int) (Task, error)
@@ -338,8 +342,14 @@ type Store interface {
 	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
 
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
-	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
+	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
+	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
+
+	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
+	GetTaskStagesByType(projectID int, taskID int, stage TaskStageType) ([]TaskStage, error)
+	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
+	GetTaskStageOutputs(projectID int, taskID int, stageID int) ([]TaskOutput, error)
 
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
@@ -351,7 +361,7 @@ type Store interface {
 	GetRunner(projectID int, runnerID int) (Runner, error)
 	GetRunners(projectID int, activeOnly bool, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
-	GetGlobalRunnerByToken(token string) (Runner, error)
+	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
 	GetAllRunners(activeOnly bool, globalOnly bool) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
@@ -503,19 +513,16 @@ var TaskStageProps = ObjectProps{
 	Type:      reflect.TypeOf(TaskStage{}),
 }
 
+var TaskStageResultProps = ObjectProps{
+	TableName: "task__stage_result",
+	Type:      reflect.TypeOf(TaskStageResult{}),
+}
+
 var ViewProps = ObjectProps{
 	TableName:            "project__view",
 	Type:                 reflect.TypeOf(View{}),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "position",
-}
-
-var RunnerProps = ObjectProps{
-	TableName:            "runner",
-	Type:                 reflect.TypeOf(Runner{}),
-	DefaultSortingColumn: "id",
-	PrimaryColumnName:    "id",
-	SortInverted:         true,
 }
 
 var GlobalRunnerProps = ObjectProps{

@@ -92,5 +92,3 @@ For more installation options, visit our [Installation page](https://semaphoreui
 ## License
 
 MIT © [Denis Gukov](https://github.com/fiftin)
-
-[![sponsor](https://img.shields.io/badge/become_a_sponsor-d9c7ff?style=for-the-badge&logo=github-sponsors)](https://github.com/sponsors/semaphoreui) [![ko-fi](https://img.shields.io/badge/buy_me_a_coffee-0ba0e0?style=for-the-badge&logo=kofi)](https://ko-fi.com/fiftin) [![patreon](https://img.shields.io/badge/become_a_patreon-teal?style=for-the-badge&logo=patreon)](https://www.patreon.com/semaphoreui)
