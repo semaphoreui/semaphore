@@ -36,6 +36,7 @@ const (
 type PoolEvent struct {
 	eventType EventType
 	task      *TaskRunner
+	done      chan bool
 }
 
 type TaskPool struct {
@@ -138,10 +139,10 @@ func (p *TaskPool) Run() {
 				log.Info(msg)
 				task.saveStatus()
 			})
-			p.queueEvents <- PoolEvent{EventTypeNew, task}
+			p.queueEvents <- PoolEvent{EventTypeNew, task, make(chan bool)}
 
 		case <-ticker.C: // timer 5 seconds
-			p.queueEvents <- PoolEvent{EventTypeEmpty, nil}
+			p.queueEvents <- PoolEvent{EventTypeEmpty, nil, make(chan bool)}
 
 		}
 	}
@@ -149,36 +150,40 @@ func (p *TaskPool) Run() {
 
 func (p *TaskPool) handleQueue() {
 	for t := range p.queueEvents {
-		switch t.eventType {
-		case EventTypeNew:
-			p.Queue = append(p.Queue, t.task)
-		case EventTypeFinished:
-			p.onTaskStop(t.task)
-		}
+		func() {
+			defer close(t.done)
 
-		if len(p.Queue) == 0 {
-			continue
-		}
+			switch t.eventType {
+			case EventTypeNew:
+				p.Queue = append(p.Queue, t.task)
+			case EventTypeFinished:
+				p.onTaskStop(t.task)
+			}
 
-		var i = 0
-		for i < len(p.Queue) {
-			curr := p.Queue[i]
+			if len(p.Queue) == 0 {
+				return
+			}
 
-			if curr.Task.Status == task_logger.TaskFailStatus {
-				//delete failed TaskRunner from queue
+			var i = 0
+			for i < len(p.Queue) {
+				curr := p.Queue[i]
+
+				if curr.Task.Status == task_logger.TaskFailStatus {
+					//delete failed TaskRunner from queue
+					p.Queue = slices.Delete(p.Queue, i, i+1)
+					log.Info("Task " + strconv.Itoa(curr.Task.ID) + " removed from queue")
+					continue
+				}
+
+				if p.blocks(curr) {
+					i = i + 1
+					continue
+				}
+
 				p.Queue = slices.Delete(p.Queue, i, i+1)
-				log.Info("Task " + strconv.Itoa(curr.Task.ID) + " removed from queue")
-				continue
+				runTask(curr, p)
 			}
-
-			if p.blocks(curr) {
-				i = i + 1
-				continue
-			}
-
-			p.Queue = slices.Delete(p.Queue, i, i+1)
-			runTask(curr, p)
-		}
+		}()
 	}
 }
 
