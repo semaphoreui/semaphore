@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Tresor-Passwort',
   view: 'Ansicht',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Ich möchte eine Aufgabe nur für neue Commits eines bestimmten Repositories über Cron ausführen',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Ich möchte eine Aufgabe nur für neue Commits eines bestimmten Repositories über Cron ausführen',
   repository2: 'Repository',
   cronChecksNewCommitBeforeRun: 'Cron überprüft neuen Commit vor der Ausführung',
   readThe: 'Lesen Sie die',

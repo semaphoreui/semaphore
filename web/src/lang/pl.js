@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Hasło skarbca',
   view: 'Widok',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Chcę uruchomić zadanie przez cron tylko dla nowych commitów z niektórego repozytorium',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Chcę uruchomić zadanie przez cron tylko dla nowych commitów z niektórego repozytorium',
   repository2: 'Repozytorium',
   cronChecksNewCommitBeforeRun: 'Cron sprawdza nowy commit przed uruchomieniem',
   readThe: 'Przeczytaj',

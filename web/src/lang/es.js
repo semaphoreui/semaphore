@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Contraseña de la Bóveda',
   view: 'Vista',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Quiero ejecutar una tarea por cron solo para nuevos commits de algún repositorio',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Quiero ejecutar una tarea por cron solo para nuevos commits de algún repositorio',
   repository2: 'Repositorio',
   cronChecksNewCommitBeforeRun: 'Cron verifica nuevos commits antes de ejecutar',
   readThe: 'Lee el',
