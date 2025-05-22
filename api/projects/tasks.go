@@ -3,15 +3,16 @@ package projects
 import (
 	"bytes"
 	"errors"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 // AddTask inserts a task into the database and returns a header or returns error
@@ -145,8 +146,19 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 0
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+
 	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{})
+	output, err = helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{Offset: offset, Count: limit})
 
 	if err != nil {
 		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
