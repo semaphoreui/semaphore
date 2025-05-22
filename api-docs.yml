@@ -2429,6 +2429,19 @@ paths:
       - $ref: '#/parameters/project_id'
       - $ref: '#/parameters/task_id'
     get:
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          type: integer
+          description: Maximum number of items to return. Use 0 to return all available items
+          x-example: 1000
+        - name: offset
+          in: query
+          required: false
+          type: integer
+          description: Number of items to skip before starting to collect the result set. Defaults to 0.
+          x-example: 0
       tags:
         - project
       summary: Get task output

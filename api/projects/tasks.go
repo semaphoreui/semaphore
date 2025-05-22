@@ -147,11 +147,12 @@ func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 
 	limitStr := r.URL.Query().Get("limit")
-	offsetStr := r.URL.Query().Get("offset")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		limit = 0
 	}
+
+	offsetStr := r.URL.Query().Get("offset")
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
 		offset = 0
