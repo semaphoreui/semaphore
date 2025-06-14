@@ -13,7 +13,6 @@ import router from './router';
 import vuetify from './plugins/vuetify';
 import './assets/scss/main.scss';
 import i18n from './plugins/i18';
-import autoSetLocale from './lib/dayjsAutoSetLocale';
 
 const convert = new AnsiUp();
 convert.ansi_colors = [
@@ -52,7 +51,6 @@ Vue.config.productionTip = false;
 // extend Day.js
 dayjs.extend(relativeTime);
 dayjs.extend(localizedFormat);
-dayjs.extend(autoSetLocale);
 dayjs.extend(durationPlugin);
 
 // formatDate: “from now” if today, else localized date+time
@@ -64,11 +62,14 @@ Vue.filter('formatDate', (value) => {
   if (now.isSame(date, 'day')) {
     return `${date.fromNow()} (${date.format('HH:mm')})`;
   }
-  return date.format('L HH:mm');
+  const jsDate = date.toDate();
+  const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  const timeOptions = { hour: '2-digit', minute: '2-digit' };
+  return `${jsDate.toLocaleDateString(undefined, dateOptions)} ${jsDate.toLocaleTimeString(undefined, timeOptions)}`;
 });
 
 // formatTime: localized time with seconds
-Vue.filter('formatTime', (value) => (value ? dayjs(String(value)).format('LTS') : '—'));
+Vue.filter('formatTime', (value) => (value ? dayjs(String(value)).toDate().toLocaleTimeString() : '—'));
 
 // formatLog: unchanged (ANSI → HTML)
 Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
