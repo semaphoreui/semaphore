@@ -18,10 +18,10 @@ func (d migration_2_10_24) Apply() (err error) {
 			return err
 		}
 
-		var templateVaultID int = 1
+		var templateVaultID = 1
 		for templateID, template := range templates {
 			if template["vault_key_id"] != nil {
-				templateVault := map[string]interface{}{
+				templateVault := map[string]any{
 					"id":           templateVaultID,
 					"project_id":   template["project_id"],
 					"template_id":  template["id"],

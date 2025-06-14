@@ -39,6 +39,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :premium-features="premiumFeatures"
         />
       </template>
     </EditDialog>
@@ -162,6 +163,10 @@ export default {
   },
   mixins: [ItemListPageBase, AppsMixin],
   components: { TemplateSelectForm, InventoryForm },
+
+  props: {
+    premiumFeatures: Object,
+  },
 
   data() {
     return {

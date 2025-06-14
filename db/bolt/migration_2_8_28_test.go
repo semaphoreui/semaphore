@@ -38,7 +38,7 @@ func TestMigration_2_8_28_Apply(t *testing.T) {
 	err = migration_2_8_28{migration{store.db}}.Apply()
 	assert.NoError(t, err)
 
-	var repo map[string]interface{}
+	var repo map[string]any
 	err = store.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__repository_0000000001"))
 		str := string(b.Get([]byte("0000000001")))

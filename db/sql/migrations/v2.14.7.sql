@@ -1,0 +1,1 @@
+-- Mock for BoltDB migration

@@ -22,10 +22,8 @@
 
 import ItemListPageBase from '@/components/ItemListPageBase';
 
-import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase],
+  mixins: [ItemListPageBase],
   components: { },
   props: {
     integration: Object,

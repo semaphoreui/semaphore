@@ -15,68 +15,69 @@
     :rules="[v => !!v || 'Name is required']"
     required
     :disabled="formSaving"
+    outlined
+    dense
   ></v-text-field>
-  <v-row>
-    <v-col cols="12" md="12" class="pb-0">
-      <div class="ml-4 mr-4 mt-6">
-        <v-select
-          v-model="item.match_type"
-          label="Match on *"
-          :items="matchTypes"
-          item-value="id"
-          item-text="text"
-          :rules="[v => !!v || 'Match source is required']"
-          outlined
-          dense
-          required
-          :disabled="formSaving"
-        ></v-select>
-        <v-select
-          v-model="item.body_data_type"
-          v-if="item.match_type == 'body'"
-          label="Body Data Format *"
-          :items="bodyDataFormats"
-          item-value="id"
-          item-text="text"
-          :rules="[v => !!v || 'Body Data Format is required']"
-          outlined
-          dense
-          required
-          :disabled="formSaving"
-        ></v-select>
-        <v-text-field
-          v-model="item.key"
-          label="Key *"
-          :rules="[v => !!v || 'Key is required']"
-          outlined
-          dense
-          required
-          :disabled="formSaving"
-        ></v-text-field>
-        <v-select
-          v-model="item.method"
-          label="Comparison Method *"
-          :items="methods"
-          item-value="id"
-          item-text="text"
-          :rules="[v => !!v || 'Comparison Method is required']"
-          outlined
-          dense
-          required
-          :disabled="formSaving"
-        ></v-select>
-        <v-text-field
-          v-model="item.value"
-          label="Value *"
-          :rules="[v => !!v || 'Value is required']"
-          outlined
-          dense
-          required
-          :disabled="formSaving"
-        ></v-text-field>
-      </div>
-    </v-col>
-  </v-row>
+
+  <v-divider class="mb-5" />
+
+  <div>
+    <v-select
+      v-model="item.match_type"
+      label="Match on *"
+      :items="matchTypes"
+      item-value="id"
+      item-text="text"
+      :rules="[v => !!v || 'Match source is required']"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+    ></v-select>
+    <v-select
+      v-model="item.body_data_type"
+      v-if="item.match_type == 'body'"
+      label="Body Data Format *"
+      :items="bodyDataFormats"
+      item-value="id"
+      item-text="text"
+      :rules="[v => !!v || 'Body Data Format is required']"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+    ></v-select>
+    <v-text-field
+      v-model="item.key"
+      label="Key *"
+      :rules="[v => !!v || 'Key is required']"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+    ></v-text-field>
+    <v-select
+      v-model="item.method"
+      label="Comparison Method *"
+      :items="methods"
+      item-value="id"
+      item-text="text"
+      :rules="[v => !!v || 'Comparison Method is required']"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+    ></v-select>
+    <v-text-field
+      v-model="item.value"
+      label="Value *"
+      :rules="[v => !!v || 'Value is required']"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+    ></v-text-field>
+  </div>
 </v-form>
 </template>
 <script>

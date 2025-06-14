@@ -49,6 +49,8 @@ func (d *BoltDb) ApplyMigration(m db.Migration) (err error) {
 		err = migration_2_10_24{migration{d.db}}.Apply()
 	case "2.10.33":
 		err = migration_2_10_33{migration{d.db}}.Apply()
+	case "2.14.7":
+		err = migration_2_14_7{migration{d.db}}.Apply()
 	}
 
 	if err != nil {
@@ -97,8 +99,8 @@ func (d migration) getProjectIDs() (projectIDs []string, err error) {
 }
 
 // getObjects returns map of following format: map[OBJECT_ID]map[FIELD_NAME]interface{}
-func (d migration) getObjects(projectID string, objectPrefix string) (map[string]map[string]interface{}, error) {
-	repos := make(map[string]map[string]interface{}) // ???
+func (d migration) getObjects(projectID string, objectPrefix string) (map[string]map[string]any, error) {
+	repos := make(map[string]map[string]any) // ???
 
 	err := d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__" + objectPrefix + "_" + projectID))
@@ -106,7 +108,7 @@ func (d migration) getObjects(projectID string, objectPrefix string) (map[string
 			return nil
 		}
 		return b.ForEach(func(id, body []byte) error {
-			r := make(map[string]interface{})
+			r := make(map[string]any)
 			repos[string(id)] = r
 			return json.Unmarshal(body, &r)
 		})
@@ -115,7 +117,26 @@ func (d migration) getObjects(projectID string, objectPrefix string) (map[string
 	return repos, err
 }
 
-func (d migration) setObject(projectID string, objectPrefix string, objectID string, object map[string]interface{}) error {
+func (d migration) getObject(projectID string, objectPrefix string, objectID string) (r map[string]any, err error) {
+
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("project__" + objectPrefix + "_" + projectID))
+		if b == nil {
+			return nil
+		}
+
+		s := b.Get([]byte(objectID))
+		if s == nil {
+			return nil
+		}
+
+		return json.Unmarshal(s, &r)
+	})
+
+	return
+}
+
+func (d migration) setObject(projectID string, objectPrefix string, objectID string, object map[string]any) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("project__" + objectPrefix + "_" + projectID))
 		if err != nil {
@@ -126,5 +147,16 @@ func (d migration) setObject(projectID string, objectPrefix string, objectID str
 			return err
 		}
 		return b.Put([]byte(objectID), j)
+	})
+}
+
+func (d migration) deleteObject(projectID string, objectPrefix string, objectID string) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("project__" + objectPrefix + "_" + projectID))
+		if b == nil {
+			return nil
+		}
+
+		return b.Delete([]byte(objectID))
 	})
 }

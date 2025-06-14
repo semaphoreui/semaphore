@@ -32,7 +32,7 @@ func (a *Agent) Listen() error {
 
 	for _, k := range a.Keys {
 		var (
-			key interface{}
+			key any
 			err error
 		)
 
@@ -60,7 +60,6 @@ func (a *Agent) Listen() error {
 			Name: a.SocketFile,
 		},
 	)
-
 	if err != nil {
 		return fmt.Errorf("listening on socket %q: %w", a.SocketFile, err)
 	}
@@ -72,7 +71,6 @@ func (a *Agent) Listen() error {
 	go func() {
 		for {
 			conn, err := a.listener.Accept()
-
 			if err != nil {
 				select {
 				case <-a.done:
@@ -84,7 +82,7 @@ func (a *Agent) Listen() error {
 			}
 
 			go func(conn net.Conn) {
-				defer conn.Close()
+				defer conn.Close() //nolint:errcheck
 
 				if err := agent.ServeAgent(keyring, conn); err != nil && err != io.EOF {
 					a.Logger.Logf("error serving SSH agent listener: %w", err)

@@ -4,18 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/gorilla/context"
 	"net/http"
 	"reflect"
 	"sort"
 	"strings"
 )
 
-func structToFlatMap(obj interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
+func structToFlatMap(obj any) map[string]any {
+	result := make(map[string]any)
 	val := reflect.ValueOf(obj)
 	typ := reflect.TypeOf(obj)
 
@@ -137,7 +137,7 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func setAppOption(store db.Store, appID string, field string, val interface{}) error {
+func setAppOption(store db.Store, appID string, field string, val any) error {
 	key := "apps." + appID + "." + field
 
 	if val == nil {
@@ -155,7 +155,7 @@ func setAppOption(store db.Store, appID string, field string, val interface{}) e
 
 	options := db.ConvertFlatToNested(opts)
 
-	_ = db.AssignMapToStruct(options, util.Config)
+	_ = util.AssignMapToStruct(options, util.Config)
 
 	return nil
 }

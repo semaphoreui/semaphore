@@ -1,12 +1,12 @@
 package sql
 
 import (
-	"database/sql"
 	"errors"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"time"
+	"strings"
 )
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -17,7 +17,7 @@ func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err er
 	}
 
 	user.Password = ""
-	user.Created = db.GetParsedTime(time.Now().UTC())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.sql.Insert(&user)
 
@@ -43,7 +43,7 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
-	user.Created = db.GetParsedTime(time.Now().UTC())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.sql.Insert(&user.User)
 
@@ -128,10 +128,6 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
 		projectID,
 		userID)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
 	return user, err
 }
 
@@ -193,10 +189,6 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 
 	err = d.selectOne(&user, "select * from `user` where id=?", userID)
 
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
-
 	if err != nil {
 		return
 	}
@@ -208,7 +200,7 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 		user.Totp = &totp
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
 
@@ -233,6 +225,14 @@ func (d *SqlDb) GetUserCount() (count int, err error) {
 	return
 }
 
+func escapeLike(s string) string {
+	// Order matters: escape \ first
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
+
 func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
 	q := squirrel.Select("*").From("`user`")
 
@@ -240,6 +240,10 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err er
 
 	if err != nil {
 		return
+	}
+
+	if params.Filter != "" {
+		q = q.Where(squirrel.Like{"username": escapeLike(params.Filter) + "%"})
 	}
 
 	query, args, err := q.ToSql()
@@ -259,10 +263,6 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		d.PrepareQuery("select * from `user` where email=? or username=?"),
 		email, login)
 
-	if errors.Is(err, sql.ErrNoRows) {
-		err = db.ErrNotFound
-	}
-
 	if err != nil {
 		return
 	}
@@ -274,7 +274,7 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		user.Totp = &totp
 	}
 
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, db.ErrNotFound) {
 		err = nil
 	}
 
@@ -292,7 +292,7 @@ func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string)
 	totp.UserID = userID
 	totp.URL = url
 	totp.RecoveryHash = recoveryHash
-	totp.Created = db.GetParsedTime(time.Now().UTC())
+	totp.Created = db.GetParsedTime(tz.Now())
 
 	res, err := d.exec(
 		"insert into user__totp (user_id, url, recovery_hash, created) values (?, ?, ?, ?)",
@@ -318,4 +318,13 @@ func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string)
 func (d *SqlDb) DeleteTotpVerification(userID int, totpID int) error {
 	_, err := d.exec("delete from user__totp where user_id=? and id = ?", userID, totpID)
 	return err
+}
+
+func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEmailOtp, err error) {
+	err = db.ErrNotFound
+	return
+}
+func (d *SqlDb) DeleteEmailOtpVerification(userID int, totpID int) (err error) {
+	err = db.ErrNotFound
+	return
 }

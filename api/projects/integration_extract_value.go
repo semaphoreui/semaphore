@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -161,7 +161,7 @@ func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err)
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration Extract Value failed to be deleted",
 		})
 		return
@@ -169,7 +169,7 @@ func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 	err = helpers.Store(r).DeleteIntegrationExtractValue(project.ID, valueId, integration.ID)
 	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration Extract Value failed to be deleted",
 		})
 		return

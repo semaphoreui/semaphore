@@ -58,7 +58,7 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 
 	var res sql.Result
 
-	var args []interface{}
+	var args []any
 	query := "update access_key set name=?"
 	args = append(args, key.Name)
 

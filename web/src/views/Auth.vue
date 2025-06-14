@@ -73,7 +73,7 @@
       justify-center
       class="pa-0"
     >
-      <v-card class="px-5 py-5" style="margin-bottom: 10%; border-radius: 15px;">
+      <v-card class="px-5 py-5" style="border-radius: 15px;">
         <v-card-text>
           <v-form
             ref="signInForm"
@@ -81,7 +81,6 @@
             v-model="signInFormValid"
             style="width: 350px;"
           >
-
             <v-img
               width="80"
               height="80"
@@ -144,6 +143,7 @@
                 class="mt-6"
                 outlined
                 v-model="recoveryCode"
+                @keyup.enter.native="signIn"
                 :label="$t('Recovery code')"
                 :rules="[v => !!v || $t('recoveryCode_required')]"
                 required
@@ -173,6 +173,7 @@
                 required
                 :disabled="signInProcess"
                 v-if="loginWithPassword"
+                data-testid="auth-username"
               ></v-text-field>
 
               <v-text-field
@@ -185,6 +186,7 @@
                 @keyup.enter.native="signIn"
                 style="margin-bottom: 20px;"
                 v-if="loginWithPassword"
+                data-testid="auth-password"
               ></v-text-field>
 
               <v-btn
@@ -195,9 +197,15 @@
                 block
                 v-if="loginWithPassword"
                 rounded
+                data-testid="auth-signin"
               >
                 {{ $t('signIn') }}
               </v-btn>
+
+              <div
+                class="auth__divider"
+                v-if="loginWithPassword && oidcProviders.length > 0"
+              >or</div>
 
               <v-btn
                 large
@@ -226,13 +234,33 @@
               </div>
 
             </div>
-      </v-form>
+          </v-form>
         </v-card-text>
       </v-card>
     </v-container>
   </div>
 </template>
 <style lang="scss">
+.auth__divider {
+  margin-top: 15px;
+  margin-bottom: 5px;
+
+  display: flex;
+  &:before, &:after {
+    margin-top: 10px;
+    width: 100%;
+    content: "";
+    border-top: 1px solid rgba(128, 128, 128, 0.51);
+  }
+
+  &:before {
+    margin-right: 10px;
+  }
+
+  &:after {
+    margin-left: 10px;
+  }
+}
 .auth {
   height: 100vh;
   background: #80808024;
@@ -241,6 +269,7 @@
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
+import EventBus from '@/event-bus';
 
 export default {
   data() {
@@ -322,14 +351,21 @@ export default {
     },
 
     async signOut() {
-      (await axios({
-        method: 'post',
-        url: '/api/auth/logout',
-        responseType: 'json',
-      }));
+      try {
+        (await axios({
+          method: 'post',
+          url: '/api/auth/logout',
+          responseType: 'json',
+        }));
 
-      const { location } = document;
-      document.location = location;
+        const { location } = document;
+        document.location = location;
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(e),
+        });
+      }
     },
 
     makePasswordExample() {
@@ -387,7 +423,7 @@ export default {
         document.location = document.baseURI + window.location.search;
       } catch (err) {
         if (err.response.status === 401) {
-          this.signInError = this.$t('incorrectUsrPwd');
+          this.signInError = this.$t('Incorrect verification code.');
         } else {
           this.signInError = getErrorMessage(err);
         }

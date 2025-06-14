@@ -3,6 +3,7 @@ package runners
 import (
 	"bufio"
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"io"
 	"os/exec"
 	"sync"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
-	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,11 +35,11 @@ func (p *runningJob) AddLogListener(l task_logger.LogListener) {
 }
 
 func (p *runningJob) Log(msg string) {
-	p.LogWithTime(time.Now(), msg)
+	p.LogWithTime(tz.Now(), msg)
 }
 
 func (p *runningJob) Logf(format string, a ...any) {
-	p.LogfWithTime(time.Now(), format, a...)
+	p.LogfWithTime(tz.Now(), format, a...)
 }
 
 func (p *runningJob) LogWithTime(now time.Time, msg string) {
@@ -96,14 +96,37 @@ func (p *runningJob) logPipe(reader io.Reader) {
 	defer p.logWG.Done()
 
 	scanner := bufio.NewScanner(reader)
+	const maxCapacity = 10 * 1024 * 1024 // 10 MB
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		p.Log(line)
 	}
 
-	if scanner.Err() != nil && scanner.Err().Error() != "EOF" {
-		//don't panic on these errors, sometimes it throws not dangerous "read |0: file already closed" error
-		util.LogWarningF(scanner.Err(), log.Fields{"error": "Failed to read TaskRunner output"})
+	err := scanner.Err()
+
+	if err != nil {
+		msg := "Failed to read TaskRunner output"
+
+		switch err.Error() {
+		case "EOF",
+			"os: process already finished",
+			"read |0: file already closed":
+			return // it is ok
+		case "bufio.Scanner: token too long":
+			msg = "TaskRunner output exceeds the maximum allowed size of 10MB"
+			break
+		}
+
+		p.job.Kill() // kill the job because stdout cannot be read.
+
+		log.WithError(err).WithFields(log.Fields{
+			"task_id": p.job.Task.ID,
+			"context": "task_logger",
+		}).Error(msg)
+
+		p.Log("Fatal error: " + msg)
 	}
 }

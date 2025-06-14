@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"io"
 	"net/http"
 	"strings"
@@ -108,7 +109,22 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				"sha256=")
 
 			if !ok {
-				log.Error("Invalid HMAC signature")
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).Error("Invalid GitHub/HMAC signature")
+				continue
+			}
+		case db.IntegrationAuthBitbucket:
+			ok := isValidHmacPayload(
+				integration.AuthSecret.LoginPassword.Password,
+				r.Header.Get("x-hub-signature"),
+				payload,
+				"sha256=")
+
+			if !ok {
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).Error("Invalid Bitbucket/HMAC signature")
 				continue
 			}
 		case db.IntegrationAuthHmac:
@@ -119,18 +135,32 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 				"")
 
 			if !ok {
-				log.Error("Invalid HMAC signature")
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).Error("Invalid HMAC signature")
 				continue
 			}
 		case db.IntegrationAuthToken:
 			if integration.AuthSecret.LoginPassword.Password != r.Header.Get(integration.AuthHeader) {
-				log.Error("Invalid verification token")
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).Error("Invalid verification token")
+				continue
+			}
+		case db.IntegrationAuthBasic:
+			var username, password, auth = r.BasicAuth()
+			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).Error("Invalid BasicAuth: incorrect login or password")
 				continue
 			}
 		case db.IntegrationAuthNone:
 			// Do nothing
 		default:
-			log.Error("Unknown verification method: " + integration.AuthMethod)
+			log.WithFields(log.Fields{
+				"context": "integrations",
+			}).Error("Unknown verification method: " + integration.AuthMethod)
 			continue
 		}
 
@@ -138,7 +168,9 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			var matchers []db.IntegrationMatcher
 			matchers, err = store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {
-				log.Error(err)
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).WithError(err).Error("Could not retrieve matchers")
 				continue
 			}
 
@@ -185,29 +217,9 @@ func Match(matcher db.IntegrationMatcher, header http.Header, bodyBytes []byte) 
 	return false
 }
 
-func convertFloatToIntIfPossible(v interface{}) (int64, bool) {
+func MatchCompare(value any, method db.IntegrationMatchMethodType, expected string) bool {
 
-	switch v.(type) {
-	case float64:
-		f := v.(float64)
-		i := int64(f)
-		if float64(i) == f {
-			return i, true
-		}
-	case float32:
-		f := v.(float32)
-		i := int64(f)
-		if float32(i) == f {
-			return i, true
-		}
-	}
-
-	return 0, false
-}
-
-func MatchCompare(value interface{}, method db.IntegrationMatchMethodType, expected string) bool {
-
-	if intValue, ok := convertFloatToIntIfPossible(value); ok {
+	if intValue, ok := conv.ConvertFloatToIntIfPossible(value); ok {
 		value = intValue
 	}
 
@@ -229,7 +241,8 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
-	var extractValues = make([]db.IntegrationExtractValue, 0)
+	var envValues = make([]db.IntegrationExtractValue, 0)
+	var taskValues = make([]db.IntegrationExtractValue, 0)
 
 	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
@@ -237,15 +250,24 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		return
 	}
 
-	extractValues = append(extractValues, extractValuesForExtractor...)
+	for _, val := range extractValuesForExtractor {
+		switch val.VariableType {
+		case "", db.IntegrationVariableEnvironment: // "" handles null/empty for backward compatibility
+			envValues = append(envValues, val)
+		case db.IntegrationVariableTaskParam:
+			taskValues = append(taskValues, val)
+		}
+	}
 
-	var extractedResults = Extract(extractValues, r, payload)
+	var extractedEnvResults = Extract(envValues, r, payload)
 
-	environmentJSONBytes, err := json.Marshal(extractedResults)
+	environmentJSONBytes, err := json.Marshal(extractedEnvResults)
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
+	var extractedTaskResults = ExtractAsAnyForTaskParams(taskValues, r, payload)
 
 	var environmentJSONString = string(environmentJSONBytes)
 	var taskDefinition = db.Task{
@@ -255,13 +277,18 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		IntegrationID: &integration.ID,
 	}
 
+	// Only assign extractedTaskResults to Params if it's not empty
+	if len(extractedTaskResults) > 0 {
+		taskDefinition.Params = extractedTaskResults
+	}
+
 	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, integration.ProjectID, tpl.App.NeedTaskAlias())
+	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return
@@ -286,4 +313,30 @@ func Extract(extractValues []db.IntegrationExtractValue, r *http.Request, payloa
 		}
 	}
 	return
+}
+
+func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, r *http.Request, payload []byte) db.MapStringAnyField {
+	// Create a result map that accepts any type
+	result := make(db.MapStringAnyField)
+
+	for _, extractValue := range extractValues {
+		switch extractValue.ValueSource {
+		case db.IntegrationExtractHeaderValue:
+			// Extract the header value
+			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
+
+		case db.IntegrationExtractBodyValue:
+			switch extractValue.BodyDataType {
+			case db.IntegrationBodyDataJSON:
+				// Query the JSON payload for the key using gojsonq
+				rawValue := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
+				result[extractValue.Variable] = rawValue
+
+			case db.IntegrationBodyDataString:
+				// Simply use the entire payload as a string
+				result[extractValue.Variable] = string(payload)
+			}
+		}
+	}
+	return result
 }

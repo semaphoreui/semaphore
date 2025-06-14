@@ -18,9 +18,11 @@
       :rules="[v => !!v || 'Name is required']"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
-    <v-select
+    <v-autocomplete
       v-model="item.template_id"
       label="Task Template to run"
       clearable
@@ -28,7 +30,9 @@
       item-value="id"
       item-text="name"
       :disabled="formSaving"
-    ></v-select>
+      outlined
+      dense
+    ></v-autocomplete>
 
     <v-select
       v-model="item.auth_method"
@@ -37,6 +41,8 @@
       item-value="id"
       item-text="title"
       :disabled="formSaving"
+      outlined
+      dense
     ></v-select>
 
     <v-text-field
@@ -44,6 +50,8 @@
       v-model="item.auth_header"
       label="Auth header"
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-select
@@ -55,12 +63,16 @@
       item-value="id"
       item-text="name"
       :disabled="formSaving"
+      outlined
+      dense
     ></v-select>
 
     <TaskParamsForm
+      class="mt-6"
       v-if="item.template_id"
       v-model="item.task_params"
       :app="(template || {}).app"
+      :template-params="(template || {}).task_params || {}"
     />
   </v-form>
 </template>
@@ -82,11 +94,17 @@ export default {
         id: 'github',
         title: 'GitHub Webhooks',
       }, {
+        id: 'bitbucket',
+        title: 'Bitbucket Webhooks',
+      }, {
         id: 'token',
         title: 'Token',
       }, {
         id: 'hmac',
         title: 'HMAC',
+      }, {
+        id: 'basic',
+        title: 'BasicAuth',
       }],
       keys: null,
     };
@@ -101,7 +119,7 @@ export default {
 
   computed: {
     isLoaded() {
-      return this.keys != null;
+      return this.item && this.keys != null;
     },
 
     loginPasswordKeys() {

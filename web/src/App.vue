@@ -54,30 +54,13 @@
       </template>
     </EditDialog>
 
-    <EditDialog
+    <TaskLogDialog
       v-model="taskLogDialog"
-      :max-width="1000"
-      :hide-buttons="true"
-      :expandable="true"
-      name="TaskLogDialog"
       @close="onTaskLogDialogClosed()"
-    >
-      <template v-slot:title={}>
-        <div class="text-truncate" style="max-width: calc(100% - 36px);">
-          <router-link
-            class="breadcrumbs__item breadcrumbs__item--link"
-            :to="`/project/${projectId}/templates/${template ? template.id : null}`"
-            @click="taskLogDialog = false"
-          >{{ template ? template.name : null }}
-          </router-link>
-          <v-icon>mdi-chevron-right</v-icon>
-          <span class="breadcrumbs__item">{{ $t('task', {expr: task ? task.id : null}) }}</span>
-        </div>
-      </template>
-      <template v-slot:form="{}">
-        <TaskLogView :project-id="projectId" :item-id="task ? task.id : null"/>
-      </template>
-    </EditDialog>
+      :project-id="projectId"
+      :item-id="taskId"
+      :system-info="systemInfo"
+    />
 
     <EditDialog
       v-model="newProjectDialog"
@@ -147,6 +130,7 @@
               class="app__project-selector"
               v-bind="attrs"
               v-on="on"
+              data-testid="sidebar-currentProject"
             >
               <v-list-item-icon>
                 <v-avatar
@@ -193,6 +177,7 @@
           <v-list-item
             @click="newProjectDialog = true; newProjectType = '';"
             v-if="user.can_create_project"
+            data-testid="sidebar-newProject"
           >
             <v-list-item-icon>
               <v-icon>mdi-plus</v-icon>
@@ -203,7 +188,11 @@
             </v-list-item-content>
           </v-list-item>
 
-          <v-list-item @click="restoreProjectDialog = true" v-if="user.can_create_project">
+          <v-list-item
+            @click="restoreProjectDialog = true"
+            v-if="user.can_create_project"
+            data-testid="sidebar-restoreProject"
+          >
             <v-list-item-icon>
               <v-icon>mdi-backup-restore</v-icon>
             </v-list-item-icon>
@@ -239,7 +228,11 @@
 
       <v-list class="pt-0" v-if="project">
 
-        <v-list-item key="dashboard" :to="`/project/${projectId}/history`">
+        <v-list-item
+          key="dashboard"
+          :to="`/project/${projectId}/history`"
+          data-testid="sidebar-dashboard"
+        >
           <v-list-item-icon>
             <v-icon>mdi-view-dashboard</v-icon>
           </v-list-item-icon>
@@ -249,7 +242,12 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item v-if="project.type === ''" key="templates" :to="templatesUrl">
+        <v-list-item
+          v-if="project.type === ''"
+          key="templates"
+          :to="templatesUrl"
+          data-testid="sidebar-templates"
+        >
           <v-list-item-icon>
             <v-icon>mdi-check-all</v-icon>
           </v-list-item-icon>
@@ -263,6 +261,7 @@
           v-if="project.type === ''"
           key="schedule"
           :to="`/project/${projectId}/schedule`"
+          data-testid="sidebar-schedule"
         >
           <v-list-item-icon>
             <v-icon>mdi-clock-outline</v-icon>
@@ -277,6 +276,7 @@
           v-if="project.type === ''"
           key="inventory"
           :to="`/project/${projectId}/inventory`"
+          data-testid="sidebar-inventory"
         >
           <v-list-item-icon>
             <v-icon>mdi-monitor-multiple</v-icon>
@@ -291,6 +291,7 @@
           v-if="project.type === ''"
           key="environment"
           :to="`/project/${projectId}/environment`"
+          data-testid="sidebar-environment"
         >
           <v-list-item-icon>
             <v-icon>mdi-code-braces</v-icon>
@@ -305,6 +306,7 @@
           v-if="project.type === ''"
           key="keys"
           :to="`/project/${projectId}/keys`"
+          data-testid="sidebar-keys"
         >
           <v-list-item-icon>
             <v-icon>mdi-key-change</v-icon>
@@ -333,6 +335,7 @@
           v-if="project.type === ''"
           key="integrations"
           :to="`/project/${projectId}/integrations`"
+          data-testid="sidebar-integrations"
         >
           <v-list-item-icon>
             <v-icon>mdi-connection</v-icon>
@@ -343,7 +346,11 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="team" :to="`/project/${projectId}/team`">
+        <v-list-item
+          key="team"
+          :to="`/project/${projectId}/team`"
+          data-testid="sidebar-team"
+        >
           <v-list-item-icon>
             <v-icon>mdi-account-multiple</v-icon>
           </v-list-item-icon>
@@ -478,7 +485,7 @@
               <v-list-item
                 key="runners"
                 to="/runners"
-                v-if="user.admin && systemInfo.use_remote_runner"
+                v-if="user.admin"
               >
                 <v-list-item-icon>
                   <v-icon>mdi-cogs</v-icon>
@@ -499,7 +506,21 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="sign_out" @click="signOut()">
+              <v-list-item
+                key="tokens"
+                to="/tokens"
+                data-testid="sidebar-tokens"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-api</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('api_tokens') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
                 <v-list-item-icon>
                   <v-icon>mdi-exit-to-app</v-icon>
                 </v-list-item-icon>
@@ -524,11 +545,10 @@
         :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
-        :webHost="(systemInfo || {}).web_host"
-        :version="(systemInfo || {version: ''}).version.split('-')[0]"
+        :user="user"
         :premiumFeatures="((systemInfo || {premium_features: {}}).premium_features)"
         :authMethods="(systemInfo || {auth_methods: {}}).auth_methods"
-        :user="user"
+        :systemInfo="systemInfo"
       ></router-view>
     </v-main>
 
@@ -586,13 +606,16 @@
 .DarkModeSwitch {
   .v-input__prepend-outer {
     transform: translateY(1px);
+
     .v-icon {
       color: #cacaca !important;
     }
   }
+
   .v-input__append-outer {
     margin-left: 5px;
     transform: translateY(-1px);
+
     .v-icon {
       color: #2196f3 !important;
     }
@@ -610,7 +633,6 @@
 
 .v-data-table tbody tr.v-data-table__expanded__content {
   box-shadow: none !important;
-
 }
 
 .v-data-table a {
@@ -673,6 +695,7 @@
   td:first-child, th:first-child {
     padding-left: 2px !important;
   }
+
   td:last-child, th:last-child {
     padding-right: 2px !important;
   }
@@ -684,6 +707,7 @@
 
   .v-data-table__wrapper > table > tbody > tr {
     background: transparent !important;
+
     &:hover {
       background-color: rgba(143, 143, 143, 0.04) !important;
     }
@@ -717,6 +741,10 @@
   margin-left: 10px !important;
 }
 
+.v-slide-group__prev--disabled {
+  display: none !important;
+}
+
 @media (min-width: 960px) {
   .v-app-bar__nav-icon {
     display: none !important;
@@ -726,6 +754,51 @@
     padding-left: 0 !important;
     margin-left: 0 !important;
   }
+}
+
+.v-input {
+  .v-input__slot fieldset {
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(133, 133, 133, 0.4);
+    background-color: rgba(133, 133, 133, 0.1);
+  }
+
+  .v-label--active {
+    text-shadow: 0 0 2px black;
+    font-weight: 500;
+  }
+
+  &.primary--text {
+    .v-input__slot fieldset {
+      border-width: 2px;
+      border-color: #2196f3;
+    }
+  }
+
+  &.error--text {
+    .v-input__slot fieldset {
+      border-width: 2px;
+      border-color: #ff5252;
+    }
+  }
+}
+
+.v-input--is-disabled {
+  opacity: 0.5;
+}
+
+.theme--light {
+  .v-input {
+    .v-label--active {
+      text-shadow: 0 0 2px white;
+    }
+  }
+}
+
+.v-list--dense .v-list-item .v-list-item__title {
+  font-weight: normal;
+  font-size: 1rem;
 }
 
 @import '~vuetify/src/styles/styles.sass';
@@ -740,13 +813,14 @@
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 import EditDialog from '@/components/EditDialog.vue';
-import TaskLogView from '@/components/TaskLogView.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import TaskLogDialog from '@/components/TaskLogDialog.vue';
+import delay from '@/lib/delay';
 
 const PROJECT_COLORS = [
   'red',
@@ -767,6 +841,9 @@ const LANGUAGES = {
   },
   de: {
     title: 'German',
+  },
+  nl: {
+    title: 'Dutch (Netherlands)',
   },
   zh_cn: {
     title: '中文(大陆)',
@@ -820,11 +897,11 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    TaskLogDialog,
     YesNoDialog,
     RestoreProjectForm,
     UserForm,
     EditDialog,
-    TaskLogView,
     ProjectForm,
   },
   data() {
@@ -847,7 +924,7 @@ export default {
       restoreProjectResultDialog: null,
 
       taskLogDialog: null,
-      task: null,
+      taskId: null,
       template: null,
       darkMode: false,
       languages: [
@@ -975,20 +1052,11 @@ export default {
       if (parseInt(this.$route.query.t || '', 10) !== e.taskId) {
         const query = { ...this.$route.query, t: e.taskId };
         await this.$router.replace({ query });
+        return;
       }
 
-      this.task = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/tasks/${e.taskId}`,
-        responseType: 'json',
-      })).data;
-
-      this.template = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.task.template_id}`,
-        responseType: 'json',
-      })).data;
-
+      this.taskId = e.taskId;
+      await delay(1);
       this.taskLogDialog = true;
     });
 
@@ -1245,17 +1313,24 @@ export default {
       this.snackbarColor = '';
       this.snackbarText = '';
 
-      socket.stop();
+      try {
+        (await axios({
+          method: 'post',
+          url: '/api/auth/logout',
+          responseType: 'json',
+        }));
 
-      (await axios({
-        method: 'post',
-        url: '/api/auth/logout',
-        responseType: 'json',
-      }));
+        socket.stop();
 
-      if (this.$route.path !== '/auth/login') {
-        await this.$router.push({ path: '/auth/login' });
-        this.state = 'success';
+        if (this.$route.path !== '/auth/login') {
+          await this.$router.push({ path: '/auth/login' });
+          this.state = 'success';
+        }
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
       }
     },
 

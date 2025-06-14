@@ -215,11 +215,9 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 // RemoveInventory deletes an inventory from the database
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 	inventory := context.Get(r, "inventory").(db.Inventory)
-	var err error
-
-	err = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
+	var err error = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
 	if errors.Is(err, db.ErrInvalidOperation) {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Inventory is in use by one or more templates",
 			"inUse": true,
 		})

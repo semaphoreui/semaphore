@@ -50,7 +50,6 @@
   </div>
 </template>
 <script>
-import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
 import IntegrationsBase from '@/views/project/IntegrationsBase';
 import copyToClipboard from '@/lib/copyToClipboard';
 import axios from 'axios';
@@ -59,8 +58,11 @@ import IntegrationMatcher from './IntegrationMatcher.vue';
 import IntegrationExtractorCrumb from './IntegrationExtractorCrumb.vue';
 
 export default {
-  mixins: [IntegrationExtractorsBase, IntegrationsBase],
+  mixins: [IntegrationsBase],
   components: { IntegrationMatcher, IntegrationExtractValue, IntegrationExtractorCrumb },
+  props: {
+    projectId: Number,
+  },
 
   data() {
     return {

@@ -2,6 +2,10 @@ package db
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -80,13 +84,147 @@ func GetMigrations() []Migration {
 		{Version: "2.12.0"},
 		{Version: "2.12.3"},
 		{Version: "2.12.4"},
+		{Version: "2.12.5"},
+		{Version: "2.12.15"},
+		{Version: "2.13.0"},
+		{Version: "2.14.0"},
+		{Version: "2.14.1"},
+		{Version: "2.14.5"},
+		{Version: "2.14.7"},
+		{Version: "2.14.12"},
+		{Version: "2.15.0"},
+		{Version: "2.15.1"},
 	}
 }
 
-func Migrate(d Store) error {
+func (m Migration) Validate() error {
+	if m.Version == "" {
+		return fmt.Errorf("migration version is empty")
+	}
+
+	return nil
+}
+
+type MigrationVersion struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func (m Migration) ParseVersion() (res MigrationVersion, err error) {
+
+	parts := strings.Split(m.Version, ".")
+
+	if len(parts) > 3 || len(parts) < 2 {
+		err = fmt.Errorf("invalid migration version format %s", m.Version)
+		return
+	}
+
+	res.Major, err = strconv.Atoi(parts[0])
+	if err != nil {
+		err = fmt.Errorf("invalid migration version major part %s", parts[0])
+		return
+	}
+
+	res.Minor, err = strconv.Atoi(parts[1])
+	if err != nil {
+		err = fmt.Errorf("invalid migration version minor part %s", parts[1])
+		return
+	}
+
+	if len(parts) < 3 {
+		return
+	}
+
+	res.Patch, err = strconv.Atoi(parts[2])
+	if err != nil {
+		err = fmt.Errorf("invalid migration version patch part %s", parts[2])
+		return
+	}
+
+	return
+}
+
+func (v MigrationVersion) Compare(o MigrationVersion) int {
+	if v.Major < o.Major {
+		return -1
+	} else if v.Major > o.Major {
+		return 1
+	}
+
+	if v.Minor < o.Minor {
+		return -1
+	} else if v.Minor > o.Minor {
+		return 1
+	}
+
+	if v.Patch < o.Patch {
+		return -1
+	} else if v.Patch > o.Patch {
+		return 1
+	}
+
+	return 0
+}
+
+func (m Migration) Compare(o Migration) int {
+
+	mVer, err := m.ParseVersion()
+	if err != nil {
+		panic(err)
+	}
+
+	oVer, err := o.ParseVersion()
+	if err != nil {
+		panic(err)
+	}
+
+	return mVer.Compare(oVer)
+}
+
+func Rollback(d Store, targetVersion string) error {
+
+	didRun := false
+
+	migrations := GetMigrations()
+	slices.Reverse(migrations)
+
+	for _, version := range migrations {
+
+		if version.Compare(Migration{Version: targetVersion}) <= 0 {
+			break
+		}
+
+		applied, err := d.IsMigrationApplied(version)
+		if err != nil {
+			return err
+		}
+
+		if !applied {
+			continue
+		}
+
+		d.TryRollbackMigration(version)
+
+		didRun = true
+	}
+
+	if didRun {
+		fmt.Println("Rollback Finished")
+	}
+
+	return nil
+}
+
+func Migrate(d Store, targetVersion *string) error {
 	didRun := false
 
 	for _, version := range GetMigrations() {
+
+		if targetVersion != nil && version.Compare(Migration{Version: *targetVersion}) > 0 {
+			break
+		}
+
 		if exists, err := d.IsMigrationApplied(version); err != nil || exists {
 			if exists {
 				continue
@@ -96,9 +234,9 @@ func Migrate(d Store) error {
 		}
 
 		didRun = true
-		fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), time.Now())
+		fmt.Printf("Executing migration %s (at %v)...\n", version.HumanoidVersion(), tz.Now())
 		if err := d.ApplyMigration(version); err != nil {
-			fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), time.Now())
+			fmt.Printf("Rolling back %s (time: %v)...\n", version.HumanoidVersion(), tz.Now())
 			d.TryRollbackMigration(version)
 			return err
 		}

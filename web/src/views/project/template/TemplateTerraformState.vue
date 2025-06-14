@@ -192,8 +192,10 @@
         </span>
         <v-btn
           color="hsl(348deg, 86%, 61%)"
-          href="https://semaphoreui.com/pro"
-        >Upgrade
+          href="https://semaphoreui.com/pro#runners"
+        >
+          Learn more
+          <v-icon>mdi-chevron-right</v-icon>
         </v-btn>
       </v-alert>
 
@@ -421,6 +423,10 @@ export default {
     },
 
     async loadStates() {
+      if (!this.inventoryId) {
+        this.states = [];
+        return;
+      }
       this.states = (await axios.get(`/api/project/${this.template.project_id}/inventory/${this.inventoryId}/terraform/states`)).data;
     },
 
@@ -439,6 +445,10 @@ export default {
     },
 
     async loadAliases() {
+      if (!this.inventoryId) {
+        this.aliases = [];
+        return;
+      }
       try {
         this.aliases = (await axios({
           url: `/api/project/${this.template.project_id}/inventory/${this.inventoryId}/terraform/aliases`,

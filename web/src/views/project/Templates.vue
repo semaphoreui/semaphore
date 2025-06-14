@@ -32,6 +32,7 @@
       :item-app="itemApp"
       item-id="new"
       @save="loadItems()"
+      :premium-features="premiumFeatures"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -39,10 +40,8 @@
       @save="itemId = null"
       @close="itemId = null"
       :project-id="projectId"
+      :template="template"
       :template-id="itemId"
-      :template-alias="templateAlias"
-      :template-type="templateType"
-      :template-app="templateApp"
     />
 
     <v-toolbar flat>
@@ -91,7 +90,7 @@
             v-if="isAdmin"
             key="other"
             link
-            href="/apps"
+            to="/apps"
           >
             <v-list-item-icon>
               <v-icon>mdi-cogs</v-icon>
@@ -285,6 +284,9 @@ export default {
     EditViewsForm,
     NewTaskDialog,
   },
+  props: {
+    premiumFeatures: Object,
+  },
   mixins: [ItemListPageBase, AppsMixin],
   async created() {
     socket.addListener((data) => this.onWebsocketDataReceived(data));
@@ -311,6 +313,7 @@ export default {
     };
   },
   computed: {
+
     viewId() {
       if (/^-?\d+$/.test(this.$route.params.viewId)) {
         return parseInt(this.$route.params.viewId, 10);
@@ -318,25 +321,11 @@ export default {
       return this.$route.params.viewId;
     },
 
-    templateType() {
+    template() {
       if (this.itemId == null || this.itemId === 'new') {
-        return '';
+        return null;
       }
-      return this.items.find((x) => x.id === this.itemId).type;
-    },
-
-    templateAlias() {
-      if (this.itemId == null || this.itemId === 'new') {
-        return '';
-      }
-      return this.items.find((x) => x.id === this.itemId).name;
-    },
-
-    templateApp() {
-      if (this.itemId == null || this.itemId === 'new') {
-        return '';
-      }
-      return this.items.find((x) => x.id === this.itemId).app;
+      return this.items.find((x) => x.id === this.itemId);
     },
 
     isLoaded() {
@@ -497,23 +486,15 @@ export default {
     },
 
     async loadData() {
-      this.inventory = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
-        responseType: 'json',
-      })).data;
-
-      this.environment = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      this.repositories = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
+      [
+        this.inventory,
+        this.environment,
+        this.repositories,
+      ] = await Promise.all([
+        this.loadProjectResources('inventory'),
+        this.loadProjectResources('environment'),
+        this.loadProjectResources('repositories'),
+      ]);
     },
 
     onTableSettingsChange({ headers }) {

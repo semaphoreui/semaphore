@@ -3,8 +3,8 @@ package bolt
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -26,7 +26,7 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 	}
 
 	user.Password = ""
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	usr, err := d.createObject(0, db.UserProps, user)
 
@@ -63,7 +63,7 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
-	user.Created = db.GetParsedTime(time.Now())
+	user.Created = db.GetParsedTime(tz.Now())
 
 	usr, err := d.createObject(0, db.UserProps, user)
 
@@ -200,7 +200,7 @@ func (d *BoltDb) GetUser(userID int) (user db.User, err error) {
 
 func (d *BoltDb) GetProUserCount() (count int, err error) {
 	var users []db.User
-	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, func(i any) bool {
 		user := i.(db.User)
 		return user.Pro
 	}, &users)
@@ -254,7 +254,7 @@ func (d *BoltDb) GetUserByLoginOrEmail(login string, email string) (existingUser
 }
 
 func (d *BoltDb) GetAllAdmins() (users []db.User, err error) {
-	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+	err = d.getObjects(0, db.UserProps, db.RetrieveQueryParams{}, func(i any) bool {
 		user := i.(db.User)
 		return user.Admin
 	}, &users)
@@ -274,7 +274,7 @@ func (d *BoltDb) AddTotpVerification(userID int, url string, recoveryHash string
 	totp.UserID = userID
 	totp.URL = url
 	totp.RecoveryHash = recoveryHash
-	totp.Created = db.GetParsedTime(time.Now().UTC())
+	totp.Created = db.GetParsedTime(tz.Now())
 
 	newTotp, err := d.createObject(userID, db.UserTotpProps, totp)
 
@@ -288,4 +288,13 @@ func (d *BoltDb) AddTotpVerification(userID int, url string, recoveryHash string
 
 func (d *BoltDb) DeleteTotpVerification(userID int, totpID int) error {
 	return d.deleteObject(userID, db.UserTotpProps, intObjectID(totpID), nil)
+}
+
+func (d *BoltDb) AddEmailOtpVerification(userID int, code string) (res db.UserEmailOtp, err error) {
+	err = db.ErrNotFound
+	return
+}
+func (d *BoltDb) DeleteEmailOtpVerification(userID int, totpID int) (err error) {
+	err = db.ErrNotFound
+	return
 }

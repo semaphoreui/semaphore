@@ -17,6 +17,7 @@
       dark
       dismissible
       dense
+      @input="item.commit_hash=null"
       v-model="hasCommit"
       class="overflow-hidden mt-2"
     >
@@ -31,8 +32,8 @@
       </div>
     </v-alert>
 
-    <v-select
-      v-if="template.type === 'deploy'"
+    <v-autocomplete
+      v-if="buildTasks != null && template.type === 'deploy'"
       v-model="item.build_task_id"
       :label="$t('buildVersion')"
       :items="buildTasks"
@@ -41,12 +42,23 @@
       :rules="[v => !!v || $t('build_version_required')]"
       required
       :disabled="formSaving"
+      outlined
+      dense
     />
+
+    <v-skeleton-loader
+      v-else-if="template.type === 'deploy'"
+      type="card"
+      height="54"
+      style="margin-bottom: 16px; margin-top: 4px;"
+    ></v-skeleton-loader>
 
     <v-text-field
       v-model="item.message"
       :label="$t('messageOptional')"
       :disabled="formSaving"
+      outlined
+      dense
     />
 
     <div v-for="(v) in template.survey_vars || []" :key="v.name">
@@ -61,6 +73,8 @@
         :rules="[
             val => !v.required || !!val || v.title + $t('isRequired'),
           ]"
+        outlined
+        dense
       />
 
       <v-select
@@ -76,6 +90,8 @@
         :items="v.values"
         item-text="name"
         item-value="value"
+        outlined
+        dense
       />
 
       <v-text-field
@@ -89,11 +105,26 @@
           val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
           v.title + ' ' + $t('mustBeInteger'),
         ]"
+        outlined
+        dense
       />
     </div>
 
-    <v-select
-      class="mt-3"
+    <div class="pt-3"></div>
+
+    <v-text-field
+      v-model="git_branch"
+      :label="fieldLabel('branch')"
+      outlined
+      dense
+      required
+      :disabled="formSaving"
+      v-if="
+        needField('allow_override_branch')
+        && template.allow_override_branch_in_task"
+    />
+
+    <v-autocomplete
       v-model="inventory_id"
       :label="fieldLabel('inventory')"
       :items="inventory"
@@ -103,12 +134,56 @@
       dense
       required
       :disabled="formSaving"
-      v-if="needField('inventory')"
-      hide-details
-    ></v-select>
+      v-if="inventory != null && needInventory"
+    ></v-autocomplete>
 
-    <TaskParamsForm v-if="template.app === 'ansible'" v-model="item.params" :app="template.app" />
-    <TaskParamsForm v-else v-model="item.params" :app="template.app" />
+    <v-skeleton-loader
+      v-else-if="needInventory"
+      type="card"
+      height="46"
+      style="margin-bottom: 16px; margin-top: 4px;"
+    ></v-skeleton-loader>
+
+    <ArgsPicker
+      v-if="needField('limit') && (template.task_params || {}).allow_override_limit"
+      :vars="item.params.limit"
+      @change="setLimit"
+      :title="$t('limit')"
+      :arg-title="$t('limit')"
+      :add-arg-title="$t('addLimit')"
+    />
+
+    <ArgsPicker
+      v-if="needField('tags') && (template.task_params || {}).allow_override_tags"
+      :vars="item.params.tags"
+      @change="setTags"
+      :title="$t('tags')"
+      :arg-title="$t('tags')"
+      :add-arg-title="$t('addTag')"
+    />
+
+    <ArgsPicker
+      v-if="needField('skip_tags') && (template.task_params || {}).allow_override_skip_tags"
+      :vars="item.params.skip_tags"
+      @change="setSkipTags"
+      :title="$t('skipTags')"
+      :arg-title="$t('tag')"
+      :add-arg-title="$t('addSkippedTag')"
+    />
+
+    <TaskParamsForm
+      v-if="template.app === 'ansible'"
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params || {}"
+    />
+
+    <TaskParamsForm
+      v-else
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params || {}"
+    />
 
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
@@ -132,7 +207,7 @@ export default {
   mixins: [ItemFormBase, AppFieldsMixin],
 
   props: {
-    templateId: Number,
+    template: Object,
     sourceTask: Object,
   },
 
@@ -143,7 +218,6 @@ export default {
 
   data() {
     return {
-      template: null,
       buildTasks: null,
       hasCommit: null,
       editedEnvironment: null,
@@ -161,8 +235,22 @@ export default {
   },
 
   computed: {
+    needInventory() {
+      return this.needField('inventory') && this.template.task_params?.allow_override_inventory;
+    },
+
     args() {
-      return JSON.parse(this.item.arguments || '[]');
+      let res = this.item.arguments;
+
+      if (res == null) {
+        res = this.template.arguments;
+      }
+
+      if (res == null) {
+        res = '[]';
+      }
+
+      return JSON.parse(res);
     },
 
     app() {
@@ -177,22 +265,32 @@ export default {
         this.item.inventory_id = newValue;
       },
     },
+
+    git_branch: {
+      get() {
+        return (this.item || {}).git_branch || this.template.git_branch;
+      },
+      set(newValue) {
+        this.item.git_branch = newValue;
+      },
+    },
   },
 
   watch: {
     needReset(val) {
       if (val) {
         if (this.item) {
-          this.item.template_id = this.templateId;
+          this.item.template_id = this.template.id;
         }
+        this.buildTasks = null;
         this.inventory = null;
-        this.template = null;
+        // this.template = null;
       }
     },
 
-    templateId(val) {
+    template(val) {
       if (this.item) {
-        this.item.template_id = val;
+        this.item.template_id = val?.id;
       }
     },
 
@@ -207,7 +305,24 @@ export default {
     },
   },
 
+  created() {
+    this.refreshItem();
+  },
+
   methods: {
+
+    setSkipTags(tags) {
+      this.item.params.skip_tags = tags;
+    },
+
+    setTags(tags) {
+      this.item.params.tags = tags;
+    },
+
+    setLimit(limit) {
+      this.item.params.limit = limit;
+    },
+
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);
     },
@@ -243,10 +358,7 @@ export default {
     },
 
     isLoaded() {
-      return this.item != null
-        && this.template != null
-        && this.buildTasks != null
-        && this.inventory != null;
+      return this.item != null && this.template != null;
     },
 
     beforeSave() {
@@ -254,38 +366,66 @@ export default {
       this.item.secret = JSON.stringify(this.editedSecretEnvironment);
     },
 
-    async afterLoadData() {
+    refreshItem() {
       this.assignItem(this.sourceTask);
 
-      this.item.template_id = this.templateId;
+      this.item.template_id = this.template.id;
 
       if (!this.item.params) {
         this.item.params = {};
       }
 
-      this.template = (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.templateId}`,
-        responseType: 'json',
-      })).data;
+      ['tags', 'limit', 'skip_tags'].forEach((param) => {
+        if (!this.item.params[param]) {
+          this.item.params[param] = (this.template.task_params || {})[param];
+        }
+      });
+    },
 
-      this.buildTasks = this.template.type === 'deploy' ? (await axios({
-        keys: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success`,
-        responseType: 'json',
-      })).data.filter((task) => task.status === 'success') : [];
+    async afterLoadData() {
+      this.refreshItem();
 
-      this.inventory = (await axios({
-        keys: 'get',
-        url: this.getInventoryUrl(),
-        responseType: 'json',
-      })).data;
+      [
+        this.buildTasks,
+        this.inventory,
+      ] = await Promise.all([
+
+        this.template.type === 'deploy' ? (await axios({
+          keys: 'get',
+          url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success&limit=20`,
+          responseType: 'json',
+        })).data.filter((task) => task.status === 'success') : [],
+
+        this.needInventory ? (await axios({
+          keys: 'get',
+          url: this.getInventoryUrl(),
+          responseType: 'json',
+        })).data : [],
+      ]);
 
       if (this.item.build_task_id == null
         && this.buildTasks.length > 0
         && this.buildTasks.length > 0) {
         this.item.build_task_id = this.buildTasks[0].id;
       }
+
+      ['tags', 'limit', 'skip_tags'].forEach((param) => {
+        if (!this.item.params[param]) {
+          this.item.params[param] = (this.template.task_params || {})[param];
+        }
+      });
+
+      const defaultVars = (this.template.survey_vars || [])
+        .filter((s) => s.default_value)
+        .reduce((res, curr) => ({
+          ...res,
+          [curr.name]: curr.default_value,
+        }), {});
+
+      this.editedEnvironment = {
+        ...defaultVars,
+        ...this.editedEnvironment,
+      };
     },
 
     getInventoryUrl() {
@@ -293,7 +433,7 @@ export default {
       switch (this.app) {
         case 'terraform':
         case 'tofu':
-          res += `&template_id=${this.templateId}`;
+          res += `&template_id=${this.template.id}`;
           break;
         default:
           break;

@@ -94,12 +94,10 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 
-import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-
 import IntegrationMatcherForm from '@/components/IntegrationMatcherForm.vue';
 
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase],
+  mixins: [ItemListPageBase],
   components: { IntegrationMatcherForm },
   computed: {
     projectId() {

@@ -20,6 +20,8 @@
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-autocomplete>
 
     <v-select
@@ -31,6 +33,8 @@
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-select>
   </v-form>
 </template>

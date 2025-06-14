@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -33,6 +35,11 @@ var userGetCmd = &cobra.Command{
 		defer store.Close("")
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, targetUserArgs.email)
+		if errors.Is(err, db.ErrNotFound) {
+			fmt.Printf("User with login %s or email %s not found\n", targetUserArgs.login, targetUserArgs.email)
+			os.Exit(1)
+		}
+
 		if err != nil {
 			panic(err)
 		}

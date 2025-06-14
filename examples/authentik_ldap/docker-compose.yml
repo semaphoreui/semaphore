@@ -18,7 +18,7 @@ services:
       - redis:/data
 
   server:
-    image: ghcr.io/goauthentik/server:2024.4.2
+    image: ghcr.io/goauthentik/server:latest
     command: server
     environment:
       AUTHENTIK_REDIS__HOST: redis
@@ -40,7 +40,7 @@ services:
       - redis
 
   worker:
-    image: ghcr.io/goauthentik/server:2024.4.2
+    image: ghcr.io/goauthentik/server:latest
     command: worker
     environment:
       AUTHENTIK_REDIS__HOST: redis

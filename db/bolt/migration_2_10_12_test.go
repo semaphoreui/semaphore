@@ -40,7 +40,7 @@ func TestMigration_2_10_12_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var scheduleData map[string]interface{}
+	var scheduleData map[string]any
 	err = store.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__schedule_0000000001"))
 		str := string(b.Get([]byte("0000000001")))

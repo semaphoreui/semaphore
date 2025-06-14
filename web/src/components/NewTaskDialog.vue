@@ -1,14 +1,15 @@
 <template>
   <EditDialog
     v-model="dialog"
-    :save-button-text="$t(TEMPLATE_TYPE_ACTION_TITLES[templateType])"
+    :save-button-text="$t(TEMPLATE_TYPE_ACTION_TITLES[template?.type || ''])"
     :title="$t('newTask')"
     @save="closeDialog"
     @close="closeDialog"
+    test-id="newTaskDialog"
   >
     <template v-slot:title={}>
-      <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[templateType] }}</v-icon>
-      <span class="breadcrumbs__item">{{ templateAlias }}</span>
+      <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
+      <span class="breadcrumbs__item">{{ templateTitle }}</span>
       <v-icon>mdi-chevron-right</v-icon>
       <span class="breadcrumbs__item">{{ $t('newTask') }}</span>
     </template>
@@ -17,7 +18,7 @@
       <TaskForm
         :project-id="projectId"
         item-id="new"
-        :template-id="templateId"
+        :template="template"
         @save="onSave"
         @error="onError"
         :need-save="needSave"
@@ -42,10 +43,7 @@ export default {
   props: {
     value: Boolean,
     projectId: Number,
-    templateId: [Number, String],
-    templateType: String,
-    templateAlias: String,
-    templateApp: String,
+    template: Object,
     sourceTask: Object,
   },
   data() {
@@ -62,6 +60,17 @@ export default {
 
     async value(val) {
       this.dialog = val;
+    },
+  },
+
+  computed: {
+    templateTitle() {
+      let res = this.template?.name || '';
+      if (res.length > 16) {
+        res = `${res.substring(0, 14)}...`;
+      }
+
+      return res;
     },
   },
 

@@ -22,7 +22,9 @@ type minimalUser struct {
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	currentUser := context.Get(r, "user").(*db.User)
-	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{
+		Filter: r.URL.Query().Get("s"),
+	})
 
 	if err != nil {
 		panic(err)
@@ -58,7 +60,14 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := helpers.Store(r).CreateUser(user)
+	var err error
+	var newUser db.User
+
+	if user.External {
+		newUser, err = helpers.Store(r).CreateUserWithoutPassword(user.User)
+	} else {
+		newUser, err = helpers.Store(r).CreateUser(user)
+	}
 
 	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
@@ -67,6 +76,35 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newUser)
+}
+func readonlyUserMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, err := helpers.GetIntParam("user_id", w, r)
+
+		if err != nil {
+			return
+		}
+
+		user, err := helpers.Store(r).GetUser(userID)
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		editor := context.Get(r, "user").(*db.User)
+
+		if !editor.Admin && editor.ID != user.ID {
+			user = db.User{
+				ID:       user.ID,
+				Username: user.Username,
+				Name:     user.Name,
+			}
+		}
+
+		context.Set(r, "_user", user)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {

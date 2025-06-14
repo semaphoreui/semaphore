@@ -222,7 +222,7 @@ func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
 	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Environment is in use by one or more templates",
 			"inUse": true,
 		})

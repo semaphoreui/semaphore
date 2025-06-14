@@ -18,7 +18,7 @@ func CreateApp(template db.Template, repository db.Repository, inventory db.Inve
 				Logger:     logger,
 			},
 		}
-	case db.AppTerraform, db.AppTofu:
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		return &TerraformApp{
 			Template:   template,
 			Repository: repository,

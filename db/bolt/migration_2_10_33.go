@@ -11,7 +11,7 @@ func (d migration_2_10_33) Apply() (err error) {
 		return
 	}
 
-	vaults := make(map[string]map[string]map[string]interface{})
+	vaults := make(map[string]map[string]map[string]any)
 
 	for _, projectID := range projectIDs {
 		var err2 error

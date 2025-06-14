@@ -11,7 +11,7 @@ func (d migration_2_8_91) Apply() (err error) {
 		return
 	}
 
-	usersByProjectMap := make(map[string]map[string]map[string]interface{})
+	usersByProjectMap := make(map[string]map[string]map[string]any)
 
 	for _, projectID := range projectIDs {
 		usersByProjectMap[projectID], err = d.getObjects(projectID, "user")

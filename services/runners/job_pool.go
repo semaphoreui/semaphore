@@ -2,7 +2,11 @@ package runners
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -96,16 +100,13 @@ func (p *JobPool) hasRunningJobs() bool {
 	return false
 }
 
-func (p *JobPool) Register() (err error) {
+func (p *JobPool) Register(configFilePath *string) (err error) {
 
-	if util.Config.Runner.TokenFile == "" {
-		return fmt.Errorf("runner token file required")
-	}
-
-	ok := p.tryRegisterRunner()
+	ok := p.tryRegisterRunner(configFilePath)
 
 	if !ok {
-		return fmt.Errorf("runner registration failed")
+		err = fmt.Errorf("runner registration failed")
+		return
 	}
 
 	return
@@ -286,10 +287,32 @@ func (p *JobPool) sendProgress() {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 }
 
-func (p *JobPool) tryRegisterRunner() bool {
+func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {
+	res = "the server returned error " + strconv.Itoa(resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	var errRes struct {
+		Error string `json:"error"`
+	}
+
+	err = json.Unmarshal(body, &errRes)
+	if err != nil {
+		return
+	}
+
+	res += ": " + errRes.Error
+
+	return
+}
+
+func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
 	logger := JobLogger{Context: "registration"}
 
@@ -297,7 +320,19 @@ func (p *JobPool) tryRegisterRunner() bool {
 
 	if util.Config.Runner.RegistrationToken == "" {
 		logger.ActionError(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
-		return false
+		return
+	}
+
+	var err error
+	publicKey := ""
+
+	if util.Config.Runner.PrivateKeyFile != "" {
+		publicKey, err = generatePrivateKey(util.Config.Runner.PrivateKeyFile)
+	}
+
+	if err != nil {
+		logger.ActionError(err, "read input", "can not generate private key file")
+		return
 	}
 
 	client := &http.Client{}
@@ -308,36 +343,36 @@ func (p *JobPool) tryRegisterRunner() bool {
 		RegistrationToken: util.Config.Runner.RegistrationToken,
 		Webhook:           util.Config.Runner.Webhook,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
+		PublicKey:         &publicKey,
 	})
 
 	if err != nil {
 		logger.ActionError(err, "form request", "can not marshal json")
-		return false
+		return
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		logger.ActionError(err, "create request", "can not create request to the server")
-		return false
+		return
 	}
 
 	resp, err := client.Do(req)
 
 	if err != nil {
 		logger.ActionError(err, "send request", "unexpected error")
-		return false
+		return
 	}
 
 	if resp.StatusCode != 200 {
-		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
-		return false
+		logger.ActionError(fmt.Errorf("invalid status code"), "send request", p.getResponseErrorMessage(resp))
+		return
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-
 		logger.ActionError(err, "read response body", "can not read server's response body")
-		return false
+		return
 	}
 
 	var res struct {
@@ -347,19 +382,98 @@ func (p *JobPool) tryRegisterRunner() bool {
 	err = json.Unmarshal(body, &res)
 	if err != nil {
 		logger.ActionError(err, "parsing result json", "server's response has invalid format")
-		return false
+		return
 	}
 
-	err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
+	if util.Config.Runner.TokenFile != "" {
+		err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
+	} else {
+		if configFilePath == nil {
+			logger.ActionError(fmt.Errorf("config file path required"), "read input", "can not retrieve config file path")
+			return
+		}
 
+		var configFileBuffer []byte
+		configFileBuffer, err = os.ReadFile(*configFilePath)
+		if err != nil {
+			logger.ActionError(err, "read config file", "can not read config file")
+			return
+		}
+
+		config := util.ConfigType{}
+		err = json.Unmarshal(configFileBuffer, &config)
+		if err != nil {
+			logger.ActionError(err, "parse config file", "can not parse config file")
+			return
+		}
+
+		config.Runner.Token = res.Token
+		configFileBuffer, err = json.MarshalIndent(&config, " ", "\t")
+		if err != nil {
+			logger.ActionError(err, "marshal config file", "can not marshal config file")
+			return
+		}
+
+		err = os.WriteFile(*configFilePath, configFileBuffer, 0644)
+		if err != nil {
+			logger.ActionError(err, "write config file", "can not write config file")
+			return
+		}
+	}
+
+	defer resp.Body.Close() //nolint:errcheck
+
+	ok = true
+	return
+}
+
+func loadPrivateKey(privateKeyFilePath string) (*rsa.PrivateKey, error) {
+	keyData, err := os.ReadFile(privateKeyFilePath)
 	if err != nil {
-		logger.ActionError(err, "store token", "can not store token to the file")
-		return false
+		return nil, err
+	}
+	block, _ := pem.Decode(keyData)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("invalid private key")
+	}
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
+}
+
+func generatePrivateKey(privateKeyFilePath string) (publicKey string, err error) {
+
+	privateKeyFile, err := os.Create(privateKeyFilePath)
+	if err != nil {
+		return
+	}
+	defer privateKeyFile.Close() //nolint:errcheck
+
+	return util.GeneratePrivateKey(privateKeyFile)
+}
+
+func decryptChunkedBytes(combinedCiphertext []byte, privateKey *rsa.PrivateKey) (fullPlaintext []byte, err error) {
+
+	rsaBlockSize := privateKey.N.BitLen() / 8 // e.g. 256 for 2048-bit key
+
+	// 3. Decrypt all chunks
+	for i := 0; i < len(combinedCiphertext); i += rsaBlockSize {
+		end := i + rsaBlockSize
+		if end > len(combinedCiphertext) {
+			// In case of partial/corrupted data
+			end = len(combinedCiphertext)
+		}
+		chunk := combinedCiphertext[i:end]
+
+		var decryptedChunk []byte
+		decryptedChunk, err = rsa.DecryptPKCS1v15(rand.Reader, privateKey, chunk)
+		if err != nil {
+			return
+		}
+
+		// 4. Append decrypted chunk to our full plaintext buffer
+		fullPlaintext = append(fullPlaintext, decryptedChunk...)
 	}
 
-	defer resp.Body.Close()
-
-	return true
+	return
 }
 
 // checkNewJobs tries to find runner to queued jobs
@@ -394,11 +508,11 @@ func (p *JobPool) checkNewJobs() {
 
 	if resp.StatusCode >= 400 {
 
-		logger.ActionError(fmt.Errorf("error status code"), "send request", "the server returned an error"+strconv.Itoa(resp.StatusCode))
+		logger.ActionError(fmt.Errorf("error status code"), "send request", p.getResponseErrorMessage(resp))
 		return
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -406,11 +520,48 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
+	if util.Config.Runner.PrivateKeyFile != "" {
+		var pk *rsa.PrivateKey
+
+		pk, err = loadPrivateKey(util.Config.Runner.PrivateKeyFile)
+		if err != nil {
+			logger.ActionError(err, "decrypt response body", "can not read private key")
+			return
+		}
+
+		body, err = decryptChunkedBytes(body, pk)
+
+		if err != nil {
+			logger.ActionError(err, "decrypt response body", "can not decrypt server's response body")
+			return
+		}
+	}
+
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		logger.ActionError(err, "parsing result json", "server's response has invalid format")
 		return
+	}
+
+	if response.ClearCache {
+		if response.CacheCleanProjectID == nil {
+			if err2 := util.Config.ClearTmpDir(); err2 != nil {
+				logger.ActionError(
+					err2,
+					"cleaning cache",
+					"cannot clear tmp directory",
+				)
+			}
+		} else {
+			if err2 := util.Config.ClearProjectTmpDir(*response.CacheCleanProjectID); err2 != nil {
+				logger.ActionError(
+					err2,
+					"cleaning cache",
+					"cannot clear project "+strconv.Itoa(*response.CacheCleanProjectID)+" tmp directory",
+				)
+			}
+		}
 	}
 
 	for _, currJob := range response.CurrentJobs {
@@ -495,12 +646,12 @@ func (p *JobPool) checkNewJobs() {
 		var vaults []db.TemplateVault
 		if taskRunner.job.Template.Vaults != nil {
 			for _, vault := range taskRunner.job.Template.Vaults {
-				vault := vault
-				if vault.VaultKeyID != nil {
-					key := response.AccessKeys[*vault.VaultKeyID]
-					vault.Vault = &key
+				vault2 := vault
+				if vault2.VaultKeyID != nil {
+					key := response.AccessKeys[*vault2.VaultKeyID]
+					vault2.Vault = &key
 				}
-				vaults = append(vaults, vault)
+				vaults = append(vaults, vault2)
 			}
 		}
 		taskRunner.job.Template.Vaults = vaults

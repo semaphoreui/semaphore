@@ -1,9 +1,9 @@
 package api
 
 import (
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/gorilla/context"
 	"net/http"
 )
 

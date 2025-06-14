@@ -68,7 +68,7 @@ func (d *BoltDb) CreateIntegrationExtractValue(projectId int, value db.Integrati
 func (d *BoltDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQueryParams, integrationID int) (values []db.IntegrationExtractValue, err error) {
 	values = make([]db.IntegrationExtractValue, 0)
 
-	err = d.getObjects(projectID, db.IntegrationExtractValueProps, params, func(i interface{}) bool {
+	err = d.getObjects(projectID, db.IntegrationExtractValueProps, params, func(i any) bool {
 		v := i.(db.IntegrationExtractValue)
 		return v.IntegrationID == integrationID
 	}, &values)
@@ -111,7 +111,7 @@ func (d *BoltDb) CreateIntegrationMatcher(projectID int, matcher db.IntegrationM
 func (d *BoltDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryParams, integrationID int) (matchers []db.IntegrationMatcher, err error) {
 	matchers = make([]db.IntegrationMatcher, 0)
 
-	err = d.getObjects(projectID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+	err = d.getObjects(projectID, db.IntegrationMatcherProps, db.RetrieveQueryParams{}, func(i any) bool {
 		v := i.(db.IntegrationMatcher)
 		return v.IntegrationID == integrationID
 	}, &matchers)

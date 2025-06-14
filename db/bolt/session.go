@@ -2,8 +2,10 @@ package bolt
 
 import (
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"reflect"
-	"time"
+	"slices"
+	"strings"
 )
 
 type globalToken struct {
@@ -27,6 +29,7 @@ func (d *BoltDb) CreateSession(session db.Session) (db.Session, error) {
 }
 
 func (d *BoltDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
+	token.Created = db.GetParsedTime(tz.Now())
 	// create token in bucket "token_<user id>"
 	newToken, err := d.createObject(token.UserID, db.TokenProps, token)
 	if err != nil {
@@ -64,12 +67,22 @@ func (d *BoltDb) ExpireAPIToken(userID int, tokenID string) (err error) {
 }
 
 func (d *BoltDb) DeleteAPIToken(userID int, tokenID string) (err error) {
-	err = d.ExpireAPIToken(userID, tokenID)
+	var tokens []db.APIToken
+
+	err = d.getObjects(userID, db.TokenProps, db.RetrieveQueryParams{}, func(i any) bool {
+		token := i.(db.APIToken)
+		return strings.HasPrefix(token.ID, tokenID)
+	}, &tokens)
+
 	if err != nil {
 		return
 	}
 
-	err = d.deleteObject(userID, db.TokenProps, strObjectID(tokenID), nil)
+	if len(tokens) == 0 {
+		return db.ErrNotFound
+	}
+
+	err = d.deleteObject(userID, db.TokenProps, strObjectID(tokens[0].ID), nil)
 	return
 }
 
@@ -89,6 +102,10 @@ func (d *BoltDb) ExpireSession(userID int, sessionID int) (err error) {
 	return
 }
 
+func (d *BoltDb) SetSessionVerificationMethod(userID int, sessionID int, verificationMethod db.SessionVerificationMethod) error {
+	return nil
+}
+
 func (d *BoltDb) VerifySession(userID int, sessionID int) (err error) {
 	var session db.Session
 	err = d.getObject(userID, db.SessionProps, intObjectID(sessionID), &session)
@@ -106,12 +123,23 @@ func (d *BoltDb) TouchSession(userID int, sessionID int) (err error) {
 	if err != nil {
 		return
 	}
-	session.LastActive = time.Now()
+	session.LastActive = tz.Now()
 	err = d.updateObject(userID, db.SessionProps, session)
 	return
 }
 
 func (d *BoltDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
 	err = d.getObjects(userID, db.TokenProps, db.RetrieveQueryParams{}, nil, &tokens)
+
+	slices.SortFunc(tokens, func(a, b db.APIToken) int {
+		if a.Created.Before(b.Created) {
+			return 1
+		}
+		if a.Created.After(b.Created) {
+			return -1
+		}
+		return 0
+	})
+
 	return
 }

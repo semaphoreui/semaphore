@@ -1,16 +1,19 @@
 package projects
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 // AddTask inserts a task into the database and returns a header or returns error
@@ -30,7 +33,13 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask, err := helpers.TaskPool(r).AddTask(taskObj, &user.ID, project.ID, tpl.App.NeedTaskAlias())
+	newTask, err := helpers.TaskPool(r).AddTask(
+		taskObj,
+		&user.ID,
+		user.Username,
+		project.ID,
+		tpl.App.NeedTaskAlias(),
+	)
 
 	if errors.Is(err, tasks.ErrInvalidSubscription) {
 		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
@@ -95,6 +104,7 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer context.Clear(r)
 		project := context.Get(r, "project").(db.Project)
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 
@@ -116,13 +126,73 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// GetTaskOutput returns the logged task output by id and writes it as json or returns error
+//type ansibleTaskResult struct {
+//	App        string              `json:"app"`
+//	TemplateID int                 `json:"template_id"`
+//	Hosts      db.AnsibleTaskHost  `json:"hosts"`
+//	Errors     db.AnsibleTaskError `json:"errors"`
+//}
+
+//func GetAnsibleTaskResult() (res ansibleTaskResult, err error) {
+//	return
+//}
+
+func GetAnsibleTaskHosts(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+	hosts, err := helpers.Store(r).GetAnsibleTaskHosts(project.ID, task.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, hosts)
+}
+
+func GetAnsibleTaskErrors(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+	hosts, err := helpers.Store(r).GetAnsibleTaskErrors(project.ID, task.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, hosts)
+}
+
+// GetTaskStages returns the logged task stages by id and writes it as json or returns error
 func GetTaskStages(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
+	stages, err := helpers.Store(r).GetTaskStages(project.ID, task.ID)
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	for i := range stages {
+		var res any
+		err = json.Unmarshal([]byte(stages[i].JSON), &res)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		stages[i].Result = res
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, stages)
+}
+
+// GetTaskOutput returns the logged task output by id and writes it as json or returns error
+func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
+	task := context.Get(r, "task").(db.Task)
+	project := context.Get(r, "project").(db.Project)
+
 	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{})
 
 	if err != nil {
 		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
@@ -133,21 +203,56 @@ func GetTaskStages(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
-// GetTaskOutput returns the logged task output by id and writes it as json or returns error
-func GetTaskOutput(w http.ResponseWriter, r *http.Request) {
+func outputToBytes(lines []db.TaskOutput) []byte {
+	var buffer bytes.Buffer
+	for _, line := range lines {
+		output := util.ClearFromAnsiCodes(line.Output)
+		buffer.WriteString(output)
+		buffer.WriteByte('\n')
+	}
+	return buffer.Bytes()
+}
+
+func GetTaskRawOutput(w http.ResponseWriter, r *http.Request) {
 	task := context.Get(r, "task").(db.Task)
 	project := context.Get(r, "project").(db.Project)
 
-	var output []db.TaskOutput
-	output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID)
+	const chunkSize = 10000
+	offset := 0
 
-	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	eof := false
+	for !eof {
+		var output []db.TaskOutput
+		output, err := helpers.Store(r).GetTaskOutputs(project.ID, task.ID, db.RetrieveQueryParams{Offset: offset, Count: chunkSize})
+
+		if err != nil {
+			if offset == 0 {
+				util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task output from database"})
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			util.LogErrorF(err, log.Fields{"error": "Cannot get task output from database"})
+			return
+		}
+
+		if offset == 0 {
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+		}
+
+		readSize := len(output)
+
+		if readSize > 0 {
+			offset += readSize
+			data := outputToBytes(output)
+			if _, err := w.Write(data); err != nil {
+				return
+			}
+		}
+
+		eof = readSize < chunkSize
 	}
-
-	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
 func ConfirmTask(w http.ResponseWriter, r *http.Request) {

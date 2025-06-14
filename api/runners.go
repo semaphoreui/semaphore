@@ -1,16 +1,19 @@
 package api
 
 import (
+	"bufio"
+	"bytes"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/gorilla/context"
 )
 
-func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
-	runners, err := helpers.Store(r).GetGlobalRunners(false)
+func getAllRunners(w http.ResponseWriter, r *http.Request) {
+	runners, err := helpers.Store(r).GetAllRunners(false, false)
 
 	if err != nil {
 		panic(err)
@@ -18,16 +21,15 @@ func getGlobalRunners(w http.ResponseWriter, r *http.Request) {
 
 	var result = make([]db.Runner, 0)
 
-	for _, runner := range runners {
-		result = append(result, runner)
-	}
+	result = append(result, runners...)
 
 	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
 type runnerWithToken struct {
 	db.Runner
-	Token string `json:"token"`
+	Token      string `json:"token"`
+	PrivateKey string `json:"private_key"`
 }
 
 func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +39,30 @@ func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runner.ProjectID = nil
+
+	var privateKey []byte
+
+	if runner.PublicKey == nil {
+		var b bytes.Buffer
+		privateKeyFile := bufio.NewWriter(&b)
+
+		publicKey, err := util.GeneratePrivateKey(privateKeyFile)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		err = privateKeyFile.Flush()
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		privateKey = b.Bytes()
+
+		runner.PublicKey = &publicKey
+	}
+
 	newRunner, err := helpers.Store(r).CreateRunner(runner)
 
 	if err != nil {
@@ -46,8 +72,9 @@ func addGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, runnerWithToken{
-		Runner: newRunner,
-		Token:  newRunner.Token,
+		Runner:     newRunner,
+		Token:      newRunner.Token,
+		PrivateKey: string(privateKey),
 	})
 }
 
@@ -101,6 +128,21 @@ func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func clearGlobalRunnerCache(w http.ResponseWriter, r *http.Request) {
+	runner := context.Get(r, "runner").(*db.Runner)
+
+	store := helpers.Store(r)
+
+	err := store.ClearRunnerCache(*runner)
+
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 

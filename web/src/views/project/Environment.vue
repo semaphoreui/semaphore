@@ -4,9 +4,11 @@
       v-model="editDialog"
       :save-button-text="$t('save')"
       :title="$t('editEnvironment')"
-      :max-width="500"
+      :max-width="700"
       @save="loadItems"
       :help-button="true"
+      :no-escape="editNoEscape"
+      test-id="varGroupDialog"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset, needHelp }">
         <EnvironmentForm
@@ -17,6 +19,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :need-help="needHelp"
+          @maximize="editNoEscape = $event.maximized"
         />
       </template>
     </EditDialog>
@@ -81,6 +84,11 @@ import EnvironmentForm from '@/components/EnvironmentForm.vue';
 export default {
   components: { EnvironmentForm },
   mixins: [ItemListPageBase],
+  data() {
+    return {
+      editNoEscape: false,
+    };
+  },
   methods: {
     getHeaders() {
       return [{

@@ -53,6 +53,8 @@
             :rules="[v => !!v || $t('name_required')]"
             required
             :disabled="formSaving"
+            outlined
+            dense
           ></v-text-field>
 
           <v-text-field
@@ -61,6 +63,8 @@
             :rules="[v => !!v || $t('user_name_required')]"
             required
             :disabled="formSaving"
+            outlined
+            dense
           ></v-text-field>
 
           <v-text-field
@@ -68,7 +72,9 @@
             :label="$t('email')"
             :rules="[v => !!v || $t('email_required')]"
             required
-            :disabled="item.external || formSaving"
+            :disabled="!isNew && item.external || formSaving"
+            outlined
+            dense
           >
 
             <template v-slot:append>
@@ -81,9 +87,11 @@
             v-model="item.password"
             :label="$t('password')"
             type="password"
-            :required="isNew"
-            :rules="isNew ? [v => !!v || $t('password_required')] : []"
+            :required="isNew && !item.external"
+            :rules="isNew && !item.external ? [v => !!v || $t('password_required')] : []"
             :disabled="item.external || formSaving"
+            outlined
+            dense
           ></v-text-field>
 
           <v-row class="pb-5 pt-2">
@@ -103,11 +111,20 @@
                 :label="$t('adminUser')"
               ></v-checkbox>
             </v-col>
+            <v-col cols="6" v-if="isAdmin">
+              <v-checkbox
+                :disabled="!isNew"
+                dense
+                hide-details
+                v-model="item.external"
+                :label="$t('external')"
+              ></v-checkbox>
+            </v-col>
           </v-row>
         </v-form>
       </v-tab-item>
 
-      <v-tab-item key="2fa" class="pb-4" v-if="item != null">
+      <v-tab-item key="2fa" v-if="item != null">
 
         <div v-if="!isNew">
           <div class="title mb-3">Password</div>
@@ -211,7 +228,13 @@ export default {
             url: `/api/users/${this.itemId}/2fas/totp`,
             responseType: 'json',
           })).data;
-          this.totpQrUrl = `/api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+
+          // let baseURI = document.baseURI;
+          // if (baseURI.endsWith('/')) {
+          //   baseURI = baseURI.substring(0, baseURI.length - 1);
+          // }
+
+          this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
         }
       } else if (this.item.totp != null) {
         await axios({
@@ -232,7 +255,7 @@ export default {
         this.totpQrUrl = null;
       } else {
         this.totpEnabled = true;
-        this.totpQrUrl = `/api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+        this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
       }
     },
 

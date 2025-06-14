@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -161,7 +161,7 @@ func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 	err = helpers.Store(r).DeleteIntegrationMatcher(project.ID, matcher.ID, integration.ID)
 	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration Matcher failed to be deleted",
 		})
 		return

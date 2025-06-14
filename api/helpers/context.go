@@ -3,8 +3,8 @@ package helpers
 import (
 	"net/http"
 
-	"github.com/semaphoreui/semaphore/db"
 	"github.com/gorilla/context"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func UserFromContext(r *http.Request) *db.User {

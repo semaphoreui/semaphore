@@ -4,10 +4,10 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
-	"github.com/gorilla/context"
 )
 
 func TaskMiddleware(next http.Handler) http.Handler {

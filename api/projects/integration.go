@@ -6,9 +6,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/gorilla/context"
 )
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
@@ -163,7 +163,7 @@ func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
 
 	err = helpers.Store(r).DeleteIntegration(project.ID, integration_id)
 	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration failed to be deleted",
 		})
 		return

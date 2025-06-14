@@ -5,9 +5,10 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
-func (d *SqlDb) GetGlobalRunnerByToken(token string) (runner db.Runner, err error) {
+func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {
 
 	runners := make([]db.Runner, 0)
 
@@ -33,8 +34,13 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *SqlDb) GetGlobalRunners(activeOnly bool) (runners []db.Runner, err error) {
+func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+
+		if globalOnly {
+			builder = builder.Where("project_id is null")
+		}
+
 		if activeOnly {
 			builder = builder.Where("active=?", activeOnly)
 		}
@@ -49,13 +55,50 @@ func (d *SqlDb) DeleteGlobalRunner(runnerID int) (err error) {
 	return
 }
 
+func (d *SqlDb) ClearRunnerCache(runner db.Runner) (err error) {
+	if runner.ProjectID == nil {
+		_, err = d.exec(
+			"update `runner` set `cleaning_requested`=? where id=?",
+			tz.Now(),
+			runner.ID)
+		return
+	}
+
+	_, err = d.exec(
+		"update `runner` set `cleaning_requested`=? where id=? and project_id=?",
+		tz.Now(),
+		runner.ID,
+		runner.ProjectID)
+
+	return
+}
+
+func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
+	if runner.ProjectID == nil {
+		_, err = d.exec(
+			"update `runner` set `touched`=? where id=?",
+			tz.Now(),
+			runner.ID)
+		return
+	}
+
+	_, err = d.exec(
+		"update `runner` set `touched`=? where id=? and project_id=?",
+		tz.Now(),
+		runner.ID,
+		runner.ProjectID)
+
+	return
+}
+
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	_, err = d.exec(
-		"update runner set name=?, active=?, webhook=?, max_parallel_tasks=? where id=?",
+		"update `runner` set `name`=?, `active`=?, webhook=?, max_parallel_tasks=?, tag=? where id=?",
 		runner.Name,
 		runner.Active,
 		runner.Webhook,
 		runner.MaxParallelTasks,
+		runner.Tag,
 		runner.ID)
 
 	return
@@ -66,13 +109,15 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into runner (project_id, token, webhook, max_parallel_tasks, name, active) values (?, ?, ?, ?, ?, ?)",
+		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, public_key, tag) values (?, ?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
-		runner.Active)
+		runner.Active,
+		runner.PublicKey,
+		runner.Tag)
 
 	if err != nil {
 		return

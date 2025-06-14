@@ -6,10 +6,45 @@
     v-if="item != null"
     class="pb-3"
   >
+
+    <v-dialog
+      v-model="envEditorDialog"
+      max-width="800"
+      persistent
+      :transition="false"
+    >
+      <div style="position: relative;">
+        <codemirror
+          class="EnvironmentMaximizedEditor"
+          :style="{ border: '1px solid lightgray' }"
+          v-model="json"
+          :options="cmOptions"
+          :placeholder="$t('enterExtraVariablesJson')"
+        />
+
+        <v-btn
+          dark
+          fab
+          small
+          color="blue-grey"
+          v-if="extraVarsEditMode === 'json'"
+          style="
+            position: absolute;
+            right: 0;
+            top: 0;
+            margin: 10px;
+          "
+          @click="envEditorDialog = false"
+        >
+          <v-icon>mdi-arrow-collapse</v-icon>
+        </v-btn>
+      </div>
+    </v-dialog>
+
     <v-alert
       :value="formError"
       color="error"
-      class="pb-2"
+      data-testid="varGroup-error"
     >{{ formError }}</v-alert>
 
     <v-text-field
@@ -19,12 +54,16 @@
       required
       :disabled="formSaving"
       class="mb-2"
+      outlined
+      dense
     ></v-text-field>
 
-    <v-tabs grow v-model="tab" class="mb-7">
+    <v-tabs grow v-model="tab">
       <v-tab key="variables">Variables</v-tab>
       <v-tab key="secrets">Secrets</v-tab>
     </v-tabs>
+
+    <v-divider style="margin-top: -1px;" class="mb-7" />
 
     <v-tabs-items v-model="tab">
       <v-tab-item key="variables">
@@ -61,7 +100,7 @@
             </v-btn>
           </v-btn-toggle>
 
-          <v-btn icon @click="addExtraVar()">
+          <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
             <v-icon>
               mdi-plus
             </v-icon>
@@ -69,20 +108,41 @@
 
         </v-subheader>
 
-        <codemirror
-          v-if="extraVarsEditMode === 'json'"
-          :style="{ border: '1px solid lightgray' }"
-          v-model="json"
-          :options="cmOptions"
-          :placeholder="$t('enterExtraVariablesJson')"
-        />
+        <div v-if="extraVarsEditMode === 'json'" style="position: relative;">
+          <codemirror
+            :class="{
+              'EnvironmentEditor': true,
+            }"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="json"
+            :options="cmOptions"
+            :placeholder="$t('enterExtraVariablesJson')"
+          />
 
+          <v-btn
+            dark
+            fab
+            small
+            color="blue-grey"
+            v-if="extraVarsEditMode === 'json'"
+            style="
+              position: absolute;
+              right: 0;
+              top: 0;
+              margin: 10px;
+            "
+            @click="envEditorDialog = true"
+          >
+            <v-icon>mdi-arrow-expand</v-icon>
+          </v-btn>
+
+        </div>
         <div v-else-if="extraVarsEditMode === 'table'">
           <v-data-table
             v-if="extraVars != null"
             :items="extraVars"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -122,7 +182,9 @@
             </template>
           </v-data-table>
 
-          <v-alert color="error" v-else>Can't be displayed as table.</v-alert>
+          <v-alert color="warning" v-else>
+            Oops! This JSON structure is a little too complex to display as a table.
+          </v-alert>
         </div>
 
         <div>
@@ -131,7 +193,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addEnvVar()">
+            <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -140,7 +202,7 @@
           <v-data-table
             :items="env"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -203,7 +265,7 @@
             </v-tooltip>
 
             <v-spacer />
-            <v-btn icon @click="addSecret('var')">
+            <v-btn icon @click="addSecret('var')"  data-testid="varGroup-addSecretVar">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -213,7 +275,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'var')"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -262,7 +324,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addSecret('env')">
+            <v-btn icon @click="addSecret('env')"  data-testid="varGroup-addSecretEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -272,7 +334,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'env')"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -320,7 +382,19 @@
 
   </v-form>
 </template>
-
+<style lang="scss">
+.EnvironmentEditor {
+  .CodeMirror {
+    height: 160px !important;
+  }
+}
+.EnvironmentMaximizedEditor {
+  .CodeMirror {
+    font-size: 14px;
+    height: 600px !important;
+  }
+}
+</style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
@@ -347,6 +421,12 @@ export default {
   },
 
   watch: {
+    envEditorDialog(val) {
+      this.$emit('maximize', {
+        maximized: val,
+      });
+    },
+
     extraVarsEditMode(val) {
       let extraVars;
 
@@ -392,7 +472,6 @@ export default {
       images: [
         'dind-runner:latest',
       ],
-      advancedOptions: false,
 
       json: '{}',
       extraVars: [],
@@ -411,6 +490,7 @@ export default {
       },
 
       extraVarsEditMode: 'json',
+      envEditorDialog: false,
     };
   },
 
@@ -488,7 +568,7 @@ export default {
           operation = 'create';
         } else if (s.remove) {
           operation = 'delete';
-        } else if (s.value !== '') {
+        } else {
           operation = 'update';
         }
         return {
