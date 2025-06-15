@@ -69,7 +69,7 @@ func (d *BoltDb) SetTemplateDescription(projectID int, templateID int, descripti
 	return err
 }
 
-func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams, loadVaults bool) (templates []db.Template, err error) {
 	var ftr = func(tpl any) bool {
 		template := tpl.(db.Template)
 		var res = true

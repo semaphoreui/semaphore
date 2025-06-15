@@ -2,8 +2,9 @@ package projects
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/util"
 	"net/http"
+
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -56,7 +57,9 @@ func GetTemplates(w http.ResponseWriter, r *http.Request) {
 		app := db.TemplateApp(r.URL.Query().Get("app"))
 		filter.App = &app
 	}
-	templates, err := helpers.Store(r).GetTemplates(project.ID, filter, helpers.QueryParams(r.URL))
+
+	q := helpers.QueryParams(r.URL)
+	templates, err := helpers.Store(r).GetTemplates(project.ID, filter, q, false)
 
 	if err != nil {
 		helpers.WriteError(w, err)

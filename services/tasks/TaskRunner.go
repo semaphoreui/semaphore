@@ -3,12 +3,13 @@ package tasks
 import (
 	"encoding/json"
 	"errors"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -213,7 +214,7 @@ func (t *TaskRunner) run() {
 	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
-	}, db.RetrieveQueryParams{})
+	}, db.RetrieveQueryParams{}, true)
 
 	if err != nil {
 		t.Log("Running app failed: " + err.Error())

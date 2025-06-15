@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
@@ -231,6 +232,13 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 }
 
 func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+	start := time.Now()
+
+	if taskIDs != nil && len(taskIDs) == 0 {
+		tasks = &[]db.TaskWithTpl{}
+		return nil
+	}
+
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -250,7 +258,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
 	}
 
-	if len(taskIDs) > 0 {
+	if taskIDs != nil {
 		q = q.Where(squirrel.Eq{"task.id": taskIDs})
 	}
 
@@ -262,12 +270,19 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 
 	_, err = d.selectAll(tasks, query, args...)
 
+	duration := time.Since(start)
+	fmt.Println("TASK: SQL query: ", duration.Milliseconds())
+	start = time.Now()
+
 	for i := range *tasks {
 		err = (*tasks)[i].Fill(d)
 		if err != nil {
 			return
 		}
 	}
+
+	duration = time.Since(start)
+	fmt.Println("TASK: Filling: ", duration.Milliseconds())
 
 	return
 }

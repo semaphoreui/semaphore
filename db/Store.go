@@ -252,7 +252,7 @@ type ProjectStore interface {
 
 // TemplateManager handles template-related operations
 type TemplateManager interface {
-	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams, loadVaults bool) ([]Template, error)
 	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
