@@ -232,7 +232,6 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 }
 
 func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
-	start := time.Now()
 
 	if taskIDs != nil && len(taskIDs) == 0 {
 		tasks = &[]db.TaskWithTpl{}
@@ -270,19 +269,12 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 
 	_, err = d.selectAll(tasks, query, args...)
 
-	duration := time.Since(start)
-	fmt.Println("TASK: SQL query: ", duration.Milliseconds())
-	start = time.Now()
-
 	for i := range *tasks {
 		err = (*tasks)[i].Fill(d)
 		if err != nil {
 			return
 		}
 	}
-
-	duration = time.Since(start)
-	fmt.Println("TASK: Filling: ", duration.Milliseconds())
 
 	return
 }
