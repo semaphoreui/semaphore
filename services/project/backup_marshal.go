@@ -2,10 +2,11 @@ package project
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/db"
 	"reflect"
 )
 
-func marshalValue(v reflect.Value) (interface{}, error) {
+func marshalValue(v reflect.Value) (any, error) {
 	// Handle pointers
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -17,7 +18,7 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 	// Handle structs
 	if v.Kind() == reflect.Struct {
 		typeOfV := v.Type()
-		result := make(map[string]interface{})
+		result := make(map[string]any)
 
 		for i := 0; i < v.NumField(); i++ {
 			fieldValue := v.Field(i)
@@ -29,7 +30,7 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 				if err != nil {
 					return nil, err
 				}
-				if embeddedMap, ok := embeddedValue.(map[string]interface{}); ok {
+				if embeddedMap, ok := embeddedValue.(map[string]any); ok {
 					// Merge embedded struct fields into parent result map
 					for k, v := range embeddedMap {
 						result[k] = v
@@ -70,9 +71,9 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 	// Handle slices and arrays
 	if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
 		if v.IsNil() {
-			return make([]interface{}, 0), nil
+			return make([]any, 0), nil
 		}
-		var result []interface{} = make([]interface{}, 0)
+		var result = make([]any, 0)
 		for i := 0; i < v.Len(); i++ {
 			elemValue, err := marshalValue(v.Index(i))
 			if err != nil {
@@ -86,9 +87,9 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 	// Handle maps
 	if v.Kind() == reflect.Map {
 		if v.IsNil() {
-			return make(map[string]interface{}), nil
+			return make(map[string]any), nil
 		}
-		result := make(map[string]interface{})
+		result := make(map[string]any)
 		for _, key := range v.MapKeys() {
 			// Assuming the key is a string
 			mapKey := fmt.Sprintf("%v", key.Interface())
@@ -105,9 +106,9 @@ func marshalValue(v reflect.Value) (interface{}, error) {
 	return v.Interface(), nil
 }
 
-func setBasicType(data interface{}, v reflect.Value) error {
+func setBasicType(data any, v reflect.Value) error {
 	if !v.CanSet() {
-		return fmt.Errorf("cannot set value of type %v", v.Type())
+		return fmt.Errorf("cannot set value")
 	}
 
 	switch v.Kind() {
@@ -147,7 +148,7 @@ func setBasicType(data interface{}, v reflect.Value) error {
 	return nil
 }
 
-func toFloat64(data interface{}) (float64, bool) {
+func toFloat64(data any) (float64, bool) {
 	switch n := data.(type) {
 	case float64:
 		return n, true
@@ -178,7 +179,7 @@ func toFloat64(data interface{}) (float64, bool) {
 	}
 }
 
-func unmarshalValueWithBackupTags(data interface{}, v reflect.Value) error {
+func unmarshalValueWithBackupTags(data any, v reflect.Value) error {
 	// Handle pointers
 	if v.Kind() == reflect.Ptr {
 		// Initialize pointer if it's nil
@@ -191,7 +192,7 @@ func unmarshalValueWithBackupTags(data interface{}, v reflect.Value) error {
 	// Handle structs
 	if v.Kind() == reflect.Struct {
 		// Data should be a map
-		m, ok := data.(map[string]interface{})
+		m, ok := data.(map[string]any)
 		if !ok {
 			return fmt.Errorf("expected object for struct, got %T", data)
 		}
@@ -200,7 +201,7 @@ func unmarshalValueWithBackupTags(data interface{}, v reflect.Value) error {
 
 	// Handle slices and arrays
 	if v.Kind() == reflect.Slice {
-		dataSlice, ok := data.([]interface{})
+		dataSlice, ok := data.([]any)
 		if !ok {
 			return fmt.Errorf("expected array for slice, got %T", data)
 		}
@@ -215,9 +216,19 @@ func unmarshalValueWithBackupTags(data interface{}, v reflect.Value) error {
 		return nil
 	}
 
+	if v.Type() == reflect.TypeOf(db.MapStringAnyField{}) {
+		// Data should be a map
+		m, ok := data.(map[string]any)
+		if !ok {
+			return fmt.Errorf("expected object for map[string]interface{}, got %T", data)
+		}
+		v.Set(reflect.ValueOf(db.MapStringAnyField(m)))
+		return nil
+	}
+
 	// Handle maps
 	if v.Kind() == reflect.Map {
-		dataMap, ok := data.(map[string]interface{})
+		dataMap, ok := data.(map[string]any)
 		if !ok {
 			return fmt.Errorf("expected object for map, got %T", data)
 		}
@@ -239,7 +250,7 @@ func unmarshalValueWithBackupTags(data interface{}, v reflect.Value) error {
 	return setBasicType(data, v)
 }
 
-func unmarshalStructWithBackupTags(data map[string]interface{}, v reflect.Value) error {
+func unmarshalStructWithBackupTags(data map[string]any, v reflect.Value) error {
 	t := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {

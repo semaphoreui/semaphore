@@ -3,18 +3,19 @@ package cmd
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
-	"github.com/ansible-semaphore/semaphore/api"
-	"github.com/ansible-semaphore/semaphore/api/sockets"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/factory"
-	"github.com/ansible-semaphore/semaphore/services/schedules"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
+	"github.com/semaphoreui/semaphore/api"
+	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/factory"
+	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -29,22 +30,28 @@ var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Semaphore UI is a beautiful web UI for Ansible",
 	Long: `Semaphore UI is a beautiful web UI for Ansible.
-Source code is available at https://github.com/ansible-semaphore/semaphore.
-Complete documentation is available at https://ansible-semaphore.com.`,
+Source code is available at https://github.com/semaphoreui/semaphore.
+Complete documentation is available at https://semaphoreui.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)
 	},
+
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if persistentFlags.logLevel == "" {
+		str := persistentFlags.logLevel
+		if str == "" {
+			str = os.Getenv("SEMAPHORE_LOG_LEVEL")
+		}
+		if str == "" {
 			return
 		}
 
-		lvl, err := log.ParseLevel(persistentFlags.logLevel)
+		lvl, err := log.ParseLevel(str)
 		if err != nil {
 			log.Panic(err)
 		}
 
+		fmt.Println("Log level set to", lvl)
 		log.SetLevel(lvl)
 	},
 }
@@ -107,21 +114,72 @@ func runService() {
 		store.Close("root")
 	}
 
-	err := http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
+	var err error
+	if util.Config.TLS.Enabled {
+		if util.Config.TLS.HTTPRedirectPort != nil {
+
+			go func() {
+				httpRedirectPort := fmt.Sprintf(":%d", *util.Config.TLS.HTTPRedirectPort)
+				err = http.ListenAndServe(httpRedirectPort, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					target := "https://"
+
+					if util.Config.WebHost != "" {
+						webHost, err2 := url.Parse(util.Config.WebHost)
+						if err2 != nil {
+							log.Panic(err2)
+						}
+						target += webHost.Host + r.URL.Path
+					} else {
+						hostParts := strings.Split(r.Host, ":")
+						host := hostParts[0]
+						target += host + port + r.URL.Path
+					}
+
+					if len(r.URL.RawQuery) > 0 {
+						target += "?" + r.URL.RawQuery
+					}
+
+					if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" {
+						http.Error(w, "http requests forbidden", http.StatusForbidden)
+						return
+					}
+
+					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+				}))
+				if err != nil {
+					log.Panic(err)
+				}
+			}()
+		}
+
+		err = http.ListenAndServeTLS(util.Config.Interface+port, util.Config.TLS.CertFile, util.Config.TLS.KeyFile, cropTrailingSlashMiddleware(router))
+
+		if err != nil {
+			log.Panic(err)
+		}
+
+	} else {
+		err = http.ListenAndServe(util.Config.Interface+port, cropTrailingSlashMiddleware(router))
+	}
 
 	if err != nil {
-		log.Panic(err)
+		log.WithError(err).Panic("Error starting server")
 	}
 }
 
-func createStore(token string) db.Store {
+func createStoreWithMigrationVersion(token string, undoTo *string, applyTo *string) db.Store {
 	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	store := factory.CreateStore()
 
 	store.Connect(token)
 
-	err := db.Migrate(store)
+	var err error
+	if undoTo != nil {
+		err = db.Rollback(store, *undoTo)
+	} else {
+		err = db.Migrate(store, applyTo)
+	}
 
 	if err != nil {
 		panic(err)
@@ -136,4 +194,8 @@ func createStore(token string) db.Store {
 	util.LookupDefaultApps()
 
 	return store
+}
+
+func createStore(token string) db.Store {
+	return createStoreWithMigrationVersion(token, nil, nil)
 }

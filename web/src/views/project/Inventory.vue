@@ -1,6 +1,28 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
+
     <EditDialog
+      v-model="attachInventoryDialog"
+      :save-button-text="$t('Attach')"
+      :icon="getAppIcon(itemApp)"
+      :icon-color="getAppColor(itemApp)"
+      :max-width="450"
+      title="Choose workspace to attach"
+      @save="attachInventory($event.itemId)"
+    >
+      <template v-slot:form="{ onSave, needSave, needReset }">
+        <TemplateSelectForm
+          :app="itemApp"
+          :project-id="projectId"
+          @save="onSave"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
+
+    <EditDialog
+      expandable
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"
@@ -10,23 +32,14 @@
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TerraformInventoryForm
-          v-if="['terraform', 'tofu'].includes(itemApp)"
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
         <InventoryForm
-          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :premium-features="premiumFeatures"
         />
       </template>
     </EditDialog>
@@ -81,8 +94,9 @@
           </v-list-item>
         </v-list>
       </v-menu>
-
     </v-toolbar>
+
+    <v-divider />
 
     <v-data-table
       :headers="headers"
@@ -90,6 +104,7 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" small>
@@ -106,23 +121,27 @@
         {{ ['file', 'terraform-workspace'].includes(item.type) ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-          >
+        <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-
           <v-btn
-            icon
-            class="mr-1"
             @click="itemApp = getAppByType(item.type); editItem(item.id)"
+            v-if="!['tofu', 'terraform'].includes(getAppByType(item.type))"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </div>
+          <v-btn
+            v-else
+            @click="
+              itemId = item.id;
+              itemApp = getAppByType(item.type);
+              attachInventoryDialog = true;
+            "
+          >
+            <v-icon>mdi-connection</v-icon>
+          </v-btn>
+        </v-btn-toggle>
       </template>
     </v-data-table>
   </div>
@@ -131,9 +150,10 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
-import TerraformInventoryForm from '@/components/TerraformInventoryForm.vue';
 import { APP_INVENTORY_TITLE } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
+import axios from 'axios';
+import TemplateSelectForm from '@/components/TemplateSelectForm.vue';
 
 export default {
   computed: {
@@ -142,16 +162,29 @@ export default {
     },
   },
   mixins: [ItemListPageBase, AppsMixin],
-  components: { TerraformInventoryForm, InventoryForm },
+  components: { TemplateSelectForm, InventoryForm },
+
+  props: {
+    premiumFeatures: Object,
+  },
 
   data() {
     return {
-      apps: ['ansible', 'terraform', 'tofu'],
+      apps: ['ansible'],
       itemApp: '',
+      attachInventoryDialog: null,
     };
   },
 
   methods: {
+    async attachInventory(templateId) {
+      await axios({
+        method: 'post',
+        url: `/api/project/${this.projectId}/templates/${templateId}/inventory/${this.itemId}/attach`,
+      });
+      await this.loadItems();
+    },
+
     getAppByType(type) {
       switch (type) {
         case 'tofu-workspace':
@@ -170,24 +203,26 @@ export default {
       return [{
         text: this.$i18n.t('name'),
         value: 'name',
-        width: '33.33%',
+        width: '30%',
       },
       {
         text: this.$i18n.t('type'),
         value: 'type',
-        width: '33.33%',
+        width: '20%',
       },
       {
         text: this.$i18n.t('path'),
         value: 'inventory',
-        width: '33.33%',
+        width: '50%',
       },
       {
-        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
-      }];
+        width: '0%',
+      },
+      ];
     },
+
     getItemsUrl() {
       return `/api/project/${this.projectId}/inventory`;
     },

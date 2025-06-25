@@ -2,9 +2,12 @@ package bolt
 
 import (
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/db"
 	"reflect"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type test1 struct {
@@ -30,16 +33,11 @@ func TestMarshalObject_UserWithPwd(t *testing.T) {
 	}
 
 	bytes, err := marshalObject(user)
-
-	if err != nil {
-		t.Fatal(fmt.Errorf("function returns error: " + err.Error()))
-	}
+	require.NoError(t, err)
 
 	str := string(bytes)
-
-	if str != `{"id":0,"created":"0001-01-01T00:00:00Z","username":"fiftin","name":"","email":"","password":"345345234523452345234","admin":false,"external":false,"alert":false}` {
-		t.Fatal(fmt.Errorf("incorrect marshalling result"))
-	}
+	expected := `{"id":0,"created":"0001-01-01T00:00:00Z","username":"fiftin","name":"","email":"","password":"345345234523452345234","admin":false,"external":false,"alert":false,"pro":false}`
+	assert.Equal(t, expected, str)
 
 	fmt.Println(str)
 }
@@ -54,15 +52,11 @@ func TestMarshalObject(t *testing.T) {
 	}
 
 	bytes, err := marshalObject(test1)
-
-	if err != nil {
-		t.Fatal(fmt.Errorf("function returns error: " + err.Error()))
-	}
+	require.NoError(t, err)
 
 	str := string(bytes)
-	if str != `{"ID":0,"first_name":"Denis","last_name":"Gukov","password":"9347502348723","removed":false}` {
-		t.Fatal(fmt.Errorf("incorrect marshalling result"))
-	}
+	expected := `{"ID":0,"first_name":"Denis","last_name":"Gukov","password":"9347502348723","removed":false}`
+	assert.Equal(t, expected, str)
 
 	fmt.Println(str)
 }
@@ -74,90 +68,51 @@ func TestUnmarshalObject(t *testing.T) {
 	"last_name": "Gukov",
 	"password": "9347502348723"
 }`
-	err := unmarshalObject([]byte(data), &test1)
-	if err != nil {
-		t.Fatal(fmt.Errorf("function returns error: " + err.Error()))
-	}
-	if test1.FirstName != "Denis" ||
-		test1.LastName != "Gukov" ||
-		test1.Password != "" ||
-		test1.PasswordRepeat != "" ||
-		test1.PasswordHash != "9347502348723" {
-		t.Fatal(fmt.Errorf("object unmarshalled incorrectly"))
-	}
+	err := unmarshalObject([]byte(data), &test1, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Denis", test1.FirstName)
+	assert.Equal(t, "Gukov", test1.LastName)
+	assert.Equal(t, "", test1.Password)
+	assert.Equal(t, "", test1.PasswordRepeat)
+	assert.Equal(t, "9347502348723", test1.PasswordHash)
 }
 
 func TestSortObjects(t *testing.T) {
 	objects := []db.Inventory{
-		{
-			ID:   1,
-			Name: "x",
-		},
-		{
-			ID:   2,
-			Name: "a",
-		},
-		{
-			ID:   3,
-			Name: "d",
-		},
-		{
-			ID:   4,
-			Name: "b",
-		},
-		{
-			ID:   5,
-			Name: "r",
-		},
+		{ID: 1, Name: "x"},
+		{ID: 2, Name: "a"},
+		{ID: 3, Name: "d"},
+		{ID: 4, Name: "b"},
+		{ID: 5, Name: "r"},
 	}
 
 	err := sortObjects(&objects, "name", false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	expected := objects[0].Name == "a" &&
-		objects[1].Name == "b" &&
-		objects[2].Name == "d" &&
-		objects[3].Name == "r" &&
-		objects[4].Name == "x"
-
-	if !expected {
-		t.Fatal(fmt.Errorf("objects not sorted"))
+	expected := []string{"a", "b", "d", "r", "x"}
+	for i, obj := range objects {
+		assert.Equal(t, expected[i], obj.Name)
 	}
 }
 
 func TestGetFieldNameByTag(t *testing.T) {
 	f, err := getFieldNameByTagSuffix(reflect.TypeOf(test1{}), "db", "first_name")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if f != "FirstName" {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "FirstName", f)
 }
 
 func TestGetFieldNameByTag2(t *testing.T) {
 	f, err := getFieldNameByTagSuffix(reflect.TypeOf(db.UserWithPwd{}), "db", "id")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if f != "ID" {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "ID", f)
 }
 
 func TestIsObjectInUse(t *testing.T) {
 	store := CreateTestStore()
 
-	proj, err := store.CreateProject(db.Project{
-		Name: "test",
-	})
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	proj, err := store.CreateProject(db.Project{Name: "test"})
+	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Test",
@@ -166,33 +121,18 @@ func TestIsObjectInUse(t *testing.T) {
 		InventoryID:   &inventoryID,
 		EnvironmentID: &environmentID,
 	})
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	require.NoError(t, err)
 
 	isUse, err := store.isObjectInUse(proj.ID, db.InventoryProps, intObjectID(10), db.TemplateProps)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if !isUse {
-		t.Fatal()
-	}
-
+	require.NoError(t, err)
+	assert.True(t, isUse)
 }
 
 func TestIsObjectInUse_Environment(t *testing.T) {
 	store := CreateTestStore()
 
-	proj, err := store.CreateProject(db.Project{
-		Name: "test",
-	})
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	proj, err := store.CreateProject(db.Project{Name: "test"})
+	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Test",
@@ -201,33 +141,18 @@ func TestIsObjectInUse_Environment(t *testing.T) {
 		InventoryID:   &inventoryID,
 		EnvironmentID: &environmentID,
 	})
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	require.NoError(t, err)
 
 	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if !isUse {
-		t.Fatal()
-	}
-
+	require.NoError(t, err)
+	assert.True(t, isUse)
 }
 
 func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
 	store := CreateTestStore()
 
-	proj, err := store.CreateProject(db.Project{
-		Name: "test",
-	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	proj, err := store.CreateProject(db.Project{Name: "test"})
+	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Test",
@@ -236,20 +161,11 @@ func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
 		InventoryID:   &inventoryID,
 		EnvironmentID: nil,
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if isUse {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.False(t, isUse)
 }
 
 func TestBoltDb_CreateAPIToken(t *testing.T) {
@@ -264,63 +180,35 @@ func TestBoltDb_CreateAPIToken(t *testing.T) {
 			Admin:    true,
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	token, err := store.CreateAPIToken(db.APIToken{
 		ID:     "f349gyhgqirgysfgsfg34973dsfad",
 		UserID: user.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	token2, err := store.GetAPIToken(token.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if token2.ID != token.ID {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.Equal(t, token.ID, token2.ID)
 
 	tokens, err := store.GetAPITokens(user.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(tokens) != 1 {
-		t.Fatal()
-	}
-
-	if tokens[0].ID != token.ID {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.Len(t, tokens, 1)
+	assert.Equal(t, token.ID, tokens[0].ID)
 
 	err = store.ExpireAPIToken(user.ID, token.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	token2, err = store.GetAPIToken(token.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !token2.Expired {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.True(t, token2.Expired)
 
 	err = store.DeleteAPIToken(user.ID, token.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	_, err = store.GetAPIToken(token.ID)
-	if err == nil {
-		t.Fatal("Token not deleted")
-	}
+	assert.Error(t, err)
 }
 
 func TestBoltDb_GetRepositoryRefs(t *testing.T) {
@@ -332,9 +220,7 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 		GitBranch: "master",
 		ProjectID: 1,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
 		Type:          db.TemplateBuild,
@@ -345,9 +231,7 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 		InventoryID:   &inventoryID,
 		EnvironmentID: &environmentID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tpl2, err := store.CreateTemplate(db.Template{
 		Type:          db.TemplateBuild,
@@ -357,9 +241,7 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 		InventoryID:   &inventoryID,
 		EnvironmentID: &environmentID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	_, err = store.CreateSchedule(db.Schedule{
 		CronFormat:   "* * * * *",
@@ -367,17 +249,10 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 		ProjectID:    1,
 		RepositoryID: &repo1.ID,
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	refs, err := store.GetRepositoryRefs(1, repo1.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(refs.Templates) != 2 {
-		t.Fatal()
-	}
+	require.NoError(t, err)
+	assert.Len(t, refs.Templates, 1)
+	assert.Len(t, refs.Schedules, 1)
 }

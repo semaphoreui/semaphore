@@ -5,6 +5,15 @@
     v-model="formValid"
     v-if="templates && item != null"
   >
+    <v-alert
+      v-model="showInfo"
+      color="info"
+      text
+      dismissible
+    >
+      Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
+      <code>schedule.timezone</code> to set timezone for Schedule.
+    </v-alert>
 
     <v-alert
       :value="formError"
@@ -20,9 +29,11 @@
       required
       :disabled="formSaving"
       class="mb-4"
+      outlined
+      dense
     ></v-text-field>
 
-    <v-select
+    <v-autocomplete
       v-model="item.template_id"
       :label="$t('Template')"
       :items="templates"
@@ -31,6 +42,8 @@
       :rules="[v => !!v || $t('template_required')]"
       required
       :disabled="formSaving"
+      outlined
+      dense
     />
 
     <v-switch
@@ -46,6 +59,9 @@
       required
       :disabled="formSaving"
       @input="refreshCheckboxes()"
+      :suffix="timezone + ' time'"
+      outlined
+      dense
     ></v-text-field>
 
     <div v-if="!rawCron">
@@ -59,6 +75,8 @@
         required
         :disabled="formSaving"
         @change="refreshCron()"
+        outlined
+        dense
       />
 
       <div v-if="['yearly'].includes(timing)">
@@ -66,7 +84,8 @@
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="m in MONTHS" :key="m.id"
+            v-for="m in MONTHS"
+            :key="m.id"
             :value="m.id"
             :label="m.title"
             v-model="months"
@@ -111,7 +130,10 @@
       </div>
 
       <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
-        <div class="mt-4">Hours</div>
+        <div class="mt-4 d-flex justify-space-between">
+          <span>Hours</span>
+          <b style="color: red;">{{ timezone + ' time' }}</b>
+        </div>
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"
@@ -317,10 +339,23 @@ export default {
       months: [],
       weekdays: [],
       rawCron: false,
+      showInfo: true,
     };
   },
 
+  watch: {
+    showInfo(val) {
+      if (val) {
+        localStorage.removeItem('schedule_hide_info');
+      } else {
+        localStorage.setItem('schedule_hide_info', '1');
+      }
+    },
+  },
+
   async created() {
+    this.showInfo = localStorage.getItem('schedule_hide_info') !== '1';
+
     this.templates = (await axios({
       method: 'get',
       url: `/api/project/${this.projectId}/templates`,
@@ -328,15 +363,28 @@ export default {
     })).data;
   },
 
+  props: {
+    timezone: String,
+  },
+
   methods: {
     nextRunTime() {
-      return parser.parseExpression(this.item.cron_format).next();
+      return parser.parseExpression(this.item.cron_format, {
+        tz: this.timezone,
+      }).next().toString();
     },
 
     refreshCheckboxes() {
       const fields = JSON.parse(
-        JSON.stringify(parser.parseExpression(this.item.cron_format).fields),
+        JSON.stringify(parser.parseExpression(this.item.cron_format, {
+          tz: this.timezone,
+        }).fields),
       );
+
+      this.months = [];
+      this.weekdays = [];
+      this.hours = [];
+      this.minutes = [];
 
       if (this.isHourly(this.item.cron_format)) {
         this.minutes = fields.minute;
@@ -356,7 +404,6 @@ export default {
         this.weekdays = fields.dayOfWeek;
         this.timing = 'weekly';
       } else {
-        this.months = [];
         this.weekdays = [];
       }
 
@@ -365,7 +412,6 @@ export default {
         this.timing = 'monthly';
       } else {
         this.months = [];
-        this.weekdays = [];
       }
 
       if (this.isYearly(this.item.cron_format)) {

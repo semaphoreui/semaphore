@@ -1,12 +1,8 @@
 package random
 
 import (
-	"math/rand"
-	"time"
-)
-
-var (
-	r *rand.Rand
+	"crypto/rand"
+	"math/big"
 )
 
 const (
@@ -14,18 +10,14 @@ const (
 )
 
 func String(strlen int) string {
-	if r == nil {
-		r = rand.New(rand.NewSource(
-			time.Now().UnixNano(),
-		))
+	result := make([]byte, strlen)
+	charLen := big.NewInt(int64(len(chars)))
+	for i := range result {
+		r, err := rand.Int(rand.Reader, charLen)
+		if err != nil {
+			panic(err)
+		}
+		result[i] = chars[r.Int64()]
 	}
-
-	result := ""
-
-	for i := 0; i < strlen; i++ {
-		index := r.Intn(len(chars))
-		result += chars[index : index+1]
-	}
-
-	return result
+	return string(result)
 }

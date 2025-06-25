@@ -4,10 +4,13 @@
       v-model="editDialog"
       :save-button-text="$t('save')"
       :title="$t('editEnvironment')"
-      :max-width="500"
+      :max-width="700"
       @save="loadItems"
+      :help-button="true"
+      :no-escape="editNoEscape"
+      test-id="varGroupDialog"
     >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+      <template v-slot:form="{ onSave, onError, needSave, needReset, needHelp }">
         <EnvironmentForm
           :project-id="projectId"
           :item-id="itemId"
@@ -15,6 +18,8 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :need-help="needHelp"
+          @maximize="editNoEscape = $event.maximized"
         />
       </template>
     </EditDialog>
@@ -45,31 +50,28 @@
       </v-btn>
     </v-toolbar>
 
+    <v-divider />
+
     <v-data-table
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 CenterToScreen"
       :items-per-page="Number.MAX_VALUE"
+      style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
+      <template v-slot:item.name="{ item }">
+        <a @click="editItem(item.id)">{{ item.name }}</a>
+      </template>
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-          >
+        <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.id)"
-          >
+          <v-btn @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </div>
+        </v-btn-toggle>
       </template>
     </v-data-table>
   </div>
@@ -82,6 +84,11 @@ import EnvironmentForm from '@/components/EnvironmentForm.vue';
 export default {
   components: { EnvironmentForm },
   mixins: [ItemListPageBase],
+  data() {
+    return {
+      editNoEscape: false,
+    };
+  },
   methods: {
     getHeaders() {
       return [{
@@ -90,7 +97,6 @@ export default {
         width: '100%',
       },
       {
-        text: this.$i18n.t('actions'),
         value: 'actions',
         sortable: false,
       }];

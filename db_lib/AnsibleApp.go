@@ -7,8 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
 func getMD5Hash(filepath string) (string, error) {
@@ -16,7 +16,7 @@ func getMD5Hash(filepath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	hash := md5.New()
 	if _, err := io.Copy(hash, file); err != nil {
@@ -45,7 +45,7 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 		return err
 	}
 
-	return os.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0644)
+	return os.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0o644)
 }
 
 type AnsibleApp struct {
@@ -61,15 +61,18 @@ func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *AnsibleApp) Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error {
-	return t.Playbook.RunPlaybook(args, environmentVars, inputs, cb)
+func (t *AnsibleApp) Run(args LocalAppRunningArgs) error {
+	return t.Playbook.RunPlaybook(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 }
 
 func (t *AnsibleApp) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *AnsibleApp) InstallRequirements() error {
+func (t *AnsibleApp) Clear() {
+}
+
+func (t *AnsibleApp) InstallRequirements(environmentVars []string, tplParams any, params any) error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}
@@ -90,9 +93,8 @@ func (t *AnsibleApp) getRepoPath() string {
 	return repo.GetFullPath()
 }
 
-func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requirementsFilePath string) error {
-
-	requirementsHashFilePath := fmt.Sprintf("%s.md5", requirementsFilePath)
+func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
+	requirementsHashFilePath := fmt.Sprintf("%s_%s.md5", requirementsFilePath, requirementsType)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.Log("No " + requirementsFilePath + " file found. Skip galaxy install process.\n")
@@ -101,7 +103,7 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType string, requ
 
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
-			requirementsType,
+			string(requirementsType),
 			"install",
 			"-r",
 			requirementsFilePath,
@@ -125,21 +127,50 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 	return path.Dir(playbookPath)
 }
 
+type GalaxyRequirementsType string
+
+const (
+	GalaxyRole       GalaxyRequirementsType = "role"
+	GalaxyCollection GalaxyRequirementsType = "collection"
+)
+
 func (t *AnsibleApp) installRolesRequirements() (err error) {
-	err = t.installGalaxyRequirementsFile("role", path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"))
+	// default roles path
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"))
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile("role", path.Join(t.getRepoPath(), "roles", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"))
+	if err != nil {
+		return
+	}
+
+	// alternative roles path
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"))
+	if err != nil {
+		return
+	}
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"))
 	return
 }
 
 func (t *AnsibleApp) installCollectionsRequirements() (err error) {
-	err = t.installGalaxyRequirementsFile("collection", path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
+	// default collections path
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile("collection", path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"))
+	if err != nil {
+		return
+	}
+
+	// alternative collections path
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	if err != nil {
+		return
+	}
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"))
 	return
 }
 

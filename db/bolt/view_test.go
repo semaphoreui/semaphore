@@ -1,17 +1,17 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"sort"
 	"testing"
-	"time"
 )
 
 func TestGetViews(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -54,7 +54,7 @@ func TestSetViewPositions(t *testing.T) {
 	store := CreateTestStore()
 
 	proj1, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: tz.Now(),
 		Name:    "Test1",
 	})
 
@@ -125,5 +125,145 @@ func TestSetViewPositions(t *testing.T) {
 
 	if found[0].Position != 3 || found[1].Position != 6 {
 		t.Fatal()
+	}
+}
+func TestGetView(t *testing.T) {
+	store := CreateTestStore()
+
+	proj1, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "Test1",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	view, err := store.CreateView(db.View{
+		ProjectID: proj1.ID,
+		Title:     "Test",
+		Position:  1,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	found, err := store.GetView(proj1.ID, view.ID)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if found.ID != view.ID || found.Title != view.Title || found.Position != view.Position {
+		t.Fatal()
+	}
+}
+
+func TestUpdateView(t *testing.T) {
+	store := CreateTestStore()
+
+	proj1, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "Test1",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	view, err := store.CreateView(db.View{
+		ProjectID: proj1.ID,
+		Title:     "Test",
+		Position:  1,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	view.Title = "Updated Test"
+	err = store.UpdateView(view)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	updatedView, err := store.GetView(proj1.ID, view.ID)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if updatedView.Title != "Updated Test" {
+		t.Fatal()
+	}
+}
+
+func TestCreateView(t *testing.T) {
+	store := CreateTestStore()
+
+	proj1, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "Test1",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	view, err := store.CreateView(db.View{
+		ProjectID: proj1.ID,
+		Title:     "Test",
+		Position:  1,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	found, err := store.GetView(proj1.ID, view.ID)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if found.ID != view.ID || found.Title != view.Title || found.Position != view.Position {
+		t.Fatal()
+	}
+}
+
+func TestDeleteView(t *testing.T) {
+	store := CreateTestStore()
+
+	proj1, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "Test1",
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	view, err := store.CreateView(db.View{
+		ProjectID: proj1.ID,
+		Title:     "Test",
+		Position:  1,
+	})
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	err = store.DeleteView(proj1.ID, view.ID)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	_, err = store.GetView(proj1.ID, view.ID)
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
 	}
 }

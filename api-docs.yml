@@ -1,11 +1,11 @@
 ---
 swagger: '2.0'
 info:
-  title: SEMAPHORE
-  description: Semaphore API
-  version: "2.2.0"
-
-host: localhost:3000
+  title: Semaphore API
+  description: |
+    Semaphore API provides endpoints for managing and interacting with the Semaphore UI.
+    This documentation outlines the available operations and data models.
+  version: "2.14.0-beta1"
 
 consumes:
   - application/json
@@ -30,6 +30,8 @@ schemes:
 basePath: /api
 
 definitions:
+  App:
+    type: object
 
   Pong:
     type: string
@@ -41,7 +43,7 @@ definitions:
       auth:
         type: string
         description: Username/Email address
-        x-example: user@semaphore.com
+        x-example: user@semaphoreui.com
       password:
         type: string
         format: password
@@ -80,9 +82,14 @@ definitions:
         type: string
         x-example: test@ansiblesemaphore.test
         example: test@ansiblesemaphore.test
+      password:
+        type: string
+        format: password
       alert:
         type: boolean
       admin:
+        type: boolean
+      external:
         type: boolean
 
   UserPutRequest:
@@ -104,6 +111,7 @@ definitions:
         type: boolean
       admin:
         type: boolean
+
   User:
     type: object
     properties:
@@ -122,6 +130,8 @@ definitions:
         type: boolean
       admin:
         type: boolean
+      external:
+        type: boolean
 
   ProjectUser:
     type: object
@@ -133,10 +143,13 @@ definitions:
         type: string
       username:
         type: string
+      role:
+        type: string
+        enum: [owner, manager, task_runner, guest]
 
   ProjectBackup:
     type: object
-    example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":"null","suppress_success_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/demo-project.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
+    example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
     properties:
       meta:
         type: object
@@ -152,6 +165,10 @@ definitions:
           max_parallel_tasks:
             type: integer
             minimum: 0
+          type:
+            type:
+              - string
+              - 'null'
       templates:
         type: array
         items:
@@ -203,6 +220,8 @@ definitions:
               type:
                 - string
                 - 'null'
+            allow_override_branch_in_task:
+              type: boolean
       repositories:
         type: array
         items:
@@ -281,7 +300,7 @@ definitions:
         type: string
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+      #        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       expired:
         type: boolean
       user_id:
@@ -304,6 +323,13 @@ definitions:
       max_parallel_tasks:
         type: integer
         minimum: 0
+      type:
+        type:
+          - string
+          - 'null'
+      demo:
+        description: Create Demo project resources?
+        type: boolean
   Project:
     type: object
     properties:
@@ -315,7 +341,7 @@ definitions:
         example: Test
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+      #        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
       alert_chat:
@@ -326,10 +352,16 @@ definitions:
       max_parallel_tasks:
         type: integer
         minimum: 0
+      type:
+        type:
+          - string
+          - 'null'
 
   AccessKeyRequest:
     type: object
     properties:
+      id:
+        type: integer
       name:
         type: string
         x-example: None
@@ -342,6 +374,8 @@ definitions:
         type: integer
         minimum: 1
         x-example: 2
+      override_secret:
+        type: boolean
       login_password:
         type: object
         properties:
@@ -360,6 +394,10 @@ definitions:
             type: string
             x-example: user
             example: user
+          passphrase:
+            type: string
+            x-example: passphrase
+            example: passphrase
           private_key:
             type: string
             x-example: private key
@@ -378,32 +416,40 @@ definitions:
         enum: [none, ssh, login_password]
       project_id:
         type: integer
-      login_password:
-        type: object
-        properties:
-          password:
-            type: string
-            x-example: password
-            example: password
-          login:
-            type: string
-            x-example: username
-            example: username
-      ssh:
-        type: object
-        properties:
-          login:
-            type: string
-            x-example: user
-            example: user
-          private_key:
-            type: string
-            x-example: private key
-            example: private key
+
+  EnvironmentSecret:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+        enum: [env, var]
+
+  EnvironmentSecretRequest:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      secret:
+        type: string
+      type:
+        type: string
+        enum: [env, var]
+      operation:
+        type: string
+        enum: [create, update, delete]
 
   EnvironmentRequest:
     type: object
     properties:
+      id:
+        type: integer
+        example: 1
       name:
         type: string
         example: Test
@@ -418,6 +464,10 @@ definitions:
       env:
         type: string
         example: '{}'
+      secrets:
+        type: array
+        items:
+          $ref: '#/definitions/EnvironmentSecretRequest'
 
   Environment:
     type: object
@@ -439,10 +489,16 @@ definitions:
       env:
         type: string
         example: '{}'
+      secrets:
+        type: array
+        items:
+          $ref: '#/definitions/EnvironmentSecret'
 
   InventoryRequest:
     type: object
     properties:
+      id:
+        type: integer
       name:
         type: string
         example: Test
@@ -457,9 +513,12 @@ definitions:
       become_key_id:
         type: integer
         minimum: 1
+      repository_id:
+        type: integer
+        minimum: 1
       type:
         type: string
-        enum: [static, static-yaml, file]
+        enum: [static, static-yaml, file, terraform-workspace]
 
   Inventory:
     type: object
@@ -477,9 +536,11 @@ definitions:
         type: integer
       become_key_id:
         type: integer
+      repository_id:
+        type: integer
       type:
         type: string
-        enum: [static, static-yaml, file]
+        enum: [static, static-yaml, file, terraform-workspace]
 
   Integration:
     type: object
@@ -525,6 +586,9 @@ definitions:
       variable:
         type: string
         example: variable
+      variable_type:
+        type: string
+        enum: [environment, task]
 
   IntegrationExtractValue:
     type: object
@@ -546,6 +610,9 @@ definitions:
       variable:
         type: string
         example: variable
+      variable_type:
+        type: string
+        enum: [environment, task]
       integration_id:
         type: integer
 
@@ -600,6 +667,8 @@ definitions:
   RepositoryRequest:
     type: object
     properties:
+      id:
+        type: integer
       name:
         type: string
         example: Test
@@ -642,24 +711,38 @@ definitions:
         type: integer
       status:
         type: string
-      debug:
-        type: boolean
       playbook:
         type: string
       environment:
         type: string
       secret:
         type: string
+      git_branch:
+        type:
+          - string
+          - 'null'
       limit:
         type: string
+      params:
+        type: object
+        properties:
+          debug:
+            type: boolean
+          dry_run:
+            type: boolean
+          diff:
+            type: boolean
+          limit:
+            type: array
+      message:
+        type: string
+
   TaskOutput:
     type: object
     properties:
       task_id:
         type: integer
         example: 23
-      task:
-        type: string
       time:
         type: string
         format: date-time
@@ -669,6 +752,9 @@ definitions:
   TemplateRequest:
     type: object
     properties:
+      id:
+        type: integer
+        example: 1
       project_id:
         type: integer
         minimum: 1
@@ -711,10 +797,23 @@ definitions:
       app:
         type: string
         example: ansible
+      git_branch:
+        type: string
+        example: main
       survey_vars:
         type: array
         items:
           $ref: "#/definitions/TemplateSurveyVar"
+      type:
+        type: string
+        enum: ["", build, deploy]
+      start_version:
+        type: string
+      build_template_id:
+        type: integer
+      autorun:
+        type: boolean
+
   Template:
     type: object
     properties:
@@ -754,6 +853,31 @@ definitions:
         type: boolean
       app:
         type: string
+      git_branch:
+        type: string
+        example: main
+      type:
+        type: string
+        enum: ["", build, deploy]
+      start_version:
+        type:
+          - string
+          - 'null'
+      build_template_id:
+        type:
+          - integer
+          - 'null'
+      autorun:
+        type: boolean
+      survey_vars:
+        type: array
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
+      vaults:
+        type: array
+        items:
+          $ref: "#/definitions/TemplateVault"
+
   TemplateSurveyVar:
     type: object
     properties:
@@ -765,18 +889,44 @@ definitions:
         type: string
       type:
         type: string
-        example: String => "", Integer => "int"
+        enum: ["", int, enum, secret] # String => "", Integer => "int"
+        example: int
       required:
         type: boolean
+      values:
+        type: array
+        items:
+          $ref: "#/definitions/TemplateSurveyVarValue"
+
+  TemplateSurveyVarValue:
+    type: object
+    properties:
+      name:
+        type: string
+      value:
+        type: string
+
   TemplateVault:
     type: object
     properties:
-      vault_key_id:
+      id:
         type: integer
-        minimum: 1
       name:
         type: string
         example: default
+      type:
+        type: string
+        enum: [password, script]
+        example: script
+      vault_key_id:
+        type:
+          - integer
+          - 'null'
+      script:
+        type:
+          - string
+          - 'null'
+        example: path/to/script-client.py
 
   ScheduleRequest:
     type: object
@@ -981,6 +1131,14 @@ parameters:
     x-example: 13
 
 paths:
+  /debug/gc:
+    post:
+      summary: Garbage collector
+      description: Run the garbage collector
+      responses:
+        204:
+          description: Successful "OK" reply
+
   /ping:
     get:
       summary: PING test
@@ -1263,6 +1421,8 @@ paths:
       responses:
         201:
           description: Created project
+          schema:
+            $ref: "#/definitions/Project"
   /projects/restore:
     post:
       tags:
@@ -1324,10 +1484,12 @@ paths:
           in: body
           required: true
           schema:
-            type: object
-            properties:
-              name:
-                type: string
+            allOf:
+              - $ref: '#/definitions/ProjectRequest'
+              - properties:
+                  id:
+                    type: integer
+                    minimum: 1
       responses:
         204:
           description: Project saved
@@ -1463,6 +1625,8 @@ paths:
                 enum: [owner, manager, task_runner, guest]
                 example: owner
       summary: Update user role
+      tags:
+        - project
       responses:
         204:
           description: User updated
@@ -1684,8 +1848,10 @@ paths:
           schema:
             $ref: "#/definitions/AccessKeyRequest"
       responses:
-        204:
+        201:
           description: Access Key created
+          schema:
+            $ref: "#/definitions/AccessKey"
         400:
           description: Bad type
   /project/{project_id}/keys/{key_id}:
@@ -1755,12 +1921,24 @@ paths:
           schema:
             $ref: "#/definitions/RepositoryRequest"
       responses:
-        204:
+        201:
           description: Repository created
+          schema:
+            $ref: "#/definitions/Repository"
+
   /project/{project_id}/repositories/{repository_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/repository_id"
+    get:
+      tags:
+        - project
+      summary: Get repository
+      responses:
+        200:
+          description: repository object
+          schema:
+            $ref: "#/definitions/Repository"
     put:
       tags:
         - project
@@ -1831,6 +2009,15 @@ paths:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - project
+      summary: Get inventory
+      responses:
+        200:
+          description: inventory object
+          schema:
+            $ref: "#/definitions/Inventory"
     put:
       tags:
         - project
@@ -1867,7 +2054,7 @@ paths:
           type: string
           format: name
           description: sorting name
-          x-example: 'db-deploy'
+          x-example: name
         - name: order
           in: query
           required: true
@@ -1893,12 +2080,23 @@ paths:
           schema:
             $ref: "#/definitions/EnvironmentRequest"
       responses:
-        204:
+        201:
           description: Environment created
+          schema:
+            $ref: "#/definitions/Environment"
   /project/{project_id}/environment/{environment_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/environment_id"
+    get:
+      tags:
+        - project
+      summary: Get environment
+      responses:
+        200:
+          description: environment object
+          schema:
+            $ref: "#/definitions/Environment"
     put:
       tags:
         - project
@@ -1960,7 +2158,7 @@ paths:
         - project
       summary: create template
       parameters:
-        - name: templateyes
+        - name: template
           in: body
           required: true
           schema:
@@ -1969,7 +2167,7 @@ paths:
         201:
           description: template created
           schema:
-            $ref: "#/definitions/TemplateRequest"
+            $ref: "#/definitions/Template"
   /project/{project_id}/templates/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2164,6 +2362,10 @@ paths:
                 type: string
               limit:
                 type: string
+              git_branch:
+                type: string
+              message:
+                type: string
       responses:
         201:
           description: Task queued
@@ -2236,23 +2438,28 @@ paths:
             items:
               $ref: "#/definitions/TaskOutput"
 
-#  /runners:
-#    post:
-#      tags:
-#        - project
-#      summary: Starts a job
-#      parameters:
-#        - name: task
-#          in: body
-#          required: true
-#          schema:
-#            type: object
-#            properties:
-#              registration_token:
-#                type: string
-#                example: test123
-#      responses:
-#        201:
-#          description: Task queued
-#          schema:
-#            $ref: "#/definitions/Runner"
+  /project/{project_id}/tasks/{task_id}/raw_output:
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/task_id'
+    get:
+      tags:
+        - project
+      summary: Get task raw output
+      responses:
+        200:
+          description: output
+          headers:
+            content-type:
+              type: string
+              x-example: text/plain; charset=utf-8
+  /apps:
+    get:
+      summary: Get apps
+      responses:
+        200:
+          description: Apps
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/App"

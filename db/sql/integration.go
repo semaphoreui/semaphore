@@ -1,9 +1,8 @@
 package sql
 
 import (
-	"database/sql"
 	"github.com/Masterminds/squirrel"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db.Integration, err error) {
@@ -88,14 +87,15 @@ func (d *SqlDb) CreateIntegrationExtractValue(projectId int, value db.Integratio
 
 	insertID, err := d.insert("id",
 		"insert into project__integration_extract_value "+
-			"(value_source, body_data_type, `key`, `variable`, `name`, integration_id) values "+
-			"(?, ?, ?, ?, ?, ?)",
+			"(value_source, body_data_type, `key`, `variable`, `name`, integration_id, variable_type) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		value.ValueSource,
 		value.BodyDataType,
 		value.Key,
 		value.Variable,
 		value.Name,
-		value.IntegrationID)
+		value.IntegrationID,
+		value.VariableType)
 
 	if err != nil {
 		return
@@ -146,12 +146,13 @@ func (d *SqlDb) UpdateIntegrationExtractValue(projectID int, integrationExtractV
 	}
 
 	_, err = d.exec(
-		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=? where `id`=?",
+		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=?, `variable_type`=? where `id`=?",
 		integrationExtractValue.ValueSource,
 		integrationExtractValue.BodyDataType,
 		integrationExtractValue.Key,
 		integrationExtractValue.Variable,
 		integrationExtractValue.Name,
+		integrationExtractValue.VariableType,
 		integrationExtractValue.ID)
 
 	return err
@@ -248,103 +249,4 @@ func (d *SqlDb) UpdateIntegrationMatcher(projectID int, integrationMatcher db.In
 		integrationMatcher.ID)
 
 	return err
-}
-
-func (d *SqlDb) CreateIntegrationAlias(alias db.IntegrationAlias) (res db.IntegrationAlias, err error) {
-
-	insertID, err := d.insert(
-		"id",
-		"insert into project__integration_alias (project_id, integration_id, alias) values (?, ?, ?)",
-		alias.ProjectID,
-		alias.IntegrationID,
-		alias.Alias)
-
-	if err != nil {
-		return
-	}
-
-	res = alias
-	res.ID = insertID
-	return
-}
-
-func (d *SqlDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
-
-	q := squirrel.Select("*").From(db.IntegrationAliasProps.TableName)
-
-	if integrationID == nil {
-		q = q.Where("project_id=? AND integration_id is null", projectID)
-	} else {
-		q = q.Where("project_id=? AND integration_id=?", projectID, integrationID)
-	}
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	_, err = d.selectAll(&res, query, args...)
-
-	return
-}
-
-func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, err error) {
-
-	var aliasObj db.IntegrationAlias
-
-	q := squirrel.Select("*").
-		From(db.IntegrationAliasProps.TableName).
-		Where("alias=?", alias)
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	err = d.selectOne(&aliasObj, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-	}
-
-	if aliasObj.IntegrationID == nil {
-		var projIntegrations []db.Integration
-		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{})
-		if err != nil {
-			return
-		}
-		for _, integration := range projIntegrations {
-			if integration.Searchable {
-				res = append(res, integration)
-			}
-		}
-	} else {
-		var integration db.Integration
-		integration, err = d.GetIntegration(aliasObj.ProjectID, *aliasObj.IntegrationID)
-		res = append(res, integration)
-	}
-
-	return
-}
-
-func (d *SqlDb) DeleteIntegrationAlias(projectID int, aliasID int) error {
-	return d.deleteObject(projectID, db.IntegrationAliasProps, aliasID)
-}
-
-func (d *SqlDb) GetAllSearchableIntegrations() (integrations []db.Integration, err error) {
-	q := squirrel.Select("*").From(db.IntegrationProps.TableName)
-
-	q = q.Where("searchable")
-
-	query, args, err := q.ToSql()
-
-	if err != nil {
-		return
-	}
-
-	_, err = d.selectAll(&integrations, query, args...)
-
-	return
 }

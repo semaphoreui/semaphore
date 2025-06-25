@@ -1,8 +1,7 @@
 <template>
   <EditDialog
       v-if="isAppsLoaded"
-      :max-width="700"
-      :min-content-height="457"
+      :max-width="dialogWidth"
       v-model="dialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"
@@ -10,6 +9,7 @@
       :title="(itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
         ' \'' + getAppTitle(itemApp) + '\''"
       @save="onSave"
+      :content-class="`EditTemplateDialog EditTemplateDialog--${id}`"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TemplateForm
@@ -21,14 +21,14 @@
           :need-reset="needReset"
           :source-item-id="sourceItemId"
           :app="itemApp"
-          :fields="fields"
+          :premium-features="premiumFeatures"
+          :task-type="taskType"
       />
     </template>
   </EditDialog>
 </template>
 
-<style scoped lang="scss">
-
+<style lang="scss">
 </style>
 
 <script>
@@ -36,52 +36,6 @@
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
 import AppsMixin from './AppsMixin';
-
-const ANSIBLE_FIELDS = {
-  playbook: {
-    label: 'playbookFilename',
-  },
-  inventory: {
-    label: 'inventory2',
-  },
-  repository: {
-    label: 'repository',
-  },
-  environment: {
-    label: 'environment3',
-  },
-  vault: {
-    label: 'vaultPassword2',
-  },
-};
-
-const TERRAFORM_FIELDS = {
-  ...ANSIBLE_FIELDS,
-  playbook: {
-    label: 'Subdirectory path (Optional)',
-    optional: true,
-  },
-  inventory: {
-    label: 'Default Workspace',
-  },
-  vault: undefined,
-};
-
-const UNKNOWN_APP_FIELDS = {
-  ...ANSIBLE_FIELDS,
-  playbook: {
-    label: 'Script Filename *',
-  },
-  inventory: undefined,
-  vault: undefined,
-};
-
-const APP_FIELDS = {
-  '': ANSIBLE_FIELDS,
-  ansible: ANSIBLE_FIELDS,
-  terraform: TERRAFORM_FIELDS,
-  tofu: TERRAFORM_FIELDS,
-};
 
 export default {
   components: {
@@ -97,17 +51,24 @@ export default {
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
+    premiumFeatures: Object,
+    taskType: String,
   },
 
   data() {
     return {
+      id: Math.round(Math.random() * 1000000),
       dialog: false,
     };
   },
 
   computed: {
-    fields() {
-      return APP_FIELDS[this.itemApp] || UNKNOWN_APP_FIELDS;
+    dialogWidth() {
+      if (['ansible', 'terraform', 'tofu'].includes(this.itemApp)) {
+        return 1200;
+      }
+
+      return 800;
     },
   },
 

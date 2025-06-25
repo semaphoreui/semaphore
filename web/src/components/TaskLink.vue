@@ -5,9 +5,12 @@
         small
         class="mr-1"
         :color="statusColor"
-    >mdi-{{ statusIcon }}
+    >
+      mdi-{{ statusIcon }}
     </v-icon>
+
     <span v-if="disabled">{{ label }}</span>
+
     <v-tooltip
         v-else
         right
@@ -21,9 +24,13 @@
             v-on="on"
             @click="showTaskLog()"
             :class="{'task-link-with-tooltip': tooltip}"
-        >{{ label }}</a>
+        >
+          {{ label }}
+        </a>
       </template>
+
       <span>{{ tooltip }}</span>
+
     </v-tooltip>
   </span>
 </template>

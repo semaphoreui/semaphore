@@ -5,11 +5,11 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func (t *LocalJob) installInventory() (err error) {
@@ -27,9 +27,10 @@ func (t *LocalJob) installInventory() (err error) {
 		}
 	}
 
-	if t.Inventory.Type == db.InventoryFile {
+	switch t.Inventory.Type {
+	case db.InventoryFile:
 		err = t.cloneInventoryRepo()
-	} else if t.Inventory.Type == db.InventoryStatic || t.Inventory.Type == db.InventoryStaticYaml {
+	case db.InventoryStatic, db.InventoryStaticYaml:
 		err = t.installStaticInventory()
 	}
 
@@ -37,11 +38,17 @@ func (t *LocalJob) installInventory() (err error) {
 }
 
 func (t *LocalJob) tmpInventoryFilename() string {
-	return "inventory_" + strconv.Itoa(t.Task.ID)
+	if t.Inventory.Repository == nil {
+		return "inventory_" + strconv.Itoa(t.Inventory.ID)
+	}
+	return t.Inventory.Repository.GetDirName(t.Template.ID) + "_inventory_" + strconv.Itoa(t.Inventory.ID)
 }
 
 func (t *LocalJob) tmpInventoryFullPath() string {
-	pathname := path.Join(util.Config.TmpPath, t.tmpInventoryFilename())
+	if t.Inventory.Repository != nil && t.Inventory.Repository.GetType() == db.RepositoryLocal {
+		return t.Inventory.Repository.GetGitURL(true)
+	}
+	pathname := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
 		pathname += ".yml"
 	}
@@ -50,6 +57,10 @@ func (t *LocalJob) tmpInventoryFullPath() string {
 
 func (t *LocalJob) cloneInventoryRepo() error {
 	if t.Inventory.Repository == nil {
+		return nil
+	}
+
+	if t.Inventory.Repository.GetType() == db.RepositoryLocal {
 		return nil
 	}
 
@@ -88,9 +99,20 @@ func (t *LocalJob) installStaticInventory() error {
 }
 
 func (t *LocalJob) destroyInventoryFile() {
+	if !t.Inventory.Type.IsStatic() {
+		return
+	}
+
 	fullPath := t.tmpInventoryFullPath()
 	if err := os.Remove(fullPath); err != nil {
-		log.Error(err)
+		if os.IsNotExist(err) {
+			return
+		}
+
+		log.WithError(err).WithFields(log.Fields{
+			"context": "task_running",
+			"task_id": t.Task.ID,
+		}).Warn("failed to remove inventory file")
 	}
 }
 

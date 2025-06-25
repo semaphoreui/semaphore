@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 const interactiveSetupBlurb = `
@@ -27,17 +27,85 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 	conf.Runner = &util.RunnerConfig{}
 
-	askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
+	needTokenFile := false
+	askConfirmation("Do you want to store token in external file?", false, &needTokenFile)
 
-	haveToken := false
-	askConfirmation("Do you have runner token?", false, &haveToken)
-
-	if haveToken {
-		token := ""
-		askValue("Runner token", "", &token)
-
-		// TODO: write token
+	if needTokenFile {
+		askValue("Path to the file where runner token will be stored", "", &conf.Runner.TokenFile)
 	}
+
+	needToken := false
+	askConfirmation("Do you have runner's token?", false, &needToken)
+
+	if needToken {
+		token := ""
+		for {
+			askValue("Enter valid runner token", "", &token)
+
+			if token == "" {
+				fmt.Println("Invalid token")
+				continue
+			}
+			break
+		}
+
+		conf.Runner.Token = token
+
+		hasPrivateKey := false
+		askConfirmation("Do you have runner's private key file?", false, &hasPrivateKey)
+
+		if hasPrivateKey {
+			pkFile := ""
+			for {
+				askValue("Enter path to the private key file", "", &pkFile)
+
+				if pkFile == "" {
+					fmt.Println("Invalid private key file path")
+					continue
+				}
+				break
+			}
+			conf.Runner.PrivateKeyFile = pkFile
+		}
+
+		return
+	}
+
+	needRegistration := false
+	askConfirmation("Do you want to register new runner on the server?", false, &needRegistration)
+	if needRegistration {
+		regToken := ""
+
+		for {
+			askValue("Enter runner registration token", "", &regToken)
+
+			if regToken == "" {
+				fmt.Println("Invalid registration token")
+				continue
+			}
+
+			break
+		}
+
+		conf.Runner.RegistrationToken = regToken
+
+		pkFile := ""
+		for {
+			askValue("Enter path to the private key file (will be generated if not exists)", "", &pkFile)
+
+			if pkFile == "" {
+				fmt.Println("Invalid private key file path")
+				continue
+			}
+			break
+		}
+
+		conf.Runner.PrivateKeyFile = pkFile
+
+		return
+	}
+
+	return
 }
 
 func InteractiveSetup(conf *util.ConfigType) {
@@ -100,6 +168,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
+		conf.LdapMappings = &util.LdapMappings{}
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
 		askConfirmation("Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
 		askValue("LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
@@ -204,7 +273,7 @@ func SaveConfig(config IConfig, defaultFilename string, requiredConfigPath strin
 	return
 }
 
-func askValue(prompt string, defaultValue string, item interface{}) {
+func askValue(prompt string, defaultValue string, item any) {
 	// Print prompt with optional default value
 	fmt.Print(prompt)
 	if len(defaultValue) != 0 {

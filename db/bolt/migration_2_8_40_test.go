@@ -40,7 +40,7 @@ func TestMigration_2_8_40_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var repo map[string]interface{}
+	var repo map[string]any
 	err = store.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__template_0000000001"))
 		str := string(b.Get([]byte("0000000001")))

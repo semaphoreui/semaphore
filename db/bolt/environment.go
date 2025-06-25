@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/semaphoreui/semaphore/db"
 
 func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
 	err = d.getObject(projectID, db.EnvironmentProps, intObjectID(environmentID), &environment)
@@ -43,7 +43,7 @@ func (d *BoltDb) DeleteEnvironment(projectID int, environmentID int) error {
 
 func (d *BoltDb) GetEnvironmentSecrets(projectID int, environmentID int) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
-	err := d.getObjects(projectID, db.AccessKeyProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+	err := d.getObjects(projectID, db.AccessKeyProps, db.RetrieveQueryParams{}, func(i any) bool {
 		k := i.(db.AccessKey)
 		return k.EnvironmentID != nil && *k.EnvironmentID == environmentID
 	}, &keys)

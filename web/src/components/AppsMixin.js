@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { APP_ICONS, APP_TITLE } from '../lib/constants';
+import { APP_ICONS, APP_SHORT_TITLE, APP_TITLE } from '../lib/constants';
 
 export default {
   data() {
@@ -49,9 +49,15 @@ export default {
       return 'gray';
     },
 
-    getAppTitle(id) {
+    getAppTitle(id, short = false) {
       if (this.appsMixin.apps[id]?.title) {
         return this.appsMixin.apps[id].title;
+      }
+
+      if (short) {
+        if (APP_SHORT_TITLE[id]) {
+          return APP_SHORT_TITLE[id];
+        }
       }
 
       if (APP_TITLE[id]) {

@@ -1,38 +1,44 @@
 package db_lib
 
 import (
+	"fmt"
 	"os"
-	"strings"
 
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 )
 
-func removeSensitiveEnvs(envs []string) (res []string) {
-	sensitives := []string{
-		"SEMAPHORE_ACCESS_KEY_ENCRYPTION",
-		"SEMAPHORE_ADMIN_PASSWORD",
-		"SEMAPHORE_DB_USER",
-		"SEMAPHORE_DB_NAME",
-		"SEMAPHORE_DB_HOST",
-		"SEMAPHORE_DB_PASS",
-		"SEMAPHORE_LDAP_PASSWORD",
-		"SEMAPHORE_RUNNER_TOKEN",
-		"SEMAPHORE_RUNNER_ID",
+func getEnvironmentVars() []string {
+	res := []string{
+		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 	}
 
-	for _, e := range envs {
-		for _, s := range sensitives {
-			if !strings.HasPrefix(e, s+"=") {
-				res = append(res, e)
-			}
+	for _, e := range util.Config.ForwardedEnvVars {
+		v := os.Getenv(e)
+		if v != "" {
+			res = append(res, fmt.Sprintf("%s=%s", e, v))
 		}
+	}
+
+	for k, v := range util.Config.EnvVars {
+		res = append(res, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	return res
 }
 
+type LocalAppRunningArgs struct {
+	CliArgs         []string
+	EnvironmentVars []string
+	Inputs          map[string]string
+	TaskParams      any
+	TemplateParams  any
+	Callback        func(*os.Process)
+}
+
 type LocalApp interface {
 	SetLogger(logger task_logger.Logger) task_logger.Logger
-	InstallRequirements() error
-	Run(args []string, environmentVars *[]string, inputs map[string]string, cb func(*os.Process)) error
+	InstallRequirements(environmentVars []string, tplParams any, params any) error
+	Run(args LocalAppRunningArgs) error
+	Clear()
 }

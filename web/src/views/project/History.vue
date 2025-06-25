@@ -1,49 +1,39 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
         {{ $t('dashboard2') }}
       </v-toolbar-title>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4">
-      <v-tab
-        v-if="projectType === ''"
-        key="history"
-        :to="`/project/${projectId}/history`"
-      >{{ $t('history') }}</v-tab>
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-      <v-tab
-        v-if="can(USER_PERMISSIONS.updateProject)"
-        key="settings"
-        :to="`/project/${projectId}/settings`"
-      >{{ $t('settings') }}
-      </v-tab>
-    </v-tabs>
+    <DashboardMenu
+      :project-id="projectId"
+      :project-type="projectType"
+      :can-update-project="can(USER_PERMISSIONS.updateProject)"
+    />
 
     <v-data-table
       :headers="headers"
       :items="items"
       :footer-props="{ itemsPerPageOptions: [20] }"
-      class="mt-4"
+      class="mt-4 HistoryTable"
     >
       <template v-slot:item.tpl_alias="{ item }">
-        <div class="d-flex">
+        <div class="d-flex align-center">
           <v-icon
-              class="mr-3"
-              small
+            class="mr-3"
+            small
           >
             {{ getAppIcon(item.tpl_app) }}
           </v-icon>
 
-          <v-icon class="mr-3" small>
-            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}
-          </v-icon>
+          <!--          <v-icon class="mr-3" small>-->
+          <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
+          <!--          </v-icon>-->
 
           <TaskLink
             :task-id="item.id"
-            :tooltip="item.message"
             :label="'#' + item.id"
           />
 
@@ -54,6 +44,15 @@
             '/templates/' + item.template_id"
           >{{ item.tpl_alias }}
           </router-link>
+        </div>
+
+        <div style="font-size: 14px;" class="ml-7">
+            <span v-if="item.message">
+              <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
+            </span>
+          <span v-else-if="item.commit_hash">
+              <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
+            </span>
         </div>
       </template>
 
@@ -94,6 +93,12 @@
   </div>
 </template>
 
+<style lang="scss">
+.HistoryTable td {
+  height: 60px !important;
+}
+</style>
+
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
@@ -102,6 +107,7 @@ import TaskLink from '@/components/TaskLink.vue';
 import socket from '@/socket';
 import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
+import DashboardMenu from '@/components/DashboardMenu.vue';
 
 export default {
   mixins: [ItemListPageBase, AppsMixin],
@@ -110,7 +116,7 @@ export default {
     return { TEMPLATE_TYPE_ICONS };
   },
 
-  components: { TaskStatus, TaskLink },
+  components: { DashboardMenu, TaskStatus, TaskLink },
 
   watch: {
     async projectId() {

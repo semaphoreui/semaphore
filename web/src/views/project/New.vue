@@ -6,18 +6,25 @@
       <v-spacer></v-spacer>
     </v-toolbar>
 
-    <div class="project-settings-form">
-      <div style="height: 300px;">
-        <ProjectForm item-id="new" ref="editForm" @save="onSave" />
-      </div>
+    <v-divider />
 
-      <div class="text-right">
-        <v-btn
-          color="success" class="mr-3" @click="createDemoProject()"
-        >{{ $t('CreateDemoProject') }}</v-btn>
+    <div
+      style="margin: auto; max-width: 600px; padding: 0 16px;"
+      class="CenterToScreen"
+    >
+        <div class="project-settings-form">
+        <div style="height: 300px;">
+            <ProjectForm item-id="new" ref="editForm" @save="onSave" />
+        </div>
 
-        <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
-      </div>
+        <div class="text-right">
+            <v-btn
+            color="success" class="mr-3" @click="createDemoProject()"
+            >{{ $t('CreateDemoProject') }}</v-btn>
+
+            <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
+        </div>
+        </div>
     </div>
 
   </div>

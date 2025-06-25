@@ -4,17 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"net/http"
 	"net/url"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 
 	"github.com/gorilla/mux"
 )
@@ -69,10 +71,10 @@ func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, erro
 }
 
 // H just a string-to-anything map
-type H map[string]interface{}
+type H map[string]any
 
 // Bind decodes json into object
-func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
+func Bind(w http.ResponseWriter, r *http.Request, out any) bool {
 	err := json.NewDecoder(r.Body).Decode(out)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -82,7 +84,7 @@ func Bind(w http.ResponseWriter, r *http.Request, out interface{}) bool {
 }
 
 // WriteJSON writes object as JSON
-func WriteJSON(w http.ResponseWriter, code int, out interface{}) {
+func WriteJSON(w http.ResponseWriter, code int, out any) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)
 
@@ -114,9 +116,10 @@ func WriteError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	switch e := err.(type) {
-	case *db.ValidationError:
-		WriteErrorStatus(w, e.Error(), http.StatusBadRequest)
+	var validationError *db.ValidationError
+	switch {
+	case errors.As(err, &validationError):
+		WriteErrorStatus(w, validationError.Error(), http.StatusBadRequest)
 	default:
 		log.Error(err)
 		debug.PrintStack()
@@ -124,9 +127,54 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 }
 
+func QueryParamsForProps(url *url.URL, props db.ObjectProps) (params db.RetrieveQueryParams) {
+	sortBy := ""
+
+	if url.Query().Get("sort") != "" {
+		i := slices.Index(props.SortableColumns, url.Query().Get("sort"))
+		if i != -1 {
+			sortBy = props.SortableColumns[i]
+		}
+	}
+
+	params = db.RetrieveQueryParams{
+		SortBy:       sortBy,
+		SortInverted: url.Query().Get("order") == "desc",
+	}
+
+	return
+}
+
 func QueryParams(url *url.URL) db.RetrieveQueryParams {
 	return db.RetrieveQueryParams{
 		SortBy:       url.Query().Get("sort"),
 		SortInverted: url.Query().Get("order") == "desc",
 	}
+}
+
+func QueryParamsWithOwner(url *url.URL, props db.ObjectProps) db.RetrieveQueryParams {
+	res := QueryParamsForProps(url, props)
+
+	hasOwnerFilter := false
+
+	for _, ownership := range props.Ownerships {
+		s := url.Query().Get(ownership.ReferringColumnSuffix)
+		if s == "" {
+			continue
+		}
+
+		id, err2 := strconv.Atoi(s)
+		if err2 != nil {
+			continue
+		}
+
+		res.Ownership.SetOwnerID(*ownership, id)
+		hasOwnerFilter = true
+	}
+
+	if !hasOwnerFilter {
+		res.Ownership.WithoutOwnerOnly = true
+	}
+
+	return res
 }

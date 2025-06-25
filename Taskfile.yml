@@ -68,7 +68,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/ansible-semaphore/semaphore"
+      IMPORT: "github.com/semaphoreui/semaphore"
 
   build:fe:
     desc: Build VueJS project
@@ -105,23 +105,22 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/ansible-semaphore/semaphore"
+      IMPORT: "github.com/semaphoreui/semaphore"
 
   lint:
     cmds:
       - task: lint:fe
-#      - task: lint:be
+      - task: lint:be
 
   lint:fe:
     dir: web
     cmds:
       - npm run lint
 
-#  lint:be:
-#    cmds:
-#      - golangci-lint run --disable goconst --timeout 240s ./...
-#      - go vet ./...
-#      - swagger validate ./api-docs.yml
+  lint:be:
+    cmds:
+      - golangci-lint run
+      - swagger validate ./api-docs.yml
 
   test:
     cmds:
@@ -138,27 +137,32 @@ tasks:
     cmds:
       - go test -v -coverprofile=coverage.out ./...
 
-  e2e:goodman:
+  dredd:goodman:
     desc: Installs goodman which is required by dredd
     cmds:
       - go install github.com/snikch/goodman/cmd/goodman@latest
 
-  e2e:deps:
+  dredd:deps:
     desc: Installs dredd dep for integration testing
     dir: web
     cmds:
       - npm install dredd@13.1.2
 
-  e2e:hooks:
+  dredd:hooks:
     desc: Compile required dredd hooks built
     dir: ./.dredd/hooks
     cmds:
       - go build -o ../compiled_hooks{{ if eq OS "windows" }}.exe{{ end }}
 
-  e2e:test:
+  dredd:test:
     desc: Run end to end test for API with dredd
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml
+
+  dredd:test:local:
+    desc: Run end to end test for API with dredd
+    cmds:
+      - ./web/node_modules/.bin/dredd --config .dredd/dredd.local.yml
 
   release:prod:
     desc: Create and publish a release

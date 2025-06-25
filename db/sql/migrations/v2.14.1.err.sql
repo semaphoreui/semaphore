@@ -1,0 +1,1 @@
+alter table `project__integration_extract_value` drop column `variable_type`;

@@ -8,9 +8,10 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
-	"github.com/ansible-semaphore/semaphore/util/mailer"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/semaphoreui/semaphore/util/mailer"
 )
 
 //go:embed templates/*.tmpl
@@ -78,12 +79,12 @@ func (t *TaskRunner) sendMailAlert() {
 	for _, uid := range t.users {
 		user, err := t.pool.store.GetUser(uid)
 
-		if !user.Alert {
+		if err != nil {
+			util.LogError(err)
 			continue
 		}
 
-		if err != nil {
-			util.LogError(err)
+		if !user.Alert {
 			continue
 		}
 
@@ -91,6 +92,7 @@ func (t *TaskRunner) sendMailAlert() {
 
 		if err := mailer.Send(
 			util.Config.EmailSecure,
+			util.Config.EmailTls,
 			util.Config.EmailHost,
 			util.Config.EmailPort,
 			util.Config.EmailUsername,
@@ -418,13 +420,80 @@ func (t *TaskRunner) sendDingTalkAlert() {
 	}
 }
 
+func (t *TaskRunner) sendGotifyAlert() {
+	if !util.Config.GotifyAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("gotify"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/gotify.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse gotify alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate gotify alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for gotify alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send gotify alert")
+
+	resp, err := http.Post(
+		fmt.Sprintf(
+			"%s/message?token=%s",
+			util.Config.GotifyUrl,
+			util.Config.GotifyToken),
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send gotify alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send gotify alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully gotify alert")
+	}
+}
+
 func (t *TaskRunner) alertInfos() (string, string) {
 	version := ""
 
 	if t.Task.Version != nil {
 		version = *t.Task.Version
-	} else if t.Task.BuildTaskID != nil {
-		version = "build " + strconv.Itoa(*t.Task.BuildTaskID)
+	} else if t.Template.Type != db.TemplateTask {
+		v := t.Task.GetIncomingVersion(t.pool.store)
+		if v != nil {
+			version = "build " + *v
+		} else {
+			version = ""
+		}
 	} else {
 		version = ""
 	}

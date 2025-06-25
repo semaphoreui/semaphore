@@ -3,11 +3,11 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"net/http"
 	"strings"
@@ -39,6 +39,10 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for i := range tokens {
+		tokens[i].ID = tokens[i].ID[:8]
+	}
+
 	helpers.WriteJSON(w, http.StatusOK, tokens)
 }
 
@@ -61,12 +65,12 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusCreated, token)
 }
 
-func expireAPIToken(w http.ResponseWriter, r *http.Request) {
+func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := context.Get(r, "user").(*db.User)
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	err := helpers.Store(r).ExpireAPIToken(user.ID, tokenID)
+	err := helpers.Store(r).DeleteAPIToken(user.ID, tokenID)
 
 	if err != nil {
 		helpers.WriteError(w, err)

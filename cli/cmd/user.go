@@ -12,6 +12,8 @@ type userArgs struct {
 	email    string
 	password string
 	admin    bool
+	totp     bool
+	external bool
 }
 
 var targetUserArgs userArgs

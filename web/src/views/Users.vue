@@ -5,6 +5,7 @@
       save-button-text="Save"
       :title="$t('editUser')"
       @save="loadItems()"
+      :hide-buttons="hideEditDialogButtons"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <UserForm
@@ -15,6 +16,9 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="true"
+          @hide-action-buttons="hideEditDialogButtons = true"
+          @show-action-buttons="hideEditDialogButtons = false"
+          :auth-methods="authMethods"
         />
       </template>
     </EditDialog>
@@ -41,6 +45,8 @@
         @click="editItem('new')"
       >{{ $t('newUser') }}</v-btn>
     </v-toolbar>
+
+    <v-divider />
 
     <v-data-table
       :headers="headers"
@@ -95,10 +101,20 @@ import UserForm from '@/components/UserForm.vue';
 export default {
   mixins: [ItemListPageBase],
 
+  props: {
+    authMethods: Object,
+  },
+
   components: {
     YesNoDialog,
     UserForm,
     EditDialog,
+  },
+
+  data() {
+    return {
+      hideEditDialogButtons: false,
+    };
   },
 
   methods: {

@@ -27,11 +27,12 @@
     </v-dialog>
 
     <EditTemplateDialog
-        v-model="editDialog"
-        :project-id="projectId"
-        :item-app="itemApp"
-        item-id="new"
-        @save="loadItems()"
+      v-model="editDialog"
+      :project-id="projectId"
+      :item-app="itemApp"
+      item-id="new"
+      @save="loadItems()"
+      :premium-features="premiumFeatures"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -39,10 +40,8 @@
       @save="itemId = null"
       @close="itemId = null"
       :project-id="projectId"
+      :template="template"
       :template-id="itemId"
-      :template-alias="templateAlias"
-      :template-type="templateType"
-      :template-app="templateApp"
     />
 
     <v-toolbar flat>
@@ -88,10 +87,10 @@
           <v-divider v-if="isAdmin && appsMixin.activeAppIds.length > 0"/>
 
           <v-list-item
-              v-if="isAdmin"
-              key="other"
-              link
-              href="/apps"
+            v-if="isAdmin"
+            key="other"
+            link
+            to="/apps"
           >
             <v-list-item-icon>
               <v-icon>mdi-cogs</v-icon>
@@ -127,6 +126,8 @@
       </v-btn>
     </v-tabs>
 
+    <v-divider style="margin-top: -1px;"/>
+
     <v-data-table
       hide-default-footer
       class="mt-4 templates-table"
@@ -137,8 +138,8 @@
       :items-per-page="Number.MAX_VALUE"
       :expanded.sync="openedItems"
       :style="{
-          opacity: viewItemsLoading ? 0.3 : 1,
-        }"
+        opacity: viewItemsLoading ? 0.3 : 1,
+      }"
     >
       <template v-slot:item.name="{ item }">
         <v-icon
@@ -148,9 +149,9 @@
           {{ getAppIcon(item.app) }}
         </v-icon>
 
-        <v-icon class="mr-3" small>
-          {{ TEMPLATE_TYPE_ICONS[item.type] }}
-        </v-icon>
+        <!--        <v-icon class="mr-3" small>-->
+        <!--          {{ TEMPLATE_TYPE_ICONS[item.type] }}-->
+        <!--        </v-icon>-->
 
         <router-link
           :to="viewId
@@ -196,7 +197,7 @@
             :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
-            {{ $t('by', {user_name: item.last_task.user_name }) }}
+            {{ $t('by', {user_name: item.last_task.user_name}) }}
           </div>
         </div>
       </template>
@@ -214,10 +215,11 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn text class="pl-1 pr-2" @click="createTask(item.id)">
-          <v-icon class="pr-1">mdi-play</v-icon>
-          {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
-        </v-btn>
+        <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn @click="createTask(item.id)">
+            <v-icon>mdi-play</v-icon>
+          </v-btn>
+        </v-btn-toggle>
       </template>
 
       <template v-slot:expanded-item="{ headers, item }">
@@ -268,10 +270,7 @@ import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
-import {
-  TEMPLATE_TYPE_ACTION_TITLES,
-  TEMPLATE_TYPE_ICONS,
-} from '@/lib/constants';
+import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import AppsMixin from '@/components/AppsMixin';
 
@@ -284,6 +283,9 @@ export default {
     TaskList,
     EditViewsForm,
     NewTaskDialog,
+  },
+  props: {
+    premiumFeatures: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
   async created() {
@@ -311,6 +313,7 @@ export default {
     };
   },
   computed: {
+
     viewId() {
       if (/^-?\d+$/.test(this.$route.params.viewId)) {
         return parseInt(this.$route.params.viewId, 10);
@@ -318,25 +321,11 @@ export default {
       return this.$route.params.viewId;
     },
 
-    templateType() {
+    template() {
       if (this.itemId == null || this.itemId === 'new') {
-        return '';
+        return null;
       }
-      return this.items.find((x) => x.id === this.itemId).type;
-    },
-
-    templateAlias() {
-      if (this.itemId == null || this.itemId === 'new') {
-        return '';
-      }
-      return this.items.find((x) => x.id === this.itemId).name;
-    },
-
-    templateApp() {
-      if (this.itemId == null || this.itemId === 'new') {
-        return '';
-      }
-      return this.items.find((x) => x.id === this.itemId).app;
+      return this.items.find((x) => x.id === this.itemId);
     },
 
     isLoaded() {
@@ -409,11 +398,18 @@ export default {
       }
 
       if (data.task_id !== template.last_task_id) {
-        Object.assign(template.last_task, (await axios({
+        const lastTask = (await axios({
           method: 'get',
           url: `/api/project/${this.projectId}/tasks/${data.task_id}`,
           responseType: 'json',
-        })).data);
+        })).data;
+
+        if (template.last_task) {
+          Object.assign(template.last_task, lastTask);
+        } else {
+          template.last_task = lastTask;
+        }
+
         template.last_task_id = data.task_id;
       }
 
@@ -439,6 +435,11 @@ export default {
         {
           text: this.$i18n.t('name'),
           value: 'name',
+        },
+        {
+          value: 'actions',
+          sortable: false,
+          width: '0%',
         },
         {
           text: this.$i18n.t('version'),
@@ -475,12 +476,6 @@ export default {
           value: 'repository_id',
           sortable: false,
         },
-        {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
-          sortable: false,
-          width: '0%',
-        },
       ];
     },
 
@@ -491,23 +486,15 @@ export default {
     },
 
     async loadData() {
-      this.inventory = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
-        responseType: 'json',
-      })).data;
-
-      this.environment = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      this.repositories = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
+      [
+        this.inventory,
+        this.environment,
+        this.repositories,
+      ] = await Promise.all([
+        this.loadProjectResources('inventory'),
+        this.loadProjectResources('environment'),
+        this.loadProjectResources('repositories'),
+      ]);
     },
 
     onTableSettingsChange({ headers }) {

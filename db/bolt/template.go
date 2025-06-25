@@ -1,8 +1,10 @@
 package bolt
 
 import (
+	"encoding/json"
 	"errors"
-	"github.com/ansible-semaphore/semaphore/db"
+
+	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
 )
 
@@ -42,10 +44,38 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	return d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
 }
 
+func (d *BoltDb) setTemplateDescriptionTx(projectID int, templateID int, description string, tx *bbolt.Tx) error {
+
+	template, err := d.getRawTemplateTx(projectID, templateID, tx)
+	if err != nil {
+		return err
+	}
+	if description == "" {
+		template.Description = nil
+	} else {
+		template.Description = &description
+	}
+
+	err = d.updateObjectTx(tx, projectID, db.TemplateProps, template)
+
+	return err
+}
+
+func (d *BoltDb) SetTemplateDescription(projectID int, templateID int, description string) error {
+	err := d.db.Update(func(tx *bbolt.Tx) error {
+		return d.setTemplateDescriptionTx(projectID, templateID, description, tx)
+	})
+
+	return err
+}
+
 func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	var ftr = func(tpl interface{}) bool {
+	var ftr = func(tpl any) bool {
 		template := tpl.(db.Template)
 		var res = true
+		if filter.App != nil {
+			res = res && template.App == *filter.App
+		}
 		if filter.ViewID != nil {
 			res = res && template.ViewID != nil && *template.ViewID == *filter.ViewID
 		}
@@ -67,7 +97,15 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	templatesMap := make(map[int]*db.Template)
 
 	for i := 0; i < len(templates); i++ {
-		templates[i].Vaults, err = d.GetTemplateVaults(projectID, templates[i].ID)
+
+		if templates[i].SurveyVarsJSON != nil {
+			err = json.Unmarshal([]byte(*templates[i].SurveyVarsJSON), &templates[i].SurveyVars)
+		}
+
+		if err != nil {
+			return
+		}
+
 		templatesMap[templates[i].ID] = &templates[i]
 	}
 
@@ -75,7 +113,7 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 
 	var errEndOfTemplates = errors.New("no more templates to filling")
 
-	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) error {
+	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i any) error {
 		task := i.(db.Task)
 
 		if task.ProjectID != projectID {
@@ -115,6 +153,11 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	return
 }
 
+func (d *BoltDb) getRawTemplateTx(projectID int, templateID int, tx *bbolt.Tx) (template db.Template, err error) {
+	err = d.getObjectTx(tx, projectID, db.TemplateProps, intObjectID(templateID), &template)
+	return
+}
+
 func (d *BoltDb) getRawTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
 	return
@@ -151,7 +194,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		}
 	}
 
-	schedules, err := d.GetTemplateSchedules(projectID, templateID)
+	schedules, err := d.GetTemplateSchedules(projectID, templateID, false)
 	if err != nil {
 		return
 	}
@@ -160,6 +203,30 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		if err != nil {
 			return
 		}
+	}
+
+	// Delete template vaults
+	vaults, err := d.GetTemplateVaults(projectID, templateID)
+	if err != nil {
+		return
+	}
+	for _, sch := range vaults {
+		err = d.deleteTemplateVault(projectID, sch.ID, tx)
+		if err != nil {
+			return
+		}
+	}
+
+	integrations, err := d.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for _, integration := range integrations {
+		if integration.TemplateID != templateID {
+			continue
+		}
+		d.deleteIntegration(projectID, integration.ID, tx)
 	}
 
 	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID), tx)

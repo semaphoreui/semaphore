@@ -1,7 +1,7 @@
 package project
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 type BackupDB struct {
@@ -31,6 +31,7 @@ type BackupFormat struct {
 	Environments       []BackupEnvironment `backup:"environments"`
 	Integration        []BackupIntegration `backup:"integrations"`
 	IntegrationAliases []string            `backup:"integration_aliases"`
+	Schedules          []BackupSchedule    `backup:"schedules"`
 }
 
 type BackupMeta struct {
@@ -43,6 +44,11 @@ type BackupEnvironment struct {
 
 type BackupAccessKey struct {
 	db.AccessKey
+}
+
+type BackupSchedule struct {
+	db.Schedule
+	Template string `backup:"template"`
 }
 
 type BackupView struct {
@@ -77,7 +83,7 @@ type BackupTemplate struct {
 
 type BackupTemplateVault struct {
 	db.TemplateVault
-	VaultKey string `backup:"vault_key"`
+	VaultKey *string `backup:"vault_key"`
 }
 
 type BackupIntegration struct {

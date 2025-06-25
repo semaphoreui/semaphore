@@ -3,9 +3,9 @@ package projects
 import (
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/gorilla/context"
@@ -38,6 +38,36 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	var devInv db.Inventory
 	var prodInv db.Inventory
 
+	var buildView db.View
+	var deployView db.View
+	var toolsView db.View
+
+	buildView, err = store.CreateView(db.View{
+		ProjectID: projectID,
+		Title:     "Build",
+		Position:  0,
+	})
+
+	if err != nil {
+		return
+	}
+
+	deployView, err = store.CreateView(db.View{
+		ProjectID: projectID,
+		Title:     "Deploy",
+		Position:  1,
+	})
+
+	if err != nil {
+		return
+	}
+
+	toolsView, err = store.CreateView(db.View{
+		ProjectID: projectID,
+		Title:     "Tools",
+		Position:  2,
+	})
+
 	if err != nil {
 		return
 	}
@@ -58,7 +88,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	demoRepo, err = store.CreateRepository(db.Repository{
 		Name:      "Demo",
 		ProjectID: projectID,
-		GitURL:    "https://github.com/semaphoreui/demo-project.git",
+		GitURL:    "https://github.com/semaphoreui/semaphore-demo.git",
 		GitBranch: "main",
 		SSHKeyID:  noneKeyID,
 	})
@@ -105,9 +135,9 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		return
 	}
 
-	desc = "This task pings the website to provide real word example of using Semaphore."
+	desc = "Pings the website to provide a real-world example of using Semaphore."
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Ping Site",
+		Name:          "Ping semaphoreui.com",
 		Playbook:      "ping.yml",
 		Description:   &desc,
 		ProjectID:     projectID,
@@ -115,17 +145,18 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		EnvironmentID: &emptyEnvID,
 		RepositoryID:  demoRepo.ID,
 		App:           db.AppAnsible,
+		ViewID:        &toolsView.ID,
 	})
 
 	if err != nil {
 		return
 	}
 
-	desc = "Creates artifact and store it in the cache."
+	desc = "Creates a demo artifact and stores it in the cache."
 
 	var startVersion = "1.0.0"
 	buildTpl, err := store.CreateTemplate(db.Template{
-		Name:          "Build",
+		Name:          "Build demo app",
 		Playbook:      "build.yml",
 		Type:          db.TemplateBuild,
 		ProjectID:     projectID,
@@ -134,6 +165,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		RepositoryID:  demoRepo.ID,
 		StartVersion:  &startVersion,
 		App:           db.AppAnsible,
+		ViewID:        &buildView.ID,
 	})
 
 	if err != nil {
@@ -142,7 +174,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 
 	var template db.Template
 	template, err = store.CreateTemplate(db.Template{
-		Name:            "Deploy to Dev",
+		Name:            "Deploy demo app to Dev",
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
@@ -152,6 +184,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		BuildTemplateID: &buildTpl.ID,
 		Autorun:         true,
 		App:             db.AppAnsible,
+		ViewID:          &deployView.ID,
 	})
 
 	if err != nil {
@@ -161,8 +194,9 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	_, err = store.CreateTemplateVault(db.TemplateVault{
 		ProjectID:  projectID,
 		TemplateID: template.ID,
-		VaultKeyID: vaultKey.ID,
+		VaultKeyID: &vaultKey.ID,
 		Name:       nil,
+		Type:       "password",
 	})
 
 	if err != nil {
@@ -170,7 +204,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	}
 
 	template, err = store.CreateTemplate(db.Template{
-		Name:            "Deploy to Production",
+		Name:            "Deploy demo app to Production",
 		Type:            db.TemplateDeploy,
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
@@ -179,6 +213,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppAnsible,
+		ViewID:          &deployView.ID,
 	})
 
 	if err != nil {
@@ -188,10 +223,76 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 	_, err = store.CreateTemplateVault(db.TemplateVault{
 		ProjectID:  projectID,
 		TemplateID: template.ID,
-		VaultKeyID: vaultKey.ID,
+		VaultKeyID: &vaultKey.ID,
 		Name:       nil,
+		Type:       "password",
 	})
 
+	if err != nil {
+		return
+	}
+
+	template, err = store.CreateTemplate(db.Template{
+		Name:            "Apply infrastructure (OpenTofu)",
+		Type:            db.TemplateTask,
+		Playbook:        "",
+		ProjectID:       projectID,
+		EnvironmentID:   &emptyEnvID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
+		App:             db.AppTofu,
+		ViewID:          &buildView.ID,
+	})
+
+	if err != nil {
+		return
+	}
+
+	template, err = store.CreateTemplate(db.Template{
+		Name:            "Apply infrastructure (Terragrunt)",
+		Type:            db.TemplateTask,
+		Playbook:        "",
+		ProjectID:       projectID,
+		EnvironmentID:   &emptyEnvID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
+		App:             db.AppTerragrunt,
+		ViewID:          &buildView.ID,
+	})
+
+	if err != nil {
+		return
+	}
+
+	template, err = store.CreateTemplate(db.Template{
+		Name:            "Print system info (Bash)",
+		Type:            db.TemplateTask,
+		Playbook:        "print_system_info.sh",
+		ProjectID:       projectID,
+		InventoryID:     &prodInv.ID,
+		EnvironmentID:   &emptyEnvID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
+		App:             db.AppBash,
+		ViewID:          &toolsView.ID,
+	})
+
+	if err != nil {
+		return
+	}
+
+	template, err = store.CreateTemplate(db.Template{
+		Name:            "Print system info (PowerShell)",
+		Type:            db.TemplateTask,
+		Playbook:        "print_system_info.ps1",
+		ProjectID:       projectID,
+		InventoryID:     &prodInv.ID,
+		EnvironmentID:   &emptyEnvID,
+		RepositoryID:    demoRepo.ID,
+		BuildTemplateID: &buildTpl.ID,
+		App:             db.AppPowerShell,
+		ViewID:          &toolsView.ID,
+	})
 	return
 }
 

@@ -7,10 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/ansible-semaphore/semaphore/pkg/random"
-	"github.com/ansible-semaphore/semaphore/pkg/ssh"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"path"
 )
@@ -75,9 +75,26 @@ type AccessKeyInstallation struct {
 	SSHAgent *ssh.Agent
 	Login    string
 	Password string
+	Script   string
 }
 
-func (key AccessKeyInstallation) Destroy() error {
+func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
+	env = make([]string, 0)
+
+	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
+	if key.SSHAgent != nil {
+		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		if util.Config.SshConfigPath != "" {
+			sshCmd += " -F " + util.Config.SshConfigPath
+		}
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	return env
+}
+
+func (key *AccessKeyInstallation) Destroy() error {
 	if key.SSHAgent != nil {
 		return key.SSHAgent.Close()
 	}
@@ -85,6 +102,17 @@ func (key AccessKeyInstallation) Destroy() error {
 }
 
 func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error) {
+
+	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))
+
+	var socketFile string
+
+	if key.ProjectID == nil {
+		socketFile = path.Join(util.Config.TmpPath, socketFilename)
+	} else {
+		socketFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), socketFilename)
+	}
+
 	sshAgent := ssh.Agent{
 		Logger: logger,
 		Keys: []ssh.AgentKey{
@@ -93,7 +121,7 @@ func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error
 				Passphrase: []byte(key.SshKey.Passphrase),
 			},
 		},
-		SocketFile: path.Join(util.Config.TmpPath, fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))),
+		SocketFile: socketFile,
 	}
 
 	return sshAgent, sshAgent.Listen()
@@ -121,13 +149,15 @@ func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (i
 			installation.Login = key.SshKey.Login
 		}
 	case AccessKeyRoleAnsiblePasswordVault:
-		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible user")
+		switch key.Type {
+		case AccessKeyLoginPassword:
+			installation.Password = key.LoginPassword.Password
+		default:
+			err = fmt.Errorf("access key type not supported for ansible password vault")
 		}
-		installation.Password = key.LoginPassword.Password
 	case AccessKeyRoleAnsibleBecomeUser:
 		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible user")
+			err = fmt.Errorf("access key type not supported for ansible become user")
 		}
 		installation.Login = key.LoginPassword.Login
 		installation.Password = key.LoginPassword.Password

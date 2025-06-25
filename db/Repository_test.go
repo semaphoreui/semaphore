@@ -6,38 +6,32 @@ import (
 	"path"
 	"testing"
 
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRepository_GetSchema(t *testing.T) {
 	repo := Repository{GitURL: "https://example.com/hello/world"}
 	schema := repo.GetType()
-	if schema != "https" {
-		t.Fatal()
-	}
+	assert.Equal(t, RepositoryHTTP, schema)
 }
 
 func TestRepository_ClearCache(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4)),
 	}
-	repoDir := path.Join(util.Config.TmpPath, "repository_123_55")
+	repoDir := path.Join(util.Config.TmpPath, "project_0", "repository_123_55")
 	err := os.MkdirAll(repoDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	repo := Repository{ID: 123}
 	err = repo.ClearCache()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	_, err = os.Stat(repoDir)
-	if err == nil {
-		t.Fatal("repo directory not deleted")
-	}
-	if !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
+	require.Error(t, err, "repo directory not deleted")
+	assert.True(t, os.IsNotExist(err))
 }
 
 func TestRepository_GetGitURL(t *testing.T) {
@@ -67,9 +61,7 @@ func TestRepository_GetGitURL(t *testing.T) {
 			ExpectedGitUrl: "https://password@github.com/user/project.git",
 		},
 	} {
-		gitUrl := v.Repository.GetGitURL()
-		if gitUrl != v.ExpectedGitUrl {
-			t.Error("wrong gitUrl", "expected: ", v.ExpectedGitUrl, " got: ", gitUrl)
-		}
+		gitUrl := v.Repository.GetGitURL(false)
+		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
 	}
 }

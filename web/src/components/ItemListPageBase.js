@@ -7,6 +7,7 @@ import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import { getErrorMessage } from '@/lib/error';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import PermissionsCheck from '@/components/PermissionsCheck';
+import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
   components: {
@@ -15,10 +16,9 @@ export default {
     ObjectRefsDialog,
   },
 
-  mixins: [PermissionsCheck],
+  mixins: [PermissionsCheck, ProjectMixin],
 
   props: {
-    projectId: Number,
     projectType: String,
     userId: Number,
     userRole: String,

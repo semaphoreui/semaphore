@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 
 	"github.com/gorilla/context"
 )
@@ -101,7 +101,14 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Access Key %s created", key.Name),
 	})
 
-	w.WriteHeader(http.StatusNoContent)
+	// Reload key to drop sensitive fields
+	key, err = helpers.Store(r).GetAccessKey(*newKey.ProjectID, newKey.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, key)
 }
 
 // UpdateKey updates key in database
@@ -154,7 +161,7 @@ func RemoveKey(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
 	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Access Key is in use by one or more templates",
 			"inUse": true,
 		})

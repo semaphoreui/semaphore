@@ -1,6 +1,7 @@
 package db
 
 import (
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -21,6 +22,33 @@ type Event struct {
 	Username    *string `db:"-" json:"username"`
 }
 
+func (event Event) ToFields() (logFields log.Fields) {
+
+	logFields = log.Fields{}
+
+	if event.ProjectID != nil {
+		logFields["project"] = *event.ProjectID
+	}
+
+	if event.ObjectType != nil {
+		logFields["type"] = *event.ObjectType
+	}
+
+	if event.ObjectID != nil {
+		logFields["object"] = *event.ObjectID
+	}
+
+	if event.UserID != nil {
+		logFields["user"] = *event.UserID
+	}
+
+	if event.IntegrationID != nil {
+		logFields["integration"] = *event.IntegrationID
+	}
+
+	return
+}
+
 type EventObjectType string
 
 const (
@@ -37,6 +65,8 @@ const (
 	EventIntegration             EventObjectType = "integration"
 	EventIntegrationExtractValue EventObjectType = "integrationextractvalue"
 	EventIntegrationMatcher      EventObjectType = "integrationmatcher"
+
+	EventTerraformInventoryAlias EventObjectType = "terraform_inventory_alias"
 )
 
 func FillEvents(d Store, events []Event) (err error) {

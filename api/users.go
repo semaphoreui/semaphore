@@ -1,13 +1,17 @@
 package api
 
 import (
-	"github.com/ansible-semaphore/semaphore/api/helpers"
-	"github.com/ansible-semaphore/semaphore/db"
+	"bytes"
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
+	"image/png"
 	"net/http"
 
-	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/gorilla/context"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type minimalUser struct {
@@ -18,7 +22,9 @@ type minimalUser struct {
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	currentUser := context.Get(r, "user").(*db.User)
-	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{
+		Filter: r.URL.Query().Get("s"),
+	})
 
 	if err != nil {
 		panic(err)
@@ -54,7 +60,14 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := helpers.Store(r).CreateUser(user)
+	var err error
+	var newUser db.User
+
+	if user.External {
+		newUser, err = helpers.Store(r).CreateUserWithoutPassword(user.User)
+	} else {
+		newUser, err = helpers.Store(r).CreateUser(user)
+	}
 
 	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
@@ -63,6 +76,35 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newUser)
+}
+func readonlyUserMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, err := helpers.GetIntParam("user_id", w, r)
+
+		if err != nil {
+			return
+		}
+
+		user, err := helpers.Store(r).GetUser(userID)
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		editor := context.Get(r, "user").(*db.User)
+
+		if !editor.Admin && editor.ID != user.ID {
+			user = db.User{
+				ID:       user.ID,
+				Username: user.Username,
+				Name:     user.Name,
+			}
+		}
+
+		context.Set(r, "_user", user)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
@@ -99,6 +141,12 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
+		return
+	}
+
+	if !editor.Admin && (user.Pro && !targetUser.Pro) {
+		log.Warn(editor.Username + " is not permitted to mark users as Pro")
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -175,6 +223,104 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func totpQr(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
+
+	if user.Totp == nil {
+		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusNotFound)
+		return
+	}
+
+	key, err := otp.NewKeyFromURL(user.Totp.URL)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	image, err := key.Image(256, 256)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	var buf bytes.Buffer
+	err = png.Encode(&buf, image)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	pngBytes := buf.Bytes()
+
+	w.Header().Add("Content-Type", "image/png")
+	_, err = w.Write(pngBytes)
+}
+
+func enableTotp(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
+
+	if !util.Config.Auth.Totp.Enabled {
+		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
+		return
+	}
+
+	if user.Totp != nil {
+		helpers.WriteErrorStatus(w, "TOTP already enabled", http.StatusBadRequest)
+		return
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "Semaphore",
+		AccountName: user.Email,
+	})
+
+	if err != nil {
+		http.Error(w, "Error generating key", http.StatusInternalServerError)
+		return
+	}
+
+	var code, hash string
+
+	if util.Config.Auth.Totp.AllowRecovery {
+		code, hash, err = util.GenerateRecoveryCode()
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+	}
+
+	newTotp, err := helpers.Store(r).AddTotpVerification(user.ID, key.URL(), hash)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	newTotp.RecoveryCode = code
+
+	helpers.WriteJSON(w, http.StatusOK, newTotp)
+}
+
+func disableTotp(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "_user").(db.User)
+	if user.Totp == nil {
+		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
+		return
+	}
+
+	totpID, err := helpers.GetIntParam("totp_id", w, r)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = helpers.Store(r).DeleteTotpVerification(user.ID, totpID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

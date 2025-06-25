@@ -3,25 +3,24 @@ package sql
 import (
 	"fmt"
 	"github.com/go-gorp/gorp/v3"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE      = regexp.MustCompile(`(?i)\bif exists\b`)
-	changeRE        = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( not null)?$`)
-	//dropForeignKeyRE  = regexp.MustCompile(`^alter table \x60(\w+)\x60 drop foreign key \x60(\w+)\x60 /\* postgres:\x60(\w*)\x60 mysql:\x60(\w*)\x60 \*/$`)
-	dropForeignKey2RE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
+	autoIncrementRE  = regexp.MustCompile(`(?i)\bautoincrement\b`)
+	serialRE         = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE   = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE        = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE       = regexp.MustCompile(`(?i)\blongtext\b`)
+	ifExistsRE       = regexp.MustCompile(`(?i)\bif exists\b`)
+	changeRE         = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( autoincrement)?( not null)?$`)
+	dropForeignKeyRE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // getVersionPath is the humanoid version with the file format appended
@@ -36,10 +35,15 @@ func getVersionErrPath(version db.Migration) string {
 
 // getVersionSQL takes a path to an SQL file and returns it from embed.FS
 // a slice of strings separated by newlines
-func getVersionSQL(name string) (queries []string) {
+func getVersionSQL(name string, ignoreErrors bool) (queries []string) {
 	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
 	if err != nil {
-		panic(err)
+		if ignoreErrors {
+			log.WithError(err).Warnf("migration %s not found", name)
+			return nil
+		} else {
+			panic(err)
+		}
 	}
 	queries = strings.Split(strings.ReplaceAll(string(sql), ";\r\n", ";\n"), ";\n")
 	for i := range queries {
@@ -62,7 +66,8 @@ func (d *SqlDb) prepareMigration(query string) string {
 			oldColumnName := m[2]
 			newColumnName := m[3]
 			columnType := m[4]
-			columnNotNull := m[5] != ""
+			//autoincrement := m[5] != ""
+			columnNotNull := m[6] != ""
 
 			var queries []string
 			queries = append(queries,
@@ -88,7 +93,7 @@ func (d *SqlDb) prepareMigration(query string) string {
 		query = tinyintRE.ReplaceAllString(query, "smallint")
 		query = longtextRE.ReplaceAllString(query, "text")
 		query = serialRE.ReplaceAllString(query, "serial primary key")
-		query = dropForeignKey2RE.ReplaceAllString(query, "drop constraint")
+		query = dropForeignKeyRE.ReplaceAllString(query, "drop constraint")
 		query = identifierQuoteRE.ReplaceAllString(query, "\"")
 	}
 	return query
@@ -152,7 +157,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	queries := getVersionSQL(getVersionPath(migration))
+	queries := getVersionSQL(getVersionPath(migration), false)
 	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
@@ -169,7 +174,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		if err != nil {
 			handleRollbackError(tx.Rollback())
 			log.Warnf("\n ERR! Query: %s\n\n", q)
-			log.Fatalf(err.Error())
+			log.Fatal(err.Error())
 			return err
 		}
 	}
@@ -186,7 +191,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, tz.Now())
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
@@ -199,23 +204,41 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) TryRollbackMigration(version db.Migration) {
-	data, _ := dbAssets.ReadFile(getVersionErrPath(version))
-	if len(data) == 0 {
-		fmt.Println("Rollback SQL does not exist.")
-		fmt.Println()
-		return
+	var err error
+
+	tx, err := d.sql.Begin()
+	if err != nil {
+		panic(err)
 	}
 
-	queries := getVersionSQL(getVersionErrPath(version))
+	defer func() {
+		if err == nil {
+			err = tx.Commit()
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context": "migration",
+					"version": version.Version,
+				}).Error("failed to commit undo migration transaction")
+			}
+		} else {
+			_ = tx.Rollback()
+			log.Error(err)
+		}
+	}()
+
+	queries := getVersionSQL(getVersionErrPath(version), true)
+
 	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 		q := d.prepareMigration(query)
 		if q == "" {
 			continue
 		}
-		if _, err := d.exec(q); err != nil {
+		if _, err = d.execTx(tx, q); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}
 	}
+
+	_, err = d.execTx(tx, "delete from migrations where version=?", version.Version)
 }

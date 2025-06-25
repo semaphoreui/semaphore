@@ -11,6 +11,8 @@
       <v-toolbar-title>{{ $t('activeTasks') }}</v-toolbar-title>
     </v-toolbar>
 
+    <v-divider />
+
     <v-data-table
       :headers="headers"
       :items="items"

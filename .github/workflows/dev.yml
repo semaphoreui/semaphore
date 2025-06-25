@@ -4,6 +4,7 @@ name: Dev
   push:
     branches:
       - develop
+      - 2-*-stable
   pull_request:
     branches:
       - develop
@@ -89,7 +90,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
           MYSQL_USER: semaphore
@@ -136,7 +137,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:10.4
+        image: mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
           MARIADB_USER: semaphore
@@ -183,7 +184,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:12.18
+        image: postgres:12.22
         env:
           POSTGRES_USER: semaphore
           POSTGRES_PASSWORD: p455w0rd
@@ -284,10 +285,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   integrate-mysql:
     runs-on: ubuntu-latest
@@ -297,7 +298,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
           MYSQL_USER: semaphore
@@ -365,10 +366,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   integrate-mariadb:
     runs-on: ubuntu-latest
@@ -378,7 +379,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:10.4
+        image: mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
           MARIADB_USER: semaphore
@@ -446,10 +447,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   integrate-postgres:
     runs-on: ubuntu-latest
@@ -459,7 +460,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:12.18
+        image: postgres:12.22
         env:
           POSTGRES_USER: semaphore
           POSTGRES_PASSWORD: p455w0rd
@@ -526,10 +527,10 @@ jobs:
 
       - name: Launch dredd
         run: |
-          task e2e:goodman
-          task e2e:deps
-          task e2e:hooks
-          task e2e:test
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
 
   deploy-server:
     runs-on: ubuntu-latest
@@ -569,7 +570,7 @@ jobs:
             semaphoreui/semaphore
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |
@@ -624,7 +625,7 @@ jobs:
             semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semui.co>
+            maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
           flavor: |

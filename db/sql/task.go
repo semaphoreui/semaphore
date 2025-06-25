@@ -1,23 +1,122 @@
 package sql
 
 import (
-	"database/sql"
+	"encoding/json"
 	"github.com/Masterminds/squirrel"
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
+	"time"
 )
 
-func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
-	_, err := d.exec(
-		"insert into task__stage (task_id, type) VALUES (?, ?, ?, ?)",
+func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
+	insertID, err := d.insert(
+		"id",
+		"insert into task__stage "+
+			"(task_id, `start`, `end`, start_output_id, end_output_id, `type`) VALUES "+
+			"(?, ?, ?, ?, ?, ?)",
 		stage.TaskID,
-		stage.Type,
-		stage.Start)
-	return stage, err
+		stage.Start,
+		stage.End,
+		stage.StartOutputID,
+		stage.EndOutputID,
+		stage.Type)
+
+	if err != nil {
+		return
+	}
+
+	res = stage
+	res.ID = insertID
+	return
 }
 
-func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStage, error) {
-	return nil, nil
+func (d *SqlDb) EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) (err error) {
+	_, err = d.exec(
+		"update task__stage set `end`=?, end_output_id=? where task_id=? and id=?",
+		end,
+		endOutputID,
+		taskID,
+		stageID)
+
+	return
+}
+
+func (d *SqlDb) CreateTaskStageResult(taskID int, stageID int, result map[string]any) (err error) {
+	jsn, err := json.Marshal(result)
+	if err != nil {
+		return
+	}
+
+	_, err = d.insert(
+		"id",
+		"insert into task__stage_result "+
+			"(task_id, stage_id, `json`) VALUES "+
+			"(?, ?, ?)",
+		taskID,
+		stageID,
+		string(jsn))
+
+	return
+}
+
+func (d *SqlDb) getTaskStage(taskID int, stageID int) (res db.TaskStage, err error) {
+	err = d.selectOne(
+		&res,
+		"select * from task__stage where task_id=? and id=?",
+		taskID,
+		stageID)
+
+	return
+}
+
+func (d *SqlDb) validateTask(projectID int, taskID int) error {
+	_, err := d.GetTask(projectID, taskID)
+
+	return err
+}
+
+func (d *SqlDb) GetTaskStageResult(projectID int, taskID int, stageID int) (res db.TaskStageResult, err error) {
+
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	err = d.selectOne(
+		&res,
+		"select * from task__stage_result where task_id=? and stage_id=?",
+		taskID,
+		stageID)
+
+	return
+}
+
+func (d *SqlDb) getTaskStages(projectID int, taskID int, stageType *db.TaskStageType) (res []db.TaskStageWithResult, err error) {
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	q := squirrel.Select("p.*, pu.json").
+		From("task__stage as p").
+		Join("task__stage_result as pu on pu.stage_id=p.id").
+		Where("pu.task_id=?", taskID)
+
+	if stageType != nil {
+		q = q.Where(squirrel.Eq{"type": *stageType})
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&res, query, args...)
+
+	return
+}
+
+func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStageWithResult, error) {
+	return d.getTaskStages(projectID, taskID, nil)
 }
 
 func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
@@ -59,7 +158,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 		return
 	}
 
-	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created>?", templateID, oldestTask.Created)
+	_, err = d.exec("DELETE FROM task WHERE template_id=? AND created<?", templateID, oldestTask.Created)
 
 	if err != nil {
 		return
@@ -97,22 +196,37 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 		return err
 	}
 
-	_, err = d.exec(
-		"update task set status=?, start=?, `end`=? where id=?",
-		task.Status,
-		task.Start,
-		task.End,
-		task.ID)
+	if task.CommitHash != nil {
+		_, err = d.exec(
+			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=? where id=?",
+			task.Status,
+			task.Start,
+			task.End,
+			task.CommitHash,
+			task.CommitMessage,
+			task.ID)
+	} else {
+		_, err = d.exec(
+			"update task set status=?, start=?, `end`=? where id=?",
+			task.Status,
+			task.Start,
+			task.End,
+			task.ID)
+	}
 
 	return err
 }
 
 func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
-	_, err := d.exec(
-		"insert into task__output (task_id, task, output, time) VALUES (?, '', ?, ?)",
+	insertID, err := d.insert(
+		"id",
+		"insert into task__output (task_id, output, time) VALUES (?, ?, ?)",
 		output.TaskID,
 		output.Output,
 		output.Time.UTC())
+
+	output.ID = insertID
+
 	return output, err
 }
 
@@ -172,15 +286,6 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 
 	err = d.selectOne(&task, query, args...)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
 	return
 }
 
@@ -213,16 +318,63 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	return
 }
 
-func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutput, err error) {
-	// check if task exists in the project
-	_, err = d.GetTask(projectID, taskID)
+func (d *SqlDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (output []db.TaskOutput, err error) {
+
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	q := squirrel.Select("task_id", "time", "output").
+		From("task__output").
+		Where("task_id=?", taskID).
+		OrderBy("time, id")
+
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count)).Offset(uint64(params.Offset))
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&output, query, args...)
+	return
+}
+
+func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (output []db.TaskOutput, err error) {
+
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	stage, err := d.getTaskStage(taskID, stageID)
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.selectAll(&output,
-		"select task_id, task, time, output from task__output where task_id=? order by time asc",
-		taskID)
+	q := squirrel.Select("id", "task_id", "time", "output").
+		From("task__output").
+		Where("task_id=?", taskID)
+
+	if stage.StartOutputID != nil {
+		q = q.Where(squirrel.GtOrEq{"id": stage.StartOutputID})
+	} else {
+		q = q.Where(squirrel.GtOrEq{"created": stage.Start})
+	}
+
+	if stage.EndOutputID != nil {
+		q = q.Where(squirrel.LtOrEq{"id": stage.EndOutputID})
+	} else {
+		q = q.Where(squirrel.LtOrEq{"created": stage.End})
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&output, query, args...)
 	return
 }

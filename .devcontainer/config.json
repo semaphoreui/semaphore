@@ -1,8 +1,8 @@
 {
    "bolt": {
-       "host": "database.boltdb",
+       "host": "/workspaces/semaphore/database.boltdb",
        "options": {
-           "sessionConnection": "true"
+           "sessionConnection": "false"
        }
    },
    "dialect": "bolt",

@@ -97,11 +97,11 @@
   </div>
 </template>
 <script>
+import axios from 'axios';
 import EventBus from '@/event-bus';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
-import axios from 'axios';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import AppForm from '../components/AppForm.vue';
 import { DEFAULT_APPS } from '../lib/constants';

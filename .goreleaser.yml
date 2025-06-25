@@ -9,7 +9,7 @@ builds:
     env:
       - CGO_ENABLED=0
     main: ./cli/main.go
-    ldflags: -s -w -X github.com/ansible-semaphore/semaphore/util.Ver={{ .Version }} -X github.com/ansible-semaphore/semaphore/util.Commit={{ .ShortCommit }} -X github.com/ansible-semaphore/semaphore/util.Date={{ .Timestamp }}
+    ldflags: -s -w -X github.com/semaphoreui/semaphore/util.Ver={{ .Version }} -X github.com/semaphoreui/semaphore/util.Commit={{ .ShortCommit }} -X github.com/semaphoreui/semaphore/util.Date={{ .Timestamp }}
     tags:
       - netgo
     goos:
@@ -50,10 +50,10 @@ snapshot:
 
 nfpms:
   - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    description: Open Source alternative to Ansible Tower
+    description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
     homepage: https://github.com/semaphoreui/semaphore
     vendor: Semaphore UI
-    maintainer: Semaphore UI <support@semui.co>
+    maintainer: Denis Gukov <denis@semaphoreui.com>
     license: MIT
 
     formats:

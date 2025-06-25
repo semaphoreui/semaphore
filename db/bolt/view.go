@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/ansible-semaphore/semaphore/db"
+import "github.com/semaphoreui/semaphore/db"
 
 func (d *BoltDb) GetView(projectID int, viewID int) (view db.View, err error) {
 	err = d.getObject(projectID, db.ViewProps, intObjectID(viewID), &view)

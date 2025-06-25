@@ -1,10 +1,10 @@
 package factory
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db/bolt"
-	"github.com/ansible-semaphore/semaphore/db/sql"
-	"github.com/ansible-semaphore/semaphore/util"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/sql"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func CreateStore() db.Store {
@@ -16,7 +16,7 @@ func CreateStore() db.Store {
 	case util.DbDriverMySQL:
 		return &sql.SqlDb{}
 	case util.DbDriverBolt:
-		return &bolt.BoltDb{}
+		return bolt.CreateBoltDB()
 	case util.DbDriverPostgres:
 		return &sql.SqlDb{}
 	default:

@@ -1,12 +1,12 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
 )
 
 func (d *BoltDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {
-	err = d.getObjects(projectID, db.TemplateVaultProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+	err = d.getObjects(projectID, db.TemplateVaultProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 		return referringObj.(db.TemplateVault).TemplateID == templateID
 	}, &vaults)
 	if err != nil {
@@ -22,7 +22,7 @@ func (d *BoltDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.T
 }
 
 func (d *BoltDb) CreateTemplateVault(vault db.TemplateVault) (newVault db.TemplateVault, err error) {
-	var newTpl interface{}
+	var newTpl any
 	newTpl, err = d.createObject(vault.ProjectID, db.TemplateVaultProps, vault)
 	if err != nil {
 		return
@@ -50,6 +50,14 @@ func (d *BoltDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db
 		for _, vault := range vaults {
 			vault.ProjectID = projectID
 			vault.TemplateID = templateID
+
+			switch vault.Type {
+			case "password":
+				vault.Script = nil
+			case "script":
+				vault.VaultKeyID = nil
+			}
+
 			_, err = d.createObjectTx(tx, projectID, db.TemplateVaultProps, vault)
 			if err != nil {
 				return err
@@ -60,4 +68,8 @@ func (d *BoltDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db
 	})
 
 	return
+}
+
+func (d *BoltDb) deleteTemplateVault(projectID int, vaultID int, tx *bbolt.Tx) error {
+	return d.deleteObject(projectID, db.TemplateVaultProps, intObjectID(vaultID), tx)
 }

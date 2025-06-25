@@ -1,8 +1,8 @@
 package db_lib
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
 func CreateApp(template db.Template, repository db.Repository, inventory db.Inventory, logger task_logger.Logger) LocalApp {
@@ -18,7 +18,7 @@ func CreateApp(template db.Template, repository db.Repository, inventory db.Inve
 				Logger:     logger,
 			},
 		}
-	case db.AppTerraform, db.AppTofu:
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		return &TerraformApp{
 			Template:   template,
 			Repository: repository,

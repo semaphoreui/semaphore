@@ -40,7 +40,7 @@ func TestMigration_2_10_24_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var template map[string]interface{}
+	var template map[string]any
 	err = store.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__template_0000000001"))
 		str := string(b.Get([]byte("0000000001")))
@@ -50,7 +50,7 @@ func TestMigration_2_10_24_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var templateVault map[string]interface{}
+	var templateVault map[string]any
 	err = store.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__template_vault_0000000001"))
 		str := string(b.Get([]byte("0000000001")))

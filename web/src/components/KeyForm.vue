@@ -18,6 +18,8 @@
         :rules="[v => !!v || $t('name_required')]"
         required
         :disabled="formSaving"
+        outlined
+        dense
     />
 
     <v-select
@@ -29,6 +31,8 @@
         item-text="name"
         :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
+        outlined
+        dense
     />
 
     <v-text-field
@@ -36,6 +40,8 @@
         :label="$t('loginOptional')"
         v-if="item.type === 'login_password'"
         :disabled="formSaving || !canEditSecrets"
+        outlined
+        dense
     />
 
     <v-text-field
@@ -49,6 +55,8 @@
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
         @click:append="showLoginPassword = !showLoginPassword"
+        outlined
+        dense
     />
 
     <v-text-field
@@ -56,6 +64,8 @@
       :label="$t('usernameOptional')"
       v-if="item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
+      outlined
+      dense
     />
 
     <v-text-field
@@ -66,6 +76,8 @@
       v-if="item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
       @click:append="showSSHPassphrase = !showSSHPassphrase"
+      outlined
+      dense
     />
 
     <v-textarea

@@ -1,3 +1,5 @@
+#!/bin/sh
+
 go install github.com/go-task/task/v3/cmd/task@latest
 
 (cd ./web && npm install)
@@ -7,6 +9,10 @@ python3 -m venv .venv
 ./.venv/bin/pip3 install ansible
 
 task build
+task dredd:goodman
+task dredd:hooks
+
+cp ./.devcontainer/config.json ./.dredd/config.json
 
 ./bin/semaphore user add \
     --admin \

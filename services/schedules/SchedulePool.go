@@ -1,13 +1,15 @@
 package schedules
 
 import (
+	"github.com/semaphoreui/semaphore/util"
 	"strconv"
 	"sync"
+	"time"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/db_lib"
-	"github.com/ansible-semaphore/semaphore/services/tasks"
 	"github.com/robfig/cron/v3"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -76,10 +78,24 @@ func (r ScheduleRunner) Run() {
 		}
 	}
 
-	_, err = r.pool.taskPool.AddTask(db.Task{
+	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	task := db.Task{
 		TemplateID: schedule.TemplateID,
 		ProjectID:  schedule.ProjectID,
-	}, nil, schedule.ProjectID)
+	}
+
+	_, err = r.pool.taskPool.AddTask(
+		task,
+		nil,
+		"",
+		schedule.ProjectID,
+		tpl.App.NeedTaskAlias(),
+	)
 
 	if err != nil {
 		log.Error(err)
@@ -94,7 +110,11 @@ type SchedulePool struct {
 }
 
 func (p *SchedulePool) init() {
-	p.cron = cron.New()
+	loc, err := time.LoadLocation(util.Config.Schedule.Timezone)
+	if err != nil {
+		panic(err)
+	}
+	p.cron = cron.New(cron.WithLocation(loc))
 	p.locker = &sync.Mutex{}
 }
 
@@ -115,13 +135,17 @@ func (p *SchedulePool) Refresh() {
 			continue
 		}
 
-		_, err := p.addRunner(ScheduleRunner{
+		_, err = p.addRunner(ScheduleRunner{
 			projectID:  schedule.ProjectID,
 			scheduleID: schedule.ID,
 			pool:       p,
 		}, schedule.CronFormat)
+
 		if err != nil {
-			log.Error(err)
+			log.WithError(err).WithFields(log.Fields{
+				"project_id":  schedule.ProjectID,
+				"schedule_id": schedule.ID,
+			}).Errorf("failed to add schedule")
 		}
 	}
 }

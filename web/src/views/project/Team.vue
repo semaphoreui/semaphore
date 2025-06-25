@@ -44,15 +44,19 @@
       </v-btn>
     </v-toolbar>
 
+    <v-divider />
+
     <v-data-table
       :headers="headers"
       :items="items"
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.role="{ item }">
         <v-select
+          hide-details
           v-model="item.role"
           :items="USER_ROLES"
           item-value="slug"
@@ -60,18 +64,17 @@
           :style="{width: '200px'}"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+          class="pt-0 mt-0"
         />
         <div v-else>{{ USER_ROLES.find(r => r.slug === item.role).title }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn
-          icon
-          @click="askDeleteItem(item.id)"
-          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
-        >
-          <v-icon>mdi-delete</v-icon>
-        </v-btn>
+        <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn @click="askDeleteItem(item.id)" v-if="can(USER_PERMISSIONS.manageProjectUsers)">
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
+        </v-btn-toggle>
       </template>
     </v-data-table>
   </div>
@@ -121,20 +124,22 @@ export default {
         {
           text: this.$i18n.t('name'),
           value: 'name',
-          width: '50%',
+          width: '40%',
         },
         {
           text: this.$i18n.t('username'),
           value: 'username',
+          width: '30%',
         },
         {
           text: this.$i18n.t('role'),
           value: 'role',
+          width: '30%',
         },
         {
-          text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
+          width: '0%',
         }];
     },
 

@@ -2,6 +2,8 @@ package util
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,6 +18,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
@@ -33,32 +39,40 @@ const (
 	DbDriverPostgres = "postgres"
 )
 
+type EventLogAction string
+
+const (
+	EventLogCreate EventLogAction = "create"
+	EventLogUpdate EventLogAction = "update"
+	EventLogDelete EventLogAction = "delete"
+)
+
 type DbConfig struct {
 	Dialect string `json:"-"`
 
-	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST"`
+	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
 	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
 	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
-	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB"`
+	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
 
-type ldapMappings struct {
+type LdapMappings struct {
 	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN" default:"dn"`
 	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL" default:"mail"`
 	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID" default:"uid"`
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
 }
 
-func (p *ldapMappings) GetUsernameClaim() string {
+func (p *LdapMappings) GetUsernameClaim() string {
 	return p.UID
 }
 
-func (p *ldapMappings) GetEmailClaim() string {
+func (p *LdapMappings) GetEmailClaim() string {
 	return p.Mail
 }
 
-func (p *ldapMappings) GetNameClaim() string {
+func (p *LdapMappings) GetNameClaim() string {
 	return p.CN
 }
 
@@ -93,10 +107,9 @@ const (
 
 type RunnerConfig struct {
 	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-
-	Token string `json:"-" env:"SEMAPHORE_RUNNER_TOKEN"`
-
-	TokenFile string `json:"token_file" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
+	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -112,6 +125,79 @@ type RunnerConfig struct {
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
+type TLSConfig struct {
+	Enabled          bool   `json:"enabled" env:"SEMAPHORE_TLS_ENABLED"`
+	CertFile         string `json:"cert_file" env:"SEMAPHORE_TLS_CERT_FILE"`
+	KeyFile          string `json:"key_file" env:"SEMAPHORE_TLS_KEY_FILE"`
+	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
+}
+
+type TotpConfig struct {
+	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
+	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+}
+
+type EventLogType struct {
+	Format  FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
+	Enabled bool               `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
+	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
+}
+
+type EventLogRecord struct {
+	Action        string  `json:"action"`
+	UserID        *int    `json:"user,omitempty"`
+	IntegrationID *int    `json:"integration,omitempty"`
+	ProjectID     *int    `json:"project,omitempty"`
+	Description   *string `json:"description,omitempty"`
+}
+
+type FileLogFormat string
+
+const (
+	FileLogJSON FileLogFormat = "json"
+	FileLogRaw  FileLogFormat = "raw"
+)
+
+type TaskLogType struct {
+	Enabled      bool               `json:"enabled" env:"SEMAPHORE_TASK_LOG_ENABLED"`
+	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
+	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
+	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
+}
+
+type TaskLogRecord struct {
+	Username     string                 `json:"username,omitempty"`
+	TaskID       int                    `json:"task"`
+	ProjectID    int                    `json:"project"`
+	TemplateID   int                    `json:"template"`
+	TemplateName string                 `json:"template_name"`
+	UserID       *int                   `json:"user,omitempty"`
+	Description  *string                `json:"-"`
+	RunnerID     *int                   `json:"runner,omitempty"`
+	Status       task_logger.TaskStatus `json:"status"`
+}
+
+type ConfigLog struct {
+	Events *EventLogType `json:"events,omitempty"`
+	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+}
+
+type ConfigProcess struct {
+	User   string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
+	UID    *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
+	Chroot string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
+	GID    *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+}
+
+type ScheduleConfig struct {
+	Timezone string `json:"timezone,omitempty" env:"SEMAPHORE_SCHEDULE_TIMEZONE" default:"UTC"`
+}
+
+type DebuggingConfig struct {
+	ApiDelay     string `json:"api_delay,omitempty" env:"SEMAPHORE_API_DELAY"`
+	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -122,7 +208,10 @@ type ConfigType struct {
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	TLS  *TLSConfig `json:"tls,omitempty"`
+
+	Auth *AuthConfig `json:"auth,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -148,13 +237,15 @@ type ConfigType struct {
 	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
-	EmailAlert    bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
-	EmailSender   string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
-	EmailHost     string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
-	EmailPort     string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
-	EmailUsername string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
-	EmailSecure   bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
+	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
+	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
+	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
+	EmailUsername      string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
+	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
+	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
+	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
 
 	// ldap settings
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
@@ -163,10 +254,10 @@ type ConfigType struct {
 	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
 	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
-	LdapMappings     *ldapMappings `json:"ldap_mappings,omitempty"`
+	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams and DingTalk alerting
+	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
@@ -178,9 +269,12 @@ type ConfigType struct {
 	MicrosoftTeamsUrl   string `json:"microsoft_teams_url,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
 	DingTalkAlert       bool   `json:"dingtalk_alert,omitempty" env:"SEMAPHORE_DINGTALK_ALERT"`
 	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
+	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
+	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
+	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
 
 	// oidc settings
-	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
 
 	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
 	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
@@ -201,10 +295,76 @@ type ConfigType struct {
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
+
+	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
+
+	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+
+	Log *ConfigLog `json:"log,omitempty"`
+
+	Process *ConfigProcess `json:"process,omitempty"`
+
+	Schedule *ScheduleConfig `json:"schedule,omitempty"`
+
+	Debugging *DebuggingConfig `json:"debugging,omitempty"`
+}
+
+func NewConfigType() *ConfigType {
+	return &ConfigType{
+		LdapMappings: &LdapMappings{},
+	}
 }
 
 // Config exposes the application configuration storage for use in the application
 var Config *ConfigType
+
+func ClearDir(dir string, preserveFiles bool, prefix string) error {
+	d, err := os.Open(dir)
+
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	defer d.Close() //nolint:errcheck
+
+	files, err := d.ReadDir(0)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if preserveFiles && !f.IsDir() {
+			continue
+		}
+
+		if prefix != "" && !strings.HasPrefix(f.Name(), prefix) {
+			continue
+		}
+
+		err = os.RemoveAll(path.Join(dir, f.Name()))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (conf *ConfigType) ClearTmpDir() error {
+	return ClearDir(conf.TmpPath, false, "")
+}
+
+func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
+	return path.Join(conf.TmpPath, fmt.Sprintf("project_%d", projectID))
+}
+
+func (conf *ConfigType) ClearProjectTmpDir(projectID int) error {
+	return ClearDir(conf.GetProjectTmpDir(projectID), false, "")
+}
 
 // ToJSON returns a JSON string of the config
 func (conf *ConfigType) ToJSON() ([]byte, error) {
@@ -212,15 +372,16 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 }
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit(configPath string, noConfigFile bool) {
+func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	fmt.Println("Loading config")
 
-	Config = &ConfigType{}
+	Config = NewConfigType()
 	Config.Apps = map[string]App{}
 
 	if !noConfigFile {
-		loadConfigFile(configPath)
+		usedConfigPath = loadConfigFile(configPath)
 	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -235,8 +396,18 @@ func ConfigInit(configPath string, noConfigFile bool) {
 	}
 
 	Cookie = securecookie.New(hash, encryption)
-	WebHostURL, _ = url.Parse(Config.WebHost)
-	if len(WebHostURL.String()) == 0 {
+
+	if Config.WebHost != "" {
+		var err error
+		WebHostURL, err = url.Parse(Config.WebHost)
+		if err != nil {
+			panic(err)
+		}
+
+		if len(WebHostURL.String()) == 0 {
+			WebHostURL = nil
+		}
+	} else {
 		WebHostURL = nil
 	}
 
@@ -246,15 +417,17 @@ func ConfigInit(configPath string, noConfigFile bool) {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
 	}
+
+	return
 }
 
-func loadConfigFile(configPath string) {
+func loadConfigFile(configPath string) (usedConfigPath *string) {
 	if configPath == "" {
 		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
 	}
 
-	//If the configPath option has been set try to load and decode it
-	//var usedPath string
+	// If the configPath option has been set try to load and decode it
+	// var usedPath string
 
 	if configPath == "" {
 		cwd, err := os.Getwd()
@@ -275,6 +448,7 @@ func loadConfigFile(configPath string) {
 				continue
 			}
 			decodeConfig(file)
+			usedConfigPath = &p
 			break
 		}
 		exitOnConfigFileError(err)
@@ -282,13 +456,16 @@ func loadConfigFile(configPath string) {
 		p := configPath
 		file, err := os.Open(p)
 		exitOnConfigFileError(err)
+		usedConfigPath = &p
 		decodeConfig(file)
 	}
+
+	return
 }
 
-func loadDefaultsToObject(obj interface{}) error {
-	var t = reflect.TypeOf(obj)
-	var v = reflect.ValueOf(obj)
+func loadDefaultsToObject(obj any) error {
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
 
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -336,14 +513,13 @@ func loadDefaultsToObject(obj interface{}) error {
 			continue
 		}
 
-		setConfigValue(fieldValue, defaultVar)
+		setConfigValue(fieldValue, defaultVar) // defaultVar always string!!!
 	}
 
 	return nil
 }
 
 func loadConfigDefaults() {
-
 	err := loadDefaultsToObject(Config)
 	if err != nil {
 		panic(err)
@@ -351,17 +527,14 @@ func loadConfigDefaults() {
 }
 
 func castStringToInt(value string) int {
-
 	valueInt, err := strconv.Atoi(value)
 	if err != nil {
 		panic(err)
 	}
 	return valueInt
-
 }
 
 func castStringToBool(value string) bool {
-
 	var valueBool bool
 	if value == "1" || strings.ToLower(value) == "true" || strings.ToLower(value) == "yes" {
 		valueBool = true
@@ -369,23 +542,131 @@ func castStringToBool(value string) bool {
 		valueBool = false
 	}
 	return valueBool
-
 }
 
-func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok bool) {
+func AssignMapToStruct[P *S, S any](m map[string]any, s P) error {
+	v := reflect.ValueOf(s).Elem()
+	return assignMapToStructRecursive(m, v)
+}
+
+func cloneStruct(origValue reflect.Value) reflect.Value {
+	// Create a new instance of the same type as the original struct
+	cloneValue := reflect.New(origValue.Type()).Elem()
+
+	// Iterate over the fields of the struct
+	for i := 0; i < origValue.NumField(); i++ {
+		// Get the field value
+		fieldValue := origValue.Field(i)
+		// Set the field value in the clone
+		cloneValue.Field(i).Set(fieldValue)
+	}
+
+	// Return the cloned struct
+	return cloneValue
+}
+
+func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) error {
+	structType := structValue.Type()
+
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" {
+			jsonTag = field.Name
+		} else {
+			jsonTag = strings.Split(jsonTag, ",")[0]
+		}
+
+		if value, ok := m[jsonTag]; ok {
+			fieldValue := structValue.FieldByName(field.Name)
+			if fieldValue.CanSet() {
+
+				val := reflect.ValueOf(value)
+
+				switch fieldValue.Kind() {
+				case reflect.Struct:
+
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for nested struct field %s but got %T", field.Name, value)
+					}
+
+					mapValue, ok := value.(map[string]any)
+					if !ok {
+						return fmt.Errorf("cannot assign value of type %T to field %s of type %s", value, field.Name, field.Type)
+					}
+					err := assignMapToStructRecursive(mapValue, fieldValue)
+					if err != nil {
+						return err
+					}
+				case reflect.Map:
+					if fieldValue.IsNil() {
+						mapValue := reflect.MakeMap(fieldValue.Type())
+						fieldValue.Set(mapValue)
+					}
+
+					// Handle map
+					if val.Kind() != reflect.Map {
+						return fmt.Errorf("expected map for field %s but got %T", field.Name, value)
+					}
+
+					for _, key := range val.MapKeys() {
+						mapElemValue := val.MapIndex(key)
+						mapElemType := fieldValue.Type().Elem()
+
+						srcVal := fieldValue.MapIndex(key)
+						var mapElem reflect.Value
+						if srcVal.IsValid() {
+							mapElem = cloneStruct(srcVal)
+						} else {
+							mapElem = reflect.New(mapElemType).Elem()
+						}
+
+						if mapElemType.Kind() == reflect.Struct {
+							if err := assignMapToStructRecursive(mapElemValue.Interface().(map[string]any), mapElem); err != nil {
+								return err
+							}
+						} else {
+							if mapElemValue.Type().ConvertibleTo(mapElemType) {
+								mapElem.Set(mapElemValue.Convert(mapElemType))
+							} else {
+								newVal, converted := CastValueToKind(mapElemValue.Interface(), mapElemType.Kind())
+								if !converted {
+									return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+										mapElemValue.Type(), mapElemType)
+								}
+
+								mapElem.Set(reflect.ValueOf(newVal))
+							}
+						}
+
+						fieldValue.SetMapIndex(key, mapElem)
+					}
+
+				default:
+					// Handle simple types
+					if val.Type().ConvertibleTo(fieldValue.Type()) {
+						fieldValue.Set(val.Convert(fieldValue.Type()))
+					} else {
+
+						newVal, converted := CastValueToKind(val.Interface(), fieldValue.Type().Kind())
+						if !converted {
+							return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+								val.Type(), val)
+						}
+
+						fieldValue.Set(reflect.ValueOf(newVal))
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 	res = value
 
 	switch kind {
-	case reflect.Slice:
-		if reflect.ValueOf(value).Kind() == reflect.String {
-			var arr []string
-			err := json.Unmarshal([]byte(value.(string)), &arr)
-			if err != nil {
-				panic(err)
-			}
-			res = arr
-			ok = true
-		}
 	case reflect.String:
 		ok = true
 	case reflect.Int:
@@ -398,35 +679,43 @@ func CastValueToKind(value interface{}, kind reflect.Kind) (res interface{}, ok 
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
-	case reflect.Map:
-		if reflect.ValueOf(value).Kind() == reflect.String {
-			mapValue := make(map[string]string)
-			err := json.Unmarshal([]byte(value.(string)), &mapValue)
-			if err != nil {
-				panic(err)
-			}
-			res = mapValue
-			ok = true
-		}
 	default:
 	}
 
 	return
 }
 
-func setConfigValue(attribute reflect.Value, value interface{}) {
-
+func setConfigValue(attribute reflect.Value, value string) {
 	if attribute.IsValid() {
-		value, _ = CastValueToKind(value, attribute.Kind())
-		attribute.Set(reflect.ValueOf(value))
+		kind := attribute.Kind()
+
+		switch kind {
+		case reflect.Slice:
+			var arr []string
+			err := json.Unmarshal([]byte(value), &arr)
+			if err != nil {
+				panic(err)
+			}
+			attribute.Set(reflect.ValueOf(arr))
+		case reflect.Map:
+			mapType := attribute.Type()
+			mapValue := reflect.New(mapType)
+			err := json.Unmarshal([]byte(value), mapValue.Interface())
+			if err != nil {
+				panic(err)
+			}
+			attribute.Set(mapValue.Elem())
+		default:
+			newValue, _ := CastValueToKind(value, kind)
+			attribute.Set(reflect.ValueOf(newValue))
+		}
+
 	} else {
 		panic(fmt.Errorf("got non-existent config attribute"))
 	}
-
 }
 
 func getConfigValue(path string) string {
-
 	attribute := reflect.ValueOf(Config)
 	nested_path := strings.Split(path, ".")
 
@@ -442,9 +731,9 @@ func getConfigValue(path string) string {
 	return fmt.Sprintf("%v", attribute)
 }
 
-func validate(value interface{}) error {
-	var t = reflect.TypeOf(value)
-	var v = reflect.ValueOf(value)
+func validate(value any) error {
+	t := reflect.TypeOf(value)
+	v := reflect.ValueOf(value)
 
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -492,17 +781,15 @@ func validate(value interface{}) error {
 }
 
 func validateConfig() {
-
 	err := validate(Config)
-
 	if err != nil {
 		panic(err)
 	}
 }
 
-func loadEnvironmentToObject(obj interface{}) error {
-	var t = reflect.TypeOf(obj)
-	var v = reflect.ValueOf(obj)
+func loadEnvironmentToObject(obj any) error {
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
 
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -512,6 +799,10 @@ func loadEnvironmentToObject(obj interface{}) error {
 	for i := 0; i < t.NumField(); i++ {
 		fieldType := t.Field(i)
 		fieldValue := v.Field(i)
+
+		if !fieldType.IsExported() {
+			continue
+		}
 
 		if fieldType.Type.Kind() == reflect.Struct {
 			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
@@ -542,7 +833,7 @@ func loadEnvironmentToObject(obj interface{}) error {
 			continue
 		}
 
-		setConfigValue(fieldValue, envValue)
+		setConfigValue(fieldValue, envValue) // envValue always string!!!
 	}
 
 	return nil
@@ -611,7 +902,7 @@ func AnsibleVersion() string {
 func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	// fetch releases
 	gh := github.NewClient(nil)
-	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "ansible-semaphore", "semaphore", nil)
+	releases, _, err := gh.Repositories.ListReleases(context.TODO(), "semaphoreui", "semaphore", nil)
 	if err != nil {
 		return
 	}
@@ -664,6 +955,16 @@ func (d *DbConfig) GetHostname() string {
 	return d.Hostname
 }
 
+// GetConnectionString constructs the database connection string based on the current configuration.
+// It supports MySQL, BoltDB, and PostgreSQL dialects.
+// If the dialect is unsupported, it returns an error.
+//
+// Parameters:
+// - includeDbName: a boolean indicating whether to include the database name in the connection string.
+//
+// Returns:
+// - connectionString: the constructed database connection string.
+// - err: an error if the dialect is unsupported.
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
 	dbName := d.GetDbName()
 	dbUser := d.GetUsername()
@@ -706,7 +1007,7 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"postgres://%s:%s@%s",
+				"postgres://%s:%s@%s/postgres",
 				dbUser,
 				url.QueryEscape(dbPass),
 				dbHost)
@@ -718,11 +1019,17 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	return
 }
 
+// PrintDbInfo prints the database connection information based on the current configuration.
+// It retrieves the database dialect and prints the corresponding connection details.
+// If the dialect is not found, it panics with an error message.
 func (conf *ConfigType) PrintDbInfo() {
+	// Get the database dialect
 	dialect, err := conf.GetDialect()
 	if err != nil {
 		panic(err)
 	}
+
+	// Print database connection information based on the dialect
 	switch dialect {
 	case DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
@@ -757,7 +1064,6 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 	var dialect string
 	dialect, err = conf.GetDialect()
-
 	if err != nil {
 		return
 	}
@@ -790,30 +1096,30 @@ func (conf *ConfigType) GenerateSecrets() {
 }
 
 var appCommands = map[string]string{
-	"ansible":   "ansible-playbook",
-	"terraform": "terraform",
-	"tofu":      "tofu",
-	"bash":      "bash",
+	"ansible":    "ansible-playbook",
+	"terraform":  "terraform",
+	"tofu":       "tofu",
+	"terragrunt": "terragrunt",
+	"bash":       "bash",
 }
 
 var appPriorities = map[string]int{
 	"ansible":    1000,
 	"terraform":  900,
 	"tofu":       800,
+	"terragrunt": 850,
 	"bash":       700,
 	"powershell": 600,
 	"python":     500,
 }
 
 func LookupDefaultApps() {
-
 	for appID, cmd := range appCommands {
 		if _, ok := Config.Apps[appID]; ok {
 			continue
 		}
 
 		_, err := exec.LookPath(cmd)
-
 		if err != nil {
 			continue
 		}
@@ -828,7 +1134,7 @@ func LookupDefaultApps() {
 	}
 
 	for k, v := range appPriorities {
-		app, _ := Config.Apps[k]
+		app := Config.Apps[k]
 		if app.Priority <= 0 {
 			app.Priority = v
 		}
@@ -836,12 +1142,55 @@ func LookupDefaultApps() {
 	}
 }
 
-func PrintDebug() {
-	envs := os.Environ()
-	for _, e := range envs {
-		fmt.Println(e)
+func GetPublicHost() string {
+	aliasURL := Config.WebHost
+	port := Config.Port
+	if port == "" {
+		port = "3000"
 	}
 
-	b, _ := Config.ToJSON()
-	fmt.Println(string(b))
+	if strings.HasPrefix(port, ":") {
+		port = port[1:]
+	}
+
+	if aliasURL == "" {
+		aliasURL = "http://localhost:" + port
+	}
+
+	return aliasURL
+}
+
+func GetPublicAliasURL(scope string, alias string) string {
+	aliasURL := GetPublicHost()
+
+	if !strings.HasSuffix(aliasURL, "/") {
+		aliasURL += "/"
+	}
+
+	aliasURL += "api/" + scope + "/" + alias
+
+	return aliasURL
+}
+
+func GenerateRecoveryCode() (code string, hash string, err error) {
+	buf := make([]byte, 10)
+	_, err = io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return
+	}
+
+	code = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf)
+
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+	if err != nil {
+		return
+	}
+
+	hash = string(hashBytes)
+	return
+}
+
+func VerifyRecoveryCode(inputCode, storedHash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(inputCode))
+	return err == nil
 }

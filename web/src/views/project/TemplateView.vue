@@ -1,37 +1,34 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="!isLoaded">
-    <v-progress-linear
-      indeterminate
-      color="primary darken-2"
-    ></v-progress-linear>
+    <v-progress-linear indeterminate color="primary darken-2"></v-progress-linear>
   </div>
   <div v-else>
-
     <NewTaskDialog
       v-model="newTaskDialog"
       :project-id="projectId"
-      :template-id="itemId"
-      :template-alias="item.name"
-      :template-type="item.type"
-      :template-app="item.app"
+      :template="item"
     />
 
-    <EditTemplateDialogue
-        v-model="editDialog"
-        :project-id="projectId"
-        :item-app="item.app"
-        :item-id="itemId"
-        @save="loadData()"
-    ></EditTemplateDialogue>
+    <EditTemplateDialog
+      v-model="editDialog"
+      :project-id="projectId"
+      :item-app="item.app"
+      :item-id="itemId"
+      @save="loadData()"
+      :premium-features="premiumFeatures"
+      :task-type="item.type"
+    ></EditTemplateDialog>
 
-    <EditTemplateDialogue
-        v-model="copyDialog"
-        :project-id="projectId"
-        :item-app="item.app"
-        item-id="new"
-        :source-item-id="itemId"
-        @save="onTemplateCopied"
-    ></EditTemplateDialogue>
+    <EditTemplateDialog
+      v-model="copyDialog"
+      :project-id="projectId"
+      :item-app="item.app"
+      item-id="new"
+      :source-item-id="itemId"
+      @save="onTemplateCopied"
+      :premium-features="premiumFeatures"
+      :task-type="item.type"
+    ></EditTemplateDialog>
 
     <ObjectRefsDialog
       object-title="template"
@@ -52,9 +49,11 @@
       <v-toolbar-title class="breadcrumbs">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
-          :to="viewId
+          :to="
+            viewId
               ? `/project/${projectId}/views/${viewId}/templates/`
-              : `/project/${projectId}/templates/`"
+              : `/project/${projectId}/templates/`
+          "
         >
           {{ $t('taskTemplates2') }}
         </router-link>
@@ -64,136 +63,91 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn color="primary" depressed class="mr-3" @click="newTaskDialog = true">
+      <v-btn
+        color="primary"
+        depressed
+        class="mr-3"
+        @click="newTaskDialog = true"
+        data-testid="template-run"
+      >
         {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
 
-      <v-btn
-        icon
-        color="error"
-        @click="askDelete()"
-        v-if="canUpdate"
-      >
+      <v-btn icon color="error" @click="askDelete()" v-if="canUpdate">
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
-      <v-btn
-        icon
-        @click="copyDialog = true"
-        v-if="canUpdate"
-      >
+      <v-btn icon @click="copyDialog = true" v-if="canUpdate">
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
-      <v-btn
-        icon
-        @click="editDialog = true"
-        v-if="canUpdate"
-      >
+      <v-btn icon @click="editDialog = true" v-if="canUpdate">
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-toolbar>
 
-    <v-container>
-      <v-alert
-        text
-        type="info"
-        class="mb-0 ml-4 mr-4 mb-2"
-        v-if="item.description"
-      >{{ item.description }}
-      </v-alert>
+    <SingleLineEditable
+      class="mx-4 TemplateView__description"
+      v-model="item.description"
+      @save="updateDescription()"
+      v-if="item.description || can(USER_PERMISSIONS.manageProjectResources)"
+      :can-edit="can(USER_PERMISSIONS.manageProjectResources)"
+    />
 
-      <v-row>
-        <v-col>
-          <v-list subheader dense>
-            <v-list-item>
-              <v-list-item-icon>
-                <v-icon>mdi-book-play</v-icon>
-              </v-list-item-icon>
+    <v-tabs class="ml-4">
+      <v-tab
+        :to="`/project/${item.project_id}${
+          $route.params.viewId ? `/views/${$route.params.viewId}` : ''
+        }/templates/${item.id}/tasks`">{{ $t('template_tasks') }}</v-tab>
+      <v-tab
+        :to="`/project/${item.project_id}${
+          $route.params.viewId ? `/views/${$route.params.viewId}` : ''
+        }/templates/${item.id}/details`">{{ $t('template_details') }}</v-tab>
+      <v-tab
+        v-if="['terraform', 'tofu'].includes(item.app)"
+        :to="`/project/${item.project_id}${
+          $route.params.viewId ? `/views/${$route.params.viewId}` : ''
+        }/templates/${item.id}/state`"
+      >
+        {{ $t('template_tf_workspaces') }}
+      </v-tab>
+    </v-tabs>
 
-              <v-list-item-content>
-                <v-list-item-title>{{ $t('playbook') }}</v-list-item-title>
-                <v-list-item-subtitle>{{ item.playbook }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-col>
-        <v-col>
-          <v-list subheader dense>
-            <v-list-item>
-              <v-list-item-icon>
-                <v-icon>{{ TEMPLATE_TYPE_ICONS[item.type] }}</v-icon>
-              </v-list-item-icon>
+    <v-divider style="margin-top: -1px;"/>
 
-              <v-list-item-content>
-                <v-list-item-title>{{ $t('type') }}</v-list-item-title>
-                <v-list-item-subtitle>{{ $t(TEMPLATE_TYPE_TITLES[item.type]) }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-col>
-        <v-col>
-          <v-list subheader dense>
-            <v-list-item>
-              <v-list-item-icon>
-                <v-icon>mdi-monitor</v-icon>
-              </v-list-item-icon>
-
-              <v-list-item-content>
-                <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-col>
-        <v-col>
-          <v-list subheader dense>
-            <v-list-item>
-              <v-list-item-icon>
-                <v-icon>mdi-code-braces</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ environment.find((x) => x.id === item.environment_id).name }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-col>
-        <v-col>
-          <v-list subheader dense>
-            <v-list-item>
-              <v-list-item-icon>
-                <v-icon>mdi-git</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>{{ $t('repository2') }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ repositories.find((x) => x.id === item.repository_id).name }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-col>
-      </v-row>
-    </v-container>
-
-    <TaskList :template="item"/>
+    <router-view
+      class="mt-8"
+      :template="item"
+      :inventory="inventory"
+      :environment="environment"
+      :repositories="repositories"
+      :premium-features="premiumFeatures"
+      @update-template="loadData"
+    ></router-view>
   </div>
 </template>
+
 <style lang="scss">
 
+@import '~vuetify/src/styles/settings/_variables';
+.TemplateView__description {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+@media #{map-get($display-breakpoints, 'md-and-up')} {
+  .TemplateView__description {
+    transform: translateY(-12px);
+    margin-bottom: 0;
+  }
+}
+
 </style>
+
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
-import TaskList from '@/components/TaskList.vue';
 import {
   TEMPLATE_TYPE_ACTION_TITLES,
   TEMPLATE_TYPE_ICONS,
@@ -202,24 +156,27 @@ import {
 } from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
-import EditTemplateDialogue from '@/components/EditTemplateDialog.vue';
+import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
+import SingleLineEditable from '@/components/SingleLineEditable.vue';
+import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
   components: {
+    SingleLineEditable,
     YesNoDialog,
-    TaskList,
     ObjectRefsDialog,
     NewTaskDialog,
-    EditTemplateDialogue,
+    EditTemplateDialog,
   },
 
   props: {
     projectId: Number,
     userPermissions: Number,
+    premiumFeatures: Object,
   },
 
-  mixins: [PermissionsCheck],
+  mixins: [PermissionsCheck, ProjectMixin],
 
   data() {
     return {
@@ -262,10 +219,7 @@ export default {
       return this.itemId === 'new';
     },
     isLoaded() {
-      return this.item
-        && this.inventory
-        && this.environment
-        && this.repositories;
+      return this.item && this.inventory && this.environment && this.repositories;
     },
   },
 
@@ -291,13 +245,15 @@ export default {
     },
 
     async askDelete() {
-      this.itemRefs = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.itemId}/refs`,
-        responseType: 'json',
-      })).data;
+      this.itemRefs = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/templates/${this.itemId}/refs`,
+          responseType: 'json',
+        })
+      ).data;
 
-      if (this.itemRefs.templates.length > 0) {
+      if (this.itemRefs.integrations.length > 0) {
         this.itemRefsDialog = true;
         return;
       }
@@ -338,30 +294,37 @@ export default {
     },
 
     async loadData() {
-      this.item = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/templates/${this.itemId}`,
-        responseType: 'json',
-      })).data;
-
-      this.inventory = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/inventory`,
-        responseType: 'json',
-      })).data;
-
-      this.environment = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      this.repositories = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
+      [
+        this.item,
+        this.inventory,
+        this.environment,
+        this.repositories,
+      ] = await Promise.all([
+        this.loadProjectResource('templates', this.itemId),
+        this.loadProjectResources('inventory'),
+        this.loadProjectResources('environment'),
+        this.loadProjectResources('repositories'),
+      ]);
     },
+
+    async updateDescription() {
+      try {
+        await axios({
+          method: 'put',
+          url: `/api/project/${this.projectId}/templates/${this.itemId}/description`,
+          responseType: 'json',
+          data: {
+            description: this.item.description,
+          },
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
+
   },
 };
 </script>

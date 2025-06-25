@@ -4,10 +4,13 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const databaseTimeFormat = "2006-01-02T15:04:05:99Z"
@@ -22,7 +25,7 @@ func GetParsedTime(t time.Time) time.Time {
 	return parsedTime
 }
 
-func ObjectToJSON(obj interface{}) *string {
+func ObjectToJSON(obj any) *string {
 	if obj == nil ||
 		(reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) ||
 		(reflect.ValueOf(obj).Kind() == reflect.Slice && reflect.ValueOf(obj).IsZero()) {
@@ -36,12 +39,19 @@ func ObjectToJSON(obj interface{}) *string {
 	return &str
 }
 
+type OwnershipFilter struct {
+	WithoutOwnerOnly bool
+	TemplateID       *int
+	EnvironmentID    *int
+}
+
 type RetrieveQueryParams struct {
 	Offset       int
 	Count        int
 	SortBy       string
 	SortInverted bool
 	Filter       string
+	Ownership    OwnershipFilter
 }
 
 type ObjectReferrer struct {
@@ -53,6 +63,8 @@ type ObjectReferrers struct {
 	Templates    []ObjectReferrer `json:"templates"`
 	Inventories  []ObjectReferrer `json:"inventories"`
 	Repositories []ObjectReferrer `json:"repositories"`
+	Integrations []ObjectReferrer `json:"integrations"`
+	Schedules    []ObjectReferrer `json:"schedules"`
 }
 
 type IntegrationReferrers struct {
@@ -62,6 +74,63 @@ type IntegrationReferrers struct {
 
 type IntegrationExtractorChildReferrers struct {
 	Integrations []ObjectReferrer `json:"integrations"`
+}
+
+func containsStr(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *RetrieveQueryParams) Validate(props ObjectProps) (res RetrieveQueryParams, err error) {
+
+	if p.Offset > 0 && p.Count <= 0 {
+		err = &ValidationError{"offset cannot be without limit"}
+		return
+	}
+
+	if p.Count < 0 {
+		err = &ValidationError{"count must be positive"}
+		return
+	}
+
+	if p.Offset < 0 {
+		err = &ValidationError{"offset must be positive"}
+		return
+	}
+
+	if p.SortBy != "" {
+		if !containsStr(props.SortableColumns, p.SortBy) {
+			err = &ValidationError{"invalid sort column"}
+			return
+		}
+	}
+
+	res = *p
+	return
+}
+
+func (f *OwnershipFilter) GetOwnerID(ownership ObjectProps) *int {
+	switch ownership.ReferringColumnSuffix {
+	case "template_id":
+		return f.TemplateID
+	case "environment_id":
+		return f.EnvironmentID
+	default:
+		return nil
+	}
+}
+
+func (f *OwnershipFilter) SetOwnerID(ownership ObjectProps, ownerID int) {
+	switch ownership.ReferringColumnSuffix {
+	case "template_id":
+		f.TemplateID = &ownerID
+	case "environment_id":
+		f.EnvironmentID = &ownerID
+	}
 }
 
 // ObjectProps describe database entities.
@@ -76,6 +145,8 @@ type ObjectProps struct {
 	SortableColumns       []string
 	DefaultSortingColumn  string
 	SortInverted          bool // sort from high to low object ID by default. It is useful for some NoSQL implementations.
+	Ownerships            []*ObjectProps
+	SelectColumns         []string
 }
 
 var ErrNotFound = errors.New("no rows in result set")
@@ -89,7 +160,26 @@ func (e *ValidationError) Error() string {
 	return e.Message
 }
 
-type Store interface {
+type TaskStatUnit string
+
+const TaskStatUnitDay TaskStatUnit = "day"
+const TaskStatUnitWeek TaskStatUnit = "week"
+const TaskStatUnitMonth TaskStatUnit = "month"
+
+type TaskFilter struct {
+	Start  *time.Time `json:"start"`
+	End    *time.Time `json:"end"`
+	UserID *int       `json:"user_id"`
+}
+
+type TaskStat struct {
+	Date          string                         `json:"date"`
+	CountByStatus map[task_logger.TaskStatus]int `json:"count_by_status"`
+	AvgDuration   int                            `json:"avg_duration"`
+}
+
+// ConnectionManager handles database connection lifecycle
+type ConnectionManager interface {
 	// Connect connects to the database.
 	// Token parameter used if PermanentConnection returns false.
 	// Token used for debugging of session connections.
@@ -100,7 +190,10 @@ type Store interface {
 	// This mode is suitable for MySQL and Postgres but not for BoltDB.
 	// For BoltDB we should reconnect for each request because BoltDB support only one connection at time.
 	PermanentConnection() bool
+}
 
+// MigrationManager handles database migrations
+type MigrationManager interface {
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
 	IsInitialized() (bool, error)
@@ -112,13 +205,87 @@ type Store interface {
 	// TryRollbackMigration attempts to roll back the database to an earlier version
 	// if a rollback exists
 	TryRollbackMigration(version Migration)
+}
 
+// OptionsManager handles system options
+type OptionsManager interface {
 	GetOptions(params RetrieveQueryParams) (map[string]string, error)
 	GetOption(key string) (string, error)
 	SetOption(key string, value string) error
 	DeleteOption(key string) error
 	DeleteOptions(filter string) error
+}
 
+// UserManager handles user-related operations
+type UserManager interface {
+	GetProUserCount() (int, error)
+	GetUserCount() (int, error)
+	GetUsers(params RetrieveQueryParams) ([]User, error)
+	CreateUserWithoutPassword(user User) (User, error)
+	CreateUser(user UserWithPwd) (User, error)
+	DeleteUser(userID int) error
+	UpdateUser(user UserWithPwd) error
+	SetUserPassword(userID int, password string) error
+	AddTotpVerification(userID int, url string, recoveryHash string) (UserTotp, error)
+	DeleteTotpVerification(userID int, totpID int) error
+	AddEmailOtpVerification(userID int, code string) (UserEmailOtp, error)
+	DeleteEmailOtpVerification(userID int, totpID int) error
+	GetUser(userID int) (User, error)
+	GetUserByLoginOrEmail(login string, email string) (User, error)
+	GetAllAdmins() ([]User, error)
+}
+
+// ProjectStore handles project-related operations
+type ProjectStore interface {
+	GetProject(projectID int) (Project, error)
+	GetAllProjects() ([]Project, error)
+	GetProjects(userID int) ([]Project, error)
+	CreateProject(project Project) (Project, error)
+	DeleteProject(projectID int) error
+	UpdateProject(project Project) error
+	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
+	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
+	DeleteProjectUser(projectID int, userID int) error
+	GetProjectUser(projectID int, userID int) (ProjectUser, error)
+	UpdateProjectUser(projectUser ProjectUser) error
+}
+
+// TemplateManager handles template-related operations
+type TemplateManager interface {
+	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
+	CreateTemplate(template Template) (Template, error)
+	UpdateTemplate(template Template) error
+	GetTemplate(projectID int, templateID int) (Template, error)
+	DeleteTemplate(projectID int, templateID int) error
+	SetTemplateDescription(projectID int, templateID int, description string) error
+	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
+	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
+	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
+}
+
+// InventoryManager handles inventory-related operations
+type InventoryManager interface {
+	GetInventory(projectID int, inventoryID int) (Inventory, error)
+	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
+	GetInventories(projectID int, params RetrieveQueryParams, types []InventoryType) ([]Inventory, error)
+	UpdateInventory(inventory Inventory) error
+	CreateInventory(inventory Inventory) (Inventory, error)
+	DeleteInventory(projectID int, inventoryID int) error
+}
+
+// RepositoryManager handles repository-related operations
+type RepositoryManager interface {
+	GetRepository(projectID int, repositoryID int) (Repository, error)
+	GetRepositoryRefs(projectID int, repositoryID int) (ObjectReferrers, error)
+	GetRepositories(projectID int, params RetrieveQueryParams) ([]Repository, error)
+	UpdateRepository(repository Repository) error
+	CreateRepository(repository Repository) (Repository, error)
+	DeleteRepository(projectID int, repositoryID int) error
+}
+
+// EnvironmentManager handles environment-related operations
+type EnvironmentManager interface {
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
 	GetEnvironmentRefs(projectID int, environmentID int) (ObjectReferrers, error)
 	GetEnvironments(projectID int, params RetrieveQueryParams) ([]Environment, error)
@@ -126,26 +293,21 @@ type Store interface {
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
+}
 
-	GetInventory(projectID int, inventoryID int) (Inventory, error)
-	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
-	GetInventories(projectID int, params RetrieveQueryParams) ([]Inventory, error)
-	UpdateInventory(inventory Inventory) error
-	CreateInventory(inventory Inventory) (Inventory, error)
-	DeleteInventory(projectID int, inventoryID int) error
-
-	GetRepository(projectID int, repositoryID int) (Repository, error)
-	GetRepositoryRefs(projectID int, repositoryID int) (ObjectReferrers, error)
-	GetRepositories(projectID int, params RetrieveQueryParams) ([]Repository, error)
-	UpdateRepository(repository Repository) error
-	CreateRepository(repository Repository) (Repository, error)
-	DeleteRepository(projectID int, repositoryID int) error
-
+// AccessKeyManager handles access key-related operations
+type AccessKeyManager interface {
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
 	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
 	RekeyAccessKeys(oldKey string) error
+	UpdateAccessKey(accessKey AccessKey) error
+	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
+	DeleteAccessKey(projectID int, accessKeyID int) error
+}
 
+// IntegrationManager handles integration-related operations
+type IntegrationManager interface {
 	CreateIntegration(integration Integration) (newIntegration Integration, err error)
 	GetIntegrations(projectID int, params RetrieveQueryParams) ([]Integration, error)
 	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
@@ -169,105 +331,118 @@ type Store interface {
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
 	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
-	GetIntegrationsByAlias(alias string) ([]Integration, error)
+	GetIntegrationsByAlias(alias string) ([]Integration, IntegrationAliasLevel, error)
 	DeleteIntegrationAlias(projectID int, aliasID int) error
-	GetAllSearchableIntegrations() ([]Integration, error)
+}
 
-	UpdateAccessKey(accessKey AccessKey) error
-	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
-	DeleteAccessKey(projectID int, accessKeyID int) error
+// SessionManager handles session-related operations
+type SessionManager interface {
+	GetSession(userID int, sessionID int) (Session, error)
+	CreateSession(session Session) (Session, error)
+	ExpireSession(userID int, sessionID int) error
+	TouchSession(userID int, sessionID int) error
+	SetSessionVerificationMethod(userID int, sessionID int, verificationMethod SessionVerificationMethod) error
+	VerifySession(userID int, sessionID int) error
+}
 
-	GetUserCount() (int, error)
-	GetUsers(params RetrieveQueryParams) ([]User, error)
-	CreateUserWithoutPassword(user User) (User, error)
-	CreateUser(user UserWithPwd) (User, error)
-	DeleteUser(userID int) error
+// TokenManager handles token-related operations
+type TokenManager interface {
+	GetAPITokens(userID int) ([]APIToken, error)
+	CreateAPIToken(token APIToken) (APIToken, error)
+	GetAPIToken(tokenID string) (APIToken, error)
+	ExpireAPIToken(userID int, tokenID string) error
+	DeleteAPIToken(userID int, tokenID string) error
+}
 
-	// UpdateUser updates all fields of the entity except Pwd.
-	// Pwd should be present of you want update user password. Empty Pwd ignored.
-	UpdateUser(user UserWithPwd) error
-	SetUserPassword(userID int, password string) error
-	GetUser(userID int) (User, error)
-	GetUserByLoginOrEmail(login string, email string) (User, error)
+// TaskManager handles task-related operations
+type TaskManager interface {
+	CreateTask(task Task, maxTasks int) (Task, error)
+	UpdateTask(task Task) error
+	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+	GetTask(projectID int, taskID int) (Task, error)
+	DeleteTaskWithOutputs(projectID int, taskID int) error
+	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
+	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+	CreateTaskStage(stage TaskStage) (TaskStage, error)
+	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
+	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
+	CreateAnsibleTaskHost(host AnsibleTaskHost) error
+	CreateAnsibleTaskError(error AnsibleTaskError) error
+	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
+	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
+	GetTaskStages(projectID int, taskID int) ([]TaskStageWithResult, error)
+	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
+	GetTaskStageOutputs(projectID int, taskID int, stageID int) ([]TaskOutput, error)
+	GetTaskStats(projectID int, templateID *int, unit TaskStatUnit, filter TaskFilter) ([]TaskStat, error)
+}
 
-	GetProject(projectID int) (Project, error)
-	GetAllProjects() ([]Project, error)
-	GetProjects(userID int) ([]Project, error)
-	CreateProject(project Project) (Project, error)
-	DeleteProject(projectID int) error
-	UpdateProject(project Project) error
-
-	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
-	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
-	CreateTemplate(template Template) (Template, error)
-	UpdateTemplate(template Template) error
-	GetTemplate(projectID int, templateID int) (Template, error)
-	DeleteTemplate(projectID int, templateID int) error
-
+// ScheduleManager handles schedule-related operations
+type ScheduleManager interface {
 	GetSchedules() ([]Schedule, error)
 	GetProjectSchedules(projectID int) ([]ScheduleWithTpl, error)
-	GetTemplateSchedules(projectID int, templateID int) ([]Schedule, error)
+	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
 	SetScheduleCommitHash(projectID int, scheduleID int, hash string) error
 	SetScheduleActive(projectID int, scheduleID int, active bool) error
 	GetSchedule(projectID int, scheduleID int) (Schedule, error)
 	DeleteSchedule(projectID int, scheduleID int) error
+}
 
-	GetAllAdmins() ([]User, error)
-	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
-	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
-	DeleteProjectUser(projectID int, userID int) error
-	GetProjectUser(projectID int, userID int) (ProjectUser, error)
-	UpdateProjectUser(projectUser ProjectUser) error
-
-	CreateEvent(event Event) (Event, error)
-	GetUserEvents(userID int, params RetrieveQueryParams) ([]Event, error)
-	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
-
-	GetAPITokens(userID int) ([]APIToken, error)
-	CreateAPIToken(token APIToken) (APIToken, error)
-	GetAPIToken(tokenID string) (APIToken, error)
-	ExpireAPIToken(userID int, tokenID string) error
-	DeleteAPIToken(userID int, tokenID string) error
-
-	GetSession(userID int, sessionID int) (Session, error)
-	CreateSession(session Session) (Session, error)
-	ExpireSession(userID int, sessionID int) error
-	TouchSession(userID int, sessionID int) error
-
-	CreateTask(task Task, maxTasks int) (Task, error)
-	UpdateTask(task Task) error
-
-	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
-	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
-	GetTask(projectID int, taskID int) (Task, error)
-	DeleteTaskWithOutputs(projectID int, taskID int) error
-	GetTaskOutputs(projectID int, taskID int) ([]TaskOutput, error)
-	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
-	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
-	CreateTaskStage(stage TaskStage) (TaskStage, error)
-
+// ViewManager handles view-related operations
+type ViewManager interface {
 	GetView(projectID int, viewID int) (View, error)
 	GetViews(projectID int) ([]View, error)
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
 	SetViewPositions(projectID int, viewPositions map[int]int) error
+}
 
+// RunnerManager handles runner-related operations
+type RunnerManager interface {
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int) ([]Runner, error)
+	GetRunners(projectID int, activeOnly bool, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
-	GetGlobalRunnerByToken(token string) (Runner, error)
+	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetGlobalRunners(activeOnly bool) ([]Runner, error)
+	GetAllRunners(activeOnly bool, globalOnly bool) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+	TouchRunner(runner Runner) (err error)
+	ClearRunnerCache(runner Runner) (err error)
+	GetRunnerTags(projectID int) ([]RunnerTag, error)
+}
 
-	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
-	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
-	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
+// EventManager handles event-related operations
+type EventManager interface {
+	CreateEvent(event Event) (Event, error)
+	GetUserEvents(userID int, params RetrieveQueryParams) ([]Event, error)
+	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
+}
+
+// Store is the main interface that aggregates all specialized interfaces
+type Store interface {
+	ConnectionManager
+	MigrationManager
+	OptionsManager
+	UserManager
+	ProjectStore
+	TemplateManager
+	InventoryManager
+	RepositoryManager
+	EnvironmentManager
+	AccessKeyManager
+	IntegrationManager
+	SessionManager
+	TokenManager
+	TaskManager
+	ScheduleManager
+	ViewManager
+	RunnerManager
+	EventManager
 }
 
 var AccessKeyProps = ObjectProps{
@@ -326,6 +501,7 @@ var InventoryProps = ObjectProps{
 	ReferringColumnSuffix: "inventory_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
+	Ownerships:            []*ObjectProps{&TemplateProps},
 }
 
 var RepositoryProps = ObjectProps{
@@ -341,14 +517,8 @@ var TemplateProps = ObjectProps{
 	Type:                  reflect.TypeOf(Template{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
-	SortableColumns:       []string{"name"},
+	SortableColumns:       []string{"name", "playbook", "inventory", "environment", "repository"},
 	DefaultSortingColumn:  "name",
-}
-
-var ScheduleProps = ObjectProps{
-	TableName:         "project__schedule",
-	Type:              reflect.TypeOf(Schedule{}),
-	PrimaryColumnName: "id",
 }
 
 var ProjectUserProps = ObjectProps{
@@ -366,11 +536,19 @@ var ProjectProps = ObjectProps{
 	IsGlobal:              true,
 }
 
+var ScheduleProps = ObjectProps{
+	TableName:         "project__schedule",
+	Type:              reflect.TypeOf(Schedule{}),
+	PrimaryColumnName: "id",
+	Ownerships:        []*ObjectProps{&ProjectProps},
+}
+
 var UserProps = ObjectProps{
 	TableName:         "user",
 	Type:              reflect.TypeOf(User{}),
 	PrimaryColumnName: "id",
 	IsGlobal:          true,
+	SortableColumns:   []string{"name", "username", "email", "role"},
 }
 
 var SessionProps = ObjectProps{
@@ -403,6 +581,11 @@ var TaskStageProps = ObjectProps{
 	Type:      reflect.TypeOf(TaskStage{}),
 }
 
+var TaskStageResultProps = ObjectProps{
+	TableName: "task__stage_result",
+	Type:      reflect.TypeOf(TaskStageResult{}),
+}
+
 var ViewProps = ObjectProps{
 	TableName:            "project__view",
 	Type:                 reflect.TypeOf(View{}),
@@ -411,10 +594,12 @@ var ViewProps = ObjectProps{
 }
 
 var GlobalRunnerProps = ObjectProps{
-	TableName:         "runner",
-	Type:              reflect.TypeOf(Runner{}),
-	PrimaryColumnName: "id",
-	IsGlobal:          true,
+	TableName:            "runner",
+	Type:                 reflect.TypeOf(Runner{}),
+	PrimaryColumnName:    "id",
+	DefaultSortingColumn: "id",
+	SortInverted:         true,
+	IsGlobal:             true,
 }
 
 var OptionProps = ObjectProps{
@@ -429,6 +614,12 @@ var TemplateVaultProps = ObjectProps{
 	Type:                  reflect.TypeOf(TemplateVault{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
+}
+
+var UserTotpProps = ObjectProps{
+	TableName:         "user__totp",
+	Type:              reflect.TypeOf(UserTotp{}),
+	PrimaryColumnName: "id",
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
@@ -490,16 +681,16 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 		return
 	}
 
-	if inventory.HolderID != nil {
-		_, err = store.GetTemplate(inventory.ProjectID, *inventory.HolderID)
+	if inventory.TemplateID != nil {
+		_, err = store.GetTemplate(inventory.ProjectID, *inventory.TemplateID)
 	}
 
 	return
 }
 
-type MapStringAnyField map[string]interface{}
+type StringArrayField []string
 
-func (m *MapStringAnyField) Scan(value interface{}) error {
+func (m *StringArrayField) Scan(value any) error {
 	if value == nil {
 		*m = nil
 		return nil
@@ -516,6 +707,33 @@ func (m *MapStringAnyField) Scan(value interface{}) error {
 }
 
 // Value implements the driver.Valuer interface for MapStringAnyField
+func (m *StringArrayField) Value() (driver.Value, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return json.Marshal(m)
+}
+
+type MapStringAnyField map[string]any
+
+func (m *MapStringAnyField) Scan(value any) error {
+	if value == nil {
+		*m = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, m)
+	case string:
+		return json.Unmarshal([]byte(v), m)
+	default:
+		return errors.New("unsupported type for MapStringAnyField")
+	}
+}
+
+// Value implements the driver.Valuer interface for MapStringAnyField
+// DO NOT ADD *, It breaks method call
 func (m MapStringAnyField) Value() (driver.Value, error) {
 	if m == nil {
 		return nil, nil

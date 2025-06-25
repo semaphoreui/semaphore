@@ -65,6 +65,9 @@
       <template v-slot:item.variable="{ item }">
         <code>{{ item.variable }}</code>
       </template>
+      <template v-slot:item.variable_type="{ item }">
+        <code>{{ item.variable_type }}</code>
+      </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -90,12 +93,10 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 
-import IntegrationExtractorsBase from '@/components/IntegrationExtractorsBase';
-
 import IntegrationExtractValueForm from '@/components/IntegrationExtractValueForm.vue';
 
 export default {
-  mixins: [ItemListPageBase, IntegrationExtractorsBase],
+  mixins: [ItemListPageBase],
   components: { IntegrationExtractValueForm },
 
   computed: {
@@ -129,19 +130,24 @@ export default {
         value: 'value_source',
         sortable: false,
       },
-      {
-        text: 'Body Data Type',
-        value: 'body_data_type',
-        sortable: false,
-      },
+      // {
+      //   text: 'Body Data Type',
+      //   value: 'body_data_type',
+      //   sortable: false,
+      // },
       {
         text: 'Key',
         value: 'key',
         sortable: false,
       },
       {
-        text: 'Environment Variable',
+        text: 'Variable',
         value: 'variable',
+        sortable: false,
+      },
+      {
+        text: 'Variable Type',
+        value: 'variable_type',
         sortable: false,
       },
       {

@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 	"strconv"
 	"strings"
 )
@@ -25,11 +25,13 @@ func (d *SqlDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.Te
 func (d *SqlDb) CreateTemplateVault(vault db.TemplateVault) (newVault db.TemplateVault, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template_vault (project_id, template_id, vault_key_id, name) values (?, ?, ?, ?)",
+		"insert into project__template_vault (project_id, template_id, vault_key_id, name, type, script) values (?, ?, ?, ?, ?, ?)",
 		vault.ProjectID,
 		vault.TemplateID,
 		vault.VaultKeyID,
-		vault.Name)
+		vault.Name,
+		vault.Type,
+		vault.Script)
 	if err != nil {
 		return
 	}
@@ -46,17 +48,23 @@ func (d *SqlDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db.
 
 	var vaultIDs []string
 	for _, vault := range vaults {
+		switch vault.Type {
+		case "password":
+			vault.Script = nil
+		case "script":
+			vault.VaultKeyID = nil
+		}
 		if vault.ID == 0 {
 			// Insert new vaults
 			var vaultId int
-			vaultId, err = d.insert("id", "insert into project__template_vault (project_id, template_id, vault_key_id, name) values (?, ?, ?, ?)", projectID, templateID, vault.VaultKeyID, vault.Name)
+			vaultId, err = d.insert("id", "insert into project__template_vault (project_id, template_id, vault_key_id, name, type, script) values (?, ?, ?, ?, ?, ?)", projectID, templateID, vault.VaultKeyID, vault.Name, vault.Type, vault.Script)
 			if err != nil {
 				return
 			}
 			vaultIDs = append(vaultIDs, strconv.Itoa(vaultId))
 		} else {
 			// Update existing vaults
-			_, err = d.exec("update project__template_vault set project_id=?, template_id=?, vault_key_id=?, name=? where id=?", projectID, templateID, vault.VaultKeyID, vault.Name, vault.ID)
+			_, err = d.exec("update project__template_vault set project_id=?, template_id=?, vault_key_id=?, name=?, type=?, script=? where id=?", projectID, templateID, vault.VaultKeyID, vault.Name, vault.Type, vault.Script, vault.ID)
 			vaultIDs = append(vaultIDs, strconv.Itoa(vault.ID))
 		}
 		if err != nil {

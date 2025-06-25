@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/ansible-semaphore/semaphore/db"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
@@ -15,8 +15,21 @@ func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inve
 	return
 }
 
-func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams) (inventories []db.Inventory, err error) {
-	err = d.getObjects(projectID, db.InventoryProps, params, nil, &inventories)
+func (d *BoltDb) GetInventories(projectID int, params db.RetrieveQueryParams, types []db.InventoryType) (inventories []db.Inventory, err error) {
+	err = d.getObjects(projectID, db.InventoryProps, params, func(i any) bool {
+		inventory := i.(db.Inventory)
+		if len(types) == 0 {
+			return true
+		}
+
+		for _, t := range types {
+			if inventory.Type == t {
+				return true
+			}
+		}
+
+		return false
+	}, &inventories)
 	return
 }
 

@@ -3,8 +3,8 @@ package project
 import (
 	"fmt"
 
-	"github.com/ansible-semaphore/semaphore/db"
-	"github.com/ansible-semaphore/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/schedules"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -59,6 +59,29 @@ func (e BackupView) Restore(store db.Store, b *BackupDB) error {
 		return err
 	}
 	b.views = append(b.views, newView)
+	return nil
+}
+
+func (e BackupSchedule) Verify(backup *BackupFormat) error {
+	return verifyDuplicate[BackupSchedule](e.Name, backup.Schedules)
+}
+
+func (e BackupSchedule) Restore(store db.Store, b *BackupDB) error {
+	v := e.Schedule
+	v.ProjectID = b.meta.ID
+
+	tpl := findEntityByName[db.Template](&e.Template, b.templates)
+	if tpl == nil {
+		return fmt.Errorf("template does not exist in templates[].name")
+	}
+	v.TemplateID = tpl.ID
+
+	newView, err := store.CreateSchedule(v)
+	if err != nil {
+		return err
+	}
+
+	b.schedules = append(b.schedules, newView)
 	return nil
 }
 
@@ -173,8 +196,10 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
-			if getEntryByName[BackupAccessKey](&vault.VaultKey, backup.Keys) == nil {
-				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+			if vault.VaultKey != nil {
+				if getEntryByName[BackupAccessKey](vault.VaultKey, backup.Keys) == nil {
+					return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+				}
 			}
 		}
 	}
@@ -269,11 +294,14 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
-			var VaultKeyID int
-			if k := findEntityByName[db.AccessKey](&vault.VaultKey, b.keys); k == nil {
-				return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
-			} else {
-				VaultKeyID = k.ID
+			var VaultKeyID *int
+
+			if vault.VaultKey != nil {
+				if k := findEntityByName[db.AccessKey](vault.VaultKey, b.keys); k == nil {
+					return fmt.Errorf("vaults[].vaultKey does not exist in keys[].name")
+				} else {
+					VaultKeyID = &k.ID
+				}
 			}
 
 			tplVault := vault.TemplateVault
@@ -350,6 +378,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at views[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Schedules {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Keys {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at keys[%d]: %s", i, err.Error())
@@ -370,6 +403,7 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
+
 	return nil
 }
 
@@ -453,6 +487,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 			ProjectID: b.meta.ID,
 		}
 		_, _ = store.CreateIntegrationAlias(alias)
+	}
+
+	for i, o := range backup.Schedules {
+		if err := o.Restore(store, &b); err != nil {
+			return nil, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
+		}
 	}
 
 	return &newProject, nil

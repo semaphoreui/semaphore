@@ -18,6 +18,8 @@
         :rules="[v => !!v || $t('name_required')]"
         required
         :disabled="formSaving"
+        outlined
+        dense
     ></v-text-field>
 
     <v-text-field
@@ -30,9 +32,11 @@
         required
         :disabled="formSaving"
         :hide-details="true"
+        outlined
+        dense
     ></v-text-field>
 
-    <div class="mt-1 mb-4">
+    <div class="mt-1 mb-5">
       <span class="caption">git:</span>
       <v-chip
         v-for="x in ['ssh', 'http', 'https', 'file', 'git']"
@@ -61,9 +65,11 @@
       :rules="[v => (!!v || type === 'local') || $t('branch_required')]"
       required
       :disabled="formSaving || type === 'local'"
+      outlined
+      dense
     ></v-text-field>
 
-    <v-select
+    <v-autocomplete
         v-model="item.ssh_key_id"
         :label="$t('accessKey')"
         :items="keys"
@@ -72,6 +78,8 @@
         :rules="[v => !!v || $t('key_required')]"
         required
         :disabled="formSaving"
+        outlined
+        dense
     >
       <template v-slot:append-outer>
         <v-tooltip left color="black" content-class="opacity1">
@@ -92,7 +100,7 @@
           </div>
         </v-tooltip>
       </template>
-    </v-select>
+    </v-autocomplete>
   </v-form>
 </template>
 <script>

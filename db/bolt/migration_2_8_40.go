@@ -11,7 +11,7 @@ func (d migration_2_8_40) Apply() (err error) {
 		return
 	}
 
-	templates := make(map[string]map[string]map[string]interface{})
+	templates := make(map[string]map[string]map[string]any)
 
 	for _, projectID := range projectIDs {
 		var err2 error

@@ -12,74 +12,113 @@
       <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4">
-      <v-tab
-        v-if="projectType === ''"
-        key="history"
-        :to="`/project/${projectId}/history`"
-      >{{ $t('history') }}</v-tab>
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
-      <v-tab key="settings" :to="`/project/${projectId}/settings`">{{ $t('settings') }}</v-tab>
-    </v-tabs>
+    <DashboardMenu
+      :project-id="projectId"
+      :project-type="projectType"
+      :can-update-project="true"
+    />
 
-    <div class="project-settings-form">
-      <div style="height: 300px;">
-        <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
+    <div
+      style="margin: auto; max-width: 600px; padding: 0 16px;"
+      class="CenterToScreen"
+    >
+      <h2 class="mt-8 mb-1">{{ $t('general_settings') }}</h2>
+
+      <v-divider class="mb-8" />
+
+      <div class="project-settings-form">
+        <div style="height: 300px;">
+          <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
+        </div>
+
+        <div class="text-right">
+          <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
+        </div>
       </div>
 
-      <div class="text-right">
-        <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
+      <h2 class="mt-8 mb-1">{{ $t('danger_zone_settings') }}</h2>
+
+      <v-divider class="mb-8" />
+
+      <div class="project-backup project-settings-button" v-if="projectType === ''">
+        <v-row align="center">
+          <v-col class="shrink">
+
+            <v-btn
+              color="primary"
+              @click="backupProject"
+              :disabled="backupProgress"
+              min-width="170"
+              data-testid="settings-exportProject"
+            >{{ $t('backup') }}
+            </v-btn>
+
+            <v-progress-linear
+              v-if="backupProgress"
+              color="primary accent-4"
+              indeterminate
+              rounded
+              height="36"
+              style="margin-top: -36px"
+            ></v-progress-linear>
+
+          </v-col>
+          <v-col class="grow">
+            <div style="font-size: 14px;">
+              {{ $t('downloadTheProjectBackupFile') }}
+            </div>
+          </v-col>
+        </v-row>
       </div>
-    </div>
 
-    <v-divider class="mb-8" />
+      <div class="project-backup project-settings-button" v-if="projectType === ''">
+        <v-row align="center">
+          <v-col class="shrink">
 
-    <div class="project-backup project-settings-button">
+            <v-btn
+              color="blue-grey"
+              @click="clearCache"
+              :disabled="clearCacheProgress"
+              min-width="170"
+              data-testid="settings-clearCache"
+            >{{ $t('clear_cache') }}</v-btn>
 
-      <v-row align="center">
-        <v-col class="shrink">
+            <v-progress-linear
+              v-if="clearCacheProgress"
+              color="blue-grey darken-1"
+              indeterminate
+              rounded
+              height="36"
+              style="margin-top: -36px"
+            ></v-progress-linear>
 
-          <v-btn
-            color="primary"
-            @click="backupProject"
-            :disabled="backupProgress"
-            min-width="170"
-          >{{ $t('backup') }}
-          </v-btn>
+          </v-col>
+          <v-col class="grow">
+            <div style="font-size: 14px">
+              {{ $t('clear_cache_message') }}
+            </div>
+          </v-col>
+        </v-row>
+      </div>
 
-          <v-progress-linear
-            v-if="backupProgress"
-            color="primary accent-4"
-            indeterminate
-            rounded
-            height="36"
-            style="margin-top: -36px"
-          ></v-progress-linear>
-
-        </v-col>
-        <v-col class="grow">
-          <div style="font-size: 14px;">
-            {{ $t('downloadTheProjectBackupFile') }}
-          </div>
-        </v-col>
-      </v-row>
-    </div>
-    <div class="project-delete-form project-settings-button">
-      <v-row align="center">
-        <v-col class="shrink">
-          <v-btn
-            color="error"
-            min-width="170"
-            @click="deleteProjectDialog = true"
-          >{{ $t('deleteProject2') }}
-          </v-btn>
-        </v-col>
-        <v-col class="grow">
-          <div style="font-size: 14px; color: #ff5252">
-            {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
-          </div>
-        </v-col>
-      </v-row>
+      <div class="project-delete-form project-settings-button">
+        <v-row align="center">
+          <v-col class="shrink">
+            <v-btn
+              color="error"
+              min-width="170"
+              @click="deleteProjectDialog = true"
+              data-testid="settings-deleteProject"
+            >{{ $t('deleteProject2') }}
+            </v-btn>
+          </v-col>
+          <v-col class="grow">
+            <div style="font-size: 14px; color: #ff5252">
+              {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
+            </div>
+          </v-col>
+        </v-row>
+      </div>
     </div>
   </div>
 </template>
@@ -87,13 +126,13 @@
   @import '~vuetify/src/styles/styles.sass';
 
   .project-settings-form {
-    max-width: 400px;
-    margin: 40px auto;
+    //max-width: 600px;
+    margin: 30px 0;
   }
 
   .project-settings-button {
-    max-width: 400px;
-    margin: 20px auto auto;
+    //max-width: 400px;
+    margin: 30px 0;
 
     @media #{map-get($display-breakpoints, 'sm-and-down')} {
       padding: 0 6px;
@@ -107,9 +146,10 @@ import { getErrorMessage } from '@/lib/error';
 import axios from 'axios';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import delay from '@/lib/delay';
+import DashboardMenu from '@/components/DashboardMenu.vue';
 
 export default {
-  components: { YesNoDialog, ProjectForm },
+  components: { DashboardMenu, YesNoDialog, ProjectForm },
   props: {
     projectId: Number,
     projectType: String,
@@ -119,6 +159,7 @@ export default {
     return {
       deleteProjectDialog: null,
       backupProgress: false,
+      clearCacheProgress: false,
     };
   },
 
@@ -143,6 +184,34 @@ export default {
 
     async saveProject() {
       await this.$refs.form.save();
+    },
+
+    async clearCache() {
+      this.clearCacheProgress = true;
+      await delay(1000);
+
+      try {
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/cache`,
+          transformResponse: (res) => res, // Necessary to not parse json
+          responseType: 'json',
+        });
+
+        await delay(1000);
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Project cache cleaned.',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.clearCacheProgress = false;
+      }
     },
 
     async backupProject() {
