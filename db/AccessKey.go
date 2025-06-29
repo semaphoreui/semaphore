@@ -16,12 +16,19 @@ import (
 )
 
 type AccessKeyType string
+type AccessKeyOwner string
 
 const (
 	AccessKeySSH           AccessKeyType = "ssh"
 	AccessKeyNone          AccessKeyType = "none"
 	AccessKeyLoginPassword AccessKeyType = "login_password"
 	AccessKeyString        AccessKeyType = "string"
+)
+const (
+	AccessKeyEnvironment AccessKeyOwner = "environment"
+	AccessKeyVariable    AccessKeyOwner = "variable"
+	AccessKeyUser        AccessKeyOwner = "user"
+	AccessKeyVault       AccessKeyOwner = "vault"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -49,6 +56,8 @@ type AccessKey struct {
 	UserID *int `db:"user_id" json:"-" backup:"-"`
 
 	Empty bool `db:"-" json:"empty,omitempty"`
+
+	Owner AccessKeyOwner `db:"owner" json:"owner" backup:"owner"`
 }
 
 type LoginPassword struct {
