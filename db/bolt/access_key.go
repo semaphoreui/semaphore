@@ -22,7 +22,7 @@ func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]
 	var keys []db.AccessKey
 	err := d.getObjects(projectID, db.AccessKeyProps, params, func(i any) bool {
 		k := i.(db.AccessKey)
-		return k.EnvironmentID == nil
+		return k.Owner == db.AccessKeyShared
 	}, &keys)
 	return keys, err
 }

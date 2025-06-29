@@ -29,6 +29,7 @@ const (
 	AccessKeyVariable    AccessKeyOwner = "variable"
 	AccessKeyUser        AccessKeyOwner = "user"
 	AccessKeyVault       AccessKeyOwner = "vault"
+	AccessKeyShared      AccessKeyOwner = ""
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
