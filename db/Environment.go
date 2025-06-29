@@ -21,6 +21,17 @@ const (
 	EnvironmentSecretEnv EnvironmentSecretType = "env"
 )
 
+func (t EnvironmentSecretType) GetAccessKeyOwner() AccessKeyOwner {
+	switch t {
+	case EnvironmentSecretVar:
+		return AccessKeyVariable
+	case EnvironmentSecretEnv:
+		return AccessKeyEnvironment
+	default:
+		panic("unknown secret type: " + t)
+	}
+}
+
 type EnvironmentSecret struct {
 	ID        int                        `json:"id"`
 	Type      EnvironmentSecretType      `json:"type"`
@@ -117,10 +128,10 @@ func FillEnvironmentSecrets(store Store, env *Environment, deserializeSecret boo
 		var secretName string
 		var secretType EnvironmentSecretType
 
-		if strings.HasPrefix(k.Name, string(EnvironmentSecretVar)+".") {
+		if k.Owner == AccessKeyVariable {
 			secretType = EnvironmentSecretVar
 			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretVar)+".")
-		} else if strings.HasPrefix(k.Name, string(EnvironmentSecretEnv)+".") {
+		} else if k.Owner == AccessKeyEnvironment {
 			secretType = EnvironmentSecretEnv
 			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretEnv)+".")
 		} else {

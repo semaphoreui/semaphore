@@ -87,12 +87,14 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 
 	insertID, err := d.insert(
 		"id",
-		"insert into access_key (name, type, project_id, secret, environment_id) values (?, ?, ?, ?, ?)",
+		"insert into access_key (name, type, project_id, secret, environment_id, owner) values (?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
 		key.Secret,
-		key.EnvironmentID)
+		key.EnvironmentID,
+		key.Owner,
+	)
 
 	if err != nil {
 		return

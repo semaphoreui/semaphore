@@ -58,7 +58,8 @@ type AccessKey struct {
 
 	Empty bool `db:"-" json:"empty,omitempty"`
 
-	Owner AccessKeyOwner `db:"owner" json:"owner" backup:"owner"`
+	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty" backup:"owner"`
+	Plain *string        `db:"plain" json:"plain,omitempty"`
 }
 
 type LoginPassword struct {

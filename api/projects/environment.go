@@ -21,11 +21,12 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 		switch secret.Operation {
 		case db.EnvironmentSecretCreate:
 			key, err = store.CreateAccessKey(db.AccessKey{
-				Name:          string(secret.Type) + "." + secret.Name,
+				Name:          secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &env.ID,
 				ProjectID:     &env.ProjectID,
 				Type:          db.AccessKeyString,
+				Owner:         secret.Type.GetAccessKeyOwner(),
 			})
 		case db.EnvironmentSecretDelete:
 			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
@@ -53,8 +54,9 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 			updateKey := db.AccessKey{
 				ID:        key.ID,
 				ProjectID: key.ProjectID,
-				Name:      string(secret.Type) + "." + secret.Name,
+				Name:      secret.Name,
 				Type:      db.AccessKeyString,
+				Owner:     key.Owner,
 			}
 			if secret.Secret != "" {
 				updateKey.String = secret.Secret
