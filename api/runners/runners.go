@@ -48,7 +48,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "runner", runner)
+		r = helpers.SetContextValue(r, "runner", runner)
 		next.ServeHTTP(w, r)
 	})
 }

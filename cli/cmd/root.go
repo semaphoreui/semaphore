@@ -94,9 +94,9 @@ func runService() {
 
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			helpers.SetContextValue(r, "store", store)
-			helpers.SetContextValue(r, "schedule_pool", schedulePool)
-			helpers.SetContextValue(r, "task_pool", &taskPool)
+			r = helpers.SetContextValue(r, "store", store)
+			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
+			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			next.ServeHTTP(w, r)
 		})
 	})

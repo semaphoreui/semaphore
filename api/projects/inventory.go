@@ -29,7 +29,7 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "inventory", inventory)
+		r = helpers.SetContextValue(r, "inventory", inventory)
 		next.ServeHTTP(w, r)
 	})
 }

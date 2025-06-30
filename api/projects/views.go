@@ -24,7 +24,7 @@ func ViewMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "view", view)
+		r = helpers.SetContextValue(r, "view", view)
 		next.ServeHTTP(w, r)
 	})
 }

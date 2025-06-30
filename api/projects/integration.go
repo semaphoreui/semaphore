@@ -29,7 +29,7 @@ func IntegrationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "integration", integration)
+		r = helpers.SetContextValue(r, "integration", integration)
 		next.ServeHTTP(w, r)
 	})
 }

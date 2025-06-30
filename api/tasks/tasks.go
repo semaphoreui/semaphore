@@ -16,7 +16,7 @@ func TaskMiddleware(next http.Handler) http.Handler {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 		}
 
-		helpers.SetContextValue(r, "task_id", taskID)
+		r = helpers.SetContextValue(r, "task_id", taskID)
 		next.ServeHTTP(w, r)
 	})
 }

@@ -24,7 +24,7 @@ func SchedulesMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "schedule", schedule)
+		r = helpers.SetContextValue(r, "schedule", schedule)
 		next.ServeHTTP(w, r)
 	})
 }

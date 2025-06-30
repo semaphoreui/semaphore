@@ -25,7 +25,7 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "template", template)
+		r = helpers.SetContextValue(r, "template", template)
 		next.ServeHTTP(w, r)
 	})
 }

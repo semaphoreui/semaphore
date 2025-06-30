@@ -26,7 +26,7 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "repository", repository)
+		r = helpers.SetContextValue(r, "repository", repository)
 		next.ServeHTTP(w, r)
 	})
 }

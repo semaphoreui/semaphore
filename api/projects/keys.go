@@ -24,7 +24,7 @@ func KeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "accessKey", key)
+		r = helpers.SetContextValue(r, "accessKey", key)
 		next.ServeHTTP(w, r)
 	})
 }

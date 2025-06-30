@@ -39,8 +39,8 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "projectUserRole", projectUser.Role)
-		helpers.SetContextValue(r, "project", project)
+		r = helpers.SetContextValue(r, "projectUserRole", projectUser.Role)
+		r = helpers.SetContextValue(r, "project", project)
 		next.ServeHTTP(w, r)
 	})
 }

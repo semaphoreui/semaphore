@@ -79,7 +79,7 @@ func appMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "app_id", appID)
+		r = helpers.SetContextValue(r, "app_id", appID)
 		next.ServeHTTP(w, r)
 	})
 }

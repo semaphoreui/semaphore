@@ -101,7 +101,7 @@ func readonlyUserMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		helpers.SetContextValue(r, "_user", user)
+		r = helpers.SetContextValue(r, "_user", user)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -129,7 +129,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "_user", user)
+		r = helpers.SetContextValue(r, "_user", user)
 		next.ServeHTTP(w, r)
 	})
 }

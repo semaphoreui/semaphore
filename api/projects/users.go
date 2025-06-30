@@ -31,7 +31,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "projectUser", user)
+		r = helpers.SetContextValue(r, "projectUser", user)
 		next.ServeHTTP(w, r)
 	})
 }

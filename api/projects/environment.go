@@ -90,7 +90,7 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "environment", env)
+		r = helpers.SetContextValue(r, "environment", env)
 		next.ServeHTTP(w, r)
 	})
 }

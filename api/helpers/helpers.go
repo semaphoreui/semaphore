@@ -21,10 +21,6 @@ func Store(r *http.Request) db.Store {
 	return GetFromContext(r, "store").(db.Store)
 }
 
-//func TaskPool(r *http.Request) *tasks.TaskPool {
-//	return GetFromContext(r, "task_pool").(*tasks.TaskPool)
-//}
-
 func isXHR(w http.ResponseWriter, r *http.Request) bool {
 	accept := r.Header.Get("Accept")
 	return !strings.Contains(accept, "text/html")

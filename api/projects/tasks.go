@@ -126,7 +126,7 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		helpers.SetContextValue(r, "task", task)
+		r = helpers.SetContextValue(r, "task", task)
 		next.ServeHTTP(w, r)
 	})
 }

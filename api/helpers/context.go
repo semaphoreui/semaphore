@@ -1,18 +1,20 @@
 package helpers
 
 import (
-	"github.com/gorilla/context"
+	"context"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/db"
 )
 
 func GetFromContext(r *http.Request, key string) any {
-	return context.Get(r, key)
+	return r.Context().Value(key)
 }
 
-func SetContextValue(r *http.Request, key string, value any) {
-	context.Set(r, key, value)
+func SetContextValue(r *http.Request, key string, value any) *http.Request {
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, key, value)
+	return r.WithContext(ctx)
 }
 
 func UserFromContext(r *http.Request) *db.User {
