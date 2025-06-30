@@ -1,5 +1,6 @@
 {
     "chat_id": "{{ .Chat.ID }}",
+    {{ if .Chat.ThreadID }}"message_thread_id": "{{ .Chat.ThreadID }}",{{ end }}
     "parse_mode": "HTML",
     "text": "<code>{{ .Name }}</code>\n#{{ .Task.ID }} <b>{{ .Task.Result }}</b> <code>{{ .Task.Version }}</code> - {{ .Task.Desc }}\nby {{ .Author }}\n{{ .Task.URL }}"
 }
