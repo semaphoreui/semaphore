@@ -296,7 +296,7 @@ type EnvironmentManager interface {
 }
 
 type GetAccessKeyOptions struct {
-	Type          AccessKeyOwner
+	Owner         AccessKeyOwner
 	EnvironmentID *int
 }
 

@@ -24,7 +24,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		return
 	}
 
-	q = q.Where("pe.owner=?", db.AccessKeyShared)
+	q = q.Where("pe.owner=?", options.Owner)
 
 	query, args, err := q.ToSql()
 

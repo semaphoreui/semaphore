@@ -90,7 +90,7 @@ func runService() {
 	go schedulePool.Run()
 	go taskPool.Run()
 
-	route := api.Route()
+	route := api.Route(store)
 
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

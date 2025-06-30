@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"github.com/semaphoreui/semaphore/services"
 	"net/http"
 	"os"
 	"path"
@@ -74,7 +75,12 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 }
 
 // Route declares all routes
-func Route() *mux.Router {
+func Route(store db.Store) *mux.Router {
+
+	projectService := services.NewProjectService(store, store)
+
+	projectController := &projects.ProjectController{ProjectService: projectService}
+
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
@@ -289,7 +295,7 @@ func Route() *mux.Router {
 	// Updating and deleting project
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanUpdateProject))
-	projectAdminAPI.Methods("PUT").HandlerFunc(projects.UpdateProject)
+	projectAdminAPI.Methods("PUT").HandlerFunc(projectController.UpdateProject)
 	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
 
 	meAPI := authenticatedAPI.Path("/project/{project_id}/me").Subrouter()

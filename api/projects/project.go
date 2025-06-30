@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -60,6 +61,35 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+type ProjectController struct {
+	ProjectService services.ProjectService
+}
+
+func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {
+	project := context.Get(r, "project").(db.Project)
+	var body db.Project
+
+	if !helpers.Bind(w, r, &body) {
+		return
+	}
+
+	if body.ID != project.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Project ID in body and URL must be the same",
+		})
+		return
+	}
+
+	err := c.ProjectService.UpdateProject(project)
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // GetProject returns a project details

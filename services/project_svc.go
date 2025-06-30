@@ -8,24 +8,29 @@ type ProjectService interface {
 	UpdateProject(project db.Project) error
 }
 
-type ProjectServiceImpl struct {
-	store db.Store
-}
-
-func NewProjectService(store db.Store) *ProjectServiceImpl {
+func NewProjectService(
+	projectRepo db.ProjectStore,
+	keyRepo db.AccessKeyManager,
+) ProjectService {
 	return &ProjectServiceImpl{
-		store: store,
+		projectRepo: projectRepo,
+		keyRepo:     keyRepo,
 	}
 }
 
+type ProjectServiceImpl struct {
+	projectRepo db.ProjectStore
+	keyRepo     db.AccessKeyManager
+}
+
 func (s *ProjectServiceImpl) UpdateProject(project db.Project) (err error) {
-	err = s.store.UpdateProject(project)
+	err = s.projectRepo.UpdateProject(project)
 	if err != nil {
 		return
 	}
 
-	keys, err := s.store.GetAccessKeys(project.ID, db.GetAccessKeyOptions{
-		Type: db.AccessKeyVault,
+	keys, err := s.keyRepo.GetAccessKeys(project.ID, db.GetAccessKeyOptions{
+		Owner: db.AccessKeyVault,
 	}, db.RetrieveQueryParams{})
 
 	if err != nil {
@@ -34,7 +39,7 @@ func (s *ProjectServiceImpl) UpdateProject(project db.Project) (err error) {
 
 	if len(keys) == 0 {
 		if project.VaultToken != "" {
-			_, err = s.store.CreateAccessKey(db.AccessKey{
+			_, err = s.keyRepo.CreateAccessKey(db.AccessKey{
 				Type:      db.AccessKeyLoginPassword,
 				ProjectID: &project.ID,
 				Secret:    nil,
@@ -46,11 +51,11 @@ func (s *ProjectServiceImpl) UpdateProject(project db.Project) (err error) {
 	} else {
 		vault := keys[0]
 		if project.VaultToken == "" {
-			err = s.store.DeleteAccessKey(project.ID, vault.ID)
+			err = s.keyRepo.DeleteAccessKey(project.ID, vault.ID)
 		} else {
 			vault.OverrideSecret = true
 			vault.Secret = &project.VaultToken
-			err = s.store.UpdateAccessKey(vault)
+			err = s.keyRepo.UpdateAccessKey(vault)
 		}
 	}
 
