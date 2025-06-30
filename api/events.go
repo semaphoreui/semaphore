@@ -10,7 +10,7 @@ import (
 
 // nolint: gocyclo
 func getEvents(w http.ResponseWriter, r *http.Request, limit int) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 	projectObj, exists := context.GetOk(r, "project")
 
 	var err error

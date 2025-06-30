@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"github.com/gorilla/context"
 	"github.com/pquerna/otp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -257,7 +256,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	context.Set(r, "user", &user)
+	helpers.SetContextValue(r, "user", &user)
 	return true
 }
 
@@ -290,7 +289,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 
 func adminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*db.User)
+		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !user.Admin {
 			w.WriteHeader(http.StatusForbidden)

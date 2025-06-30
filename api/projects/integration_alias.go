@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -33,8 +32,8 @@ func getPublicAliases(aliases []db.IntegrationAlias) (res []publicAlias) {
 }
 
 func GetIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integration, ok := context.Get(r, "integration").(db.Integration)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integration, ok := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var integrationId *int
 	if ok {
@@ -52,8 +51,8 @@ func GetIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integration, ok := context.Get(r, "integration").(db.Integration)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integration, ok := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var integrationId *int
 	if ok {
@@ -75,7 +74,7 @@ func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveIntegrationAlias(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	aliasID, err := helpers.GetIntParam("alias_id", w, r)
 
 	if err != nil {

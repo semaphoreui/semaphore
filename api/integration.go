@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/conv"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"io"
 	"net/http"
 	"strings"
@@ -287,8 +288,10 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		log.Error(err)
 		return
 	}
+	
+	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
-	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	_, err = pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return

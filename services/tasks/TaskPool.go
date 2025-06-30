@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -62,8 +61,6 @@ type TaskPool struct {
 
 	aliases map[string]*TaskRunner
 }
-
-var ErrInvalidSubscription = errors.New("has no active subscription")
 
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.RunningTasks {

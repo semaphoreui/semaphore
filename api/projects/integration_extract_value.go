@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 
 func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	valueId, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
@@ -21,7 +20,7 @@ func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	var value db.IntegrationExtractValue
 	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
 
@@ -36,8 +35,8 @@ func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationExtractValues(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integration := context.Get(r, "integration").(db.Integration)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	values, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, helpers.QueryParams(r.URL), integration.ID)
 
 	if err != nil {
@@ -49,8 +48,8 @@ func GetIntegrationExtractValues(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integration := context.Get(r, "integration").(db.Integration)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var value db.IntegrationExtractValue
 
@@ -83,7 +82,7 @@ func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	valueId, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
@@ -92,7 +91,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var value db.IntegrationExtractValue
 	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
@@ -122,7 +121,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	valueId, err := helpers.GetIntParam("value_id", w, r)
 
 	if err != nil {
@@ -131,7 +130,7 @@ func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	var value db.IntegrationExtractValue
 	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
 	if err != nil {
@@ -149,7 +148,7 @@ func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	valueId, err := helpers.GetIntParam("value_id", w, r)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -157,7 +156,7 @@ func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	if err != nil {
 		log.Error(err)

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"github.com/semaphoreui/semaphore/services"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"net/http"
 	"os"
 	"path"
@@ -75,11 +76,12 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 }
 
 // Route declares all routes
-func Route(store db.Store) *mux.Router {
+func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 
 	projectService := services.NewProjectService(store, store)
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
+	runnerController := runners.NewRunnerController(store, taskPool)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -126,8 +128,8 @@ func Route(store db.Store) *mux.Router {
 
 	runnersAPI := internalAPI.PathPrefix("/runners").Subrouter()
 	runnersAPI.Use(runners.RunnerMiddleware)
-	runnersAPI.Path("").HandlerFunc(runners.GetRunner).Methods("GET", "HEAD")
-	runnersAPI.Path("").HandlerFunc(runners.UpdateRunner).Methods("PUT")
+	runnersAPI.Path("").HandlerFunc(runnerController.GetRunner).Methods("GET", "HEAD")
+	runnersAPI.Path("").HandlerFunc(runnerController.UpdateRunner).Methods("PUT")
 	runnersAPI.Path("").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
@@ -296,7 +298,7 @@ func Route(store db.Store) *mux.Router {
 	projectAdminAPI := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectAdminAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanUpdateProject))
 	projectAdminAPI.Methods("PUT").HandlerFunc(projectController.UpdateProject)
-	projectAdminAPI.Methods("DELETE").HandlerFunc(projects.DeleteProject)
+	projectAdminAPI.Methods("DELETE").HandlerFunc(projectController.DeleteProject)
 
 	meAPI := authenticatedAPI.Path("/project/{project_id}/me").Subrouter()
 	meAPI.Use(projects.ProjectMiddleware)

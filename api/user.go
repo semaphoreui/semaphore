@@ -24,14 +24,14 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		CanCreateProject bool `json:"can_create_project"`
 	}
 
-	user.User = *context.Get(r, "user").(*db.User)
+	user.User = *helpers.GetFromContext(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	tokens, err := helpers.Store(r).GetAPITokens(user.ID)
 	if err != nil {
@@ -47,7 +47,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
@@ -66,7 +66,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	tokenID := mux.Vars(r)["token_id"]
 

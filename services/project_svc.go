@@ -6,6 +6,7 @@ import (
 
 type ProjectService interface {
 	UpdateProject(project db.Project) error
+	DeleteProject(projectID int) error
 }
 
 func NewProjectService(
@@ -21,6 +22,10 @@ func NewProjectService(
 type ProjectServiceImpl struct {
 	projectRepo db.ProjectStore
 	keyRepo     db.AccessKeyManager
+}
+
+func (s *ProjectServiceImpl) DeleteProject(projectID int) error {
+	return s.projectRepo.DeleteProject(projectID)
 }
 
 func (s *ProjectServiceImpl) UpdateProject(project db.Project) (err error) {
