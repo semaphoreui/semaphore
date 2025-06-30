@@ -18,7 +18,7 @@ func (d *BoltDb) GetAccessKeyRefs(projectID int, accessKeyID int) (db.ObjectRefe
 	return d.getObjectRefs(projectID, db.AccessKeyProps, accessKeyID)
 }
 
-func (d *BoltDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
+func (d *BoltDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	var keys []db.AccessKey
 	err := d.getObjects(projectID, db.AccessKeyProps, params, func(i any) bool {
 		k := i.(db.AccessKey)

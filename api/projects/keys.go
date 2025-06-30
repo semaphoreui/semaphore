@@ -53,7 +53,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 	project := context.Get(r, "project").(db.Project)
 	var keys []db.AccessKey
 
-	keys, err := helpers.Store(r).GetAccessKeys(project.ID, helpers.QueryParams(r.URL))
+	keys, err := helpers.Store(r).GetAccessKeys(project.ID, db.GetAccessKeyOptions{}, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)

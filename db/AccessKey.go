@@ -44,6 +44,7 @@ type AccessKey struct {
 	// Secret used internally, do not assign this field.
 	// You should use methods SerializeSecret to fill this field.
 	Secret *string `db:"secret" json:"-" backup:"-"`
+	Plain  *string `db:"plain" json:"plain,omitempty"`
 
 	String         string        `db:"-" json:"string"`
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
@@ -59,7 +60,6 @@ type AccessKey struct {
 	Empty bool `db:"-" json:"empty,omitempty"`
 
 	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty" backup:"owner"`
-	Plain *string        `db:"plain" json:"plain,omitempty"`
 }
 
 type LoginPassword struct {
