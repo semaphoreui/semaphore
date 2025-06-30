@@ -3,7 +3,6 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -14,7 +13,7 @@ import (
 )
 
 func getUser(w http.ResponseWriter, r *http.Request) {
-	if u, exists := context.GetOk(r, "_user"); exists {
+	if u, exists := helpers.GetOkFromContext(r, "_user"); exists {
 		helpers.WriteJSON(w, http.StatusOK, u)
 		return
 	}

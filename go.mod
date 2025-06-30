@@ -11,7 +11,6 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-github v17.0.0+incompatible
-	github.com/gorilla/context v1.1.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/securecookie v1.1.2

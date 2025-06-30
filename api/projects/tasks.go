@@ -4,17 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/gorilla/context"
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
-	log "github.com/sirupsen/logrus"
 )
 
 func taskPool(r *http.Request) *tasks.TaskPool {
@@ -109,7 +107,6 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer context.Clear(r)
 		project := helpers.GetFromContext(r, "project").(db.Project)
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 
