@@ -384,6 +384,7 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	loadConfigEnvironment()
 	loadConfigDefaults()
+	loadClientSecretsFromFiles(Config.OidcProviders)
 
 	fmt.Println("Validating config")
 	validateConfig()
@@ -1193,4 +1194,20 @@ func GenerateRecoveryCode() (code string, hash string, err error) {
 func VerifyRecoveryCode(inputCode, storedHash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(inputCode))
 	return err == nil
+}
+
+func loadClientSecretsFromFiles(providers map[string]OidcProvider) {
+    for key, provider := range providers {
+        path := provider.ClientSecret
+        if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "./") {
+            content, err := os.ReadFile(path)
+            if err == nil {
+                trimmed := strings.TrimSpace(string(content))
+                if trimmed != "" {
+                    provider.ClientSecret = trimmed
+                    providers[key] = provider
+                }
+            }
+        }
+    }
 }
