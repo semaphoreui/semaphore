@@ -6,8 +6,7 @@ update access_key set `owner` = 'environment' where environment_id is not null a
 create table secret_storage (
   id integer primary key autoincrement,
   name varchar(100) not null,
-  type varchar(20) not null,
-  created_at datetime not null
+  type varchar(20) not null
 );
 
 alter table `access_key` add `storage_id` int null references `secret_storage`(`id`);
