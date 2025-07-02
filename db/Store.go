@@ -428,6 +428,13 @@ type EventManager interface {
 	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
 }
 
+type SecretStorageRepository interface {
+	GetSecretStorages(projectID int) ([]SecretStorage, error)
+	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
+	GetSecretStorage(projectID int, storageID int) (SecretStorage, error)
+	UpdateSecretStorage(storage SecretStorage) (SecretStorage, error)
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
