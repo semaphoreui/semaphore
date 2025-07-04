@@ -59,7 +59,11 @@ type AccessKey struct {
 
 	Empty bool `db:"-" json:"empty,omitempty"`
 
-	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty" backup:"owner"`
+	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty"`
+	
+	StorageID        *int    `db:"storage_id" json:"storage_id,omitempty"`
+	LinkedStorageID  *int    `db:"linked_storage_id" json:"linked_storage_id,omitempty"`
+	LinkedStorageKey *string `db:"linked_storage_key" json:"linked_storage_key,omitempty"`
 }
 
 type LoginPassword struct {
