@@ -29,7 +29,7 @@
       </v-tab>
     </v-tabs>
 
-    <v-divider />
+    <v-divider style="margin-top: -1px;" />
   </div>
 </template>
 
