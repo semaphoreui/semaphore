@@ -3,7 +3,6 @@ package db
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 )
 
 type EnvironmentSecretOperation string
@@ -115,44 +114,4 @@ func (env *Environment) Validate() (err error) {
 	}
 
 	return
-}
-
-func FillEnvironmentSecrets(store Store, env *Environment, deserializeSecret bool) error {
-	keys, err := store.GetEnvironmentSecrets(env.ProjectID, env.ID)
-
-	if err != nil {
-		return err
-	}
-
-	for _, k := range keys {
-		var secretName string
-		var secretType EnvironmentSecretType
-
-		if k.Owner == AccessKeyVariable {
-			secretType = EnvironmentSecretVar
-			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretVar)+".")
-		} else if k.Owner == AccessKeyEnvironment {
-			secretType = EnvironmentSecretEnv
-			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretEnv)+".")
-		} else {
-			secretType = EnvironmentSecretVar
-			secretName = k.Name
-		}
-
-		if deserializeSecret {
-			err = k.DeserializeSecret()
-			if err != nil {
-				return err
-			}
-		}
-
-		env.Secrets = append(env.Secrets, EnvironmentSecret{
-			ID:     k.ID,
-			Name:   secretName,
-			Type:   secretType,
-			Secret: k.String,
-		})
-	}
-
-	return nil
 }

@@ -10,13 +10,18 @@ import (
 )
 
 type CmdGitClient struct {
-	keyInstallation db.AccessKeyInstallation
+	keyInstaller AccessKeyInstaller
 }
 
-func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, args ...string) *exec.Cmd {
+func (c CmdGitClient) makeCmd(
+	r GitRepository,
+	targetDir GitRepositoryDirType,
+	installation db.AccessKeyInstallation,
+	args ...string,
+) *exec.Cmd {
 	cmd := exec.Command("git") //nolint: gas
 
-	cmd.Env = append(getEnvironmentVars(), c.keyInstallation.GetGitEnv()...)
+	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
@@ -34,15 +39,15 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 
 func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...string) error {
 	var err error
-	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
+	keyInstallation, err := c.keyInstaller.Install(db.AccessKeyRoleGit, r.Logger)
 
 	if err != nil {
 		return err
 	}
 
-	defer c.keyInstallation.Destroy() //nolint: errcheck
+	defer keyInstallation.Destroy() //nolint: errcheck
 
-	cmd := c.makeCmd(r, targetDir, args...)
+	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
 	r.Logger.LogCmd(cmd)
 
@@ -50,14 +55,14 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
-	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
+	keyInstallation, err := c.keyInstaller.Install(db.AccessKeyRoleGit, r.Logger)
 	if err != nil {
 		return
 	}
 
-	defer c.keyInstallation.Destroy() //nolint: errcheck
+	defer keyInstallation.Destroy() //nolint: errcheck
 
-	bytes, err := c.makeCmd(r, targetDir, args...).Output()
+	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
 		return
 	}

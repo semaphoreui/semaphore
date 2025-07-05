@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services"
 	"net/http"
 )
 
@@ -68,8 +69,18 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 	return nil
 }
 
+type EnvironmentController struct {
+	encryptionService services.AccessKeyEncryptionService
+}
+
+func NewEnvironmentController(encryptionService services.AccessKeyEncryptionService) *EnvironmentController {
+	return &EnvironmentController{
+		encryptionService: encryptionService,
+	}
+}
+
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
-func EnvironmentMiddleware(next http.Handler) http.Handler {
+func (c *EnvironmentController) EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
 		envID, err := helpers.GetIntParam("environment_id", w, r)
@@ -85,7 +96,7 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if err = db.FillEnvironmentSecrets(helpers.Store(r), &env, false); err != nil {
+		if err = c.encryptionService.FillEnvironmentSecrets(&env, false); err != nil {
 			helpers.WriteError(w, err)
 			return
 		}

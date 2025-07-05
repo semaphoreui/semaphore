@@ -24,6 +24,26 @@ type SqlDb struct {
 	sql *gorp.DbMap
 }
 
+func (d *SqlDb) GetSecretStorages(projectID int) ([]db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *SqlDb) CreateSecretStorage(storage db.SecretStorage) (db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *SqlDb) GetSecretStorage(projectID int, storageID int) (db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *SqlDb) UpdateSecretStorage(storage db.SecretStorage) (db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 var initialSQL = `
 create table ` + "`migrations`" + ` (
 	` + "`version`" + ` varchar(255) not null primary key,

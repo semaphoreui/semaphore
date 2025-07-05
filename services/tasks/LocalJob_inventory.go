@@ -12,16 +12,16 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-func (t *LocalJob) installInventory() (err error) {
+func (t *LocalJob) installInventory(keyInstaller db_lib.AccessKeyInstaller) (err error) {
 	if t.Inventory.SSHKeyID != nil {
-		t.sshKeyInstallation, err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser, t.Logger)
+		t.sshKeyInstallation, err = keyInstaller.Install(db.AccessKeyRoleAnsibleUser, t.Logger)
 		if err != nil {
 			return
 		}
 	}
 
 	if t.Inventory.BecomeKeyID != nil {
-		t.becomeKeyInstallation, err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
+		t.becomeKeyInstallation, err = keyInstaller.Install(db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
 		if err != nil {
 			return
 		}

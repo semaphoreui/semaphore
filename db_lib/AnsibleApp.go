@@ -72,7 +72,7 @@ func (t *AnsibleApp) Log(msg string) {
 func (t *AnsibleApp) Clear() {
 }
 
-func (t *AnsibleApp) InstallRequirements(environmentVars []string, tplParams any, params any) error {
+func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}

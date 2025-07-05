@@ -27,7 +27,6 @@ const (
 const (
 	AccessKeyEnvironment AccessKeyOwner = "environment"
 	AccessKeyVariable    AccessKeyOwner = "variable"
-	AccessKeyUser        AccessKeyOwner = "user"
 	AccessKeyVault       AccessKeyOwner = "vault"
 	AccessKeyShared      AccessKeyOwner = ""
 )
@@ -51,6 +50,8 @@ type AccessKey struct {
 	SshKey         SshKey        `db:"-" json:"ssh"`
 	OverrideSecret bool          `db:"-" json:"override_secret"`
 
+	StorageID *int `db:"storage_id" json:"-" backup:"-"`
+
 	// EnvironmentID is an ID of environment which owns the access key.
 	EnvironmentID *int `db:"environment_id" json:"-" backup:"-"`
 
@@ -60,10 +61,11 @@ type AccessKey struct {
 	Empty bool `db:"-" json:"empty,omitempty"`
 
 	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty"`
-	
-	StorageID        *int    `db:"storage_id" json:"storage_id,omitempty"`
-	LinkedStorageID  *int    `db:"linked_storage_id" json:"linked_storage_id,omitempty"`
+
+	LinkedStorageID  *int    `db:"linked_storage_id" json:"linked_storage_id,omitempty" backup:"-"`
 	LinkedStorageKey *string `db:"linked_storage_key" json:"linked_storage_key,omitempty"`
+
+	LinkedStorage *SecretStorage `db:"-" json:"linked_storage,omitempty" backup:"-"`
 }
 
 type LoginPassword struct {
@@ -140,58 +142,6 @@ func (key *AccessKey) startSSHAgent(logger task_logger.Logger) (ssh.Agent, error
 	}
 
 	return sshAgent, sshAgent.Listen()
-}
-
-func (key *AccessKey) Install(usage AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
-
-	if key.Type == AccessKeyNone {
-		return
-	}
-
-	err = key.DeserializeSecret()
-
-	if err != nil {
-		return
-	}
-
-	switch usage {
-	case AccessKeyRoleGit:
-		switch key.Type {
-		case AccessKeySSH:
-			var agent ssh.Agent
-			agent, err = key.startSSHAgent(logger)
-			installation.SSHAgent = &agent
-			installation.Login = key.SshKey.Login
-		}
-	case AccessKeyRoleAnsiblePasswordVault:
-		switch key.Type {
-		case AccessKeyLoginPassword:
-			installation.Password = key.LoginPassword.Password
-		default:
-			err = fmt.Errorf("access key type not supported for ansible password vault")
-		}
-	case AccessKeyRoleAnsibleBecomeUser:
-		if key.Type != AccessKeyLoginPassword {
-			err = fmt.Errorf("access key type not supported for ansible become user")
-		}
-		installation.Login = key.LoginPassword.Login
-		installation.Password = key.LoginPassword.Password
-	case AccessKeyRoleAnsibleUser:
-		switch key.Type {
-		case AccessKeySSH:
-			var agent ssh.Agent
-			agent, err = key.startSSHAgent(logger)
-			installation.SSHAgent = &agent
-			installation.Login = key.SshKey.Login
-		case AccessKeyLoginPassword:
-			installation.Login = key.LoginPassword.Login
-			installation.Password = key.LoginPassword.Password
-		default:
-			err = fmt.Errorf("access key type not supported for ansible user")
-		}
-	}
-
-	return
 }
 
 func (key *AccessKey) Validate(validateSecretFields bool) error {
@@ -294,92 +244,4 @@ func (key *AccessKey) SerializeSecret() error {
 	key.Secret = &secret
 
 	return nil
-}
-
-func (key *AccessKey) unmarshalAppropriateField(secret []byte) (err error) {
-	switch key.Type {
-	case AccessKeyString:
-		key.String = string(secret)
-	case AccessKeySSH:
-		sshKey := SshKey{}
-		err = json.Unmarshal(secret, &sshKey)
-		if err == nil {
-			key.SshKey = sshKey
-		}
-	case AccessKeyLoginPassword:
-		loginPass := LoginPassword{}
-		err = json.Unmarshal(secret, &loginPass)
-		if err == nil {
-			key.LoginPassword = loginPass
-		}
-	}
-	return
-}
-
-func (key *AccessKey) DeserializeSecret() error {
-	return key.DeserializeSecret2(util.Config.AccessKeyEncryption)
-}
-
-func (key *AccessKey) DeserializeSecret2(encryptionString string) error {
-	if key.Secret == nil || *key.Secret == "" {
-		return nil
-	}
-
-	ciphertext := []byte(*key.Secret)
-
-	if ciphertext[len(*key.Secret)-1] == '\n' { // not encrypted private key, used for back compatibility
-		if key.Type != AccessKeySSH {
-			return fmt.Errorf("invalid access key type")
-		}
-		key.SshKey = SshKey{
-			PrivateKey: *key.Secret,
-		}
-		return nil
-	}
-
-	ciphertext, err := base64.StdEncoding.DecodeString(*key.Secret)
-	if err != nil {
-		return err
-	}
-
-	if encryptionString == "" {
-		err = key.unmarshalAppropriateField(ciphertext)
-		if _, ok := err.(*json.SyntaxError); ok {
-			err = fmt.Errorf("secret must be valid json in key '%s'", key.Name)
-		}
-		return err
-	}
-
-	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
-	if err != nil {
-		return err
-	}
-
-	c, err := aes.NewCipher(encryption)
-	if err != nil {
-		return err
-	}
-
-	gcm, err := cipher.NewGCM(c)
-	if err != nil {
-		return err
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return fmt.Errorf("ciphertext too short")
-	}
-
-	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-
-	ciphertext, err = gcm.Open(nil, nonce, ciphertext, nil)
-
-	if err != nil {
-		if err.Error() == "cipher: message authentication failed" {
-			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
-		}
-		return err
-	}
-
-	return key.unmarshalAppropriateField(ciphertext)
 }

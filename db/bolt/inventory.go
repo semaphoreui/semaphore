@@ -7,11 +7,6 @@ import (
 func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
 	err = d.getObject(projectID, db.InventoryProps, intObjectID(inventoryID), &inventory)
 
-	if err != nil {
-		return
-	}
-
-	err = db.FillInventory(d, &inventory)
 	return
 }
 

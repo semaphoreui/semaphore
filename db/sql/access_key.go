@@ -2,7 +2,6 @@ package sql
 
 import (
 	"database/sql"
-	"errors"
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -113,38 +112,38 @@ const RekeyBatchSize = 100
 
 func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
 
-	var globalProps = db.AccessKeyProps
-	globalProps.IsGlobal = true
-
-	for i := 0; ; i++ {
-
-		var keys []db.AccessKey
-		err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
-
-		if err != nil {
-			return
-		}
-
-		if len(keys) == 0 {
-			break
-		}
-
-		for _, key := range keys {
-
-			err = key.DeserializeSecret2(oldKey)
-
-			if err != nil {
-				return err
-			}
-
-			key.OverrideSecret = true
-			err = d.UpdateAccessKey(key)
-
-			if err != nil && !errors.Is(err, db.ErrNotFound) {
-				return err
-			}
-		}
-	}
+	//var globalProps = db.AccessKeyProps
+	//globalProps.IsGlobal = true
+	//
+	//for i := 0; ; i++ {
+	//
+	//	var keys []db.AccessKey
+	//	err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
+	//
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	if len(keys) == 0 {
+	//		break
+	//	}
+	//
+	//	for _, key := range keys {
+	//
+	//		err = key.DeserializeSecret2(oldKey)
+	//
+	//		if err != nil {
+	//			return err
+	//		}
+	//
+	//		key.OverrideSecret = true
+	//		err = d.UpdateAccessKey(key)
+	//
+	//		if err != nil && !errors.Is(err, db.ErrNotFound) {
+	//			return err
+	//		}
+	//	}
+	//}
 
 	return
 }

@@ -1,6 +1,7 @@
 package schedules
 
 import (
+	"github.com/semaphoreui/semaphore/services"
 	"github.com/semaphoreui/semaphore/util"
 	"strconv"
 	"sync"
@@ -14,9 +15,16 @@ import (
 )
 
 type ScheduleRunner struct {
-	projectID  int
-	scheduleID int
-	pool       *SchedulePool
+	projectID         int
+	scheduleID        int
+	pool              *SchedulePool
+	encryptionService services.AccessKeyEncryptionService
+}
+
+func CreateScheduleRunner(encryptionService services.AccessKeyEncryptionService) ScheduleRunner {
+	return ScheduleRunner{
+		encryptionService: encryptionService,
+	}
 }
 
 func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updated bool, err error) {
@@ -25,7 +33,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
-	err = repo.SSHKey.DeserializeSecret()
+	err = r.encryptionService.DeserializeSecret(&repo.SSHKey)
 	if err != nil {
 		return
 	}
@@ -179,7 +187,11 @@ func (p *SchedulePool) Destroy() {
 	p.cron = nil
 }
 
-func CreateSchedulePool(store db.Store, taskPool *tasks.TaskPool) SchedulePool {
+func CreateSchedulePool(
+	store db.Store,
+	taskPool *tasks.TaskPool,
+	
+) SchedulePool {
 	pool := SchedulePool{
 		store:    store,
 		taskPool: taskPool,

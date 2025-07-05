@@ -65,38 +65,3 @@ func (e Inventory) Validate() error {
 
 	return nil
 }
-
-func FillInventory(d Store, inventory *Inventory) (err error) {
-	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
-	}
-
-	if err != nil {
-		return
-	}
-
-	if inventory.BecomeKeyID != nil {
-		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
-	}
-
-	if err != nil {
-		return
-	}
-
-	if inventory.RepositoryID != nil {
-		var repo Repository
-		repo, err = d.GetRepository(inventory.ProjectID, *inventory.RepositoryID)
-		if err != nil {
-			return
-		}
-
-		err = repo.SSHKey.DeserializeSecret()
-		if err != nil {
-			return
-		}
-
-		inventory.Repository = &repo
-	}
-
-	return
-}

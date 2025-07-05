@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/services"
 	"github.com/semaphoreui/semaphore/services/tasks/stage_parsers"
 	"regexp"
 	"slices"
@@ -55,7 +56,9 @@ type TaskPool struct {
 	// logger channel used to putting log records to database.
 	logger chan logRecord
 
-	store db.Store
+	store             db.Store
+	inventoryService  services.InventoryService
+	encryptionService services.AccessKeyEncryptionService
 
 	queueEvents chan PoolEvent
 

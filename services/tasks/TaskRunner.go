@@ -331,8 +331,7 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	err = t.Repository.SSHKey.DeserializeSecret()
-	if err != nil {
+	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
 		return err
 	}
 
@@ -343,7 +342,8 @@ func (t *TaskRunner) populateDetails() error {
 			return err
 		}
 
-		if err = db.FillEnvironmentSecrets(t.pool.store, &t.Environment, true); err != nil {
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
+		if err != nil {
 			return err
 		}
 	}

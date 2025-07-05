@@ -554,7 +554,12 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		environmentVariables = append(environmentVariables, "TF_HTTP_ADDRESS="+util.GetPublicAliasURL("terraform", alias))
 	}
 
-	err = t.prepareRun(environmentVariables, tplParams, params)
+	err = t.prepareRun(db_lib.LocalAppInstallingArgs{
+		EnvironmentVars: environmentVariables,
+		TplParams:       tplParams,
+		Params:          params,
+	})
+
 	if err != nil {
 		return err
 	}
@@ -614,7 +619,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 
 }
 
-func (t *LocalJob) prepareRun(environmentVars []string, tplParams any, params any) error {
+func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
@@ -649,17 +654,17 @@ func (t *LocalJob) prepareRun(environmentVars []string, tplParams any, params an
 		}
 	}
 
-	if err := t.installInventory(); err != nil {
+	if err := t.installInventory(installingArgs.Installer); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
 	}
 
-	if err := t.App.InstallRequirements(environmentVars, tplParams, params); err != nil {
+	if err := t.App.InstallRequirements(installingArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
 		return err
 	}
 
-	if err := t.installVaultKeyFiles(); err != nil {
+	if err := t.installVaultKeyFiles(installingArgs.Installer); err != nil {
 		t.Log("Failed to install vault password files: " + err.Error())
 		return err
 	}
@@ -741,7 +746,7 @@ func (t *LocalJob) checkoutRepository() error {
 	return nil
 }
 
-func (t *LocalJob) installVaultKeyFiles() (err error) {
+func (t *LocalJob) installVaultKeyFiles(keyInstaller db_lib.AccessKeyInstaller) (err error) {
 	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
 
 	if len(t.Template.Vaults) == 0 {
@@ -758,7 +763,7 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 
 		var install db.AccessKeyInstallation
 		if vault.Type == db.TemplateVaultPassword {
-			install, err = vault.Vault.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+			install, err = keyInstaller.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
 			if err != nil {
 				return
 			}

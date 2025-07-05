@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"io"
 	"net/http"
@@ -44,7 +45,17 @@ func hmacHashPayload(secret string, payloadBody []byte) string {
 	return fmt.Sprintf("%x", sum)
 }
 
-func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
+type IntegrationController struct {
+	integrationService services.IntegrationService
+}
+
+func NewIntegrationController(integrationService services.IntegrationService) *IntegrationController {
+	return &IntegrationController{
+		integrationService: integrationService,
+	}
+}
+
+func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -95,7 +106,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			panic("")
 		}
 
-		err = db.FillIntegration(store, &integration)
+		err = c.integrationService.FillIntegration(&integration)
 		if err != nil {
 			log.Error(err)
 			return
@@ -288,7 +299,7 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		log.Error(err)
 		return
 	}
-	
+
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
 	_, err = pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())

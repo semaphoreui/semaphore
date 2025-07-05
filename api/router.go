@@ -79,9 +79,13 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 
 	projectService := services.NewProjectService(store, store)
+	encryptionService := services.NewAccessKeyEncryptionService(store)
+	integrationService := services.NewIntegrationService(store, encryptionService)
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool)
+	integrationController := NewIntegrationController(integrationService)
+	environmentController := projects.NewEnvironmentController(encryptionService)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -134,7 +138,8 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
-	publicWebHookRouter.Path("/integrations/{integration_alias}").HandlerFunc(ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
+	publicWebHookRouter.Path("/integrations/{integration_alias}").HandlerFunc(
+		integrationController.ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
 	terraformWebhookRouter := publicWebHookRouter.PathPrefix("/terraform").Subrouter()
 	terraformWebhookRouter.Use(TerraformInventoryAliasMiddleware)
@@ -361,7 +366,7 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/states/{state_id}", projects.DeleteTerraformInventoryState).Methods("DELETE")
 
 	projectEnvManagement := projectUserAPI.PathPrefix("/environment").Subrouter()
-	projectEnvManagement.Use(projects.EnvironmentMiddleware)
+	projectEnvManagement.Use(environmentController.EnvironmentMiddleware)
 
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.GetEnvironment).Methods("GET", "HEAD")
 	projectEnvManagement.HandleFunc("/{environment_id}/refs", projects.GetEnvironmentRefs).Methods("GET", "HEAD")

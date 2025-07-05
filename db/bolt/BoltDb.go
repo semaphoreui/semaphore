@@ -44,6 +44,26 @@ type BoltDb struct {
 	terraformAlias   publicAlias
 }
 
+func (d *BoltDb) GetSecretStorages(projectID int) ([]db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) CreateSecretStorage(storage db.SecretStorage) (db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetSecretStorage(projectID int, storageID int) (db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) UpdateSecretStorage(storage db.SecretStorage) (db.SecretStorage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 var terraformAliasProps = db.ObjectProps{
 	TableName:         "terraform_alias",
 	Type:              reflect.TypeOf(db.TerraformInventoryAlias{}),

@@ -429,10 +429,10 @@ type EventManager interface {
 }
 
 type SecretStorageRepository interface {
-	GetSecretStorages(projectID int) ([]KeyStorage, error)
-	CreateSecretStorage(storage KeyStorage) (KeyStorage, error)
-	GetSecretStorage(projectID int, storageID int) (KeyStorage, error)
-	UpdateSecretStorage(storage KeyStorage) (KeyStorage, error)
+	GetSecretStorages(projectID int) ([]SecretStorage, error)
+	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
+	GetSecretStorage(projectID int, storageID int) (SecretStorage, error)
+	UpdateSecretStorage(storage SecretStorage) (SecretStorage, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -455,6 +455,7 @@ type Store interface {
 	ViewManager
 	RunnerManager
 	EventManager
+	SecretStorageRepository
 }
 
 var AccessKeyProps = ObjectProps{
