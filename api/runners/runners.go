@@ -11,8 +11,8 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/services"
 	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/services/server_services"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -96,7 +96,7 @@ func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
 type RunnerController struct {
 	runnerRepo        db.RunnerManager
 	taskPool          *tasks.TaskPool
-	encryptionService services.AccessKeyEncryptionService
+	encryptionService server_services.AccessKeyEncryptionService
 }
 
 func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool) *RunnerController {

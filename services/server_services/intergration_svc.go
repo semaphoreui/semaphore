@@ -1,4 +1,4 @@
-package services
+package server_services
 
 import "github.com/semaphoreui/semaphore/db"
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/services"
+	"github.com/semaphoreui/semaphore/services/server_services"
 	"github.com/semaphoreui/semaphore/services/tasks/stage_parsers"
 	"regexp"
 	"slices"
@@ -57,8 +57,8 @@ type TaskPool struct {
 	logger chan logRecord
 
 	store             db.Store
-	inventoryService  services.InventoryService
-	encryptionService services.AccessKeyEncryptionService
+	inventoryService  server_services.InventoryService
+	encryptionService server_services.AccessKeyEncryptionService
 
 	queueEvents chan PoolEvent
 

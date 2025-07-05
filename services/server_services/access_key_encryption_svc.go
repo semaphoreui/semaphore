@@ -1,4 +1,4 @@
-package services
+package server_services
 
 import (
 	"encoding/json"
@@ -41,17 +41,12 @@ func unmarshalAppropriateField(key *db.AccessKey, secret []byte) (err error) {
 	return
 }
 
-func createAccessKeyKeyDeserializer(store db.AccessKeyManager, storage *db.SecretStorage) AccessKeyKeyDeserializer {
-	if storage == nil {
-		return &DatabaseAccessKeyKeyDeserializer{}
+func createAccessKeyDeserializer(store db.AccessKeyManager, key *db.AccessKey) AccessKeyKeyDeserializer {
+	if key.SourceStorageID == nil {
+		return &LocalAccessKeyDeserializer{}
 	}
 
-	switch storage.Type {
-	case db.SecretStorageTypeVault:
-		return &VaultAccessKeyKeyDeserializer{accessKeyRepo: store}
-	}
-
-	panic("createAccessKeyKeyDeserializer not implemented for non-database storage")
+	return &VaultAccessKeyDeserializer{accessKeyRepo: store}
 }
 
 type AccessKeyEncryptionServiceImpl struct {
@@ -60,7 +55,7 @@ type AccessKeyEncryptionServiceImpl struct {
 }
 
 func (s *AccessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
-	deserializer := createAccessKeyKeyDeserializer(s.accessKeyRepo, key.LinkedStorage)
+	deserializer := createAccessKeyDeserializer(s.accessKeyRepo, key)
 
 	ciphertext, err := deserializer.DeserializeSecret(key)
 	if err != nil {

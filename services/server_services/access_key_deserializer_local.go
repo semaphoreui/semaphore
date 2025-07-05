@@ -1,4 +1,4 @@
-package services
+package server_services
 
 import (
 	"crypto/aes"
@@ -11,26 +11,14 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-type AccessKeyKeyDeserializer interface {
-	DeserializeSecret(key *db.AccessKey) (string, error)
+type LocalAccessKeyDeserializer struct {
 }
 
-type VaultAccessKeyKeyDeserializer struct {
-	accessKeyRepo db.AccessKeyManager
-}
-
-func (d *VaultAccessKeyKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
-	return
-}
-
-type DatabaseAccessKeyKeyDeserializer struct {
-}
-
-func (d *DatabaseAccessKeyKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
+func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
 	return d.DeserializeSecret2(key, util.Config.AccessKeyEncryption)
 }
 
-func (d *DatabaseAccessKeyKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
+func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
 	if key.Secret == nil || *key.Secret == "" {
 		return
 	}

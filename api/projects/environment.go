@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services"
+	"github.com/semaphoreui/semaphore/services/server_services"
 	"net/http"
 )
 
@@ -70,10 +70,10 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 }
 
 type EnvironmentController struct {
-	encryptionService services.AccessKeyEncryptionService
+	encryptionService server_services.AccessKeyEncryptionService
 }
 
-func NewEnvironmentController(encryptionService services.AccessKeyEncryptionService) *EnvironmentController {
+func NewEnvironmentController(encryptionService server_services.AccessKeyEncryptionService) *EnvironmentController {
 	return &EnvironmentController{
 		encryptionService: encryptionService,
 	}

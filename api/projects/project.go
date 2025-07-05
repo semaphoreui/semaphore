@@ -4,7 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services"
+	"github.com/semaphoreui/semaphore/services/server_services"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -63,7 +63,7 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 }
 
 type ProjectController struct {
-	ProjectService services.ProjectService
+	ProjectService server_services.ProjectService
 }
 
 func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {

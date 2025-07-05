@@ -10,5 +10,6 @@ create table secret_storage (
 );
 
 alter table `access_key` add `storage_id` int null references `secret_storage`(`id`);
-alter table `access_key` add `linked_storage_id` int null references `secret_storage`(`id`);
-alter table `access_key` add `linked_storage_key` varchar(1000);
+
+alter table `access_key` add `source_storage_id` int null references `secret_storage`(`id`);
+alter table `access_key` add `source_storage_key` varchar(1000);
