@@ -83,14 +83,7 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 }
 
 func (t *AnsibleApp) getRepoPath() string {
-	repo := GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     CreateDefaultGitClient(),
-	}
-
-	return repo.GetFullPath()
+	return t.Repository.GetFullPath(t.Template.ID)
 }
 
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {

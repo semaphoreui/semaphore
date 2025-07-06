@@ -644,11 +644,11 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 			return err
 		}
 	} else {
-		if err := t.updateRepository(); err != nil {
+		if err := t.updateRepository(installingArgs.Installer); err != nil {
 			t.Log("Failed updating repository: " + err.Error())
 			return err
 		}
-		if err := t.checkoutRepository(); err != nil {
+		if err := t.checkoutRepository(installingArgs.Installer); err != nil {
 			t.Log("Failed to checkout repository to required commit: " + err.Error())
 			return err
 		}
@@ -672,12 +672,12 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 	return nil
 }
 
-func (t *LocalJob) updateRepository() error {
+func (t *LocalJob) updateRepository(keyInstaller db_lib.AccessKeyInstaller) error {
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
 	}
 
 	err := repo.ValidateRepo()
@@ -707,13 +707,13 @@ func (t *LocalJob) updateRepository() error {
 	return repo.Clone()
 }
 
-func (t *LocalJob) checkoutRepository() error {
+func (t *LocalJob) checkoutRepository(keyInstaller db_lib.AccessKeyInstaller) error {
 
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
 	}
 
 	err := repo.ValidateRepo()
@@ -763,7 +763,7 @@ func (t *LocalJob) installVaultKeyFiles(keyInstaller db_lib.AccessKeyInstaller) 
 
 		var install db.AccessKeyInstallation
 		if vault.Type == db.TemplateVaultPassword {
-			install, err = keyInstaller.Install(db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+			install, err = keyInstaller.Install(*vault.Vault, db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
 			if err != nil {
 				return
 			}

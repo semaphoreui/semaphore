@@ -2,21 +2,25 @@ package db_lib
 
 import "github.com/semaphoreui/semaphore/util"
 
-func CreateDefaultGitClient() GitClient {
+func CreateDefaultGitClient(keyInstaller AccessKeyInstaller) GitClient {
 	switch util.Config.GitClientId {
 	case util.GoGitClientId:
-		return CreateGoGitClient()
+		return CreateGoGitClient(keyInstaller)
 	case util.CmdGitClientId:
-		return CreateCmdGitClient()
+		return CreateCmdGitClient(keyInstaller)
 	default:
-		return CreateCmdGitClient()
+		return CreateCmdGitClient(keyInstaller)
 	}
 }
 
-func CreateGoGitClient() GitClient {
-	return GoGitClient{}
+func CreateGoGitClient(keyInstaller AccessKeyInstaller) GitClient {
+	return GoGitClient{
+		keyInstaller: keyInstaller,
+	}
 }
 
-func CreateCmdGitClient() GitClient {
-	return CmdGitClient{}
+func CreateCmdGitClient(keyInstaller AccessKeyInstaller) GitClient {
+	return CmdGitClient{
+		keyInstaller: keyInstaller,
+	}
 }

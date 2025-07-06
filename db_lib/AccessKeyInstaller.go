@@ -6,5 +6,5 @@ import (
 )
 
 type AccessKeyInstaller interface {
-	Install(usage db.AccessKeyRole, logger task_logger.Logger) (installation db.AccessKeyInstallation, err error)
+	Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation db.AccessKeyInstallation, err error)
 }

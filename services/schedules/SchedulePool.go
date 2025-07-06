@@ -19,11 +19,16 @@ type ScheduleRunner struct {
 	scheduleID        int
 	pool              *SchedulePool
 	encryptionService server_services.AccessKeyEncryptionService
+	keyInstaller      db_lib.AccessKeyInstaller
 }
 
-func CreateScheduleRunner(encryptionService server_services.AccessKeyEncryptionService) ScheduleRunner {
+func CreateScheduleRunner(
+	encryptionService server_services.AccessKeyEncryptionService,
+	keyInstaller db_lib.AccessKeyInstaller,
+) ScheduleRunner {
 	return ScheduleRunner{
 		encryptionService: encryptionService,
+		keyInstaller:      keyInstaller,
 	}
 }
 
@@ -42,7 +47,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		Logger:     nil,
 		TemplateID: schedule.TemplateID,
 		Repository: repo,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(r.keyInstaller),
 	}.GetLastRemoteCommitHash()
 
 	if err != nil {

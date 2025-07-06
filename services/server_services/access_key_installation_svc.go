@@ -11,14 +11,20 @@ import (
 )
 
 type AccessKeyInstallationService interface {
-	Install(usage db.AccessKeyRole, logger task_logger.Logger) (installation db.AccessKeyInstallation, err error)
+	Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation db.AccessKeyInstallation, err error)
+}
+
+func NewAccessKeyInstallationService(encryptionService AccessKeyEncryptionService) AccessKeyInstallationService {
+	return &AccessKeyInstallationServiceImpl{
+		encryptionService: encryptionService,
+	}
 }
 
 type AccessKeyInstallationServiceImpl struct {
 	encryptionService AccessKeyEncryptionService
 }
 
-func startSSHAgent(key *db.AccessKey, logger task_logger.Logger) (ssh.Agent, error) {
+func startSSHAgent(key db.AccessKey, logger task_logger.Logger) (ssh.Agent, error) {
 
 	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))
 
@@ -44,13 +50,13 @@ func startSSHAgent(key *db.AccessKey, logger task_logger.Logger) (ssh.Agent, err
 	return sshAgent, sshAgent.Listen()
 }
 
-func (s *AccessKeyInstallationServiceImpl) Install(key *db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation db.AccessKeyInstallation, err error) {
+func (s *AccessKeyInstallationServiceImpl) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation db.AccessKeyInstallation, err error) {
 
 	if key.Type == db.AccessKeyNone {
 		return
 	}
 
-	err = s.encryptionService.DeserializeSecret(key)
+	err = s.encryptionService.DeserializeSecret(&key)
 
 	if err != nil {
 		return

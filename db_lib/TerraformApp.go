@@ -107,7 +107,7 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 
 func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams) error {
 
-	keyInstallation, err := keyInstaller.Install(db.AccessKeyRoleGit, t.Logger)
+	keyInstallation, err := keyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
 		return err
 	}

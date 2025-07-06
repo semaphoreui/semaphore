@@ -9,6 +9,7 @@ create table project__secret_storage (
   project_id    int             not null,
   name          varchar(100)    not null,
   type          varchar(20)     not null,
+  url           varchar(255)    not null,
 
   foreign key (`project_id`) references project(`id`) on delete cascade
 );

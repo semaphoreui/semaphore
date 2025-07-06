@@ -42,7 +42,7 @@ func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error
 	switch r.Repository.SSHKey.Type {
 	case db.AccessKeySSH:
 
-		install, err := c.keyInstaller.Install(db.AccessKeyRoleGit, r.Logger)
+		install, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
 		if err != nil {
 			return nil, err
 		}

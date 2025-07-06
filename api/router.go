@@ -80,6 +80,7 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 
 	projectService := server_services.NewProjectService(store, store)
 	encryptionService := server_services.NewAccessKeyEncryptionService(store)
+	accessKeyInstallationService := server_services.NewAccessKeyInstallationService(encryptionService)
 	integrationService := server_services.NewIntegrationService(store, encryptionService)
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
@@ -87,6 +88,7 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 	integrationController := NewIntegrationController(integrationService)
 	environmentController := projects.NewEnvironmentController(encryptionService)
 	secretStorageController := projects.NewSecretStorageController(store)
+	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -352,7 +354,7 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 	projectRepoManagement.HandleFunc("/{repository_id}/refs", projects.GetRepositoryRefs).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
-	projectRepoManagement.HandleFunc("/{repository_id}/branches", projects.GetRepositoryBranches).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/branches", repositoryController.GetRepositoryBranches).Methods("GET", "HEAD")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
