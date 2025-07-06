@@ -557,6 +557,13 @@ var ScheduleProps = ObjectProps{
 	Ownerships:        []*ObjectProps{&ProjectProps},
 }
 
+var SecretStorageProps = ObjectProps{
+	TableName:         "project__secret_storage",
+	Type:              reflect.TypeOf(SecretStorage{}),
+	PrimaryColumnName: "id",
+	Ownerships:        []*ObjectProps{&ProjectProps},
+}
+
 var UserProps = ObjectProps{
 	TableName:         "user",
 	Type:              reflect.TypeOf(User{}),

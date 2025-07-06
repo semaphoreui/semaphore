@@ -86,6 +86,7 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 	runnerController := runners.NewRunnerController(store, taskPool)
 	integrationController := NewIntegrationController(integrationService)
 	environmentController := projects.NewEnvironmentController(encryptionService)
+	secretStorageController := projects.NewSecretStorageController(store)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -257,6 +258,9 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 	projectUserAPI.Path("/keys").HandlerFunc(projects.GetKeys).Methods("GET", "HEAD")
 	projectUserAPI.Path("/keys").HandlerFunc(projects.AddKey).Methods("POST")
 
+	projectUserAPI.Path("/secret-storages").HandlerFunc(secretStorageController.GetSecretStorages).Methods("GET", "HEAD")
+	projectUserAPI.Path("/secret-storages").HandlerFunc(secretStorageController.Add).Methods("POST")
+
 	projectUserAPI.Path("/repositories").HandlerFunc(projects.GetRepositories).Methods("GET", "HEAD")
 	projectUserAPI.Path("/repositories").HandlerFunc(projects.AddRepository).Methods("POST")
 
@@ -336,6 +340,10 @@ func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
 	projectKeyManagement.HandleFunc("/{key_id}/refs", projects.GetKeyRefs).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
+
+	projectSecretStorageManagement := projectUserAPI.PathPrefix("/secret-storages").Subrouter()
+	projectKeyManagement.Use(projects.SecretStorageMiddleware)
+	projectSecretStorageManagement.HandleFunc("/{storage_id}", secretStorageController.GetSecretStorage).Methods("GET", "HEAD")
 
 	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
 	projectRepoManagement.Use(projects.RepositoryMiddleware)

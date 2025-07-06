@@ -25,7 +25,7 @@ import Apps from '../views/Apps.vue';
 import Runners from '../views/Runners.vue';
 import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
-import SecretStorage from '../views/project/SecretStorage.vue';
+import SecretStorage from '../views/project/SecretStorages.vue';
 
 Vue.use(VueRouter);
 

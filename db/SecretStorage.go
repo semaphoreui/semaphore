@@ -8,8 +8,9 @@ const (
 )
 
 type SecretStorage struct {
-	ID   int               `db:"id" json:"id"`
-	Name string            `db:"name" json:"name"`
-	Type SecretStorageType `db:"type" json:"type"`
-	URL  string            `db:"url" json:"url"`
+	ID        int               `db:"id" json:"id"`
+	ProjectID int               `db:"project_id" json:"project_id"`
+	Name      string            `db:"name" json:"name"`
+	Type      SecretStorageType `db:"type" json:"type"`
+	URL       string            `db:"url" json:"url"`
 }

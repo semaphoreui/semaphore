@@ -48,7 +48,7 @@ type AccessKey struct {
 	String         string        `db:"-" json:"string"`
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
-	OverrideSecret bool          `db:"-" json:"override_secret"`
+	OverrideSecret bool          `db:"-" json:"override_secret,omitempty"`
 
 	StorageID *int `db:"storage_id" json:"-" backup:"-"`
 

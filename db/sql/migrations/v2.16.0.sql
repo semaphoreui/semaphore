@@ -3,13 +3,17 @@ alter table `access_key` add `plain` text;
 update access_key set `owner` = 'variable' where environment_id is not null and name like 'var.%';
 update access_key set `owner` = 'environment' where environment_id is not null and name like 'env.%';
 
-create table secret_storage (
+create table project__secret_storage (
   id integer primary key autoincrement,
-  name varchar(100) not null,
-  type varchar(20) not null
+
+  project_id    int             not null,
+  name          varchar(100)    not null,
+  type          varchar(20)     not null,
+
+  foreign key (`project_id`) references project(`id`) on delete cascade
 );
 
-alter table `access_key` add `storage_id` int null references `secret_storage`(`id`);
+alter table `access_key` add `storage_id` int null references `project__secret_storage`(`id`);
 
-alter table `access_key` add `source_storage_id` int null references `secret_storage`(`id`);
+alter table `access_key` add `source_storage_id` int null references `project__secret_storage`(`id`);
 alter table `access_key` add `source_storage_key` varchar(1000);
