@@ -18,7 +18,7 @@ func TestTaskRunnerRun(t *testing.T) {
 
 	store := bolt.CreateTestStore()
 
-	pool := CreateTaskPool(store)
+	pool := CreateTaskPool(store, nil, nil, nil)
 
 	go pool.Run()
 

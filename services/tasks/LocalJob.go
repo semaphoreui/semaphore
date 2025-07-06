@@ -33,6 +33,8 @@ type LocalJob struct {
 	sshKeyInstallation     db.AccessKeyInstallation
 	becomeKeyInstallation  db.AccessKeyInstallation
 	vaultFileInstallations map[string]db.AccessKeyInstallation
+
+	KeyInstaller db_lib.AccessKeyInstaller
 }
 
 func (t *LocalJob) IsKilled() bool {
@@ -558,6 +560,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		EnvironmentVars: environmentVariables,
 		TplParams:       tplParams,
 		Params:          params,
+		Installer:       t.KeyInstaller,
 	})
 
 	if err != nil {
@@ -644,17 +647,17 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 			return err
 		}
 	} else {
-		if err := t.updateRepository(installingArgs.Installer); err != nil {
+		if err := t.updateRepository(); err != nil {
 			t.Log("Failed updating repository: " + err.Error())
 			return err
 		}
-		if err := t.checkoutRepository(installingArgs.Installer); err != nil {
+		if err := t.checkoutRepository(); err != nil {
 			t.Log("Failed to checkout repository to required commit: " + err.Error())
 			return err
 		}
 	}
 
-	if err := t.installInventory(installingArgs.Installer); err != nil {
+	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
 	}
@@ -664,7 +667,7 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		return err
 	}
 
-	if err := t.installVaultKeyFiles(installingArgs.Installer); err != nil {
+	if err := t.installVaultKeyFiles(); err != nil {
 		t.Log("Failed to install vault password files: " + err.Error())
 		return err
 	}
@@ -672,12 +675,12 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 	return nil
 }
 
-func (t *LocalJob) updateRepository(keyInstaller db_lib.AccessKeyInstaller) error {
+func (t *LocalJob) updateRepository() error {
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
+		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
 	}
 
 	err := repo.ValidateRepo()
@@ -707,13 +710,13 @@ func (t *LocalJob) updateRepository(keyInstaller db_lib.AccessKeyInstaller) erro
 	return repo.Clone()
 }
 
-func (t *LocalJob) checkoutRepository(keyInstaller db_lib.AccessKeyInstaller) error {
+func (t *LocalJob) checkoutRepository() error {
 
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
+		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
 	}
 
 	err := repo.ValidateRepo()
@@ -746,7 +749,7 @@ func (t *LocalJob) checkoutRepository(keyInstaller db_lib.AccessKeyInstaller) er
 	return nil
 }
 
-func (t *LocalJob) installVaultKeyFiles(keyInstaller db_lib.AccessKeyInstaller) (err error) {
+func (t *LocalJob) installVaultKeyFiles() (err error) {
 	t.vaultFileInstallations = make(map[string]db.AccessKeyInstallation)
 
 	if len(t.Template.Vaults) == 0 {
@@ -763,7 +766,7 @@ func (t *LocalJob) installVaultKeyFiles(keyInstaller db_lib.AccessKeyInstaller) 
 
 		var install db.AccessKeyInstallation
 		if vault.Type == db.TemplateVaultPassword {
-			install, err = keyInstaller.Install(*vault.Vault, db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
+			install, err = t.KeyInstaller.Install(*vault.Vault, db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
 			if err != nil {
 				return
 			}

@@ -3,7 +3,21 @@ package server_services
 import "github.com/semaphoreui/semaphore/db"
 
 type InventoryService interface {
-	FillInventory(inventory *db.Inventory) (err error)
+	GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error)
+}
+
+func NewInventoryService(
+	accessKeyRepo db.AccessKeyManager,
+	repositoryRepo db.RepositoryManager,
+	inventoryRepo db.InventoryManager,
+	encryptionService AccessKeyEncryptionService,
+) InventoryService {
+	return &InventoryServiceImpl{
+		accessKeyRepo:     accessKeyRepo,
+		repositoryRepo:    repositoryRepo,
+		encryptionService: encryptionService,
+		inventoryRepo:     inventoryRepo,
+	}
 }
 
 type InventoryServiceImpl struct {
@@ -19,11 +33,11 @@ func (s *InventoryServiceImpl) GetInventory(projectID int, inventoryID int) (inv
 		return
 	}
 
-	err = s.FillInventory(&inventory)
+	err = s.fillInventory(&inventory)
 	return
 }
 
-func (s *InventoryServiceImpl) FillInventory(inventory *db.Inventory) (err error) {
+func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error) {
 	if inventory.SSHKeyID != nil {
 		inventory.SSHKey, err = s.accessKeyRepo.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
 	}

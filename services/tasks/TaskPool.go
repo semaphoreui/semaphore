@@ -56,9 +56,10 @@ type TaskPool struct {
 	// logger channel used to putting log records to database.
 	logger chan logRecord
 
-	store             db.Store
-	inventoryService  server_services.InventoryService
-	encryptionService server_services.AccessKeyEncryptionService
+	store                  db.Store
+	inventoryService       server_services.InventoryService
+	encryptionService      server_services.AccessKeyEncryptionService
+	keyInstallationService server_services.AccessKeyInstallationService
 
 	queueEvents chan PoolEvent
 
@@ -388,16 +389,24 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	return res
 }
 
-func CreateTaskPool(store db.Store) TaskPool {
+func CreateTaskPool(
+	store db.Store,
+	inventoryService server_services.InventoryService,
+	encryptionService server_services.AccessKeyEncryptionService,
+	keyInstallationService server_services.AccessKeyInstallationService,
+) TaskPool {
 	return TaskPool{
-		Queue:        make([]*TaskRunner, 0), // queue of waiting tasks
-		register:     make(chan *TaskRunner), // add TaskRunner to queue
-		activeProj:   make(map[int]map[int]*TaskRunner),
-		RunningTasks: make(map[int]*TaskRunner),   // working tasks
-		logger:       make(chan logRecord, 10000), // store log records to database
-		store:        store,
-		queueEvents:  make(chan PoolEvent),
-		aliases:      make(map[string]*TaskRunner),
+		Queue:                  make([]*TaskRunner, 0), // queue of waiting tasks
+		register:               make(chan *TaskRunner), // add TaskRunner to queue
+		activeProj:             make(map[int]map[int]*TaskRunner),
+		RunningTasks:           make(map[int]*TaskRunner),   // working tasks
+		logger:                 make(chan logRecord, 10000), // store log records to database
+		store:                  store,
+		queueEvents:            make(chan PoolEvent),
+		aliases:                make(map[string]*TaskRunner),
+		inventoryService:       inventoryService,
+		encryptionService:      encryptionService,
+		keyInstallationService: keyInstallationService,
 	}
 }
 
@@ -428,10 +437,9 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk := p.GetTask(targetTask.ID)
 	if tsk == nil { // task not active, but exists in database
-		tsk = &TaskRunner{
-			Task: targetTask,
-			pool: p,
-		}
+
+		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
+
 		err := tsk.populateDetails()
 		if err != nil {
 			return err
@@ -572,11 +580,7 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
-	taskRunner := TaskRunner{
-		Task:     newTask,
-		pool:     p,
-		Username: username,
-	}
+	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
 
 	if needAlias {
 		// A unique, randomly-generated identifier that persists throughout the task's lifecycle.
@@ -611,23 +615,24 @@ func (p *TaskPool) AddTask(
 			taskRunner.Template,
 			taskRunner.Repository,
 			taskRunner.Inventory,
-			&taskRunner)
+			taskRunner)
 
 		job = &LocalJob{
-			Task:        taskRunner.Task,
-			Template:    taskRunner.Template,
-			Inventory:   taskRunner.Inventory,
-			Repository:  taskRunner.Repository,
-			Environment: taskRunner.Environment,
-			Secret:      extraSecretVars,
-			Logger:      app.SetLogger(&taskRunner),
-			App:         app,
+			Task:         taskRunner.Task,
+			Template:     taskRunner.Template,
+			Inventory:    taskRunner.Inventory,
+			Repository:   taskRunner.Repository,
+			Environment:  taskRunner.Environment,
+			Secret:       extraSecretVars,
+			Logger:       app.SetLogger(taskRunner),
+			App:          app,
+			KeyInstaller: p.keyInstallationService,
 		}
 	}
 
 	taskRunner.job = job
 
-	p.register <- &taskRunner
+	p.register <- taskRunner
 
 	taskRunner.createTaskEvent()
 

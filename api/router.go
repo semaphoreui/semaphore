@@ -76,12 +76,14 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 }
 
 // Route declares all routes
-func Route(store db.Store, taskPool *task2.TaskPool) *mux.Router {
-
-	projectService := server_services.NewProjectService(store, store)
-	encryptionService := server_services.NewAccessKeyEncryptionService(store)
-	accessKeyInstallationService := server_services.NewAccessKeyInstallationService(encryptionService)
-	integrationService := server_services.NewIntegrationService(store, encryptionService)
+func Route(
+	store db.Store,
+	taskPool *task2.TaskPool,
+	projectService server_services.ProjectService,
+	integrationService server_services.IntegrationService,
+	encryptionService server_services.AccessKeyEncryptionService,
+	accessKeyInstallationService server_services.AccessKeyInstallationService,
+) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool)

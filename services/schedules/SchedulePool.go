@@ -23,10 +23,16 @@ type ScheduleRunner struct {
 }
 
 func CreateScheduleRunner(
+	projectID int,
+	scheduleID int,
+	pool *SchedulePool,
 	encryptionService server_services.AccessKeyEncryptionService,
 	keyInstaller db_lib.AccessKeyInstaller,
 ) ScheduleRunner {
 	return ScheduleRunner{
+		projectID:         projectID,
+		scheduleID:        scheduleID,
+		pool:              pool,
 		encryptionService: encryptionService,
 		keyInstaller:      keyInstaller,
 	}
@@ -116,10 +122,12 @@ func (r ScheduleRunner) Run() {
 }
 
 type SchedulePool struct {
-	cron     *cron.Cron
-	locker   sync.Locker
-	store    db.Store
-	taskPool *tasks.TaskPool
+	cron              *cron.Cron
+	locker            sync.Locker
+	store             db.Store
+	taskPool          *tasks.TaskPool
+	encryptionService server_services.AccessKeyEncryptionService
+	keyInstaller      db_lib.AccessKeyInstaller
 }
 
 func (p *SchedulePool) init() {
@@ -148,11 +156,13 @@ func (p *SchedulePool) Refresh() {
 			continue
 		}
 
-		_, err = p.addRunner(ScheduleRunner{
-			projectID:  schedule.ProjectID,
-			scheduleID: schedule.ID,
-			pool:       p,
-		}, schedule.CronFormat)
+		_, err = p.addRunner(CreateScheduleRunner(
+			schedule.ProjectID,
+			schedule.ID,
+			p,
+			p.encryptionService,
+			p.keyInstaller,
+		), schedule.CronFormat)
 
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
@@ -195,11 +205,12 @@ func (p *SchedulePool) Destroy() {
 func CreateSchedulePool(
 	store db.Store,
 	taskPool *tasks.TaskPool,
-
+	keyInstaller db_lib.AccessKeyInstaller,
 ) SchedulePool {
 	pool := SchedulePool{
-		store:    store,
-		taskPool: taskPool,
+		store:        store,
+		taskPool:     taskPool,
+		keyInstaller: keyInstaller,
 	}
 	pool.init()
 	pool.Refresh()

@@ -15,9 +15,11 @@ type AccessKeyEncryptionService interface {
 
 func NewAccessKeyEncryptionService(
 	accessKeyRepo db.AccessKeyManager,
+	environmentRepo db.EnvironmentManager,
 ) AccessKeyEncryptionService {
 	return &AccessKeyEncryptionServiceImpl{
-		accessKeyRepo: accessKeyRepo,
+		accessKeyRepo:   accessKeyRepo,
+		environmentRepo: environmentRepo,
 	}
 }
 

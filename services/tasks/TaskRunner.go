@@ -3,6 +3,7 @@ package tasks
 import (
 	"encoding/json"
 	"errors"
+	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 	"os"
@@ -34,10 +35,11 @@ type TaskRunner struct {
 	currentOutput *db.TaskOutput
 	currentState  any
 
-	users     []int
-	alert     bool
-	alertChat *string
-	pool      *TaskPool
+	users        []int
+	alert        bool
+	alertChat    *string
+	pool         *TaskPool
+	keyInstaller db_lib.AccessKeyInstaller
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -54,6 +56,20 @@ type TaskRunner struct {
 	Alias string
 
 	logWG sync.WaitGroup
+}
+
+func NewTaskRunner(
+	newTask db.Task,
+	p *TaskPool,
+	username string,
+	keyInstaller db_lib.AccessKeyInstaller,
+) *TaskRunner {
+	return &TaskRunner{
+		Task:         newTask,
+		pool:         p,
+		Username:     username,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
@@ -306,10 +322,10 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	if canOverrideInventory && t.Task.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
+		t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
 			if t.Template.InventoryID != nil {
-				t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+				t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 				if err != nil {
 					return t.prepareError(err, "Template Inventory not found!")
 				}
@@ -317,7 +333,7 @@ func (t *TaskRunner) populateDetails() error {
 		}
 	} else {
 		if t.Template.InventoryID != nil {
-			t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+			t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 			if err != nil {
 				return t.prepareError(err, "Template Inventory not found!")
 			}
