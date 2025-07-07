@@ -13,5 +13,4 @@ type Project struct {
 	AlertChat        *string   `db:"alert_chat" json:"alert_chat,omitempty"`
 	MaxParallelTasks int       `db:"max_parallel_tasks" json:"max_parallel_tasks,omitempty"`
 	Type             string    `db:"type" json:"type"`
-	VaultToken       string    `db:"-" json:"vault_token,omitempty" backup:"-"`
 }

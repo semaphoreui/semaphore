@@ -101,15 +101,17 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			"secret, "+
 			"environment_id, "+
 			"owner, "+
+			"storage_id, "+
 			"source_storage_id, "+
 			"source_storage_key) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?)",
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
 		key.Secret,
 		key.EnvironmentID,
 		key.Owner,
+		key.StorageID,
 		key.SourceStorageID,
 		key.SourceStorageKey,
 	)

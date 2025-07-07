@@ -83,13 +83,14 @@ func Route(
 	integrationService server_services.IntegrationService,
 	encryptionService server_services.AccessKeyEncryptionService,
 	accessKeyInstallationService server_services.AccessKeyInstallationService,
+	secretStorageService server_services.SecretStorageService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool)
 	integrationController := NewIntegrationController(integrationService)
 	environmentController := projects.NewEnvironmentController(encryptionService)
-	secretStorageController := projects.NewSecretStorageController(store)
+	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
 
 	r := mux.NewRouter()

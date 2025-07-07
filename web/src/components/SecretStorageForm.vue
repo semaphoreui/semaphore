@@ -34,6 +34,16 @@
       dense
     />
 
+    <v-text-field
+      v-model="item.vault_token"
+      :label="$t('Hashicorp Vault Token')"
+      :disabled="formSaving"
+      data-testid="secretStorage-vaultToken"
+      outlined
+      dense
+      append-icon="mdi-lock"
+    ></v-text-field>
+
   </v-form>
 </template>
 <script>

@@ -15,6 +15,8 @@ type SecretStorage struct {
 	Name      string            `db:"name" json:"name"`
 	Type      SecretStorageType `db:"type" json:"type"`
 	Params    MapStringAnyField `db:"params" json:"params"`
+
+	VaultToken string `db:"-" json:"vault_token,omitempty" backup:"-"`
 }
 
 type VaultSecretStorageParams struct {
