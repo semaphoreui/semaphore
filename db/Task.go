@@ -80,7 +80,7 @@ type Task struct {
 	Limit string `db:"-" json:"limit"`
 }
 
-func (task *Task) FillParams(target any) (err error) {
+func (task *Task) ExtractParams(target any) (err error) {
 	content, err := json.Marshal(task.Params)
 	if err != nil {
 		return
@@ -170,7 +170,7 @@ func (task *Task) ValidateNewTask(template Template) error {
 		params = &DefaultTaskParams{}
 	}
 
-	return task.FillParams(params)
+	return task.ExtractParams(params)
 }
 
 func (task *TaskWithTpl) Fill(d Store) error {

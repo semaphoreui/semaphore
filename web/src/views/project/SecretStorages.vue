@@ -1,5 +1,23 @@
 <template>
   <div v-if="items != null">
+    <EditDialog
+      v-model="editDialog"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Storage`"
+      :max-width="450"
+      @save="loadItems()"
+    >
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <SecretStorageForm
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
 
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
@@ -8,6 +26,7 @@
       <v-btn
         color="primary"
         @click="editItem('new')"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
       >New Storage
       </v-btn>
     </v-toolbar>
@@ -48,7 +67,8 @@
           small
           style="font-weight: bold;"
           class="ml-2"
-        >{{ $t('empty') }}</v-chip>
+        >{{ $t('empty') }}
+        </v-chip>
       </template>
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>
@@ -74,8 +94,10 @@
 
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
+import SecretStorageForm from '@/components/SecretStorageForm.vue';
 
 export default {
+  components: { SecretStorageForm },
   mixins: [ItemListPageBase],
   methods: {
     getHeaders() {

@@ -65,10 +65,15 @@ func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res s
 		return
 	}
 
+	var vaultParams db.VaultSecretStorageParams
+	if err = storage.ExtractParams(&vaultParams); err != nil {
+		return
+	}
+
 	ctx := context.TODO()
 
 	client, err := vault.New(
-		vault.WithAddress(storage.URL),
+		vault.WithAddress(vaultParams.URL),
 		vault.WithRequestTimeout(30*time.Second),
 	)
 

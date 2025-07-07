@@ -414,6 +414,11 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
+	refs.AccessKeys, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.AccessKeyProps)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -442,6 +447,13 @@ func (d *SqlDb) getObjectRefsFrom(
 
 	if cond == "" {
 		return
+	}
+
+	cond = "(" + cond + ")"
+
+	// do not check access keys which belong to the owner.
+	if referringObjectProps.Type == db.AccessKeyProps.Type {
+		cond += " and owner = ''"
 	}
 
 	var referringObjects reflect.Value

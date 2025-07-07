@@ -65,6 +65,7 @@ type ObjectReferrers struct {
 	Repositories []ObjectReferrer `json:"repositories"`
 	Integrations []ObjectReferrer `json:"integrations"`
 	Schedules    []ObjectReferrer `json:"schedules"`
+	AccessKeys   []ObjectReferrer `json:"access_keys"`
 }
 
 type IntegrationReferrers struct {
@@ -433,7 +434,8 @@ type SecretStorageRepository interface {
 	GetSecretStorages(projectID int) ([]SecretStorage, error)
 	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
 	GetSecretStorage(projectID int, storageID int) (SecretStorage, error)
-	UpdateSecretStorage(storage SecretStorage) (SecretStorage, error)
+	UpdateSecretStorage(storage SecretStorage) error
+	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -558,10 +560,11 @@ var ScheduleProps = ObjectProps{
 }
 
 var SecretStorageProps = ObjectProps{
-	TableName:         "project__secret_storage",
-	Type:              reflect.TypeOf(SecretStorage{}),
-	PrimaryColumnName: "id",
-	Ownerships:        []*ObjectProps{&ProjectProps},
+	TableName:             "project__secret_storage",
+	ReferringColumnSuffix: "storage_id",
+	Type:                  reflect.TypeOf(SecretStorage{}),
+	PrimaryColumnName:     "id",
+	Ownerships:            []*ObjectProps{&ProjectProps},
 }
 
 var UserProps = ObjectProps{
@@ -644,6 +647,11 @@ var UserTotpProps = ObjectProps{
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
+	if p.ReferringColumnSuffix == "" {
+		err = errors.New("referring column suffix is not set")
+		return
+	}
+
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		if !strings.HasSuffix(t.Field(i).Tag.Get("db"), p.ReferringColumnSuffix) {

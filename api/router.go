@@ -348,6 +348,8 @@ func Route(
 	projectSecretStorageManagement := projectUserAPI.PathPrefix("/secret_storages").Subrouter()
 	projectSecretStorageManagement.Use(projects.SecretStorageMiddleware)
 	projectSecretStorageManagement.HandleFunc("/{storage_id}", secretStorageController.GetSecretStorage).Methods("GET", "HEAD")
+	projectSecretStorageManagement.HandleFunc("/{storage_id}/refs", secretStorageController.GetRefs).Methods("GET", "HEAD")
+	projectSecretStorageManagement.HandleFunc("/{storage_id}", secretStorageController.Update).Methods("PUT")
 
 	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
 	projectRepoManagement.Use(projects.RepositoryMiddleware)

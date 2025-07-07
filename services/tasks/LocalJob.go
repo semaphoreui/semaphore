@@ -240,7 +240,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 	}
 
 	var params db.TerraformTaskParams
-	err = t.Task.FillParams(&params)
+	err = t.Task.ExtractParams(&params)
 	if err != nil {
 		return
 	}
@@ -352,7 +352,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 
 	var params db.AnsibleTaskParams
 
-	err = t.Task.FillParams(&params)
+	err = t.Task.ExtractParams(&params)
 	if err != nil {
 		return
 	}
@@ -518,7 +518,7 @@ func (t *LocalJob) getParams() (params any, err error) {
 		params = &db.DefaultTaskParams{}
 	}
 
-	err = t.Task.FillParams(params)
+	err = t.Task.ExtractParams(params)
 
 	if err != nil {
 		return

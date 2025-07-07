@@ -1,5 +1,7 @@
 package db
 
+import "encoding/json"
+
 type SecretStorageType string
 
 const (
@@ -12,5 +14,26 @@ type SecretStorage struct {
 	ProjectID int               `db:"project_id" json:"project_id"`
 	Name      string            `db:"name" json:"name"`
 	Type      SecretStorageType `db:"type" json:"type"`
-	URL       string            `db:"url" json:"url"`
+	Params    MapStringAnyField `db:"params" json:"params"`
+}
+
+type VaultSecretStorageParams struct {
+	URL string `json:"url"`
+}
+
+func (s *SecretStorage) ExtractParams(target any) (err error) {
+	content, err := json.Marshal(s.Params)
+	if err != nil {
+		return
+	}
+
+	switch target.(type) {
+	case *VaultSecretStorageParams:
+	default:
+		err = &ValidationError{"invalid target type for extracting VaultSecretStorageParams"}
+		return
+	}
+
+	err = json.Unmarshal(content, target)
+	return
 }

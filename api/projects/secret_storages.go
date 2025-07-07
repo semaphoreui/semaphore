@@ -37,6 +37,17 @@ func NewSecretStorageController(secretRepo db.SecretStorageRepository) *SecretSt
 	}
 }
 
+func (c *SecretStorageController) GetRefs(w http.ResponseWriter, r *http.Request) {
+	key := helpers.GetFromContext(r, "secretStorage").(db.SecretStorage)
+	refs, err := helpers.Store(r).GetSecretStorageRefs(key.ProjectID, key.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
+}
+
 func (c *SecretStorageController) GetSecretStorages(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	storages, err := c.secretRepo.GetSecretStorages(project.ID)
@@ -48,13 +59,48 @@ func (c *SecretStorageController) GetSecretStorages(w http.ResponseWriter, r *ht
 }
 
 func (c *SecretStorageController) GetSecretStorage(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	storages, err := c.secretRepo.GetSecretStorages(project.ID)
-	if err != nil {
-		helpers.WriteError(w, err)
+	storage := helpers.GetFromContext(r, "secretStorage").(db.SecretStorage)
+
+	helpers.WriteJSON(w, http.StatusOK, storage)
+}
+
+func (c *SecretStorageController) Update(w http.ResponseWriter, r *http.Request) {
+	oldStorage := helpers.GetFromContext(r, "secretStorage").(db.SecretStorage)
+
+	var storage db.SecretStorage
+	if !helpers.Bind(w, r, &storage) {
+		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, storages)
+	if storage.ID != oldStorage.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Secret storage id in URL and in body must be the same",
+		})
+		return
+	}
+
+	if storage.ProjectID != oldStorage.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "You can not move secret storage to other project",
+		})
+		return
+	}
+
+	err := helpers.Store(r).UpdateSecretStorage(storage)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldStorage.ProjectID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    oldStorage.ID,
+		Description: fmt.Sprintf("Secret storage with ID %d has been updated", storage.ID),
+	})
+
+	helpers.WriteJSON(w, http.StatusOK, storage)
 }
 
 func (c *SecretStorageController) Add(w http.ResponseWriter, r *http.Request) {
