@@ -16,10 +16,12 @@ type AccessKeyEncryptionService interface {
 func NewAccessKeyEncryptionService(
 	accessKeyRepo db.AccessKeyManager,
 	environmentRepo db.EnvironmentManager,
+	secretStorageRepo db.SecretStorageRepository,
 ) AccessKeyEncryptionService {
-	return &AccessKeyEncryptionServiceImpl{
-		accessKeyRepo:   accessKeyRepo,
-		environmentRepo: environmentRepo,
+	return &accessKeyEncryptionServiceImpl{
+		accessKeyRepo:     accessKeyRepo,
+		environmentRepo:   environmentRepo,
+		secretStorageRepo: secretStorageRepo,
 	}
 }
 
@@ -43,21 +45,27 @@ func unmarshalAppropriateField(key *db.AccessKey, secret []byte) (err error) {
 	return
 }
 
-func createAccessKeyDeserializer(store db.AccessKeyManager, key *db.AccessKey) AccessKeyKeyDeserializer {
+func createAccessKeyDeserializer(
+	keyRepo db.AccessKeyManager,
+	storageRepo db.SecretStorageRepository,
+	key *db.AccessKey,
+	encryptionService AccessKeyEncryptionService,
+) AccessKeyKeyDeserializer {
 	if key.SourceStorageID == nil {
 		return &LocalAccessKeyDeserializer{}
 	}
 
-	return &VaultAccessKeyDeserializer{accessKeyRepo: store}
+	return NewVaultAccessKeyDeserializer(keyRepo, storageRepo, encryptionService)
 }
 
-type AccessKeyEncryptionServiceImpl struct {
-	accessKeyRepo   db.AccessKeyManager
-	environmentRepo db.EnvironmentManager
+type accessKeyEncryptionServiceImpl struct {
+	accessKeyRepo     db.AccessKeyManager
+	environmentRepo   db.EnvironmentManager
+	secretStorageRepo db.SecretStorageRepository
 }
 
-func (s *AccessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
-	deserializer := createAccessKeyDeserializer(s.accessKeyRepo, key)
+func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
+	deserializer := createAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, key, s)
 
 	ciphertext, err := deserializer.DeserializeSecret(key)
 	if err != nil {
@@ -67,7 +75,7 @@ func (s *AccessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) er
 	return unmarshalAppropriateField(key, []byte(ciphertext))
 }
 
-func (s *AccessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error {
+func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error {
 	keys, err := s.environmentRepo.GetEnvironmentSecrets(env.ProjectID, env.ID)
 
 	if err != nil {
@@ -107,7 +115,7 @@ func (s *AccessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environm
 	return nil
 }
 
-func (s *AccessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err error) {
+func (s *accessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err error) {
 
 	//var globalProps = db.AccessKeyProps
 	//globalProps.IsGlobal = true

@@ -8,12 +8,9 @@
             list-item-two-line,
             list-item-two-line,
             list-item-two-line,
-<<<<<<< HEAD
             list-item-two-line,
             list-item-two-line,
             list-item-two-line,
-=======
->>>>>>> inventory_runner
             list-item-two-line"
   ></v-skeleton-loader>
   <v-form

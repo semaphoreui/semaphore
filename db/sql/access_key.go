@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -24,6 +25,13 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 	}
 
 	q = q.Where("pe.owner=?", options.Owner)
+
+	switch options.Owner {
+	case db.AccessKeyVariable, db.AccessKeyEnvironment:
+		q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
+	case db.AccessKeyVault:
+		q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
+	}
 
 	query, args, err := q.ToSql()
 
@@ -86,13 +94,24 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 
 	insertID, err := d.insert(
 		"id",
-		"insert into access_key (name, type, project_id, secret, environment_id, owner) values (?, ?, ?, ?, ?, ?)",
+		"insert into access_key ("+
+			"name, "+
+			"type, "+
+			"project_id, "+
+			"secret, "+
+			"environment_id, "+
+			"owner, "+
+			"source_storage_id, "+
+			"source_storage_key) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
 		key.Secret,
 		key.EnvironmentID,
 		key.Owner,
+		key.SourceStorageID,
+		key.SourceStorageKey,
 	)
 
 	if err != nil {

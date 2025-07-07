@@ -71,7 +71,7 @@ func runService() {
 	store := createStore("root")
 
 	projectService := server_services.NewProjectService(store, store)
-	encryptionService := server_services.NewAccessKeyEncryptionService(store, store)
+	encryptionService := server_services.NewAccessKeyEncryptionService(store, store, store)
 	accessKeyInstallationService := server_services.NewAccessKeyInstallationService(encryptionService)
 	integrationService := server_services.NewIntegrationService(store, encryptionService)
 	inventoryService := server_services.NewInventoryService(

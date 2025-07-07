@@ -262,8 +262,8 @@ func Route(
 	projectUserAPI.Path("/keys").HandlerFunc(projects.GetKeys).Methods("GET", "HEAD")
 	projectUserAPI.Path("/keys").HandlerFunc(projects.AddKey).Methods("POST")
 
-	projectUserAPI.Path("/secret-storages").HandlerFunc(secretStorageController.GetSecretStorages).Methods("GET", "HEAD")
-	projectUserAPI.Path("/secret-storages").HandlerFunc(secretStorageController.Add).Methods("POST")
+	projectUserAPI.Path("/secret_storages").HandlerFunc(secretStorageController.GetSecretStorages).Methods("GET", "HEAD")
+	projectUserAPI.Path("/secret_storages").HandlerFunc(secretStorageController.Add).Methods("POST")
 
 	projectUserAPI.Path("/repositories").HandlerFunc(projects.GetRepositories).Methods("GET", "HEAD")
 	projectUserAPI.Path("/repositories").HandlerFunc(projects.AddRepository).Methods("POST")
@@ -345,7 +345,7 @@ func Route(
 	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
-	projectSecretStorageManagement := projectUserAPI.PathPrefix("/secret-storages").Subrouter()
+	projectSecretStorageManagement := projectUserAPI.PathPrefix("/secret_storages").Subrouter()
 	projectSecretStorageManagement.Use(projects.SecretStorageMiddleware)
 	projectSecretStorageManagement.HandleFunc("/{storage_id}", secretStorageController.GetSecretStorage).Methods("GET", "HEAD")
 

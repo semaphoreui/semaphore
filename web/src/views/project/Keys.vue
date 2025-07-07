@@ -56,7 +56,7 @@
 
       <v-tab
         key="storages"
-        :to="`/project/${projectId}/secret-storages`"
+        :to="`/project/${projectId}/secret_storages`"
         data-testid="keystore-storages"
       >
         Storages

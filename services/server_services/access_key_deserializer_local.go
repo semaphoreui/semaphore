@@ -14,6 +14,10 @@ import (
 type LocalAccessKeyDeserializer struct {
 }
 
+func NewLocalAccessKeyDeserializer() *LocalAccessKeyDeserializer {
+	return &LocalAccessKeyDeserializer{}
+}
+
 func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
 	return d.DeserializeSecret2(key, util.Config.AccessKeyEncryption)
 }

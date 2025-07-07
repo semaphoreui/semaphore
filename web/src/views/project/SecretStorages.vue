@@ -23,7 +23,7 @@
 
       <v-tab
         key="storages"
-        :to="`/project/${projectId}/secret-storages`"
+        :to="`/project/${projectId}/secret_storages`"
         data-testid="keystore-storages"
       >
         Storages
@@ -97,10 +97,10 @@ export default {
       ];
     },
     getItemsUrl() {
-      return `/api/project/${this.projectId}/secret-storages`;
+      return `/api/project/${this.projectId}/secret_storages`;
     },
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/secret-storages/${this.itemId}`;
+      return `/api/project/${this.projectId}/secret_storages/${this.itemId}`;
     },
     getEventName() {
       return 'i-secret-storage';

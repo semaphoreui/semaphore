@@ -43,7 +43,7 @@ const routes = [
     redirect: '/project/:projectId/history',
   },
   {
-    path: '/project/:projectId/secret-storages',
+    path: '/project/:projectId/secret_storages',
     component: SecretStorage,
   },
   {

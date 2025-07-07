@@ -15,6 +15,18 @@ type VaultAccessKeyDeserializer struct {
 	encryptionService AccessKeyEncryptionService
 }
 
+func NewVaultAccessKeyDeserializer(
+	accessKeyRepo db.AccessKeyManager,
+	secretStorageRepo db.SecretStorageRepository,
+	encryptionService AccessKeyEncryptionService,
+) *VaultAccessKeyDeserializer {
+	return &VaultAccessKeyDeserializer{
+		accessKeyRepo:     accessKeyRepo,
+		secretStorageRepo: secretStorageRepo,
+		encryptionService: encryptionService,
+	}
+}
+
 func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
 
 	if key.SourceStorageID == nil || key.SourceStorageKey == nil {
