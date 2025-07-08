@@ -23,6 +23,27 @@
     />
 
     <v-select
+      v-model="item.source_storage_id"
+      :label="$t('Storage (optional)')"
+      :items="secretStorages"
+      item-value="id"
+      item-text="name"
+      :disabled="formSaving || !canEditSecrets"
+      outlined
+      dense
+      clearable
+    />
+
+    <v-text-field
+      v-if="item.source_storage_id != null"
+      v-model="item.source_storage_key"
+      :label="$t('Source Key')"
+      :disabled="formSaving || !canEditSecrets"
+      outlined
+      dense
+    />
+
+    <v-select
         v-model="item.type"
         :label="$t('type')"
         :rules="[v => (!!v || !canEditSecrets) || $t('type_required')]"
@@ -33,27 +54,6 @@
         :disabled="formSaving || !canEditSecrets"
         outlined
         dense
-    />
-
-    <v-select
-      v-model="item.source_storage_id"
-      :label="$t('storage')"
-      :rules="[v => (!!v || !canEditSecrets) || $t('type_required')]"
-      :items="secretStorages"
-      item-value="id"
-      item-text="name"
-      :required="canEditSecrets"
-      :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
-    />
-
-    <v-text-field
-      v-model="item.source_storage_key"
-      :label="$t('Source Key')"
-      :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
     />
 
     <v-text-field
