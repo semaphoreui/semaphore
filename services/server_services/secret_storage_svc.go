@@ -9,17 +9,17 @@ type SecretStorageService interface {
 
 func NewSecretStorageService(
 	secretStorageRepo db.SecretStorageRepository,
-	keyRepo db.AccessKeyManager,
+	accessKeyService AccessKeyService,
 ) SecretStorageService {
 	return &SecretStorageServiceImpl{
 		secretStorageRepo: secretStorageRepo,
-		keyRepo:           keyRepo,
+		accessKeyService:  accessKeyService,
 	}
 }
 
 type SecretStorageServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
-	keyRepo           db.AccessKeyManager
+	accessKeyService  AccessKeyService
 }
 
 func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int) (res db.SecretStorage, err error) {
@@ -32,7 +32,7 @@ func (s *SecretStorageServiceImpl) UpdateSecretStorage(storage db.SecretStorage)
 		return
 	}
 
-	keys, err := s.keyRepo.GetAccessKeys(storage.ProjectID, db.GetAccessKeyOptions{
+	keys, err := s.accessKeyService.GetAccessKeys(storage.ProjectID, db.GetAccessKeyOptions{
 		Owner:     db.AccessKeyVault,
 		StorageID: &storage.ID,
 	}, db.RetrieveQueryParams{})
@@ -43,7 +43,7 @@ func (s *SecretStorageServiceImpl) UpdateSecretStorage(storage db.SecretStorage)
 
 	if len(keys) == 0 {
 		if storage.VaultToken != "" {
-			_, err = s.keyRepo.CreateAccessKey(db.AccessKey{
+			_, err = s.accessKeyService.CreateAccessKey(db.AccessKey{
 				Type:      db.AccessKeyString,
 				ProjectID: &storage.ProjectID,
 				Secret:    nil,
@@ -63,7 +63,7 @@ func (s *SecretStorageServiceImpl) UpdateSecretStorage(storage db.SecretStorage)
 		} else {
 			vault.OverrideSecret = true
 			vault.String = storage.VaultToken
-			err = s.keyRepo.UpdateAccessKey(vault)
+			err = s.accessKeyService.UpdateAccessKey(vault)
 		}
 	}
 

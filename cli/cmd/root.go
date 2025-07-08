@@ -81,6 +81,7 @@ func runService() {
 		encryptionService,
 	)
 	secretStorageService := server_services.NewSecretStorageService(store, store)
+	accessKeyService := server_services.NewAccessKeyService(store, encryptionService)
 
 	taskPool := tasks.CreateTaskPool(
 		store,
@@ -122,6 +123,7 @@ func runService() {
 		encryptionService,
 		accessKeyInstallationService,
 		secretStorageService,
+		accessKeyService,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

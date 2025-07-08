@@ -57,11 +57,11 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 		return err
 	}
 
-	err = key.SerializeSecret()
-
-	if err != nil {
-		return err
-	}
+	//err = key.SerializeSecret()
+	//
+	//if err != nil {
+	//	return err
+	//}
 
 	var res sql.Result
 
@@ -87,10 +87,10 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	err = key.SerializeSecret()
-	if err != nil {
-		return
-	}
+	//err = key.SerializeSecret()
+	//if err != nil {
+	//	return
+	//}
 
 	insertID, err := d.insert(
 		"id",

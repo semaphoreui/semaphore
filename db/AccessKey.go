@@ -1,17 +1,11 @@
 package db
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
-	"io"
 	"path"
 )
 
@@ -161,85 +155,6 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 			return fmt.Errorf("password can not be empty")
 		}
 	}
-
-	return nil
-}
-
-func (key *AccessKey) SerializeSecret() error {
-	var plaintext []byte
-	var err error
-
-	switch key.Type {
-	case AccessKeyString:
-		if key.String == "" {
-			key.Secret = nil
-			return nil
-		}
-		plaintext = []byte(key.String)
-	case AccessKeySSH:
-		if key.SshKey.PrivateKey == "" {
-			if key.SshKey.Login != "" || key.SshKey.Passphrase != "" {
-				return fmt.Errorf("invalid ssh key")
-			}
-			key.Secret = nil
-			return nil
-		}
-
-		plaintext, err = json.Marshal(key.SshKey)
-		if err != nil {
-			return err
-		}
-	case AccessKeyLoginPassword:
-		if key.LoginPassword.Password == "" {
-			if key.LoginPassword.Login != "" {
-				return fmt.Errorf("invalid password key")
-			}
-			key.Secret = nil
-			return nil
-		}
-
-		plaintext, err = json.Marshal(key.LoginPassword)
-		if err != nil {
-			return err
-		}
-	case AccessKeyNone:
-		key.Secret = nil
-		return nil
-	default:
-		return fmt.Errorf("invalid access token type")
-	}
-
-	encryptionString := util.Config.AccessKeyEncryption
-
-	if encryptionString == "" {
-		secret := base64.StdEncoding.EncodeToString(plaintext)
-		key.Secret = &secret
-		return nil
-	}
-
-	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
-
-	if err != nil {
-		return err
-	}
-
-	c, err := aes.NewCipher(encryption)
-	if err != nil {
-		return err
-	}
-
-	gcm, err := cipher.NewGCM(c)
-	if err != nil {
-		return err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return err
-	}
-
-	secret := base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, plaintext, nil))
-	key.Secret = &secret
 
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 const RekeyBatchSize = 100
 
 type AccessKeyEncryptionService interface {
+	SerializeSecret(key *db.AccessKey) error
 	DeserializeSecret(key *db.AccessKey) error
 	FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error
 }
@@ -62,6 +63,11 @@ type accessKeyEncryptionServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	environmentRepo   db.EnvironmentManager
 	secretStorageRepo db.SecretStorageRepository
+}
+
+func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) error {
+	serializer := createAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, key, s)
+	return serializer.SerializeSecret(key)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {

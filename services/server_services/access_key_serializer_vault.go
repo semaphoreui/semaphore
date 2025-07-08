@@ -27,6 +27,10 @@ func NewVaultAccessKeyDeserializer(
 	}
 }
 
+func (d *VaultAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
+	return nil
+}
+
 func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
 
 	if key.SourceStorageID == nil || key.SourceStorageKey == nil {

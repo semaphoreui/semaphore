@@ -84,14 +84,17 @@ func Route(
 	encryptionService server_services.AccessKeyEncryptionService,
 	accessKeyInstallationService server_services.AccessKeyInstallationService,
 	secretStorageService server_services.SecretStorageService,
+	accessKeyService server_services.AccessKeyService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool)
 	integrationController := NewIntegrationController(integrationService)
-	environmentController := projects.NewEnvironmentController(encryptionService)
+	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
+	keyController := projects.NewKeyController(accessKeyService)
+	projectsController := projects.NewProjectsController(accessKeyService)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -164,7 +167,7 @@ func Route(
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
-	authenticatedAPI.Path("/projects").HandlerFunc(projects.AddProject).Methods("POST")
+	authenticatedAPI.Path("/projects").HandlerFunc(projectsController.AddProject).Methods("POST")
 	authenticatedAPI.Path("/projects/restore").HandlerFunc(projects.Restore).Methods("POST")
 	authenticatedAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
@@ -261,7 +264,7 @@ func Route(
 	projectUserAPI.Path("/users").HandlerFunc(projects.GetUsers).Methods("GET", "HEAD")
 
 	projectUserAPI.Path("/keys").HandlerFunc(projects.GetKeys).Methods("GET", "HEAD")
-	projectUserAPI.Path("/keys").HandlerFunc(projects.AddKey).Methods("POST")
+	projectUserAPI.Path("/keys").HandlerFunc(keyController.AddKey).Methods("POST")
 
 	projectUserAPI.Path("/secret_storages").HandlerFunc(secretStorageController.GetSecretStorages).Methods("GET", "HEAD")
 	projectUserAPI.Path("/secret_storages").HandlerFunc(secretStorageController.Add).Methods("POST")
@@ -273,7 +276,7 @@ func Route(
 	projectUserAPI.Path("/inventory").HandlerFunc(projects.AddInventory).Methods("POST")
 
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
-	projectUserAPI.Path("/environment").HandlerFunc(projects.AddEnvironment).Methods("POST")
+	projectUserAPI.Path("/environment").HandlerFunc(environmentController.AddEnvironment).Methods("POST")
 
 	projectUserAPI.Path("/tasks").HandlerFunc(projects.GetAllTasks).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/tasks/last", projects.GetLastTasks).Methods("GET", "HEAD")
@@ -343,7 +346,7 @@ func Route(
 
 	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}/refs", projects.GetKeyRefs).Methods("GET", "HEAD")
-	projectKeyManagement.HandleFunc("/{key_id}", projects.UpdateKey).Methods("PUT")
+	projectKeyManagement.HandleFunc("/{key_id}", keyController.UpdateKey).Methods("PUT")
 	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
 
 	projectSecretStorageManagement := projectUserAPI.PathPrefix("/secret_storages").Subrouter()
@@ -385,7 +388,7 @@ func Route(
 
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.GetEnvironment).Methods("GET", "HEAD")
 	projectEnvManagement.HandleFunc("/{environment_id}/refs", projects.GetEnvironmentRefs).Methods("GET", "HEAD")
-	projectEnvManagement.HandleFunc("/{environment_id}", projects.UpdateEnvironment).Methods("PUT")
+	projectEnvManagement.HandleFunc("/{environment_id}", environmentController.UpdateEnvironment).Methods("PUT")
 	projectEnvManagement.HandleFunc("/{environment_id}", projects.RemoveEnvironment).Methods("DELETE")
 
 	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()

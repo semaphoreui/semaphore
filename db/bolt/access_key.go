@@ -34,10 +34,10 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 	}
 
 	if key.OverrideSecret {
-		err = key.SerializeSecret()
-		if err != nil {
-			return err
-		}
+		//err = key.SerializeSecret()
+		//if err != nil {
+		//	return err
+		//}
 	} else { // accept only new name, ignore other changes
 		oldKey, err2 := d.GetAccessKey(*key.ProjectID, key.ID)
 		if err2 != nil {
@@ -51,10 +51,6 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *BoltDb) CreateAccessKey(key db.AccessKey) (db.AccessKey, error) {
-	err := key.SerializeSecret()
-	if err != nil {
-		return db.AccessKey{}, err
-	}
 	newKey, err := d.createObject(*key.ProjectID, db.AccessKeyProps, key)
 	return newKey.(db.AccessKey), err
 }

@@ -8,7 +8,25 @@ import (
 	"net/http"
 )
 
-func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
+type EnvironmentController struct {
+	accessKeyRepo     db.AccessKeyManager
+	accessKeyService  server_services.AccessKeyService
+	encryptionService server_services.AccessKeyEncryptionService
+}
+
+func NewEnvironmentController(
+	accessKeyRepo db.AccessKeyManager,
+	encryptionService server_services.AccessKeyEncryptionService,
+	accessKeyService server_services.AccessKeyService,
+) *EnvironmentController {
+	return &EnvironmentController{
+		accessKeyRepo:     accessKeyRepo,
+		accessKeyService:  accessKeyService,
+		encryptionService: encryptionService,
+	}
+}
+
+func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) error {
 	for _, secret := range env.Secrets {
 		err := secret.Validate()
 		if err != nil {
@@ -19,7 +37,7 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 
 		switch secret.Operation {
 		case db.EnvironmentSecretCreate:
-			key, err = store.CreateAccessKey(db.AccessKey{
+			key, err = c.accessKeyService.CreateAccessKey(db.AccessKey{
 				Name:          secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &env.ID,
@@ -28,7 +46,7 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 				Owner:         secret.Type.GetAccessKeyOwner(),
 			})
 		case db.EnvironmentSecretDelete:
-			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
+			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
 			if err != nil {
 				continue
@@ -38,9 +56,9 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 				continue
 			}
 
-			err = store.DeleteAccessKey(env.ProjectID, secret.ID)
+			err = c.accessKeyRepo.DeleteAccessKey(env.ProjectID, secret.ID)
 		case db.EnvironmentSecretUpdate:
-			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
+			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
 			if err != nil {
 				continue
@@ -62,21 +80,11 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 				updateKey.OverrideSecret = true
 			}
 
-			err = store.UpdateAccessKey(updateKey)
+			err = c.accessKeyService.UpdateAccessKey(updateKey)
 		}
 	}
 
 	return nil
-}
-
-type EnvironmentController struct {
-	encryptionService server_services.AccessKeyEncryptionService
-}
-
-func NewEnvironmentController(encryptionService server_services.AccessKeyEncryptionService) *EnvironmentController {
-	return &EnvironmentController{
-		encryptionService: encryptionService,
-	}
 }
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
@@ -139,7 +147,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateEnvironment updates an existing environment in the database
-func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
+func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	oldEnv := helpers.GetFromContext(r, "environment").(db.Environment)
 	var env db.Environment
 	if !helpers.Bind(w, r, &env) {
@@ -173,7 +181,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Environment %s updated", env.Name),
 	})
 
-	if err := updateEnvironmentSecrets(helpers.Store(r), env); err != nil {
+	if err := c.updateEnvironmentSecrets(env); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -182,7 +190,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddEnvironment creates an environment in the database
-func AddEnvironment(w http.ResponseWriter, r *http.Request) {
+func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	var env db.Environment
 
@@ -210,9 +218,9 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
 
-	if err = updateEnvironmentSecrets(helpers.Store(r), newEnv); err != nil {
-		//helpers.WriteError(w, err)
-		//return
+	if err = c.updateEnvironmentSecrets(newEnv); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	// Reload env

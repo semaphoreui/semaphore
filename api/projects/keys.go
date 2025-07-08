@@ -2,11 +2,24 @@ package projects
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/services/server_services"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 )
+
+type KeyController struct {
+	accessKeyService server_services.AccessKeyService
+}
+
+func NewKeyController(
+	accessKeyService server_services.AccessKeyService,
+) *KeyController {
+	return &KeyController{
+		accessKeyService: accessKeyService,
+	}
+}
 
 // KeyMiddleware ensures a key exists and loads it to the context
 func KeyMiddleware(next http.Handler) http.Handler {
@@ -62,7 +75,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddKey adds a new key to the database
-func AddKey(w http.ResponseWriter, r *http.Request) {
+func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	var key db.AccessKey
 
@@ -84,7 +97,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newKey, err := helpers.Store(r).CreateAccessKey(key)
+	newKey, err := c.accessKeyService.CreateAccessKey(key)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -111,7 +124,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 // UpdateKey updates key in database
 // nolint: gocyclo
-func UpdateKey(w http.ResponseWriter, r *http.Request) {
+func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key db.AccessKey
 	oldKey := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 
@@ -136,7 +149,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = helpers.Store(r).UpdateAccessKey(key)
+	err = c.accessKeyService.UpdateAccessKey(key)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
