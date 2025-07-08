@@ -204,7 +204,7 @@ func TestProjectServiceImpl_UpdateProject(t *testing.T) {
 			},
 			UpdateAccessKeyFn: func(key db.AccessKey) error {
 				updated = true
-				if !key.OverrideSecret || key.Secret == nil || *key.Secret != "token2" {
+				if !key.OverrideSecret || key.String != "token2" {
 					t.Errorf("unexpected key update: %+v", key)
 				}
 				return nil
