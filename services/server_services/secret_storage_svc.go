@@ -56,7 +56,10 @@ func (s *SecretStorageServiceImpl) UpdateSecretStorage(storage db.SecretStorage)
 	} else {
 		vault := keys[0]
 		if storage.VaultToken == "" {
-			err = s.keyRepo.DeleteAccessKey(storage.ProjectID, vault.ID)
+			// Do nothing if the vault token is empty,
+			// as it means the user haven't set a new token.
+
+			//err = s.keyRepo.DeleteAccessKey(storage.ProjectID, vault.ID)
 		} else {
 			vault.OverrideSecret = true
 			vault.String = storage.VaultToken
