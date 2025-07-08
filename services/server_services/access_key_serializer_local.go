@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -127,11 +126,12 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 	}
 
 	if encryptionString == "" {
-		err = unmarshalAppropriateField(key, ciphertext)
-		var syntaxError *json.SyntaxError
-		if errors.As(err, &syntaxError) {
-			err = fmt.Errorf("secret must be valid json in key '%s'", key.Name)
-		}
+		res = string(ciphertext)
+		//err = unmarshalAppropriateField(key, ciphertext)
+		//var syntaxError *json.SyntaxError
+		//if errors.As(err, &syntaxError) {
+		//	err = fmt.Errorf("secret must be valid json in key '%s'", key.Name)
+		//}
 
 		return
 	}

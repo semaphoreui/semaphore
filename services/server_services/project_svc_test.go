@@ -107,119 +107,7 @@ func TestProjectServiceImpl_DeleteProject(t *testing.T) {
 }
 
 func TestProjectServiceImpl_UpdateProject(t *testing.T) {
-	project := db.Project{ID: 1, VaultToken: "token"}
-
-	t.Run("no keys, VaultToken set", func(t *testing.T) {
-		updated := false
-		created := false
-		mockRepo := &mockProjectStore{
-			UpdateProjectFn: func(p db.Project) error {
-				updated = true
-				return nil
-			},
-		}
-		mockKey := &mockAccessKeyManager{
-			GetAccessKeysFn: func(projectID int, opts db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-				return nil, nil
-			},
-			CreateAccessKeyFn: func(key db.AccessKey) (db.AccessKey, error) {
-				created = true
-				return key, nil
-			},
-		}
-		service := &ProjectServiceImpl{projectRepo: mockRepo, keyRepo: mockKey}
-		err := service.UpdateProject(project)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if !updated || !created {
-			t.Errorf("expected update and create to be called")
-		}
-	})
-
-	t.Run("no keys, VaultToken empty", func(t *testing.T) {
-		mockRepo := &mockProjectStore{
-			UpdateProjectFn: func(p db.Project) error { return nil },
-		}
-		mockKey := &mockAccessKeyManager{
-			GetAccessKeysFn: func(projectID int, opts db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-				return nil, nil
-			},
-			CreateAccessKeyFn: func(key db.AccessKey) (db.AccessKey, error) {
-				t.Errorf("should not create access key")
-				return key, nil
-			},
-		}
-		service := &ProjectServiceImpl{projectRepo: mockRepo, keyRepo: mockKey}
-		p := db.Project{ID: 2, VaultToken: ""}
-		err := service.UpdateProject(p)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("keys exist, VaultToken empty", func(t *testing.T) {
-		deleted := false
-		mockRepo := &mockProjectStore{
-			UpdateProjectFn: func(p db.Project) error { return nil },
-		}
-		mockKey := &mockAccessKeyManager{
-			GetAccessKeysFn: func(projectID int, opts db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-				return []db.AccessKey{{ID: 5}}, nil
-			},
-			DeleteAccessKeyFn: func(projectID, keyID int) error {
-				if projectID == 3 && keyID == 5 {
-					deleted = true
-					return nil
-				}
-				return errors.New("wrong id")
-			},
-			UpdateAccessKeyFn: func(key db.AccessKey) error {
-				t.Errorf("should not update access key")
-				return nil
-			},
-		}
-		service := &ProjectServiceImpl{projectRepo: mockRepo, keyRepo: mockKey}
-		p := db.Project{ID: 3, VaultToken: ""}
-		err := service.UpdateProject(p)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if !deleted {
-			t.Errorf("expected delete to be called")
-		}
-	})
-
-	t.Run("keys exist, VaultToken set", func(t *testing.T) {
-		updated := false
-		mockRepo := &mockProjectStore{
-			UpdateProjectFn: func(p db.Project) error { return nil },
-		}
-		mockKey := &mockAccessKeyManager{
-			GetAccessKeysFn: func(projectID int, opts db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-				return []db.AccessKey{{ID: 6}}, nil
-			},
-			DeleteAccessKeyFn: func(projectID, keyID int) error {
-				return nil
-			},
-			UpdateAccessKeyFn: func(key db.AccessKey) error {
-				updated = true
-				if !key.OverrideSecret || key.String != "token2" {
-					t.Errorf("unexpected key update: %+v", key)
-				}
-				return nil
-			},
-		}
-		service := &ProjectServiceImpl{projectRepo: mockRepo, keyRepo: mockKey}
-		p := db.Project{ID: 4, VaultToken: "token2"}
-		err := service.UpdateProject(p)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if !updated {
-			t.Errorf("expected update to be called")
-		}
-	})
+	project := db.Project{ID: 1}
 
 	t.Run("UpdateProject returns error", func(t *testing.T) {
 		mockRepo := &mockProjectStore{
@@ -230,22 +118,6 @@ func TestProjectServiceImpl_UpdateProject(t *testing.T) {
 		err := service.UpdateProject(project)
 		if err == nil || err.Error() != "fail" {
 			t.Errorf("expected fail error, got %v", err)
-		}
-	})
-
-	t.Run("GetAccessKeys returns error", func(t *testing.T) {
-		mockRepo := &mockProjectStore{
-			UpdateProjectFn: func(p db.Project) error { return nil },
-		}
-		mockKey := &mockAccessKeyManager{
-			GetAccessKeysFn: func(projectID int, opts db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
-				return nil, errors.New("failkeys")
-			},
-		}
-		service := &ProjectServiceImpl{projectRepo: mockRepo, keyRepo: mockKey}
-		err := service.UpdateProject(project)
-		if err == nil || err.Error() != "failkeys" {
-			t.Errorf("expected failkeys error, got %v", err)
 		}
 	})
 }

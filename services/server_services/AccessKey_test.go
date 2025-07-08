@@ -1,21 +1,24 @@
-package db
+package server_services
 
 import (
 	"encoding/base64"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	"testing"
 )
 
 func TestSetSecret(t *testing.T) {
-	accessKey := AccessKey{
-		Type: AccessKeySSH,
-		SshKey: SshKey{
+	accessKey := db.AccessKey{
+		Type: db.AccessKeySSH,
+		SshKey: db.SshKey{
 			PrivateKey: "qerphqeruqoweurqwerqqeuiqwpavqr",
 		},
 	}
 
+	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
+
 	util.Config = &util.ConfigType{}
-	err := accessKey.SerializeSecret()
+	err := encryptionService.SerializeSecret(&accessKey)
 
 	if err != nil {
 		t.Error(err)
@@ -39,12 +42,14 @@ func TestGetSecret(t *testing.T) {
 }`))
 	util.Config = &util.ConfigType{}
 
-	accessKey := AccessKey{
+	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
+
+	accessKey := db.AccessKey{
 		Secret: &secret,
-		Type:   AccessKeySSH,
+		Type:   db.AccessKeySSH,
 	}
 
-	err := accessKey.DeserializeSecret()
+	err := encryptionService.DeserializeSecret(&accessKey)
 
 	if err != nil {
 		t.Error(err)
@@ -60,9 +65,12 @@ func TestGetSecret(t *testing.T) {
 }
 
 func TestSetGetSecretWithEncryption(t *testing.T) {
-	accessKey := AccessKey{
-		Type: AccessKeySSH,
-		SshKey: SshKey{
+
+	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
+
+	accessKey := db.AccessKey{
+		Type: db.AccessKeySSH,
+		SshKey: db.SshKey{
 			PrivateKey: "qerphqeruqoweurqwerqqeuiqwpavqr",
 		},
 	}
@@ -71,7 +79,7 @@ func TestSetGetSecretWithEncryption(t *testing.T) {
 		AccessKeyEncryption: "hHYgPrhQTZYm7UFTvcdNfKJMB3wtAXtJENUButH+DmM=",
 	}
 
-	err := accessKey.SerializeSecret()
+	err := encryptionService.SerializeSecret(&accessKey)
 
 	if err != nil {
 		t.Error(err)
@@ -79,7 +87,7 @@ func TestSetGetSecretWithEncryption(t *testing.T) {
 
 	//accessKey.ClearSecret()
 
-	err = accessKey.DeserializeSecret()
+	err = encryptionService.DeserializeSecret(&accessKey)
 
 	if err != nil {
 		t.Error(err)

@@ -15,7 +15,16 @@ func TestApiPing(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/ping", nil)
 	rr := httptest.NewRecorder()
 
-	r := Route(nil, nil)
+	r := Route(
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
 
 	r.ServeHTTP(rr, req)
 
