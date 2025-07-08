@@ -3,12 +3,14 @@ package server_services
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
+	"io"
 )
 
 type LocalAccessKeyDeserializer struct {
@@ -16,6 +18,85 @@ type LocalAccessKeyDeserializer struct {
 
 func NewLocalAccessKeyDeserializer() *LocalAccessKeyDeserializer {
 	return &LocalAccessKeyDeserializer{}
+}
+
+func (d *LocalAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
+	var plaintext []byte
+	var err error
+
+	switch key.Type {
+	case db.AccessKeyString:
+		if key.String == "" {
+			key.Secret = nil
+			return nil
+		}
+		plaintext = []byte(key.String)
+	case db.AccessKeySSH:
+		if key.SshKey.PrivateKey == "" {
+			if key.SshKey.Login != "" || key.SshKey.Passphrase != "" {
+				return fmt.Errorf("invalid ssh key")
+			}
+			key.Secret = nil
+			return nil
+		}
+
+		plaintext, err = json.Marshal(key.SshKey)
+		if err != nil {
+			return err
+		}
+	case db.AccessKeyLoginPassword:
+		if key.LoginPassword.Password == "" {
+			if key.LoginPassword.Login != "" {
+				return fmt.Errorf("invalid password key")
+			}
+			key.Secret = nil
+			return nil
+		}
+
+		plaintext, err = json.Marshal(key.LoginPassword)
+		if err != nil {
+			return err
+		}
+	case db.AccessKeyNone:
+		key.Secret = nil
+		return nil
+	default:
+		return fmt.Errorf("invalid access token type")
+	}
+
+	encryptionString := util.Config.AccessKeyEncryption
+
+	if encryptionString == "" {
+		secret := base64.StdEncoding.EncodeToString(plaintext)
+		key.Secret = &secret
+		return nil
+	}
+
+	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
+
+	if err != nil {
+		return err
+	}
+
+	c, err := aes.NewCipher(encryption)
+	if err != nil {
+		return err
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return err
+	}
+
+	secret := base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, plaintext, nil))
+	key.Secret = &secret
+
+	return nil
 }
 
 func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
