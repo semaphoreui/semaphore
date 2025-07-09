@@ -3,7 +3,10 @@ package server_services
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/hashicorp/vault-client-go/schema"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"time"
 
 	"github.com/hashicorp/vault-client-go"
@@ -27,11 +30,46 @@ func NewVaultAccessKeyDeserializer(
 	}
 }
 
-func (d *VaultAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
+func (d *VaultAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) (err error) {
+
+	client, err := d.getClient(key)
+	if err != nil {
+		return
+	}
+
+	ctx := context.TODO()
+
+	var data map[string]any
+
+	switch key.Type {
+	case db.AccessKeyString:
+		data = map[string]any{
+			"string": key.String,
+		}
+	case db.AccessKeySSH:
+		data = conv.StructToFlatMap(key.SshKey)
+	case db.AccessKeyLoginPassword:
+		data = conv.StructToFlatMap(key.LoginPassword)
+	default:
+		err = errors.New("unknown access key type: " + string(key.Type))
+		return
+	}
+
+	_, err = client.Secrets.KvV2Write(
+		ctx,
+		*key.SourceStorageKey,
+		schema.KvV2WriteRequest{
+			Data: data,
+		},
+		vault.WithMountPath("secret"),
+	)
+	if err != nil {
+		return
+	}
 	return nil
 }
 
-func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
+func (d *VaultAccessKeyDeserializer) getClient(key *db.AccessKey) (client *vault.Client, err error) {
 
 	if key.SourceStorageID == nil || key.SourceStorageKey == nil {
 		err = db.ErrNotFound
@@ -74,9 +112,7 @@ func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res s
 		return
 	}
 
-	ctx := context.TODO()
-
-	client, err := vault.New(
+	client, err = vault.New(
 		vault.WithAddress(vaultParams.URL),
 		vault.WithRequestTimeout(30*time.Second),
 	)
@@ -89,8 +125,25 @@ func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res s
 		return
 	}
 
+	return
+}
+
+func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
+
+	client, err := d.getClient(key)
+	if err != nil {
+		return
+	}
+
+	ctx := context.TODO()
+
 	s, err := client.Secrets.KvV2Read(ctx, *key.SourceStorageKey, vault.WithMountPath("secret"))
 	if err != nil {
+		return
+	}
+
+	if key.Type != db.AccessKeyString {
+		res = s.Data.Data["string"].(string)
 		return
 	}
 

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"testing"
 )
 
@@ -32,7 +33,7 @@ func TestStructToMap(t *testing.T) {
 	}
 
 	// Convert the struct to a flat map
-	flatMap := structToFlatMap(&p)
+	flatMap := conv.StructToFlatMap(&p)
 
 	if flatMap["address.city"] != "New York" {
 		t.Fail()

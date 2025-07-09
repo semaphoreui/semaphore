@@ -6,62 +6,12 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/util"
 	"net/http"
 	"reflect"
 	"sort"
-	"strings"
 )
-
-func structToFlatMap(obj any) map[string]any {
-	result := make(map[string]any)
-	val := reflect.ValueOf(obj)
-	typ := reflect.TypeOf(obj)
-
-	if typ.Kind() == reflect.Ptr {
-		val = val.Elem()
-		typ = typ.Elem()
-	}
-
-	if typ.Kind() != reflect.Struct {
-		return result
-	}
-
-	// Iterate over the struct fields
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		jsonTag := fieldType.Tag.Get("json")
-
-		// Use the json tag if it is set, otherwise use the field name
-		fieldName := jsonTag
-		if fieldName == "" || fieldName == "-" {
-			fieldName = fieldType.Name
-		} else {
-			// Handle the case where the json tag might have options like `json:"name,omitempty"`
-			fieldName = strings.Split(fieldName, ",")[0]
-		}
-
-		// Check if the field is a struct itself
-		if field.Kind() == reflect.Struct {
-			// Convert nested struct to map
-			nestedMap := structToFlatMap(field.Interface())
-			// Add nested map to result with a prefixed key
-			for k, v := range nestedMap {
-				result[fieldName+"."+k] = v
-			}
-		} else if (field.Kind() == reflect.Ptr ||
-			field.Kind() == reflect.Array ||
-			field.Kind() == reflect.Slice ||
-			field.Kind() == reflect.Map) && field.IsNil() {
-			result[fieldName] = nil
-		} else {
-			result[fieldName] = field.Interface()
-		}
-	}
-
-	return result
-}
 
 func validateAppID(str string) error {
 	return nil
@@ -170,7 +120,7 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	options := structToFlatMap(app)
+	options := conv.StructToFlatMap(app)
 
 	for k, v := range options {
 		t := reflect.TypeOf(v)
