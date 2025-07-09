@@ -1,5 +1,20 @@
 <template>
   <div v-if="items != null">
+
+    <ObjectRefsDialog
+      object-title="storage"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      v-model="itemRefsDialog"
+    />
+
+    <YesNoDialog
+      :title="$t('deleteStorage')"
+      :text="$t('askDeleteStorage')"
+      v-model="deleteItemDialog"
+      @yes="deleteItem(itemId)"
+    />
+
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"

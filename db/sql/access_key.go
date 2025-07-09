@@ -42,7 +42,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 	_, err = d.selectAll(&keys, query, args...)
 
 	for i := range keys {
-		if keys[i].Secret == nil {
+		if keys[i].SourceStorageID == nil && keys[i].Secret == nil {
 			keys[i].Empty = true
 		}
 	}

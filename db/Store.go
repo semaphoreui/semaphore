@@ -436,6 +436,7 @@ type SecretStorageRepository interface {
 	GetSecretStorage(projectID int, storageID int) (SecretStorage, error)
 	UpdateSecretStorage(storage SecretStorage) error
 	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
+	DeleteSecretStorage(projectID int, storageID int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces

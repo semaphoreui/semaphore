@@ -17,6 +17,10 @@ func (d *BoltDb) GetSecretStorage(projectID int, storageID int) (db.SecretStorag
 	panic("implement me")
 }
 
+func (d *BoltDb) DeleteSecretStorage(projectID int, storageID int) error {
+	panic("implement me")
+}
+
 func (d *BoltDb) UpdateSecretStorage(storage db.SecretStorage) error {
 	//TODO implement me
 	panic("implement me")

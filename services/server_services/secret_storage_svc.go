@@ -5,6 +5,7 @@ import "github.com/semaphoreui/semaphore/db"
 type SecretStorageService interface {
 	GetSecretStorage(projectID int, storageID int) (db.SecretStorage, error)
 	UpdateSecretStorage(storage db.SecretStorage) error
+	DeleteSecretStorage(projectID int, storageID int) error
 }
 
 func NewSecretStorageService(
@@ -20,6 +21,10 @@ func NewSecretStorageService(
 type SecretStorageServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
 	accessKeyService  AccessKeyService
+}
+
+func (s *SecretStorageServiceImpl) DeleteSecretStorage(projectID int, storageID int) error {
+	return s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 }
 
 func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int) (res db.SecretStorage, err error) {

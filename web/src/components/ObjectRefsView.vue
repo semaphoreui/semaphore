@@ -65,6 +65,10 @@ export default {
         title: 'Integrations',
         icon: 'connection',
       }, {
+        slug: 'access_keys',
+        title: 'Access Keys',
+        icon: 'key-change',
+      }, {
         slug: 'schedules',
         title: 'Schedules',
         icon: 'clock-outline',

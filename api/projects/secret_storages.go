@@ -142,3 +142,20 @@ func (c *SecretStorageController) Add(w http.ResponseWriter, r *http.Request) {
 
 	helpers.WriteJSON(w, http.StatusCreated, newStorage)
 }
+
+func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	storageID, err := helpers.GetIntParam("storage_id", w, r)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = c.secretStorageService.DeleteSecretStorage(project.ID, storageID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusNoContent, nil)
+}

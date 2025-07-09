@@ -48,6 +48,10 @@ func (d *SqlDb) GetSecretStorage(projectID int, storageID int) (key db.SecretSto
 	return
 }
 
+func (d *SqlDb) DeleteSecretStorage(projectID int, storageID int) error {
+	return d.deleteObject(projectID, db.SecretStorageProps, storageID)
+}
+
 func (d *SqlDb) GetSecretStorageRefs(projectID int, storageID int) (db.ObjectReferrers, error) {
 	return d.getObjectRefs(projectID, db.SecretStorageProps, storageID)
 }
