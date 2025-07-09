@@ -114,9 +114,19 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 			err = fmt.Errorf("invalid access key type")
 			return
 		}
-		key.SshKey = db.SshKey{
+
+		sshKey := db.SshKey{
 			PrivateKey: *key.Secret,
 		}
+
+		var marshaled []byte
+		marshaled, err = json.Marshal(sshKey)
+		if err != nil {
+			return
+		}
+
+		res = string(marshaled)
+
 		return
 	}
 
@@ -127,12 +137,6 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 
 	if encryptionString == "" {
 		res = string(ciphertext)
-		//err = unmarshalAppropriateField(key, ciphertext)
-		//var syntaxError *json.SyntaxError
-		//if errors.As(err, &syntaxError) {
-		//	err = fmt.Errorf("secret must be valid json in key '%s'", key.Name)
-		//}
-
 		return
 	}
 

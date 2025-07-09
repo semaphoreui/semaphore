@@ -2,6 +2,8 @@ package server_services
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/semaphoreui/semaphore/db"
 	"strings"
 )
@@ -78,7 +80,14 @@ func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) er
 		return err
 	}
 
-	return unmarshalAppropriateField(key, []byte(ciphertext))
+	err = unmarshalAppropriateField(key, []byte(ciphertext))
+
+	var syntaxError *json.SyntaxError
+	if errors.As(err, &syntaxError) {
+		err = fmt.Errorf("secret must be valid json in key '%s'", key.Name)
+	}
+
+	return err
 }
 
 func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error {

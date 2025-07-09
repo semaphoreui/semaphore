@@ -94,6 +94,7 @@ func runService() {
 		store,
 		&taskPool,
 		accessKeyInstallationService,
+		encryptionService,
 	)
 
 	defer schedulePool.Destroy()

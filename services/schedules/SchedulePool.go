@@ -44,7 +44,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
-	err = r.encryptionService.DeserializeSecret(&repo.SSHKey)
+	err = r.pool.encryptionService.DeserializeSecret(&repo.SSHKey)
 	if err != nil {
 		return
 	}
@@ -206,11 +206,13 @@ func CreateSchedulePool(
 	store db.Store,
 	taskPool *tasks.TaskPool,
 	keyInstaller db_lib.AccessKeyInstaller,
+	encryptionService server_services.AccessKeyEncryptionService,
 ) SchedulePool {
 	pool := SchedulePool{
-		store:        store,
-		taskPool:     taskPool,
-		keyInstaller: keyInstaller,
+		store:             store,
+		taskPool:          taskPool,
+		keyInstaller:      keyInstaller,
+		encryptionService: encryptionService,
 	}
 	pool.init()
 	pool.Refresh()
