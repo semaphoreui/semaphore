@@ -142,7 +142,7 @@ func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res s
 		return
 	}
 
-	if key.Type != db.AccessKeyString {
+	if key.Type == db.AccessKeyString {
 		res = s.Data.Data["string"].(string)
 		return
 	}
