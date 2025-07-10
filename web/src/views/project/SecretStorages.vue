@@ -26,6 +26,7 @@
         <SecretStorageForm
           :project-id="projectId"
           :item-id="itemId"
+          :item-type="itemType"
           @save="onSave"
           @error="onError"
           :need-save="needSave"
@@ -38,12 +39,37 @@
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('keyStore') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >New Storage
-      </v-btn>
+
+      <v-menu
+        offset-y
+      >
+        <template v-slot:activator="{ on, attrs }">
+
+          <v-btn
+            class="pr-2"
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >
+            New Storage
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item
+            link
+            @click="editItem('new'); itemType = 'vault';"
+          >
+            <v-list-item-icon>
+              <v-icon
+              >$vuetify.icons.hashicorp_vault</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Hashicorp Vault</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+
     </v-toolbar>
 
     <v-tabs class="pl-4">
@@ -114,6 +140,11 @@ import SecretStorageForm from '@/components/SecretStorageForm.vue';
 export default {
   components: { SecretStorageForm },
   mixins: [ItemListPageBase],
+  data() {
+    return {
+      itemType: 'vault',
+    };
+  },
   methods: {
     getHeaders() {
       return [{

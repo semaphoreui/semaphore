@@ -22,6 +22,7 @@
         dense
     ></v-text-field>
 
+    <!--
     <v-select
         v-model="item.type"
         :label="$t('type')"
@@ -34,6 +35,7 @@
         outlined
         dense
     />
+    -->
 
     <div v-if="item.type === 'vault'">
 
@@ -67,7 +69,9 @@
 import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
-  props: {},
+  props: {
+    itemType: String,
+  },
 
   mixins: [ItemFormBase],
 
@@ -92,6 +96,8 @@ export default {
       if (!this.item.params) {
         this.item.params = {};
       }
+
+      this.item.type = this.itemType;
     },
 
     getItemsUrl() {
