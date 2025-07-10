@@ -18,7 +18,7 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Storage`"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Hashicorp Vault Storage`"
       :max-width="450"
       @save="loadItems()"
     >
@@ -101,19 +101,20 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
-        {{ item.name }}
-        <v-chip
-          color="error"
-          v-if="item.empty && item.type !== 'none'"
+        <v-icon
+          class="mr-3"
           small
-          style="font-weight: bold;"
-          class="ml-2"
-        >{{ $t('empty') }}
-        </v-chip>
+        >
+          $vuetify.icons.hashicorp_vault
+        </v-icon>
+
+        {{ item.name }}
       </template>
+
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>
       </template>
+
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
           <v-btn @click="askDeleteItem(item.id)">
