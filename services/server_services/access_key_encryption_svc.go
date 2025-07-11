@@ -14,6 +14,7 @@ type AccessKeyEncryptionService interface {
 	SerializeSecret(key *db.AccessKey) error
 	DeserializeSecret(key *db.AccessKey) error
 	FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error
+	DeleteSecret(key *db.AccessKey) error
 }
 
 func NewAccessKeyEncryptionService(
@@ -48,34 +49,30 @@ func unmarshalAppropriateField(key *db.AccessKey, secret []byte) (err error) {
 	return
 }
 
-func createAccessKeyDeserializer(
-	keyRepo db.AccessKeyManager,
-	storageRepo db.SecretStorageRepository,
-	key *db.AccessKey,
-	encryptionService AccessKeyEncryptionService,
-) AccessKeyKeyDeserializer {
-	if key.SourceStorageID == nil {
-		return &LocalAccessKeyDeserializer{}
-	}
-
-	return NewVaultAccessKeyDeserializer(keyRepo, storageRepo, encryptionService)
-}
-
 type accessKeyEncryptionServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	environmentRepo   db.EnvironmentManager
 	secretStorageRepo db.SecretStorageRepository
 }
 
+func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) AccessKeyKeyDeserializer {
+	if key.SourceStorageID == nil {
+		return &LocalAccessKeyDeserializer{}
+	}
+
+	return NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s)
+}
+
+func (s *accessKeyEncryptionServiceImpl) DeleteSecret(key *db.AccessKey) error {
+	return s.getDeserializer(key).DeleteSecret(key)
+}
+
 func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) error {
-	serializer := createAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, key, s)
-	return serializer.SerializeSecret(key)
+	return s.getDeserializer(key).SerializeSecret(key)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
-	deserializer := createAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, key, s)
-
-	ciphertext, err := deserializer.DeserializeSecret(key)
+	ciphertext, err := s.getDeserializer(key).DeserializeSecret(key)
 	if err != nil {
 		return err
 	}

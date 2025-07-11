@@ -347,7 +347,7 @@ func Route(
 	projectKeyManagement.HandleFunc("/{key_id}", projects.GetKeys).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}/refs", projects.GetKeyRefs).Methods("GET", "HEAD")
 	projectKeyManagement.HandleFunc("/{key_id}", keyController.UpdateKey).Methods("PUT")
-	projectKeyManagement.HandleFunc("/{key_id}", projects.RemoveKey).Methods("DELETE")
+	projectKeyManagement.HandleFunc("/{key_id}", keyController.RemoveKey).Methods("DELETE")
 
 	projectSecretStorageManagement := projectUserAPI.PathPrefix("/secret_storages").Subrouter()
 	projectSecretStorageManagement.Use(projects.SecretStorageMiddleware)

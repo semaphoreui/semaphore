@@ -19,7 +19,7 @@ func NewLocalAccessKeyDeserializer() *LocalAccessKeyDeserializer {
 	return &LocalAccessKeyDeserializer{}
 }
 
-func (d *LocalAccessKeyDeserializer) DeleteSecret() error {
+func (d *LocalAccessKeyDeserializer) DeleteSecret(key *db.AccessKey) error {
 	// No-op for local deserializer
 	return nil
 }

@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/services/server_services"
 	"net/http"
@@ -167,11 +168,11 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 // RemoveKey deletes a key from the database
-func RemoveKey(w http.ResponseWriter, r *http.Request) {
+func (c *KeyController) RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 
-	err := helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
-	if err == db.ErrInvalidOperation {
+	err := c.accessKeyService.DeleteAccessKey(*key.ProjectID, key.ID)
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Access Key is in use by one or more templates",
 			"inUse": true,

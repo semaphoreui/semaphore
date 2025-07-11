@@ -7,5 +7,5 @@ import (
 type AccessKeyKeyDeserializer interface {
 	DeserializeSecret(key *db.AccessKey) (string, error)
 	SerializeSecret(key *db.AccessKey) error
-	DeleteSecret() error
+	DeleteSecret(key *db.AccessKey) error
 }
