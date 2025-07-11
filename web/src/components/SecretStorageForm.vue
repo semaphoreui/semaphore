@@ -54,7 +54,7 @@
           v-model="item.vault_token"
           :label="$t('Token')"
           :disabled="formSaving"
-          :rules="[v => !!v || $t('token_required')]"
+          :rules="[v => !!v || itemId !== 'new' || $t('token_required')]"
           required
           data-testid="secretStorage-vaultToken"
           outlined
