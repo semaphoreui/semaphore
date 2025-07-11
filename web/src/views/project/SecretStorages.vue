@@ -63,7 +63,8 @@
           >
             <v-list-item-icon>
               <v-icon
-              >$vuetify.icons.hashicorp_vault</v-icon>
+              >$vuetify.icons.hashicorp_vault
+              </v-icon>
             </v-list-item-icon>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
           </v-list-item>
@@ -108,7 +109,16 @@
           $vuetify.icons.hashicorp_vault
         </v-icon>
 
-        {{ item.name }}
+        <span class="mr-2">{{ item.name }}</span>
+
+        <v-chip
+          v-if="item.readonly"
+          style="transform: translateY(-1px)"
+          color="info"
+          small
+        >
+          Read only
+        </v-chip>
       </template>
 
       <template v-slot:item.type="{ item }">
