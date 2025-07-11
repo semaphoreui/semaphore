@@ -23,6 +23,11 @@ func NewAccessKeyService(
 	}
 }
 
+func (s *AccessKeyServiceImpl) DeleteAccessKey(projectID int, keyID int) (err error) {
+	err = s.accessKeyRepo.DeleteAccessKey(projectID, keyID)
+	return
+}
+
 func (s *AccessKeyServiceImpl) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	return s.accessKeyRepo.GetAccessKeys(projectID, options, params)
 }

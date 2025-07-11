@@ -19,6 +19,11 @@ func NewLocalAccessKeyDeserializer() *LocalAccessKeyDeserializer {
 	return &LocalAccessKeyDeserializer{}
 }
 
+func (d *LocalAccessKeyDeserializer) DeleteSecret() error {
+	// No-op for local deserializer
+	return nil
+}
+
 func (d *LocalAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
 	var plaintext []byte
 	var err error

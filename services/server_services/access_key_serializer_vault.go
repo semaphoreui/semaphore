@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
+
 	"github.com/hashicorp/vault-client-go/schema"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/conv"
-	"time"
 
 	"github.com/hashicorp/vault-client-go"
 )
@@ -28,6 +29,23 @@ func NewVaultAccessKeyDeserializer(
 		secretStorageRepo: secretStorageRepo,
 		encryptionService: encryptionService,
 	}
+}
+
+func (d *VaultAccessKeyDeserializer) DeleteSecret(key *db.AccessKey) error {
+
+	client, err := d.getClient(key)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.TODO()
+
+	_, err = client.Secrets.KvV2Delete(ctx, *key.SourceStorageKey, vault.WithMountPath("secret"))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *VaultAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) (err error) {
