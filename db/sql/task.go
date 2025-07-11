@@ -232,7 +232,7 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 
 	if taskIDs != nil && len(taskIDs) == 0 {
-		tasks = &[]db.TaskWithTpl{}
+		*tasks = []db.TaskWithTpl{}
 		return nil
 	}
 
