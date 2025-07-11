@@ -25,11 +25,12 @@ func (d *SqlDb) GetSecretStorages(projectID int) (storages []db.SecretStorage, e
 func (d *SqlDb) CreateSecretStorage(storage db.SecretStorage) (newStorage db.SecretStorage, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__secret_storage (name, type, project_id, params) values (?, ?, ?, ?)",
+		"insert into project__secret_storage (name, type, project_id, params, readonly) values (?, ?, ?, ?, ?)",
 		storage.Name,
 		storage.Type,
 		storage.ProjectID,
 		storage.Params,
+		storage.ReadOnly,
 	)
 
 	if err != nil {
@@ -60,11 +61,13 @@ func (d *SqlDb) UpdateSecretStorage(storage db.SecretStorage) error {
 	_, err := d.exec("update project__secret_storage set "+
 		"name=?, "+
 		"type=?, "+
-		"params=? "+
+		"params=?, "+
+		"readonly=? "+
 		"where project_id=? and id=?",
 		storage.Name,
 		storage.Type,
 		storage.Params,
+		storage.ReadOnly,
 		storage.ProjectID,
 		storage.ID)
 	return err

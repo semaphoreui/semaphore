@@ -15,6 +15,7 @@ type SecretStorage struct {
 	Name      string            `db:"name" json:"name"`
 	Type      SecretStorageType `db:"type" json:"type"`
 	Params    MapStringAnyField `db:"params" json:"params"`
+	ReadOnly  bool              `db:"readonly" json:"readonly"`
 
 	VaultToken string `db:"-" json:"vault_token,omitempty" backup:"-"`
 }

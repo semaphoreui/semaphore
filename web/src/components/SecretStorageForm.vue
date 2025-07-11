@@ -62,6 +62,11 @@
           append-icon="mdi-lock"
       ></v-text-field>
 
+      <v-checkbox
+        v-model="item.readonly"
+        :label="$t('Read only')"
+        :disabled="formSaving"
+      />
     </div>
   </v-form>
 </template>

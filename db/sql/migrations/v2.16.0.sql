@@ -10,6 +10,7 @@ create table project__secret_storage (
   name          varchar(100)    not null,
   type          varchar(20)     not null,
   params        text,
+  readonly      boolean         not null default false,
 
   foreign key (`project_id`) references project(`id`) on delete cascade
 );
