@@ -2,7 +2,6 @@ package sql
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
