@@ -52,6 +52,17 @@
       dense
     ></v-text-field>
 
+    <v-text-field
+      v-if="systemInfo.premium_features.hashicorp_vault_secrets"
+      v-model="item.vault_token"
+      :label="$t('Hashicorp Vault Token')"
+      :disabled="formSaving"
+      data-testid="newProject-tg"
+      outlined
+      dense
+      append-icon="mdi-lock"
+    ></v-text-field>
+
     <v-switch
       v-if="itemId === 'new'"
       v-model="item.demo"
@@ -67,6 +78,9 @@ import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
+  props: {
+    systemInfo: Object,
+  },
   methods: {
     getItemsUrl() {
       return '/api/projects';

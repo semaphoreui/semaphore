@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 
 func GetIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	matcher_id, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -22,7 +21,7 @@ func GetIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	var matcher db.IntegrationMatcher
 	matcher, err = helpers.Store(r).GetIntegrationMatcher(project.ID, matcher_id, integration.ID)
 	if err != nil {
@@ -34,7 +33,7 @@ func GetIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationMatcherRefs(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	matcherId, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -43,7 +42,7 @@ func GetIntegrationMatcherRefs(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	var matcher db.IntegrationMatcher
 	matcher, err = helpers.Store(r).GetIntegrationMatcher(project.ID, matcherId, integration.ID)
 	if err != nil {
@@ -61,8 +60,8 @@ func GetIntegrationMatcherRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationMatchers(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integration := context.Get(r, "integration").(db.Integration)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	matchers, err := helpers.Store(r).GetIntegrationMatchers(project.ID, helpers.QueryParams(r.URL), integration.ID)
 
@@ -75,8 +74,8 @@ func GetIntegrationMatchers(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integration := context.Get(r, "integration").(db.Integration)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var matcher db.IntegrationMatcher
 	if !helpers.Bind(w, r, &matcher) {
@@ -110,7 +109,7 @@ func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	matcherId, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -119,7 +118,7 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var matcher db.IntegrationMatcher
 
@@ -141,7 +140,7 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	matcherId, err := helpers.GetIntParam("matcher_id", w, r)
 
 	if err != nil {
@@ -151,7 +150,7 @@ func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	var matcher db.IntegrationMatcher
 	matcher, err = helpers.Store(r).GetIntegrationMatcher(project.ID, matcherId, integration.ID)
 	if err != nil {

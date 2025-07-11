@@ -5,8 +5,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"net/http"
-
-	"github.com/gorilla/context"
 )
 
 func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
@@ -21,11 +19,12 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 		switch secret.Operation {
 		case db.EnvironmentSecretCreate:
 			key, err = store.CreateAccessKey(db.AccessKey{
-				Name:          string(secret.Type) + "." + secret.Name,
+				Name:          secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &env.ID,
 				ProjectID:     &env.ProjectID,
 				Type:          db.AccessKeyString,
+				Owner:         secret.Type.GetAccessKeyOwner(),
 			})
 		case db.EnvironmentSecretDelete:
 			key, err = store.GetAccessKey(env.ProjectID, secret.ID)
@@ -53,8 +52,9 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 			updateKey := db.AccessKey{
 				ID:        key.ID,
 				ProjectID: key.ProjectID,
-				Name:      string(secret.Type) + "." + secret.Name,
+				Name:      secret.Name,
 				Type:      db.AccessKeyString,
+				Owner:     key.Owner,
 			}
 			if secret.Secret != "" {
 				updateKey.String = secret.Secret
@@ -71,7 +71,7 @@ func updateEnvironmentSecrets(store db.Store, env db.Environment) error {
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
 func EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		envID, err := helpers.GetIntParam("environment_id", w, r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -90,13 +90,13 @@ func EnvironmentMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "environment", env)
+		r = helpers.SetContextValue(r, "environment", env)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func GetEnvironmentRefs(w http.ResponseWriter, r *http.Request) {
-	env := context.Get(r, "environment").(db.Environment)
+	env := helpers.GetFromContext(r, "environment").(db.Environment)
 	refs, err := helpers.Store(r).GetEnvironmentRefs(env.ProjectID, env.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -110,12 +110,12 @@ func GetEnvironmentRefs(w http.ResponseWriter, r *http.Request) {
 func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 	// return single environment if request has environment ID
-	if environment := context.Get(r, "environment"); environment != nil {
+	if environment := helpers.GetFromContext(r, "environment"); environment != nil {
 		helpers.WriteJSON(w, http.StatusOK, environment.(db.Environment))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	env, err := helpers.Store(r).GetEnvironments(project.ID, helpers.QueryParams(r.URL))
 
@@ -129,7 +129,7 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // UpdateEnvironment updates an existing environment in the database
 func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
-	oldEnv := context.Get(r, "environment").(db.Environment)
+	oldEnv := helpers.GetFromContext(r, "environment").(db.Environment)
 	var env db.Environment
 	if !helpers.Bind(w, r, &env) {
 		return
@@ -172,7 +172,7 @@ func UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // AddEnvironment creates an environment in the database
 func AddEnvironment(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var env db.Environment
 
 	if !helpers.Bind(w, r, &env) {
@@ -218,7 +218,7 @@ func AddEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // RemoveEnvironment deletes an environment from the database
 func RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
-	env := context.Get(r, "environment").(db.Environment)
+	env := helpers.GetFromContext(r, "environment").(db.Environment)
 
 	err := helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
 	if err == db.ErrInvalidOperation {

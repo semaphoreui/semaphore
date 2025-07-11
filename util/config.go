@@ -34,9 +34,11 @@ var Cookie *securecookie.SecureCookie
 var WebHostURL *url.URL
 
 const (
-	DbDriverMySQL    = "mysql"
+	DbDriverMySQL = "mysql"
+	// Deprecated: replaced with sqlite
 	DbDriverBolt     = "bolt"
 	DbDriverPostgres = "postgres"
+	DbDriverSQLite   = "sqlite"
 )
 
 type EventLogAction string
@@ -203,8 +205,9 @@ type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
 	BoltDb   *DbConfig `json:"bolt,omitempty"`
 	Postgres *DbConfig `json:"postgres,omitempty"`
+	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
-	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -1013,6 +1016,9 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				dbHost)
 		}
 		connectionString += mapToQueryString(d.Options)
+	case DbDriverSQLite:
+		connectionString = "file:" + dbHost
+		connectionString += mapToQueryString(d.Options)
 	default:
 		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
 	}
@@ -1037,6 +1043,8 @@ func (conf *ConfigType) PrintDbInfo() {
 		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
+	case DbDriverSQLite:
+		fmt.Printf("SQLite %v@%v %v\n", conf.SQLite.GetUsername(), conf.SQLite.GetHostname(), conf.SQLite.GetDbName())
 	default:
 		panic(fmt.Errorf("database configuration not found"))
 	}
@@ -1051,6 +1059,8 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
 			dialect = DbDriverPostgres
+		case conf.SQLite.IsPresent():
+			dialect = DbDriverSQLite
 		default:
 			err = errors.New("database configuration not found")
 		}
@@ -1073,6 +1083,8 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 		dbConfig = *conf.BoltDb
 	case DbDriverPostgres:
 		dbConfig = *conf.Postgres
+	case DbDriverSQLite:
+		dbConfig = *conf.SQLite
 	case DbDriverMySQL:
 		dbConfig = *conf.MySQL
 	default:

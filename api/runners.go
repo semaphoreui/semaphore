@@ -8,8 +8,6 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-
-	"github.com/gorilla/context"
 )
 
 func getAllRunners(w http.ResponseWriter, r *http.Request) {
@@ -100,19 +98,19 @@ func globalRunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "runner", &runner)
+		r = helpers.SetContextValue(r, "runner", &runner)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func getGlobalRunner(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(*db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
 	helpers.WriteJSON(w, http.StatusOK, runner)
 }
 
 func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
-	oldRunner := context.Get(r, "runner").(*db.Runner)
+	oldRunner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
 	var runner db.Runner
 	if !helpers.Bind(w, r, &runner) {
@@ -135,7 +133,7 @@ func updateGlobalRunner(w http.ResponseWriter, r *http.Request) {
 }
 
 func clearGlobalRunnerCache(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(*db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
 	store := helpers.Store(r)
 
@@ -150,7 +148,7 @@ func clearGlobalRunnerCache(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteGlobalRunner(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(*db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
 	store := helpers.Store(r)
 
@@ -165,7 +163,7 @@ func deleteGlobalRunner(w http.ResponseWriter, r *http.Request) {
 }
 
 func setGlobalRunnerActive(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(*db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
 	store := helpers.Store(r)
 

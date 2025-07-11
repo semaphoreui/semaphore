@@ -3,6 +3,8 @@ package stage_parsers
 import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
+	"regexp"
 	"strings"
 )
 
@@ -48,6 +50,9 @@ func (p AnsibleRunningStageParser) IsEnd(currentStage *db.TaskStage, output db.T
 const ansibleTaskMaker = "TASK ["
 const failedTaskMaker = "fatal: ["
 
+var newTaskMakerRE = regexp.MustCompile(`^\w+: \[`)
+var fatalTaskRE = regexp.MustCompile(`^fatal: \[([^]]+)]: FAILED! => (.*)$`)
+
 func (p AnsibleRunningStageParser) Parse(currentStage *db.TaskStage, output db.TaskOutput, store db.Store, projectID int) (ok bool, err error) {
 
 	if currentStage == nil {
@@ -64,6 +69,7 @@ func (p AnsibleRunningStageParser) Parse(currentStage *db.TaskStage, output db.T
 
 	if strings.HasPrefix(line, ansibleTaskMaker) {
 		p.state.Tasks++
+
 		if p.state.CurrentFailedHost != "" {
 			err = store.CreateAnsibleTaskError(db.AnsibleTaskError{
 				TaskID:    currentStage.TaskID,
@@ -79,16 +85,61 @@ func (p AnsibleRunningStageParser) Parse(currentStage *db.TaskStage, output db.T
 		}
 
 		end := strings.Index(line, "]")
+
+		if end == -1 {
+			log.WithFields(log.Fields{
+				"context": "ansible play parser",
+				"line":    line,
+			}).Warn("Failed to parse failed task line")
+			return
+		}
+
 		p.state.CurrentTask = line[len(ansibleTaskMaker):end]
 		p.state.CurrentFailedHost = ""
 		p.state.CurrentHostAnswer = ""
+
 	} else if strings.HasPrefix(line, failedTaskMaker) {
-		end := strings.Index(line, "]")
-		start := len(failedTaskMaker)
-		p.state.CurrentFailedHost = line[start:end]
-		p.state.CurrentHostAnswer = ""
+
+		if p.state.CurrentFailedHost != "" {
+			err = store.CreateAnsibleTaskError(db.AnsibleTaskError{
+				TaskID:    currentStage.TaskID,
+				ProjectID: projectID,
+				Host:      p.state.CurrentFailedHost,
+				Task:      p.state.CurrentTask,
+				Error:     p.state.CurrentHostAnswer,
+			})
+
+			if err != nil {
+				return
+			}
+		}
+
+		m := fatalTaskRE.FindStringSubmatch(line)
+		if len(m) > 0 {
+			host := strings.TrimSpace(m[1])
+			msg := strings.TrimSpace(m[2])
+			p.state.CurrentFailedHost = host
+			p.state.CurrentHostAnswer = msg
+		} else {
+			end := strings.Index(line, "]")
+
+			if end == -1 {
+				log.WithFields(log.Fields{
+					"context": "ansible play parser",
+					"line":    line,
+				}).Warn("Failed to parse failed task line")
+				return
+			}
+
+			start := len(failedTaskMaker)
+			p.state.CurrentFailedHost = line[start:end]
+			p.state.CurrentHostAnswer = ""
+		}
+
 	} else if p.state.CurrentFailedHost != "" {
-		if line == "" {
+		m := newTaskMakerRE.FindStringSubmatch(line)
+		if line == "" || len(m) > 0 {
+
 			if p.state.CurrentFailedHost != "" {
 				err = store.CreateAnsibleTaskError(db.AnsibleTaskError{
 					TaskID:    currentStage.TaskID,
@@ -104,6 +155,7 @@ func (p AnsibleRunningStageParser) Parse(currentStage *db.TaskStage, output db.T
 			}
 			p.state.CurrentFailedHost = ""
 			p.state.CurrentHostAnswer = ""
+
 		} else {
 			p.state.CurrentHostAnswer += "\n" + line
 		}

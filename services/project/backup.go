@@ -144,7 +144,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	b.keys, err = store.GetAccessKeys(projectID, db.RetrieveQueryParams{})
+	b.keys, err = store.GetAccessKeys(projectID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}

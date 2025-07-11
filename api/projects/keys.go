@@ -6,14 +6,12 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-
-	"github.com/gorilla/context"
 )
 
 // KeyMiddleware ensures a key exists and loads it to the context
 func KeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		keyID, err := helpers.GetIntParam("key_id", w, r)
 		if err != nil {
 			return
@@ -26,13 +24,13 @@ func KeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "accessKey", key)
+		r = helpers.SetContextValue(r, "accessKey", key)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func GetKeyRefs(w http.ResponseWriter, r *http.Request) {
-	key := context.Get(r, "accessKey").(db.AccessKey)
+	key := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 	refs, err := helpers.Store(r).GetAccessKeyRefs(*key.ProjectID, key.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -44,16 +42,16 @@ func GetKeyRefs(w http.ResponseWriter, r *http.Request) {
 
 // GetKeys retrieves sorted keys from the database
 func GetKeys(w http.ResponseWriter, r *http.Request) {
-	if key := context.Get(r, "accessKey"); key != nil {
+	if key := helpers.GetFromContext(r, "accessKey"); key != nil {
 		k := key.(db.AccessKey)
 		helpers.WriteJSON(w, http.StatusOK, k)
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var keys []db.AccessKey
 
-	keys, err := helpers.Store(r).GetAccessKeys(project.ID, helpers.QueryParams(r.URL))
+	keys, err := helpers.Store(r).GetAccessKeys(project.ID, db.GetAccessKeyOptions{}, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -65,7 +63,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 
 // AddKey adds a new key to the database
 func AddKey(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var key db.AccessKey
 
 	if !helpers.Bind(w, r, &key) {
@@ -115,7 +113,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 // nolint: gocyclo
 func UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key db.AccessKey
-	oldKey := context.Get(r, "accessKey").(db.AccessKey)
+	oldKey := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 
 	if !helpers.Bind(w, r, &key) {
 		return
@@ -157,7 +155,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 
 // RemoveKey deletes a key from the database
 func RemoveKey(w http.ResponseWriter, r *http.Request) {
-	key := context.Get(r, "accessKey").(db.AccessKey)
+	key := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 
 	err := helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
 	if err == db.ErrInvalidOperation {

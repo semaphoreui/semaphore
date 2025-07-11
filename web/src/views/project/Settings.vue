@@ -27,8 +27,14 @@
       <v-divider class="mb-8" />
 
       <div class="project-settings-form">
-        <div style="height: 300px;">
-          <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
+        <div>
+          <ProjectForm
+            :item-id="projectId"
+            ref="form"
+            @error="onError"
+            @save="onSave"
+            :system-info="systemInfo"
+          />
         </div>
 
         <div class="text-right">
@@ -153,6 +159,7 @@ export default {
   props: {
     projectId: Number,
     projectType: String,
+    systemInfo: Object,
   },
 
   data() {

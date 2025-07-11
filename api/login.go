@@ -150,7 +150,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 // createSession creates session for passed user and stores session details
 // in cookies.
-func createSession(w http.ResponseWriter, r *http.Request, user db.User) {
+func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bool) {
 	var verificationMethod db.SessionVerificationMethod
 	verified := false
 	switch {
@@ -344,7 +344,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	createSession(w, r, user)
+	createSession(w, r, user, false)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -725,7 +725,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createSession(w, r, user)
+	createSession(w, r, user, true)
 
 	redirectPath := mux.Vars(r)["redirect_path"]
 

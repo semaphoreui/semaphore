@@ -42,29 +42,70 @@
       </v-btn>
     </v-btn-toggle>
 
-    <v-simple-table v-if="tab === 'notOkServers'">
-      <template v-slot:default>
-        <thead>
-        <tr>
-          <th style="width: 150px;">Server</th>
-          <th style="width: 200px;">Task</th>
-          <th style="calc(100% - 350px);">Error</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="(task, index) in failedTasks" :key="index">
-          <td style="width: 150px;">{{ task.host }}</td>
-          <td style="width: 200px;">{{ task.task }}</td>
-          <td>
-            <div
-              style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis">
-              {{ task.error }}
-            </div>
-          </td>
-        </tr>
-        </tbody>
+    <v-data-table
+      v-if="tab === 'notOkServers'"
+      hide-default-footer
+      single-expand
+      show-expand
+      :headers="notOkServersHeaders"
+      :items="failedTasks"
+      :items-per-page="Number.MAX_VALUE"
+      class="w-100"
+    >
+      <template v-slot:item.error="{ item }">
+        <div
+          style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis">
+          {{ item.error }}
+        </div>
       </template>
-    </v-simple-table>
+      <template v-slot:expanded-item="{ headers, item }">
+        <td
+          :colspan="headers.length"
+        >
+            <pre style="overflow: auto;
+                  background: gray;
+                  font-size: 14px;
+                  color: white;
+                  border-radius: 10px;
+                  white-space: pre-wrap;
+                  margin-top: 5px;
+                  margin-bottom: 5px;"
+
+                 class="pa-2"
+            >{{ item.error.trim() }}</pre>
+        </td>
+      </template>
+    </v-data-table>
+
+<!--    <v-simple-table v-if="tab === 'notOkServers'">-->
+<!--      <template v-slot:default>-->
+<!--        <thead>-->
+<!--        <tr>-->
+<!--          <th style="width: 150px;">Server</th>-->
+<!--          <th style="width: 200px;">Task</th>-->
+<!--          <th style="width: calc(100% - 350px);">Error</th>-->
+<!--        </tr>-->
+<!--        </thead>-->
+<!--        <tbody>-->
+<!--        <tr v-if="!failedTasks || failedTasks.length === 0">-->
+<!--          <td colspan="3" class="text-center">No failed tasks</td>-->
+<!--        </tr>-->
+
+<!--        <tr v-else v-for="(task, index) in failedTasks" :key="index">-->
+<!--          <td style="width: 150px;">{{ task.host }}</td>-->
+<!--          <td style="width: 200px;">{{ task.task }}</td>-->
+<!--          <td>-->
+<!--            <div-->
+<!--              style="overflow: hidden; color: #ff5252;
+max-width: 400px; text-overflow: ellipsis">-->
+<!--              {{ task.error }}-->
+<!--            </div>-->
+<!--          </td>-->
+<!--        </tr>-->
+
+<!--        </tbody>-->
+<!--      </template>-->
+<!--    </v-simple-table>-->
 
     <v-simple-table v-else-if="tab === 'allServers'">
       <template v-slot:default>
@@ -83,13 +124,47 @@
         <tbody>
         <tr v-for="(host, index) in hosts" :key="index">
           <td>{{ host.host }}</td>
-          <td>{{ host.changed }}</td>
-          <td>{{ host.failed }}</td>
-          <td>{{ host.ignored }}</td>
-          <td>{{ host.ok }}</td>
-          <td>{{ host.rescued }}</td>
-          <td>{{ host.skipped }}</td>
-          <td>{{ host.unreachable }}</td>
+
+          <td :style="{
+            color: (host.changed > 0 ? 'rgb(170,85,0)' : undefined),
+            'font-weight': (host.changed > 0 ? 'bold' : undefined),
+          }"
+          >{{ host.changed }}</td>
+
+          <td :style="{
+            color: (host.failed > 0 ? 'red' : undefined),
+            'font-weight': (host.failed > 0 ? 'bold' : undefined),
+          }">{{ host.failed }}</td>
+
+          <td :style="{
+            color: (host.ignored > 0 ? 'red' : undefined),
+            'font-weight': (host.ignored > 0 ? 'bold' : undefined),
+          }"
+          >{{ host.ignored }}</td>
+
+          <td :style="{
+            color: (host.ok > 0 ? 'green' : undefined),
+            'font-weight': (host.ok > 0 ? 'bold' : undefined),
+          }"
+          >{{ host.ok }}</td>
+
+          <td :style="{
+            'font-weight': (host.rescued > 0 ? 'bold' : undefined),
+          }"
+          >{{ host.rescued }}</td>
+
+          <td :style="{
+            color: (host.skipped > 0 ? 'rgb(0,170,170)' : undefined),
+            'font-weight': (host.skipped > 0 ? 'bold' : undefined),
+          }"
+          >{{ host.skipped }}</td>
+
+          <td :style="{
+            color: (host.unreachable > 0 ? 'red' : undefined),
+            'font-weight': (host.unreachable > 0 ? 'bold' : undefined),
+          }">
+            {{ host.unreachable }}
+          </td>
         </tr>
         </tbody>
       </template>
@@ -145,8 +220,21 @@ export default {
       okServers: 0,
       notOkServers: 0,
       tab: 'notOkServers',
-      failedTasks: null,
+      failedTasks: [],
       hosts: null,
+      notOkServersHeaders: [{
+        text: 'Server',
+        value: 'host',
+        sortable: false,
+      }, {
+        text: 'Task',
+        value: 'task',
+        sortable: false,
+      }, {
+        text: 'Error',
+        value: 'error',
+        sortable: false,
+      }],
     };
   },
 
@@ -169,6 +257,16 @@ export default {
         this.loadProjectEndpoint(`/tasks/${this.taskId}/ansible/hosts`),
         this.loadProjectEndpoint(`/tasks/${this.taskId}/stages`),
       ]);
+
+      this.hosts.forEach((host) => {
+        if (host.unreachable) {
+          this.failedTasks.push({
+            host: host.host,
+            task: '—',
+            error: 'Host is unreachable',
+          });
+        }
+      });
     },
 
     calcStats() {

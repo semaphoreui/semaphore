@@ -129,11 +129,11 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			})
 			printError(err)
 			_, err = store.CreateAccessKey(db.AccessKey{
-				Name:          string(secret.Type) + "." + secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &res.ID,
 				ProjectID:     &userProject.ID,
 				Type:          db.AccessKeyString,
+				Owner:         secret.Type.GetAccessKeyOwner(),
 			})
 			printError(err)
 			environmentID = res.ID

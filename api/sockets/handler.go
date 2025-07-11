@@ -2,12 +2,12 @@ package sockets
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"net/http"
 	"time"
 
-	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
@@ -148,7 +148,7 @@ func (c *connection) writePump() {
 
 // Handler is used by the router to handle the /ws endpoint
 func Handler(w http.ResponseWriter, r *http.Request) {
-	usr := context.Get(r, "user")
+	usr := helpers.GetFromContext(r, "user")
 	if usr == nil {
 		return
 	}

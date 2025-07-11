@@ -106,7 +106,12 @@
         </v-card>
       </v-col>
       <v-col cols="12" md="6">
-        <v-card v-if="item?.params">
+        <v-card
+          v-if="item?.params"
+          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          style="background: #8585850f"
+          class="mb-5"
+        >
           <v-card-title>Task parameters</v-card-title>
           <v-card-text>
             <v-simple-table class="pa-0 TaskDetails__table">
@@ -114,11 +119,15 @@
                 <tbody>
                 <tr>
                   <td><b>Limit</b></td>
-                  <td>{{ item.params.limit }}</td>
+                  <td>
+                    {{ item.params.limit ? 'Yes' : 'No' }}
+                  </td>
                 </tr>
                 <tr>
                   <td><b>Debug</b></td>
-                  <td>{{ item.params.debug }}</td>
+                  <td>
+                    {{ item.params.debug ? 'Yes' : 'No' }}
+                  </td>
                 </tr>
                 <tr>
                   <td><b>Debug level</b></td>
@@ -126,11 +135,11 @@
                 </tr>
                 <tr>
                   <td><b>Diff</b> <code>--diff</code></td>
-                  <td>{{ item.params.diff }}</td>
+                  <td>{{ item.params.diff ? 'Yes' : 'No' }}</td>
                 </tr>
                 <tr>
                   <td><b>Dry run</b> <code>--check</code></td>
-                  <td>{{ item.params.dry_run }}</td>
+                  <td>{{ item.params.dry_run ? 'Yes' : 'No' }}</td>
                 </tr>
                 <tr>
                   <td><b>Environment</b></td>

@@ -3,7 +3,6 @@ package projects
 import (
 	"errors"
 	"fmt"
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -14,7 +13,7 @@ import (
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		repositoryID, err := helpers.GetIntParam("repository_id", w, r)
 		if err != nil {
 			return
@@ -27,13 +26,13 @@ func RepositoryMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "repository", repository)
+		r = helpers.SetContextValue(r, "repository", repository)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
-	repo := context.Get(r, "repository").(db.Repository)
+	repo := helpers.GetFromContext(r, "repository").(db.Repository)
 	refs, err := helpers.Store(r).GetRepositoryRefs(repo.ProjectID, repo.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -44,7 +43,7 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
-	repo := context.Get(r, "repository").(db.Repository)
+	repo := helpers.GetFromContext(r, "repository").(db.Repository)
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
 		helpers.WriteJSON(w, http.StatusBadRequest, "Wrong repository type: "+repo.GetType())
@@ -68,12 +67,12 @@ func GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
 
 // GetRepositories returns all repositories in a project sorted by type
 func GetRepositories(w http.ResponseWriter, r *http.Request) {
-	if repo := context.Get(r, "repository"); repo != nil {
+	if repo := helpers.GetFromContext(r, "repository"); repo != nil {
 		helpers.WriteJSON(w, http.StatusOK, repo.(db.Repository))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	params := helpers.QueryParamsForProps(r.URL, db.RepositoryProps)
 
@@ -89,7 +88,7 @@ func GetRepositories(w http.ResponseWriter, r *http.Request) {
 
 // AddRepository creates a new repository in the database
 func AddRepository(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	var repository db.Repository
 
@@ -128,7 +127,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 
 // UpdateRepository updates the values of a repository in the database
 func UpdateRepository(w http.ResponseWriter, r *http.Request) {
-	oldRepo := context.Get(r, "repository").(db.Repository)
+	oldRepo := helpers.GetFromContext(r, "repository").(db.Repository)
 	var repository db.Repository
 
 	if !helpers.Bind(w, r, &repository) {
@@ -176,7 +175,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 
 // RemoveRepository deletes a repository from a project in the database
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
-	repository := context.Get(r, "repository").(db.Repository)
+	repository := helpers.GetFromContext(r, "repository").(db.Repository)
 
 	var err error = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
 	if errors.Is(err, db.ErrInvalidOperation) {

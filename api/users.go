@@ -10,7 +10,6 @@ import (
 	"image/png"
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -21,7 +20,7 @@ type minimalUser struct {
 }
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
-	currentUser := context.Get(r, "user").(*db.User)
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{
 		Filter: r.URL.Query().Get("s"),
 	})
@@ -53,7 +52,7 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	editor := context.Get(r, "user").(*db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
@@ -92,7 +91,7 @@ func readonlyUserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		editor := context.Get(r, "user").(*db.User)
+		editor := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !editor.Admin && editor.ID != user.ID {
 			user = db.User{
@@ -102,7 +101,7 @@ func readonlyUserMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		context.Set(r, "_user", user)
+		r = helpers.SetContextValue(r, "_user", user)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -122,7 +121,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		editor := context.Get(r, "user").(*db.User)
+		editor := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !editor.Admin && editor.ID != user.ID {
 			log.Warn(editor.Username + " is not permitted to edit users")
@@ -130,14 +129,14 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "_user", user)
+		r = helpers.SetContextValue(r, "_user", user)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request) {
-	targetUser := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	targetUser := helpers.GetFromContext(r, "_user").(db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
@@ -179,8 +178,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	var pwd struct {
 		Pwd string `json:"password"`
@@ -212,8 +211,8 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to delete users")
@@ -229,7 +228,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func totpQr(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
 
 	if user.Totp == nil {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusNotFound)
@@ -261,7 +260,7 @@ func totpQr(w http.ResponseWriter, r *http.Request) {
 }
 
 func enableTotp(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
 
 	if !util.Config.Auth.Totp.Enabled {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
@@ -305,7 +304,7 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 }
 
 func disableTotp(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
 	if user.Totp == nil {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
 		return

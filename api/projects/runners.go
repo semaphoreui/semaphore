@@ -5,13 +5,12 @@ package projects
 import (
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 )
 
 func GetRunners(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	runners, err := helpers.Store(r).GetRunners(project.ID, false, nil)
 
 	if err != nil {
@@ -52,7 +51,7 @@ func ClearRunnerCache(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetRunnerTags(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	tags, err := helpers.Store(r).GetRunnerTags(project.ID)
 
 	if err != nil {

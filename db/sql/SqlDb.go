@@ -18,10 +18,12 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
+	_ "modernc.org/sqlite" // Import the driver
 )
 
 type SqlDb struct {
-	sql *gorp.DbMap
+	sql     *gorp.DbMap
+	dialect string
 }
 
 var initialSQL = `
@@ -34,6 +36,14 @@ create table ` + "`migrations`" + ` (
 
 //go:embed migrations/*.sql
 var dbAssets embed.FS
+
+func CreateDb(dialect string) *SqlDb {
+	return &SqlDb{dialect: dialect}
+}
+
+func (d *SqlDb) GetDialect() string {
+	return d.dialect
+}
 
 func getQueryForParams(q squirrel.SelectBuilder, prefix string, props db.ObjectProps, params db.RetrieveQueryParams) (res squirrel.SelectBuilder, err error) {
 	pp, err := params.Validate(props)
@@ -134,7 +144,7 @@ func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...any) (
 			return 0, err
 		}
 	default:
-		res, err := d.exec(query, args...)
+		res, err := d.sql.Exec(d.PrepareQuery(query), args...)
 		if err != nil {
 			return 0, err
 		}
@@ -371,9 +381,15 @@ func (d *SqlDb) Connect(_ string) {
 		dialect = gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}
 	case util.DbDriverPostgres:
 		dialect = gorp.PostgresDialect{}
+	case util.DbDriverSQLite:
+		dialect = gorp.SqliteDialect{}
 	}
 
 	d.sql = &gorp.DbMap{Db: sqlDb, Dialect: dialect}
+
+	if d.GetDialect() == util.DbDriverSQLite {
+		sqlDb.SetMaxOpenConns(1)
+	}
 
 	d.sql.AddTableWithName(db.APIToken{}, "user__token").SetKeys(false, "id")
 	d.sql.AddTableWithName(db.AccessKey{}, "access_key").SetKeys(true, "id")

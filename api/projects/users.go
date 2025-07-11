@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -12,7 +11,7 @@ import (
 // UserMiddleware ensures a user exists and loads it to the context
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		userID, err := helpers.GetIntParam("user_id", w, r)
 		if err != nil {
 			return
@@ -32,7 +31,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "projectUser", user)
+		r = helpers.SetContextValue(r, "projectUser", user)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -48,12 +47,12 @@ type projUser struct {
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// get single user if user ID specified in the request
-	if user := context.Get(r, "projectUser"); user != nil {
+	if user := helpers.GetFromContext(r, "projectUser"); user != nil {
 		helpers.WriteJSON(w, http.StatusOK, user.(db.User))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	users, err := helpers.Store(r).GetProjectUsers(project.ID, helpers.QueryParams(r.URL))
 
 	if err != nil {
@@ -77,7 +76,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // AddUser adds a user to a projects team in the database
 func AddUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var projectUser struct {
 		UserID int                `json:"user_id" binding:"required"`
 		Role   db.ProjectUserRole `json:"role"`
@@ -116,9 +115,9 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 
 // removeUser removes a user from a project team
 func removeUser(targetUser db.User, w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	me := context.Get(r, "user").(*db.User) // logged in user
-	myRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
+	myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
 	if !me.Admin && targetUser.ID == me.ID && myRole == db.ProjectOwner {
 		helpers.WriteError(w, fmt.Errorf("owner can not left the project"))
@@ -145,21 +144,21 @@ func removeUser(targetUser db.User, w http.ResponseWriter, r *http.Request) {
 
 // LeftProject removes a user from a project team
 func LeftProject(w http.ResponseWriter, r *http.Request) {
-	me := context.Get(r, "user").(*db.User) // logged in user
+	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 	removeUser(*me, w, r)
 }
 
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
-	targetUser := context.Get(r, "projectUser").(db.User) // target user
+	targetUser := helpers.GetFromContext(r, "projectUser").(db.User) // target user
 	removeUser(targetUser, w, r)
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	me := context.Get(r, "user").(*db.User) // logged in user
-	targetUser := context.Get(r, "projectUser").(db.User)
-	targetUserRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
+	targetUser := helpers.GetFromContext(r, "projectUser").(db.User)
+	targetUserRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
 	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
 		helpers.WriteError(w, fmt.Errorf("owner can not change his role in the project"))

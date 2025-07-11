@@ -8,11 +8,11 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -48,7 +48,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "runner", runner)
+		r = helpers.SetContextValue(r, "runner", runner)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -92,12 +92,24 @@ func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
 	return encryptedBuffer.Bytes(), nil
 }
 
-func GetRunner(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(db.Runner)
+type RunnerController struct {
+	runnerRepo db.RunnerManager
+	taskPool   *tasks.TaskPool
+}
+
+func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool) *RunnerController {
+	return &RunnerController{
+		runnerRepo: runnerRepo,
+		taskPool:   taskPool,
+	}
+}
+
+func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
 
 	clearCache := false
 
-	err := helpers.Store(r).TouchRunner(runner)
+	err := c.runnerRepo.TouchRunner(runner)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"runner_id": runner.ID,
@@ -120,7 +132,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 		data.CacheCleanProjectID = runner.ProjectID
 	}
 
-	tasks := helpers.TaskPool(r).GetRunningTasks()
+	tasks := c.taskPool.GetRunningTasks()
 
 	for _, tsk := range tasks {
 		if tsk.RunnerID != runner.ID {
@@ -221,9 +233,9 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UpdateRunner(w http.ResponseWriter, r *http.Request) {
+func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {
 
-	runner := context.Get(r, "runner").(db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
 
 	var body runners.RunnerProgress
 
@@ -234,7 +246,7 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskPool := helpers.TaskPool(r)
+	taskPool := c.taskPool
 
 	if body.Jobs == nil {
 		w.WriteHeader(http.StatusNoContent)
@@ -313,7 +325,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 
 func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 
-	runner := context.Get(r, "runner").(db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
 
 	err := helpers.Store(r).DeleteGlobalRunner(runner.ID)
 

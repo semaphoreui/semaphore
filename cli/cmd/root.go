@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/sockets"
@@ -90,13 +90,13 @@ func runService() {
 	go schedulePool.Run()
 	go taskPool.Run()
 
-	route := api.Route()
+	route := api.Route(store, &taskPool)
 
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			context.Set(r, "store", store)
-			context.Set(r, "schedule_pool", schedulePool)
-			context.Set(r, "task_pool", &taskPool)
+			r = helpers.SetContextValue(r, "store", store)
+			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
+			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			next.ServeHTTP(w, r)
 		})
 	})

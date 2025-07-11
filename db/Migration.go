@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/util"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,7 +22,14 @@ func (m Migration) HumanoidVersion() string {
 	return "v" + m.Version
 }
 
-func GetMigrations() []Migration {
+func GetMigrations(dialect string) []Migration {
+	if dialect == util.DbDriverSQLite {
+		return []Migration{
+			{Version: "2.15.1.sqlite"},
+			{Version: "2.16.0.sqlite"},
+		}
+	}
+
 	return []Migration{
 		{Version: "0.0.0"},
 		{Version: "1.0.0"},
@@ -94,6 +102,7 @@ func GetMigrations() []Migration {
 		{Version: "2.14.12"},
 		{Version: "2.15.0"},
 		{Version: "2.15.1"},
+		{Version: "2.16.0"},
 	}
 }
 
@@ -186,7 +195,7 @@ func Rollback(d Store, targetVersion string) error {
 
 	didRun := false
 
-	migrations := GetMigrations()
+	migrations := GetMigrations(d.GetDialect())
 	slices.Reverse(migrations)
 
 	for _, version := range migrations {
@@ -219,7 +228,7 @@ func Rollback(d Store, targetVersion string) error {
 func Migrate(d Store, targetVersion *string) error {
 	didRun := false
 
-	for _, version := range GetMigrations() {
+	for _, version := range GetMigrations(d.GetDialect()) {
 
 		if targetVersion != nil && version.Compare(Migration{Version: *targetVersion}) > 0 {
 			break

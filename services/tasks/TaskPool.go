@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -62,8 +61,6 @@ type TaskPool struct {
 
 	aliases map[string]*TaskRunner
 }
-
-var ErrInvalidSubscription = errors.New("has no active subscription")
 
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.RunningTasks {
@@ -227,52 +224,14 @@ func (p *TaskPool) Run() {
 	}()
 
 	go p.handleQueue()
+	go p.handleLogs()
 
 	for {
 		select {
-		case record := <-p.logger: // new log message which should be put to database
-			db.StoreSession(p.store, "logger", func() {
-
-				newOutput, err := p.store.CreateTaskOutput(db.TaskOutput{
-					TaskID: record.task.Task.ID,
-					Output: record.output,
-					Time:   record.time,
-				})
-
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				currentOutput := record.task.currentOutput
-
-				record.task.currentOutput = &newOutput
-
-				newStage, newState, err := p.MoveToNextStage(
-					record.task.Template.App,
-					record.task.Task.ProjectID,
-					record.task.currentState,
-					record.task.currentStage,
-					currentOutput,
-					newOutput)
-
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				record.task.currentState = newState
-
-				if newStage != nil {
-					record.task.currentStage = newStage
-				}
-			})
-
 		case task := <-p.register: // new task created by API or schedule
 
 			db.StoreSession(p.store, "new task", func() {
 				//p.Queue = append(p.Queue, task)
-				log.Debug(task)
 				msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
 				task.Log(msg)
 				log.Info(msg)
@@ -319,6 +278,47 @@ func (p *TaskPool) handleQueue() {
 			p.Queue = slices.Delete(p.Queue, i, i+1)
 			runTask(curr, p)
 		}
+	}
+}
+
+func (p *TaskPool) handleLogs() {
+
+	for record := range p.logger {
+		db.StoreSession(p.store, "logger", func() {
+
+			newOutput, err := p.store.CreateTaskOutput(db.TaskOutput{
+				TaskID: record.task.Task.ID,
+				Output: record.output,
+				Time:   record.time,
+			})
+
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			currentOutput := record.task.currentOutput
+			record.task.currentOutput = &newOutput
+
+			newStage, newState, err := p.MoveToNextStage(
+				record.task.Template.App,
+				record.task.Task.ProjectID,
+				record.task.currentState,
+				record.task.currentStage,
+				currentOutput,
+				newOutput)
+
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			record.task.currentState = newState
+
+			if newStage != nil {
+				record.task.currentStage = newStage
+			}
+		})
 	}
 }
 

@@ -225,6 +225,34 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
 
+  migrate-sqlite:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-local
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.json <<EOF
+            {
+              "sqlite": {
+                "host": "/tmp/db.sqlite"
+              },
+              "dialect": "sqlite",
+              "email_alert": false
+            }
+          EOF
+
+      - name: Migrate database
+        run: |
+          chmod +x ./semaphore && ./semaphore migrate --config config.json
+
   integrate-boltdb:
     runs-on: ubuntu-latest
 
@@ -506,6 +534,68 @@ jobs:
           semaphore
           p455w0rd
           semaphore
+          /tmp/semaphore
+          http://localhost:3000
+          no
+          no
+          no
+          no
+          no
+          no
+          $(pwd)/.dredd
+          admin
+          admin@localhost
+          Developer
+          password
+          EOF
+
+      - name: Execute setup
+        run: |
+          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+
+      - name: Launch dredd
+        run: |
+          task dredd:goodman
+          task dredd:deps
+          task dredd:hooks
+          task dredd:test
+
+  integrate-sqlite:
+    runs-on: ubuntu-latest
+
+    needs:
+      - migrate-sqlite
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.0'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: semaphore
+
+      - name: Write config
+        run: |
+          cat > config.stdin <<EOF
+          4
+          /tmp/database.sqlite
           /tmp/semaphore
           http://localhost:3000
           no

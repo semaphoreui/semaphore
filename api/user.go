@@ -3,7 +3,6 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -14,7 +13,7 @@ import (
 )
 
 func getUser(w http.ResponseWriter, r *http.Request) {
-	if u, exists := context.GetOk(r, "_user"); exists {
+	if u, exists := helpers.GetOkFromContext(r, "_user"); exists {
 		helpers.WriteJSON(w, http.StatusOK, u)
 		return
 	}
@@ -24,14 +23,14 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		CanCreateProject bool `json:"can_create_project"`
 	}
 
-	user.User = *context.Get(r, "user").(*db.User)
+	user.User = *helpers.GetFromContext(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
 
 	helpers.WriteJSON(w, http.StatusOK, user)
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	tokens, err := helpers.Store(r).GetAPITokens(user.ID)
 	if err != nil {
@@ -47,7 +46,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
@@ -66,7 +65,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	tokenID := mux.Vars(r)["token_id"]
 

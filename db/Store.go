@@ -194,6 +194,7 @@ type ConnectionManager interface {
 
 // MigrationManager handles database migrations
 type MigrationManager interface {
+	GetDialect() string
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
 	IsInitialized() (bool, error)
@@ -295,11 +296,16 @@ type EnvironmentManager interface {
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
 }
 
+type GetAccessKeyOptions struct {
+	Owner         AccessKeyOwner
+	EnvironmentID *int
+}
+
 // AccessKeyManager handles access key-related operations
 type AccessKeyManager interface {
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
-	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
+	GetAccessKeys(projectID int, options GetAccessKeyOptions, params RetrieveQueryParams) ([]AccessKey, error)
 	RekeyAccessKeys(oldKey string) error
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)

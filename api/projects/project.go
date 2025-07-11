@@ -1,10 +1,10 @@
 package projects
 
 import (
-	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -13,7 +13,7 @@ import (
 // ProjectMiddleware ensures a project exists and loads it to the context
 func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*db.User)
+		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		projectID, err := helpers.GetIntParam("project_id", w, r)
 
@@ -39,8 +39,8 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "projectUserRole", projectUser.Role)
-		context.Set(r, "project", project)
+		r = helpers.SetContextValue(r, "projectUserRole", projectUser.Role)
+		r = helpers.SetContextValue(r, "project", project)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -49,8 +49,8 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			me := context.Get(r, "user").(*db.User)
-			myRole := context.Get(r, "projectUserRole").(db.ProjectUserRole)
+			me := helpers.GetFromContext(r, "user").(*db.User)
+			myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
 			if !me.Admin && r.Method != "GET" && r.Method != "HEAD" && !myRole.Can(permissions) {
 				w.WriteHeader(http.StatusForbidden)
@@ -62,24 +62,12 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 	}
 }
 
-// GetProject returns a project details
-func GetProject(w http.ResponseWriter, r *http.Request) {
-	helpers.WriteJSON(w, http.StatusOK, context.Get(r, "project"))
+type ProjectController struct {
+	ProjectService services.ProjectService
 }
 
-func GetUserRole(w http.ResponseWriter, r *http.Request) {
-	var permissions struct {
-		Role        db.ProjectUserRole       `json:"role"`
-		Permissions db.ProjectUserPermission `json:"permissions"`
-	}
-	permissions.Role = context.Get(r, "projectUserRole").(db.ProjectUserRole)
-	permissions.Permissions = permissions.Role.GetPermissions()
-	helpers.WriteJSON(w, http.StatusOK, permissions)
-}
-
-// UpdateProject saves updated project details to the database
-func UpdateProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var body db.Project
 
 	if !helpers.Bind(w, r, &body) {
@@ -93,20 +81,8 @@ func UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).UpdateProject(body)
+	err := c.ProjectService.UpdateProject(body)
 
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func ClearCache(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-
-	err := util.Config.ClearProjectTmpDir(project.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -116,10 +92,10 @@ func ClearCache(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteProject removes a project from the database
-func DeleteProject(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+func (c *ProjectController) DeleteProject(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	err := helpers.Store(r).DeleteProject(project.ID)
+	err := c.ProjectService.DeleteProject(project.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -129,6 +105,33 @@ func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	err = util.Config.ClearProjectTmpDir(project.ID)
 	if err != nil {
 		log.Error(err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetProject returns a project details
+func GetProject(w http.ResponseWriter, r *http.Request) {
+	helpers.WriteJSON(w, http.StatusOK, helpers.GetFromContext(r, "project"))
+}
+
+func GetUserRole(w http.ResponseWriter, r *http.Request) {
+	var permissions struct {
+		Role        db.ProjectUserRole       `json:"role"`
+		Permissions db.ProjectUserPermission `json:"permissions"`
+	}
+	permissions.Role = helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	permissions.Permissions = permissions.Role.GetPermissions()
+	helpers.WriteJSON(w, http.StatusOK, permissions)
+}
+
+func ClearCache(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+
+	err := util.Config.ClearProjectTmpDir(project.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

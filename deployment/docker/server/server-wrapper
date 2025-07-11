@@ -86,8 +86,10 @@ if [ -z "${SEMAPHORE_DB_HOST}" ]; then
 fi
 
 if [ -z "${SEMAPHORE_DB_HOST}" ]; then
-    if [ "${SEMAPHORE_DB_DIALECT}" == 'bolt' ]; then
+    if [ "${SEMAPHORE_DB_DIALECT}" = 'bolt' ]; then
         export SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.boltdb
+    elif [ "${SEMAPHORE_DB_DIALECT}" = 'sqlite' ]; then
+        export SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.sqlite
     else
         export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-0.0.0.0}"
     fi
@@ -119,6 +121,8 @@ if [ -z "${SEMAPHORE_DB_PORT}" ]; then
             ;;
         bolt)
             ;;
+        sqlite)
+            ;;
         *)
             echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
             exit 1
@@ -130,7 +134,7 @@ fi
 #
 # Ping database if it is not BoltDB
 #
-if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ]; then
+if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ] && [ "${SEMAPHORE_DB_DIALECT}" != 'sqlite' ]; then
     echoerr "Pinging database on ${SEMAPHORE_DB_HOST} port ${SEMAPHORE_DB_PORT}..."
     TIMEOUT=30
 
@@ -177,6 +181,9 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
         postgres)
             SEMAPHORE_DB_DIALECT_ID=3
             ;;
+        sqlite)
+            SEMAPHORE_DB_DIALECT_ID=4
+            ;;
         *)
             echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
             exit 1
@@ -189,6 +196,10 @@ ${SEMAPHORE_DB_DIALECT_ID}
 EOF
 
     if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
+        cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
+${SEMAPHORE_DB_HOST}
+EOF
+    elif [ "${SEMAPHORE_DB_DIALECT}" = "sqlite" ]; then
         cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
 ${SEMAPHORE_DB_HOST}
 EOF

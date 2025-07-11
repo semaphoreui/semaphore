@@ -45,6 +45,9 @@ func (t *LocalJob) tmpInventoryFilename() string {
 }
 
 func (t *LocalJob) tmpInventoryFullPath() string {
+	if t.Inventory.Repository != nil && t.Inventory.Repository.GetType() == db.RepositoryLocal {
+		return t.Inventory.Repository.GetGitURL(true)
+	}
 	pathname := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
 		pathname += ".yml"
@@ -54,6 +57,10 @@ func (t *LocalJob) tmpInventoryFullPath() string {
 
 func (t *LocalJob) cloneInventoryRepo() error {
 	if t.Inventory.Repository == nil {
+		return nil
+	}
+
+	if t.Inventory.Repository.GetType() == db.RepositoryLocal {
 		return nil
 	}
 

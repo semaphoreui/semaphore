@@ -13,7 +13,7 @@ func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error
 	insertID, err := d.insert(
 		"id",
 		"insert into task__stage "+
-			"(task_id, start, end, start_output_id, end_output_id, type) VALUES "+
+			"(task_id, `start`, `end`, start_output_id, end_output_id, `type`) VALUES "+
 			"(?, ?, ?, ?, ?, ?)",
 		stage.TaskID,
 		stage.Start,
@@ -33,7 +33,7 @@ func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error
 
 func (d *SqlDb) EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) (err error) {
 	_, err = d.exec(
-		"update task__stage set end=?, end_output_id=? where task_id=? and id=?",
+		"update task__stage set `end`=?, end_output_id=? where task_id=? and id=?",
 		end,
 		endOutputID,
 		taskID,
@@ -227,7 +227,6 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 		output.Time.UTC())
 
 	output.ID = insertID
-
 	return output, err
 }
 

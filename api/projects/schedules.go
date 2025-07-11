@@ -2,18 +2,16 @@ package projects
 
 import (
 	"fmt"
-	"net/http"
-
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/schedules"
+	"net/http"
 )
 
 // SchedulesMiddleware ensures a template exists and loads it to the context
 func SchedulesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		scheduleID, err := helpers.GetIntParam("schedule_id", w, r)
 		if err != nil { // not specified schedule_id
 			return
@@ -26,24 +24,24 @@ func SchedulesMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "schedule", schedule)
+		r = helpers.SetContextValue(r, "schedule", schedule)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func refreshSchedulePool(r *http.Request) {
-	pool := context.Get(r, "schedule_pool").(schedules.SchedulePool)
+	pool := helpers.GetFromContext(r, "schedule_pool").(schedules.SchedulePool)
 	pool.Refresh()
 }
 
 // GetSchedule returns single template by ID
 func GetSchedule(w http.ResponseWriter, r *http.Request) {
-	schedule := context.Get(r, "schedule").(db.Schedule)
+	schedule := helpers.GetFromContext(r, "schedule").(db.Schedule)
 	helpers.WriteJSON(w, http.StatusOK, schedule)
 }
 
 func GetProjectSchedules(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	tplSchedules, err := helpers.Store(r).GetProjectSchedules(project.ID)
 	if err != nil {
@@ -54,7 +52,7 @@ func GetProjectSchedules(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, tplSchedules)
 }
 func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	templateID, err := helpers.GetIntParam("template_id", w, r)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -94,7 +92,7 @@ func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 
 // AddSchedule adds a template to the database
 func AddSchedule(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	var schedule db.Schedule
 	if !helpers.Bind(w, r, &schedule) {
@@ -127,7 +125,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSchedule writes a schedule to an existing key in the database
 func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
-	oldSchedule := context.Get(r, "schedule").(db.Schedule)
+	oldSchedule := helpers.GetFromContext(r, "schedule").(db.Schedule)
 
 	var schedule db.Schedule
 	if !helpers.Bind(w, r, &schedule) {
@@ -174,7 +172,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
-	oldSchedule := context.Get(r, "schedule").(db.Schedule)
+	oldSchedule := helpers.GetFromContext(r, "schedule").(db.Schedule)
 
 	var schedule struct {
 		Active bool `json:"active"`
@@ -205,7 +203,7 @@ func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
 
 // RemoveSchedule deletes a schedule from the database
 func RemoveSchedule(w http.ResponseWriter, r *http.Request) {
-	schedule := context.Get(r, "schedule").(db.Schedule)
+	schedule := helpers.GetFromContext(r, "schedule").(db.Schedule)
 
 	err := helpers.Store(r).DeleteSchedule(schedule.ProjectID, schedule.ID)
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
@@ -17,7 +16,7 @@ func TaskMiddleware(next http.Handler) http.Handler {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 		}
 
-		context.Set(r, "task_id", taskID)
+		r = helpers.SetContextValue(r, "task_id", taskID)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -41,7 +40,7 @@ type taskRes struct {
 }
 
 func GetTasks(w http.ResponseWriter, r *http.Request) {
-	pool := context.Get(r, "task_pool").(*task2.TaskPool)
+	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
 	res := []taskRes{}
 
@@ -72,9 +71,9 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 
 func DeleteTask(w http.ResponseWriter, r *http.Request) {
 
-	taskID := context.Get(r, "task_id").(int)
+	taskID := helpers.GetFromContext(r, "task_id").(int)
 
-	pool := context.Get(r, "task_pool").(*task2.TaskPool)
+	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
 	var task *db.Task
 

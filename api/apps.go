@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -80,7 +79,7 @@ func appMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "app_id", appID)
+		r = helpers.SetContextValue(r, "app_id", appID)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -110,7 +109,7 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 }
 
 func getApp(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	app, ok := util.Config.Apps[appID]
 	if !ok {
@@ -122,7 +121,7 @@ func getApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteApp(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	store := helpers.Store(r)
 
@@ -161,7 +160,7 @@ func setAppOption(store db.Store, appID string, field string, val any) error {
 }
 
 func setApp(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	store := helpers.Store(r)
 
@@ -206,7 +205,7 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func setAppActive(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	store := helpers.Store(r)
 

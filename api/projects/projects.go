@@ -7,13 +7,11 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/gorilla/context"
 )
 
 // GetProjects returns all projects in this users context
 func GetProjects(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	var err error
 	var projects []db.Project
@@ -299,7 +297,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 // AddProject adds a new project to the database
 func AddProject(w http.ResponseWriter, r *http.Request) {
 
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !user.Admin && !util.Config.NonAdminCanCreateProject {
 		log.Warn(user.Username + " is not permitted to edit users")

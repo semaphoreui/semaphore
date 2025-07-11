@@ -2,8 +2,6 @@ package api
 
 import (
 	"github.com/semaphoreui/semaphore/util"
-	//_ "github.com/snikch/goodman/hooks"
-	//_ "github.com/snikch/goodman/transaction"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,7 +15,7 @@ func TestApiPing(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/ping", nil)
 	rr := httptest.NewRecorder()
 
-	r := Route()
+	r := Route(nil, nil)
 
 	r.ServeHTTP(rr, req)
 
