@@ -5,7 +5,7 @@
       text
       color="hsl(348deg, 86%, 61%)"
       style="border-radius: 0;"
-      v-if="!premiumFeatures.task_result"
+      v-if="!premiumFeatures.task_summary"
     >
         <span class="mr-2">
           This is <b>DEMO</b> data.
