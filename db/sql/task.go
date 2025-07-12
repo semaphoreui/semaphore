@@ -226,7 +226,6 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 		output.Time.UTC())
 
 	output.ID = insertID
-
 	return output, err
 }
 

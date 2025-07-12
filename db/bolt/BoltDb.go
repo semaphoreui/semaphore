@@ -44,6 +44,10 @@ type BoltDb struct {
 	terraformAlias   publicAlias
 }
 
+func (d *BoltDb) GetDialect() string {
+	return util.DbDriverBolt
+}
+
 var terraformAliasProps = db.ObjectProps{
 	TableName:         "terraform_alias",
 	Type:              reflect.TypeOf(db.TerraformInventoryAlias{}),
