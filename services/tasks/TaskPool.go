@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks/stage_parsers"
 	"regexp"
 	"slices"
@@ -57,9 +57,9 @@ type TaskPool struct {
 	logger chan logRecord
 
 	store                  db.Store
-	inventoryService       server_services.InventoryService
-	encryptionService      server_services.AccessKeyEncryptionService
-	keyInstallationService server_services.AccessKeyInstallationService
+	inventoryService       server.InventoryService
+	encryptionService      server.AccessKeyEncryptionService
+	keyInstallationService server.AccessKeyInstallationService
 
 	queueEvents chan PoolEvent
 
@@ -391,9 +391,9 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 
 func CreateTaskPool(
 	store db.Store,
-	inventoryService server_services.InventoryService,
-	encryptionService server_services.AccessKeyEncryptionService,
-	keyInstallationService server_services.AccessKeyInstallationService,
+	inventoryService server.InventoryService,
+	encryptionService server.AccessKeyEncryptionService,
+	keyInstallationService server.AccessKeyInstallationService,
 ) TaskPool {
 	return TaskPool{
 		Queue:                  make([]*TaskRunner, 0), // queue of waiting tasks

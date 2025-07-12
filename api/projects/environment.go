@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 )
 
 type EnvironmentController struct {
 	accessKeyRepo     db.AccessKeyManager
-	accessKeyService  server_services.AccessKeyService
-	encryptionService server_services.AccessKeyEncryptionService
+	accessKeyService  server.AccessKeyService
+	encryptionService server.AccessKeyEncryptionService
 }
 
 func NewEnvironmentController(
 	accessKeyRepo db.AccessKeyManager,
-	encryptionService server_services.AccessKeyEncryptionService,
-	accessKeyService server_services.AccessKeyService,
+	encryptionService server.AccessKeyEncryptionService,
+	accessKeyService server.AccessKeyService,
 ) *EnvironmentController {
 	return &EnvironmentController{
 		accessKeyRepo:     accessKeyRepo,

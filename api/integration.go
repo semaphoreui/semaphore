@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/conv"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"io"
 	"net/http"
@@ -46,10 +46,10 @@ func hmacHashPayload(secret string, payloadBody []byte) string {
 }
 
 type IntegrationController struct {
-	integrationService server_services.IntegrationService
+	integrationService server.IntegrationService
 }
 
-func NewIntegrationController(integrationService server_services.IntegrationService) *IntegrationController {
+func NewIntegrationController(integrationService server.IntegrationService) *IntegrationController {
 	return &IntegrationController{
 		integrationService: integrationService,
 	}

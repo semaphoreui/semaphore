@@ -1,7 +1,7 @@
 package schedules
 
 import (
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 	"strconv"
 	"sync"
@@ -18,7 +18,7 @@ type ScheduleRunner struct {
 	projectID         int
 	scheduleID        int
 	pool              *SchedulePool
-	encryptionService server_services.AccessKeyEncryptionService
+	encryptionService server.AccessKeyEncryptionService
 	keyInstaller      db_lib.AccessKeyInstaller
 }
 
@@ -26,7 +26,7 @@ func CreateScheduleRunner(
 	projectID int,
 	scheduleID int,
 	pool *SchedulePool,
-	encryptionService server_services.AccessKeyEncryptionService,
+	encryptionService server.AccessKeyEncryptionService,
 	keyInstaller db_lib.AccessKeyInstaller,
 ) ScheduleRunner {
 	return ScheduleRunner{
@@ -126,7 +126,7 @@ type SchedulePool struct {
 	locker            sync.Locker
 	store             db.Store
 	taskPool          *tasks.TaskPool
-	encryptionService server_services.AccessKeyEncryptionService
+	encryptionService server.AccessKeyEncryptionService
 	keyInstaller      db_lib.AccessKeyInstaller
 }
 
@@ -206,7 +206,7 @@ func CreateSchedulePool(
 	store db.Store,
 	taskPool *tasks.TaskPool,
 	keyInstaller db_lib.AccessKeyInstaller,
-	encryptionService server_services.AccessKeyEncryptionService,
+	encryptionService server.AccessKeyEncryptionService,
 ) SchedulePool {
 	pool := SchedulePool{
 		store:             store,

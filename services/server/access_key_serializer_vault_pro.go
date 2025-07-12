@@ -1,18 +1,18 @@
 //go:build pro
 
-package server_services
+package server
 
 import (
 	"github.com/semaphoreui/semaphore/db"
-	server_services_pro "github.com/semaphoreui/semaphore/pro/services/server_services"
+	pro "github.com/semaphoreui/semaphore/pro/services/server"
 )
 
 func NewVaultAccessKeyDeserializer(
 	accessKeyRepo db.AccessKeyManager,
 	secretStorageRepo db.SecretStorageRepository,
 	encryptionService AccessKeyEncryptionService,
-) *server_services_pro.VaultAccessKeyDeserializer {
-	return server_services_pro.NewVaultAccessKeyDeserializer(
+) *pro.VaultAccessKeyDeserializer {
+	return pro.NewVaultAccessKeyDeserializer(
 		accessKeyRepo,
 		secretStorageRepo,
 		encryptionService,

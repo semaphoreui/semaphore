@@ -3,7 +3,7 @@ package projects
 import (
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -11,11 +11,11 @@ import (
 )
 
 type KeyController struct {
-	accessKeyService server_services.AccessKeyService
+	accessKeyService server.AccessKeyService
 }
 
 func NewKeyController(
-	accessKeyService server_services.AccessKeyService,
+	accessKeyService server.AccessKeyService,
 ) *KeyController {
 	return &KeyController{
 		accessKeyService: accessKeyService,

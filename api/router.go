@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"net/http"
 	"os"
@@ -79,12 +79,12 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 func Route(
 	store db.Store,
 	taskPool *task2.TaskPool,
-	projectService server_services.ProjectService,
-	integrationService server_services.IntegrationService,
-	encryptionService server_services.AccessKeyEncryptionService,
-	accessKeyInstallationService server_services.AccessKeyInstallationService,
-	secretStorageService server_services.SecretStorageService,
-	accessKeyService server_services.AccessKeyService,
+	projectService server.ProjectService,
+	integrationService server.IntegrationService,
+	encryptionService server.AccessKeyEncryptionService,
+	accessKeyInstallationService server.AccessKeyInstallationService,
+	secretStorageService server.SecretStorageService,
+	accessKeyService server.AccessKeyService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}

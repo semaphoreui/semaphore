@@ -1,7 +1,7 @@
 package projects
 
 import (
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -11,11 +11,11 @@ import (
 )
 
 type ProjectsController struct {
-	accessKeyService server_services.AccessKeyService
+	accessKeyService server.AccessKeyService
 }
 
 func NewProjectsController(
-	accessKeyService server_services.AccessKeyService,
+	accessKeyService server.AccessKeyService,
 ) *ProjectsController {
 	return &ProjectsController{
 		accessKeyService: accessKeyService,

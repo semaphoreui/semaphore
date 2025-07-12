@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 	"net/url"
 	"os"
@@ -70,18 +70,18 @@ func Execute() {
 func runService() {
 	store := createStore("root")
 
-	projectService := server_services.NewProjectService(store, store)
-	encryptionService := server_services.NewAccessKeyEncryptionService(store, store, store)
-	accessKeyInstallationService := server_services.NewAccessKeyInstallationService(encryptionService)
-	integrationService := server_services.NewIntegrationService(store, encryptionService)
-	inventoryService := server_services.NewInventoryService(
+	projectService := server.NewProjectService(store, store)
+	encryptionService := server.NewAccessKeyEncryptionService(store, store, store)
+	accessKeyInstallationService := server.NewAccessKeyInstallationService(encryptionService)
+	integrationService := server.NewIntegrationService(store, encryptionService)
+	inventoryService := server.NewInventoryService(
 		store,
 		store,
 		store,
 		encryptionService,
 	)
-	secretStorageService := server_services.NewSecretStorageService(store, store)
-	accessKeyService := server_services.NewAccessKeyService(store, secretStorageService, encryptionService)
+	secretStorageService := server.NewSecretStorageService(store, store)
+	accessKeyService := server.NewAccessKeyService(store, secretStorageService, encryptionService)
 
 	taskPool := tasks.CreateTaskPool(
 		store,

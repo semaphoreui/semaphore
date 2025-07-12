@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services/server_services"
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 )
 
 type SecretStorageController struct {
 	secretRepo           db.SecretStorageRepository
-	secretStorageService server_services.SecretStorageService
+	secretStorageService server.SecretStorageService
 }
 
 func SecretStorageMiddleware(next http.Handler) http.Handler {
@@ -35,7 +35,7 @@ func SecretStorageMiddleware(next http.Handler) http.Handler {
 
 func NewSecretStorageController(
 	secretRepo db.SecretStorageRepository,
-	secretStorageService server_services.SecretStorageService,
+	secretStorageService server.SecretStorageService,
 
 ) *SecretStorageController {
 	return &SecretStorageController{
