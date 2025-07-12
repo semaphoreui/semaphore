@@ -55,7 +55,7 @@ type accessKeyEncryptionServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
 }
 
-func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) AccessKeyKeyDeserializer {
+func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) AccessKeyDeserializer {
 	if key.SourceStorageID == nil {
 		return &LocalAccessKeyDeserializer{}
 	}
