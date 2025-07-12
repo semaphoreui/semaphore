@@ -42,6 +42,7 @@
 
       <v-menu
         offset-y
+        v-if="premiumFeatures.secret_storages"
       >
         <template v-slot:activator="{ on, attrs }">
 
@@ -92,6 +93,25 @@
     </v-tabs>
 
     <v-divider style="margin-top: -1px;"/>
+
+    <v-alert
+      v-if="!premiumFeatures.secret_storages"
+      type="info"
+      text
+      color="hsl(348deg, 86%, 61%)"
+      style="border-radius: 0;"
+    >
+      <span v-html="$t('foss_runners_limited')"></span>
+
+      <v-btn
+        class="ml-2 pr-2"
+        color="hsl(348deg, 86%, 61%)"
+        href="https://semaphoreui.com/pro#secret_storages"
+      >
+        {{ $t('learn_more_about_pro') }}
+        <v-icon>mdi-chevron-right</v-icon>
+      </v-btn>
+    </v-alert>
 
     <v-data-table
       :headers="headers"
@@ -156,6 +176,17 @@ export default {
       itemType: 'vault',
     };
   },
+
+  props: {
+    systemInfo: Object,
+  },
+
+  computed: {
+    premiumFeatures() {
+      return this.systemInfo?.premium_features || {};
+    },
+  },
+
   methods: {
     getHeaders() {
       return [{

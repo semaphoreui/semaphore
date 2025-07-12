@@ -22,7 +22,7 @@
         dense
     />
 
-    <v-select
+    <v-autocomplete
       v-model="item.source_storage_id"
       :label="$t('Storage (optional)')"
       :items="secretStorages"
@@ -131,6 +131,10 @@ import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
+
+  props: {
+    supportStorages: Boolean,
+  },
 
   data() {
     return {

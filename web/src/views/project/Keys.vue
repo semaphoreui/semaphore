@@ -16,6 +16,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :support-storages="premiumFeatures.secret_storages"
         />
       </template>
     </EditDialog>
@@ -107,7 +108,19 @@ import KeyForm from '@/components/KeyForm.vue';
 
 export default {
   components: { KeyForm },
+
   mixins: [ItemListPageBase],
+
+  props: {
+    systemInfo: Object,
+  },
+
+  computed: {
+    premiumFeatures() {
+      return this.systemInfo?.premium_features || {};
+    },
+  },
+
   methods: {
     getHeaders() {
       return [{

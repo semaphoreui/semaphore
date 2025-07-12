@@ -6,6 +6,7 @@ type SecretStorageService interface {
 	GetSecretStorage(projectID int, storageID int) (db.SecretStorage, error)
 	UpdateSecretStorage(storage db.SecretStorage) error
 	DeleteSecretStorage(projectID int, storageID int) error
+	GetSecretStorages(projectID int) ([]db.SecretStorage, error)
 }
 
 func NewSecretStorageService(

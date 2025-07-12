@@ -57,7 +57,7 @@ func (c *SecretStorageController) GetRefs(w http.ResponseWriter, r *http.Request
 
 func (c *SecretStorageController) GetSecretStorages(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	storages, err := c.secretRepo.GetSecretStorages(project.ID)
+	storages, err := c.secretStorageService.GetSecretStorages(project.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 	}
