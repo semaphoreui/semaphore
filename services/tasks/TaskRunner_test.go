@@ -32,6 +32,10 @@ func (s *InventoryServiceMock) GetInventory(projectID int, inventoryID int) (inv
 type EncryptionServiceMock struct {
 }
 
+func (s *EncryptionServiceMock) DeleteSecret(key *db.AccessKey) error {
+	return nil
+}
+
 func (s *EncryptionServiceMock) SerializeSecret(key *db.AccessKey) error {
 	return nil
 }
