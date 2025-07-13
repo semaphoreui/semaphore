@@ -8,12 +8,10 @@ WORKDIR /usr/local
 RUN curl -sL https://taskfile.dev/install.sh | sh
 
 WORKDIR /go/src/semaphore
-COPY go.mod go.sum /go/src/semaphore/
+COPY . /go/src/semaphore
 
 RUN --mount=type=cache,target=/go/pkg \
     go mod download -x
-
-COPY . /go/src/semaphore
 
 RUN --mount=type=cache,target=/go/pkg --mount=type=cache,target=/root/.cache/go-build \
     task deps:tools && \
