@@ -90,6 +90,7 @@ func (p AnsibleResultStageParser) Parse(currentStage *db.TaskStage, output db.Ta
 	if m == nil {
 		log.WithFields(log.Fields{
 			"task_id": output.TaskID,
+			"context": "ansible_result",
 		}).Warnf("invalid ansible result host: %s", line)
 		return
 	}

@@ -157,7 +157,7 @@ type FileLogFormat string
 
 const (
 	FileLogJSON FileLogFormat = "json"
-	FileLogRaw  FileLogFormat = "raw"
+	FileLogRaw  FileLogFormat = ""
 )
 
 type TaskLogType struct {
