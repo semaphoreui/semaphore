@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/db"
+	pro "github.com/semaphoreui/semaphore/pro/services/server"
 	"strings"
 )
 
@@ -60,7 +61,7 @@ func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) Acce
 		return &LocalAccessKeyDeserializer{}
 	}
 
-	return NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s)
+	return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeleteSecret(key *db.AccessKey) error {

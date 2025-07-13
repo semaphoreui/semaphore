@@ -1,6 +1,9 @@
 package server
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"github.com/semaphoreui/semaphore/db"
+	pro "github.com/semaphoreui/semaphore/pro/services/server"
+)
 
 type SecretStorageService interface {
 	GetSecretStorage(projectID int, storageID int) (db.SecretStorage, error)
@@ -74,4 +77,8 @@ func (s *SecretStorageServiceImpl) UpdateSecretStorage(storage db.SecretStorage)
 	}
 
 	return
+}
+
+func (s *SecretStorageServiceImpl) GetSecretStorages(projectID int) (storages []db.SecretStorage, err error) {
+	return pro.GetSecretStorages(s.secretStorageRepo, projectID)
 }
