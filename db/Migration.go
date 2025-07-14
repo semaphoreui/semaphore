@@ -26,7 +26,10 @@ func GetMigrations(dialect string) []Migration {
 	if dialect == util.DbDriverSQLite {
 		return []Migration{
 			{Version: "2.15.1.sqlite"},
-			{Version: "2.16.0.sqlite"},
+			{Version: "2.15.2"},
+			{Version: "2.15.3"},
+			{Version: "2.15.4"},
+			{Version: "2.16.0"},
 		}
 	}
 
@@ -102,6 +105,9 @@ func GetMigrations(dialect string) []Migration {
 		{Version: "2.14.12"},
 		{Version: "2.15.0"},
 		{Version: "2.15.1"},
+		{Version: "2.15.2"},
+		{Version: "2.15.3"},
+		{Version: "2.15.4"},
 		{Version: "2.16.0"},
 	}
 }

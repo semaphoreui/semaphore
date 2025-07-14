@@ -1,0 +1,1 @@
+alter table `task__ansible_error` add `host` varchar(250);
