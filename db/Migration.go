@@ -124,7 +124,7 @@ func (m Migration) ParseVersion() (res MigrationVersion, err error) {
 
 	parts := strings.Split(m.Version, ".")
 
-	if len(parts) > 3 || len(parts) < 2 {
+	if len(parts) < 2 {
 		err = fmt.Errorf("invalid migration version format %s", m.Version)
 		return
 	}

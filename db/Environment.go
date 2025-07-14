@@ -50,6 +50,9 @@ type Environment struct {
 
 	// Secrets is a field which used to update secrets associated with the environment.
 	Secrets []EnvironmentSecret `db:"-" json:"secrets" backup:"-"`
+
+	SecretStorageID        *int    `db:"secret_storage_id" json:"secret_storage_id,omitempty" backup:"-"`
+	SecretStorageKeyPrefix *string `db:"secret_storage_key_prefix" json:"secret_storage_key_prefix,omitempty"`
 }
 
 func (s *EnvironmentSecret) Validate() error {

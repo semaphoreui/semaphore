@@ -1,5 +1,3 @@
-alter table `project__environment` drop `source_storage_id`;
-alter table `project__environment` drop `source_storage_key`;
 alter table `access_key` drop `storage_id`;
 alter table `access_key` drop `source_storage_id`;
 alter table `access_key` drop `source_storage_key`;
