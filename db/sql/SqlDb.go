@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/go-gorp/gorp/v3"
@@ -372,6 +373,12 @@ func (d *SqlDb) Connect(_ string) {
 	cfg, err := util.Config.GetDBConfig()
 	if err != nil {
 		panic(err)
+	}
+
+	if cfg.Dialect == util.DbDriverPostgres && cfg.PostgresIAM {
+		maxLifetime := 14 * time.Minute
+		log.Debugf("Setting connection max lifetime to %s for IAM authentication", maxLifetime)
+		sqlDb.SetConnMaxLifetime(maxLifetime)
 	}
 
 	var dialect gorp.Dialect

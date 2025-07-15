@@ -51,11 +51,13 @@ const (
 type DbConfig struct {
 	Dialect string `json:"-"`
 
-	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
-	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
-	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
-	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
+	Hostname          string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
+	Username          string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
+	Password          string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
+	DbName            string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
+	Options           map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
+	PostgresIAM       bool              `json:"postgres_iam,omitempty" env:"SEMAPHORE_DB_POSTGRES_IAM"`
+	PostgresIAMRegion string            `json:"postgres_iam_region,omitempty" env:"SEMAPHORE_DB_POSTGRES_IAM_REGION"`
 }
 
 type LdapMappings struct {
@@ -1000,6 +1002,20 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 		}
 		connectionString += mapToQueryString(options)
 	case DbDriverPostgres:
+		if d.PostgresIAM {
+
+			if d.PostgresIAMRegion == "" {
+				return "", fmt.Errorf("Postgres IAM region is not set")
+			}
+
+			authToken, tokenErr := GetRDSAuthToken(d.Hostname, dbUser, d.PostgresIAMRegion)
+			if tokenErr != nil {
+				return "", tokenErr
+			}
+
+			dbPass = authToken
+		}
+
 		if includeDbName {
 			connectionString = fmt.Sprintf(
 				"postgres://%s:%s@%s/%s",
