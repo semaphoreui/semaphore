@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Mot de passe du coffre',
   view: 'Vue',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Je veux exécuter une tâche par cron uniquement pour les nouveaux commits d\'un dépôt',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Je veux exécuter une tâche par cron uniquement pour les nouveaux commits d\'un dépôt',
   repository2: 'Dépôt',
   cronChecksNewCommitBeforeRun: 'Cron vérifie les nouveaux commits avant d\'exécuter',
   readThe: 'Lisez le',

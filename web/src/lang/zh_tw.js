@@ -188,7 +188,7 @@ export default {
   vaultPassword2: '保險庫密碼',
   view: '視圖',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: '我想通過 cron 僅為某些儲存庫的新提交運行任務',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: '我想通過 cron 僅為某些儲存庫的新提交運行任務',
   repository2: '儲存庫',
   cronChecksNewCommitBeforeRun: 'Cron 在運行之前檢查新提交',
   readThe: '閱讀',

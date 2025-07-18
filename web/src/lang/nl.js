@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Kluis Wachtwoord',
   view: 'Weergave',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Ik wil een taak via cron alleen uitvoeren voor nieuwe commits van een bepaalde repository',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Ik wil een taak via cron alleen uitvoeren voor nieuwe commits van een bepaalde repository',
   repository2: 'Repository',
   cronChecksNewCommitBeforeRun: 'Cron controleert nieuwe commit voor run',
   readThe: 'Lees de',

@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'ボールトパスワード',
   view: 'ビュー',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: '新しいコミットのためだけにCronでタスクを実行したい',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: '新しいコミットのためだけにCronでタスクを実行したい',
   repository2: 'リポジトリ',
   cronChecksNewCommitBeforeRun: 'Cronは実行前に新しいコミットをチェックします',
   readThe: '読む',

@@ -294,7 +294,7 @@
 
           <v-checkbox
             class="mt-0"
-            :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
+            :label="$t('iWantToRunATaskByTheCronOnlyForNewCommitsOfSome')"
             v-model="cronVisible"
           />
 

@@ -188,7 +188,7 @@ export default {
   vaultPassword2: '금고 비밀번호',
   view: '보기',
   cron: '크론',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: '저는 특정 리포지토리의 새로운 커밋에 대해서만 크론으로 작업을 실행하고 싶습니다',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: '저는 특정 리포지토리의 새로운 커밋에 대해서만 크론으로 작업을 실행하고 싶습니다',
   repository2: '리포지토리',
   cronChecksNewCommitBeforeRun: '크론은 실행 전에 새로운 커밋을 확인합니다',
   readThe: '읽기',

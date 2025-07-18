@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Password del Vault',
   view: 'Vista',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Voglio eseguire un compito tramite cron solo per nuovi commit di un repository',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Voglio eseguire un compito tramite cron solo per nuovi commit di un repository',
   repository2: 'Repository',
   cronChecksNewCommitBeforeRun: 'Cron controlla nuovi commit prima di eseguire',
   readThe: 'Leggi il',

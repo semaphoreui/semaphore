@@ -177,7 +177,7 @@ export default {
   vaultPassword2: 'Пароль сховища',
   view: 'Перегляд',
   cron: 'Планувальник',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Я хочу запускати завдання за розкладом тільки для нових комітів певного репозиторію',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Я хочу запускати завдання за розкладом тільки для нових комітів певного репозиторію',
   repository2: 'Репозиторій',
   cronChecksNewCommitBeforeRun: 'Планувальник перевіряє новий коміт перед запуском',
   readThe: 'Читати',

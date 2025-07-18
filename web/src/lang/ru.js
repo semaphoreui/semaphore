@@ -188,7 +188,7 @@ export default {
   vaultPassword2: 'Пароль хранилища',
   view: 'Представление',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Я хочу запускать задачу по cron только для новых коммитов некоторого репозитория',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: 'Я хочу запускать задачу по cron только для новых коммитов некоторого репозитория',
   repository2: 'Репозиторий',
   cronChecksNewCommitBeforeRun: 'Cron проверяет новый коммит перед запуском',
   readThe: 'Читать',

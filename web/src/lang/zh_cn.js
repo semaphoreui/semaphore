@@ -188,7 +188,7 @@ export default {
   vaultPassword2: '保管库密码',
   view: '视图',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: '我想通过 cron 仅为某个仓库的新提交运行任务',
+  iWantToRunATaskByTheCronOnlyForNewCommitsOfSome: '我想通过 cron 仅为某个仓库的新提交运行任务',
   repository2: '仓库',
   cronChecksNewCommitBeforeRun: 'Cron 在运行之前检查新提交',
   readThe: '阅读',
