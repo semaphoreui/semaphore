@@ -341,6 +341,7 @@ export default {
   limit: 'Limit',
 
   runner_tag: 'Runner tag',
+  allow_parallel_tasks: 'Allow parallel tasks',
   task_prompts: 'Prompts',
   template_advanced: 'Advanced options',
   template_app_options: '{app} options',
