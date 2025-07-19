@@ -290,7 +290,7 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 		if r.Task.Status.IsFinished() {
 			continue
 		}
-		if r.Template.ID == t.Task.TemplateID {
+		if r.Template.ID == t.Task.TemplateID && !r.Template.AllowParallelTasks {
 			return true
 		}
 	}

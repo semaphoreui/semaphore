@@ -294,6 +294,12 @@
 
           <v-checkbox
             class="mt-0"
+            :label="$t('allow_parallel_tasks')"
+            v-model="item.allow_parallel_tasks"
+          />
+
+          <v-checkbox
+            class="mt-0"
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
             v-model="cronVisible"
           />
