@@ -171,15 +171,15 @@
       :add-arg-title="$t('addSkippedTag')"
     />
 
-    <TaskParamsForm
+    <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
     />
 
-    <TaskParamsForm
-      v-else
+    <TaskParamsTerraformForm
+      v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -199,9 +199,10 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
+import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
+import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
 
 export default {
   mixins: [ItemFormBase, AppFieldsMixin],
@@ -212,8 +213,9 @@ export default {
   },
 
   components: {
+    TaskParamsAnsibleForm,
+    TaskParamsTerraformForm,
     ArgsPicker,
-    TaskParamsForm,
   },
 
   data() {

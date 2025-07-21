@@ -67,22 +67,14 @@
       dense
     ></v-select>
 
-    <TaskParamsForm
-      class="mt-6"
-      v-if="item.template_id"
-      v-model="item.task_params"
-      :app="(template || {}).app"
-      :template-params="(template || {}).task_params || {}"
-    />
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
 export default {
-  components: { TaskParamsForm },
+  components: { },
   mixins: [ItemFormBase],
   data() {
     return {
