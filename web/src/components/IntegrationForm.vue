@@ -34,6 +34,20 @@
       dense
     ></v-autocomplete>
 
+    <v-card
+      v-if="item.template_id"
+      style="background: rgba(133, 133, 133, 0.06)"
+      class="mb-6"
+    >
+      <v-card-text>
+        <TaskParamsForm
+          :template="templates.find(t => t.id === item.template_id)"
+          v-model="item.task_params"
+        />
+
+      </v-card-text>
+    </v-card>
+
     <v-select
       v-model="item.auth_method"
       label="Auth method"
@@ -72,9 +86,10 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
 export default {
-  components: { },
+  components: { TaskParamsForm },
   mixins: [ItemFormBase],
   data() {
     return {
@@ -130,22 +145,22 @@ export default {
 
     getNewItem() {
       return {
-        template_id: {},
+        template_id: null,
       };
     },
 
     getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations`;
+      return `/api/project/${this.template.project_id}/integrations`;
     },
 
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.itemId}`;
+      return `/api/project/${this.template.project_id}/integrations/${this.itemId}`;
     },
 
     async afterLoadData() {
       this.keys = (await axios({
         method: 'get',
-        url: `/api/project/${this.projectId}/keys`,
+        url: `/api/project/${this.template.project_id}/keys`,
         responseType: 'json',
       })).data;
 

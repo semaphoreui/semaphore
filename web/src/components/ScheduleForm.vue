@@ -46,6 +46,19 @@
       dense
     />
 
+    <v-card
+      style="background: rgba(133, 133, 133, 0.06)"
+      v-if="item.template_id"
+    >
+      <v-card-text>
+        <TaskParamsForm
+          :template="templates.find(t => t.id === item.template_id)"
+          v-model="item.task_params"
+        />
+
+      </v-card-text>
+    </v-card>
+
     <v-switch
       v-model="rawCron"
       label="Show cron format"
@@ -259,6 +272,7 @@ import axios from 'axios';
 
 import { CronExpression, CronExpressionParser } from 'cron-parser';
 import { getErrorMessage } from '@/lib/error';
+import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
 const MONTHS = [{
   id: 1,
@@ -395,6 +409,7 @@ function formatTimeInTZ(date, tz) {
 }
 
 export default {
+  components: { TaskParamsForm },
   mixins: [ItemFormBase],
 
   data() {

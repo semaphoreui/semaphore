@@ -1,0 +1,1 @@
+drop table project__task_params;
