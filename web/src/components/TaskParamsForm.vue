@@ -190,6 +190,7 @@ export default {
           return;
         }
         this.item.environment = JSON.stringify(this.editedEnvironment);
+        this.$emit('input', this.item);
       },
       deep: true,
       immediate: true,
@@ -201,6 +202,7 @@ export default {
           return;
         }
         this.item.secret = JSON.stringify(this.editedSecretEnvironment);
+        this.$emit('input', this.item);
       },
       deep: true,
       immediate: true,
@@ -227,16 +229,9 @@ export default {
         // this.template = null;
       }
     },
-
-    // template(val) {
-    //   if (this.item) {
-    //     this.item.template_id = val?.id;
-    //   }
-    // },
   },
 
   async created() {
-    // this.refreshItem();
     await this.afterLoadData();
   },
 
@@ -264,11 +259,6 @@ export default {
     isLoaded() {
       return this.item != null && this.template != null;
     },
-
-    // beforeSave() {
-    //   this.item.environment = JSON.stringify(this.editedEnvironment);
-    //   this.item.secret = JSON.stringify(this.editedSecretEnvironment);
-    // },
 
     refreshItem() {
       this.assignItem(this.value);

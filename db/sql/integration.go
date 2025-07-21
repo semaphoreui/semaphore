@@ -79,15 +79,46 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 	return
 }
 
-func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	return d.deleteObject(projectID, db.IntegrationProps, integrationID)
+func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) (err error) {
+	var integration db.Integration
+	err = d.getObject(projectID, db.IntegrationProps, integrationID, &integration)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(projectID, db.IntegrationProps, integrationID)
+	if err != nil {
+		return
+	}
+
+	if integration.TaskParamsID != nil {
+		err = d.deleteObject(projectID, db.TaskParamsProps, *integration.TaskParamsID)
+	}
+	return
 }
 
-func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
-	err := integration.Validate()
+func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 
-	if err != nil {
-		return err
+	if err = integration.Validate(); err != nil {
+		return
+	}
+
+	if integration.TaskParams != nil {
+		var curr db.Integration
+		err = d.getObject(integration.ProjectID, db.IntegrationProps, integration.ID, &curr)
+		if err != nil {
+			return
+		}
+
+		if curr.TaskParamsID != nil {
+			params := *integration.TaskParams
+			params.ID = *curr.TaskParamsID
+			params.ProjectID = integration.ProjectID
+			_, err = d.Sql().Update(&params)
+			if err != nil {
+				return
+			}
+		}
 	}
 
 	_, err = d.exec(

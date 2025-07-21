@@ -133,15 +133,15 @@ export default {
   methods: {
 
     setSkipTags(tags) {
-      this.params.skip_tags = tags;
+      this.updateValue('skip_tags', tags);
     },
 
     setTags(tags) {
-      this.params.tags = tags;
+      this.updateValue('tags', tags);
     },
 
     setLimit(limit) {
-      this.params.limit = limit;
+      this.updateValue('limit', limit);
     },
 
     updateValue(prop, value) {
