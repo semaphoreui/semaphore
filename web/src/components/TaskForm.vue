@@ -110,8 +110,6 @@
       />
     </div>
 
-    <div class="pt-3"></div>
-
     <v-text-field
       v-model="git_branch"
       :label="fieldLabel('branch')"
@@ -143,33 +141,6 @@
       height="46"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
-
-    <ArgsPicker
-      v-if="needField('limit') && (template.task_params || {}).allow_override_limit"
-      :vars="item.params.limit"
-      @change="setLimit"
-      :title="$t('limit')"
-      :arg-title="$t('limit')"
-      :add-arg-title="$t('addLimit')"
-    />
-
-    <ArgsPicker
-      v-if="needField('tags') && (template.task_params || {}).allow_override_tags"
-      :vars="item.params.tags"
-      @change="setTags"
-      :title="$t('tags')"
-      :arg-title="$t('tags')"
-      :add-arg-title="$t('addTag')"
-    />
-
-    <ArgsPicker
-      v-if="needField('skip_tags') && (template.task_params || {}).allow_override_skip_tags"
-      :vars="item.params.skip_tags"
-      @change="setSkipTags"
-      :title="$t('skipTags')"
-      :arg-title="$t('tag')"
-      :add-arg-title="$t('addSkippedTag')"
-    />
 
     <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
@@ -312,18 +283,6 @@ export default {
   },
 
   methods: {
-
-    setSkipTags(tags) {
-      this.item.params.skip_tags = tags;
-    },
-
-    setTags(tags) {
-      this.item.params.tags = tags;
-    },
-
-    setLimit(limit) {
-      this.item.params.limit = limit;
-    },
 
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);

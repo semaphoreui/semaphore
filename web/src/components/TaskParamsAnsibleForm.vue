@@ -1,54 +1,84 @@
 <template>
-  <v-row no-gutters>
-    <v-col v-if="templateParams.allow_debug">
-      <v-checkbox
-        class="mt-0"
-        :input-value="params.debug"
-        v-model="params.debug"
-        @change="updateValue('debug', $event)"
-        hide-details
-      >
-        <template v-slot:label>
-          <div class="text-no-wrap">
-            {{ $t('debug') }} <code>-{{ "v".repeat(params.debug_level || 4) }}</code>
-          </div>
-        </template>
-      </v-checkbox>
-      <v-slider
-        :disabled="!params.debug"
-        class="ml-7 mb-2"
-        style="max-width: 100px;"
-        v-model="params.debug_level"
-        @change="updateValue('debug_level', $event)"
-        step="1"
-        min="1"
-        max="6"
-        hide-details
-      ></v-slider>
-    </v-col>
-    <v-col>
-      <v-checkbox
-        class="mt-0"
-        :input-value="params.dry_run"
-        @change="updateValue('dry_run', $event)"
-      >
-        <template v-slot:label>
-          <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
-        </template>
-      </v-checkbox>
-    </v-col>
-    <v-col>
-      <v-checkbox
-        class="mt-0"
-        :input-value="params.diff"
-        @change="updateValue('diff', $event)"
-      >
-        <template v-slot:label>
-          <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
-        </template>
-      </v-checkbox>
-    </v-col>
-  </v-row>
+  <div>
+
+    <ArgsPicker
+      v-if="templateParams.allow_override_limit"
+      :vars="params.limit"
+      @change="setLimit"
+      :title="$t('limit')"
+      :arg-title="$t('limit')"
+      :add-arg-title="$t('addLimit')"
+    />
+
+    <ArgsPicker
+      v-if="templateParams.allow_override_tags"
+      :vars="params.tags"
+      @change="setTags"
+      :title="$t('tags')"
+      :arg-title="$t('tags')"
+      :add-arg-title="$t('addTag')"
+    />
+
+    <ArgsPicker
+      v-if="templateParams.allow_override_skip_tags"
+      :vars="params.skip_tags"
+      @change="setSkipTags"
+      :title="$t('skipTags')"
+      :arg-title="$t('tag')"
+      :add-arg-title="$t('addSkippedTag')"
+    />
+
+    <v-row no-gutters>
+      <v-col v-if="templateParams.allow_debug">
+        <v-checkbox
+          class="mt-0"
+          :input-value="params.debug"
+          v-model="params.debug"
+          @change="updateValue('debug', $event)"
+          hide-details
+        >
+          <template v-slot:label>
+            <div class="text-no-wrap">
+              {{ $t('debug') }} <code>-{{ 'v'.repeat(params.debug_level || 4) }}</code>
+            </div>
+          </template>
+        </v-checkbox>
+        <v-slider
+          :disabled="!params.debug"
+          class="ml-7 mb-2"
+          style="max-width: 100px;"
+          v-model="params.debug_level"
+          @change="updateValue('debug_level', $event)"
+          step="1"
+          min="1"
+          max="6"
+          hide-details
+        ></v-slider>
+      </v-col>
+      <v-col>
+        <v-checkbox
+          class="mt-0"
+          :input-value="params.dry_run"
+          @change="updateValue('dry_run', $event)"
+        >
+          <template v-slot:label>
+            <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+      <v-col>
+        <v-checkbox
+          class="mt-0"
+          :input-value="params.diff"
+          @change="updateValue('diff', $event)"
+        >
+          <template v-slot:label>
+            <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+    </v-row>
+  </div>
 </template>
 
 <style lang="scss">
@@ -56,6 +86,8 @@
 </style>
 
 <script>
+
+import ArgsPicker from '@/components/ArgsPicker.vue';
 
 const APP_PARAMS = {
   ansible: [
@@ -70,6 +102,7 @@ const APP_PARAMS = {
 };
 
 export default {
+  components: { ArgsPicker },
   props: {
     value: Object,
     app: String,
@@ -98,6 +131,19 @@ export default {
   },
 
   methods: {
+
+    setSkipTags(tags) {
+      this.params.skip_tags = tags;
+    },
+
+    setTags(tags) {
+      this.params.tags = tags;
+    },
+
+    setLimit(limit) {
+      this.params.limit = limit;
+    },
+
     updateValue(prop, value) {
       this.params[prop] = value;
 
