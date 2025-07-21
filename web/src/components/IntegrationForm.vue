@@ -150,17 +150,17 @@ export default {
     },
 
     getItemsUrl() {
-      return `/api/project/${this.template.project_id}/integrations`;
+      return `/api/project/${this.projectId}/integrations`;
     },
 
     getSingleItemUrl() {
-      return `/api/project/${this.template.project_id}/integrations/${this.itemId}`;
+      return `/api/project/${this.projectId}/integrations/${this.itemId}`;
     },
 
     async afterLoadData() {
       this.keys = (await axios({
         method: 'get',
-        url: `/api/project/${this.template.project_id}/keys`,
+        url: `/api/project/${this.projectId}/keys`,
         responseType: 'json',
       })).data;
 

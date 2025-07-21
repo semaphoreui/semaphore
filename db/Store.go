@@ -484,6 +484,13 @@ var IntegrationProps = ObjectProps{
 	DefaultSortingColumn:  "name",
 }
 
+var TaskParamsProps = ObjectProps{
+	TableName:             "project__task_params",
+	Type:                  reflect.TypeOf(TaskParams{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "params_id",
+}
+
 var IntegrationExtractValueProps = ObjectProps{
 	TableName:            "project__integration_extract_value",
 	Type:                 reflect.TypeOf(IntegrationExtractValue{}),

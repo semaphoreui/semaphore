@@ -98,7 +98,10 @@ type Integration struct {
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
 	AuthSecret   AccessKey             `db:"-" json:"-" backup:"-"`
 	Searchable   bool                  `db:"searchable" json:"searchable"`
-	TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
+	//TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
+
+	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
+	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
 }
 
 func (alias IntegrationAlias) ToAlias() Alias {

@@ -184,6 +184,28 @@ export default {
   },
 
   watch: {
+    editedEnvironment: {
+      handler(newVal, oldVal) {
+        if (oldVal == null) {
+          return;
+        }
+        this.item.environment = JSON.stringify(this.editedEnvironment);
+      },
+      deep: true,
+      immediate: true,
+    },
+
+    editedSecretEnvironment: {
+      handler(newVal, oldVal) {
+        if (oldVal == null) {
+          return;
+        }
+        this.item.secret = JSON.stringify(this.editedSecretEnvironment);
+      },
+      deep: true,
+      immediate: true,
+    },
+
     item: {
       handler(newVal, oldVal) {
         if (oldVal == null) {
@@ -243,10 +265,10 @@ export default {
       return this.item != null && this.template != null;
     },
 
-    beforeSave() {
-      this.item.environment = JSON.stringify(this.editedEnvironment);
-      this.item.secret = JSON.stringify(this.editedSecretEnvironment);
-    },
+    // beforeSave() {
+    //   this.item.environment = JSON.stringify(this.editedEnvironment);
+    //   this.item.secret = JSON.stringify(this.editedSecretEnvironment);
+    // },
 
     refreshItem() {
       this.assignItem(this.value);

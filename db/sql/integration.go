@@ -12,18 +12,29 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 		return
 	}
 
+	if integration.TaskParams != nil {
+		params := *integration.TaskParams
+		params.ProjectID = integration.ProjectID
+		err = d.Sql().Insert(&params)
+		if err != nil {
+			return
+		}
+		integration.TaskParamsID = &params.ID
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration "+
-			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable) values "+
-			"(?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id) values "+
+			"(?, ?, ?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
-		integration.Searchable)
+		integration.Searchable,
+		integration.TaskParamsID)
 
 	if err != nil {
 		return
@@ -42,6 +53,20 @@ func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (i
 
 func (d *SqlDb) GetIntegration(projectID int, integrationID int) (integration db.Integration, err error) {
 	err = d.getObject(projectID, db.IntegrationProps, integrationID, &integration)
+	if err != nil {
+		return
+	}
+
+	if integration.TaskParamsID != nil {
+		var taskParams db.TaskParams
+		err = d.getObject(projectID, db.TaskParamsProps, *integration.TaskParamsID, &taskParams)
+		if err != nil {
+			return
+		}
+
+		integration.TaskParams = &taskParams
+	}
+
 	return
 }
 

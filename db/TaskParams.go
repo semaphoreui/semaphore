@@ -2,7 +2,7 @@ package db
 
 type TaskParams struct {
 	ID        int `db:"id" json:"-"`
-	ProjectID int `db:"project_id" json:"project_id"`
+	ProjectID int `db:"project_id" json:"-"`
 
 	Environment string  `db:"environment" json:"environment,omitempty"`
 	Arguments   *string `db:"arguments" json:"arguments,omitempty"`
