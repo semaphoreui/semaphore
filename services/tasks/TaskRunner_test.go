@@ -305,9 +305,9 @@ func TestPopulateDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tsk.Environment.JSON != `{"author":"Denis","comment":"Hello, World!","time":"2021-11-02"}` {
-		t.Fatal(err)
-	}
+
+	assert.Equal(t, `{"author":"Denis","comment":"Just do it!","time":"2021-11-02"}`, tsk.Environment.JSON)
+
 }
 
 func TestPopulateDetailsInventory(t *testing.T) {
