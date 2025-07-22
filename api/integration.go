@@ -288,12 +288,7 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 		return
 	}
 
-	taskDefinition = db.Task{
-		TemplateID:    integration.TemplateID,
-		ProjectID:     integration.ProjectID,
-		Environment:   string(envStr),
-		IntegrationID: &integration.ID,
-	}
+	taskDefinition.Environment = string(envStr)
 
 	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, r, payload)
 	for k, v := range extractedTaskResults {
