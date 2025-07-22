@@ -53,6 +53,34 @@
       data-testid="newProject-alert"
     ></v-checkbox>
 
+    <v-row align="center">
+      <v-col class="shrink">
+
+        <v-btn
+          color="blue-grey"
+          @click="sendTestNotification()"
+          :disabled="testNotificationProgress"
+          min-width="170"
+          data-testid="settings-testNotificationProgress"
+        >{{ $t('backup') }}
+        </v-btn>
+
+        <v-progress-linear
+          v-if="testNotificationProgress"
+          color="primary accent-4"
+          indeterminate
+          rounded
+          height="36"
+          style="margin-top: -36px"
+        ></v-progress-linear>
+
+      </v-col>
+      <v-col class="grow">
+        <div style="font-size: 14px;">
+          {{ $t('downloadTheProjectBackupFile') }}
+        </div>
+      </v-col>
+    </v-row>
     <v-btn v-if="itemId !== 'new'" color="blue-grey">
       Test notifications
     </v-btn>
@@ -74,7 +102,21 @@ export default {
   mixins: [ItemFormBase],
   props: {
   },
+  data() {
+    return {
+      testNotificationProgress: false,
+    };
+  },
   methods: {
+    sendTestNotification() {
+      this.testNotificationProgress = true;
+      try {
+        // TODO: Implement the actual notification sending logic
+
+      } finally {
+        this.testNotificationProgress = false;
+      }
+    },
     getItemsUrl() {
       return '/api/projects';
     },

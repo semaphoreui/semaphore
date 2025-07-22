@@ -42,6 +42,11 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, projects)
 }
 
+func (c *ProjectsController) sendTestNotification(w http.ResponseWriter, r *http.Request) {
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.Store) (err error) {
 	var demoRepo db.Repository
 
