@@ -9,7 +9,6 @@
       v-model="showInfo"
       color="info"
       text
-      dismissible
       class="mb-6"
     >
       Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
@@ -272,7 +271,7 @@
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
-import { CronExpression, CronExpressionParser } from 'cron-parser';
+import { CronExpression, CronExpressionParser, CronFieldCollection } from 'cron-parser';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
@@ -595,7 +594,7 @@ export default {
     },
 
     refreshCron() {
-      const fields = JSON.parse(JSON.stringify(CronExpressionParser.parse('* * * * *').fields));
+      const fields = {};
 
       switch (this.timing) {
         case 'hourly':
@@ -641,7 +640,10 @@ export default {
         fields.minute = this.minutes;
       }
 
-      this.item.cron_format = CronExpression.fieldsToExpression(fields).stringify();
+      const origFields = CronExpressionParser.parse('* * * * *').fields;
+      const modFields = CronFieldCollection.from(origFields, fields);
+      const exp = CronExpression.fieldsToExpression(modFields);
+      this.item.cron_format = exp.stringify();
     },
 
     getItemsUrl() {
