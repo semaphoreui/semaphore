@@ -110,25 +110,41 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 			return
 		}
 
-		if curr.TaskParamsID != nil {
-			params := *integration.TaskParams
+		params := *integration.TaskParams
+		params.ProjectID = integration.ProjectID
+
+		if curr.TaskParamsID == nil {
+			err = d.Sql().Insert(&params)
+		} else {
 			params.ID = *curr.TaskParamsID
-			params.ProjectID = integration.ProjectID
 			_, err = d.Sql().Update(&params)
-			if err != nil {
-				return
-			}
 		}
+
+		if err != nil {
+			return
+		}
+
+		integration.TaskParamsID = &params.ID
 	}
 
 	_, err = d.exec(
-		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=?, searchable=? where `id`=?",
+		"update project__integration set "+
+			"`name`=?, "+
+			"template_id=?, "+
+			"auth_method=?, "+
+			"auth_secret_id=?, "+
+			"auth_header=?, "+
+			"searchable=? "+
+			"task_params_id=? "+
+			"where project_id=? AND `id`=?",
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
 		integration.Searchable,
+		integration.TaskParamsID,
+		integration.ProjectID,
 		integration.ID)
 
 	return err

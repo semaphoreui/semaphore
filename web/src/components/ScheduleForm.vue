@@ -49,6 +49,7 @@
     <v-card
       style="background: rgba(133, 133, 133, 0.06)"
       v-if="item.template_id"
+      class="mb-8"
     >
       <v-card-text>
         <TaskParamsForm
@@ -92,11 +93,12 @@
         :disabled="formSaving"
         @change="refreshCron()"
         outlined
+        hide-details
         dense
       />
 
       <div v-if="['yearly'].includes(timing)">
-        <div>Months</div>
+        <div class="mt-4">Months</div>
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"
@@ -129,7 +131,7 @@
       </div>
 
       <div v-if="['yearly', 'monthly'].includes(timing)">
-        <div>Days</div>
+        <div class="mt-4">Days</div>
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"

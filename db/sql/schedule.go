@@ -6,16 +6,28 @@ import (
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
+
+	if schedule.TaskParams != nil {
+		params := *schedule.TaskParams
+		params.ProjectID = schedule.ProjectID
+		err = d.Sql().Insert(&params)
+		if err != nil {
+			return
+		}
+		schedule.TaskParamsID = &params.ID
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`)"+
-			"values (?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, task_params_id)"+
+			"values (?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.Name,
-		schedule.Active)
+		schedule.Active,
+		schedule.TaskParamsID)
 
 	if err != nil {
 		return
@@ -37,37 +49,93 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 	return err
 }
 
-func (d *SqlDb) UpdateSchedule(schedule db.Schedule) error {
-	_, err := d.exec("update project__schedule set "+
+func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
+
+	if schedule.TaskParams != nil {
+		var curr db.Schedule
+		err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
+		if err != nil {
+			return
+		}
+
+		params := *schedule.TaskParams
+		params.ProjectID = schedule.ProjectID
+
+		if curr.TaskParamsID == nil {
+			err = d.Sql().Insert(&params)
+		} else {
+			params.ID = *curr.TaskParamsID
+			_, err = d.Sql().Update(&params)
+		}
+
+		if err != nil {
+			return
+		}
+
+		schedule.TaskParamsID = &params.ID
+	}
+
+	_, err = d.exec("update project__schedule set "+
 		"cron_format=?, "+
 		"repository_id=?, "+
 		"template_id=?, "+
 		"`name`=?, "+
 		"`active`=?, "+
-		"last_commit_hash = NULL "+
+		"last_commit_hash = NULL, "+
+		"task_params_id=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.TemplateID,
 		schedule.Name,
 		schedule.Active,
+		schedule.TaskParamsID,
 		schedule.ProjectID,
 		schedule.ID)
-	return err
-}
-
-func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (template db.Schedule, err error) {
-	err = d.selectOne(
-		&template,
-		"select * from project__schedule where project_id=? and id=?",
-		projectID,
-		scheduleID)
 
 	return
 }
 
-func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) error {
-	_, err := d.exec("delete from project__schedule where project_id=? and id=?", projectID, scheduleID)
+func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule, err error) {
+	err = d.selectOne(
+		&schedule,
+		"select * from project__schedule where project_id=? and id=?",
+		projectID,
+		scheduleID)
+
+	if err != nil {
+		return
+	}
+
+	if schedule.TaskParamsID != nil {
+		var taskParams db.TaskParams
+		err = d.getObject(projectID, db.TaskParamsProps, *schedule.TaskParamsID, &taskParams)
+		if err != nil {
+			return
+		}
+
+		schedule.TaskParams = &taskParams
+	}
+
+	return
+}
+
+func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) (err error) {
+	var schedule db.Schedule
+	err = d.getObject(projectID, db.ScheduleProps, scheduleID, &schedule)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(projectID, db.ScheduleProps, scheduleID)
+	if err != nil {
+		return
+	}
+
+	if schedule.TaskParamsID != nil {
+		err = d.deleteObject(projectID, db.TaskParamsProps, *schedule.TaskParamsID)
+	}
+
 	return err
 }
 
