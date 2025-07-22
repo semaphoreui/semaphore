@@ -103,11 +103,12 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
-	task := db.Task{
-		TemplateID: schedule.TemplateID,
-		ProjectID:  schedule.ProjectID,
-		ScheduleID: &schedule.ID,
-	}
+	schedule.TaskParams.CreateTask()
+
+	task := schedule.TaskParams.CreateTask()
+
+	task.TemplateID = schedule.TemplateID
+	task.ScheduleID = &schedule.ID
 
 	_, err = r.pool.taskPool.AddTask(
 		task,
