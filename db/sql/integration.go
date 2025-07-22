@@ -134,7 +134,7 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 			"auth_method=?, "+
 			"auth_secret_id=?, "+
 			"auth_header=?, "+
-			"searchable=? "+
+			"searchable=?, "+
 			"task_params_id=? "+
 			"where project_id=? AND `id`=?",
 		integration.Name,
