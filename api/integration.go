@@ -249,16 +249,13 @@ func MatchCompare(value any, method db.IntegrationMatchMethodType, expected stri
 	}
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
-
-	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Request) (taskDefinition db.Task, err error) {
 
 	var envValues = make([]db.IntegrationExtractValue, 0)
 	var taskValues = make([]db.IntegrationExtractValue, 0)
 
-	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
+	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 
@@ -273,25 +270,50 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	var extractedEnvResults = Extract(envValues, r, payload)
 
-	environmentJSONBytes, err := json.Marshal(extractedEnvResults)
+	taskDefinition = integration.TaskParams.CreateTask()
+	taskDefinition.TemplateID = integration.TemplateID
+
+	var env map[string]any
+	err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 
-	var extractedTaskResults = ExtractAsAnyForTaskParams(taskValues, r, payload)
+	for k, v := range extractedEnvResults {
+		env[k] = v
+	}
 
-	var environmentJSONString = string(environmentJSONBytes)
-	var taskDefinition = db.Task{
+	envStr, err := json.Marshal(env)
+	if err != nil {
+		return
+	}
+
+	taskDefinition = db.Task{
 		TemplateID:    integration.TemplateID,
 		ProjectID:     integration.ProjectID,
-		Environment:   environmentJSONString,
+		Environment:   string(envStr),
 		IntegrationID: &integration.ID,
 	}
 
-	// Only assign extractedTaskResults to Params if it's not empty
-	if len(extractedTaskResults) > 0 {
-		taskDefinition.Params = extractedTaskResults
+	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, r, payload)
+	for k, v := range extractedTaskResults {
+		taskDefinition.Params[k] = v
+	}
+
+	return
+}
+
+func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
+
+	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+
+	taskDefinition, err := GetTaskDefinition(integration, payload, r)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"context":        "integrations",
+			"integration_id": integration.ID,
+		}).Error("Failed to get task definition")
+		return
 	}
 
 	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)

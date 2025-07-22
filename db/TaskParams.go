@@ -18,3 +18,18 @@ type TaskParams struct {
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 }
+
+func (p TaskParams) CreateTask() (task Task) {
+	task = Task{
+		ProjectID:   p.ProjectID,
+		Environment: p.Environment,
+		Arguments:   p.Arguments,
+		GitBranch:   p.GitBranch,
+		Message:     p.Message,
+		Version:     p.Version,
+		InventoryID: p.InventoryID,
+		Params:      p.Params,
+	}
+
+	return
+}

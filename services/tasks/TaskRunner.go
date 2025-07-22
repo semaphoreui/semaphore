@@ -3,14 +3,15 @@ package tasks
 import (
 	"encoding/json"
 	"errors"
-	"github.com/semaphoreui/semaphore/db_lib"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
-	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -136,7 +137,7 @@ func (t *TaskRunner) createTaskEvent() {
 	if t.RunnerID > 0 {
 		runnerID = &t.RunnerID
 	}
-	
+
 	if err := t.pool.logWriteService.WriteTaskLog(pro_interfaces.TaskLogRecord{
 		ProjectID:    t.Task.ProjectID,
 		TemplateID:   t.Template.ID,
@@ -271,6 +272,40 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	return nil
 }
 
+func (t *TaskRunner) populateTaskEnvironment() (err error) {
+
+	if t.Task.Environment == "" {
+		return
+
+	}
+
+	tplEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+	if err != nil {
+		return
+	}
+
+	taskEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	if err != nil {
+		return
+	}
+
+	for k, v := range taskEnvironment {
+		tplEnvironment[k] = v
+	}
+
+	var ev []byte
+	ev, err = json.Marshal(tplEnvironment)
+	if err != nil {
+		return err
+	}
+
+	t.Environment.JSON = string(ev)
+
+	return
+}
+
 // nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
@@ -365,35 +400,9 @@ func (t *TaskRunner) populateDetails() error {
 		}
 	}
 
-	if t.Task.Environment != "" {
-		environment := make(map[string]any)
-		if t.Environment.JSON != "" {
-			err = json.Unmarshal([]byte(t.Task.Environment), &environment)
-			if err != nil {
-				return err
-			}
-		}
+	err = t.populateTaskEnvironment()
 
-		taskEnvironment := make(map[string]any)
-		err = json.Unmarshal([]byte(t.Environment.JSON), &taskEnvironment)
-		if err != nil {
-			return err
-		}
-
-		for k, v := range taskEnvironment {
-			environment[k] = v
-		}
-
-		var ev []byte
-		ev, err = json.Marshal(environment)
-		if err != nil {
-			return err
-		}
-
-		t.Environment.JSON = string(ev)
-	}
-
-	return nil
+	return err
 }
 
 // checkTmpDir checks to see if the temporary directory exists

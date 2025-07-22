@@ -1,13 +1,15 @@
 package tasks
 
 import (
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/semaphoreui/semaphore/db_lib"
 
@@ -648,6 +650,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
+
 	tsk.job = &LocalJob{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
@@ -714,4 +717,22 @@ func TestCheckTmpDir(t *testing.T) {
 	if err != nil {
 		t.Log(err)
 	}
+}
+
+func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
+	tsk := TaskRunner{
+		Task: db.Task{
+			Environment: "{\"a\":11, \"b\": 22, \"c\": 33}",
+		},
+		Environment: db.Environment{
+			JSON: "{\"a\":1, \"d\": 4}",
+		},
+	}
+
+	err := tsk.populateTaskEnvironment()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, tsk.Environment.JSON, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}")
 }
