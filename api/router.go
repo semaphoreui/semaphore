@@ -263,6 +263,7 @@ func Route(
 	projectTaskStart := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectTaskStart.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
 	projectTaskStart.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
+	projectTaskStart.Path("/test_notification").HandlerFunc(projectsController.SendTestNotification).Methods("POST")
 
 	projectTaskStop := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectTaskStop.Use(projects.ProjectMiddleware, projects.GetTaskMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
