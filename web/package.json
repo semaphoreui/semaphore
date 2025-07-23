@@ -53,8 +53,6 @@
     "prettier": "^3.4.2",
     "sass": "~1.32.12",
     "sass-loader": "^13.0.0",
-    "stylus": "^0.64.0",
-    "stylus-loader": "^3.0.2",
     "through2": "^4.0.2",
     "vue-cli-plugin-vuetify": "~2.5.0",
     "vue-template-compiler": "^2.6.14",
