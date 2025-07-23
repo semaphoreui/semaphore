@@ -11,7 +11,8 @@ import (
 )
 
 type ProjectsController struct {
-	accessKeyService server.AccessKeyService
+	accessKeyService    server.AccessKeyService
+	notificationService server.NotificationService
 }
 
 func NewProjectsController(
@@ -40,6 +41,20 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, projects)
+}
+
+func (c *ProjectsController) SendTestNotification(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(*db.Project)
+	err := c.notificationService.SendTestProjectNotification(project.ID)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"context":    "notifications",
+			"project_id": project.ID,
+		}).Error("Failed to send test notification for the project")
+		helpers.WriteError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.Store) (err error) {
