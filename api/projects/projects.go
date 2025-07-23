@@ -54,6 +54,7 @@ func (c *ProjectsController) SendTestNotification(w http.ResponseWriter, r *http
 		helpers.WriteError(w, err)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
