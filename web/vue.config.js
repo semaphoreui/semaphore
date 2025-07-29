@@ -1,4 +1,6 @@
-module.exports = {
+const { defineConfig } = require('@vue/cli-service');
+
+module.exports = defineConfig({
   configureWebpack: {
     devServer: {
       historyApiFallback: true,
@@ -17,9 +19,7 @@ module.exports = {
         return args;
       });
   },
-  transpileDependencies: [
-    'vuetify',
-  ],
+  transpileDependencies: true,
   publicPath: './',
   outputDir: '../api/public',
-};
+});

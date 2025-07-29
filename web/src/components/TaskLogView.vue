@@ -28,10 +28,10 @@
 
         Started <span v-if="user">by <b>{{ user.name }}</b></span>
 
-        at <b>{{ item.start | formatDate }}</b>
+        at <b>{{ $filters.formatDate(item.start) }}</b>
         <v-icon
           class="ml-6" small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
-        {{ [item.start, item.end] | formatMilliseconds }}
+        {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </span>
     </div>
 
@@ -53,9 +53,9 @@
       >
         <div class="task-log-records__record" v-for="record in output" :key="record.id">
           <div class="task-log-records__time">
-            {{ record.time | formatTime }}
+            {{ $filters.formatTime(record.time) }}
           </div>
-          <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
+          <div class="task-log-records__output" v-html="$filters.formatLog(record.output)">
           </div>
         </div>
       </VirtualList>
@@ -124,7 +124,7 @@
 
 <style lang="scss">
 
-@import '~vuetify/src/styles/settings/_variables';
+// Vuetify 3 variables are available via CSS custom properties
 
 $task-log-header-height: 28px + 64px + 8px;
 $task-log-message-height: 28px;
@@ -175,7 +175,7 @@ $task-log-message-height: 28px;
   white-space: pre-wrap;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
+@media only screen and (max-width: 959px) {
   .task-log-records {
     height: calc(100vh - 340px);
   }

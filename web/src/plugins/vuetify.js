@@ -1,14 +1,19 @@
-import Vue from 'vue';
-import Vuetify from 'vuetify/lib';
+import { createVuetify } from 'vuetify';
+import 'vuetify/styles';
+import { aliases, mdi } from 'vuetify/iconsets/mdi';
+import '@mdi/font/css/materialdesignicons.css';
 import OpenTofuIcon from '@/components/OpenTofuIcon.vue';
 import PulumiIcon from '@/components/PulumiIcon.vue';
 import TerragruntIcon from '@/components/TerragruntIcon.vue';
 import HashicorpVaultIcon from '@/components/HashicorpVaultIcon.vue';
 
-Vue.use(Vuetify);
-
-export default new Vuetify({
+export default createVuetify({
   icons: {
+    defaultSet: 'mdi',
+    aliases,
+    sets: {
+      mdi,
+    },
     values: {
       tofu: {
         component: OpenTofuIcon,
@@ -23,5 +28,8 @@ export default new Vuetify({
         component: HashicorpVaultIcon,
       },
     },
+  },
+  theme: {
+    defaultTheme: 'light',
   },
 });

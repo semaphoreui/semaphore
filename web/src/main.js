@@ -1,7 +1,18 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
 import axios from 'axios';
 import { AnsiUp } from 'ansi_up';
-import { Line, Bar } from 'vue-chartjs/legacy';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line, Bar } from 'vue-chartjs';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -39,7 +50,6 @@ convert.ansi_colors = [
 ];
 
 axios.defaults.baseURL = document.baseURI;
-Vue.config.productionTip = false;
 
 //
 // Dates
@@ -53,60 +63,80 @@ dayjs.extend(relativeTime);
 dayjs.extend(localizedFormat);
 dayjs.extend(durationPlugin);
 
-// formatDate: “from now” if today, else localized date+time
-Vue.filter('formatDate', (value) => {
-  if (!value) return '—';
-  const date = dayjs(value);
-  const now = dayjs();
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+);
 
-  if (now.isSame(date, 'day')) {
-    return `${date.fromNow()} (${date.format('HH:mm')})`;
-  }
-  return date.format('L HH:mm');
-});
+// Create the Vue 3 app
+const app = createApp(App);
 
-// formatTime: localized time with seconds
-Vue.filter('formatTime', (value) => (value ? dayjs(String(value)).format('LTS') : '—'));
+// Configure global properties (Vue 3 replacement for filters)
+app.config.globalProperties.$filters = {
+  // formatDate: "from now" if today, else localized date+time
+  formatDate: (value) => {
+    if (!value) return '—';
+    const date = dayjs(value);
+    const now = dayjs();
 
-// formatLog: unchanged (ANSI → HTML)
-Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
-
-// formatMilliseconds: humanize a duration or a start/end pair
-Vue.filter('formatMilliseconds', (value) => {
-  if (value == null || value === '') return '—';
-
-  let ms;
-
-  if (typeof value === 'string') {
-    ms = parseInt(value, 10);
-  } else if (typeof value === 'number') {
-    ms = value;
-  } else if (Array.isArray(value)) {
-    if (value.length !== 2) {
-      throw new Error('formatMilliseconds: invalid value format');
+    if (now.isSame(date, 'day')) {
+      return `${date.fromNow()} (${date.format('HH:mm')})`;
     }
-    const [startRaw, endRaw] = value;
-    if (startRaw == null || startRaw === '') return '—';
-    const start = dayjs(startRaw);
-    const end = endRaw == null || endRaw === '' ? dayjs() : dayjs(endRaw);
-    ms = end.valueOf() - start.valueOf();
-  } else {
-    throw new Error('formatMilliseconds: unsupported value type');
-  }
+    return date.format('L HH:mm');
+  },
 
-  return dayjs.duration(ms).humanize();
-});
+  // formatTime: localized time with seconds
+  formatTime: (value) => (value ? dayjs(String(value)).format('LTS') : '—'),
+
+  // formatLog: unchanged (ANSI → HTML)
+  formatLog: (value) => (value ? convert.ansi_to_html(String(value)) : value),
+
+  // formatMilliseconds: humanize a duration or a start/end pair
+  formatMilliseconds: (value) => {
+    if (value == null || value === '') return '—';
+
+    let ms;
+
+    if (typeof value === 'string') {
+      ms = parseInt(value, 10);
+    } else if (typeof value === 'number') {
+      ms = value;
+    } else if (Array.isArray(value)) {
+      if (value.length !== 2) {
+        throw new Error('formatMilliseconds: invalid value format');
+      }
+      const [startRaw, endRaw] = value;
+      if (startRaw == null || startRaw === '') return '—';
+      const start = dayjs(startRaw);
+      const end = endRaw == null || endRaw === '' ? dayjs() : dayjs(endRaw);
+      ms = end.valueOf() - start.valueOf();
+    } else {
+      throw new Error('formatMilliseconds: unsupported value type');
+    }
+
+    return dayjs.duration(ms).humanize();
+  },
+};
 
 //
 // -------------
 //
 
-Vue.component('LineChartGenerator', Line);
-Vue.component('BarChartGenerator', Bar);
+// Use plugins
+app.use(router);
+app.use(vuetify);
+app.use(i18n);
 
-new Vue({
-  router,
-  vuetify,
-  i18n,
-  render: (h) => h(App),
-}).$mount('#app');
+// Register global components
+app.component('LineChartGenerator', Line);
+app.component('BarChartGenerator', Bar);
+
+// Mount the app
+app.mount('#app');

@@ -116,15 +116,20 @@
       style="position: relative"
       v-if="item.type === 'static' || item.type === 'static-yaml'"
     >
-      <codemirror
+      <!-- TODO: Update for vue-codemirror 6.x -->
+      <textarea
         :class="{
         'InventoryEditor': true,
         'InventoryEditor--static': item.type === 'static',
         'InventoryEditor--static-yaml': item.type === 'static-yaml',
       }"
-        :style="{ border: '1px solid lightgray' }"
+        :style="{
+          border: '1px solid lightgray',
+          width: '100%',
+          height: '200px',
+          fontFamily: 'monospace'
+        }"
         v-model.trim="item.inventory"
-        :options="cmOptions"
         :placeholder="$t('enterInventory')"
       />
 
@@ -161,10 +166,11 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 
-import { codemirror } from 'vue-codemirror';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/display/placeholder.js';
+// TODO: Update for vue-codemirror 6.x
+// import { codemirror } from 'vue-codemirror';
+// import 'codemirror/lib/codemirror.css';
+// import 'codemirror/mode/vue/vue.js';
+// import 'codemirror/addon/display/placeholder.js';
 import RichEditor from '@/components/RichEditor.vue';
 
 export default {
@@ -172,7 +178,7 @@ export default {
 
   components: {
     RichEditor,
-    codemirror,
+    // codemirror,
   },
 
   props: {

@@ -100,13 +100,18 @@
         </v-subheader>
 
         <div v-if="extraVarsEditMode === 'json'" style="position: relative;">
-          <codemirror
+          <!-- TODO: Update for vue-codemirror 6.x -->
+          <textarea
             :class="{
               'EnvironmentEditor': true,
             }"
-            :style="{ border: '1px solid lightgray' }"
+            :style="{
+              border: '1px solid lightgray',
+              width: '100%',
+              height: '200px',
+              fontFamily: 'monospace'
+            }"
             v-model="json"
-            :options="cmOptions"
             :placeholder="$t('enterExtraVariablesJson')"
           />
 
@@ -388,10 +393,11 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 
-import { codemirror } from 'vue-codemirror';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/display/placeholder.js';
+// TODO: Update for vue-codemirror 6.x
+// import { codemirror } from 'vue-codemirror';
+// import 'codemirror/lib/codemirror.css';
+// import 'codemirror/mode/vue/vue.js';
+// import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
 
@@ -405,7 +411,7 @@ export default {
 
   components: {
     RichEditor,
-    codemirror,
+    // codemirror,
   },
 
   computed: {

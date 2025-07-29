@@ -19,7 +19,7 @@
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width)); margin: auto;"
     >
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
     </v-data-table>
   </div>

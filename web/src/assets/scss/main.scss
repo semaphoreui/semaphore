@@ -57,7 +57,7 @@ $mdi-font-path: "~@mdi/font/fonts";
   src: url("../fonts/Roboto-Black.ttf") format('truetype');
 }
 
-@import '~vuetify/src/styles/main';
+// Vuetify 3 styles are imported in main.js via 'vuetify/styles'
 
 .v-application.theme--dark .v-overlay__scrim {
   background: #878787 !important;

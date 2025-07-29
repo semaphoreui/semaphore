@@ -246,13 +246,13 @@
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/variables';
+// Vuetify 3 variables are available via CSS custom properties
 
 .templates-table .text-start:first-child {
   padding-right: 0 !important;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
+@media only screen and (max-width: 959px) {
   .templates-table .v-data-table__mobile-row:first-child {
     display: none !important;
   }

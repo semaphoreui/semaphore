@@ -36,7 +36,7 @@
 </template>
 <style lang="scss">
 
-@import '~vuetify/src/styles/settings/_colors.scss';
+// Vuetify 3 colors are available via CSS custom properties
 
 .task-link-with-tooltip {
   text-decoration: underline !important;
@@ -47,7 +47,7 @@
 a.task-link-with-tooltip {
   &:hover {
     text-decoration-style: solid !important;
-    text-decoration-color: map-deep-get($blue, 'darken-2') !important;
+    text-decoration-color: rgb(var(--v-theme-primary)) !important;
   }
 }
 

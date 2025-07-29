@@ -48,11 +48,11 @@
       </template>
 
       <template v-slot:item.start="{ item }">
-        {{ item.start | formatDate }}
+        {{ $filters.formatDate(item.start) }}
       </template>
 
       <template v-slot:item.end="{ item }">
-        {{ [item.start, item.end] | formatMilliseconds }}
+        {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </template>
 
       <template v-slot:item.actions="{ item }">

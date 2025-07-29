@@ -82,13 +82,13 @@
         <TaskStatus :status="item.status"/>
       </template>
 
-      <template v-slot:item.start="{ item }">
-        {{ item.start | formatDate }}
-      </template>
+              <template v-slot:item.start="{ item }">
+          {{ $filters.formatDate(item.start) }}
+        </template>
 
-      <template v-slot:item.end="{ item }">
-        {{ [item.start, item.end] | formatMilliseconds }}
-      </template>
+        <template v-slot:item.end="{ item }">
+          {{ $filters.formatMilliseconds([item.start, item.end]) }}
+        </template>
     </v-data-table>
   </div>
 </template>

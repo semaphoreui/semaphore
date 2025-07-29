@@ -129,12 +129,12 @@
 
 <style lang="scss">
 
-@import '~vuetify/src/styles/settings/_variables';
+// Vuetify 3 variables are available via CSS custom properties
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;
 }
-@media #{map-get($display-breakpoints, 'md-and-up')} {
+@media only screen and (min-width: 960px) {
   .TemplateView__description {
     transform: translateY(-12px);
     margin-bottom: 0;

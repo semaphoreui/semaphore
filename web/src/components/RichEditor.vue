@@ -7,12 +7,17 @@
       :transition="false"
     >
       <div style="position: relative;">
-        <codemirror
+        <!-- TODO: Update for vue-codemirror 6.x -->
+        <textarea
           v-if="envEditorDialog"
           class="EnvironmentMaximizedEditor"
-          :style="{ border: '1px solid lightgray' }"
+          :style="{
+            border: '1px solid lightgray',
+            width: '100%',
+            height: '400px',
+            fontFamily: 'monospace'
+          }"
           v-model="text"
-          :options="cmOptions"
           :placeholder="$t('enterExtraVariablesJson')"
         />
 
@@ -76,10 +81,11 @@
 
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
-import { codemirror } from 'vue-codemirror';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/display/placeholder.js';
+// TODO: Update for vue-codemirror 6.x
+// import { codemirror } from 'vue-codemirror';
+// import 'codemirror/lib/codemirror.css';
+// import 'codemirror/mode/vue/vue.js';
+// import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
 
 export default {
@@ -89,7 +95,7 @@ export default {
   },
 
   components: {
-    codemirror,
+    // codemirror,
   },
 
   watch: {

@@ -12,18 +12,18 @@
     "@mdi/font": "^7.0.0",
     "ansi_up": "^6.0.6",
     "axios": "^1.8.3",
-    "chart.js": "^3.8.0",
+    "chart.js": "^4.4.0",
     "core-js": "^3.40.0",
     "cron-parser": "^5.3.0",
     "dayjs": "^1.11.13",
-    "vue": "^2.6.14",
-    "vue-chartjs": "^4.0.0",
-    "vue-codemirror": "^4.0.6",
-    "vue-i18n": "^8.18.2",
-    "vue-router": "^3.5.4",
+    "vue": "^3.4.0",
+    "vue-chartjs": "^5.3.0",
+    "vue-codemirror": "^6.1.1",
+    "vue-i18n": "^9.9.0",
+    "vue-router": "^4.2.0",
     "vue-virtual-scroll-list": "^2.3.5",
-    "vuedraggable": "^2.24.3",
-    "vuetify": "^2.6.10"
+    "vuedraggable": "^4.1.0",
+    "vuetify": "^3.5.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^5.0.6",
@@ -32,7 +32,9 @@
     "@vue/cli-plugin-unit-mocha": "^5.0.6",
     "@vue/cli-service": "^5.0.6",
     "@vue/eslint-config-airbnb": "^6.0.0",
-    "@vue/test-utils": "^2.0.0",
+    "@vue/test-utils": "^2.4.0",
+    "@babel/plugin-transform-private-methods": "^7.23.0",
+    "@babel/plugin-transform-class-properties": "^7.23.0",
     "babel-eslint": "^10.1.0",
     "chai": "^5.0.0",
     "dotenv": "^16.4.5",
@@ -51,11 +53,9 @@
     "openai": "^4.65.0",
     "plugin-error": "^2.0.1",
     "prettier": "^3.4.2",
-    "sass": "~1.32.12",
+    "sass": "^1.70.0",
     "sass-loader": "^13.0.0",
     "through2": "^4.0.2",
-    "vue-cli-plugin-vuetify": "~2.5.0",
-    "vue-template-compiler": "^2.6.14",
-    "vuetify-loader": "^1.8.0"
+    "vite-plugin-vuetify": "^2.0.0"
   }
 }

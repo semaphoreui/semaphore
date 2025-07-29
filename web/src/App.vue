@@ -811,8 +811,8 @@
   font-size: 1rem;
 }
 
-@import '~vuetify/src/styles/styles.sass';
-@media #{map-get($display-breakpoints, 'xl-only')} {
+// Vuetify 3 styles are imported in main.js
+@media only screen and (min-width: 1904px) {
   .CenterToScreen {
     transform: translateX(-130px);
   }

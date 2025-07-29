@@ -512,10 +512,11 @@
 import axios from 'axios';
 
 import ItemFormBase from '@/components/ItemFormBase';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/lint/json-lint.js';
-import 'codemirror/addon/display/placeholder.js';
+// TODO: Update for vue-codemirror 6.x
+// import 'codemirror/lib/codemirror.css';
+// import 'codemirror/mode/vue/vue.js';
+// import 'codemirror/addon/lint/json-lint.js';
+// import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
