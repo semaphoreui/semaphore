@@ -20,7 +20,7 @@ convert.ansi_colors = [
     { rgb: [85, 85, 85], class_name: 'ansi-black' },
     { rgb: [170, 0, 0], class_name: 'ansi-red' },
     { rgb: [0, 170, 0], class_name: 'ansi-green' },
-    { rgb: [170, 85, 0], class_name: 'ansi-yellow' },
+    { rgb: [255, 204, 102], class_name: 'ansi-yellow' },
     { rgb: [33, 150, 243], class_name: 'ansi-blue' },
     { rgb: [170, 0, 170], class_name: 'ansi-magenta' },
     { rgb: [0, 170, 170], class_name: 'ansi-cyan' },
