@@ -101,7 +101,8 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 }
 
 func (d *SqlDb) CreateProjectInvite(invite db.ProjectInvite) (newInvite db.ProjectInvite, err error) {
-	result, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into project__invite (project_id, user_id, email, role, status, token, invited_by, created, expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		invite.ProjectID,
 		invite.UserID,
@@ -117,13 +118,8 @@ func (d *SqlDb) CreateProjectInvite(invite db.ProjectInvite) (newInvite db.Proje
 		return
 	}
 
-	insertID, err := result.LastInsertId()
-	if err != nil {
-		return
-	}
-
 	newInvite = invite
-	newInvite.ID = int(insertID)
+	newInvite.ID = insertID
 	return
 }
 

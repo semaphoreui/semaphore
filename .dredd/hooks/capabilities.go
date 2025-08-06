@@ -22,6 +22,7 @@ var view *db.View
 var integration *db.Integration
 var integrationextractvalue *db.IntegrationExtractValue
 var integrationmatch *db.IntegrationMatcher
+var invite *db.ProjectInvite
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
@@ -45,6 +46,7 @@ var capabilities = map[string][]string{
 	"integration":             {"project", "template"},
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
+	"invite":                  {"user", "project"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -76,6 +78,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 
 		//Add dep specific stuff
 		switch v {
+		case "invite":
+			invite = addInvite()
 		case "schedule":
 			schedule = addSchedule()
 		case "view":
@@ -188,7 +192,12 @@ var skipTest = func(t *trans.Transaction) {
 var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(userProject.ID) },
 	func() string { return strconv.Itoa(userPathTestUser.ID) },
-	func() string { return strconv.Itoa(userKey.ID) },
+	func() string {
+		if userKey == nil {
+			return ""
+		}
+		return strconv.Itoa(userKey.ID)
+	},
 	func() string { return strconv.Itoa(repoID) },
 	func() string { return strconv.Itoa(inventoryID) },
 	func() string { return strconv.Itoa(environmentID) },
@@ -229,6 +238,9 @@ func alterRequestBody(t *trans.Transaction) {
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
 		bodyFieldProcessor("become_key_id", userKey.ID, &request)
+	}
+	if invite != nil {
+		bodyFieldProcessor("invite_id", invite.InvitedBy, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
