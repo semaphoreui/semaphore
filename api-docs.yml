@@ -198,10 +198,10 @@ definitions:
   ProjectInviteRequest:
     type: object
     properties:
-      user_id:
-        type: integer
-        minimum: 1
-        description: User ID to invite (use either user_id or email, not both)
+#      user_id:
+#        type: integer
+#        minimum: 1
+#        description: User ID to invite (use either user_id or email, not both)
       email:
         type: string
         format: email
@@ -1750,25 +1750,25 @@ paths:
             type: array
             items:
               $ref: "#/definitions/ProjectInvite"
-#    post:
-#      tags:
-#        - project
-#      summary: Create project invitation
-#      parameters:
-#        - name: Invite
-#          in: body
-#          required: true
-#          schema:
-#            $ref: "#/definitions/ProjectInviteRequest"
-#      responses:
-#        201:
-#          description: Invitation created
-#          schema:
-#            $ref: "#/definitions/ProjectInvite"
-#        400:
-#          description: Bad request (invalid role, missing user_id/email, or both provided)
-#        409:
-#          description: User already a member or invitation already exists
+    post:
+      tags:
+        - project
+      summary: Create project invitation
+      parameters:
+        - name: Invite
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ProjectInviteRequest"
+      responses:
+        201:
+          description: Invitation created
+          schema:
+            $ref: "#/definitions/ProjectInvite"
+        400:
+          description: Bad request (invalid role, missing user_id/email, or both provided)
+        409:
+          description: User already a member or invitation already exists
 #
 #  /project/{project_id}/invites/{invite_id}:
 #    parameters:
