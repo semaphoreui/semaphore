@@ -250,6 +250,14 @@ type ProjectStore interface {
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
 	UpdateProjectUser(projectUser ProjectUser) error
+	
+	// Project invites
+	GetProjectInvites(projectID int, params RetrieveQueryParams) ([]ProjectInviteWithUser, error)
+	CreateProjectInvite(invite ProjectInvite) (ProjectInvite, error)
+	GetProjectInvite(projectID int, inviteID int) (ProjectInvite, error)
+	GetProjectInviteByToken(token string) (ProjectInvite, error)
+	UpdateProjectInvite(invite ProjectInvite) error
+	DeleteProjectInvite(projectID int, inviteID int) error
 }
 
 // TemplateManager handles template-related operations
@@ -554,6 +562,15 @@ var ProjectUserProps = ObjectProps{
 	TableName:         "project__user",
 	Type:              reflect.TypeOf(ProjectUser{}),
 	PrimaryColumnName: "user_id",
+}
+
+var ProjectInviteProps = ObjectProps{
+	TableName:             "project__invite",
+	Type:                  reflect.TypeOf(ProjectInvite{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "invite_id",
+	SortableColumns:       []string{"created", "status", "role"},
+	DefaultSortingColumn:  "created",
 }
 
 var ProjectProps = ObjectProps{
