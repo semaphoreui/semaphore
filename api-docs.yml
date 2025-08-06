@@ -1134,86 +1134,86 @@ parameters:
     type: integer
     required: true
     x-example: 2
-  invite_id:
-    name: invite_id
-    description: Invite ID
-    in: path
-    type: integer
-    required: true
-    x-example: 3
   key_id:
     name: key_id
     description: key ID
     in: path
     type: integer
     required: true
-    x-example: 4
+    x-example: 3
   repository_id:
     name: repository_id
     description: repository ID
     in: path
     type: integer
     required: true
-    x-example: 5
+    x-example: 4
   inventory_id:
     name: inventory_id
     description: inventory ID
     in: path
     type: integer
     required: true
-    x-example: 6
+    x-example: 5
   environment_id:
     name: environment_id
     description: environment ID
     in: path
     type: integer
     required: true
-    x-example: 7
+    x-example: 6
   template_id:
     name: template_id
     description: template ID
     in: path
     type: integer
     required: true
-    x-example: 8
+    x-example: 7
   task_id:
     name: task_id
     description: task ID
     in: path
     type: integer
     required: true
-    x-example: 9
+    x-example: 8
   schedule_id:
     name: schedule_id
     description: schedule ID
     in: path
     type: integer
     required: true
-    x-example: 10
+    x-example: 9
   view_id:
     name: view_id
     description: view ID
     in: path
     type: integer
     required: true
-    x-example: 11
+    x-example: 10
   integration_id:
     name: integration_id
     description: integration ID
     in: path
     type: integer
     required: true
-    x-example: 12
+    x-example: 11
   extractvalue_id:
     name: extractvalue_id
     description: extractValue ID
     in: path
     type: integer
     required: true
-    x-example: 13
+    x-example: 12
   matcher_id:
     name: matcher_id
     description: matcher ID
+    in: path
+    type: integer
+    required: true
+    x-example: 13
+  invite_id:
+    name: invite_id
+    description: Invite ID
     in: path
     type: integer
     required: true
@@ -1721,35 +1721,35 @@ paths:
           description: User updated
 
   # Invite management
-#  /project/{project_id}/invites:
-#    parameters:
-#      - $ref: "#/parameters/project_id"
-#    get:
-#      tags:
-#        - project
-#      summary: Get invitations for project
-#      parameters:
-#        - name: sort
-#          in: query
-#          required: false
-#          type: string
-#          enum: [created, status, role]
-#          description: sorting field
-#          x-example: created
-#        - name: order
-#          in: query
-#          required: false
-#          type: string
-#          enum: [asc, desc]
-#          description: ordering manner
-#          x-example: desc
-#      responses:
-#        200:
-#          description: Project invitations
-#          schema:
-#            type: array
-#            items:
-#              $ref: "#/definitions/ProjectInvite"
+  /project/{project_id}/invites:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get invitations for project
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          type: string
+          enum: [created, status, role]
+          description: sorting field
+          x-example: created
+        - name: order
+          in: query
+          required: false
+          type: string
+          enum: [asc, desc]
+          description: ordering manner
+          x-example: desc
+      responses:
+        200:
+          description: Project invitations
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/ProjectInvite"
 #    post:
 #      tags:
 #        - project
