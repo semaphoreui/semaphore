@@ -28,14 +28,14 @@ func TestProjectInviteStatus_IsValid(t *testing.T) {
 func TestProjectInvite_EmailBasedInvite(t *testing.T) {
 	email := "test@example.com"
 	invite := ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		Email:     &email,
-		Role:      ProjectManager,
-		Status:    ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            1,
+		ProjectID:     1,
+		Email:         &email,
+		Role:          ProjectManager,
+		Status:        ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 
 	if invite.UserID != nil {
@@ -54,14 +54,14 @@ func TestProjectInvite_EmailBasedInvite(t *testing.T) {
 func TestProjectInvite_UserBasedInvite(t *testing.T) {
 	userID := 42
 	invite := ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		UserID:    &userID,
-		Role:      ProjectTaskRunner,
-		Status:    ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            1,
+		ProjectID:     1,
+		UserID:        &userID,
+		Role:          ProjectTaskRunner,
+		Status:        ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 
 	if invite.Email != nil {
@@ -80,17 +80,17 @@ func TestProjectInvite_UserBasedInvite(t *testing.T) {
 func TestProjectInvite_WithExpiration(t *testing.T) {
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 	email := "test@example.com"
-	
+
 	invite := ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		Email:     &email,
-		Role:      ProjectManager,
-		Status:    ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
-		ExpiresAt: &expiresAt,
+		ID:            1,
+		ProjectID:     1,
+		Email:         &email,
+		Role:          ProjectManager,
+		Status:        ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
+		ExpiresAt:     &expiresAt,
 	}
 
 	if invite.ExpiresAt == nil {
@@ -105,17 +105,17 @@ func TestProjectInvite_WithExpiration(t *testing.T) {
 func TestProjectInvite_AcceptedInvite(t *testing.T) {
 	acceptedAt := time.Now()
 	email := "test@example.com"
-	
+
 	invite := ProjectInvite{
-		ID:         1,
-		ProjectID:  1,
-		Email:      &email,
-		Role:       ProjectManager,
-		Status:     ProjectInviteAccepted,
-		Token:      "test-token",
-		InvitedBy:  1,
-		Created:    time.Now().Add(-1 * time.Hour),
-		AcceptedAt: &acceptedAt,
+		ID:            1,
+		ProjectID:     1,
+		Email:         &email,
+		Role:          ProjectManager,
+		Status:        ProjectInviteAccepted,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now().Add(-1 * time.Hour),
+		AcceptedAt:    &acceptedAt,
 	}
 
 	if invite.Status != ProjectInviteAccepted {
@@ -130,14 +130,14 @@ func TestProjectInvite_AcceptedInvite(t *testing.T) {
 func TestProjectInviteWithUser_Structure(t *testing.T) {
 	email := "test@example.com"
 	invite := ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		Email:     &email,
-		Role:      ProjectManager,
-		Status:    ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            1,
+		ProjectID:     1,
+		Email:         &email,
+		Role:          ProjectManager,
+		Status:        ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 
 	invitedByUser := User{

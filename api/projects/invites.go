@@ -56,10 +56,10 @@ func CreateInvite(w http.ResponseWriter, r *http.Request) {
 	user := helpers.UserFromContext(r)
 
 	var request struct {
-		UserID    *int                `json:"user_id,omitempty"`
-		Email     *string             `json:"email,omitempty"`
-		Role      db.ProjectUserRole  `json:"role" binding:"required"`
-		ExpiresAt *time.Time          `json:"expires_at,omitempty"`
+		UserID    *int               `json:"user_id,omitempty"`
+		Email     *string            `json:"email,omitempty"`
+		Role      db.ProjectUserRole `json:"role" binding:"required"`
+		ExpiresAt *time.Time         `json:"expires_at,omitempty"`
 	}
 
 	if !helpers.Bind(w, r, &request) {
@@ -109,15 +109,15 @@ func CreateInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	invite := db.ProjectInvite{
-		ProjectID: project.ID,
-		UserID:    request.UserID,
-		Email:     request.Email,
-		Role:      request.Role,
-		Status:    db.ProjectInvitePending,
-		Token:     token,
-		InvitedBy: user.ID,
-		Created:   time.Now(),
-		ExpiresAt: expiresAt,
+		ProjectID:     project.ID,
+		UserID:        request.UserID,
+		Email:         request.Email,
+		Role:          request.Role,
+		Status:        db.ProjectInvitePending,
+		Token:         token,
+		InviterUserID: user.ID,
+		Created:       time.Now(),
+		ExpiresAt:     expiresAt,
 	}
 
 	newInvite, err := helpers.Store(r).CreateProjectInvite(invite)
@@ -165,7 +165,7 @@ func AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	currentUser := helpers.UserFromContext(r)
-	
+
 	// If invite is for a specific user, verify it matches
 	if invite.UserID != nil && *invite.UserID != currentUser.ID {
 		helpers.WriteErrorStatus(w, "This invitation is not for your account", http.StatusForbidden)

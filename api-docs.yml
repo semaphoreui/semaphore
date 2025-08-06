@@ -172,7 +172,7 @@ definitions:
         type: string
         enum: [pending, accepted, declined, expired]
         example: pending
-      invited_by:
+      inviter_user_id:
         type: integer
         minimum: 1
         description: ID of the user who created the invite
@@ -188,7 +188,7 @@ definitions:
         type: string
         format: date-time
         description: When the invite was accepted (optional)
-      invited_by_user:
+      inviter_user:
         $ref: "#/definitions/User"
         description: Details of the user who created the invite
       user:
@@ -1769,22 +1769,22 @@ paths:
           description: Bad request (invalid role, missing user_id/email, or both provided)
         409:
           description: User already a member or invitation already exists
-#
-#  /project/{project_id}/invites/{invite_id}:
-#    parameters:
-#      - $ref: "#/parameters/project_id"
-#      - $ref: "#/parameters/invite_id"
-#    get:
-#      tags:
-#        - project
-#      summary: Get specific project invitation
-#      responses:
-#        200:
-#          description: Project invitation
-#          schema:
-#            $ref: "#/definitions/ProjectInvite"
-#        404:
-#          description: Invitation not found
+
+  /project/{project_id}/invites/{invite_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/invite_id"
+    get:
+      tags:
+        - project
+      summary: Get specific project invitation
+      responses:
+        200:
+          description: Project invitation
+          schema:
+            $ref: "#/definitions/ProjectInvite"
+        404:
+          description: Invitation not found
 #    put:
 #      tags:
 #        - project

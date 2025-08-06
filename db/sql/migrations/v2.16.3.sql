@@ -7,14 +7,14 @@ create table project__invite
     `role`        varchar(50)  not null,
     `status`      varchar(50)  not null default 'pending',
     `token`       varchar(255) not null,
-    `invited_by`  int          not null,
+    `inviter_user_id`  int          not null,
     `created`     datetime     not null,
     `expires_at`  datetime null,
     `accepted_at` datetime null,
 
     foreign key (`project_id`) references project (`id`) on delete cascade,
     foreign key (`user_id`) references `user` (`id`) on delete cascade,
-    foreign key (`invited_by`) references `user` (`id`) on delete cascade,
+    foreign key (`inviter_user_id`) references `user` (`id`) on delete cascade,
 
     unique (`token`),
     unique (`project_id`, `user_id`),

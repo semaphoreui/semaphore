@@ -17,7 +17,7 @@ func (d *BoltDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams)
 		}
 
 		// Get invited by user info
-		invitedByUser, err := d.GetUser(invite.InvitedBy)
+		invitedByUser, err := d.GetUser(invite.InviterUserID)
 		if err == nil {
 			inviteWithUser.InvitedByUser = &invitedByUser
 		}
@@ -51,7 +51,7 @@ func (d *BoltDb) GetProjectInvite(projectID int, inviteID int) (invite db.Projec
 
 func (d *BoltDb) GetProjectInviteByToken(token string) (invite db.ProjectInvite, err error) {
 	var allInvites []db.ProjectInvite
-	
+
 	// Get all projects to search across all invites
 	projects, err := d.GetAllProjects()
 	if err != nil {

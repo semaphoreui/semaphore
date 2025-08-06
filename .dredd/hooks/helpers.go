@@ -197,17 +197,18 @@ func addView() *db.View {
 
 func addInvite() *db.ProjectInvite {
 	invite, err := store.CreateProjectInvite(db.ProjectInvite{
-		ProjectID:  userProject.ID,
-		UserID:     &userPathTestUser.ID,
-		Email:      &userPathTestUser.Email,
-		Role:       "owner",
-		Status:     db.ProjectInvitePending,
-		Token:      getUUID(),
-		InvitedBy:  testRunnerUser.ID,
-		Created:    tz.Now(),
-		ExpiresAt:  nil, // No expiration for this test
-		AcceptedAt: nil,
+		ProjectID:     userProject.ID,
+		UserID:        &userPathTestUser.ID,
+		Email:         &userPathTestUser.Email,
+		Role:          "owner",
+		Status:        db.ProjectInvitePending,
+		Token:         getUUID(),
+		InviterUserID: testRunnerUser.ID,
+		Created:       tz.Now(),
+		ExpiresAt:     nil, // No expiration for this test
+		AcceptedAt:    nil,
 	})
+
 	if err != nil {
 		panic(err)
 	}

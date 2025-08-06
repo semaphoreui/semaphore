@@ -240,7 +240,7 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("become_key_id", userKey.ID, &request)
 	}
 	if invite != nil {
-		bodyFieldProcessor("invite_id", invite.InvitedBy, &request)
+		bodyFieldProcessor("invite_id", invite.ID, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)

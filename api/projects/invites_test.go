@@ -10,12 +10,12 @@ import (
 
 // Mock store for testing
 type mockInviteStore struct {
-	projects     map[int]db.Project
-	users        map[int]db.User
-	projectUsers map[string]db.ProjectUser
-	invites      map[int]db.ProjectInvite
+	projects       map[int]db.Project
+	users          map[int]db.User
+	projectUsers   map[string]db.ProjectUser
+	invites        map[int]db.ProjectInvite
 	invitesByToken map[string]db.ProjectInvite
-	nextInviteID int
+	nextInviteID   int
 }
 
 func newMockInviteStore() *mockInviteStore {
@@ -64,7 +64,7 @@ func (m *mockInviteStore) GetProjectInvites(projectID int, params db.RetrieveQue
 			inviteWithUser := db.ProjectInviteWithUser{
 				ProjectInvite: invite,
 			}
-			if invitedByUser, exists := m.users[invite.InvitedBy]; exists {
+			if invitedByUser, exists := m.users[invite.InviterUserID]; exists {
 				inviteWithUser.InvitedByUser = &invitedByUser
 			}
 			if invite.UserID != nil {
@@ -125,26 +125,26 @@ func TestMockStore_GetProjectInvites(t *testing.T) {
 
 	// Add test invites
 	invite1 := db.ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		Email:     stringPtr("user1@example.com"),
-		Role:      db.ProjectManager,
-		Status:    db.ProjectInvitePending,
-		Token:     "token1",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            1,
+		ProjectID:     1,
+		Email:         stringPtr("user1@example.com"),
+		Role:          db.ProjectManager,
+		Status:        db.ProjectInvitePending,
+		Token:         "token1",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 	store.CreateProjectInvite(invite1)
 
 	invite2 := db.ProjectInvite{
-		ID:        2,
-		ProjectID: 1,
-		UserID:    intPtr(2),
-		Role:      db.ProjectTaskRunner,
-		Status:    db.ProjectInvitePending,
-		Token:     "token2",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            2,
+		ProjectID:     1,
+		UserID:        intPtr(2),
+		Role:          db.ProjectTaskRunner,
+		Status:        db.ProjectInvitePending,
+		Token:         "token2",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 	store.users[2] = db.User{ID: 2, Username: "user2", Email: "user2@example.com"}
 	store.CreateProjectInvite(invite2)
@@ -162,7 +162,7 @@ func TestMockStore_GetProjectInvites(t *testing.T) {
 	// Find email-based invite
 	var emailInvite *db.ProjectInviteWithUser
 	var userInvite *db.ProjectInviteWithUser
-	
+
 	for i := range invites {
 		if invites[i].Email != nil {
 			emailInvite = &invites[i]
@@ -191,13 +191,13 @@ func TestMockStore_CreateProjectInvite(t *testing.T) {
 	store := newMockInviteStore()
 
 	invite := db.ProjectInvite{
-		ProjectID: 1,
-		Email:     stringPtr("newuser@example.com"),
-		Role:      db.ProjectManager,
-		Status:    db.ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ProjectID:     1,
+		Email:         stringPtr("newuser@example.com"),
+		Role:          db.ProjectManager,
+		Status:        db.ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 
 	createdInvite, err := store.CreateProjectInvite(invite)
@@ -237,14 +237,14 @@ func TestMockStore_UpdateProjectInvite(t *testing.T) {
 
 	// Create test invite
 	invite := db.ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		Email:     stringPtr("test@example.com"),
-		Role:      db.ProjectManager,
-		Status:    db.ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            1,
+		ProjectID:     1,
+		Email:         stringPtr("test@example.com"),
+		Role:          db.ProjectManager,
+		Status:        db.ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 	store.CreateProjectInvite(invite)
 
@@ -274,14 +274,14 @@ func TestMockStore_DeleteProjectInvite(t *testing.T) {
 
 	// Create test invite
 	invite := db.ProjectInvite{
-		ID:        1,
-		ProjectID: 1,
-		Email:     stringPtr("test@example.com"),
-		Role:      db.ProjectManager,
-		Status:    db.ProjectInvitePending,
-		Token:     "test-token",
-		InvitedBy: 1,
-		Created:   time.Now(),
+		ID:            1,
+		ProjectID:     1,
+		Email:         stringPtr("test@example.com"),
+		Role:          db.ProjectManager,
+		Status:        db.ProjectInvitePending,
+		Token:         "test-token",
+		InviterUserID: 1,
+		Created:       time.Now(),
 	}
 	store.CreateProjectInvite(invite)
 
@@ -347,8 +347,6 @@ func intPtr(i int) *int {
 func timePtr(t time.Time) *time.Time {
 	return &t
 }
-
-
 
 // Test ProjectInvite model validation
 func TestProjectInviteStatus_IsValid(t *testing.T) {

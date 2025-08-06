@@ -1993,7 +1993,7 @@ components:
             - declined
             - expired
           example: pending
-        invited_by:
+        inviter_user_id:
           minimum: 1
           type: integer
           description: ID of the user who created the invite
@@ -2009,7 +2009,7 @@ components:
           type: string
           format: date-time
           description: When the invite was accepted (optional)
-        invited_by_user:
+        inviter_user:
           "$ref": "#/components/schemas/User"
           description: Details of the user who created the invite
         user:

@@ -14,14 +14,14 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 	}
 
 	q := squirrel.Select("pi.*").
-		Column("ib.name as invited_by_name").
-		Column("ib.username as invited_by_username").
-		Column("ib.email as invited_by_email").
+		Column("ib.name as inviter_user_id_name").
+		Column("ib.username as inviter_username").
+		Column("ib.email as inviter_user_id_email").
 		Column("u.name as user_name").
 		Column("u.username as user_username").
 		Column("u.email as user_email").
 		From("project__invite as pi").
-		LeftJoin("`user` as ib on pi.invited_by=ib.id").
+		LeftJoin("`user` as ib on pi.inviter_user_id=ib.id").
 		LeftJoin("`user` as u on pi.user_id=u.id").
 		Where("pi.project_id=?", projectID)
 
@@ -61,7 +61,7 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 			&invite.Role,
 			&invite.Status,
 			&invite.Token,
-			&invite.InvitedBy,
+			&invite.InviterUserID,
 			&invite.Created,
 			&invite.ExpiresAt,
 			&invite.AcceptedAt,
@@ -78,7 +78,7 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 
 		// Set invited by user info
 		invite.InvitedByUser = &db.User{
-			ID:       invite.InvitedBy,
+			ID:       invite.InviterUserID,
 			Name:     invitedByName.String,
 			Username: invitedByUsername.String,
 			Email:    invitedByEmail.String,
@@ -103,14 +103,14 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 func (d *SqlDb) CreateProjectInvite(invite db.ProjectInvite) (newInvite db.ProjectInvite, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__invite (project_id, user_id, email, role, status, token, invited_by, created, expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__invite (project_id, user_id, email, role, status, token, inviter_user_id, created, expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		invite.ProjectID,
 		invite.UserID,
 		invite.Email,
 		invite.Role,
 		invite.Status,
 		invite.Token,
-		invite.InvitedBy,
+		invite.InviterUserID,
 		invite.Created,
 		invite.ExpiresAt)
 
