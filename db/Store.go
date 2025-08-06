@@ -250,7 +250,9 @@ type ProjectStore interface {
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
 	UpdateProjectUser(projectUser ProjectUser) error
-	
+}
+
+type ProjectInviteRepository interface {
 	// Project invites
 	GetProjectInvites(projectID int, params RetrieveQueryParams) ([]ProjectInviteWithUser, error)
 	CreateProjectInvite(invite ProjectInvite) (ProjectInvite, error)
@@ -459,6 +461,7 @@ type Store interface {
 	OptionsManager
 	UserManager
 	ProjectStore
+	ProjectInviteRepository
 	TemplateManager
 	InventoryManager
 	RepositoryManager
