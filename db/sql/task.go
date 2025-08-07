@@ -2,10 +2,11 @@ package sql
 
 import (
 	"encoding/json"
-	"github.com/Masterminds/squirrel"
-	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
 	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
@@ -32,7 +33,7 @@ func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error
 
 func (d *SqlDb) EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) (err error) {
 	_, err = d.exec(
-		"update task__stage set end=?, end_output_id=? where task_id=? and id=?",
+		"update task__stage set `end`=?, end_output_id=? where task_id=? and id=?",
 		end,
 		endOutputID,
 		taskID,
