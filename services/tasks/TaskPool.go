@@ -2,16 +2,16 @@ package tasks
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/server"
-	"regexp"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -42,17 +42,8 @@ type PoolEvent struct {
 }
 
 type TaskPool struct {
-	// Queue contains list of tasks in status TaskWaitingStatus.
-	Queue []*TaskRunner
-
 	// register channel used to put tasks to queue.
 	register chan *TaskRunner
-
-	// activeProj ???
-	activeProj map[int]map[int]*TaskRunner
-
-	// RunningTasks contains tasks with status TaskRunningStatus. Map key is a task ID.
-	RunningTasks map[int]*TaskRunner
 
 	// logger channel used to putting log records to database.
 	logger chan logRecord
@@ -66,7 +57,8 @@ type TaskPool struct {
 
 	queueEvents chan PoolEvent
 
-	aliases map[string]*TaskRunner
+	// state provides pluggable storage for Queue, active projects, running tasks and aliases
+	state TaskStateStore
 }
 
 func CreateTaskPool(
@@ -78,14 +70,35 @@ func CreateTaskPool(
 	logWriteService pro_interfaces.LogWriteService,
 ) TaskPool {
 	return TaskPool{
-		Queue:                  make([]*TaskRunner, 0), // queue of waiting tasks
-		register:               make(chan *TaskRunner), // add TaskRunner to queue
-		activeProj:             make(map[int]map[int]*TaskRunner),
-		RunningTasks:           make(map[int]*TaskRunner),   // working tasks
+		register:               make(chan *TaskRunner),      // add TaskRunner to queue
 		logger:                 make(chan logRecord, 10000), // store log records to database
 		store:                  store,
 		queueEvents:            make(chan PoolEvent),
-		aliases:                make(map[string]*TaskRunner),
+		state:                  NewMemoryTaskStateStore(),
+		inventoryService:       inventoryService,
+		ansibleTaskRepo:        ansibleTaskRepo,
+		encryptionService:      encryptionService,
+		logWriteService:        logWriteService,
+		keyInstallationService: keyInstallationService,
+	}
+}
+
+// CreateTaskPoolWithState allows passing a custom TaskStateStore (e.g., Redis-backed)
+func CreateTaskPoolWithState(
+	stateStore TaskStateStore,
+	store db.Store,
+	ansibleTaskRepo db.AnsibleTaskRepository,
+	inventoryService server.InventoryService,
+	encryptionService server.AccessKeyEncryptionService,
+	keyInstallationService server.AccessKeyInstallationService,
+	logWriteService pro_interfaces.LogWriteService,
+) TaskPool {
+	return TaskPool{
+		register:               make(chan *TaskRunner),      // add TaskRunner to queue
+		logger:                 make(chan logRecord, 10000), // store log records to database
+		store:                  store,
+		queueEvents:            make(chan PoolEvent),
+		state:                  stateStore,
 		inventoryService:       inventoryService,
 		ansibleTaskRepo:        ansibleTaskRepo,
 		encryptionService:      encryptionService,
@@ -94,7 +107,7 @@ func CreateTaskPool(
 	}
 }
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
-	for _, task := range p.RunningTasks {
+	for _, task := range p.state.RunningRange() {
 		if task.RunnerID == runnerID {
 			res++
 		}
@@ -103,15 +116,11 @@ func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 }
 
 func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
-	for _, task := range p.RunningTasks {
-		res = append(res, task)
-	}
-	return
+	return p.state.RunningRange()
 }
 
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
-
-	for _, t := range p.Queue {
+	for _, t := range p.state.QueueRange() {
 		if t.Task.ID == id {
 			task = t
 			break
@@ -119,7 +128,7 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 	}
 
 	if task == nil {
-		for _, t := range p.RunningTasks {
+		for _, t := range p.state.RunningRange() {
 			if t.Task.ID == id {
 				task = t
 				break
@@ -131,7 +140,7 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 }
 
 func (p *TaskPool) GetTaskByAlias(alias string) (task *TaskRunner) {
-	return p.aliases[alias]
+	return p.state.GetByAlias(alias)
 }
 
 // nolint: gocyclo
@@ -169,22 +178,22 @@ func (p *TaskPool) handleQueue() {
 	for t := range p.queueEvents {
 		switch t.eventType {
 		case EventTypeNew:
-			p.Queue = append(p.Queue, t.task)
+			p.state.Enqueue(t.task)
 		case EventTypeFinished:
 			p.onTaskStop(t.task)
 		}
 
-		if len(p.Queue) == 0 {
+		if p.state.QueueLen() == 0 {
 			continue
 		}
 
 		var i = 0
-		for i < len(p.Queue) {
-			curr := p.Queue[i]
+		for i < p.state.QueueLen() {
+			curr := p.state.QueueGet(i)
 
 			if curr.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
-				p.Queue = slices.Delete(p.Queue, i, i+1)
+				_ = p.state.DequeueAt(i)
 				log.Info("Task " + strconv.Itoa(curr.Task.ID) + " removed from queue")
 				continue
 			}
@@ -194,7 +203,7 @@ func (p *TaskPool) handleQueue() {
 				continue
 			}
 
-			p.Queue = slices.Delete(p.Queue, i, i+1)
+			_ = p.state.DequeueAt(i)
 			runTask(curr, p)
 		}
 	}
@@ -254,39 +263,32 @@ func runTask(task *TaskRunner, p *TaskPool) {
 }
 
 func (p *TaskPool) onTaskRun(t *TaskRunner) {
-	projTasks, ok := p.activeProj[t.Task.ProjectID]
-	if !ok {
-		projTasks = make(map[int]*TaskRunner)
-		p.activeProj[t.Task.ProjectID] = projTasks
+	p.state.AddActive(t.Task.ProjectID, t)
+	p.state.SetRunning(t)
+	if t.Alias != "" {
+		p.state.SetAlias(t.Alias, t)
 	}
-	projTasks[t.Task.ID] = t
-	p.RunningTasks[t.Task.ID] = t
-	p.aliases[t.Alias] = t
 }
 
 func (p *TaskPool) onTaskStop(t *TaskRunner) {
-	if p.activeProj[t.Task.ProjectID] != nil && p.activeProj[t.Task.ProjectID][t.Task.ID] != nil {
-		delete(p.activeProj[t.Task.ProjectID], t.Task.ID)
-		if len(p.activeProj[t.Task.ProjectID]) == 0 {
-			delete(p.activeProj, t.Task.ProjectID)
-		}
+	p.state.RemoveActive(t.Task.ProjectID, t.Task.ID)
+	p.state.DeleteRunning(t.Task.ID)
+	if t.Alias != "" {
+		p.state.DeleteAlias(t.Alias)
 	}
-
-	delete(p.RunningTasks, t.Task.ID)
-	delete(p.aliases, t.Alias)
 }
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
 
-	if util.Config.MaxParallelTasks > 0 && len(p.RunningTasks) >= util.Config.MaxParallelTasks {
+	if util.Config.MaxParallelTasks > 0 && p.state.RunningCount() >= util.Config.MaxParallelTasks {
 		return true
 	}
 
-	if p.activeProj[t.Task.ProjectID] == nil || len(p.activeProj[t.Task.ProjectID]) == 0 {
+	if p.state.ActiveCount(t.Task.ProjectID) == 0 {
 		return false
 	}
 
-	for _, r := range p.activeProj[t.Task.ProjectID] {
+	for _, r := range p.state.GetActive(t.Task.ProjectID) {
 		if r.Task.Status.IsFinished() {
 			continue
 		}
@@ -302,7 +304,7 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 		return false
 	}
 
-	res := proj.MaxParallelTasks > 0 && len(p.activeProj[t.Task.ProjectID]) >= proj.MaxParallelTasks
+	res := proj.MaxParallelTasks > 0 && p.state.ActiveCount(t.Task.ProjectID) >= proj.MaxParallelTasks
 
 	if res {
 		return true
@@ -362,6 +364,11 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	}
 
 	return nil
+}
+
+// GetQueuedTasks returns a snapshot of tasks currently queued
+func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
+	return p.state.QueueRange()
 }
 
 func getNextBuildVersion(startVersion string, currentVersion string) string {
