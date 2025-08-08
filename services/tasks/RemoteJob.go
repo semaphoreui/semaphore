@@ -161,6 +161,12 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 		time.Sleep(1_000_000_000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
+
+		if tsk == nil {
+			err = fmt.Errorf("task %d not found", t.Task.ID)
+			return
+		}
+
 		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
 			tsk.Task.Status == task_logger.TaskStoppedStatus ||
 			tsk.Task.Status == task_logger.TaskFailStatus {
