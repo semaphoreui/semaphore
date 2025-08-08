@@ -303,6 +303,10 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	if err := tr.populateDetails(); err != nil {
 		return nil, err
 	}
+	// load runtime fields from HA store (e.g., Redis)
+	if p.state != nil {
+		p.state.LoadRuntimeFields(tr)
+	}
 	// set appropriate job handler for consistency (not run)
 	var job Job
 	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {

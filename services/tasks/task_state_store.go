@@ -44,6 +44,9 @@ type TaskStateStore interface {
 	// UpdateRuntimeFields persists transient fields of TaskRunner so
 	// they can be restored after restart in HA mode.
 	UpdateRuntimeFields(task *TaskRunner)
+	// LoadRuntimeFields fills runtime fields (RunnerID, Username, IncomingVersion, Alias)
+	// from the backend into the provided task. No-op if not supported.
+	LoadRuntimeFields(task *TaskRunner)
 }
 
 // MemoryTaskStateStore is an in-memory implementation of TaskStateStore
@@ -71,6 +74,7 @@ func (s *MemoryTaskStateStore) Start(_ TaskRunnerHydrator) error { return nil }
 func (s *MemoryTaskStateStore) TryClaim(_ int) bool               { return true }
 func (s *MemoryTaskStateStore) DeleteClaim(_ int)                 {}
 func (s *MemoryTaskStateStore) UpdateRuntimeFields(_ *TaskRunner) {}
+func (s *MemoryTaskStateStore) LoadRuntimeFields(_ *TaskRunner)   {}
 
 // Queue
 func (s *MemoryTaskStateStore) Enqueue(task *TaskRunner) {

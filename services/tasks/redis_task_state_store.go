@@ -627,6 +627,29 @@ func (s *RedisTaskStateStore) UpdateRuntimeFields(task *TaskRunner) {
 	}
 }
 
+// LoadRuntimeFields restores transient fields from Redis for a task
+func (s *RedisTaskStateStore) LoadRuntimeFields(task *TaskRunner) {
+	ctx := context.Background()
+	m, err := s.client.HGetAll(ctx, s.key("runtime", strconv.Itoa(task.Task.ID))).Result()
+	if err != nil || len(m) == 0 {
+		return
+	}
+	if v := m["runner_id"]; v != "" {
+		if id, err := strconv.Atoi(v); err == nil {
+			task.RunnerID = id
+		}
+	}
+	if v := m["username"]; v != "" {
+		task.Username = v
+	}
+	if v := m["incoming_version"]; v != "" {
+		task.IncomingVersion = &v
+	}
+	if v := m["alias"]; v != "" {
+		task.Alias = v
+	}
+}
+
 // TryClaim atomically tries to claim a task for execution using SET NX
 func (s *RedisTaskStateStore) TryClaim(taskID int) bool {
 	ctx := context.Background()
