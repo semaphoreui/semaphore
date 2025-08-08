@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -93,6 +94,9 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	tsk.IncomingVersion = incomingVersion
 	tsk.Username = username
 	tsk.Alias = alias
+	if t.taskPool != nil && t.taskPool.state != nil {
+		t.taskPool.state.UpdateRuntimeFields(tsk)
+	}
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
@@ -141,6 +145,9 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	tsk.RunnerID = runner.ID
+	if t.taskPool != nil && t.taskPool.state != nil {
+		t.taskPool.state.UpdateRuntimeFields(tsk)
+	}
 
 	startTime := tz.Now()
 

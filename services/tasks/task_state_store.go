@@ -40,6 +40,10 @@ type TaskStateStore interface {
 	// Distributed claim to ensure single runner starts a task
 	TryClaim(taskID int) bool
 	DeleteClaim(taskID int)
+
+	// UpdateRuntimeFields persists transient fields of TaskRunner so
+	// they can be restored after restart in HA mode.
+	UpdateRuntimeFields(task *TaskRunner)
 }
 
 // MemoryTaskStateStore is an in-memory implementation of TaskStateStore
@@ -64,8 +68,9 @@ func NewMemoryTaskStateStore() *MemoryTaskStateStore {
 func (s *MemoryTaskStateStore) Start(_ TaskRunnerHydrator) error { return nil }
 
 // Claims always succeed in memory single-process mode
-func (s *MemoryTaskStateStore) TryClaim(_ int) bool { return true }
-func (s *MemoryTaskStateStore) DeleteClaim(_ int)   {}
+func (s *MemoryTaskStateStore) TryClaim(_ int) bool               { return true }
+func (s *MemoryTaskStateStore) DeleteClaim(_ int)                 {}
+func (s *MemoryTaskStateStore) UpdateRuntimeFields(_ *TaskRunner) {}
 
 // Queue
 func (s *MemoryTaskStateStore) Enqueue(task *TaskRunner) {

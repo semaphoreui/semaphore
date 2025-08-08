@@ -94,6 +94,9 @@ type taskRef struct {
 	TaskID    int    `json:"task_id"`
 	ProjectID int    `json:"project_id"`
 	Alias     string `json:"alias,omitempty"`
+	RunnerID  int    `json:"runner_id,omitempty"`
+	Username  string `json:"username,omitempty"`
+	Incoming  string `json:"incoming_version,omitempty"`
 }
 
 func (s *RedisTaskStateStore) publish(ctx context.Context, ev redisEvent) {
@@ -255,6 +258,17 @@ func (s *RedisTaskStateStore) Start(hydrator TaskRunnerHydrator) error {
 						if ref.Alias != "" {
 							s.byAlias[ref.Alias] = tr
 						}
+						// restore runtime fields
+						if ref.RunnerID != 0 {
+							tr.RunnerID = ref.RunnerID
+						}
+						if ref.Username != "" {
+							tr.Username = ref.Username
+						}
+						if ref.Incoming != "" {
+							v := ref.Incoming
+							tr.IncomingVersion = &v
+						}
 						s.mu.Unlock()
 					}
 				}
@@ -274,6 +288,16 @@ func (s *RedisTaskStateStore) Start(hydrator TaskRunnerHydrator) error {
 						if ref.Alias != "" {
 							s.byAlias[ref.Alias] = tr
 						}
+						if ref.RunnerID != 0 {
+							tr.RunnerID = ref.RunnerID
+						}
+						if ref.Username != "" {
+							tr.Username = ref.Username
+						}
+						if ref.Incoming != "" {
+							v := ref.Incoming
+							tr.IncomingVersion = &v
+						}
 						s.mu.Unlock()
 					}
 				}
@@ -290,6 +314,16 @@ func (s *RedisTaskStateStore) Start(hydrator TaskRunnerHydrator) error {
 					if tr, hErr := hydrator(ref.TaskID, ref.ProjectID); hErr == nil && tr != nil {
 						s.mu.Lock()
 						s.byID[ref.TaskID] = tr
+						if ref.RunnerID != 0 {
+							tr.RunnerID = ref.RunnerID
+						}
+						if ref.Username != "" {
+							tr.Username = ref.Username
+						}
+						if ref.Incoming != "" {
+							v := ref.Incoming
+							tr.IncomingVersion = &v
+						}
 						s.mu.Unlock()
 					}
 				}
@@ -308,6 +342,16 @@ func (s *RedisTaskStateStore) Start(hydrator TaskRunnerHydrator) error {
 						s.byID[ref.TaskID] = tr
 						if ref.Alias != "" {
 							s.byAlias[ref.Alias] = tr
+						}
+						if ref.RunnerID != 0 {
+							tr.RunnerID = ref.RunnerID
+						}
+						if ref.Username != "" {
+							tr.Username = ref.Username
+						}
+						if ref.Incoming != "" {
+							v := ref.Incoming
+							tr.IncomingVersion = &v
 						}
 						s.mu.Unlock()
 					}
@@ -337,8 +381,8 @@ func (s *RedisTaskStateStore) Enqueue(task *TaskRunner) {
 	}
 	// store project for hydrator
 	_ = s.client.HSet(ctx, s.key("task_project"), strconv.Itoa(task.Task.ID), strconv.Itoa(task.Task.ProjectID)).Err()
-	// notify others
-	s.publish(ctx, redisEvent{Type: "enqueue", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: task.Alias})})
+	// notify others with runtime fields
+	s.publish(ctx, redisEvent{Type: "enqueue", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: task.Alias, RunnerID: task.RunnerID, Username: task.Username, Incoming: derefStr(task.IncomingVersion)})})
 }
 
 func (s *RedisTaskStateStore) DequeueAt(index int) error {
@@ -413,7 +457,7 @@ func (s *RedisTaskStateStore) SetRunning(task *TaskRunner) {
 	if err := s.client.SAdd(ctx, s.key("running"), task.Task.ID).Err(); err != nil {
 		log.WithError(err).Error("redis set running failed")
 	}
-	s.publish(ctx, redisEvent{Type: "set_running", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: task.Alias})})
+	s.publish(ctx, redisEvent{Type: "set_running", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: task.Alias, RunnerID: task.RunnerID, Username: task.Username, Incoming: derefStr(task.IncomingVersion)})})
 }
 
 func (s *RedisTaskStateStore) DeleteRunning(taskID int) {
@@ -466,7 +510,7 @@ func (s *RedisTaskStateStore) AddActive(projectID int, task *TaskRunner) {
 		log.WithError(err).Error("redis add active failed")
 	}
 	_ = s.client.HSet(ctx, s.key("task_project"), strconv.Itoa(task.Task.ID), strconv.Itoa(projectID)).Err()
-	s.publish(ctx, redisEvent{Type: "active_add", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: projectID})})
+	s.publish(ctx, redisEvent{Type: "active_add", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: projectID, RunnerID: task.RunnerID, Username: task.Username, Incoming: derefStr(task.IncomingVersion)})})
 }
 
 func (s *RedisTaskStateStore) RemoveActive(projectID int, taskID int) {
@@ -519,7 +563,7 @@ func (s *RedisTaskStateStore) SetAlias(alias string, task *TaskRunner) {
 	if err := s.client.HSet(ctx, s.key("aliases"), alias, task.Task.ID).Err(); err != nil {
 		log.WithError(err).Error("redis set alias failed")
 	}
-	s.publish(ctx, redisEvent{Type: "alias_set", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: alias})})
+	s.publish(ctx, redisEvent{Type: "alias_set", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: alias, RunnerID: task.RunnerID, Username: task.Username, Incoming: derefStr(task.IncomingVersion)})})
 }
 
 func (s *RedisTaskStateStore) GetByAlias(alias string) *TaskRunner {
@@ -558,6 +602,29 @@ func (s *RedisTaskStateStore) DeleteAlias(alias string) {
 func mustJSON(v any) json.RawMessage {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// UpdateRuntimeFields persists transient TaskRunner fields in Redis
+func (s *RedisTaskStateStore) UpdateRuntimeFields(task *TaskRunner) {
+	ctx := context.Background()
+	// We store them in a hash keyed by task id for easy update
+	fields := map[string]interface{}{
+		"runner_id":        strconv.Itoa(task.RunnerID),
+		"username":         task.Username,
+		"incoming_version": derefStr(task.IncomingVersion),
+		"alias":            task.Alias,
+		"project_id":       strconv.Itoa(task.Task.ProjectID),
+	}
+	if err := s.client.HSet(ctx, s.key("runtime", strconv.Itoa(task.Task.ID)), fields).Err(); err != nil {
+		log.WithError(err).Error("redis update runtime failed")
+	}
 }
 
 // TryClaim atomically tries to claim a task for execution using SET NX
