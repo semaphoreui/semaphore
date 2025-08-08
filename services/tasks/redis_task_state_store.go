@@ -2,11 +2,13 @@ package tasks
 
 import (
 	"context"
+	"crypto/tls"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,7 +35,20 @@ func NewRedisTaskStateStore() *RedisTaskStateStore {
 		p += ":"
 	}
 
-	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+	var redisTLS *tls.Config
+
+	if util.Config.HA.Redis.TLS {
+		redisTLS = &tls.Config{InsecureSkipVerify: util.Config.HA.Redis.TLSSkipVerify}
+	}
+
+	client := redis.NewClient(&redis.Options{
+		Addr:      util.Config.HA.Redis.Addr,
+		DB:        util.Config.HA.Redis.DB,
+		Password:  util.Config.HA.Redis.Pass,
+		Username:  util.Config.HA.Redis.User,
+		TLSConfig: redisTLS,
+	})
+
 	return &RedisTaskStateStore{
 		client:    client,
 		keyPrefix: p,

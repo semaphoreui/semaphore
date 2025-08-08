@@ -74,7 +74,7 @@ func CreateTaskPool(
 		logger:                 make(chan logRecord, 10000), // store log records to database
 		store:                  store,
 		queueEvents:            make(chan PoolEvent),
-		state:                  NewRedisTaskStateStore(),
+		state:                  NewTaskStateStore(),
 		inventoryService:       inventoryService,
 		ansibleTaskRepo:        ansibleTaskRepo,
 		encryptionService:      encryptionService,
