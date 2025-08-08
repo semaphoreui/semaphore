@@ -179,12 +179,12 @@ type DebuggingConfig struct {
 }
 
 type HARedisConfig struct {
-	Addr          string `json:"redis_addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
-	DB            int    `json:"redis_db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
-	Pass          string `json:"redis_pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
-	User          string `json:"redis_user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
-	TLS           bool   `json:"redis_tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
-	TLSSkipVerify bool   `json:"redis_tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
+	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
+	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
+	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
+	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
 }
 
 type HAConfig struct {

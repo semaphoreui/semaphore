@@ -2,8 +2,17 @@ package tasks
 
 import "sync"
 
+// TaskRunnerHydrator constructs a TaskRunner for an existing task
+// identified by taskID and projectID without starting it.
+type TaskRunnerHydrator func(taskID int, projectID int) (*TaskRunner, error)
+
 // TaskStateStore defines pluggable storage for task pool state
 type TaskStateStore interface {
+	// Start allows the store to initialize, restore its in-memory
+	// pointers from the underlying backend and start background
+	// sync listeners (e.g., Redis Pub/Sub). Implementations may no-op.
+	Start(hydrator TaskRunnerHydrator) error
+
 	// Queue operations
 	Enqueue(task *TaskRunner)
 	DequeueAt(index int) error
@@ -27,6 +36,10 @@ type TaskStateStore interface {
 	SetAlias(alias string, task *TaskRunner)
 	GetByAlias(alias string) *TaskRunner
 	DeleteAlias(alias string)
+
+	// Distributed claim to ensure single runner starts a task
+	TryClaim(taskID int) bool
+	DeleteClaim(taskID int)
 }
 
 // MemoryTaskStateStore is an in-memory implementation of TaskStateStore
@@ -46,6 +59,13 @@ func NewMemoryTaskStateStore() *MemoryTaskStateStore {
 		aliases:    make(map[string]*TaskRunner),
 	}
 }
+
+// Start is a no-op for the in-memory store
+func (s *MemoryTaskStateStore) Start(_ TaskRunnerHydrator) error { return nil }
+
+// Claims always succeed in memory single-process mode
+func (s *MemoryTaskStateStore) TryClaim(_ int) bool { return true }
+func (s *MemoryTaskStateStore) DeleteClaim(_ int)   {}
 
 // Queue
 func (s *MemoryTaskStateStore) Enqueue(task *TaskRunner) {

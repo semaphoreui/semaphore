@@ -69,7 +69,7 @@ func CreateTaskPool(
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
 ) TaskPool {
-	return TaskPool{
+	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
 		logger:                 make(chan logRecord, 10000), // store log records to database
 		store:                  store,
@@ -81,6 +81,9 @@ func CreateTaskPool(
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
 	}
+	// attempt to start HA state store (no-op for memory)
+	_ = p.state.Start(p.hydrateTaskRunner)
+	return p
 }
 
 // CreateTaskPoolWithState allows passing a custom TaskStateStore (e.g., Redis-backed)
@@ -93,7 +96,7 @@ func CreateTaskPoolWithState(
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
 ) TaskPool {
-	return TaskPool{
+	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
 		logger:                 make(chan logRecord, 10000), // store log records to database
 		store:                  store,
@@ -105,6 +108,8 @@ func CreateTaskPoolWithState(
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
 	}
+	_ = p.state.Start(p.hydrateTaskRunner)
+	return p
 }
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.state.RunningRange() {
@@ -190,6 +195,10 @@ func (p *TaskPool) handleQueue() {
 		var i = 0
 		for i < p.state.QueueLen() {
 			curr := p.state.QueueGet(i)
+			if curr == nil { // item may no longer be local, move ahead
+				i = i + 1
+				continue
+			}
 
 			if curr.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
@@ -199,6 +208,12 @@ func (p *TaskPool) handleQueue() {
 			}
 
 			if p.blocks(curr) {
+				i = i + 1
+				continue
+			}
+
+			// ensure only one instance claims the task before dequeue
+			if !p.state.TryClaim(curr.Task.ID) {
 				i = i + 1
 				continue
 			}
@@ -255,7 +270,6 @@ func (p *TaskPool) handleLogs() {
 
 func runTask(task *TaskRunner, p *TaskPool) {
 	log.Info("Set resource locker with TaskRunner " + strconv.Itoa(task.Task.ID))
-
 	p.onTaskRun(task)
 
 	log.Info("Task " + strconv.Itoa(task.Task.ID) + " started")
@@ -273,9 +287,46 @@ func (p *TaskPool) onTaskRun(t *TaskRunner) {
 func (p *TaskPool) onTaskStop(t *TaskRunner) {
 	p.state.RemoveActive(t.Task.ProjectID, t.Task.ID)
 	p.state.DeleteRunning(t.Task.ID)
+	p.state.DeleteClaim(t.Task.ID)
 	if t.Alias != "" {
 		p.state.DeleteAlias(t.Alias)
 	}
+}
+
+// hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
+func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, error) {
+	task, err := p.store.GetTask(projectID, taskID)
+	if err != nil {
+		return nil, err
+	}
+	tr := NewTaskRunner(task, p, "", p.keyInstallationService)
+	if err := tr.populateDetails(); err != nil {
+		return nil, err
+	}
+	// set appropriate job handler for consistency (not run)
+	var job Job
+	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
+		tag := tr.Template.RunnerTag
+		if tag == nil {
+			tag = tr.Inventory.RunnerTag
+		}
+		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
+	} else {
+		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
+		job = &LocalJob{
+			Task:         tr.Task,
+			Template:     tr.Template,
+			Inventory:    tr.Inventory,
+			Repository:   tr.Repository,
+			Environment:  tr.Environment,
+			Secret:       "{}",
+			Logger:       app.SetLogger(tr),
+			App:          app,
+			KeyInstaller: p.keyInstallationService,
+		}
+	}
+	tr.job = job
+	return tr, nil
 }
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {

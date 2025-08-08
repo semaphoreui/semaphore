@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +26,10 @@ type RedisTaskStateStore struct {
 	mu      sync.RWMutex
 	byID    map[int]*TaskRunner
 	byAlias map[string]*TaskRunner
+
+	// pub/sub
+	pubsub       *redis.PubSub
+	cancelListen context.CancelFunc
 }
 
 func NewRedisTaskStateStore() *RedisTaskStateStore {
@@ -36,16 +41,34 @@ func NewRedisTaskStateStore() *RedisTaskStateStore {
 	}
 
 	var redisTLS *tls.Config
+	var addr string
+	var dbNum int
+	var pass string
+	var user string
+	var skipVerify bool
+	var enableTLS bool
 
-	if util.Config.HA.Redis.TLS {
-		redisTLS = &tls.Config{InsecureSkipVerify: util.Config.HA.Redis.TLSSkipVerify}
+	if util.Config.HA != nil && util.Config.HA.Redis != nil {
+		addr = util.Config.HA.Redis.Addr
+		dbNum = util.Config.HA.Redis.DB
+		pass = util.Config.HA.Redis.Pass
+		user = util.Config.HA.Redis.User
+		enableTLS = util.Config.HA.Redis.TLS
+		skipVerify = util.Config.HA.Redis.TLSSkipVerify
+	}
+	if enableTLS {
+		redisTLS = &tls.Config{InsecureSkipVerify: skipVerify}
+	}
+
+	if addr == "" {
+		addr = "127.0.0.1:6379"
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr:      util.Config.HA.Redis.Addr,
-		DB:        util.Config.HA.Redis.DB,
-		Password:  util.Config.HA.Redis.Pass,
-		Username:  util.Config.HA.Redis.User,
+		Addr:      addr,
+		DB:        dbNum,
+		Password:  pass,
+		Username:  user,
 		TLSConfig: redisTLS,
 	})
 
@@ -61,6 +84,248 @@ func (s *RedisTaskStateStore) key(parts ...string) string {
 	return s.keyPrefix + strings.Join(parts, ":")
 }
 
+// redis message envelope
+type redisEvent struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+type taskRef struct {
+	TaskID    int    `json:"task_id"`
+	ProjectID int    `json:"project_id"`
+	Alias     string `json:"alias,omitempty"`
+}
+
+func (s *RedisTaskStateStore) publish(ctx context.Context, ev redisEvent) {
+	b, _ := json.Marshal(ev)
+	if err := s.client.Publish(ctx, s.key("events"), string(b)).Err(); err != nil {
+		log.WithError(err).Error("redis publish failed")
+	}
+}
+
+// Start restores state from Redis and begins listening to Pub/Sub events
+func (s *RedisTaskStateStore) Start(hydrator TaskRunnerHydrator) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancelListen = cancel
+
+	// Restore queued tasks
+	ids, err := s.client.LRange(ctx, s.key("queue"), 0, -1).Result()
+	if err != nil {
+		log.WithError(err).Error("redis restore queue failed")
+	} else {
+		for _, idStr := range ids {
+			id, convErr := strconv.Atoi(idStr)
+			if convErr != nil {
+				continue
+			}
+			// We need project id; store it next to task id in a hash
+			projStr, herr := s.client.HGet(ctx, s.key("task_project"), idStr).Result()
+			if herr != nil {
+				continue
+			}
+			projID, _ := strconv.Atoi(projStr)
+			if hydrator != nil {
+				if tr, hErr := hydrator(id, projID); hErr == nil && tr != nil {
+					s.mu.Lock()
+					s.byID[id] = tr
+					if tr.Alias != "" {
+						s.byAlias[tr.Alias] = tr
+					}
+					s.mu.Unlock()
+				}
+			}
+		}
+	}
+
+	// Restore active tasks by project
+	// Find all keys tasks:active:*
+	var cursor uint64
+	for {
+		keys, cur, err := s.client.Scan(ctx, cursor, s.key("active", "*"), 100).Result()
+		if err != nil {
+			log.WithError(err).Error("redis scan active keys failed")
+			break
+		}
+		for _, k := range keys {
+			// extract project id from key suffix
+			parts := strings.Split(k, ":")
+			if len(parts) == 0 {
+				continue
+			}
+			projStr := parts[len(parts)-1]
+			projectID, _ := strconv.Atoi(projStr)
+			ids, gerr := s.client.SMembers(ctx, k).Result()
+			if gerr != nil {
+				continue
+			}
+			for _, idStr := range ids {
+				id, convErr := strconv.Atoi(idStr)
+				if convErr != nil {
+					continue
+				}
+				if hydrator != nil {
+					if tr, hErr := hydrator(id, projectID); hErr == nil && tr != nil {
+						s.mu.Lock()
+						s.byID[id] = tr
+						if tr.Alias != "" {
+							s.byAlias[tr.Alias] = tr
+						}
+						s.mu.Unlock()
+					}
+				}
+			}
+		}
+		cursor = cur
+		if cursor == 0 {
+			break
+		}
+	}
+
+	// Restore running tasks set
+	runIDs, err := s.client.SMembers(ctx, s.key("running")).Result()
+	if err != nil {
+		log.WithError(err).Error("redis restore running failed")
+	} else {
+		for _, idStr := range runIDs {
+			id, convErr := strconv.Atoi(idStr)
+			if convErr != nil {
+				continue
+			}
+			projStr, herr := s.client.HGet(ctx, s.key("task_project"), idStr).Result()
+			if herr != nil {
+				continue
+			}
+			projID, _ := strconv.Atoi(projStr)
+			if hydrator != nil {
+				if tr, hErr := hydrator(id, projID); hErr == nil && tr != nil {
+					s.mu.Lock()
+					s.byID[id] = tr
+					if tr.Alias != "" {
+						s.byAlias[tr.Alias] = tr
+					}
+					s.mu.Unlock()
+				}
+			}
+		}
+	}
+
+	// Restore aliases pointers from Redis hash where value is task id
+	aliasMap, err := s.client.HGetAll(ctx, s.key("aliases")).Result()
+	if err == nil {
+		for alias, idStr := range aliasMap {
+			id, convErr := strconv.Atoi(idStr)
+			if convErr != nil {
+				continue
+			}
+			projStr, herr := s.client.HGet(ctx, s.key("task_project"), idStr).Result()
+			if herr != nil {
+				continue
+			}
+			projID, _ := strconv.Atoi(projStr)
+			if hydrator != nil {
+				if tr, hErr := hydrator(id, projID); hErr == nil && tr != nil {
+					s.mu.Lock()
+					s.byID[id] = tr
+					s.byAlias[alias] = tr
+					s.mu.Unlock()
+				}
+			}
+		}
+	}
+
+	// Start Pub/Sub listener
+	s.pubsub = s.client.Subscribe(ctx, s.key("events"))
+	go func() {
+		for {
+			msg, rerr := s.pubsub.ReceiveMessage(ctx)
+			if rerr != nil {
+				return
+			}
+			var ev redisEvent
+			if err := json.Unmarshal([]byte(msg.Payload), &ev); err != nil {
+				continue
+			}
+			switch ev.Type {
+			case "enqueue":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil && hydrator != nil {
+					if tr, hErr := hydrator(ref.TaskID, ref.ProjectID); hErr == nil && tr != nil {
+						s.mu.Lock()
+						s.byID[ref.TaskID] = tr
+						if ref.Alias != "" {
+							s.byAlias[ref.Alias] = tr
+						}
+						s.mu.Unlock()
+					}
+				}
+			case "dequeue":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil {
+					s.mu.Lock()
+					delete(s.byID, ref.TaskID)
+					s.mu.Unlock()
+				}
+			case "set_running":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil && hydrator != nil {
+					if tr, hErr := hydrator(ref.TaskID, ref.ProjectID); hErr == nil && tr != nil {
+						s.mu.Lock()
+						s.byID[ref.TaskID] = tr
+						if ref.Alias != "" {
+							s.byAlias[ref.Alias] = tr
+						}
+						s.mu.Unlock()
+					}
+				}
+			case "delete_running":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil {
+					s.mu.Lock()
+					delete(s.byID, ref.TaskID)
+					s.mu.Unlock()
+				}
+			case "active_add":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil && hydrator != nil {
+					if tr, hErr := hydrator(ref.TaskID, ref.ProjectID); hErr == nil && tr != nil {
+						s.mu.Lock()
+						s.byID[ref.TaskID] = tr
+						s.mu.Unlock()
+					}
+				}
+			case "active_remove":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil {
+					s.mu.Lock()
+					delete(s.byID, ref.TaskID)
+					s.mu.Unlock()
+				}
+			case "alias_set":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil && hydrator != nil {
+					if tr, hErr := hydrator(ref.TaskID, ref.ProjectID); hErr == nil && tr != nil {
+						s.mu.Lock()
+						s.byID[ref.TaskID] = tr
+						if ref.Alias != "" {
+							s.byAlias[ref.Alias] = tr
+						}
+						s.mu.Unlock()
+					}
+				}
+			case "alias_delete":
+				var ref taskRef
+				if json.Unmarshal(ev.Data, &ref) == nil {
+					s.mu.Lock()
+					delete(s.byAlias, ref.Alias)
+					s.mu.Unlock()
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
 // Queue operations
 func (s *RedisTaskStateStore) Enqueue(task *TaskRunner) {
 	s.mu.Lock()
@@ -70,6 +335,10 @@ func (s *RedisTaskStateStore) Enqueue(task *TaskRunner) {
 	if err := s.client.RPush(ctx, s.key("queue"), strconv.Itoa(task.Task.ID)).Err(); err != nil {
 		log.WithError(err).Error("redis enqueue failed")
 	}
+	// store project for hydrator
+	_ = s.client.HSet(ctx, s.key("task_project"), strconv.Itoa(task.Task.ID), strconv.Itoa(task.Task.ProjectID)).Err()
+	// notify others
+	s.publish(ctx, redisEvent{Type: "enqueue", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: task.Alias})})
 }
 
 func (s *RedisTaskStateStore) DequeueAt(index int) error {
@@ -80,6 +349,9 @@ func (s *RedisTaskStateStore) DequeueAt(index int) error {
 	}
 	if err := s.client.LRem(ctx, s.key("queue"), 1, idStr).Err(); err != nil {
 		log.WithError(err).Error("redis dequeue failed")
+	}
+	if id, convErr := strconv.Atoi(idStr); convErr == nil {
+		s.publish(ctx, redisEvent{Type: "dequeue", Data: mustJSON(taskRef{TaskID: id})})
 	}
 	return nil
 }
@@ -141,6 +413,7 @@ func (s *RedisTaskStateStore) SetRunning(task *TaskRunner) {
 	if err := s.client.SAdd(ctx, s.key("running"), task.Task.ID).Err(); err != nil {
 		log.WithError(err).Error("redis set running failed")
 	}
+	s.publish(ctx, redisEvent{Type: "set_running", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: task.Alias})})
 }
 
 func (s *RedisTaskStateStore) DeleteRunning(taskID int) {
@@ -148,6 +421,7 @@ func (s *RedisTaskStateStore) DeleteRunning(taskID int) {
 	if err := s.client.SRem(ctx, s.key("running"), taskID).Err(); err != nil {
 		log.WithError(err).Error("redis delete running failed")
 	}
+	s.publish(ctx, redisEvent{Type: "delete_running", Data: mustJSON(taskRef{TaskID: taskID})})
 }
 
 func (s *RedisTaskStateStore) RunningRange() []*TaskRunner {
@@ -191,6 +465,8 @@ func (s *RedisTaskStateStore) AddActive(projectID int, task *TaskRunner) {
 	if err := s.client.SAdd(ctx, s.key("active", strconv.Itoa(projectID)), task.Task.ID).Err(); err != nil {
 		log.WithError(err).Error("redis add active failed")
 	}
+	_ = s.client.HSet(ctx, s.key("task_project"), strconv.Itoa(task.Task.ID), strconv.Itoa(projectID)).Err()
+	s.publish(ctx, redisEvent{Type: "active_add", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: projectID})})
 }
 
 func (s *RedisTaskStateStore) RemoveActive(projectID int, taskID int) {
@@ -198,6 +474,7 @@ func (s *RedisTaskStateStore) RemoveActive(projectID int, taskID int) {
 	if err := s.client.SRem(ctx, s.key("active", strconv.Itoa(projectID)), taskID).Err(); err != nil {
 		log.WithError(err).Error("redis remove active failed")
 	}
+	s.publish(ctx, redisEvent{Type: "active_remove", Data: mustJSON(taskRef{TaskID: taskID, ProjectID: projectID})})
 }
 
 func (s *RedisTaskStateStore) GetActive(projectID int) []*TaskRunner {
@@ -242,6 +519,7 @@ func (s *RedisTaskStateStore) SetAlias(alias string, task *TaskRunner) {
 	if err := s.client.HSet(ctx, s.key("aliases"), alias, task.Task.ID).Err(); err != nil {
 		log.WithError(err).Error("redis set alias failed")
 	}
+	s.publish(ctx, redisEvent{Type: "alias_set", Data: mustJSON(taskRef{TaskID: task.Task.ID, ProjectID: task.Task.ProjectID, Alias: alias})})
 }
 
 func (s *RedisTaskStateStore) GetByAlias(alias string) *TaskRunner {
@@ -274,4 +552,30 @@ func (s *RedisTaskStateStore) DeleteAlias(alias string) {
 	s.mu.Lock()
 	delete(s.byAlias, alias)
 	s.mu.Unlock()
+	s.publish(ctx, redisEvent{Type: "alias_delete", Data: mustJSON(taskRef{Alias: alias})})
+}
+
+func mustJSON(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+// TryClaim atomically tries to claim a task for execution using SET NX
+func (s *RedisTaskStateStore) TryClaim(taskID int) bool {
+	ctx := context.Background()
+	key := s.key("claim", strconv.Itoa(taskID))
+	ok, err := s.client.SetNX(ctx, key, "1", 0).Result()
+	if err != nil {
+		log.WithError(err).Error("redis try claim failed")
+		return false
+	}
+	return ok
+}
+
+// DeleteClaim releases the execution claim for a task
+func (s *RedisTaskStateStore) DeleteClaim(taskID int) {
+	ctx := context.Background()
+	if err := s.client.Del(ctx, s.key("claim", strconv.Itoa(taskID))).Err(); err != nil {
+		log.WithError(err).Error("redis delete claim failed")
+	}
 }
