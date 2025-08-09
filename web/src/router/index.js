@@ -5,6 +5,7 @@ import Tasks from '@/views/Tasks.vue';
 import TaskList from '@/components/TaskList.vue';
 import TemplateDetails from '@/views/project/template/TemplateDetails.vue';
 import TemplateTerraformState from '@/views/project/template/TemplateTerraformState.vue';
+import Invites from '@/views/project/Invites.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -135,6 +136,10 @@ const routes = [
   {
     path: '/project/:projectId/team',
     component: Team,
+  },
+  {
+    path: '/project/:projectId/invites',
+    component: Invites,
   },
   {
     path: '/auth/login',
