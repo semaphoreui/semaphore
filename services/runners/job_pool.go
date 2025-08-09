@@ -121,7 +121,7 @@ func (p *JobPool) Unregister() (err error) {
 		return fmt.Errorf("runner is not registered")
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -138,6 +138,10 @@ func (p *JobPool) Unregister() (err error) {
 	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
 		return
+	}
+
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
 	}
 
 	if util.Config.Runner.TokenFile != "" {
@@ -240,7 +244,7 @@ func (p *JobPool) sendProgress() {
 
 	logger := JobLogger{Context: "sending_progress"}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -338,7 +342,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -489,7 +493,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 
 	url := util.Config.WebHost + "/api/internal/runners"
 

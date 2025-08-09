@@ -51,8 +51,14 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	var l *ldap.Conn
 	var err error
 	if util.Config.LdapNeedTLS {
-		l, err = ldap.DialTLS("tcp", util.Config.LdapServer, &tls.Config{
-			InsecureSkipVerify: true,
+		// Enforce proper certificate verification for TLS LDAP connections
+		// Extract hostname for SNI/verification when server is provided as host:port
+		serverName := util.Config.LdapServer
+		if i := strings.LastIndex(serverName, ":"); i > -1 {
+			serverName = serverName[:i]
+		}
+		l, err = ldap.DialTLS("tcp", util.Config.LdapServer, &tls.Config{ // #nosec G402 - explicit secure config
+			ServerName: serverName,
 		})
 	} else {
 		l, err = ldap.Dial("tcp", util.Config.LdapServer)
@@ -203,7 +209,12 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		"session": newSession.ID,
 	})
 	if err != nil {
-		panic(err)
+		log.WithError(err).WithFields(log.Fields{
+			"user_id": user.ID,
+			"context": "session",
+		}).Error("Failed to encode session cookie")
+		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
+		return
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -518,7 +529,9 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
 	if err != nil {
-		panic(err)
+		log.WithError(err).Error("Failed to generate OAuth state")
+		// Fallback to time-based state to keep flow usable
+		b = []byte(fmt.Sprintf("%d", tz.Now().UnixNano()))
 	}
 	oauthState := base64.URLEncoding.EncodeToString(b)
 	cookie := http.Cookie{Name: "oauthstate", Value: oauthState, Expires: expiration}

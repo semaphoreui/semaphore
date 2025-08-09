@@ -179,9 +179,12 @@ func (t *TaskRunner) sendTelegramAlert() {
 		t.Log("Can't send telegram alert! Error: " + err.Error())
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully telegram alert")
 	}
-
-	t.Log("Sent successfully telegram alert")
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
 }
 
 func (t *TaskRunner) sendSlackAlert() {
@@ -241,6 +244,9 @@ func (t *TaskRunner) sendSlackAlert() {
 	} else {
 		t.Log("Sent successfully slack alert")
 	}
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
 }
 
 func (t *TaskRunner) sendRocketChatAlert() {
@@ -297,9 +303,12 @@ func (t *TaskRunner) sendRocketChatAlert() {
 		t.Log("Can't send rocketchat alert! Error: " + err.Error())
 	} else if resp.StatusCode != 200 {
 		t.Log("Can't send rocketchat alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully rocketchat alert")
 	}
-
-	t.Log("Sent successfully rocketchat alert")
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
 }
 
 func (t *TaskRunner) sendMicrosoftTeamsAlert() {
@@ -317,7 +326,7 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 	alert := Alert{
 		Name:   t.Template.Name,
 		Author: author,
-		Color:  t.alertColor("micorsoft-teams"),
+		Color:  t.alertColor("microsoft-teams"),
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
 			URL:     t.taskLink(),
@@ -356,9 +365,12 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 		t.Log("Can't send microsoft teams alert! Error: " + err.Error())
 	} else if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		t.Log("Can't send microsoft teams alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully microsoft teams alert")
 	}
-
-	t.Log("Sent successfully microsoft teams alert")
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
 }
 
 func (t *TaskRunner) sendDingTalkAlert() {
@@ -417,6 +429,9 @@ func (t *TaskRunner) sendDingTalkAlert() {
 		t.Log("Can't send dingtalk alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	} else {
 		t.Log("Sent successfully dingtalk alert")
+	}
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
 	}
 }
 
@@ -479,6 +494,9 @@ func (t *TaskRunner) sendGotifyAlert() {
 		t.Log("Can't send gotify alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	} else {
 		t.Log("Sent successfully gotify alert")
+	}
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
 	}
 }
 

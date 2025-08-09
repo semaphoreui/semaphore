@@ -104,7 +104,12 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 		}
 
 		if integration.ProjectID != project.ID {
-			panic("")
+			log.WithFields(log.Fields{
+				"context":       "integrations",
+				"project_id":    project.ID,
+				"integrationId": integration.ID,
+			}).Error("integration project mismatch")
+			continue
 		}
 
 		err = c.integrationService.FillIntegration(&integration)

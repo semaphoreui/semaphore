@@ -467,7 +467,16 @@ func createDb() error {
 
 	defer conn.Close() //nolint:errcheck
 
-	_, err = conn.Exec("create database " + cfg.GetDbName())
+	// Create database with dialect-appropriate identifier quoting
+	dbName := cfg.GetDbName()
+	switch cfg.Dialect {
+	case util.DbDriverMySQL:
+		_, err = conn.Exec("create database `" + dbName + "`")
+	case util.DbDriverPostgres:
+		_, err = conn.Exec("create database \"" + dbName + "\"")
+	default:
+		_, err = conn.Exec("create database " + dbName)
+	}
 	if err != nil {
 		log.Warn(err.Error())
 	}
@@ -759,13 +768,9 @@ func (d *SqlDb) GetObject(props db.ObjectProps, ID int) (object any, err error) 
 }
 
 func (d *SqlDb) CreateObject(props db.ObjectProps, object any) (newObject any, err error) {
-	// err = newObject.Validate()
+	// Validation can be added here if needed
 
-	if err != nil {
-		return
-	}
-
-	template, args := InsertTemplateFromType(newObject)
+	template, args := InsertTemplateFromType(object)
 	insertID, err := d.insert(
 		"id",
 		"insert into "+props.TableName+" "+template, args...)
@@ -774,10 +779,16 @@ func (d *SqlDb) CreateObject(props db.ObjectProps, object any) (newObject any, e
 	}
 
 	newObject = object
-
 	v := reflect.ValueOf(newObject)
-	field := v.FieldByName("ID")
-	field.SetInt(int64(insertID))
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	if v.IsValid() && v.CanSet() {
+		field := v.FieldByName("ID")
+		if field.IsValid() && field.CanSet() && field.Kind() == reflect.Int {
+			field.SetInt(int64(insertID))
+		}
+	}
 
 	return
 }

@@ -2,11 +2,12 @@ package sql
 
 import (
 	"fmt"
-	"github.com/go-gorp/gorp/v3"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/go-gorp/gorp/v3"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
@@ -159,7 +160,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 	queries := getVersionSQL(getVersionPath(migration), false)
 	for i, query := range queries {
-		fmt.Printf("\r [%d/%d]", i+1, len(query))
+		fmt.Printf("\r [%d/%d]", i+1, len(queries))
 
 		if len(query) == 0 {
 			continue
@@ -173,8 +174,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		_, err = tx.Exec(q)
 		if err != nil {
 			handleRollbackError(tx.Rollback())
-			log.Warnf("\n ERR! Query: %s\n\n", q)
-			log.Fatal(err.Error())
+			log.WithError(err).Warnf("\n ERR! Query: %s\n\n", q)
 			return err
 		}
 	}

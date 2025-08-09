@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -52,7 +53,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 
 	var req *http.Request
 	req, err = http.NewRequest("POST", runner.Webhook, bytes.NewBuffer(jsonBytes))
@@ -66,6 +67,9 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	resp, err = client.Do(req)
 	if err != nil {
 		return
+	}
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
 	}
 
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
@@ -152,7 +156,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 			break
 		}
 
-		time.Sleep(1_000_000_000)
+		time.Sleep(time.Second)
 		tsk = t.taskPool.GetTask(t.Task.ID)
 		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
 			tsk.Task.Status == task_logger.TaskStoppedStatus ||
