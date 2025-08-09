@@ -1,4 +1,9 @@
-import Vue from 'vue';
-import i18n from '@/plugins/i18';
+import mitt from 'mitt';
 
-export default new Vue(i18n);
+const emitter = mitt();
+
+export default {
+  $on: emitter.on.bind(emitter),
+  $off: emitter.off.bind(emitter),
+  $emit: emitter.emit.bind(emitter),
+};

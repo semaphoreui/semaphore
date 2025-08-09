@@ -1,4 +1,4 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
 import axios from 'axios';
 import { AnsiUp } from 'ansi_up';
 import { Line, Bar } from 'vue-chartjs/legacy';
@@ -39,78 +39,57 @@ convert.ansi_colors = [
 ];
 
 axios.defaults.baseURL = document.baseURI;
-Vue.config.productionTip = false;
-
-//
-// Dates
-//
-
-// install needed plugins:
-// npm install dayjs dayjs-plugin-relativeTime dayjs-plugin-localizedFormat dayjs-plugin-duration
 
 // extend Day.js
 dayjs.extend(relativeTime);
 dayjs.extend(localizedFormat);
 dayjs.extend(durationPlugin);
 
-Vue.filter('formatDate2', (value) => (value
-  ? dayjs(String(value)).format('LL')
-  : '—'));
+const app = createApp(App);
 
-// formatDate: “from now” if today, else localized date+time
-Vue.filter('formatDate', (value) => {
-  if (!value) return '—';
-  const date = dayjs(value);
-  const now = dayjs();
-
-  if (now.isSame(date, 'day')) {
-    return `${date.fromNow()} (${date.format('HH:mm')})`;
-  }
-  return date.format('L HH:mm');
-});
-
-// formatTime: localized time with seconds
-Vue.filter('formatTime', (value) => (value ? dayjs(String(value)).format('LTS') : '—'));
-
-// formatLog: unchanged (ANSI → HTML)
-Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
-
-// formatMilliseconds: humanize a duration or a start/end pair
-Vue.filter('formatMilliseconds', (value) => {
-  if (value == null || value === '') return '—';
-
-  let ms;
-
-  if (typeof value === 'string') {
-    ms = parseInt(value, 10);
-  } else if (typeof value === 'number') {
-    ms = value;
-  } else if (Array.isArray(value)) {
-    if (value.length !== 2) {
-      throw new Error('formatMilliseconds: invalid value format');
+// global filter replacements
+app.config.globalProperties.$filters = {
+  formatDate2: (value) => (value ? dayjs(String(value)).format('LL') : '—'),
+  formatDate: (value) => {
+    if (!value) return '—';
+    const date = dayjs(value);
+    const now = dayjs();
+    if (now.isSame(date, 'day')) {
+      return `${date.fromNow()} (${date.format('HH:mm')})`;
     }
-    const [startRaw, endRaw] = value;
-    if (startRaw == null || startRaw === '') return '—';
-    const start = dayjs(startRaw);
-    const end = endRaw == null || endRaw === '' ? dayjs() : dayjs(endRaw);
-    ms = end.valueOf() - start.valueOf();
-  } else {
-    throw new Error('formatMilliseconds: unsupported value type');
-  }
+    return date.format('L HH:mm');
+  },
+  formatTime: (value) => (value ? dayjs(String(value)).format('LTS') : '—'),
+  formatLog: (value) => (value ? convert.ansi_to_html(String(value)) : value),
+  formatMilliseconds: (value) => {
+    if (value == null || value === '') return '—';
+    let ms;
+    if (typeof value === 'string') {
+      ms = parseInt(value, 10);
+    } else if (typeof value === 'number') {
+      ms = value;
+    } else if (Array.isArray(value)) {
+      if (value.length !== 2) {
+        throw new Error('formatMilliseconds: invalid value format');
+      }
+      const [startRaw, endRaw] = value;
+      if (startRaw == null || startRaw === '') return '—';
+      const start = dayjs(startRaw);
+      const end = endRaw == null || endRaw === '' ? dayjs() : dayjs(endRaw);
+      ms = end.valueOf() - start.valueOf();
+    } else {
+      throw new Error('formatMilliseconds: unsupported value type');
+    }
+    return dayjs.duration(ms).humanize();
+  },
+};
 
-  return dayjs.duration(ms).humanize();
-});
+// register legacy components from vue-chartjs if needed
+app.component('LineChartGenerator', Line);
+app.component('BarChartGenerator', Bar);
 
-//
-// -------------
-//
-
-Vue.component('LineChartGenerator', Line);
-Vue.component('BarChartGenerator', Bar);
-
-new Vue({
-  router,
-  vuetify,
-  i18n,
-  render: (h) => h(App),
-}).$mount('#app');
+app
+  .use(router)
+  .use(vuetify)
+  .use(i18n)
+  .mount('#app');

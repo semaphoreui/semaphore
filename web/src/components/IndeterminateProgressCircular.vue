@@ -95,7 +95,7 @@ export default {
     });
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     indeterminateTimer.removeListener(this.listenerId);
   },
 };

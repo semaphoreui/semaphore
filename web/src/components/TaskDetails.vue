@@ -89,19 +89,19 @@
                 </tr>
                 <tr>
                   <td><b>{{ $t('created') }}</b></td>
-                  <td>{{ item.created | formatDate }}</td>
+                  <td>{{ $filters.formatDate(item.created) }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('started') }}</b></td>
-                  <td>{{ item.start | formatDate }}</td>
+                  <td>{{ $filters.formatDate(item.start) }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('end') }}</b></td>
-                  <td>{{ item.end | formatDate }}</td>
+                  <td>{{ $filters.formatDate(item.end) }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('duration') }}</b></td>
-                  <td>{{ [item.start, item.end] | formatMilliseconds }}</td>
+                  <td>{{ $filters.formatMilliseconds([item.start, item.end]) }}</td>
                 </tr>
                 </tbody>
               </template>

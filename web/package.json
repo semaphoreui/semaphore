@@ -16,11 +16,12 @@
     "core-js": "^3.40.0",
     "cron-parser": "^5.3.0",
     "dayjs": "^1.11.13",
-    "vue": "^2.6.14",
+    "mitt": "^3.0.1",
+    "vue": "^3.5.13",
     "vue-chartjs": "^4.0.0",
     "vue-codemirror": "^4.0.6",
-    "vue-i18n": "^8.18.2",
-    "vue-router": "^3.5.4",
+    "vue-i18n": "^9.14.0",
+    "vue-router": "^4.3.0",
     "vue-virtual-scroll-list": "^2.3.5",
     "vuedraggable": "^2.24.3",
     "vuetify": "^2.6.10"
@@ -31,6 +32,8 @@
     "@vue/cli-plugin-router": "^5.0.6",
     "@vue/cli-plugin-unit-mocha": "^5.0.6",
     "@vue/cli-service": "^5.0.6",
+    "@vue/compat": "^3.5.13",
+    "@vue/compiler-sfc": "^3.5.13",
     "@vue/eslint-config-airbnb": "^6.0.0",
     "@vue/test-utils": "^2.0.0",
     "babel-eslint": "^10.1.0",
@@ -53,9 +56,6 @@
     "prettier": "^3.4.2",
     "sass": "~1.32.12",
     "sass-loader": "^13.0.0",
-    "through2": "^4.0.2",
-    "vue-cli-plugin-vuetify": "~2.5.0",
-    "vue-template-compiler": "^2.6.14",
-    "vuetify-loader": "^1.8.0"
+    "through2": "^4.0.2"
   }
 }

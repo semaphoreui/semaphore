@@ -23,6 +23,9 @@ module.exports = {
         args[0].minify = false;
         return args;
       });
+
+    // Alias Vue to the Vue 3 compatibility build
+    config.resolve.alias.set('vue$', '@vue/compat');
   },
   transpileDependencies: [
     'vuetify',

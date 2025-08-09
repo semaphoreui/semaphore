@@ -291,7 +291,7 @@
           :color="getStatusColor(item)"
           style="font-weight: bold;"
         >
-          <span v-if="item.touched">{{ item.touched | formatDate }}</span>
+          <span v-if="item.touched">{{ $filters.formatDate(item.touched) }}</span>
           <span v-else>{{ $t('never') }}</span>
         </v-chip>
       </template>
@@ -341,10 +341,10 @@
 
             <div v-if="item.cleaning_requested" style="font-size: 12px; line-height: 1.2">
               <span v-if="item.touched < item.cleaning_requested">
-                Already requested {{ item.cleaning_requested | formatDate }}.
+                Already requested {{ $filters.formatDate(item.cleaning_requested) }}.
               </span>
               <span v-else>
-                Last cleaned {{ item.cleaning_requested | formatDate }}.
+                Last cleaned {{ $filters.formatDate(item.cleaning_requested) }}.
               </span>
             </div>
           </v-tooltip>

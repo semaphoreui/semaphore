@@ -30,13 +30,13 @@
 
         Started <span v-if="user">by <b>{{ user.name }}</b></span>
 
-        at <b>{{ item.start | formatDate }}</b>
+        at <b>{{ $filters.formatDate(item.start) }}</b>
       </span>
 
       <span class="ml-3 hidden-sm-and-down task-log-view__status_part">
         <v-icon
           small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
-        {{ [item.start, item.end] | formatMilliseconds }}
+        {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </span>
     </div>
 
@@ -58,9 +58,9 @@
       >
         <div class="task-log-records__record" v-for="record in output" :key="record.id">
           <div class="task-log-records__time">
-            {{ record.time | formatTime }}
+            {{ $filters.formatTime(record.time) }}
           </div>
-          <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
+          <div class="task-log-records__output" v-html="$filters.formatLog(record.output)">
           </div>
         </div>
       </VirtualList>
@@ -347,7 +347,7 @@ export default {
     await this.loadData();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     clearInterval(this.outputInterval);
   },
 

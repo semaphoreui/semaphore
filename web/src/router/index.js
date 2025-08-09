@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import VueRouter from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import RestoreProject from '@/views/project/RestoreProject.vue';
 import Tasks from '@/views/Tasks.vue';
 import TaskList from '@/components/TaskList.vue';
@@ -26,8 +25,6 @@ import Runners from '../views/Runners.vue';
 import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
-
-Vue.use(VueRouter);
 
 const routes = [
   {
@@ -162,8 +159,8 @@ const routes = [
   },
 ];
 
-const router = new VueRouter({
-  mode: 'history',
+const router = createRouter({
+  history: createWebHistory(),
   routes,
 });
 
