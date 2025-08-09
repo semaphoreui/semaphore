@@ -246,13 +246,12 @@
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/variables';
 
 .templates-table .text-start:first-child {
   padding-right: 0 !important;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
+@media (max-width: 959px) {
   .templates-table .v-data-table__mobile-row:first-child {
     display: none !important;
   }

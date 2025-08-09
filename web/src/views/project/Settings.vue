@@ -129,8 +129,6 @@
   </div>
 </template>
 <style lang="scss">
-  @import '~vuetify/src/styles/styles.sass';
-
   .project-settings-form {
     //max-width: 600px;
     margin: 30px 0;
@@ -140,7 +138,7 @@
     //max-width: 400px;
     margin: 30px 0;
 
-    @media #{map-get($display-breakpoints, 'sm-and-down')} {
+    @media (max-width: 959px) {
       padding: 0 6px;
     }
   }

@@ -24,7 +24,7 @@
     "vue-router": "^4.3.0",
     "vue-virtual-scroll-list": "^2.3.5",
     "vuedraggable": "^2.24.3",
-    "vuetify": "^2.6.10"
+    "vuetify": "^3.7.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^5.0.6",
@@ -54,8 +54,9 @@
     "openai": "^4.65.0",
     "plugin-error": "^2.0.1",
     "prettier": "^3.4.2",
-    "sass": "~1.32.12",
+    "sass": "^1.62.0",
     "sass-loader": "^13.0.0",
-    "through2": "^4.0.2"
+    "through2": "^4.0.2",
+    "webpack-plugin-vuetify": "^3.0.3"
   }
 }

@@ -1,10 +1,14 @@
 const webpack = require('webpack');
+const { VuetifyPlugin } = require('webpack-plugin-vuetify');
 
 module.exports = {
   configureWebpack: {
     plugins: [
       new webpack.DefinePlugin({
         'process.env.VUE_APP_BUILD_TYPE': JSON.stringify(process.env.VUE_APP_BUILD_TYPE),
+      }),
+      new VuetifyPlugin({
+        autoImport: true,
       }),
     ],
     devServer: {
@@ -27,9 +31,6 @@ module.exports = {
     // Alias Vue to the Vue 3 compatibility build
     config.resolve.alias.set('vue$', '@vue/compat');
   },
-  transpileDependencies: [
-    'vuetify',
-  ],
   publicPath: './',
   outputDir: '../api/public',
 };

@@ -130,8 +130,6 @@
 
 <style lang="scss">
 
-@import '~vuetify/src/styles/settings/_variables';
-
 $card-title-height: 68px;
 
 $task-log-message-offset: -18px;

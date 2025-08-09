@@ -907,8 +907,7 @@
   font-size: 1rem;
 }
 
-@import '~vuetify/src/styles/styles.sass';
-@media #{map-get($display-breakpoints, 'xl-only')} {
+@media (min-width: 1920px) and (max-width: 2559px) {
   .CenterToScreen {
     transform: translateX(-130px);
   }

@@ -36,8 +36,6 @@
 </template>
 <style lang="scss">
 
-@import '~vuetify/src/styles/settings/_colors.scss';
-
 .task-link-with-tooltip {
   text-decoration: underline !important;
   text-decoration-style: dashed !important;
@@ -47,7 +45,7 @@
 a.task-link-with-tooltip {
   &:hover {
     text-decoration-style: solid !important;
-    text-decoration-color: map-deep-get($blue, 'darken-2') !important;
+    text-decoration-color: #1565c0 !important;
   }
 }
 
