@@ -83,10 +83,9 @@
     >
       <template v-slot:append-outer>
         <v-tooltip left color="black" content-class="opacity1">
-          <template v-slot:activator="{ on, attrs }">
+          <template v-slot:activator="{ props }">
             <v-icon
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
             >
               mdi-help-circle
             </v-icon>

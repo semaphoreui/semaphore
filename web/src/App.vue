@@ -153,13 +153,12 @@
       v-if="$route.path.startsWith('/project/')"
     >
       <v-menu bottom max-width="235" max-height="100%" v-if="project">
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-list class="pa-0 overflow-y-auto">
             <v-list-item
               key="project"
               class="app__project-selector"
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
               data-testid="sidebar-currentProject"
             >
               <template v-slot:prepend>
@@ -366,11 +365,10 @@
               :position-x="50"
               absolute
             >
-              <template v-slot:activator="{on, attrs}">
+              <template v-slot:activator="{ props }">
                 <v-btn
                   icon
-                  v-bind="attrs"
-                  v-on="on"
+                  v-bind="props"
                 >
                   <img
                     style="border-radius: 30px; max-width: 100%;"
@@ -402,11 +400,10 @@
           </v-list-item>
 
           <v-menu top max-width="235" nudge-top="12">
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <v-list-item
                 key="project"
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
                 prepend-icon="mdi-account"
               >
                 <v-list-item-title>

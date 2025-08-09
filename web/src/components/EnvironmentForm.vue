@@ -62,11 +62,10 @@
           {{ $t('extraVariables') }}
 
           <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <v-icon
                 class="ml-1"
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
               >mdi-help-box
               </v-icon>
             </template>
@@ -244,11 +243,10 @@
             {{ $t('extraVariables') }}
 
             <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
-              <template v-slot:activator="{ on, attrs }">
+              <template v-slot:activator="{ props }">
                 <v-icon
                   class="ml-1"
-                  v-bind="attrs"
-                  v-on="on"
+                  v-bind="props"
                 >mdi-help-box
                 </v-icon>
               </template>

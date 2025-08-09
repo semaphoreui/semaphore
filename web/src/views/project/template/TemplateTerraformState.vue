@@ -105,15 +105,14 @@
         <span v-else>No workspaces.</span>
 
         <v-menu offset-y>
-          <template v-slot:activator="{ on, attrs }">
+          <template v-slot:activator="{ props }">
             <v-btn
               color="primary"
               dark
               fab
               small
               class="ml-3"
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
             >
               <v-icon dark>mdi-plus</v-icon>
             </v-btn>

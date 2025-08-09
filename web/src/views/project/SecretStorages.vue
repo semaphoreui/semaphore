@@ -44,12 +44,11 @@
         offset-y
         v-if="premiumFeatures.secret_storage_management"
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
 
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
           >

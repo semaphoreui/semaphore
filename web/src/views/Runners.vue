@@ -324,10 +324,9 @@
           </v-btn>
 
           <v-tooltip bottom :max-width="150">
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <v-btn
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
                 icon
                 class="mr-1"
                 @click="clearCache(item)"

@@ -18,10 +18,9 @@
         transition="fade-transition"
         :disabled="!tooltip"
     >
-      <template v-slot:activator="{ on, attrs }">
+      <template v-slot:activator="{ props }">
         <a
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             @click="showTaskLog()"
             :class="{'task-link-with-tooltip': tooltip}"
         >

@@ -54,10 +54,9 @@
       <v-menu
         offset-y
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
