@@ -192,12 +192,7 @@ var skipTest = func(t *trans.Transaction) {
 var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(userProject.ID) },
 	func() string { return strconv.Itoa(userPathTestUser.ID) },
-	func() string {
-		if userKey == nil {
-			return ""
-		}
-		return strconv.Itoa(userKey.ID)
-	},
+	func() string { return strconv.Itoa(userKey.ID) },
 	func() string { return strconv.Itoa(repoID) },
 	func() string { return strconv.Itoa(inventoryID) },
 	func() string { return strconv.Itoa(environmentID) },
@@ -208,6 +203,7 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(integration.ID) },
 	func() string { return strconv.Itoa(integrationextractvalue.ID) },
 	func() string { return strconv.Itoa(integrationmatch.ID) },
+	func() string { return strconv.Itoa(invite.ID) }, // invite_id, x-example: 14
 }
 
 // alterRequestPath with the above slice of functions
@@ -240,7 +236,7 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("become_key_id", userKey.ID, &request)
 	}
 	if invite != nil {
-		bodyFieldProcessor("invite_id", invite.ID, &request)
+		bodyFieldProcessor("invite_id", 4, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
