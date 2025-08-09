@@ -16,14 +16,14 @@
     "core-js": "^3.40.0",
     "cron-parser": "^5.3.0",
     "dayjs": "^1.11.13",
-    "vue": "^2.6.14",
+    "vue": "^3.0.0",
     "vue-chartjs": "^4.0.0",
     "vue-codemirror": "^4.0.6",
-    "vue-i18n": "^8.18.2",
+    "vue-i18n": "^9.14.5",
     "vue-router": "^3.5.4",
     "vue-virtual-scroll-list": "^2.3.5",
     "vuedraggable": "^2.24.3",
-    "vuetify": "^2.6.10"
+    "vuetify": "^3.0.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^5.0.6",
