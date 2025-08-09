@@ -73,7 +73,7 @@ export default {
   mixins: [ItemFormBase],
 
   props: {
-    inviteEnabled: Boolean,
+    invitesEnabled: Boolean,
     inviteType: String,
   },
 
@@ -103,6 +103,9 @@ export default {
 
   methods: {
     getItemsUrl() {
+      if (this.invitesEnabled) {
+        return `/api/project/${this.projectId}/invites`;
+      }
       return `/api/project/${this.projectId}/users`;
     },
 

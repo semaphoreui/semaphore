@@ -13,6 +13,8 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 		return
 	}
 
+	invites = make([]db.ProjectInviteWithUser, 0)
+
 	q := squirrel.Select("pi.*").
 		Column("ib.name as inviter_user_id_name").
 		Column("ib.username as inviter_username").
