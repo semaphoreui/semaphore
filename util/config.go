@@ -178,6 +178,12 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+type TeamConfig struct {
+	InvitationsEnabled   bool `json:"invitations_enabled,omitempty" env:"SEMAPHORE_TEAM_INVITATIONS_ENABLED"`
+	MembersCanLeave      bool `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAM_MEMBERS_CAN_LEAVE"`
+	EmailInvitationsOnly bool `json:"email_invitations_only,omitempty" env:"SEMAPHORE_TEAM_EMAIL_INVITATIONS_ONLY"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -280,6 +286,8 @@ type ConfigType struct {
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+
+	Team *TeamConfig `json:"team,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 
