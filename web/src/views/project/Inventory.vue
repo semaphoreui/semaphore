@@ -200,17 +200,17 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
         width: '30%',
       },
       {
-        text: this.$i18n.t('type'),
+        text: this.$t('type'),
         value: 'type',
         width: '20%',
       },
       {
-        text: this.$i18n.t('path'),
+        text: this.$t('path'),
         value: 'inventory',
         width: '50%',
       },

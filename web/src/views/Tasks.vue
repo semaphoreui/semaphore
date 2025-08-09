@@ -107,22 +107,22 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('task', {}),
+        text: this.$t('task', {}),
         value: 'task_id',
       }, {
-        text: this.$i18n.t('project'),
+        text: this.$t('project'),
         value: 'project_id',
       }, {
-        text: this.$i18n.t('username'),
+        text: this.$t('username'),
         value: 'username',
       }, {
-        text: this.$i18n.t('status'),
+        text: this.$t('status'),
         value: 'status',
       }, {
-        text: this.$i18n.t('location'),
+        text: this.$t('location'),
         value: 'location',
       }, {
-        text: this.$i18n.t('actions'),
+        text: this.$t('actions'),
         value: 'actions',
         sortable: false,
         width: 70,

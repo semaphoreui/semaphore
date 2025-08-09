@@ -122,17 +122,17 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
+          text: this.$t('name'),
           value: 'name',
           width: '40%',
         },
         {
-          text: this.$i18n.t('username'),
+          text: this.$t('username'),
           value: 'username',
           width: '30%',
         },
         {
-          text: this.$i18n.t('role'),
+          text: this.$t('role'),
           value: 'role',
           width: '30%',
         },

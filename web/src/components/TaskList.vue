@@ -92,7 +92,7 @@ export default {
     return {
       headers: [
         {
-          text: this.$i18n.t('taskId'),
+          text: this.$t('taskId'),
           value: 'id',
           sortable: false,
         },
@@ -102,27 +102,27 @@ export default {
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
+          text: this.$t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
+          text: this.$t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('user'),
+          text: this.$t('user'),
           value: 'user_name',
           sortable: false,
         },
         {
-          text: this.$i18n.t('start'),
+          text: this.$t('start'),
           value: 'start',
           sortable: false,
         },
         {
-          text: this.$i18n.t('duration'),
+          text: this.$t('duration'),
           value: 'end',
           sortable: false,
         },
@@ -153,7 +153,7 @@ export default {
     },
 
     getActionButtonTitle() {
-      return this.$i18n.t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
+      return this.$t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
     },
 
     createTask(task) {

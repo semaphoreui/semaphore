@@ -142,13 +142,13 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('token'),
+        text: this.$t('token'),
         value: 'id',
       }, {
-        text: this.$i18n.t('created'),
+        text: this.$t('created'),
         value: 'created',
       }, {
-        text: this.$i18n.t('status'),
+        text: this.$t('status'),
         value: 'expired',
       }, {
         text: '',

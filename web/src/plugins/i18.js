@@ -8,7 +8,7 @@ if (!locale) {
 }
 
 export default createI18n({
-  legacy: false,
+  legacy: true,
   fallbackLocale: 'en',
   locale,
   messages,

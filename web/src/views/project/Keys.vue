@@ -123,12 +123,12 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
         width: '60%',
       },
       {
-        text: this.$i18n.t('type'),
+        text: this.$t('type'),
         value: 'type',
         width: '40%',
       },

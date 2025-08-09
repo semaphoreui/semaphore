@@ -351,12 +351,12 @@ export default {
           sortable: false,
         },
         {
-          text: this.$i18n.t('taskId'),
+          text: this.$t('taskId'),
           value: 'task_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('created'),
+          text: this.$t('created'),
           value: 'created',
           sortable: false,
         },

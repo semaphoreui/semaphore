@@ -147,17 +147,17 @@ export default {
         value: 'active',
         sortable: false,
       }, {
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
       }, {
-        text: this.$i18n.t('Cron'),
+        text: this.$t('Cron'),
         value: 'cron_format',
       }, {
-        text: this.$i18n.t('template'),
+        text: this.$t('template'),
         value: 'tpl_name',
         width: '100%',
       }, {
-        text: this.$i18n.t('actions'),
+        text: this.$t('actions'),
         value: 'actions',
         sortable: false,
       }];

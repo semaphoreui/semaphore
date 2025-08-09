@@ -94,7 +94,7 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
         width: '100%',
       },

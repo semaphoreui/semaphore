@@ -155,32 +155,32 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('task2'),
+          text: this.$t('task2'),
           value: 'tpl_alias',
           sortable: false,
         },
         {
-          text: this.$i18n.t('version'),
+          text: this.$t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
+          text: this.$t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('user'),
+          text: this.$t('user'),
           value: 'user_name',
           sortable: false,
         },
         {
-          text: this.$i18n.t('start'),
+          text: this.$t('start'),
           value: 'start',
           sortable: false,
         },
         {
-          text: this.$i18n.t('duration'),
+          text: this.$t('duration'),
           value: 'end',
           sortable: false,
         },

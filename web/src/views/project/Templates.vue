@@ -434,7 +434,7 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
+          text: this.$t('name'),
           value: 'name',
         },
         {
@@ -443,37 +443,37 @@ export default {
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
+          text: this.$t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
+          text: this.$t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('lastTask'),
+          text: this.$t('lastTask'),
           value: 'last_task',
           sortable: false,
         },
         {
-          text: this.$i18n.t('playbook'),
+          text: this.$t('playbook'),
           value: 'playbook',
           sortable: false,
         },
         {
-          text: this.$i18n.t('inventory'),
+          text: this.$t('inventory'),
           value: 'inventory_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('environment'),
+          text: this.$t('environment'),
           value: 'environment_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('repository2'),
+          text: this.$t('repository2'),
           value: 'repository_id',
           sortable: false,
         },

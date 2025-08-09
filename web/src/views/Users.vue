@@ -120,33 +120,33 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
         width: '50%',
       },
       {
-        text: this.$i18n.t('username'),
+        text: this.$t('username'),
         value: 'username',
       },
       {
-        text: this.$i18n.t('email'),
+        text: this.$t('email'),
         value: 'email',
       },
       {
-        text: this.$i18n.t('alert'),
+        text: this.$t('alert'),
         value: 'alert',
       },
       {
-        text: this.$i18n.t('admin'),
+        text: this.$t('admin'),
         value: 'admin',
       },
       {
-        text: this.$i18n.t('external'),
+        text: this.$t('external'),
         value: 'external',
         width: '50%',
       },
       {
-        text: this.$i18n.t('actions'),
+        text: this.$t('actions'),
         value: 'actions',
         sortable: false,
       }];

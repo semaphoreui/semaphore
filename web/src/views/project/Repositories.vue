@@ -102,22 +102,22 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
         width: '25%',
       },
       {
-        text: this.$i18n.t('gitUrl'),
+        text: this.$t('gitUrl'),
         value: 'git_url',
         width: '50%',
       },
       {
-        text: this.$i18n.t('sshKey'),
+        text: this.$t('sshKey'),
         value: 'ssh_key_id',
         width: '25%',
       },
       {
-        text: this.$i18n.t('actions'),
+        text: this.$t('actions'),
         value: 'actions',
         sortable: false,
       }];

@@ -37,19 +37,19 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('time'),
+          text: this.$t('time'),
           value: 'created',
           sortable: false,
           width: '20%',
         },
         {
-          text: this.$i18n.t('user'),
+          text: this.$t('user'),
           value: 'username',
           sortable: false,
           width: '10%',
         },
         {
-          text: this.$i18n.t('description'),
+          text: this.$t('description'),
           value: 'description',
           sortable: false,
           width: '70%',

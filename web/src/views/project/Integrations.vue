@@ -135,13 +135,13 @@ export default {
     },
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'name',
         width: '40%',
         sortable: true,
       },
       {
-        text: this.$i18n.t('template'),
+        text: this.$t('template'),
         value: 'template_id',
         width: '60%',
         sortable: true,

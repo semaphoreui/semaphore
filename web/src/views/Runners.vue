@@ -541,25 +541,25 @@ semaphore runner start --no-config`;
         {
           value: 'active',
         }, {
-          text: this.$i18n.t('name'),
+          text: this.$t('name'),
           value: 'name',
           width: '50%',
         },
         ...(this.projectId ? [] : [{
-          text: this.$i18n.t('project'),
+          text: this.$t('project'),
           value: 'project_id',
         }]),
         {
-          text: this.$i18n.t('webhook'),
+          text: this.$t('webhook'),
           value: 'webhook',
         }, {
-          text: this.$i18n.t('tag'),
+          text: this.$t('tag'),
           value: 'tag',
         }, {
-          text: this.$i18n.t('activity'),
+          text: this.$t('activity'),
           value: 'touched',
         }, {
-          text: this.$i18n.t('actions'),
+          text: this.$t('actions'),
           value: 'actions',
           sortable: false,
         }];

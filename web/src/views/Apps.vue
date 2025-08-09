@@ -123,14 +123,14 @@ export default {
         text: '',
         value: 'active',
       }, {
-        text: this.$i18n.t('name'),
+        text: this.$t('name'),
         value: 'title',
       }, {
         text: 'ID',
         value: 'id',
         width: '100%',
       }, {
-        text: this.$i18n.t('actions'),
+        text: this.$t('actions'),
         value: 'actions',
         sortable: false,
       }];

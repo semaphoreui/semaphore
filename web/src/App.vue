@@ -491,7 +491,7 @@
                 </v-list-item-content>
 
                 <v-list-item-action>
-                  <v-chip color="red" v-if="user.admin" small>{{ $i18n.t('admin') }}</v-chip>
+                  <v-chip color="red" v-if="user.admin" small>{{ $t('admin') }}</v-chip>
                 </v-list-item-action>
               </v-list-item>
             </template>
@@ -1083,14 +1083,14 @@ export default {
       }
     },
 
-    darkMode(val) {
-      this.$vuetify.theme.global.name.value = val ? 'dark' : 'light';
-      if (val) {
-        localStorage.setItem('darkMode', '1');
-      } else {
-        localStorage.removeItem('darkMode');
-      }
-    },
+    // darkMode(val) {
+    //   this.$vuetify.theme.global.name.value = val ? 'dark' : 'light';
+    //   if (val) {
+    //     localStorage.setItem('darkMode', '1');
+    //   } else {
+    //     localStorage.removeItem('darkMode');
+    //   }
+    // },
   },
 
   computed: {
