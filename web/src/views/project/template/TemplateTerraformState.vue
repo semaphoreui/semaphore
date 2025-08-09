@@ -119,16 +119,10 @@
             </v-btn>
           </template>
           <v-list>
-            <v-list-item @click="itemId = 'new'; inventoryDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-pencil</v-icon>
-              </v-list-item-icon>
+            <v-list-item @click="itemId = 'new'; inventoryDialog = true" prepend-icon="mdi-pencil">
               <v-list-item-title>New workspace</v-list-item-title>
             </v-list-item>
-            <v-list-item @click="attachInventoryDialog = true">
-              <v-list-item-icon>
-                <v-icon>mdi-connection</v-icon>
-              </v-list-item-icon>
+            <v-list-item @click="attachInventoryDialog = true" prepend-icon="mdi-connection">
               <v-list-item-title>Attach existing workspace</v-list-item-title>
             </v-list-item>
           </v-list>

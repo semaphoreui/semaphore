@@ -83,12 +83,12 @@
             link
             @click="itemApp = item; editItem('new');"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
                 :color="getAppColor(item)"
               >{{ getAppIcon(item) }}
               </v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
           </v-list-item>
         </v-list>

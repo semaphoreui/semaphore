@@ -162,7 +162,7 @@
               v-on="on"
               data-testid="sidebar-currentProject"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-avatar
                   :color="getProjectColor(project)"
                   size="24"
@@ -170,18 +170,16 @@
                 >
                   <span class="white--text">{{ getProjectInitials(project) }}</span>
                 </v-avatar>
-              </v-list-item-icon>
+              </template>
 
-              <v-list-item-content>
-                <v-list-item-title class="app__project-selector-title">
-                  {{ project.name }}
-                </v-list-item-title>
-                <v-list-item-subtitle>{{ userRole.role }}</v-list-item-subtitle>
-              </v-list-item-content>
+              <v-list-item-title class="app__project-selector-title">
+                {{ project.name }}
+              </v-list-item-title>
+              <v-list-item-subtitle>{{ userRole.role }}</v-list-item-subtitle>
 
-              <v-list-item-icon>
+              <template v-slot:append>
                 <v-icon>mdi-chevron-down</v-icon>
-              </v-list-item-icon>
+              </template>
             </v-list-item>
           </v-list>
         </template>
@@ -192,7 +190,7 @@
             :to="`/project/${item.id}`"
             @click="selectProject(item.id)"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-avatar
                 :color="getProjectColor(item)"
                 size="24"
@@ -200,8 +198,8 @@
               >
                 <span class="white--text">{{ getProjectInitials(item) }}</span>
               </v-avatar>
-            </v-list-item-icon>
-            <v-list-item-content>{{ item.name }}</v-list-item-content>
+            </template>
+            <v-list-item-title>{{ item.name }}</v-list-item-title>
           </v-list-item>
 
           <v-divider v-if="user.can_create_project"/>
@@ -210,51 +208,33 @@
             @click="showNewProjectDialogue()"
             v-if="user.can_create_project"
             data-testid="sidebar-newProject"
+            prepend-icon="mdi-plus"
           >
-            <v-list-item-icon>
-              <v-icon>mdi-plus</v-icon>
-            </v-list-item-icon>
-
-            <v-list-item-content>
+            <v-list-item-title>
               {{ $t('newProject2') }}
-            </v-list-item-content>
+            </v-list-item-title>
           </v-list-item>
 
           <v-list-item
             @click="restoreProjectDialog = true"
             v-if="user.can_create_project"
             data-testid="sidebar-restoreProject"
+            prepend-icon="mdi-backup-restore"
           >
-            <v-list-item-icon>
-              <v-icon>mdi-backup-restore</v-icon>
-            </v-list-item-icon>
-
-            <v-list-item-content>
+            <v-list-item-title>
               {{ $t('restoreProject') }}
-            </v-list-item-content>
+            </v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
-        <v-list-item key="new_project" :to="`/project/new`">
-          <v-list-item-icon>
-            <v-icon>mdi-plus</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('newProject2') }}</v-list-item-title>
-          </v-list-item-content>
+        <v-list-item key="new_project" :to="`/project/new`" prepend-icon="mdi-plus">
+          <v-list-item-title>{{ $t('newProject2') }}</v-list-item-title>
         </v-list-item>
 
-        <v-list-item key="restore_project" :to="`/project/restore`">
-          <v-list-item-icon>
-            <v-icon>mdi-restore</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('restoreProject') }}</v-list-item-title>
-          </v-list-item-content>
+        <v-list-item key="restore_project" :to="`/project/restore`" prepend-icon="mdi-restore">
+          <v-list-item-title>{{ $t('restoreProject') }}</v-list-item-title>
         </v-list-item>
       </v-list>
 
@@ -264,14 +244,9 @@
           key="dashboard"
           :to="`/project/${projectId}/history`"
           data-testid="sidebar-dashboard"
+          prepend-icon="mdi-view-dashboard"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-view-dashboard</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('dashboard') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('dashboard') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
@@ -279,14 +254,9 @@
           key="templates"
           :to="templatesUrl"
           data-testid="sidebar-templates"
+          prepend-icon="mdi-check-all"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-check-all</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('taskTemplates') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('taskTemplates') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
@@ -294,14 +264,9 @@
           key="schedule"
           :to="`/project/${projectId}/schedule`"
           data-testid="sidebar-schedule"
+          prepend-icon="mdi-clock-outline"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-clock-outline</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('schedule') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('schedule') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
@@ -309,14 +274,9 @@
           key="inventory"
           :to="`/project/${projectId}/inventory`"
           data-testid="sidebar-inventory"
+          prepend-icon="mdi-monitor-multiple"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-monitor-multiple</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
@@ -324,14 +284,9 @@
           key="environment"
           :to="`/project/${projectId}/environment`"
           data-testid="sidebar-environment"
+          prepend-icon="mdi-code-braces"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-code-braces</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
@@ -339,28 +294,18 @@
           key="keys"
           :to="`/project/${projectId}/keys`"
           data-testid="sidebar-keys"
+          prepend-icon="mdi-key-change"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-key-change</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('keyStore') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('keyStore') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
           v-if="project.type === ''"
           key="repositories"
           :to="`/project/${projectId}/repositories`"
+          prepend-icon="mdi-git"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-git</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('repositories') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('repositories') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
@@ -368,28 +313,18 @@
           key="integrations"
           :to="`/project/${projectId}/integrations`"
           data-testid="sidebar-integrations"
+          prepend-icon="mdi-connection"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-connection</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('integrations') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('integrations') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
           key="team"
           :to="`/project/${projectId}/team`"
           data-testid="sidebar-team"
+          prepend-icon="mdi-account-multiple"
         >
-          <v-list-item-icon>
-            <v-icon>mdi-account-multiple</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('team') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('team') }}</v-list-item-title>
         </v-list-item>
       </v-list>
 
@@ -402,17 +337,15 @@
             @click="subscriptionDialog = true"
             class="ActivatePremiumSubscriptionButton"
           >
-            <v-list-item-content>
-              <v-list-item-title
-              style="font-weight: bold; color: white; font-size: 18px; text-align: center;"
-              >
-                <v-icon
-                  color="white"
-                  x-large
-                >mdi-professional-hexagon</v-icon>
-                Activate Subscription
-              </v-list-item-title>
-            </v-list-item-content>
+            <v-list-item-title
+            style="font-weight: bold; color: white; font-size: 18px; text-align: center;"
+            >
+              <v-icon
+                color="white"
+                x-large
+              >mdi-professional-hexagon</v-icon>
+              Activate Subscription
+            </v-list-item-title>
           </v-list-item>
 
           <v-list-item>
@@ -453,19 +386,15 @@
                   :key="lang.id"
                   @click="selectLanguage(lang.id)"
                 >
-
-                  <v-list-item-icon>
+                  <template v-slot:prepend>
                     <v-img
                       style="border-radius: 20px; max-width: 24px;"
                       :src="`flags/${lang.flag}.svg`"
                       alt=""
                     />
-                  </v-list-item-icon>
+                  </template>
 
-                  <v-list-item-content>
-                    <v-list-item-title>{{ lang.title }}</v-list-item-title>
-                  </v-list-item-content>
-
+                  <v-list-item-title>{{ lang.title }}</v-list-item-title>
                 </v-list-item>
               </v-list>
             </v-menu>
@@ -478,33 +407,23 @@
                 key="project"
                 v-bind="attrs"
                 v-on="on"
+                prepend-icon="mdi-account"
               >
-                <v-list-item-icon>
-                  <v-icon>mdi-account</v-icon>
-                </v-list-item-icon>
+                <v-list-item-title>
+                  {{ user.name }}
+                </v-list-item-title>
 
-                <v-list-item-content>
-                  <v-list-item-title>
-                    {{ user.name }}
-                  </v-list-item-title>
-
-                </v-list-item-content>
-
-                <v-list-item-action>
+                <template v-slot:append>
                   <v-chip color="red" v-if="user.admin" small>{{ $t('admin') }}</v-chip>
-                </v-list-item-action>
+                </template>
               </v-list-item>
             </template>
 
             <v-list>
-              <v-list-item key="version">
-                <v-list-item-icon>
-                  <v-icon>mdi-information-variant</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+              <v-list-item key="version" prepend-icon="mdi-information-variant">
+                <v-list-item-title>
                   {{ systemInfo.version }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
               <v-divider/>
@@ -513,28 +432,22 @@
                 key="runners"
                 to="/runners"
                 v-if="user.admin"
+                prepend-icon="mdi-cogs"
               >
-                <v-list-item-icon>
-                  <v-icon>mdi-cogs</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+                <v-list-item-title>
                   {{ $t('runners') }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
               <v-list-item
                 key="tasks"
                 to="/tasks"
                 v-if="user.admin"
+                prepend-icon="mdi-check-all"
               >
-                <v-list-item-icon>
-                  <v-icon>mdi-check-all</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+                <v-list-item-title>
                   {{ $t('activeTasks') }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
               <v-list-item
@@ -542,64 +455,59 @@
                 v-if="isPro && user.admin"
                 @click="subscriptionDialog = true"
               >
-                <v-list-item-icon>
+                <template v-slot:prepend>
                   <v-icon
                     color="#f14668"
                     style="transform: scale(1.4)"
                   >
                     mdi-professional-hexagon
                   </v-icon>
-                </v-list-item-icon>
+                </template>
 
-                <v-list-item-content>
+                <v-list-item-title>
                   Subscription details
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
               <v-list-item
                 key="tokens"
                 to="/tokens"
                 data-testid="sidebar-tokens"
+                prepend-icon="mdi-api"
               >
-                <v-list-item-icon>
-                  <v-icon>mdi-api</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+                <v-list-item-title>
                   {{ $t('api_tokens') }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
-              <v-list-item key="users" to="/users" v-if="user.admin">
-                <v-list-item-icon>
-                  <v-icon>mdi-account-multiple</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+              <v-list-item
+                key="users"
+                to="/users"
+                v-if="user.admin"
+                prepend-icon="mdi-account-multiple"
+              >
+                <v-list-item-title>
                   {{ $t('users') }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
-              <v-list-item key="edit" @click="userDialog = true">
-                <v-list-item-icon>
-                  <v-icon>mdi-pencil</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+              <v-list-item key="edit" @click="userDialog = true" prepend-icon="mdi-pencil">
+                <v-list-item-title>
                   {{ $t('editAccount') }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
 
               <v-divider />
 
-              <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
-                <v-list-item-icon>
-                  <v-icon>mdi-exit-to-app</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
+              <v-list-item
+                key="sign_out"
+                @click="signOut()"
+                data-testid="sidebar-signout"
+                prepend-icon="mdi-exit-to-app"
+              >
+                <v-list-item-title>
                   {{ $t('signOut') }}
-                </v-list-item-content>
+                </v-list-item-title>
               </v-list-item>
             </v-list>
           </v-menu>

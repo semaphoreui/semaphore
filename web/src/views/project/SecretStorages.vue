@@ -62,11 +62,9 @@
             link
             @click="editItem('new'); itemType = 'vault';"
           >
-            <v-list-item-icon>
-              <v-icon
-              >$vuetify.icons.hashicorp_vault
-              </v-icon>
-            </v-list-item-icon>
+            <template v-slot:prepend>
+              <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
+            </template>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
           </v-list-item>
         </v-list>

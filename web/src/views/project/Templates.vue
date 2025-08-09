@@ -74,13 +74,13 @@
             link
             @click="editItem('new'); itemApp = appID;"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
                 :color="getAppColor(appID)"
               >
                 {{ getAppIcon(appID) }}
               </v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
           </v-list-item>
 
@@ -91,10 +91,8 @@
             key="other"
             link
             to="/apps"
+            prepend-icon="mdi-cogs"
           >
-            <v-list-item-icon>
-              <v-icon>mdi-cogs</v-icon>
-            </v-list-item-icon>
             <v-list-item-title>Applications</v-list-item-title>
           </v-list-item>
         </v-list>

@@ -27,34 +27,26 @@
       <v-col class="py-0">
         <v-list class="py-0">
           <v-list-item class="pa-0">
-            <v-list-item-content>
-              <v-list-item-title>Plan</v-list-item-title>
-              <v-list-item-subtitle>{{ item.plan }}</v-list-item-subtitle>
-            </v-list-item-content>
+            <v-list-item-title>Plan</v-list-item-title>
+            <v-list-item-subtitle>{{ item.plan }}</v-list-item-subtitle>
           </v-list-item>
           <v-list-item class="pa-0">
-            <v-list-item-content>
-              <v-list-item-title>Pro users</v-list-item-title>
-              <v-list-item-subtitle>{{ item.users }}</v-list-item-subtitle>
-            </v-list-item-content>
+            <v-list-item-title>Pro users</v-list-item-title>
+            <v-list-item-subtitle>{{ item.users }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </v-col>
       <v-col class="py-0">
         <v-list class="py-0">
           <v-list-item class="pa-0">
-            <v-list-item-content>
-              <v-list-item-title>Expires at</v-list-item-title>
-              <v-list-item-subtitle>{{ item.expiresAt }}</v-list-item-subtitle>
-            </v-list-item-content>
+            <v-list-item-title>Expires at</v-list-item-title>
+            <v-list-item-subtitle>{{ item.expiresAt }}</v-list-item-subtitle>
           </v-list-item>
           <v-list-item class="pa-0">
-            <v-list-item-content>
-              <v-list-item-title>Status</v-list-item-title>
-              <v-list-item-subtitle>
-                <v-chip :color="statusColor" label class="mt-1">{{ item.state }}</v-chip>
-              </v-list-item-subtitle>
-            </v-list-item-content>
+            <v-list-item-title>Status</v-list-item-title>
+            <v-list-item-subtitle>
+              <v-chip :color="statusColor" label class="mt-1">{{ item.state }}</v-chip>
+            </v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </v-col>
