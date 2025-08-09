@@ -83,7 +83,7 @@ export default {
       userId: null,
       teamMembers: null,
       USER_ROLES,
-      selectedInviteType: 'username',
+      selectedInviteType: this.inviteType === 'both' ? 'username' : this.inviteType,
     };
   },
 

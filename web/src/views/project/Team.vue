@@ -1,28 +1,13 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <EditDialog
+    <EditTeamMemberDialog
       v-model="editDialog"
-      :save-button-text="(
-        this.itemId === 'new'
-          ? (this.systemInfo.teams.invites_enabled ? 'Invite' : 'Link')
-          : $t('save')
-      )"
-      :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
-      @save="loadItems()"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TeamMemberForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :invites-enabled="systemInfo.teams.invites_enabled"
-          :invite-type="systemInfo.teams.invite_type"
-        />
-      </template>
-    </EditDialog>
+      :project-id="projectId"
+      :item-id="itemId"
+      :invites-enabled="systemInfo.teams.invites_enabled"
+      :invite-type="systemInfo.teams.invite_type"
+      @save="openInvites()"
+    />
 
     <YesNoDialog
       :title="$t('deleteTeamMember')"
@@ -51,7 +36,7 @@
       </v-btn>
     </v-toolbar>
 
-    <v-tabs class="pl-4">
+    <v-tabs class="pl-4" v-if="systemInfo.teams.invites_enabled">
       <v-tab
         key="team"
         :to="`/project/${projectId}/team`"
@@ -107,12 +92,12 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import TeamMemberForm from '@/components/TeamMemberForm.vue';
+import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
 
 export default {
-  components: { TeamMemberForm },
+  components: { EditTeamMemberDialog },
   mixins: [ItemListPageBase],
 
   props: {
@@ -126,6 +111,14 @@ export default {
   },
 
   methods: {
+    openInvites() {
+      if (this.systemInfo.teams.invites_enabled) {
+        this.$router.push(`/project/${this.projectId}/invites`);
+        return;
+      }
+      this.loadItems();
+    },
+
     async leftProject() {
       await axios({
         method: 'delete',
