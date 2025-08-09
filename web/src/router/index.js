@@ -35,10 +35,10 @@ const routes = [
     path: '/project/restore',
     component: RestoreProject,
   },
-  {
-    path: '/project/:projectId',
-    redirect: '/project/:projectId/history',
-  },
+  // {
+  //   path: '/project/:projectId',
+  //   redirect: '/project/:projectId/history',
+  // },
   {
     path: '/project/:projectId/secret_storages',
     component: SecretStorage,
