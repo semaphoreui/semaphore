@@ -178,10 +178,18 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
-type TeamConfig struct {
-	InvitationsEnabled   bool `json:"invitations_enabled,omitempty" env:"SEMAPHORE_TEAM_INVITATIONS_ENABLED"`
-	MembersCanLeave      bool `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAM_MEMBERS_CAN_LEAVE"`
-	EmailInvitationsOnly bool `json:"email_invitations_only,omitempty" env:"SEMAPHORE_TEAM_EMAIL_INVITATIONS_ONLY"`
+type TeamInvitationType string
+
+const (
+	TeamInvitationEmail    TeamInvitationType = "email"
+	TeamInvitationUsername TeamInvitationType = "username"
+	TeamInvitationBoth     TeamInvitationType = "both"
+)
+
+type TeamsConfig struct {
+	InvitationsEnabled bool               `json:"invitations_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITATIONS_ENABLED"`
+	InvitationType     TeamInvitationType `json:"invitation_type,omitempty" env:"SEMAPHORE_TEAMS_INVITATION_TYPE" default:"username"`
+	MembersCanLeave    bool               `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -287,7 +295,7 @@ type ConfigType struct {
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
-	Team *TeamConfig `json:"team,omitempty"`
+	Teams *TeamsConfig `json:"teams,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 

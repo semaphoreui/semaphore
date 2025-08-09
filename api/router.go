@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"net/http"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	proProjects "github.com/semaphoreui/semaphore/pro/api/projects"
@@ -654,6 +655,7 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"premium_features":  proFeatures.GetFeatures(user),
 		"git_client":        util.Config.GitClientId,
 		"schedule_timezone": timezone,
+		"teams":             util.Config.Teams,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

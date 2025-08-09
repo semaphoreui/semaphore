@@ -2,7 +2,11 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      :save-button-text="(this.itemId === 'new' ? 'Link' : $t('save'))"
+      :save-button-text="(
+        this.itemId === 'new'
+          ? (this.systemInfo.teams.invitations_enabled ? 'Invite' : 'Link')
+          : $t('save')
+      )"
       :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
       @save="loadItems()"
     >
@@ -14,6 +18,8 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :invitation="systemInfo.teams.invitations_enabled"
+          :invitation-type="systemInfo.teams.invitation_type"
         />
       </template>
     </EditDialog>
@@ -30,6 +36,7 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="systemInfo.teams.memebers_can_leave"
         color="error"
         @click="leftProject()"
         class="mr-2"
@@ -89,6 +96,11 @@ import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
 export default {
   components: { TeamMemberForm },
   mixins: [ItemListPageBase],
+
+  props: {
+    systemInfo: Object,
+  },
+
   data() {
     return {
       USER_ROLES,
