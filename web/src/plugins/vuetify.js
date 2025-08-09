@@ -1,26 +1,21 @@
-import Vue from 'vue';
-import Vuetify from 'vuetify/lib';
+import { createVuetify } from 'vuetify';
+import { aliases, mdi } from 'vuetify/iconsets/mdi';
 import OpenTofuIcon from '@/components/OpenTofuIcon.vue';
 import PulumiIcon from '@/components/PulumiIcon.vue';
 import TerragruntIcon from '@/components/TerragruntIcon.vue';
 import HashicorpVaultIcon from '@/components/HashicorpVaultIcon.vue';
 
-Vue.use(Vuetify);
-
-export default new Vuetify({
+export default createVuetify({
   icons: {
-    values: {
-      tofu: {
-        component: OpenTofuIcon,
-      },
-      pulumi: {
-        component: PulumiIcon,
-      },
-      terragrunt: {
-        component: TerragruntIcon,
-      },
-      hashicorp_vault: {
-        component: HashicorpVaultIcon,
+    defaultSet: 'mdi',
+    aliases,
+    sets: {
+      mdi,
+      custom: {
+        tofu: OpenTofuIcon,
+        pulumi: PulumiIcon,
+        terragrunt: TerragruntIcon,
+        hashicorp_vault: HashicorpVaultIcon,
       },
     },
   },

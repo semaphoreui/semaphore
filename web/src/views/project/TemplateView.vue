@@ -129,7 +129,7 @@
 
 <style lang="scss">
 
-@import '~vuetify/src/styles/settings/_variables';
+@import 'vuetify/settings';
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;

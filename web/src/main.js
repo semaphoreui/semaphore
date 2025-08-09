@@ -1,7 +1,7 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
 import axios from 'axios';
 import { AnsiUp } from 'ansi_up';
-import { Line, Bar } from 'vue-chartjs/legacy';
+import { Line, Bar } from 'vue-chartjs';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -39,26 +39,18 @@ convert.ansi_colors = [
 ];
 
 axios.defaults.baseURL = document.baseURI;
-Vue.config.productionTip = false;
-
-//
-// Dates
-//
-
-// install needed plugins:
-// npm install dayjs dayjs-plugin-relativeTime dayjs-plugin-localizedFormat dayjs-plugin-duration
 
 // extend Day.js
 dayjs.extend(relativeTime);
 dayjs.extend(localizedFormat);
 dayjs.extend(durationPlugin);
 
-Vue.filter('formatDate2', (value) => (value
+// Global properties for filters (Vue 3 replacement for filters)
+const formatDate2 = (value) => (value
   ? dayjs(String(value)).format('LL')
-  : '—'));
+  : '—');
 
-// formatDate: “from now” if today, else localized date+time
-Vue.filter('formatDate', (value) => {
+const formatDate = (value) => {
   if (!value) return '—';
   const date = dayjs(value);
   const now = dayjs();
@@ -67,16 +59,13 @@ Vue.filter('formatDate', (value) => {
     return `${date.fromNow()} (${date.format('HH:mm')})`;
   }
   return date.format('L HH:mm');
-});
+};
 
-// formatTime: localized time with seconds
-Vue.filter('formatTime', (value) => (value ? dayjs(String(value)).format('LTS') : '—'));
+const formatTime = (value) => (value ? dayjs(String(value)).format('LTS') : '—');
 
-// formatLog: unchanged (ANSI → HTML)
-Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
+const formatLog = (value) => (value ? convert.ansi_to_html(String(value)) : value);
 
-// formatMilliseconds: humanize a duration or a start/end pair
-Vue.filter('formatMilliseconds', (value) => {
+const formatMilliseconds = (value) => {
   if (value == null || value === '') return '—';
 
   let ms;
@@ -99,18 +88,25 @@ Vue.filter('formatMilliseconds', (value) => {
   }
 
   return dayjs.duration(ms).humanize();
-});
+};
 
-//
-// -------------
-//
+const app = createApp(App);
 
-Vue.component('LineChartGenerator', Line);
-Vue.component('BarChartGenerator', Bar);
+app.use(router);
+app.use(vuetify);
+app.use(i18n);
 
-new Vue({
-  router,
-  vuetify,
-  i18n,
-  render: (h) => h(App),
-}).$mount('#app');
+// Register global components
+app.component('LineChartGenerator', Line);
+app.component('BarChartGenerator', Bar);
+
+// Register global properties (replacement for filters)
+app.config.globalProperties.$filters = {
+  formatDate2,
+  formatDate,
+  formatTime,
+  formatLog,
+  formatMilliseconds,
+};
+
+app.mount('#app');

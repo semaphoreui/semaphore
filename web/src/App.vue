@@ -907,8 +907,7 @@
   font-size: 1rem;
 }
 
-@import '~vuetify/src/styles/styles.sass';
-@media #{map-get($display-breakpoints, 'xl-only')} {
+@media (min-width: 1264px) {
   .CenterToScreen {
     transform: translateX(-130px);
   }
@@ -1085,7 +1084,7 @@ export default {
     },
 
     darkMode(val) {
-      this.$vuetify.theme.dark = val;
+      this.$vuetify.theme.global.name = val ? 'dark' : 'light';
       if (val) {
         localStorage.setItem('darkMode', '1');
       } else {

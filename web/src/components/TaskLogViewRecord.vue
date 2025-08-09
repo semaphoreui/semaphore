@@ -1,7 +1,7 @@
 <template>
   <div class="task-log-records__record">
     <div class="task-log-records__time">
-      {{ source.time | formatTime }}
+      {{ $filters.formatTime(source.time) }}
     </div>
     <div class="task-log-records__output" v-html="$options.filters.formatLog(source.output)">
     </div>

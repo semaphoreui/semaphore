@@ -136,7 +136,8 @@
       :headers="filteredHeaders"
       :items="items"
       :items-per-page="Number.MAX_VALUE"
-      :expanded.sync="openedItems"
+      :expanded="openedItems"
+      @update:expanded="openedItems = $event"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
       }"
@@ -246,7 +247,7 @@
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/variables';
+@import 'vuetify/settings';
 
 .templates-table .text-start:first-child {
   padding-right: 0 !important;

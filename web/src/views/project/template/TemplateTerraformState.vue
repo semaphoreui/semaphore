@@ -252,7 +252,7 @@
       </template>
 
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
 
       <template v-slot:item.actions="{ item }">
