@@ -1,14 +1,21 @@
 package projects
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
 
+	"text/template"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
+	emailTemplates "github.com/semaphoreui/semaphore/api/templates"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/semaphoreui/semaphore/util/mailer"
+	log "github.com/sirupsen/logrus"
 )
 
 // InviteMiddleware ensures an invite exists and loads it to the context
@@ -124,6 +131,75 @@ func CreateInvite(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if newInvite.Email != nil {
+		// Render email via template
+		inviterName := user.Username
+		if user.Name != "" {
+			inviterName = user.Name
+		}
+
+		var body bytes.Buffer
+		data := struct {
+			InviterName string
+			ProjectName string
+			Role        db.ProjectUserRole
+			Token       string
+			ExpiresAt   string
+			WebURL      string
+			AcceptURL   string
+		}{
+			InviterName: inviterName,
+			ProjectName: project.Name,
+			Role:        newInvite.Role,
+			Token:       newInvite.Token,
+			ExpiresAt:   "",
+			WebURL:      util.GetPublicHost(),
+			AcceptURL:   "",
+		}
+
+		if newInvite.ExpiresAt != nil {
+			data.ExpiresAt = newInvite.ExpiresAt.Format(time.RFC1123)
+		}
+
+		// Optionally construct a direct accept URL if we decide to support one later
+		// data.AcceptURL = fmt.Sprintf("%s/accept?token=%s", data.WebURL, newInvite.Token)
+
+		tpl, err := template.ParseFS(emailTemplates.FS, "invite.tmpl")
+		if err == nil {
+			_ = tpl.Execute(&body, data)
+		}
+
+		if body.Len() == 0 {
+			// Fallback minimal body
+			body.WriteString(fmt.Sprintf("Invitation to join %s as %s. Token: %s", data.ProjectName, data.Role, data.Token))
+		}
+
+		subject := fmt.Sprintf("Invitation to join project %s", project.Name)
+
+		if err := mailer.Send(
+			util.Config.EmailSecure,
+			util.Config.EmailTls,
+			util.Config.EmailHost,
+			util.Config.EmailPort,
+			util.Config.EmailUsername,
+			util.Config.EmailPassword,
+			util.Config.EmailSender,
+			*newInvite.Email,
+			subject,
+			body.String(),
+		); err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"email":   *newInvite.Email,
+				"context": "project_invite",
+			}).Error("failed to send project invitation email")
+		} else {
+			log.WithFields(log.Fields{
+				"email":   *newInvite.Email,
+				"context": "project_invite",
+			}).Info("project invitation email sent")
+		}
 	}
 
 	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{

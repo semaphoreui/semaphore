@@ -1,0 +1,7 @@
+<p>Hello,</p>
+<p>{{ .InviterName }} invited you to join project <strong>{{ .ProjectName }}</strong> as <strong>{{ .Role }}</strong>.</p>
+{{ if .ExpiresAt }}<p>This invitation expires on {{ .ExpiresAt }}.</p>{{ end }}
+<p><strong>Invitation token:</strong> <code>{{ .Token }}</code></p>
+{{ if .AcceptURL }}<p>You can also accept directly by visiting: <a href="{{ .AcceptURL }}">Accept Invitation</a></p>{{ end }}
+<p>Please log in to Semaphore at <a href="{{ .WebURL }}">{{ .WebURL }}</a> and use the token above to accept the invitation.</p>
+
