@@ -12,9 +12,9 @@
     >{{ formError }}
     </v-alert>
 
-    <div class="d-flex justify-end mb-1" v-if="invitationType === 'both'">
+    <div class="d-flex justify-end mb-1" v-if="inviteType === 'both'">
       <v-btn-toggle
-        v-model="selectedInvitationType"
+        v-model="selectedInviteType"
         tile
         group
       >
@@ -28,7 +28,7 @@
     </div>
 
     <v-autocomplete
-      v-if="selectedInvitationType === 'username'"
+      v-if="selectedInviteType === 'username'"
       v-model="item.user_id"
       :label="$t('user')"
       :items="users"
@@ -73,8 +73,8 @@ export default {
   mixins: [ItemFormBase],
 
   props: {
-    invitation: Boolean,
-    invitationType: String,
+    inviteEnabled: Boolean,
+    inviteType: String,
   },
 
   data() {
@@ -83,7 +83,7 @@ export default {
       userId: null,
       teamMembers: null,
       USER_ROLES,
-      selectedInvitationType: 'username',
+      selectedInviteType: 'username',
     };
   },
 

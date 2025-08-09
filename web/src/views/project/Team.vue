@@ -4,7 +4,7 @@
       v-model="editDialog"
       :save-button-text="(
         this.itemId === 'new'
-          ? (this.systemInfo.teams.invitations_enabled ? 'Invite' : 'Link')
+          ? (this.systemInfo.teams.invites_enabled ? 'Invite' : 'Link')
           : $t('save')
       )"
       :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
@@ -18,8 +18,8 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :invitation="systemInfo.teams.invitations_enabled"
-          :invitation-type="systemInfo.teams.invitation_type"
+          :invites-enabled="systemInfo.teams.invites_enabled"
+          :invite-type="systemInfo.teams.invite_type"
         />
       </template>
     </EditDialog>

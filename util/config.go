@@ -178,18 +178,18 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
-type TeamInvitationType string
+type TeamInviteType string
 
 const (
-	TeamInvitationEmail    TeamInvitationType = "email"
-	TeamInvitationUsername TeamInvitationType = "username"
-	TeamInvitationBoth     TeamInvitationType = "both"
+	TeamInviteEmail    TeamInviteType = "email"
+	TeamInviteUsername TeamInviteType = "username"
+	TeamInviteBoth     TeamInviteType = "both"
 )
 
 type TeamsConfig struct {
-	InvitationsEnabled bool               `json:"invitations_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITATIONS_ENABLED"`
-	InvitationType     TeamInvitationType `json:"invitation_type,omitempty" env:"SEMAPHORE_TEAMS_INVITATION_TYPE" default:"username"`
-	MembersCanLeave    bool               `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
+	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
+	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
+	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
