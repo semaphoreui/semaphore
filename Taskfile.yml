@@ -16,6 +16,7 @@ tasks:
         vars:
           GOOS: ""
           GOARCH: ""
+          VUE_APP_BUILD_TYPE: ""
 
   deps:
     desc: Install all build dependencies
@@ -89,7 +90,9 @@ tasks:
       - ../api/public/index.html
       - ../api/public/favicon.ico
     cmds:
-      - npm run build
+      - >-
+        env VUE_APP_BUILD_TYPE={{ .VUE_APP_BUILD_TYPE }}
+        npm run build
 
   build:be:
     desc: Build server binary

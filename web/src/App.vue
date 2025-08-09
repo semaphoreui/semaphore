@@ -1144,7 +1144,10 @@ export default {
     } catch (err) {
       if (err.response && err.response.status === 401) {
         if (this.$route.path !== '/auth/login') {
-          await this.$router.push({ path: '/auth/login' });
+          await this.$router.push({
+            path: '/auth/login',
+            query: { return: this.$route.fullPath },
+          });
         }
         this.state = 'success';
         return;

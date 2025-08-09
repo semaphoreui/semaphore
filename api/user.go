@@ -52,7 +52,10 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range tokens {
-		tokens[i].ID = tokens[i].ID[:8]
+		if len(tokens[i].ID) >= 8 {
+			tokens[i].ID = tokens[i].ID[:8]
+		}
+		// If ID is shorter than 8 chars, leave it as-is
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, tokens)

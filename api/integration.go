@@ -5,12 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
-	"github.com/semaphoreui/semaphore/services/server"
-	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services/server"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -270,8 +271,16 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 
 	var extractedEnvResults = Extract(envValues, r, payload)
 
-	taskDefinition = integration.TaskParams.CreateTask()
-	taskDefinition.TemplateID = integration.TemplateID
+	if integration.TaskParams != nil {
+		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
+	} else {
+		taskDefinition = db.Task{
+			ProjectID:  integration.ProjectID,
+			TemplateID: integration.TemplateID,
+		}
+	}
+
+	taskDefinition.IntegrationID = &integration.ID
 
 	var env map[string]any
 	err = json.Unmarshal([]byte(taskDefinition.Environment), &env)

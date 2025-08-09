@@ -15,7 +15,7 @@ create table project__secret_storage (
   foreign key (`project_id`) references project(`id`) on delete cascade
 );
 
-alter table `access_key` add `storage_id` int null references `project__secret_storage`(`id`);
+alter table `access_key` add `storage_id` int null references `project__secret_storage`(`id`) on delete cascade;
 alter table `access_key` add `source_storage_id` int null references `project__secret_storage`(`id`);
 alter table `access_key` add `source_storage_key` varchar(1000);
 

@@ -13,13 +13,14 @@ COPY . /go/src/semaphore
 RUN --mount=type=cache,target=/go/pkg \
     go mod download -x
 
+ARG VUE_APP_BUILD_TYPE
 ARG TARGETOS
 ARG TARGETARCH
 
 RUN --mount=type=cache,target=/go/pkg \
     --mount=type=cache,target=/root/.cache/go-build \
     task deps && \
-    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} VUE_APP_BUILD_TYPE=${VUE_APP_BUILD_TYPE}
 
 
 ENV OPENTOFU_VERSION="1.9.0"

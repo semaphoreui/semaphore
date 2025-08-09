@@ -22,6 +22,7 @@ func appMiddleware(next http.Handler) http.Handler {
 		appID, err := helpers.GetStrParam("app_id", w, r)
 		if err != nil {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		if err := validateAppID(appID); err != nil {
