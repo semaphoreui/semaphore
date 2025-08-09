@@ -1084,7 +1084,7 @@ export default {
     },
 
     darkMode(val) {
-      this.$vuetify.theme.global.name = val ? 'dark' : 'light';
+      this.$vuetify.theme.global.name.value = val ? 'dark' : 'light';
       if (val) {
         localStorage.setItem('darkMode', '1');
       } else {
