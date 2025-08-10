@@ -22,7 +22,7 @@
       />
     </template>
   </EditDialog>
-  
+
 </template>
 
 <style lang="scss">
@@ -69,5 +69,3 @@ export default {
   },
 };
 </script>
-
-
