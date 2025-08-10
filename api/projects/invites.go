@@ -293,7 +293,13 @@ func AcceptInvite(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Project invitation accepted by %s", currentUser.Username),
 	})
 
-	w.WriteHeader(http.StatusNoContent)
+	var result struct {
+		ProjectID int `json:"project_id"`
+	}
+
+	result.ProjectID = invite.ProjectID
+
+	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
 // UpdateInvite updates an existing project invitation
