@@ -17,6 +17,7 @@ import (
 	"github.com/semaphoreui/semaphore/db/factory"
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
+	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -72,6 +73,7 @@ func Execute() {
 
 func runService() {
 	store := createStore("root")
+	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 
@@ -93,6 +95,7 @@ func runService() {
 
 	taskPool := tasks.CreateTaskPool(
 		store,
+		state,
 		ansibleTaskRepo,
 		inventoryService,
 		encryptionService,

@@ -63,6 +63,7 @@ type TaskPool struct {
 
 func CreateTaskPool(
 	store db.Store,
+	state TaskStateStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
 	inventoryService server.InventoryService,
 	encryptionService server.AccessKeyEncryptionService,
@@ -73,8 +74,8 @@ func CreateTaskPool(
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
 		logger:                 make(chan logRecord, 10000), // store log records to database
 		store:                  store,
+		state:                  state,
 		queueEvents:            make(chan PoolEvent),
-		state:                  NewTaskStateStore(),
 		inventoryService:       inventoryService,
 		ansibleTaskRepo:        ansibleTaskRepo,
 		encryptionService:      encryptionService,
