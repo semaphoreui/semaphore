@@ -37,7 +37,11 @@
           />
         </div>
 
-        <div class="text-right">
+        <div class="d-flex justify-space-between mt-4">
+          <v-btn
+            color="blue-grey"
+            @click="sendTestNotification()"
+          >Test Notifications</v-btn>
           <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
         </div>
       </div>
@@ -171,6 +175,25 @@ export default {
   },
 
   methods: {
+    async sendTestNotification() {
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/notifications/test`,
+          responseType: 'json',
+        });
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Test notification sent.',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
