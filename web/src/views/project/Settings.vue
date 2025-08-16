@@ -187,9 +187,16 @@ export default {
           text: 'Test notification sent.',
         });
       } catch (err) {
+        let msg;
+        if (err.response.status === 409) {
+          msg = 'Please allow alerts for the project and save it.';
+        } else {
+          msg = getErrorMessage(err);
+        }
+
         EventBus.$emit('i-snackbar', {
           color: 'error',
-          text: getErrorMessage(err),
+          text: msg,
         });
       }
     },
