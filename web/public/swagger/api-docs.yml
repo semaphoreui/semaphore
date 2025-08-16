@@ -1573,6 +1573,20 @@ paths:
             items:
               $ref: '#/definitions/Event'
 
+  /project/{project_id}/notifications/test:
+    post:
+      summary: Send test notification
+      description: Sends a test notification to all enabled messengers for the project
+      parameters:
+        - $ref: "#/parameters/project_id"
+      responses:
+        204:
+          description: Test notification dispatched (or alerts disabled)
+        401:
+          description: not authenticated
+        403:
+          description: forbidden
+
   # User management
   /project/{project_id}/users:
     parameters:
