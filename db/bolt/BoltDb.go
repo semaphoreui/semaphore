@@ -77,7 +77,7 @@ type intObjectID int
 type strObjectID string
 
 func (d intObjectID) ToBytes() []byte {
-	return []byte(fmt.Sprintf("%010d", d))
+	return fmt.Appendf(nil, "%010d", d)
 }
 
 func (d strObjectID) ToBytes() []byte {
