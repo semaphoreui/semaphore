@@ -368,7 +368,7 @@ export default {
 
     switch (status) {
       case 'authenticated':
-        document.location = document.baseURI + window.location.search;
+        this.redirectAfterLogin();
         break;
       case 'unauthenticated':
         await this.loadLoginData();
@@ -520,7 +520,8 @@ export default {
             passcode: this.verificationCode,
           },
         });
-        document.location = document.baseURI + window.location.search;
+
+        this.redirectAfterLogin();
       } catch (err) {
         this.signInError = getErrorMessage(err);
       } finally {
@@ -545,7 +546,8 @@ export default {
             email: this.email,
           },
         });
-        document.location = document.baseURI + window.location.search;
+
+        this.redirectAfterLogin();
       } catch (err) {
         if (err.response.status === 401) {
           this.signInError = this.$t('incorrectEmail');
@@ -575,7 +577,9 @@ export default {
             password: this.password,
           },
         });
-        document.location = document.baseURI + window.location.search;
+
+        this.redirectAfterLogin();
+        // document.location = document.baseURI + window.location.search;
       } catch (err) {
         if (err.response.status === 401) {
           this.signInError = this.$t('incorrectUsrPwd');
@@ -588,13 +592,33 @@ export default {
     },
 
     async oidcSignIn(provider) {
-      let query = '';
+      const params = new URLSearchParams();
+      const redirectTo = this.$route.query.redirect;
+      if (redirectTo) {
+        params.set('redirect', redirectTo);
+      } else if (this.$route.query.new_project === 'premium') {
+        params.set('redirect', '/project/premium');
+      }
+      const qs = params.toString();
+      const suffix = qs ? `?${qs}` : '';
+      document.location = `${document.baseURI}api/auth/oidc/${provider}/login${suffix}`;
+    },
 
-      if (this.$route.query.new_project === 'premium') {
-        query = '?redirect=/project/premium';
+    redirectAfterLogin() {
+      const redirectTo = this.$route.query.redirect;
+      let baseURI = document.baseURI;
+
+      if (redirectTo) {
+        if (baseURI.endsWith('/')) {
+          baseURI = baseURI.substring(0, baseURI.length - 1);
+        }
+
+        document.location = baseURI + redirectTo;
+
+        return;
       }
 
-      document.location = `${document.baseURI}api/auth/oidc/${provider}/login${query}`;
+      document.location = document.baseURI + window.location.search;
     },
   },
 };

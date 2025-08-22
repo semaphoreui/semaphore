@@ -192,6 +192,20 @@ type HAConfig struct {
 	Redis   *HARedisConfig `json:"redis,omitempty"`
 }
 
+type TeamInviteType string
+
+const (
+	TeamInviteEmail    TeamInviteType = "email"
+	TeamInviteUsername TeamInviteType = "username"
+	TeamInviteBoth     TeamInviteType = "both"
+)
+
+type TeamsConfig struct {
+	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
+	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
+	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -294,6 +308,8 @@ type ConfigType struct {
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+
+	Teams *TeamsConfig `json:"teams,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 

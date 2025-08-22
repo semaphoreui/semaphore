@@ -363,6 +363,22 @@ func Route(
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
 
 	//
+	// Manage project invites
+	projectInvitesAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectInvitesAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectUsers))
+	projectInvitesAPI.Path("/invites").HandlerFunc(projects.GetInvites).Methods("GET", "HEAD")
+	projectInvitesAPI.Path("/invites").HandlerFunc(projects.CreateInvite).Methods("POST")
+
+	projectInviteManagement := projectInvitesAPI.PathPrefix("/invites").Subrouter()
+	projectInviteManagement.Use(projects.InviteMiddleware)
+	projectInviteManagement.HandleFunc("/{invite_id}", projects.GetInvites).Methods("GET", "HEAD")
+	projectInviteManagement.HandleFunc("/{invite_id}", projects.UpdateInvite).Methods("PUT")
+	projectInviteManagement.HandleFunc("/{invite_id}", projects.DeleteInvite).Methods("DELETE")
+
+	// Accept invite endpoint (doesn't require project context)
+	authenticatedAPI.Path("/invites/accept").HandlerFunc(projects.AcceptInvite).Methods("POST")
+
+	//
 	// Project resources CRUD (continue)
 	projectKeyManagement := projectUserAPI.PathPrefix("/keys").Subrouter()
 	projectKeyManagement.Use(projects.KeyMiddleware)
@@ -640,6 +656,7 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"premium_features":  proFeatures.GetFeatures(user),
 		"git_client":        util.Config.GitClientId,
 		"schedule_timezone": timezone,
+		"teams":             util.Config.Teams,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

@@ -80,6 +80,12 @@ func main() {
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
+	h.Before("project > /api/project/{project_id}/invites > Get invitations for project > 200 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites > Create project invitation > 201 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Get specific project invitation > 200 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Update project invitation status > 204 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Delete project invitation > 204 > application/json", capabilityWrapper("invite"))
+
 	h.Before("integration > /api/project/{project_id}/integrations > get all integrations > 200 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id} > Get Integration > 200 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id} > Update Integration > 204 > application/json", capabilityWrapper("integration"))

@@ -88,7 +88,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      mkdir -p ${ANSIBLE_VENV_PATH} && \
      python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
      source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm && \
+     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm passlib && \
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
