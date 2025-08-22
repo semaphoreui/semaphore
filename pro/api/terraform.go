@@ -13,6 +13,7 @@ type TerraformController struct {
 func NewTerraformController(
 	encryptionServices server.AccessKeyEncryptionService,
 	terraformRepo db.TerraformStore,
+	keyRepo db.AccessKeyManager,
 ) *TerraformController {
 	return &TerraformController{
 		encryptionServices: encryptionServices,

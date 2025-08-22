@@ -235,6 +235,12 @@ func (d *SqlDbConnection) SelectAll(i any, query string, args ...any) ([]any, er
 }
 
 func (d *SqlDbConnection) DeleteObject(projectID int, props db.ObjectProps, objectID any) error {
+	primaryColumnName := "id"
+
+	if props.PrimaryColumnName != "" {
+		primaryColumnName = props.PrimaryColumnName
+	}
+
 	if props.IsGlobal {
 		return validateMutationResult(
 			d.Exec(
@@ -243,7 +249,7 @@ func (d *SqlDbConnection) DeleteObject(projectID int, props db.ObjectProps, obje
 	} else {
 		return validateMutationResult(
 			d.Exec(
-				"delete from "+props.TableName+" where project_id=? and id=?",
+				"delete from "+props.TableName+" where project_id=? and "+primaryColumnName+"=?",
 				projectID,
 				objectID))
 	}

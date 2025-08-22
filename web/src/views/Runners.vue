@@ -363,9 +363,10 @@ import axios from 'axios';
 import DashboardMenu from '@/components/DashboardMenu.vue';
 import delay from '@/lib/delay';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import PageMixin from '@/components/PageMixin';
 
 export default {
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, PageMixin],
 
   components: {
     CopyClipboardButton,
@@ -376,17 +377,12 @@ export default {
   },
 
   props: {
-    systemInfo: Object,
     projectId: Number,
   },
 
   computed: {
     webHost() {
       return this.systemInfo?.web_host || window.location.origin;
-    },
-
-    premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
     },
 
     version() {

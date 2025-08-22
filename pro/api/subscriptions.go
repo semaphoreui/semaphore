@@ -6,7 +6,10 @@ import (
 	"net/http"
 )
 
-func NewSubscriptionController(optionsRepo db.OptionsManager) pro_interfaces.SubscriptionController {
+func NewSubscriptionController(
+	optionsRepo db.OptionsManager,
+	userRepo db.UserManager,
+) pro_interfaces.SubscriptionController {
 	return &subscriptionControllerImpl{}
 }
 

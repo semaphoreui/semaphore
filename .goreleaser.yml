@@ -52,11 +52,11 @@ signs:
   -
     artifacts: checksum
     args: [
-      "-u", "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA", 
-      "--pinentry-mode", "loopback", 
-      "--yes", 
-      "--batch", 
-      "--output", "${signature}", 
+      "-u", "{{ .Env.GPG_KEY_ID }}",
+      "--pinentry-mode", "loopback",
+      "--yes",
+      "--batch",
+      "--output", "${signature}",
       "--detach-sign", "${artifact}"
     ]
 

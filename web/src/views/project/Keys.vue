@@ -104,20 +104,15 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
+import PageMixin from '@/components/PageMixin';
 
 export default {
   components: { KeyForm },
 
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, PageMixin],
 
   props: {
     systemInfo: Object,
-  },
-
-  computed: {
-    premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
-    },
   },
 
   methods: {

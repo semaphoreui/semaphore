@@ -282,14 +282,17 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 
 	taskDefinition.IntegrationID = &integration.ID
 
-	var env map[string]any
-	err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
-	if err != nil {
-		return
-	}
+	env := make(map[string]any)
 
-	for k, v := range extractedEnvResults {
-		env[k] = v
+	if taskDefinition.Environment != "" {
+		err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
+		if err != nil {
+			return
+		}
+
+		for k, v := range extractedEnvResults {
+			env[k] = v
+		}
 	}
 
 	envStr, err := json.Marshal(env)

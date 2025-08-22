@@ -105,11 +105,11 @@ func Route(
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
 	keyController := projects.NewKeyController(accessKeyService)
 	projectsController := projects.NewProjectsController(accessKeyService)
-	terraformController := proApi.NewTerraformController(encryptionService, terraformStore)
+	terraformController := proApi.NewTerraformController(encryptionService, terraformStore, store)
 	terraformInventoryController := proProjects.NewTerraformInventoryController(terraformStore)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
-	subscriptionController := proApi.NewSubscriptionController(store)
+	subscriptionController := proApi.NewSubscriptionController(store, store)
 	projectRunnerController := proProjects.NewProjectRunnerController()
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 
@@ -319,6 +319,7 @@ func Route(
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
+	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
 
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")

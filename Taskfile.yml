@@ -16,7 +16,7 @@ tasks:
         vars:
           GOOS: ""
           GOARCH: ""
-          VUE_APP_BUILD_TYPE: ""
+          APP_BUILD_TYPE: ""
 
   deps:
     desc: Install all build dependencies
@@ -40,7 +40,7 @@ tasks:
   deps:be:
     desc: Vendor application dependencies
     cmds:
-      - go mod vendor
+      - go {{ if eq .APP_BUILD_TYPE "pro_selfhosted" }}work{{ else }}mod{{ end }} vendor
 
   deps:fe:
     desc: Installs nodejs requirements
@@ -91,7 +91,7 @@ tasks:
       - ../api/public/favicon.ico
     cmds:
       - >-
-        env VUE_APP_BUILD_TYPE={{ .VUE_APP_BUILD_TYPE }}
+        env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}
         npm run build
 
   build:be:

@@ -94,7 +94,7 @@
       :can-edit="can(USER_PERMISSIONS.manageProjectResources)"
     />
 
-    <v-tabs class="ml-4">
+    <v-tabs>
       <v-tab
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
