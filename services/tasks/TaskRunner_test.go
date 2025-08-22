@@ -1,12 +1,13 @@
 package tasks
 
 import (
-	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
@@ -73,6 +74,7 @@ func TestTaskRunnerRun(t *testing.T) {
 
 	pool := CreateTaskPool(
 		store,
+		&MemoryTaskStateStore{},
 		nil,
 		&InventoryServiceMock{},
 		nil,
