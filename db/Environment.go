@@ -49,7 +49,7 @@ type Environment struct {
 	ENV       *string `db:"env" json:"env" binding:"required"`
 
 	// Secrets is a field which used to update secrets associated with the environment.
-	Secrets []EnvironmentSecret `db:"-" json:"secrets" backup:"-"`
+	Secrets []EnvironmentSecret `db:"-" json:"secrets,omitempty" backup:"-"`
 
 	SecretStorageID        *int    `db:"secret_storage_id" json:"secret_storage_id,omitempty" backup:"-"`
 	SecretStorageKeyPrefix *string `db:"secret_storage_key_prefix" json:"secret_storage_key_prefix,omitempty"`

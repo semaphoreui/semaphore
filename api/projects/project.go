@@ -1,13 +1,15 @@
 package projects
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/server"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 // ProjectMiddleware ensures a project exists and loads it to the context
@@ -64,6 +66,25 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 
 type ProjectController struct {
 	ProjectService server.ProjectService
+}
+
+// SendTestNotification triggers sending a test notification to enabled messengers for this project.
+func (c *ProjectController) SendTestNotification(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+
+	// Respect project.Alert flag: if disabled, still return 204 without sending
+	if !project.Alert {
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+
+	err := tasks.SendProjectTestAlerts(project, helpers.Store(r))
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {

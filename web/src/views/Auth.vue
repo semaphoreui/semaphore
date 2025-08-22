@@ -76,6 +76,7 @@
       <v-card class="px-5 py-5" style="border-radius: 15px;">
         <v-card-text>
           <v-form
+            @submit.prevent
             ref="signInForm"
             lazy-validation
             v-model="signInFormValid"
@@ -99,7 +100,7 @@
             </h2>
 
             <h2 v-else class="text-center pt-4 pb-6">
-              Log in to your account
+              Enter to your account
             </h2>
 
             <v-alert
@@ -139,12 +140,20 @@
                   {{ $t('Use recovery code') }}
                 </a>
 
-                <a
+                <v-btn
+                  :width="200"
+                  small
+                  :disabled="verificationEmailSending"
+                  color="primary"
                   v-if="verificationMethod === 'email'"
                   @click="resendEmailVerification()"
                 >
-                  {{ $t('Resend code to email') }}
-                </a>
+                  {{
+                    verificationEmailSending
+                      ? $t('Email sending...')
+                      : $t('Resend code to email')
+                  }}
+                </v-btn>
               </div>
             </div>
 
@@ -180,45 +189,81 @@
             </div>
 
             <div v-else>
-              <v-text-field
-                v-model="username"
-                v-bind:label='$t("username")'
-                :rules="[v => !!v || $t('username_required')]"
-                required
-                :disabled="signInProcess"
-                v-if="loginWithPassword"
-                data-testid="auth-username"
-              ></v-text-field>
 
-              <v-text-field
-                v-model="password"
-                :label="$t('password')"
-                :rules="[v => !!v || $t('password_required')]"
-                type="password"
-                required
-                :disabled="signInProcess"
-                @keyup.enter.native="signIn"
-                style="margin-bottom: 20px;"
-                v-if="loginWithPassword"
-                data-testid="auth-password"
-              ></v-text-field>
+              <div v-if="loginWithPassword">
+                <v-text-field
+                  v-model="username"
+                  v-bind:label='$t("username")'
+                  :rules="[v => !!v || $t('username_required')]"
+                  required
+                  :disabled="signInProcess"
+                  data-testid="auth-username"
+                ></v-text-field>
 
-              <v-btn
-                large
-                color="primary"
-                @click="signIn"
-                :disabled="signInProcess"
-                block
-                v-if="loginWithPassword"
-                rounded
-                data-testid="auth-signin"
-              >
-                {{ $t('signIn') }}
-              </v-btn>
+                <v-text-field
+                  v-model="password"
+                  :label="$t('password')"
+                  :rules="[v => !!v || $t('password_required')]"
+                  type="password"
+                  required
+                  :disabled="signInProcess"
+                  @keyup.enter.native="signIn"
+                  style="margin-bottom: 20px;"
+                  data-testid="auth-password"
+                ></v-text-field>
+
+                <v-btn
+                  large
+                  color="primary"
+                  @click="signIn"
+                  :disabled="signInProcess"
+                  block
+                  rounded
+                  data-testid="auth-signin"
+                >
+                  {{ $t('signIn') }}
+                </v-btn>
+
+              </div>
+
+              <div v-else>
+                <v-text-field
+                  v-model="email"
+                  :label="$t('Email')"
+                  :rules="[v => !!v || $t('email_required')]"
+                  type="email"
+                  required
+                  :disabled="signInProcess"
+                  @keyup.enter.native="signInWithEmail"
+                  style="margin-bottom: 20px;"
+                  data-testid="auth-password"
+                  outlined
+                  class="mb-0"
+                ></v-text-field>
+
+                <v-btn
+                  large
+                  color="primary"
+                  @click="signInWithEmail"
+                  :disabled="signInProcess"
+                  block
+                  rounded
+                  data-testid="auth-signin-with-eamil"
+                >
+                  <v-icon
+                    left
+                    dark
+                  >
+                    mdi-email
+                  </v-icon>
+
+                  {{ $t('Continue with Email') }}
+                </v-btn>
+              </div>
 
               <div
                 class="auth__divider"
-                v-if="loginWithPassword && oidcProviders.length > 0"
+                v-if="oidcProviders.length > 0"
               >or</div>
 
               <v-btn
@@ -243,7 +288,7 @@
                 {{ provider.name }}
               </v-btn>
 
-              <div class="text-center mt-6" v-if="loginWithPassword">
+              <div class="text-center mt-6" v-if="loginWithPassword && false">
                 <a @click="loginHelpDialog = true">{{ $t('dontHaveAccountOrCantSignIn') }}</a>
               </div>
 
@@ -300,6 +345,8 @@ export default {
       password: null,
       username: null,
 
+      email: null,
+
       loginHelpDialog: null,
 
       oidcProviders: [],
@@ -311,6 +358,8 @@ export default {
       verificationCode: null,
       verificationMethod: null,
       recoveryCode: null,
+      verificationEmailSending: false,
+
     };
   },
 
@@ -336,7 +385,29 @@ export default {
 
   methods: {
     async resendEmailVerification() {
-      // TODO: resend email verification code
+      if (this.verificationEmailSending) {
+        return;
+      }
+
+      this.verificationEmailSending = true;
+      try {
+        (await axios({
+          method: 'post',
+          url: '/api/auth/login/email/resend',
+          responseType: 'json',
+        }));
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Verification email sent successfully.',
+        });
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(e),
+        });
+      } finally {
+        this.verificationEmailSending = false;
+      }
     },
 
     async loadLoginData() {
@@ -439,6 +510,7 @@ export default {
       }
 
       this.signInProcess = true;
+
       try {
         await axios({
           method: 'post',
@@ -451,11 +523,35 @@ export default {
         document.location = document.baseURI + window.location.search;
       } catch (err) {
         this.signInError = getErrorMessage(err);
-        // if (err.response.status === 401) {
-        //   this.signInError = this.$t('Incorrect verification code.');
-        // } else {
-        //   this.signInError = getErrorMessage(err);
-        // }
+      } finally {
+        this.signInProcess = false;
+      }
+    },
+
+    async signInWithEmail() {
+      this.signInError = null;
+
+      if (!this.$refs.signInForm.validate()) {
+        return;
+      }
+
+      this.signInProcess = true;
+      try {
+        await axios({
+          method: 'post',
+          url: '/api/auth/login/email',
+          responseType: 'json',
+          data: {
+            email: this.email,
+          },
+        });
+        document.location = document.baseURI + window.location.search;
+      } catch (err) {
+        if (err.response.status === 401) {
+          this.signInError = this.$t('incorrectEmail');
+        } else {
+          this.signInError = getErrorMessage(err);
+        }
       } finally {
         this.signInProcess = false;
       }

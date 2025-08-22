@@ -5,12 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
-	"github.com/semaphoreui/semaphore/services/server"
-	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services/server"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -270,17 +271,28 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 
 	var extractedEnvResults = Extract(envValues, r, payload)
 
-	taskDefinition = integration.TaskParams.CreateTask()
-	taskDefinition.TemplateID = integration.TemplateID
-
-	var env map[string]any
-	err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
-	if err != nil {
-		return
+	if integration.TaskParams != nil {
+		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
+	} else {
+		taskDefinition = db.Task{
+			ProjectID:  integration.ProjectID,
+			TemplateID: integration.TemplateID,
+		}
 	}
 
-	for k, v := range extractedEnvResults {
-		env[k] = v
+	taskDefinition.IntegrationID = &integration.ID
+
+	env := make(map[string]any)
+
+	if taskDefinition.Environment != "" {
+		err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
+		if err != nil {
+			return
+		}
+
+		for k, v := range extractedEnvResults {
+			env[k] = v
+		}
 	}
 
 	envStr, err := json.Marshal(env)

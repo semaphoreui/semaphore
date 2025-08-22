@@ -19,7 +19,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :need-help="needHelp"
-          :support-storages="systemInfo.premium_features?.secret_storages"
+          :support-storages="premiumFeatures.secret_storages"
           @maximize="editNoEscape = $event.maximized"
         />
       </template>
@@ -81,14 +81,14 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EnvironmentForm from '@/components/EnvironmentForm.vue';
+import PageMixin from '@/components/PageMixin';
 
 export default {
   components: { EnvironmentForm },
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, PageMixin],
   data() {
     return {
       editNoEscape: false,
-      systemInfo: Object,
     };
   },
   methods: {
