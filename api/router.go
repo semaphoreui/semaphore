@@ -322,9 +322,6 @@ func Route(
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
 	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
-	projectUserAPI.Path("/notifications").HandlerFunc(projects.GetProjectNotifications).Methods("GET", "HEAD")
-	projectUserAPI.Path("/notifications").HandlerFunc(projects.UpdateProjectNotifications).Methods("PUT", "POST")
-	projectUserAPI.Path("/notifications/test").HandlerFunc(projects.TestProjectNotifications).Methods("POST")
 
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")

@@ -14,6 +14,4 @@ type Project struct {
 	MaxParallelTasks       int       `db:"max_parallel_tasks" json:"max_parallel_tasks,omitempty"`
 	Type                   string    `db:"type" json:"type"`
 	DefaultSecretStorageID *int      `db:"default_secret_storage_id" json:"default_secret_storage_id,omitempty" backup:"-"`
-	// New notifications configuration - stored as JSON
-	NotificationsConfig *string `db:"notifications_config" json:"notifications_config,omitempty"`
 }

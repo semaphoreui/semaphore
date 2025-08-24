@@ -1,0 +1,1 @@
+alter table project drop column notifications_config;

@@ -1,1 +1,0 @@
-alter table project add column notifications_config text;
