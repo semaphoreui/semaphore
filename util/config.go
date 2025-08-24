@@ -178,6 +178,40 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+// NotificationsConfig contains new-style notifier settings grouped by provider
+type NotificationsConfig struct {
+	Telegram *TelegramNotificationsConfig `json:"telegram,omitempty"`
+	Slack    *SlackNotificationsConfig    `json:"slack,omitempty"`
+	Gotify   *GotifyNotificationsConfig   `json:"gotify,omitempty"`
+	DingTalk *DingTalkNotificationsConfig `json:"dingtalk,omitempty"`
+}
+
+type TelegramNotificationsConfig struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Token   string `json:"token,omitempty"`
+	Chat    string `json:"chat,omitempty"`
+	ApiURL  string `json:"api_url,omitempty" default:"https://api.telegram.org"`
+}
+
+type SlackNotificationsConfig struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Token   string `json:"token,omitempty"`
+	Channel string `json:"channel,omitempty"`
+	ApiURL  string `json:"api_url,omitempty" default:"https://slack.com/api"`
+}
+
+type GotifyNotificationsConfig struct {
+	Enabled  bool   `json:"enabled,omitempty"`
+	Server   string `json:"server,omitempty"`
+	Token    string `json:"token,omitempty"`
+}
+
+type DingTalkNotificationsConfig struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Token   string `json:"token,omitempty"`
+	ApiURL  string `json:"api_url,omitempty" default:"https://oapi.dingtalk.com/robot/send"`
+}
+
 type HARedisConfig struct {
 	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
 	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
@@ -281,6 +315,9 @@ type ConfigType struct {
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+
+	// New unified notifications configuration (preferred)
+	Notifications *NotificationsConfig `json:"notifications,omitempty"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
