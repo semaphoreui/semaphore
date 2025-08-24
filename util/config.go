@@ -206,6 +206,24 @@ type TeamsConfig struct {
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
+// NotificationConfig represents configuration for a notification method
+type NotificationConfig struct {
+	Token   string `json:"token,omitempty"`
+	Channel string `json:"channel,omitempty"`
+	URL     string `json:"url,omitempty"`
+	Enabled bool   `json:"enabled,omitempty"`
+}
+
+// NotificationConfigs holds all notification configurations
+type NotificationConfigs struct {
+	Telegram       *NotificationConfig `json:"telegram,omitempty"`
+	Slack          *NotificationConfig `json:"slack,omitempty"`
+	Gotify         *NotificationConfig `json:"gotify,omitempty"`
+	DingTalk       *NotificationConfig `json:"dingtalk,omitempty"`
+	RocketChat     *NotificationConfig `json:"rocketchat,omitempty"`
+	MicrosoftTeams *NotificationConfig `json:"microsoft_teams,omitempty"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -320,6 +338,9 @@ type ConfigType struct {
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
 
 	HA *HAConfig `json:"ha,omitempty"`
+
+	// New notification system configuration
+	Notifications *NotificationConfigs `json:"notifications,omitempty"`
 }
 
 func NewConfigType() *ConfigType {

@@ -122,6 +122,10 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	}
 
 	if status.IsNotifiable() {
+		// Try new notification system first
+		t.sendNotificationsWithNewService()
+		
+		// Fall back to old notification system for backward compatibility
 		t.sendTelegramAlert()
 		t.sendSlackAlert()
 		t.sendRocketChatAlert()

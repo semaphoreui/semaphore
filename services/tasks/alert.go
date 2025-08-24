@@ -559,3 +559,42 @@ func (t *TaskRunner) taskLink() string {
 		t.Task.ID,
 	)
 }
+
+// sendNotificationsWithNewService sends notifications using the new service approach
+func (t *TaskRunner) sendNotificationsWithNewService() {
+	if !t.alert {
+		return
+	}
+
+	// Check if new notification system is configured
+	if util.Config.Notifications == nil {
+		return
+	}
+
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor(""),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+		Chat: alertChat{
+			ID: util.Config.TelegramChat, // Default chat ID for backward compatibility
+		},
+	}
+
+	// Override chat ID if specified in template
+	if t.alertChat != nil && *t.alertChat != "" {
+		alert.Chat.ID = *t.alertChat
+	}
+
+	// Create and use the notification service
+	service := NewNotificationService(*util.Config.Notifications)
+	service.SendNotifications(alert, t.Template.SuppressSuccessAlerts)
+}

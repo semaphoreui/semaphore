@@ -40,6 +40,10 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 		},
 	}
 
+	// Try new notification system first
+	tr.sendNotificationsWithNewService()
+	
+	// Fall back to old notification system for backward compatibility
 	tr.sendTelegramAlert()
 	tr.sendSlackAlert()
 	tr.sendRocketChatAlert()
