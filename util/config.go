@@ -178,6 +178,43 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+// New unified notifications configuration
+// These options are only configurable via config file (no env tags)
+// and will be used by the new Notification Service implementation.
+type NotificationsConfig struct {
+	Telegram *TelegramNotificationConfig `json:"telegram,omitempty"`
+	Slack    *SlackNotificationConfig    `json:"slack,omitempty"`
+	Gotify   *GotifyNotificationConfig   `json:"gotify,omitempty"`
+	DingTalk *DingTalkNotificationConfig `json:"dingtalk,omitempty"`
+}
+
+type TelegramNotificationConfig struct {
+	Token string `json:"token,omitempty"`
+	Chat  string `json:"chat,omitempty"`
+}
+
+type SlackNotificationConfig struct {
+	Token   string `json:"token,omitempty"`
+	Channel string `json:"channel,omitempty"`
+}
+
+type GotifyNotificationConfig struct {
+	// Base server URL, e.g. https://gotify.example.com
+	Server   string `json:"server,omitempty"`
+	// Application token (sent in header, not as URL param)
+	Token    string `json:"token,omitempty"`
+	// Optional title and priority
+	Title    string `json:"title,omitempty"`
+	Priority *int   `json:"priority,omitempty"`
+}
+
+type DingTalkNotificationConfig struct {
+	// Access token for the bot/webhook
+	Token   string `json:"token,omitempty"`
+	// Optional: a channel/room identifier if applicable in your setup
+	Channel string `json:"channel,omitempty"`
+}
+
 type HARedisConfig struct {
 	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
 	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
@@ -281,6 +318,9 @@ type ConfigType struct {
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+
+	// New, structured notification settings for the service-based notifiers
+	Notifications *NotificationsConfig `json:"notifications,omitempty"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
