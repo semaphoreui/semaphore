@@ -40,6 +40,7 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 		},
 	}
 
+	// Legacy notification system (for backward compatibility)
 	tr.sendTelegramAlert()
 	tr.sendSlackAlert()
 	tr.sendRocketChatAlert()
@@ -47,6 +48,9 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 	tr.sendDingTalkAlert()
 	tr.sendGotifyAlert()
 	tr.sendMailAlert()
+
+	// New notification system
+	tr.sendNewNotifications()
 
 	return
 }

@@ -266,7 +266,7 @@ type ConfigType struct {
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
+	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting (legacy)
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
@@ -281,6 +281,9 @@ type ConfigType struct {
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+
+	// New notification system configuration
+	Notifications *NotificationsConfig `json:"notifications,omitempty"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
@@ -320,6 +323,47 @@ type ConfigType struct {
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
 
 	HA *HAConfig `json:"ha,omitempty"`
+}
+
+// NotificationsConfig represents the complete notifications configuration
+type NotificationsConfig struct {
+	Telegram *TelegramNotificationConfig `json:"telegram,omitempty"`
+	Slack    *SlackNotificationConfig    `json:"slack,omitempty"`
+	Gotify   *GotifyNotificationConfig   `json:"gotify,omitempty"`
+	Dingtalk *DingtalkNotificationConfig `json:"dingtalk,omitempty"`
+}
+
+// NotificationBaseConfig represents the base configuration for all notification providers
+type NotificationBaseConfig struct {
+	Enabled bool   `json:"enabled" env:"ENABLED"`
+	Token   string `json:"token,omitempty" env:"TOKEN"`
+	Channel string `json:"channel,omitempty" env:"CHANNEL"`
+}
+
+// TelegramNotificationConfig represents Telegram notification configuration
+type TelegramNotificationConfig struct {
+	NotificationBaseConfig
+	ChatID string `json:"chat_id,omitempty" env:"CHAT_ID"`
+}
+
+// SlackNotificationConfig represents Slack notification configuration
+type SlackNotificationConfig struct {
+	NotificationBaseConfig
+	WebhookURL string `json:"webhook_url,omitempty" env:"WEBHOOK_URL"`
+}
+
+// GotifyNotificationConfig represents Gotify notification configuration
+type GotifyNotificationConfig struct {
+	NotificationBaseConfig
+	URL      string `json:"url,omitempty" env:"URL"`
+	Priority int    `json:"priority,omitempty" env:"PRIORITY"`
+}
+
+// DingtalkNotificationConfig represents Dingtalk notification configuration
+type DingtalkNotificationConfig struct {
+	NotificationBaseConfig
+	WebhookURL string `json:"webhook_url,omitempty" env:"WEBHOOK_URL"`
+	Secret     string `json:"secret,omitempty" env:"SECRET"`
 }
 
 func NewConfigType() *ConfigType {

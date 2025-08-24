@@ -122,12 +122,16 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	}
 
 	if status.IsNotifiable() {
+		// Legacy notification system (for backward compatibility)
 		t.sendTelegramAlert()
 		t.sendSlackAlert()
 		t.sendRocketChatAlert()
 		t.sendMicrosoftTeamsAlert()
 		t.sendDingTalkAlert()
 		t.sendGotifyAlert()
+		
+		// New notification system
+		t.sendNewNotifications()
 	}
 
 	for _, l := range t.statusListeners {

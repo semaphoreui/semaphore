@@ -209,6 +209,8 @@ func Route(
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+	adminAPI.Path("/notifications").HandlerFunc(projects.GetGlobalNotifications).Methods("GET", "HEAD")
+	adminAPI.Path("/notifications").HandlerFunc(projects.UpdateGlobalNotifications).Methods("PUT", "POST")
 
 	adminAPI.Path("/runners").HandlerFunc(getAllRunners).Methods("GET", "HEAD")
 	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
@@ -320,6 +322,9 @@ func Route(
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
 	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
+	projectUserAPI.Path("/notifications").HandlerFunc(projects.GetProjectNotifications).Methods("GET", "HEAD")
+	projectUserAPI.Path("/notifications").HandlerFunc(projects.UpdateProjectNotifications).Methods("PUT", "POST")
+	projectUserAPI.Path("/notifications/test").HandlerFunc(projects.TestProjectNotifications).Methods("POST")
 
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")
