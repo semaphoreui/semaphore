@@ -18,6 +18,7 @@ import (
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
+	"github.com/semaphoreui/semaphore/services/notifications"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -113,6 +114,9 @@ func runService() {
 	defer schedulePool.Destroy()
 
 	util.Config.PrintDbInfo()
+
+	// Initialize notification services
+	notifications.InitializeManager()
 
 	port := util.Config.Port
 

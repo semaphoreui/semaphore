@@ -1,0 +1,7 @@
+{
+    "msgtype": "markdown",
+    "markdown": {
+        "title": "Task: {{ .Name }}",
+        "text": "#### Task: {{ .Name }}\nExecution #: {{ .Task.ID }}  \nStatus: {{ .Task.Result }}  \nAuthor: {{ .Author }}  \n{{ if .Task.Version }}Version: {{ .Task.Version }}  \n{{ end }}[Task Link]({{ .Task.URL }})"
+    }
+}

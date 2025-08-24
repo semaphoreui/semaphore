@@ -206,6 +206,14 @@ type TeamsConfig struct {
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
+type NotificationServiceConfig struct {
+	Enabled bool                   `json:"enabled,omitempty"`
+	Token   string                 `json:"token,omitempty"`
+	URL     string                 `json:"url,omitempty"`
+	Channel string                 `json:"channel,omitempty"`
+	Config  map[string]interface{} `json:"config,omitempty"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -281,6 +289,9 @@ type ConfigType struct {
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+
+	// New notification service configurations (secure, token-based)
+	Notifications map[string]NotificationServiceConfig `json:"notifications,omitempty" env:"SEMAPHORE_NOTIFICATIONS"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`

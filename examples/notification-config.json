@@ -1,0 +1,49 @@
+{
+  "_comment": "Example configuration for the new secure notification system",
+  
+  "notifications": {
+    "telegram": {
+      "enabled": true,
+      "token": "your_bot_token_here",
+      "channel": "your_default_chat_id",
+      "config": {
+        "parse_mode": "Markdown"
+      }
+    },
+    "slack": {
+      "enabled": true,
+      "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+      "config": {
+        "username": "Semaphore",
+        "icon_emoji": ":robot_face:"
+      }
+    },
+    "gotify": {
+      "enabled": true,
+      "url": "https://your-gotify-server.com",
+      "token": "your_gotify_app_token",
+      "config": {
+        "priority": 5
+      }
+    },
+    "dingtalk": {
+      "enabled": true,
+      "url": "https://oapi.dingtalk.com/robot/send?access_token=your_token",
+      "config": {
+        "msgtype": "markdown"
+      }
+    }
+  },
+  
+  "_legacy_config_note": "The following legacy configuration is still supported for backward compatibility",
+  "telegram_alert": true,
+  "telegram_token": "legacy_bot_token",
+  "telegram_chat": "legacy_chat_id",
+  "slack_alert": true,
+  "slack_url": "https://hooks.slack.com/services/LEGACY/SLACK/WEBHOOK",
+  "gotify_alert": true,
+  "gotify_url": "https://legacy-gotify-server.com",
+  "gotify_token": "legacy_gotify_token",
+  "dingtalk_alert": true,
+  "dingtalk_url": "https://oapi.dingtalk.com/robot/send?access_token=legacy_token"
+}

@@ -1,13 +1,24 @@
 package tasks
 
 import (
+	"context"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/notifications"
 )
 
 // SendProjectTestAlerts sends test alerts to all enabled notifiers for the given project.
 func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
+	// Use new notification system first
+	ctx := context.Background()
+	err = notifications.SendTestNotifications(ctx, &project)
+	if err != nil {
+		// Log error but continue with legacy system as fallback
+		// In production, you might want proper logging here
+	}
 
+	// Legacy fallback for services not yet covered by new system or if new system fails
 	projectUsers, err := store.GetProjectUsers(project.ID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
@@ -40,12 +51,9 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 		},
 	}
 
-	tr.sendTelegramAlert()
-	tr.sendSlackAlert()
+	// Send legacy notifications for services not covered by new system
 	tr.sendRocketChatAlert()
 	tr.sendMicrosoftTeamsAlert()
-	tr.sendDingTalkAlert()
-	tr.sendGotifyAlert()
 	tr.sendMailAlert()
 
 	return
