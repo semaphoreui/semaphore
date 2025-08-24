@@ -102,6 +102,7 @@ func runService() {
 		encryptionService,
 		accessKeyInstallationService,
 		logWriteService,
+		notificationManager,
 	)
 
 	schedulePool := schedules.CreateSchedulePool(
@@ -115,8 +116,8 @@ func runService() {
 
 	util.Config.PrintDbInfo()
 
-	// Initialize notification services
-	notifications.InitializeManager()
+	// Create notification manager
+	notificationManager := notifications.CreateManager()
 
 	port := util.Config.Port
 

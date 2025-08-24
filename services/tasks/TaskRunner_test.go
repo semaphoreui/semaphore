@@ -80,6 +80,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		nil,
 		keyInstaller,
 		&mockLogWriteService{},
+		nil, // notification manager
 	)
 
 	go pool.Run()

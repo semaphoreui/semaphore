@@ -9,7 +9,7 @@ import (
 
 // sendNewSystemAlerts sends alerts using the new notification system
 func (t *TaskRunner) sendNewSystemAlerts() {
-	if !t.alert {
+	if !t.alert || t.notificationManager == nil {
 		return
 	}
 
@@ -33,7 +33,7 @@ func (t *TaskRunner) sendNewSystemAlerts() {
 
 	// Send notification using new system
 	ctx := context.Background()
-	err = notifications.SendTaskNotification(ctx, &t.Task, &t.Template, &project, author, taskURL)
+	err = notifications.SendTaskNotification(ctx, t.notificationManager, &t.Task, &t.Template, &project, author, taskURL)
 	if err != nil {
 		t.Log("Failed to send new system notifications: " + err.Error())
 	}
@@ -102,12 +102,13 @@ func (t *TaskRunner) SendTelegramNotification() {
 		return
 	}
 	
-	// Use new system
-	manager := notifications.GetManager()
-	service, exists := manager.GetService("telegram")
-	if exists && service.IsConfigured() {
-		t.sendNewSystemAlerts()
-		return
+	// Use new system if available
+	if t.notificationManager != nil {
+		service, exists := t.notificationManager.GetService("telegram")
+		if exists && service.IsConfigured() {
+			t.sendNewSystemAlerts()
+			return
+		}
 	}
 	
 	// Fallback to legacy
@@ -119,12 +120,13 @@ func (t *TaskRunner) SendSlackNotification() {
 		return
 	}
 	
-	// Use new system
-	manager := notifications.GetManager()
-	service, exists := manager.GetService("slack")
-	if exists && service.IsConfigured() {
-		t.sendNewSystemAlerts()
-		return
+	// Use new system if available
+	if t.notificationManager != nil {
+		service, exists := t.notificationManager.GetService("slack")
+		if exists && service.IsConfigured() {
+			t.sendNewSystemAlerts()
+			return
+		}
 	}
 	
 	// Fallback to legacy
@@ -136,12 +138,13 @@ func (t *TaskRunner) SendGotifyNotification() {
 		return
 	}
 	
-	// Use new system
-	manager := notifications.GetManager()
-	service, exists := manager.GetService("gotify")
-	if exists && service.IsConfigured() {
-		t.sendNewSystemAlerts()
-		return
+	// Use new system if available
+	if t.notificationManager != nil {
+		service, exists := t.notificationManager.GetService("gotify")
+		if exists && service.IsConfigured() {
+			t.sendNewSystemAlerts()
+			return
+		}
 	}
 	
 	// Fallback to legacy
@@ -153,12 +156,13 @@ func (t *TaskRunner) SendDingTalkNotification() {
 		return
 	}
 	
-	// Use new system
-	manager := notifications.GetManager()
-	service, exists := manager.GetService("dingtalk")
-	if exists && service.IsConfigured() {
-		t.sendNewSystemAlerts()
-		return
+	// Use new system if available
+	if t.notificationManager != nil {
+		service, exists := t.notificationManager.GetService("dingtalk")
+		if exists && service.IsConfigured() {
+			t.sendNewSystemAlerts()
+			return
+		}
 	}
 	
 	// Fallback to legacy

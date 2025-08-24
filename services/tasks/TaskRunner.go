@@ -16,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/notifications"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,11 +38,12 @@ type TaskRunner struct {
 	currentOutput *db.TaskOutput
 	currentState  any
 
-	users        []int
-	alert        bool
-	alertChat    *string
-	pool         *TaskPool
-	keyInstaller db_lib.AccessKeyInstaller
+	users               []int
+	alert               bool
+	alertChat           *string
+	pool                *TaskPool
+	keyInstaller        db_lib.AccessKeyInstaller
+	notificationManager *notifications.NotificationManager
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -65,12 +67,14 @@ func NewTaskRunner(
 	p *TaskPool,
 	username string,
 	keyInstaller db_lib.AccessKeyInstaller,
+	notificationManager *notifications.NotificationManager,
 ) *TaskRunner {
 	return &TaskRunner{
-		Task:         newTask,
-		pool:         p,
-		Username:     username,
-		keyInstaller: keyInstaller,
+		Task:                newTask,
+		pool:                p,
+		Username:            username,
+		keyInstaller:        keyInstaller,
+		notificationManager: notificationManager,
 	}
 }
 

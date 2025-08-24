@@ -16,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/notifications"
 
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -54,6 +55,7 @@ type TaskPool struct {
 	inventoryService       server.InventoryService
 	encryptionService      server.AccessKeyEncryptionService
 	keyInstallationService server.AccessKeyInstallationService
+	notificationManager    *notifications.NotificationManager
 
 	queueEvents chan PoolEvent
 
@@ -69,6 +71,7 @@ func CreateTaskPool(
 	encryptionService server.AccessKeyEncryptionService,
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
+	notificationManager *notifications.NotificationManager,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -81,10 +84,16 @@ func CreateTaskPool(
 		encryptionService:      encryptionService,
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
+		notificationManager:    notificationManager,
 	}
 	// attempt to start HA state store (no-op for memory)
 	_ = p.state.Start(p.hydrateTaskRunner)
 	return p
+}
+
+// GetNotificationManager returns the notification manager for this task pool
+func (p *TaskPool) GetNotificationManager() *notifications.NotificationManager {
+	return p.notificationManager
 }
 
 // CreateTaskPoolWithState allows passing a custom TaskStateStore (e.g., Redis-backed)
@@ -300,7 +309,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	if err != nil {
 		return nil, err
 	}
-	tr := NewTaskRunner(task, p, "", p.keyInstallationService)
+	tr := NewTaskRunner(task, p, "", p.keyInstallationService, p.notificationManager)
 	if err := tr.populateDetails(); err != nil {
 		return nil, err
 	}
@@ -397,7 +406,7 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk := p.GetTask(targetTask.ID)
 	if tsk == nil { // task not active, but exists in database
 
-		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
+		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService, p.notificationManager)
 
 		err := tsk.populateDetails()
 		if err != nil {
@@ -544,7 +553,7 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
-	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
+	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService, p.notificationManager)
 
 	if needAlias {
 		// A unique, randomly-generated identifier that persists throughout the task's lifecycle.

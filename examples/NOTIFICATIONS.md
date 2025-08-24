@@ -17,9 +17,10 @@ The notification system has been refactored to provide:
 ### Core Components
 
 1. **NotificationService Interface** - Common interface for all notification services
-2. **NotificationManager** - Manages and coordinates all notification services
+2. **NotificationManager** - Manages and coordinates all notification services (dependency injected, no globals)
 3. **Service Implementations** - Individual services (Telegram, Slack, Gotify, DingTalk)
-4. **Backward Compatibility Layer** - Ensures existing configurations continue to work
+4. **Dependency Injection** - NotificationManager is injected through TaskPool, no global state
+5. **Backward Compatibility Layer** - Ensures existing configurations continue to work
 
 ### New Configuration Structure
 
@@ -152,6 +153,21 @@ type NotificationService interface {
 }
 ```
 
+### Dependency Injection
+```go
+// Create manager (no global state)
+notificationManager := notifications.CreateManager()
+
+// Inject into TaskPool
+taskPool := tasks.CreateTaskPool(
+    store, state, repo, services..., 
+    notificationManager, // injected here
+)
+
+// Access through TaskPool
+manager := taskPool.GetNotificationManager()
+```
+
 ### Notification Structure
 ```go
 type Notification struct {
@@ -167,21 +183,27 @@ type Notification struct {
 
 ## Testing
 
-The test notification functionality has been updated to use the new system:
+The test notification functionality has been updated to use dependency injection:
 
 ```go
-// Send test notifications
-err := notifications.SendTestNotifications(ctx, &project)
+// Send test notifications with injected manager
+err := notifications.SendTestNotifications(ctx, notificationManager, &project)
+
+// Or through TaskPool
+manager := taskPool.GetNotificationManager()
+err := notifications.SendTestNotifications(ctx, manager, &project)
 ```
 
 ## Benefits
 
 1. **Security** - Tokens no longer exposed in URLs
-2. **Flexibility** - Easy to add new notification services
-3. **Maintainability** - Common interface reduces code duplication
-4. **Configuration** - Centralized, structured configuration
-5. **Extensibility** - Project-specific overrides without code changes
-6. **Compatibility** - No breaking changes for existing users
+2. **No Global State** - Uses dependency injection instead of global variables
+3. **Flexibility** - Easy to add new notification services
+4. **Maintainability** - Common interface reduces code duplication
+5. **Testability** - Dependency injection makes testing easier
+6. **Configuration** - Centralized, structured configuration
+7. **Extensibility** - Project-specific overrides without code changes
+8. **Compatibility** - No breaking changes for existing users
 
 ## Future Enhancements
 

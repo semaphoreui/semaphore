@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/notifications"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -78,7 +79,14 @@ func (c *ProjectController) SendTestNotification(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err := tasks.SendProjectTestAlerts(project, helpers.Store(r))
+	// Get task pool to access notification manager
+	taskPool := helpers.GetFromContext(r, "task_pool").(*tasks.TaskPool)
+	var notificationManager *notifications.NotificationManager
+	if taskPool != nil {
+		notificationManager = taskPool.GetNotificationManager()
+	}
+
+	err := tasks.SendProjectTestAlerts(project, helpers.Store(r), notificationManager)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
