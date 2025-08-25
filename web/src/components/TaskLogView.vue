@@ -3,18 +3,17 @@
     class="task-log-view"
     :class="{'task-log-view--with-message': item.message || item.commit_message}"
   >
-
-    <div class="px-5" style="margin-top: -18px; margin-bottom: 12px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis">
+    <div class="px-5 task-log-view__message">
       <span
         v-if="item.message"
+        class="mr-3"
       >
         <v-icon small>mdi-message-outline</v-icon>
         {{ item.message }}
       </span>
 
       <span
-        class="d-inline-block mb-2"
+        class="d-inline-block"
         v-if="item.commit_message"
       >
         <v-icon small>mdi-source-fork</v-icon>
@@ -22,20 +21,26 @@
       </span>
     </div>
 
-    <div class="overflow-auto text-no-wrap px-5" style="margin-bottom: -40px;">
+    <div
+      class="overflow-auto text-no-wrap px-5 task-log-view__status"
+    >
       <TaskStatus :status="item.status" data-testid="task-status" />
-      <span class="ml-3 hidden-xs-only">
+
+      <span class="ml-3 hidden-xs-only task-log-view__status_part">
 
         Started <span v-if="user">by <b>{{ user.name }}</b></span>
 
         at <b>{{ item.start | formatDate }}</b>
+      </span>
+
+      <span class="ml-3 hidden-sm-and-down task-log-view__status_part">
         <v-icon
-          class="ml-6" small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
+          small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
         {{ [item.start, item.end] | formatMilliseconds }}
       </span>
     </div>
 
-    <v-tabs right v-model="tab">
+    <v-tabs class="task-log-view__tabs" right v-model="tab">
       <v-tab>Log</v-tab>
       <v-tab :disabled="!isTaskStopped">Details</v-tab>
       <v-tab :disabled="!isTaskStopped">Summary</v-tab>
@@ -98,7 +103,8 @@
         style="right: 20px; width: 150px;"
         target="_blank"
         data-testid="task-rawLog"
-      >{{ $t('raw_log') }}</v-btn>
+      >{{ $t('raw_log') }}
+      </v-btn>
     </div>
 
     <div v-else-if="tab === 1">
@@ -126,8 +132,44 @@
 
 @import '~vuetify/src/styles/settings/_variables';
 
-$task-log-header-height: 28px + 64px + 8px;
-$task-log-message-height: 28px;
+$card-title-height: 68px;
+
+$task-log-message-offset: -18px;
+$task-log-message-height: 40px;
+$task-log-message-height-total: $task-log-message-height + $task-log-message-offset;
+
+$task-log-status-height: 32px;
+$task-log-status-offset: -40px;
+$task-log-tabs-height: 48px;
+
+$task-log-status-tab-height:
+  $task-log-tabs-height +
+  $task-log-status-offset +
+  $task-log-status-height;
+
+.task-log-view__message {
+  display: none;
+  margin-top: $task-log-message-offset;
+  height: $task-log-message-height;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-log-view__status {
+  height: $task-log-status-height;
+  margin-bottom: $task-log-status-offset;
+}
+
+.task-log-view__status_part {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: var(--highlighted-card-bg-color);
+}
+
+.task-log-view__tabs {
+  height: $task-log-tabs-height;
+}
 
 .task-log-action-button {
   position: absolute;
@@ -137,25 +179,31 @@ $task-log-message-height: 28px;
 .task-log-records {
   background: black;
   color: white;
-  height: calc(100vh - 280px);
+  height: calc(90vh - #{$card-title-height + $task-log-status-tab-height});
   overflow: auto;
   font-family: monospace;
   margin: 0;
   padding: 5px 10px 50px;
 }
 
+.task-log-view--with-message .task-log-view__message {
+  display: block;
+}
+
 .task-log-view--with-message .task-log-records {
-  height: calc(100vh - #{280px + $task-log-message-height});
+  height: calc(90vh -
+    #{$card-title-height + $task-log-message-height-total + $task-log-status-tab-height});
 }
 
 .v-dialog--fullscreen {
 
   .task-log-records {
-    height: calc(100vh - #{$task-log-header-height});
+    height: calc(100vh - #{$card-title-height + $task-log-status-tab-height});
   }
 
   .task-log-view--with-message .task-log-records {
-    height: calc(100vh - #{$task-log-header-height + $task-log-message-height});
+    height: calc(100vh -
+      #{$card-title-height + $task-log-message-height-total + $task-log-status-tab-height});
   }
 }
 
@@ -175,15 +223,6 @@ $task-log-message-height: 28px;
   white-space: pre-wrap;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
-  .task-log-records {
-    height: calc(100vh - 340px);
-  }
-
-  .task-log-view--with-message .task-log-records {
-    height: calc(100vh - 370px);
-  }
-}
 </style>
 <script>
 import axios from 'axios';

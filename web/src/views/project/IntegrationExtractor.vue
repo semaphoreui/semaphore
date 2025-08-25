@@ -1,10 +1,10 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="integration != null">
-    <IntegrationExtractorCrumb :integration="integration"/>
+    <IntegrationExtractorCrumb :integration="integration" />
 
     <div class="px-4 pt-3 pb-2">
       <v-switch
-         class="mt-0"
+        class="mt-0"
         v-model="integration.searchable"
         :label="$t('globalAlias')"
         @change="updateIntegration()"
@@ -22,11 +22,12 @@
 
       <div v-else v-for="alias of (aliases || [])" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
-        <v-btn icon
-               @click="copyToClipboard(
-                 alias.url, 'The alias URL  has been copied to the clipboard.')">
-          <v-icon>mdi-content-copy</v-icon>
-        </v-btn>
+
+        <CopyClipboardButton
+          :text="alias.url"
+          success-message="The alias URL  has been copied to the clipboard."
+        />
+
         <v-btn icon @click="deleteAlias(alias.id)">
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -45,21 +46,23 @@
 
     <IntegrationMatcher class="mb-6" v-if="integration.searchable" />
 
-    <IntegrationExtractValue/>
+    <IntegrationExtractValue />
 
   </div>
 </template>
 <script>
 import IntegrationsBase from '@/views/project/IntegrationsBase';
-import copyToClipboard from '@/lib/copyToClipboard';
 import axios from 'axios';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import IntegrationExtractValue from './IntegrationExtractValue.vue';
 import IntegrationMatcher from './IntegrationMatcher.vue';
 import IntegrationExtractorCrumb from './IntegrationExtractorCrumb.vue';
 
 export default {
   mixins: [IntegrationsBase],
-  components: { IntegrationMatcher, IntegrationExtractValue, IntegrationExtractorCrumb },
+  components: {
+    CopyClipboardButton, IntegrationMatcher, IntegrationExtractValue, IntegrationExtractorCrumb,
+  },
   props: {
     projectId: Number,
   },
@@ -79,7 +82,6 @@ export default {
   },
 
   methods: {
-    copyToClipboard,
     allowActions() {
       return true;
     },

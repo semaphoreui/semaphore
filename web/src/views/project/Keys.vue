@@ -5,7 +5,6 @@
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
-      position="top"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -16,6 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :support-storages="premiumFeatures.secret_storages"
         />
       </template>
     </EditDialog>
@@ -45,7 +45,25 @@
       >{{ $t('newKey') }}</v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <v-tabs class="pl-4">
+      <v-tab
+        key="keys"
+        :to="`/project/${projectId}/keys`"
+        data-testid="keystore-keys"
+      >
+        Keys
+      </v-tab>
+
+      <v-tab
+        key="storages"
+        :to="`/project/${projectId}/secret_storages`"
+        data-testid="keystore-storages"
+      >
+        Storages
+      </v-tab>
+    </v-tabs>
+
+    <v-divider style="margin-top: -1px;" />
 
     <v-data-table
       :headers="headers"
@@ -86,10 +104,17 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
+import PageMixin from '@/components/PageMixin';
 
 export default {
   components: { KeyForm },
-  mixins: [ItemListPageBase],
+
+  mixins: [ItemListPageBase, PageMixin],
+
+  props: {
+    systemInfo: Object,
+  },
+
   methods: {
     getHeaders() {
       return [{

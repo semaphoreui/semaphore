@@ -22,7 +22,25 @@ func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStageWit
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &res)
+	var stages []db.TaskStage
+	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &stages)
+	if err != nil {
+		return
+	}
+
+	// Convert TaskStage to TaskStageWithResult
+	res = make([]db.TaskStageWithResult, len(stages))
+	for i, stage := range stages {
+		res[i] = db.TaskStageWithResult{
+			ID:            stage.ID,
+			TaskID:        stage.TaskID,
+			Start:         stage.Start,
+			End:           stage.End,
+			StartOutputID: stage.StartOutputID,
+			EndOutputID:   stage.EndOutputID,
+			Type:          stage.Type,
+		}
+	}
 
 	return
 }

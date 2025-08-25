@@ -2,10 +2,12 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
 	"image/png"
 	"net/http"
@@ -13,13 +15,23 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
+type UsersController struct {
+	subscriptionService pro_interfaces.SubscriptionService
+}
+
+func NewUsersController(subscriptionService pro_interfaces.SubscriptionService) *UsersController {
+	return &UsersController{
+		subscriptionService: subscriptionService,
+	}
+}
+
 type minimalUser struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
 }
 
-func getUsers(w http.ResponseWriter, r *http.Request) {
+func (c *UsersController) GetUsers(w http.ResponseWriter, r *http.Request) {
 	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{
 		Filter: r.URL.Query().Get("s"),
@@ -46,7 +58,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addUser(w http.ResponseWriter, r *http.Request) {
+func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
 		return
@@ -57,6 +69,21 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
+	}
+
+	if user.Pro {
+		ok, err := c.subscriptionService.CanAddProUser()
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if !ok {
+			helpers.WriteErrorStatus(w,
+				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			return
+		}
 	}
 
 	var err error
@@ -134,7 +161,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func updateUser(w http.ResponseWriter, r *http.Request) {
+func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	targetUser := helpers.GetFromContext(r, "_user").(db.User)
 	editor := helpers.GetFromContext(r, "user").(*db.User)
 
@@ -147,6 +174,21 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		log.Warn(editor.Username + " is not permitted to mark users as Pro")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
+	}
+
+	if user.Pro {
+		ok, err := c.subscriptionService.CanAddProUser()
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if !ok {
+			helpers.WriteErrorStatus(w,
+				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			return
+		}
 	}
 
 	if !editor.Admin && editor.ID != targetUser.ID {

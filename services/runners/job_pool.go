@@ -65,19 +65,22 @@ func (e *JobLogger) Debug(message string) {
 }
 
 type JobPool struct {
-	// logger channel used to putting log records to database.
-	logger chan jobLogRecord
-
-	// register channel used to put tasks to queue.
-	register chan *job
-
 	runningJobs map[int]*runningJob
 
 	queue []*job
 
-	//token *string
-
 	processing int32
+
+	keyInstaller db_lib.AccessKeyInstaller
+}
+
+func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
+	return &JobPool{
+		runningJobs:  make(map[int]*runningJob),
+		queue:        make([]*job, 0),
+		processing:   0,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (p *JobPool) existsInQueue(taskID int) bool {
@@ -620,11 +623,12 @@ func (p *JobPool) checkNewJobs() {
 			alias:           newJob.Alias,
 
 			job: &tasks.LocalJob{
-				Task:        newJob.Task,
-				Template:    newJob.Template,
-				Inventory:   newJob.Inventory,
-				Repository:  newJob.Repository,
-				Environment: newJob.Environment,
+				Task:         newJob.Task,
+				Template:     newJob.Template,
+				Inventory:    newJob.Inventory,
+				Repository:   newJob.Repository,
+				Environment:  newJob.Environment,
+				KeyInstaller: p.keyInstaller,
 				App: db_lib.CreateApp(
 					newJob.Template,
 					newJob.Repository,

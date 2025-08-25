@@ -4,16 +4,27 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
-	"time"
 )
+
+type TaskController struct {
+	ansibleTaskRepo db.AnsibleTaskRepository
+}
+
+func NewTaskController(ansibleTaskRepo db.AnsibleTaskRepository) *TaskController {
+	return &TaskController{
+		ansibleTaskRepo: ansibleTaskRepo,
+	}
+}
 
 func taskPool(r *http.Request) *tasks.TaskPool {
 	return helpers.GetFromContext(r, "task_pool").(*tasks.TaskPool)
@@ -139,10 +150,10 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 //	return
 //}
 
-func GetAnsibleTaskHosts(w http.ResponseWriter, r *http.Request) {
+func (c *TaskController) GetAnsibleTaskHosts(w http.ResponseWriter, r *http.Request) {
 	task := helpers.GetFromContext(r, "task").(db.Task)
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	hosts, err := helpers.Store(r).GetAnsibleTaskHosts(project.ID, task.ID)
+	hosts, err := c.ansibleTaskRepo.GetAnsibleTaskHosts(project.ID, task.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -151,10 +162,10 @@ func GetAnsibleTaskHosts(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, hosts)
 }
 
-func GetAnsibleTaskErrors(w http.ResponseWriter, r *http.Request) {
+func (c *TaskController) GetAnsibleTaskErrors(w http.ResponseWriter, r *http.Request) {
 	task := helpers.GetFromContext(r, "task").(db.Task)
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	hosts, err := helpers.Store(r).GetAnsibleTaskErrors(project.ID, task.ID)
+	hosts, err := c.ansibleTaskRepo.GetAnsibleTaskErrors(project.ID, task.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -176,6 +187,9 @@ func GetTaskStages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range stages {
+		if stages[i].JSON == "" {
+			continue
+		}
 		var res any
 		err = json.Unmarshal([]byte(stages[i].JSON), &res)
 		if err != nil {
@@ -396,4 +410,22 @@ func GetTaskStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, stats)
+}
+
+func (c *TaskController) StopAllTasks(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	tpl := helpers.GetFromContext(r, "template").(db.Template)
+
+	var stopObj struct {
+		Force bool `json:"force"`
+	}
+
+	// optional body; ignore bind error and default Force=false
+	if ok := helpers.Bind(w, r, &stopObj); !ok {
+		helpers.WriteErrorStatus(w, "Not allowed", http.StatusBadRequest)
+		return
+	}
+
+	taskPool(r).StopTasksByTemplate(project.ID, tpl.ID, stopObj.Force)
+	w.WriteHeader(http.StatusNoContent)
 }

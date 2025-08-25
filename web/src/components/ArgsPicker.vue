@@ -3,7 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
-      width="300"
+      width="400"
     >
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
         <v-card-title></v-card-title>
@@ -24,6 +24,8 @@
               v-model.trim="editedVar.name"
               :rules="[(v) => !!v || $t('arg_required')]"
               required
+              outlined
+              dense
             />
 
             <div class="text-right mt-2">
@@ -68,10 +70,16 @@
           v-for="(v, i) in modifiedVars"
           close
           @click:close="deleteVar(i)"
-          :key="v.name"
+          :key="i"
           @click="editVar(i)"
         >
-          {{ v.name }}
+          <div
+            style="
+              max-width: 200px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            "
+          >{{ v.name }}</div>
         </v-chip>
         <v-chip @click="editVar(null)">
           + <span
@@ -97,11 +105,12 @@ export default {
   watch: {
     vars(val) {
       this.var = val || [];
+      this.fillModifiedVars();
     },
   },
 
   created() {
-    this.modifiedVars = (this.vars || []).map((v) => ({ name: v }));
+    this.fillModifiedVars();
   },
 
   data() {
@@ -115,6 +124,10 @@ export default {
     };
   },
   methods: {
+    fillModifiedVars() {
+      this.modifiedVars = (this.vars || []).map((v) => ({ name: v }));
+    },
+
     addEditedVarValue() {
       this.editedValues.push({
         name: '',

@@ -21,7 +21,7 @@
             :key="t.id"
         >
           <router-link
-            :to="`/project/${projectId}/${s.slug}/${t.id}`"
+            :to="`/project/${projectId}/${s.path || s.slug}/${s.pageless ? '' : t.id}`"
             class="object-refs-view__link">{{ t.name }}</router-link>
         </span>
       </div>
@@ -64,6 +64,12 @@ export default {
         slug: 'integrations',
         title: 'Integrations',
         icon: 'connection',
+      }, {
+        slug: 'access_keys',
+        pageless: true,
+        path: 'keys',
+        title: 'Access Keys',
+        icon: 'key-change',
       }, {
         slug: 'schedules',
         title: 'Schedules',

@@ -19,7 +19,7 @@ func (d *BoltDb) CreateIntegration(integration db.Integration) (db.Integration, 
 	return newIntegration.(db.Integration), err
 }
 
-func (d *BoltDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (integrations []db.Integration, err error) {
+func (d *BoltDb) GetIntegrations(projectID int, params db.RetrieveQueryParams, includeTaskParams bool) (integrations []db.Integration, err error) {
 	err = d.getObjects(projectID, db.IntegrationProps, params, nil, &integrations)
 	return integrations, err
 }

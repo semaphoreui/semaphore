@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"os"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
@@ -193,6 +194,35 @@ func addView() *db.View {
 	}
 
 	return &view
+}
+
+func addInvite() *db.ProjectInvite {
+	invite, err := store.CreateProjectInvite(db.ProjectInvite{
+		ProjectID:     userProject.ID,
+		UserID:        &userPathTestUser.ID,
+		Email:         &userPathTestUser.Email,
+		Role:          "owner",
+		Status:        db.ProjectInvitePending,
+		Token:         getUUID(),
+		InviterUserID: testRunnerUser.ID,
+		Created:       tz.Now(),
+		ExpiresAt:     nil, // No expiration for this test
+		AcceptedAt:    nil,
+	})
+
+	fmt.Println("***************************************")
+	fmt.Println("***************************************")
+	fmt.Println("***************************************")
+	fmt.Println(invite.ID)
+	fmt.Println("***************************************")
+	fmt.Println("***************************************")
+	fmt.Println("***************************************")
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &invite
 }
 
 func addSchedule() *db.Schedule {

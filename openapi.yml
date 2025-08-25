@@ -642,6 +642,156 @@ paths:
     parameters:
       - "$ref": "#/components/parameters/project_id"
       - "$ref": "#/components/parameters/user_id"
+  "/project/{project_id}/invites":
+    get:
+      tags:
+        - project
+      summary: Get invitations for project
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - created
+              - status
+              - role
+          description: sorting field
+          example: created
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+          description: ordering manner
+          example: desc
+      responses:
+        '200':
+          description: Project invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/ProjectInvite"
+            text/plain; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/ProjectInvite"
+    post:
+      tags:
+        - project
+      summary: Create project invitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProjectInviteRequest"
+        required: true
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProjectInvite"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/ProjectInvite"
+        '400':
+          description: Bad request (invalid role, missing user_id/email, or both provided)
+          content: {}
+        '409':
+          description: User already a member or invitation already exists
+          content: {}
+      x-codegen-request-body-name: Invite
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/invites/{invite_id}":
+    get:
+      tags:
+        - project
+      summary: Get specific project invitation
+      responses:
+        '200':
+          description: Project invitation
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProjectInvite"
+            text/plain; charset=utf-8:
+              schema:
+                "$ref": "#/components/schemas/ProjectInvite"
+        '404':
+          description: Invitation not found
+          content: {}
+    put:
+      tags:
+        - project
+      summary: Update project invitation status
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - pending
+                    - declined
+                    - expired
+                  example: declined
+        required: true
+      responses:
+        '204':
+          description: Invitation updated
+          content: {}
+        '400':
+          description: Invalid status or status transition
+          content: {}
+      x-codegen-request-body-name: Invite Update
+    delete:
+      tags:
+        - project
+      summary: Delete project invitation
+      responses:
+        '204':
+          description: Invitation deleted
+          content: {}
+    parameters:
+      - "$ref": "#/components/parameters/project_id"
+      - "$ref": "#/components/parameters/invite_id"
+  "/invites/accept":
+    post:
+      tags:
+        - project
+      summary: Accept project invitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AcceptInviteRequest"
+        required: true
+      responses:
+        '204':
+          description: Invitation accepted successfully
+          content: {}
+        '400':
+          description: Invalid token, invitation expired, or user already a member
+          content: {}
+        '403':
+          description: Invitation not for this user
+          content: {}
+        '404':
+          description: Invitation not found
+          content: {}
+      x-codegen-request-body-name: Accept Invite
   "/project/{project_id}/integrations":
     get:
       tags:
@@ -1810,6 +1960,96 @@ components:
             - manager
             - task_runner
             - guest
+    ProjectInvite:
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+        project_id:
+          minimum: 1
+          type: integer
+        user_id:
+          minimum: 1
+          type: integer
+          description: User ID for user-based invites (optional)
+        email:
+          type: string
+          format: email
+          description: Email address for email-based invites (optional)
+        role:
+          type: string
+          enum:
+            - owner
+            - manager
+            - task_runner
+            - guest
+          example: manager
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - declined
+            - expired
+          example: pending
+        inviter_user_id:
+          minimum: 1
+          type: integer
+          description: ID of the user who created the invite
+        created:
+          type: string
+          format: date-time
+          description: When the invite was created
+        expires_at:
+          type: string
+          format: date-time
+          description: When the invite expires (optional)
+        accepted_at:
+          type: string
+          format: date-time
+          description: When the invite was accepted (optional)
+        inviter_user:
+          "$ref": "#/components/schemas/User"
+          description: Details of the user who created the invite
+        user:
+          "$ref": "#/components/schemas/User"
+          description: Details of the invited user (for user-based invites)
+    ProjectInviteRequest:
+      type: object
+      properties:
+        user_id:
+          minimum: 1
+          type: integer
+          description: User ID to invite (use either user_id or email, not both)
+        email:
+          type: string
+          format: email
+          description: Email address to invite (use either user_id or email, not both)
+          example: user@example.com
+        role:
+          type: string
+          enum:
+            - owner
+            - manager
+            - task_runner
+            - guest
+          example: manager
+        expires_at:
+          type: string
+          format: date-time
+          description: When the invite should expire (optional, defaults to 7 days)
+      required:
+        - role
+    AcceptInviteRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The invitation token
+          example: "a1b2c3d4e5f6..."
+      required:
+        - token
     ProjectBackup:
       type: object
       properties:
@@ -2679,6 +2919,14 @@ components:
       schema:
         type: integer
       example: 2
+    invite_id:
+      name: invite_id
+      in: path
+      description: Invite ID
+      required: true
+      schema:
+        type: integer
+      example: 3
     key_id:
       name: key_id
       in: path
@@ -2686,7 +2934,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 3
+      example: 4
     repository_id:
       name: repository_id
       in: path
@@ -2694,7 +2942,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 4
+      example: 5
     inventory_id:
       name: inventory_id
       in: path
@@ -2702,7 +2950,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 5
+      example: 6
     environment_id:
       name: environment_id
       in: path
@@ -2710,7 +2958,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 6
+      example: 7
     template_id:
       name: template_id
       in: path
@@ -2718,7 +2966,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 7
+      example: 8
     task_id:
       name: task_id
       in: path
@@ -2726,7 +2974,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 8
+      example: 9
     schedule_id:
       name: schedule_id
       in: path
@@ -2734,7 +2982,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 9
+      example: 10
     view_id:
       name: view_id
       in: path
@@ -2742,7 +2990,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 10
+      example: 11
     integration_id:
       name: integration_id
       in: path
@@ -2750,7 +2998,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 11
+      example: 12
     extractvalue_id:
       name: extractvalue_id
       in: path
@@ -2758,7 +3006,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 12
+      example: 13
     matcher_id:
       name: matcher_id
       in: path
@@ -2766,7 +3014,7 @@ components:
       required: true
       schema:
         type: integer
-      example: 13
+      example: 14
   securitySchemes:
     cookie:
       type: apiKey

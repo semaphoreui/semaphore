@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
 
@@ -34,9 +33,8 @@ var Cookie *securecookie.SecureCookie
 var WebHostURL *url.URL
 
 const (
-	DbDriverMySQL = "mysql"
-	// Deprecated: replaced with sqlite
-	DbDriverBolt     = "bolt"
+	DbDriverMySQL    = "mysql"
+	DbDriverBolt     = "bolt" // Deprecated: replaced with sqlite
 	DbDriverPostgres = "postgres"
 	DbDriverSQLite   = "sqlite"
 )
@@ -145,19 +143,11 @@ type EventLogType struct {
 	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
 }
 
-type EventLogRecord struct {
-	Action        string  `json:"action"`
-	UserID        *int    `json:"user,omitempty"`
-	IntegrationID *int    `json:"integration,omitempty"`
-	ProjectID     *int    `json:"project,omitempty"`
-	Description   *string `json:"description,omitempty"`
-}
-
 type FileLogFormat string
 
 const (
 	FileLogJSON FileLogFormat = "json"
-	FileLogRaw  FileLogFormat = "raw"
+	FileLogRaw  FileLogFormat = ""
 )
 
 type TaskLogType struct {
@@ -165,18 +155,6 @@ type TaskLogType struct {
 	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
 	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
-}
-
-type TaskLogRecord struct {
-	Username     string                 `json:"username,omitempty"`
-	TaskID       int                    `json:"task"`
-	ProjectID    int                    `json:"project"`
-	TemplateID   int                    `json:"template"`
-	TemplateName string                 `json:"template_name"`
-	UserID       *int                   `json:"user,omitempty"`
-	Description  *string                `json:"-"`
-	RunnerID     *int                   `json:"runner,omitempty"`
-	Status       task_logger.TaskStatus `json:"status"`
 }
 
 type ConfigLog struct {
@@ -200,10 +178,38 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+type HARedisConfig struct {
+	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
+	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
+	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
+	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
+	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+}
+
+type HAConfig struct {
+	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	Redis   *HARedisConfig `json:"redis,omitempty"`
+}
+
+type TeamInviteType string
+
+const (
+	TeamInviteEmail    TeamInviteType = "email"
+	TeamInviteUsername TeamInviteType = "username"
+	TeamInviteBoth     TeamInviteType = "both"
+)
+
+type TeamsConfig struct {
+	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
+	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
+	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
-	BoltDb   *DbConfig `json:"bolt,omitempty"`
+	BoltDb   *DbConfig `json:"bolt,omitempty"` // Deprecated
 	Postgres *DbConfig `json:"postgres,omitempty"`
 	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
@@ -303,6 +309,8 @@ type ConfigType struct {
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
+	Teams *TeamsConfig `json:"teams,omitempty"`
+
 	Log *ConfigLog `json:"log,omitempty"`
 
 	Process *ConfigProcess `json:"process,omitempty"`
@@ -310,6 +318,8 @@ type ConfigType struct {
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
+
+	HA *HAConfig `json:"ha,omitempty"`
 }
 
 func NewConfigType() *ConfigType {

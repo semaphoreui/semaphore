@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
@@ -13,7 +12,7 @@ func init() {
 func runRunner() {
 	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
-	taskPool := runners.JobPool{}
+	taskPool := createRunnerJobPool()
 
 	taskPool.Run()
 }

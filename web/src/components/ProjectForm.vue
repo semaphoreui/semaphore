@@ -13,26 +13,11 @@
 
     <v-text-field
       v-model="item.name"
-      :label="$t('projectName')"
+      :label="$t(projectNameTitle)"
       :rules="[v => !!v || $t('project_name_required')]"
       required
       :disabled="formSaving"
       data-testid="newProject-name"
-      outlined
-      dense
-    ></v-text-field>
-
-    <v-checkbox
-      v-model="item.alert"
-      :label="$t('allowAlertsForThisProject')"
-      data-testid="newProject-alert"
-    ></v-checkbox>
-
-    <v-text-field
-      v-model="item.alert_chat"
-      :label="$t('telegramChatIdOptional')"
-      :disabled="formSaving"
-      data-testid="newProject-tg"
       outlined
       dense
     ></v-text-field>
@@ -53,15 +38,20 @@
     ></v-text-field>
 
     <v-text-field
-      v-if="systemInfo.premium_features.hashicorp_vault_secrets"
-      v-model="item.vault_token"
-      :label="$t('Hashicorp Vault Token')"
+      v-model="item.alert_chat"
+      :label="$t('telegramChatIdOptional')"
       :disabled="formSaving"
       data-testid="newProject-tg"
       outlined
       dense
-      append-icon="mdi-lock"
     ></v-text-field>
+
+    <v-checkbox
+      class="mt-0"
+      v-model="item.alert"
+      :label="$t('allowAlertsForThisProject')"
+      data-testid="newProject-alert"
+    ></v-checkbox>
 
     <v-switch
       v-if="itemId === 'new'"
@@ -79,7 +69,10 @@ import ItemFormBase from '@/components/ItemFormBase';
 export default {
   mixins: [ItemFormBase],
   props: {
-    systemInfo: Object,
+    projectNameTitle: {
+      type: String,
+      default: 'projectName',
+    },
   },
   methods: {
     getItemsUrl() {

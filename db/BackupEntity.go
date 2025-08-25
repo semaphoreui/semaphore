@@ -56,3 +56,11 @@ func (e Environment) GetID() int {
 func (e Environment) GetName() string {
 	return e.Name
 }
+
+func (e SecretStorage) GetID() int {
+	return e.ID
+}
+
+func (e SecretStorage) GetName() string {
+	return e.Name
+}

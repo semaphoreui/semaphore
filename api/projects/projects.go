@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -8,6 +9,18 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
+
+type ProjectsController struct {
+	accessKeyService server.AccessKeyService
+}
+
+func NewProjectsController(
+	accessKeyService server.AccessKeyService,
+) *ProjectsController {
+	return &ProjectsController{
+		accessKeyService: accessKeyService,
+	}
+}
 
 // GetProjects returns all projects in this users context
 func GetProjects(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +42,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, projects)
 }
 
-func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.Store) (err error) {
+func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.Store) (err error) {
 	var demoRepo db.Repository
 
 	var buildInv db.Inventory
@@ -70,7 +83,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 		return
 	}
 
-	vaultKey, err := store.CreateAccessKey(db.AccessKey{
+	vaultKey, err := c.accessKeyService.Create(db.AccessKey{
 		Name:      "Vault Password",
 		Type:      db.AccessKeyLoginPassword,
 		ProjectID: &projectID,
@@ -295,7 +308,7 @@ func createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.St
 }
 
 // AddProject adds a new project to the database
-func AddProject(w http.ResponseWriter, r *http.Request) {
+func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) {
 
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
@@ -330,7 +343,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	noneKey, err := store.CreateAccessKey(db.AccessKey{
+	noneKey, err := c.accessKeyService.Create(db.AccessKey{
 		Name:      "None",
 		Type:      db.AccessKeyNone,
 		ProjectID: &body.ID,
@@ -364,7 +377,7 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bodyWithDemo.Demo {
-		err = createDemoProject(body.ID, noneKey.ID, emptyEnv.ID, store)
+		err = c.createDemoProject(body.ID, noneKey.ID, emptyEnv.ID, store)
 
 		if err != nil {
 			helpers.WriteError(w, err)

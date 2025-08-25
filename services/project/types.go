@@ -19,19 +19,22 @@ type BackupDB struct {
 	integrationAliases       map[int][]db.IntegrationAlias
 	integrationMatchers      map[int][]db.IntegrationMatcher
 	integrationExtractValues map[int][]db.IntegrationExtractValue
+
+	secretStorages []db.SecretStorage
 }
 
 type BackupFormat struct {
-	Meta               BackupMeta          `backup:"meta"`
-	Templates          []BackupTemplate    `backup:"templates"`
-	Repositories       []BackupRepository  `backup:"repositories"`
-	Keys               []BackupAccessKey   `backup:"keys"`
-	Views              []BackupView        `backup:"views"`
-	Inventories        []BackupInventory   `backup:"inventories"`
-	Environments       []BackupEnvironment `backup:"environments"`
-	Integration        []BackupIntegration `backup:"integrations"`
-	IntegrationAliases []string            `backup:"integration_aliases"`
-	Schedules          []BackupSchedule    `backup:"schedules"`
+	Meta               BackupMeta            `backup:"meta"`
+	Templates          []BackupTemplate      `backup:"templates"`
+	Repositories       []BackupRepository    `backup:"repositories"`
+	Keys               []BackupAccessKey     `backup:"keys"`
+	Views              []BackupView          `backup:"views"`
+	Inventories        []BackupInventory     `backup:"inventories"`
+	Environments       []BackupEnvironment   `backup:"environments"`
+	Integration        []BackupIntegration   `backup:"integrations"`
+	IntegrationAliases []string              `backup:"integration_aliases"`
+	Schedules          []BackupSchedule      `backup:"schedules"`
+	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
 }
 
 type BackupMeta struct {
@@ -44,6 +47,8 @@ type BackupEnvironment struct {
 
 type BackupAccessKey struct {
 	db.AccessKey
+	SourceStorage *string `backup:"source_storage"`
+	Storage       *string `backup:"storage"`
 }
 
 type BackupSchedule struct {
@@ -95,6 +100,10 @@ type BackupIntegration struct {
 	AuthSecret    *string                      `backup:"auth_secret"`
 }
 
+type BackupSecretStorage struct {
+	db.SecretStorage
+}
+
 type BackupEntry interface {
 	GetName() string
 	Verify(backup *BackupFormat) error
@@ -122,5 +131,9 @@ func (e BackupView) GetName() string {
 }
 
 func (e BackupTemplate) GetName() string {
+	return e.Name
+}
+
+func (e BackupSecretStorage) GetName() string {
 	return e.Name
 }

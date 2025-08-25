@@ -160,7 +160,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationEmail:
-		verifySessionByEmail(w, r)
+		verifySessionByEmail(session, w, r)
 		return
 
 	case db.SessionVerificationTotp:
@@ -235,7 +235,14 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		if !session.IsVerified() {
-			helpers.WriteErrorStatus(w, "TOTP_REQUIRED", http.StatusUnauthorized)
+			switch session.VerificationMethod {
+			case db.SessionVerificationEmail:
+				helpers.WriteErrorStatus(w, "EMAIL_OTP_REQUIRED", http.StatusUnauthorized)
+			case db.SessionVerificationTotp:
+				helpers.WriteErrorStatus(w, "TOTP_REQUIRED", http.StatusUnauthorized)
+			default:
+				helpers.WriteErrorStatus(w, "SESSION_NOT_VERIFIED", http.StatusUnauthorized)
+			}
 			return
 		}
 

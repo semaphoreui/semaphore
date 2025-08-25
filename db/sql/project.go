@@ -74,7 +74,7 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 
 func (d *SqlDb) DeleteProject(projectID int) error {
 
-	tx, err := d.sql.Begin()
+	tx, err := d.Sql().Begin()
 
 	if err != nil {
 		return err

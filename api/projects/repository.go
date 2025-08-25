@@ -42,7 +42,17 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, refs)
 }
 
-func GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
+type RepositoryController struct {
+	keyInstaller db_lib.AccessKeyInstaller
+}
+
+func NewRepositoryController(keyInstaller db_lib.AccessKeyInstaller) *RepositoryController {
+	return &RepositoryController{
+		keyInstaller: keyInstaller,
+	}
+}
+
+func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
 	repo := helpers.GetFromContext(r, "repository").(db.Repository)
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
@@ -52,7 +62,7 @@ func GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
 
 	git := db_lib.GitRepository{
 		Repository: repo,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
 	}
 
 	branches, err := git.GetRemoteBranches()

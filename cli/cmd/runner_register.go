@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +35,7 @@ func registerRunner() {
 		util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
 	}
 
-	taskPool := runners.JobPool{}
+	taskPool := createRunnerJobPool()
 
 	err := taskPool.Register(configFile)
 

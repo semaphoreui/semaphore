@@ -157,6 +157,7 @@ type Template struct {
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
+	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
 }
 
 func (tpl *Template) FillParams(target any) error {

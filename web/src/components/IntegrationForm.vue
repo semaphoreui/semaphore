@@ -34,6 +34,32 @@
       dense
     ></v-autocomplete>
 
+    <v-card
+      v-if="item.template_id"
+      style="background: rgba(133, 133, 133, 0.06)"
+      class="mb-6 pt-3"
+    >
+
+      <div style="
+        position: absolute;
+        background: var(--highlighted-card-bg-color);
+        width: 28px;
+        height: 28px;
+        transform: rotate(45deg);
+        left: calc(50% - 14px);
+        top: -14px;
+        border-radius: 0;
+      "></div>
+
+      <v-card-text>
+        <TaskParamsForm
+          :template="templates.find(t => t.id === item.template_id)"
+          v-model="item.task_params"
+        />
+
+      </v-card-text>
+    </v-card>
+
     <v-select
       v-model="item.auth_method"
       label="Auth method"
@@ -67,13 +93,6 @@
       dense
     ></v-select>
 
-    <TaskParamsForm
-      class="mt-6"
-      v-if="item.template_id"
-      v-model="item.task_params"
-      :app="(template || {}).app"
-      :template-params="(template || {}).task_params || {}"
-    />
   </v-form>
 </template>
 <script>
@@ -138,7 +157,7 @@ export default {
 
     getNewItem() {
       return {
-        template_id: {},
+        template_id: null,
       };
     },
 

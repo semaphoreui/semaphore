@@ -24,6 +24,12 @@ builds:
       - arm64
       - ppc64le
     ignore:
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: 386
+      - goos: freebsd
+        goarch: ppc64le
       - goos: darwin
         goarch: 386
       - goos: darwin
@@ -32,6 +38,8 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: ppc64le
+      - goos: windows
+        goarch: arm
 
 archives:
   - files:
@@ -43,7 +51,14 @@ archives:
 signs:
   -
     artifacts: checksum
-    args: ["-u", "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
+    args: [
+      "-u", "{{ .Env.GPG_KEY_ID }}",
+      "--pinentry-mode", "loopback",
+      "--yes",
+      "--batch",
+      "--output", "${signature}",
+      "--detach-sign", "${artifact}"
+    ]
 
 snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"

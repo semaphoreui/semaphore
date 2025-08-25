@@ -111,6 +111,15 @@
                 :label="$t('adminUser')"
               ></v-checkbox>
             </v-col>
+            <v-col cols="6">
+              <v-checkbox
+                :disabled="!isAdmin"
+                dense
+                hide-details
+                v-model="item.pro"
+                :label="$t('Pro user')"
+              ></v-checkbox>
+            </v-col>
             <v-col cols="6" v-if="isAdmin">
               <v-checkbox
                 :disabled="!isNew"
@@ -169,15 +178,13 @@
               >
                 {{ item.totp.recovery_code }}
               </code>
-              <v-btn
+
+              <CopyClipboardButton
                 style="position: absolute; right: -4px; top: -12px;"
-                icon
+                :text="item.totp.recovery_code"
                 large
                 color="white"
-                @click="copyToClipboard(item.totp.recovery_code)"
-              >
-                <v-icon>mdi-content-copy</v-icon>
-              </v-btn>
+              />
             </div>
           </div>
         </div>
@@ -188,12 +195,12 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-import EventBus from '@/event-bus';
 import EditDialog from '@/components/EditDialog.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
-  components: { ChangePasswordForm, EditDialog },
+  components: { CopyClipboardButton, ChangePasswordForm, EditDialog },
   props: {
     isAdmin: Boolean,
     authMethods: Object,
@@ -249,6 +256,7 @@ export default {
   },
 
   methods: {
+
     afterLoadData() {
       if (this.item.totp == null) {
         this.totpEnabled = false;
@@ -256,21 +264,6 @@ export default {
       } else {
         this.totpEnabled = true;
         this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
-      }
-    },
-
-    async copyToClipboard(text) {
-      try {
-        await window.navigator.clipboard.writeText(text);
-        EventBus.$emit('i-snackbar', {
-          color: 'success',
-          text: 'The recovery code has been copied to your clipboard.',
-        });
-      } catch (e) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: `Can't copy the recovery code: ${e.message}`,
-        });
       }
     },
 

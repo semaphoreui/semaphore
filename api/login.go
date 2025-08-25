@@ -151,11 +151,28 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 // createSession creates session for passed user and stores session details
 // in cookies.
 func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bool) {
+	var err error
 	var verificationMethod db.SessionVerificationMethod
 	verified := false
+
 	switch {
 	case user.Totp != nil && util.Config.Auth.Totp.Enabled:
 		verificationMethod = db.SessionVerificationTotp
+
+	case util.Config.Auth.Email.Enabled && (!util.Config.Auth.Email.DisableForOidc || !oidc):
+
+		err = newEmailOtp(user.ID, user.Email, helpers.Store(r))
+
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"user_id": user.ID,
+				"context": "session",
+			}).Error("Failed to add email otp verification")
+			helpers.WriteErrorStatus(w, "Failed to create email OTP verification", http.StatusInternalServerError)
+			return
+		}
+
+		verificationMethod = db.SessionVerificationEmail
 	default:
 		verificationMethod = db.SessionVerificationNone
 		verified = true
@@ -171,8 +188,12 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		VerificationMethod: verificationMethod,
 		Verified:           verified,
 	})
+
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"user_id": user.ID,
+			"context": "session",
+		}).Error("Failed to create session")
 		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
 		return
 	}
@@ -243,8 +264,12 @@ type LoginTotpAuthMethod struct {
 	AllowRecovery bool `json:"allow_recovery"`
 }
 
+type LoginEmailAuthMethod struct {
+}
+
 type LoginAuthMethods struct {
-	Totp *LoginTotpAuthMethod `json:"totp,omitempty"`
+	Totp  *LoginTotpAuthMethod  `json:"totp,omitempty"`
+	Email *LoginEmailAuthMethod `json:"email,omitempty"`
 }
 
 type loginMetadata struct {
@@ -710,6 +735,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			Name:     claims.name,
 			Email:    claims.email,
 			External: true,
+			Pro:      true,
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 		if err != nil {

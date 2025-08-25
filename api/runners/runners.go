@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -93,14 +94,16 @@ func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
 }
 
 type RunnerController struct {
-	runnerRepo db.RunnerManager
-	taskPool   *tasks.TaskPool
+	runnerRepo        db.RunnerManager
+	taskPool          *tasks.TaskPool
+	encryptionService server.AccessKeyEncryptionService
 }
 
-func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool) *RunnerController {
+func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool, encryptionService server.AccessKeyEncryptionService) *RunnerController {
 	return &RunnerController{
-		runnerRepo: runnerRepo,
-		taskPool:   taskPool,
+		runnerRepo:        runnerRepo,
+		taskPool:          taskPool,
+		encryptionService: encryptionService,
 	}
 }
 
@@ -154,7 +157,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			})
 
 			if tsk.Inventory.SSHKeyID != nil {
-				err := tsk.Inventory.SSHKey.DeserializeSecret()
+				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)
 				if err != nil {
 					// TODO: return error
 				}
@@ -162,7 +165,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if tsk.Inventory.BecomeKeyID != nil {
-				err := tsk.Inventory.BecomeKey.DeserializeSecret()
+				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey)
 				if err != nil {
 					// TODO: return error
 				}
@@ -172,7 +175,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			if tsk.Template.Vaults != nil {
 				for _, vault := range tsk.Template.Vaults {
 					if vault.VaultKeyID != nil {
-						err := vault.Vault.DeserializeSecret()
+						err := c.encryptionService.DeserializeSecret(vault.Vault)
 						if err != nil {
 							// TODO: return error
 						}
@@ -182,7 +185,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if tsk.Inventory.RepositoryID != nil {
-				err := tsk.Inventory.Repository.SSHKey.DeserializeSecret()
+				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey)
 				if err != nil {
 					// TODO: return error
 				}

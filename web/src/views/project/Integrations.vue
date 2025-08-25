@@ -52,15 +52,16 @@
 
       <div v-else v-for="alias of (aliases || [])" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
-        <v-btn icon
-               @click="copyToClipboard(alias.url, $t('aliasUrlCopied'))">
-          <v-icon>mdi-content-copy</v-icon>
-        </v-btn>
+
+        <CopyClipboardButton
+          :text="alias.url"
+          :success-message="$t('aliasUrlCopied')"
+        />
+
         <v-btn icon @click="deleteAlias(alias.id)">
           <v-icon>mdi-delete</v-icon>
         </v-btn>
       </div>
-
       <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
         {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
       </v-btn>
@@ -85,7 +86,7 @@
         <router-link
           :to="`/project/${projectId}/templates/${item.template_id}`"
         >
-          {{ (templates.find((t) => t.id === item.template_id) || {name: '—'}).name }}
+          {{ (templates.find((t) => t.id === item.template_id) || { name: '—' }).name }}
         </router-link>
       </template>
       <template v-slot:item.actions="{ item }">
@@ -109,11 +110,11 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import IntegrationForm from '@/components/IntegrationForm.vue';
 import IntegrationsBase from '@/views/project/IntegrationsBase';
-import copyToClipboard from '@/lib/copyToClipboard';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
   mixins: [ItemListPageBase, IntegrationsBase],
-  components: { IntegrationForm },
+  components: { IntegrationForm, CopyClipboardButton },
   data() {
     return {
       templates: null,
@@ -129,7 +130,6 @@ export default {
   },
 
   methods: {
-    copyToClipboard,
     allowActions() {
       return this.can(USER_PERMISSIONS.updateProject);
     },

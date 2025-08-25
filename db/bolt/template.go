@@ -217,7 +217,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		}
 	}
 
-	integrations, err := d.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	integrations, err := d.GetIntegrations(projectID, db.RetrieveQueryParams{}, false)
 	if err != nil {
 		return
 	}

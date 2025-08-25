@@ -67,12 +67,43 @@
       save-button-text="Create"
       :title="$t('newProject')"
       event-name="i-project"
+      @close="onNewProjectDialogueClosed()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <ProjectForm
           v-if="newProjectType === ''"
           item-id="new"
           @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+        />
+      </template>
+    </EditDialog>
+
+    <EditDialog
+      v-model="subscriptionDialog"
+      :save-button-text="null"
+      :cancel-button-text="$t('close')"
+      v-if="user"
+      event-name="i-user"
+      dont-close-on-save
+    >
+      <template v-slot:title="{}">
+        <v-icon
+          large
+          class="mr-2"
+          color="#f14668"
+        >
+          mdi-professional-hexagon
+        </v-icon>
+        Subscription details
+      </template>
+
+      <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <SubscriptionForm
+          item-id="new"
+          @save="onSave(); onSubscriptionKeyUpdates();"
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
@@ -156,6 +187,7 @@
           </v-list>
         </template>
         <v-list>
+
           <v-list-item
             v-for="(item, i) in projects"
             :key="i"
@@ -174,8 +206,10 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
+          <v-divider v-if="user.can_create_project"/>
+
           <v-list-item
-            @click="newProjectDialog = true; newProjectType = '';"
+            @click="showNewProjectDialogue()"
             v-if="user.can_create_project"
             data-testid="sidebar-newProject"
           >
@@ -429,7 +463,13 @@
                 v-on="on"
               >
                 <v-list-item-icon>
-                  <v-icon>mdi-account</v-icon>
+                  <v-icon
+                    color="#f14668"
+                    v-if="user.pro"
+                  >
+                    mdi-professional-hexagon
+                  </v-icon>
+                  <v-icon v-else>mdi-account</v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
@@ -458,13 +498,17 @@
 
               <v-divider/>
 
-              <v-list-item key="users" to="/users" v-if="user.admin">
+              <v-list-item
+                key="runners"
+                to="/runners"
+                v-if="user.admin"
+              >
                 <v-list-item-icon>
-                  <v-icon>mdi-account-multiple</v-icon>
+                  <v-icon>mdi-cogs</v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
-                  {{ $t('users') }}
+                  {{ $t('runners') }}
                 </v-list-item-content>
               </v-list-item>
 
@@ -483,26 +527,21 @@
               </v-list-item>
 
               <v-list-item
-                key="runners"
-                to="/runners"
-                v-if="user.admin"
+                key="subscription"
+                v-if="isPro && user.admin"
+                @click="subscriptionDialog = true"
               >
                 <v-list-item-icon>
-                  <v-icon>mdi-cogs</v-icon>
+                  <v-icon
+                    color="#f14668"
+                    style="transform: scale(1.4)"
+                  >
+                    mdi-professional-hexagon
+                  </v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
-                  {{ $t('runners') }}
-                </v-list-item-content>
-              </v-list-item>
-
-              <v-list-item key="edit" @click="userDialog = true">
-                <v-list-item-icon>
-                  <v-icon>mdi-pencil</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  {{ $t('editAccount') }}
+                  Subscription details
                 </v-list-item-content>
               </v-list-item>
 
@@ -520,6 +559,28 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="users" to="/users" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-account-multiple</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('users') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="edit" @click="userDialog = true">
+                <v-list-item-icon>
+                  <v-icon>mdi-pencil</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('editAccount') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-divider />
+
               <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
                 <v-list-item-icon>
                   <v-icon>mdi-exit-to-app</v-icon>
@@ -532,6 +593,24 @@
             </v-list>
           </v-menu>
 
+          <v-list-item
+            key="premium"
+            v-if="isPro && user.admin && !user.has_active_subscription"
+            @click="subscriptionDialog = true"
+            class="ActivatePremiumSubscriptionButton"
+          >
+            <v-list-item-icon>
+              <v-icon
+                color="white"
+              >mdi-professional-hexagon</v-icon>
+            </v-list-item-icon>
+            <v-list-item-content>
+              <v-list-item-title
+              >
+                Activate Subscription
+              </v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
         </v-list>
 
       </template>
@@ -602,6 +681,38 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+.NewProSubscriptionMenuItem {
+  transition: 0.2s transform;
+  .v-list-item__content, .v-list-item__icon {
+    transition: 0.5s transform;
+  }
+  &:hover {
+
+    transform: scale(1.05) translateY(-1px);
+
+    // .v-list-item__content {
+    //   transform: scale(1.05) translateX(2px);
+    // }
+    .v-list-item__icon {
+      // transform: rotate(-360deg);
+    }
+  }
+}
+.ActivatePremiumSubscriptionButton {
+  background: hsl(348deg, 86%, 61%);
+  //transform: scale(0.9);
+  //border-radius: 6px;
+  //transition: 0.2s transform;
+  //margin-bottom: 10px;
+}
+
+.theme--dark {
+  --highlighted-card-bg-color: #262626;
+}
+
+.theme--light {
+  --highlighted-card-bg-color: #F3F3F3;
+}
 
 .DarkModeSwitch {
   .v-input__prepend-outer {
@@ -817,6 +928,8 @@ import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
 import EventBus from '@/event-bus';
 import socket from '@/socket';
+
+import SubscriptionForm from '@/components/SubscriptionForm.vue';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
@@ -897,6 +1010,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    SubscriptionForm,
     TaskLogDialog,
     YesNoDialog,
     RestoreProjectForm,
@@ -919,6 +1033,9 @@ export default {
       newProjectType: '',
       userDialog: null,
       hideUserDialogButtons: false,
+
+      subscriptionDialog: null,
+
       restoreProjectDialog: null,
       restoreProjectResult: null,
       restoreProjectResultDialog: null,
@@ -946,8 +1063,14 @@ export default {
     async projects(val) {
       if (val.length === 0
         && this.$route.path.startsWith('/project/')
-        && this.$route.path !== '/project/new') {
-        await this.$router.push({ path: '/project/new' });
+        && this.$route.path !== '/project/new'
+        && this.$route.path !== '/project/premium'
+      ) {
+        if (this.$route.query.new_project === 'premium') {
+          await this.$router.push({ path: '/project/premium' });
+        } else {
+          await this.$router.push({ path: '/project/new' });
+        }
       }
     },
 
@@ -959,6 +1082,10 @@ export default {
         if (taskId) {
           EventBus.$emit('i-show-task', { taskId });
         }
+      }
+
+      if ((this.projects || []).length > 0 && this.$route.query.new_project) {
+        EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
       }
     },
 
@@ -973,6 +1100,10 @@ export default {
   },
 
   computed: {
+
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
 
     lang() {
       const locale = localStorage.getItem('lang');
@@ -1018,7 +1149,10 @@ export default {
     } catch (err) {
       if (err.response && err.response.status === 401) {
         if (this.$route.path !== '/auth/login') {
-          await this.$router.push({ path: '/auth/login' });
+          await this.$router.push({
+            path: '/auth/login',
+            query: { redirect: this.$route.fullPath },
+          });
         }
         this.state = 'success';
         return;
@@ -1046,6 +1180,12 @@ export default {
 
     EventBus.$on('i-show-drawer', async () => {
       this.drawer = true;
+    });
+
+    EventBus.$on('i-new-project', (e) => {
+      setTimeout(() => {
+        this.showNewProjectDialogue(e.projectType);
+      }, 500);
     });
 
     EventBus.$on('i-show-task', async (e) => {
@@ -1137,7 +1277,7 @@ export default {
       switch (e.action) {
         case 'new':
         case 'restore':
-          await this.selectProject(e.item.id);
+          await this.selectProject(e.item.id, { new_project: undefined });
           break;
         case 'delete':
           if (this.projectId === e.item.id && this.projects.length > 0) {
@@ -1161,9 +1301,19 @@ export default {
       await this.loadUserInfo();
     },
 
+    showNewProjectDialogue(projectType = '') {
+      this.newProjectDialog = true;
+      this.newProjectType = projectType;
+    },
+
     selectLanguage(lang) {
       localStorage.setItem('lang', lang);
       window.location.reload();
+    },
+
+    async onNewProjectDialogueClosed() {
+      const query = { ...this.$route.query, new_project: undefined };
+      await this.$router.replace({ query });
     },
 
     async onTaskLogDialogClosed() {
@@ -1227,7 +1377,7 @@ export default {
       }
     },
 
-    async selectProject(projectId) {
+    async selectProject(projectId, overriderQuery = {}) {
       this.userRole = (await axios({
         method: 'get',
         url: `/api/project/${projectId}/role`,
@@ -1239,7 +1389,25 @@ export default {
         return;
       }
 
-      await this.$router.push({ path: `/project/${projectId}` });
+      let query = {};
+
+      switch (this.$route.path) {
+        case '/project/new':
+          query.new_project = '';
+          break;
+        default:
+          break;
+      }
+
+      query = {
+        ...query,
+        ...overriderQuery,
+      };
+
+      await this.$router.push({
+        path: `/project/${projectId}${window.location.search}`,
+        query,
+      });
     },
 
     async loadProjects() {

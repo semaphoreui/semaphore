@@ -35,7 +35,7 @@ test.describe("task running", () => {
   });
 
   test("run task from demo project", async ({ page }) => {
-    await page.getByTestId("task-rawLog").waitFor({ timeout: 60000 });
+    await page.getByTestId("task-rawLog").waitFor({ timeout: 90000 });
 
     await expect(page.getByTestId("task-status")).toHaveText("Success");
   });

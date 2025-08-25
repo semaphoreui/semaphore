@@ -110,6 +110,9 @@ export default {
     },
 
     async loadData() {
+      if (this.itemId == null) {
+        return;
+      }
       this.item = await this.loadProjectResource('tasks', this.itemId);
       this.template = await this.loadProjectResource('templates', this.item.template_id);
     },

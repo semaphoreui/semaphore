@@ -26,7 +26,13 @@ func GetMigrations(dialect string) []Migration {
 	if dialect == util.DbDriverSQLite {
 		return []Migration{
 			{Version: "2.15.1.sqlite"},
-			{Version: "2.16.0.sqlite"},
+			{Version: "2.15.2"},
+			{Version: "2.15.3"},
+			{Version: "2.15.4"},
+			{Version: "2.16.0"},
+			{Version: "2.16.1"},
+			{Version: "2.16.2"},
+			{Version: "2.16.3"},
 		}
 	}
 
@@ -102,7 +108,13 @@ func GetMigrations(dialect string) []Migration {
 		{Version: "2.14.12"},
 		{Version: "2.15.0"},
 		{Version: "2.15.1"},
+		{Version: "2.15.2"},
+		{Version: "2.15.3"},
+		{Version: "2.15.4"},
 		{Version: "2.16.0"},
+		{Version: "2.16.1"},
+		{Version: "2.16.2"},
+		{Version: "2.16.3"},
 	}
 }
 
@@ -124,7 +136,7 @@ func (m Migration) ParseVersion() (res MigrationVersion, err error) {
 
 	parts := strings.Split(m.Version, ".")
 
-	if len(parts) > 3 || len(parts) < 2 {
+	if len(parts) < 2 {
 		err = fmt.Errorf("invalid migration version format %s", m.Version)
 		return
 	}

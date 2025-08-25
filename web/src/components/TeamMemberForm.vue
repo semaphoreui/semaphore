@@ -9,9 +9,26 @@
       :value="formError"
       color="error"
       class="pb-2"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
+
+    <div class="d-flex justify-end mb-1" v-if="inviteType === 'both'">
+      <v-btn-toggle
+        v-model="selectedInviteType"
+        tile
+        group
+      >
+        <v-btn value="email" small class="mr-0" style="border-radius: 4px;">
+          Email
+        </v-btn>
+        <v-btn value="username" small class="mr-0" style="border-radius: 4px;">
+          Username
+        </v-btn>
+      </v-btn-toggle>
+    </div>
 
     <v-autocomplete
+      v-if="selectedInviteType === 'username'"
       v-model="item.user_id"
       :label="$t('user')"
       :items="users"
@@ -23,6 +40,15 @@
       outlined
       dense
     ></v-autocomplete>
+
+    <v-text-field
+      type="email"
+      v-else
+      :label="$t('email')"
+      v-model="item.email"
+      outlined
+      dense
+    />
 
     <v-select
       v-model="item.role"
@@ -46,12 +72,18 @@ import { USER_ROLES } from '@/lib/constants';
 export default {
   mixins: [ItemFormBase],
 
+  props: {
+    invitesEnabled: Boolean,
+    inviteType: String,
+  },
+
   data() {
     return {
       users: null,
       userId: null,
       teamMembers: null,
       USER_ROLES,
+      selectedInviteType: this.inviteType === 'both' ? 'username' : this.inviteType,
     };
   },
 
@@ -71,6 +103,9 @@ export default {
 
   methods: {
     getItemsUrl() {
+      if (this.invitesEnabled) {
+        return `/api/project/${this.projectId}/invites`;
+      }
       return `/api/project/${this.projectId}/users`;
     },
 

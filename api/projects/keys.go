@@ -1,12 +1,26 @@
 package projects
 
 import (
+	"errors"
 	"fmt"
+	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 )
+
+type KeyController struct {
+	accessKeyService server.AccessKeyService
+}
+
+func NewKeyController(
+	accessKeyService server.AccessKeyService,
+) *KeyController {
+	return &KeyController{
+		accessKeyService: accessKeyService,
+	}
+}
 
 // KeyMiddleware ensures a key exists and loads it to the context
 func KeyMiddleware(next http.Handler) http.Handler {
@@ -62,7 +76,7 @@ func GetKeys(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddKey adds a new key to the database
-func AddKey(w http.ResponseWriter, r *http.Request) {
+func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	var key db.AccessKey
 
@@ -84,7 +98,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newKey, err := helpers.Store(r).CreateAccessKey(key)
+	newKey, err := c.accessKeyService.Create(key)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -111,7 +125,7 @@ func AddKey(w http.ResponseWriter, r *http.Request) {
 
 // UpdateKey updates key in database
 // nolint: gocyclo
-func UpdateKey(w http.ResponseWriter, r *http.Request) {
+func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var key db.AccessKey
 	oldKey := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 
@@ -136,7 +150,7 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = helpers.Store(r).UpdateAccessKey(key)
+	err = c.accessKeyService.Update(key)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -154,11 +168,11 @@ func UpdateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 // RemoveKey deletes a key from the database
-func RemoveKey(w http.ResponseWriter, r *http.Request) {
+func (c *KeyController) RemoveKey(w http.ResponseWriter, r *http.Request) {
 	key := helpers.GetFromContext(r, "accessKey").(db.AccessKey)
 
-	err := helpers.Store(r).DeleteAccessKey(*key.ProjectID, key.ID)
-	if err == db.ErrInvalidOperation {
+	err := c.accessKeyService.Delete(*key.ProjectID, key.ID)
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Access Key is in use by one or more templates",
 			"inUse": true,

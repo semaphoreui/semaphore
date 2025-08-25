@@ -2,10 +2,11 @@ package sql
 
 import (
 	"encoding/json"
-	"github.com/Masterminds/squirrel"
-	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
 	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
@@ -129,7 +130,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 	if rand.Intn(10) == 0 { // randomly recalculate number of tasks for the template
 		var n int64
-		n, err = d.sql.SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
+		n, err = d.Sql().SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
 		if err != nil {
 			return
 		}
@@ -169,7 +170,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 }
 
 func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
-	err = d.sql.Insert(&task)
+	err = d.Sql().Insert(&task)
 	newTask = task
 
 	if err != nil {
@@ -191,7 +192,7 @@ func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err err
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
-	err := task.PreUpdate(d.sql)
+	err := task.PreUpdate(d.Sql())
 	if err != nil {
 		return err
 	}
@@ -248,6 +249,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("id desc")
+
+	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
+		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
+	}
 
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)

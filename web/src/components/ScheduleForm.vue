@@ -9,7 +9,7 @@
       v-model="showInfo"
       color="info"
       text
-      dismissible
+      class="mb-6"
     >
       Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
       <code>schedule.timezone</code> to set timezone for Schedule.
@@ -28,7 +28,6 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      class="mb-4"
       outlined
       dense
     ></v-text-field>
@@ -46,9 +45,35 @@
       dense
     />
 
+    <v-card
+      style="background: var(--highlighted-card-bg-color)"
+      v-if="item.template_id"
+      class="mb-8 pt-3"
+    >
+      <div style="
+        position: absolute;
+        background: var(--highlighted-card-bg-color);
+        width: 28px;
+        height: 28px;
+        transform: rotate(45deg);
+        left: calc(50% - 14px);
+        top: -14px;
+        border-radius: 0;
+      "></div>
+
+      <v-card-text>
+        <TaskParamsForm
+          :template="templates.find(t => t.id === item.template_id)"
+          v-model="item.task_params"
+        />
+
+      </v-card-text>
+    </v-card>
+
     <v-switch
       v-model="rawCron"
       label="Show cron format"
+      :disabled="disableRawCron"
     />
 
     <v-text-field
@@ -61,10 +86,12 @@
       @input="refreshCheckboxes()"
       :suffix="timezone + ' time'"
       outlined
+      :error="cronFormatError != null"
+      :error-messages="cronFormatError"
       dense
     ></v-text-field>
 
-    <div v-if="!rawCron">
+    <div v-else>
       <v-select
         v-model="timing"
         :label="$t('Timing')"
@@ -76,11 +103,12 @@
         :disabled="formSaving"
         @change="refreshCron()"
         outlined
+        hide-details
         dense
       />
 
       <div v-if="['yearly'].includes(timing)">
-        <div>Months</div>
+        <div class="mt-4">Months</div>
         <div class="d-flex flex-wrap">
           <v-checkbox
             class="mr-2 mt-0 ScheduleCheckbox"
@@ -167,18 +195,45 @@
       </div>
     </div>
 
+    <div
+      class="text-center text-subtitle-1 mb-3"
+      :class="{'mt-8': !rawCron, 'mt-3': rawCron}"
+      style="color: limegreen; font-weight: bold;"
+    >
+      Next run time
+    </div>
+
+    <v-simple-table class="TaskDetails__table text-sub mb-2">
+      <template v-slot:default>
+        <thead>
+        <tr>
+          <th>Time Zone</th>
+          <th>Date</th>
+          <th>Time</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>{{ timezone }}</td>
+          <td>{{ nextRunUtcDate }}</td>
+          <td>{{ nextRunUtcTime }}</td>
+        </tr>
+        <tr>
+          <td>{{ localTimezone }}</td>
+          <td>{{ nextRunLocalDate }}</td>
+          <td>{{ nextRunLocalTime }}</td>
+        </tr>
+        </tbody>
+      </template>
+    </v-simple-table>
+
     <v-checkbox
+      style="position: absolute; bottom: 15px; left: 22px;"
       v-model="item.active"
+      hide-details
     >
       <template v-slot:label>
         {{ $t('enabled') }}
-        <span
-          v-if="item.active"
-          class="ml-3"
-          style="color: limegreen; font-weight: bold;"
-        >
-          {{ $t('scheduleNextRun') }} {{ nextRunTime() | formatDate }}.
-        </span>
       </template>
     </v-checkbox>
 
@@ -227,7 +282,9 @@
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 
-const parser = require('cron-parser');
+import { CronExpression, CronExpressionParser, CronFieldCollection } from 'cron-parser';
+import { getErrorMessage } from '@/lib/error';
+import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
 const MONTHS = [{
   id: 1,
@@ -322,7 +379,49 @@ const MINUTES = [
   { id: 55, title: ':55' },
 ];
 
+function formatDateInTZ(date, tz) {
+  if (date == null) {
+    return '—';
+  }
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function formatTimeInTZ(date, tz) {
+  if (date == null) {
+    return '—';
+  }
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+
+  return `${get('hour')}:${get('minute')}`;
+}
+
 export default {
+  components: { TaskParamsForm },
   mixins: [ItemFormBase],
 
   data() {
@@ -339,22 +438,33 @@ export default {
       months: [],
       weekdays: [],
       rawCron: false,
+      disableRawCron: false,
       showInfo: true,
+      cronFormatError: null,
     };
   },
 
   watch: {
+    rawCron(val) {
+      if (val) {
+        localStorage.removeItem('schedule__raw_cron');
+      } else {
+        localStorage.setItem('schedule__raw_cron', '1');
+      }
+    },
+
     showInfo(val) {
       if (val) {
-        localStorage.removeItem('schedule_hide_info');
+        localStorage.removeItem('schedule__hide_info');
       } else {
-        localStorage.setItem('schedule_hide_info', '1');
+        localStorage.setItem('schedule__hide_info', '1');
       }
     },
   },
 
   async created() {
     this.showInfo = localStorage.getItem('schedule_hide_info') !== '1';
+    this.rawCron = localStorage.getItem('schedule__raw_cron') !== '1';
 
     this.templates = (await axios({
       method: 'get',
@@ -367,19 +477,65 @@ export default {
     timezone: String,
   },
 
+  computed: {
+    localTimezone() {
+      return 'Local';
+    },
+
+    nextRunUtcDate() {
+      return formatDateInTZ(this.nextRunTime(), this.timezone);
+    },
+
+    nextRunLocalDate() {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return formatDateInTZ(this.nextRunTime(), tz);
+    },
+
+    nextRunUtcTime() {
+      return formatTimeInTZ(this.nextRunTime(), this.timezone);
+    },
+
+    nextRunLocalTime() {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return formatTimeInTZ(this.nextRunTime(), tz);
+    },
+  },
+
   methods: {
     nextRunTime() {
-      return parser.parseExpression(this.item.cron_format, {
-        tz: this.timezone,
-      }).next().toString();
+      try {
+        return CronExpressionParser.parse(this.item.cron_format, {
+          tz: this.timezone,
+        }).next().toDate();
+      } catch {
+        return null;
+      }
     },
 
     refreshCheckboxes() {
-      const fields = JSON.parse(
-        JSON.stringify(parser.parseExpression(this.item.cron_format, {
+      // if (!/test/.test(this.item.cron_format)) {
+      //   this.rawCron = true;
+      //   this.disableRawCron = true;
+      // } else {
+      //   this.disableRawCron = false;
+      // }
+
+      this.cronFormatError = null;
+      this.disableRawCron = false;
+
+      let cron;
+      try {
+        cron = CronExpressionParser.parse(this.item.cron_format, {
           tz: this.timezone,
-        }).fields),
-      );
+        });
+      } catch (err) {
+        this.cronFormatError = getErrorMessage(err);
+        this.rawCron = true;
+        this.disableRawCron = true;
+        return;
+      }
+
+      const fields = cron.fields; // JSON.parse(JSON.stringify(cron.fields));
 
       this.months = [];
       this.weekdays = [];
@@ -387,35 +543,35 @@ export default {
       this.minutes = [];
 
       if (this.isHourly(this.item.cron_format)) {
-        this.minutes = fields.minute;
+        this.minutes = fields.minute.values;
         this.timing = 'hourly';
       } else {
         this.minutes = [];
       }
 
       if (this.isDaily(this.item.cron_format)) {
-        this.hours = fields.hour;
+        this.hours = fields.hour.values;
         this.timing = 'daily';
       } else {
         this.hours = [];
       }
 
       if (this.isWeekly(this.item.cron_format)) {
-        this.weekdays = fields.dayOfWeek;
+        this.weekdays = fields.dayOfWeek.values;
         this.timing = 'weekly';
       } else {
         this.weekdays = [];
       }
 
       if (this.isMonthly(this.item.cron_format)) {
-        this.days = fields.dayOfMonth;
+        this.days = fields.dayOfMonth.values;
         this.timing = 'monthly';
       } else {
         this.months = [];
       }
 
       if (this.isYearly(this.item.cron_format)) {
-        this.months = fields.month;
+        this.months = fields.month.values;
         this.timing = 'yearly';
       }
     },
@@ -449,7 +605,7 @@ export default {
     },
 
     refreshCron() {
-      const fields = JSON.parse(JSON.stringify(parser.parseExpression('* * * * *').fields));
+      const fields = {};
 
       switch (this.timing) {
         case 'hourly':
@@ -495,7 +651,10 @@ export default {
         fields.minute = this.minutes;
       }
 
-      this.item.cron_format = parser.fieldsToExpression(fields).stringify();
+      const origFields = CronExpressionParser.parse('* * * * *').fields;
+      const modFields = CronFieldCollection.from(origFields, fields);
+      const exp = CronExpression.fieldsToExpression(modFields);
+      this.item.cron_format = exp.stringify();
     },
 
     getItemsUrl() {

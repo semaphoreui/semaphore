@@ -1,4 +1,4 @@
-name: Release
+name: Community Release
 
 'on':
   push:
@@ -50,7 +50,9 @@ jobs:
 
       - name: Run release
         run: |
-          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
+          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+          GPG_KEY_ID="58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA" \
+            task release:prod
 
   deploy-prod:
     runs-on: ubuntu-latest

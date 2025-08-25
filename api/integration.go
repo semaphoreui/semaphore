@@ -5,11 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
-	task2 "github.com/semaphoreui/semaphore/services/tasks"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services/server"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -44,7 +46,17 @@ func hmacHashPayload(secret string, payloadBody []byte) string {
 	return fmt.Sprintf("%x", sum)
 }
 
-func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
+type IntegrationController struct {
+	integrationService server.IntegrationService
+}
+
+func NewIntegrationController(integrationService server.IntegrationService) *IntegrationController {
+	return &IntegrationController{
+		integrationService: integrationService,
+	}
+}
+
+func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -95,7 +107,7 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			panic("")
 		}
 
-		err = db.FillIntegration(store, &integration)
+		err = c.integrationService.FillIntegration(&integration)
 		if err != nil {
 			log.Error(err)
 			return
@@ -238,16 +250,13 @@ func MatchCompare(value any, method db.IntegrationMatchMethodType, expected stri
 	}
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
-
-	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Request) (taskDefinition db.Task, err error) {
 
 	var envValues = make([]db.IntegrationExtractValue, 0)
 	var taskValues = make([]db.IntegrationExtractValue, 0)
 
-	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
+	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 
@@ -262,25 +271,56 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	var extractedEnvResults = Extract(envValues, r, payload)
 
-	environmentJSONBytes, err := json.Marshal(extractedEnvResults)
+	if integration.TaskParams != nil {
+		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
+	} else {
+		taskDefinition = db.Task{
+			ProjectID:  integration.ProjectID,
+			TemplateID: integration.TemplateID,
+		}
+	}
+
+	taskDefinition.IntegrationID = &integration.ID
+
+	env := make(map[string]any)
+
+	if taskDefinition.Environment != "" {
+		err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
+		if err != nil {
+			return
+		}
+
+		for k, v := range extractedEnvResults {
+			env[k] = v
+		}
+	}
+
+	envStr, err := json.Marshal(env)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 
-	var extractedTaskResults = ExtractAsAnyForTaskParams(taskValues, r, payload)
+	taskDefinition.Environment = string(envStr)
 
-	var environmentJSONString = string(environmentJSONBytes)
-	var taskDefinition = db.Task{
-		TemplateID:    integration.TemplateID,
-		ProjectID:     integration.ProjectID,
-		Environment:   environmentJSONString,
-		IntegrationID: &integration.ID,
+	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, r, payload)
+	for k, v := range extractedTaskResults {
+		taskDefinition.Params[k] = v
 	}
 
-	// Only assign extractedTaskResults to Params if it's not empty
-	if len(extractedTaskResults) > 0 {
-		taskDefinition.Params = extractedTaskResults
+	return
+}
+
+func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
+
+	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+
+	taskDefinition, err := GetTaskDefinition(integration, payload, r)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"context":        "integrations",
+			"integration_id": integration.ID,
+		}).Error("Failed to get task definition")
+		return
 	}
 
 	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
@@ -288,7 +328,7 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		log.Error(err)
 		return
 	}
-	
+
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
 	_, err = pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())

@@ -41,7 +41,7 @@ func GetIntegration(w http.ResponseWriter, r *http.Request) {
 
 func GetIntegrations(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	integrations, err := helpers.Store(r).GetIntegrations(project.ID, helpers.QueryParams(r.URL))
+	integrations, err := helpers.Store(r).GetIntegrations(project.ID, helpers.QueryParams(r.URL), false)
 
 	if err != nil {
 		helpers.WriteError(w, err)

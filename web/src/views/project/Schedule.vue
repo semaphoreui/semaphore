@@ -15,7 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :timezone="systemInfo.schedule_timezone || 'UTC'"
+          :timezone="systemInfo.schedule_timezone"
         />
       </template>
     </EditDialog>
@@ -79,6 +79,9 @@
           >{{ item.tpl_name }}
           </router-link>
         </div>
+      </template>
+      <template v-slot:item.cron_format="{ item }">
+        <code>{{ item.cron_format }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">

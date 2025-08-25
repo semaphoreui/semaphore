@@ -19,7 +19,9 @@ import (
 	ssh2 "golang.org/x/crypto/ssh"
 )
 
-type GoGitClient struct{}
+type GoGitClient struct {
+	keyInstaller AccessKeyInstaller
+}
 
 type ProgressWrapper struct {
 	Logger task_logger.Logger
@@ -36,11 +38,11 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
+func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	switch r.Repository.SSHKey.Type {
 	case db.AccessKeySSH:
 
-		install, err := r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
+		install, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +96,7 @@ func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 func (c GoGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
-	authMethod, authErr := getAuthMethod(r)
+	authMethod, authErr := c.getAuthMethod(r)
 
 	if authErr != nil {
 		return authErr
@@ -129,7 +131,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 		return err
 	}
 
-	authMethod, authErr := getAuthMethod(r)
+	authMethod, authErr := c.getAuthMethod(r)
 	if authErr != nil {
 		return authErr
 	}
@@ -174,7 +176,7 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 		return false
 	}
 
-	authMethod, err := getAuthMethod(r)
+	authMethod, err := c.getAuthMethod(r)
 	if err != nil {
 		return false
 	}
@@ -261,7 +263,7 @@ func (c GoGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err 
 		URLs: []string{r.Repository.GitURL},
 	})
 
-	auth, err := getAuthMethod(r)
+	auth, err := c.getAuthMethod(r)
 	if err != nil {
 		return
 	}
@@ -295,7 +297,7 @@ func (c GoGitClient) GetRemoteBranches(r GitRepository) ([]string, error) {
 		URLs: []string{r.Repository.GitURL},
 	})
 
-	auth, err := getAuthMethod(r)
+	auth, err := c.getAuthMethod(r)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SSH auth method: %w", err)

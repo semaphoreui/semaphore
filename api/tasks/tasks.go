@@ -1,8 +1,9 @@
 package tasks
 
 import (
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"net/http"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -44,7 +45,7 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 
 	res := []taskRes{}
 
-	for _, task := range pool.Queue {
+	for _, task := range pool.GetQueuedTasks() {
 		res = append(res, taskRes{
 			TaskID:    task.Task.ID,
 			ProjectID: task.Task.ProjectID,
@@ -55,7 +56,7 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	for _, task := range pool.RunningTasks {
+	for _, task := range pool.GetRunningTasks() {
 		res = append(res, taskRes{
 			TaskID:    task.Task.ID,
 			ProjectID: task.Task.ProjectID,
@@ -77,7 +78,7 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 
 	var task *db.Task
 
-	for _, t := range pool.Queue {
+	for _, t := range pool.GetQueuedTasks() {
 		if t.Task.ID == taskID {
 			task = &t.Task
 			break
@@ -85,7 +86,7 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if task == nil {
-		for _, t := range pool.RunningTasks {
+		for _, t := range pool.GetRunningTasks() {
 			if t.Task.ID == taskID {
 				task = &t.Task
 				break

@@ -2,17 +2,22 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/api/helpers"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
+	proServer "github.com/semaphoreui/semaphore/pro/services/server"
+	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -68,8 +73,42 @@ func Execute() {
 
 func runService() {
 	store := createStore("root")
-	taskPool := tasks.CreateTaskPool(store)
-	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
+	state := proTasks.NewTaskStateStore()
+	terraformStore := proFactory.NewTerraformStore(store)
+	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+
+	projectService := server.NewProjectService(store, store)
+	encryptionService := server.NewAccessKeyEncryptionService(store, store, store)
+	accessKeyInstallationService := server.NewAccessKeyInstallationService(encryptionService)
+	integrationService := server.NewIntegrationService(store, encryptionService)
+	inventoryService := server.NewInventoryService(
+		store,
+		store,
+		store,
+		encryptionService,
+	)
+	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
+	secretStorageService := server.NewSecretStorageService(store, accessKeyService)
+	environmentService := server.NewEnvironmentService(store, encryptionService)
+	subscriptionService := proServer.NewSubscriptionService(store, store)
+	logWriteService := proServer.NewLogWriteService()
+
+	taskPool := tasks.CreateTaskPool(
+		store,
+		state,
+		ansibleTaskRepo,
+		inventoryService,
+		encryptionService,
+		accessKeyInstallationService,
+		logWriteService,
+	)
+
+	schedulePool := schedules.CreateSchedulePool(
+		store,
+		&taskPool,
+		accessKeyInstallationService,
+		encryptionService,
+	)
 
 	defer schedulePool.Destroy()
 
@@ -86,17 +125,33 @@ func runService() {
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 
+	subscriptionService.StartValidationCron()
+
 	go sockets.StartWS()
 	go schedulePool.Run()
 	go taskPool.Run()
 
-	route := api.Route(store, &taskPool)
+	route := api.Route(
+		store,
+		terraformStore,
+		ansibleTaskRepo,
+		&taskPool,
+		projectService,
+		integrationService,
+		encryptionService,
+		accessKeyInstallationService,
+		secretStorageService,
+		accessKeyService,
+		environmentService,
+		subscriptionService,
+	)
 
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r = helpers.SetContextValue(r, "store", store)
 			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
+			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			next.ServeHTTP(w, r)
 		})
 	})

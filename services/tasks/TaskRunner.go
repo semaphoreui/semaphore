@@ -8,7 +8,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
@@ -35,10 +37,11 @@ type TaskRunner struct {
 	currentOutput *db.TaskOutput
 	currentState  any
 
-	users     []int
-	alert     bool
-	alertChat *string
-	pool      *TaskPool
+	users        []int
+	alert        bool
+	alertChat    *string
+	pool         *TaskPool
+	keyInstaller db_lib.AccessKeyInstaller
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -55,6 +58,20 @@ type TaskRunner struct {
 	Alias string
 
 	logWG sync.WaitGroup
+}
+
+func NewTaskRunner(
+	newTask db.Task,
+	p *TaskPool,
+	username string,
+	keyInstaller db_lib.AccessKeyInstaller,
+) *TaskRunner {
+	return &TaskRunner{
+		Task:         newTask,
+		pool:         p,
+		Username:     username,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
@@ -85,6 +102,10 @@ func (t *TaskRunner) saveStatus() {
 
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
+	}
+	// persist runtime fields in HA store
+	if t.pool != nil && t.pool.state != nil {
+		t.pool.state.UpdateRuntimeFields(t)
 	}
 }
 
@@ -121,7 +142,7 @@ func (t *TaskRunner) createTaskEvent() {
 		runnerID = &t.RunnerID
 	}
 
-	if err := util.Config.Log.Tasks.Write(util.TaskLogRecord{
+	if err := t.pool.logWriteService.WriteTaskLog(pro_interfaces.TaskLogRecord{
 		ProjectID:    t.Task.ProjectID,
 		TemplateID:   t.Template.ID,
 		TemplateName: t.Template.Name,
@@ -255,6 +276,40 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	return nil
 }
 
+func (t *TaskRunner) populateTaskEnvironment() (err error) {
+
+	if t.Task.Environment == "" {
+		return
+
+	}
+
+	tplEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+	if err != nil {
+		return
+	}
+
+	taskEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	if err != nil {
+		return
+	}
+
+	for k, v := range taskEnvironment {
+		tplEnvironment[k] = v
+	}
+
+	var ev []byte
+	ev, err = json.Marshal(tplEnvironment)
+	if err != nil {
+		return err
+	}
+
+	t.Environment.JSON = string(ev)
+
+	return
+}
+
 // nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
@@ -307,10 +362,10 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	if canOverrideInventory && t.Task.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
+		t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
 			if t.Template.InventoryID != nil {
-				t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+				t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 				if err != nil {
 					return t.prepareError(err, "Template Inventory not found!")
 				}
@@ -318,7 +373,7 @@ func (t *TaskRunner) populateDetails() error {
 		}
 	} else {
 		if t.Template.InventoryID != nil {
-			t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+			t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 			if err != nil {
 				return t.prepareError(err, "Template Inventory not found!")
 			}
@@ -332,8 +387,7 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	err = t.Repository.SSHKey.DeserializeSecret()
-	if err != nil {
+	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
 		return err
 	}
 
@@ -344,40 +398,15 @@ func (t *TaskRunner) populateDetails() error {
 			return err
 		}
 
-		if err = db.FillEnvironmentSecrets(t.pool.store, &t.Environment, true); err != nil {
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
+		if err != nil {
 			return err
 		}
 	}
 
-	if t.Task.Environment != "" {
-		environment := make(map[string]any)
-		if t.Environment.JSON != "" {
-			err = json.Unmarshal([]byte(t.Task.Environment), &environment)
-			if err != nil {
-				return err
-			}
-		}
+	err = t.populateTaskEnvironment()
 
-		taskEnvironment := make(map[string]any)
-		err = json.Unmarshal([]byte(t.Environment.JSON), &taskEnvironment)
-		if err != nil {
-			return err
-		}
-
-		for k, v := range taskEnvironment {
-			environment[k] = v
-		}
-
-		var ev []byte
-		ev, err = json.Marshal(environment)
-		if err != nil {
-			return err
-		}
-
-		t.Environment.JSON = string(ev)
-	}
-
-	return nil
+	return err
 }
 
 // checkTmpDir checks to see if the temporary directory exists

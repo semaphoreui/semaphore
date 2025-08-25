@@ -110,8 +110,6 @@
       />
     </div>
 
-    <div class="pt-3"></div>
-
     <v-text-field
       v-model="git_branch"
       :label="fieldLabel('branch')"
@@ -144,42 +142,15 @@
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
 
-    <ArgsPicker
-      v-if="needField('limit') && (template.task_params || {}).allow_override_limit"
-      :vars="item.params.limit"
-      @change="setLimit"
-      :title="$t('limit')"
-      :arg-title="$t('limit')"
-      :add-arg-title="$t('addLimit')"
-    />
-
-    <ArgsPicker
-      v-if="needField('tags') && (template.task_params || {}).allow_override_tags"
-      :vars="item.params.tags"
-      @change="setTags"
-      :title="$t('tags')"
-      :arg-title="$t('tags')"
-      :add-arg-title="$t('addTag')"
-    />
-
-    <ArgsPicker
-      v-if="needField('skip_tags') && (template.task_params || {}).allow_override_skip_tags"
-      :vars="item.params.skip_tags"
-      @change="setSkipTags"
-      :title="$t('skipTags')"
-      :arg-title="$t('tag')"
-      :add-arg-title="$t('addSkippedTag')"
-    />
-
-    <TaskParamsForm
+    <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
     />
 
-    <TaskParamsForm
-      v-else
+    <TaskParamsTerraformForm
+      v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -199,9 +170,10 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
+import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
+import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
 
 export default {
   mixins: [ItemFormBase, AppFieldsMixin],
@@ -212,8 +184,9 @@ export default {
   },
 
   components: {
+    TaskParamsAnsibleForm,
+    TaskParamsTerraformForm,
     ArgsPicker,
-    TaskParamsForm,
   },
 
   data() {
@@ -310,18 +283,6 @@ export default {
   },
 
   methods: {
-
-    setSkipTags(tags) {
-      this.item.params.skip_tags = tags;
-    },
-
-    setTags(tags) {
-      this.item.params.tags = tags;
-    },
-
-    setLimit(limit) {
-      this.item.params.limit = limit;
-    },
 
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);

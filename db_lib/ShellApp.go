@@ -77,7 +77,7 @@ func (t *ShellApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 func (t *ShellApp) Clear() {
 }
 
-func (t *ShellApp) InstallRequirements(environmentVars []string, tplParams any, params any) error {
+func (t *ShellApp) InstallRequirements(args LocalAppInstallingArgs) error {
 	return nil
 }
 

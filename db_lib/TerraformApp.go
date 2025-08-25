@@ -105,9 +105,9 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *TerraformApp) init(environmentVars []string, params *db.TerraformTaskParams) error {
+func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams) error {
 
-	keyInstallation, err := t.Inventory.SSHKey.Install(db.AccessKeyRoleGit, t.Logger)
+	keyInstallation, err := keyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
 		return err
 	}
@@ -213,10 +213,10 @@ func (t *TerraformApp) Clear() {
 	}
 }
 
-func (t *TerraformApp) InstallRequirements(environmentVars []string, tplParams any, params any) (err error) {
+func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err error) {
 
-	tpl := tplParams.(*db.TerraformTemplateParams)
-	p := params.(*db.TerraformTaskParams)
+	tpl := args.TplParams.(*db.TerraformTemplateParams)
+	p := args.Params.(*db.TerraformTaskParams)
 
 	if tpl.OverrideBackend {
 		t.backendFilename = "backend.tf"
@@ -231,7 +231,7 @@ func (t *TerraformApp) InstallRequirements(environmentVars []string, tplParams a
 		}
 	}
 
-	if err = t.init(environmentVars, p); err != nil {
+	if err = t.init(args.EnvironmentVars, args.Installer, p); err != nil {
 		return
 	}
 
@@ -241,11 +241,11 @@ func (t *TerraformApp) InstallRequirements(environmentVars []string, tplParams a
 		workspace = t.Inventory.Inventory
 	}
 
-	if !t.isWorkspacesSupported(environmentVars) {
+	if !t.isWorkspacesSupported(args.EnvironmentVars) {
 		return
 	}
 
-	err = t.selectWorkspace(workspace, environmentVars)
+	err = t.selectWorkspace(workspace, args.EnvironmentVars)
 	return
 }
 

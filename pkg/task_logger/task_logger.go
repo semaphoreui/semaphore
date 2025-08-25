@@ -20,6 +20,18 @@ const (
 	TaskFailStatus          TaskStatus = "error"
 )
 
+func UnfinishedTaskStatuses() []TaskStatus {
+	return []TaskStatus{
+		TaskWaitingStatus,
+		TaskStartingStatus,
+		TaskWaitingConfirmation,
+		TaskConfirmed,
+		TaskRejected,
+		TaskRunningStatus,
+		TaskStoppingStatus,
+	}
+}
+
 func (s TaskStatus) IsValid() bool {
 	switch s {
 	case TaskWaitingStatus,

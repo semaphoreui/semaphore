@@ -83,6 +83,10 @@
                   <td><b>{{ $t('integration') }}</b></td>
                   <td>{{ item.integration_id }}</td>
                 </tr>
+                <tr v-else-if="item.schedule_id != null">
+                  <td><b>{{ $t('schedule') }}</b></td>
+                  <td>{{ item.schedule_id }}</td>
+                </tr>
                 <tr>
                   <td><b>{{ $t('created') }}</b></td>
                   <td>{{ item.created | formatDate }}</td>
@@ -118,6 +122,12 @@
               <template v-slot:default>
                 <tbody>
                 <tr>
+                  <td><b>Branch</b></td>
+                  <td>
+                    {{ item.get_branch || '—' }}
+                  </td>
+                </tr>
+                <tr>
                   <td><b>Limit</b></td>
                   <td>
                     {{ item.params.limit ? 'Yes' : 'No' }}
@@ -131,7 +141,7 @@
                 </tr>
                 <tr>
                   <td><b>Debug level</b></td>
-                  <td>{{ item.params.debug_level }}</td>
+                  <td>{{ item.params.debug_level || '—' }}</td>
                 </tr>
                 <tr>
                   <td><b>Diff</b> <code>--diff</code></td>
@@ -143,7 +153,9 @@
                 </tr>
                 <tr>
                   <td><b>Environment</b></td>
-                  <td>{{ item.environment }}</td>
+                  <td>
+                    {{ !item.environment || item.environment === '{}' ? '—' : item.environment }}
+                  </td>
                 </tr>
                 </tbody>
               </template>

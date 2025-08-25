@@ -72,7 +72,7 @@ func (t *AnsibleApp) Log(msg string) {
 func (t *AnsibleApp) Clear() {
 }
 
-func (t *AnsibleApp) InstallRequirements(environmentVars []string, tplParams any, params any) error {
+func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 	if err := t.installCollectionsRequirements(); err != nil {
 		return err
 	}
@@ -83,14 +83,7 @@ func (t *AnsibleApp) InstallRequirements(environmentVars []string, tplParams any
 }
 
 func (t *AnsibleApp) getRepoPath() string {
-	repo := GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     CreateDefaultGitClient(),
-	}
-
-	return repo.GetFullPath()
+	return t.Repository.GetFullPath(t.Template.ID)
 }
 
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {

@@ -1,22 +1,13 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <EditDialog
+    <EditTeamMemberDialog
       v-model="editDialog"
-      :save-button-text="(this.itemId === 'new' ? 'Link' : $t('save'))"
-      :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
-      @save="loadItems()"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TeamMemberForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
+      :project-id="projectId"
+      :item-id="itemId"
+      :invites-enabled="systemInfo.teams.invites_enabled"
+      :invite-type="systemInfo.teams.invite_type"
+      @save="openInvites()"
+    />
 
     <YesNoDialog
       :title="$t('deleteTeamMember')"
@@ -30,6 +21,7 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="systemInfo.teams.memebers_can_leave"
         color="error"
         @click="leftProject()"
         class="mr-2"
@@ -44,7 +36,25 @@
       </v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <v-tabs class="pl-4" v-if="systemInfo.teams.invites_enabled">
+      <v-tab
+        key="team"
+        :to="`/project/${projectId}/team`"
+        data-testid="team-members"
+      >
+        Members
+      </v-tab>
+
+      <v-tab
+        key="invites"
+        :to="`/project/${projectId}/invites`"
+        data-testid="team-invites"
+      >
+        Invites
+      </v-tab>
+    </v-tabs>
+
+    <v-divider style="margin-top: -1px;"/>
 
     <v-data-table
       :headers="headers"
@@ -82,13 +92,18 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import TeamMemberForm from '@/components/TeamMemberForm.vue';
+import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
 
 export default {
-  components: { TeamMemberForm },
+  components: { EditTeamMemberDialog },
   mixins: [ItemListPageBase],
+
+  props: {
+    systemInfo: Object,
+  },
+
   data() {
     return {
       USER_ROLES,
@@ -96,6 +111,14 @@ export default {
   },
 
   methods: {
+    openInvites() {
+      if (this.systemInfo.teams.invites_enabled) {
+        this.$router.push(`/project/${this.projectId}/invites`);
+        return;
+      }
+      this.loadItems();
+    },
+
     async leftProject() {
       await axios({
         method: 'delete',

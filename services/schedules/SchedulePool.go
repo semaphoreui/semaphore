@@ -1,10 +1,12 @@
 package schedules
 
 import (
-	"github.com/semaphoreui/semaphore/util"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/semaphoreui/semaphore/services/server"
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/robfig/cron/v3"
 	"github.com/semaphoreui/semaphore/db"
@@ -14,9 +16,27 @@ import (
 )
 
 type ScheduleRunner struct {
-	projectID  int
-	scheduleID int
-	pool       *SchedulePool
+	projectID         int
+	scheduleID        int
+	pool              *SchedulePool
+	encryptionService server.AccessKeyEncryptionService
+	keyInstaller      db_lib.AccessKeyInstaller
+}
+
+func CreateScheduleRunner(
+	projectID int,
+	scheduleID int,
+	pool *SchedulePool,
+	encryptionService server.AccessKeyEncryptionService,
+	keyInstaller db_lib.AccessKeyInstaller,
+) ScheduleRunner {
+	return ScheduleRunner{
+		projectID:         projectID,
+		scheduleID:        scheduleID,
+		pool:              pool,
+		encryptionService: encryptionService,
+		keyInstaller:      keyInstaller,
+	}
 }
 
 func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updated bool, err error) {
@@ -25,7 +45,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
-	err = repo.SSHKey.DeserializeSecret()
+	err = r.pool.encryptionService.DeserializeSecret(&repo.SSHKey)
 	if err != nil {
 		return
 	}
@@ -34,7 +54,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		Logger:     nil,
 		TemplateID: schedule.TemplateID,
 		Repository: repo,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(r.keyInstaller),
 	}.GetLastRemoteCommitHash()
 
 	if err != nil {
@@ -84,10 +104,8 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
-	task := db.Task{
-		TemplateID: schedule.TemplateID,
-		ProjectID:  schedule.ProjectID,
-	}
+	task := schedule.TaskParams.CreateTask(schedule.TemplateID)
+	task.ScheduleID = &schedule.ID
 
 	_, err = r.pool.taskPool.AddTask(
 		task,
@@ -103,10 +121,12 @@ func (r ScheduleRunner) Run() {
 }
 
 type SchedulePool struct {
-	cron     *cron.Cron
-	locker   sync.Locker
-	store    db.Store
-	taskPool *tasks.TaskPool
+	cron              *cron.Cron
+	locker            sync.Locker
+	store             db.Store
+	taskPool          *tasks.TaskPool
+	encryptionService server.AccessKeyEncryptionService
+	keyInstaller      db_lib.AccessKeyInstaller
 }
 
 func (p *SchedulePool) init() {
@@ -119,7 +139,6 @@ func (p *SchedulePool) init() {
 }
 
 func (p *SchedulePool) Refresh() {
-	defer p.locker.Unlock()
 
 	schedules, err := p.store.GetSchedules()
 
@@ -129,17 +148,21 @@ func (p *SchedulePool) Refresh() {
 	}
 
 	p.locker.Lock()
+	defer p.locker.Unlock()
+
 	p.clear()
 	for _, schedule := range schedules {
 		if schedule.RepositoryID == nil && !schedule.Active {
 			continue
 		}
 
-		_, err = p.addRunner(ScheduleRunner{
-			projectID:  schedule.ProjectID,
-			scheduleID: schedule.ID,
-			pool:       p,
-		}, schedule.CronFormat)
+		_, err = p.addRunner(CreateScheduleRunner(
+			schedule.ProjectID,
+			schedule.ID,
+			p,
+			p.encryptionService,
+			p.keyInstaller,
+		), schedule.CronFormat)
 
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
@@ -172,17 +195,24 @@ func (p *SchedulePool) clear() {
 }
 
 func (p *SchedulePool) Destroy() {
-	defer p.locker.Unlock()
 	p.locker.Lock()
+	defer p.locker.Unlock()
 	p.cron.Stop()
 	p.clear()
 	p.cron = nil
 }
 
-func CreateSchedulePool(store db.Store, taskPool *tasks.TaskPool) SchedulePool {
+func CreateSchedulePool(
+	store db.Store,
+	taskPool *tasks.TaskPool,
+	keyInstaller db_lib.AccessKeyInstaller,
+	encryptionService server.AccessKeyEncryptionService,
+) SchedulePool {
 	pool := SchedulePool{
-		store:    store,
-		taskPool: taskPool,
+		store:             store,
+		taskPool:          taskPool,
+		keyInstaller:      keyInstaller,
+		encryptionService: encryptionService,
 	}
 	pool.init()
 	pool.Refresh()

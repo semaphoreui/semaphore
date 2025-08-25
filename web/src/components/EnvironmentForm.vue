@@ -3,49 +3,15 @@
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="item != null"
+    v-if="item != null && (!supportStorages || secretStorages != null)"
     class="pb-3"
   >
-
-    <v-dialog
-      v-model="envEditorDialog"
-      max-width="800"
-      persistent
-      :transition="false"
-    >
-      <div style="position: relative;">
-        <codemirror
-          class="EnvironmentMaximizedEditor"
-          :style="{ border: '1px solid lightgray' }"
-          v-model="json"
-          :options="cmOptions"
-          :placeholder="$t('enterExtraVariablesJson')"
-        />
-
-        <v-btn
-          dark
-          fab
-          small
-          color="blue-grey"
-          v-if="extraVarsEditMode === 'json'"
-          style="
-            position: absolute;
-            right: 0;
-            top: 0;
-            margin: 10px;
-          "
-          @click="envEditorDialog = false"
-        >
-          <v-icon>mdi-arrow-collapse</v-icon>
-        </v-btn>
-      </div>
-    </v-dialog>
-
     <v-alert
       :value="formError"
       color="error"
       data-testid="varGroup-error"
-    >{{ formError }}</v-alert>
+    >{{ formError }}
+    </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -53,17 +19,41 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      class="mb-2"
       outlined
       dense
     ></v-text-field>
+
+    <v-row v-if="supportStorages && isNew">
+      <v-col>
+        <v-autocomplete
+          v-model="item.secret_storage_id"
+          :label="$t('Secret storage (optional)')"
+          :items="secretStorages"
+          :disabled="formSaving || !isNew"
+          item-value="id"
+          item-text="name"
+          outlined
+          dense
+          clearable
+        />
+      </v-col>
+      <v-col>
+        <v-text-field
+          v-model="item.secret_storage_key_prefix"
+          :label="$t('Secret key prefix')"
+          :disabled="formSaving || !item.secret_storage_id|| !isNew"
+          outlined
+          dense
+        />
+      </v-col>
+    </v-row>
 
     <v-tabs grow v-model="tab">
       <v-tab key="variables">Variables</v-tab>
       <v-tab key="secrets">Secrets</v-tab>
     </v-tabs>
 
-    <v-divider style="margin-top: -1px;" class="mb-7" />
+    <v-divider style="margin-top: -1px;" class="mb-7"/>
 
     <v-tabs-items v-model="tab">
       <v-tab-item key="variables">
@@ -77,7 +67,8 @@
                 class="ml-1"
                 v-bind="attrs"
                 v-on="on"
-              >mdi-help-box</v-icon>
+              >mdi-help-box
+              </v-icon>
             </template>
             <div>
               <div><code>--extra-vars</code> for Ansible</div>
@@ -85,7 +76,7 @@
             </div>
           </v-tooltip>
 
-          <v-spacer />
+          <v-spacer/>
 
           <v-btn-toggle
             v-model="extraVarsEditMode"
@@ -119,11 +110,9 @@
             :placeholder="$t('enterExtraVariablesJson')"
           />
 
-          <v-btn
-            dark
-            fab
-            small
-            color="blue-grey"
+          <RichEditor
+            v-model="json"
+            type="json"
             v-if="extraVarsEditMode === 'json'"
             style="
               position: absolute;
@@ -131,11 +120,7 @@
               top: 0;
               margin: 10px;
             "
-            @click="envEditorDialog = true"
-          >
-            <v-icon>mdi-arrow-expand</v-icon>
-          </v-btn>
-
+          />
         </div>
         <div v-else-if="extraVarsEditMode === 'table'">
           <v-data-table
@@ -191,7 +176,7 @@
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
 
-            <v-spacer />
+            <v-spacer/>
 
             <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon>
@@ -246,6 +231,14 @@
 
       <v-tab-item key="secrets">
 
+        <div v-if="!isNew && secretStorage" class="pb-3">
+          <div style="font-weight: bold; font-size: 20px;">
+            <v-icon small class="mr-1">$vuetify.icons.hashicorp_vault</v-icon>
+            {{ secretStorage.name }}
+          </div>
+          <pre>{{ item.secret_storage_key_prefix }}*</pre>
+        </div>
+
         <div>
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
@@ -256,7 +249,8 @@
                   class="ml-1"
                   v-bind="attrs"
                   v-on="on"
-                >mdi-help-box</v-icon>
+                >mdi-help-box
+                </v-icon>
               </template>
               <div>
                 <div><code>--extra-vars</code> for Ansible</div>
@@ -264,8 +258,8 @@
               </div>
             </v-tooltip>
 
-            <v-spacer />
-            <v-btn icon @click="addSecret('var')"  data-testid="varGroup-addSecretVar">
+            <v-spacer/>
+            <v-btn icon @click="addSecret('var')" data-testid="varGroup-addSecretVar">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -322,9 +316,9 @@
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
 
-            <v-spacer />
+            <v-spacer/>
 
-            <v-btn icon @click="addSecret('env')"  data-testid="varGroup-addSecretEnv">
+            <v-btn icon @click="addSecret('env')" data-testid="varGroup-addSecretEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -388,12 +382,6 @@
     height: 160px !important;
   }
 }
-.EnvironmentMaximizedEditor {
-  .CodeMirror {
-    font-size: 14px;
-    height: 600px !important;
-  }
-}
 </style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
@@ -405,28 +393,31 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
+import RichEditor from '@/components/RichEditor.vue';
 
 export default {
   mixins: [ItemFormBase],
 
   props: {
     needHelp: Boolean,
+    supportStorages: Boolean,
   },
 
   components: {
+    RichEditor,
     codemirror,
   },
 
-  created() {
+  computed: {
+    secretStorage() {
+      if (this.item && this.item.secret_storage_id && this.secretStorages) {
+        return this.secretStorages.find((s) => s.id === this.item.secret_storage_id);
+      }
+      return null;
+    },
   },
 
   watch: {
-    envEditorDialog(val) {
-      this.$emit('maximize', {
-        maximized: val,
-      });
-    },
-
     extraVarsEditMode(val) {
       let extraVars;
 
@@ -470,7 +461,25 @@ export default {
     return {
       // PREDEFINED_ENV_VARS,
       images: [
-        'dind-runner:latest',
+        'dind-runner:v2.0.0',
+        'dind-runner:v2.0.2',
+        'dind-runner:v2.0.3',
+        'dind-runner:v2.0.4',
+        'dind-runner:v2.0.5',
+        'dind-runner:v2.0.6',
+        'dind-runner:v2.0.7',
+        'dind-runner:v2.0.8',
+        'dind-runner:v2.0.9',
+        'dind-runner:v2.0.10',
+        'nodejs-runner:v2.0.0',
+        'nodejs-runner:v2.0.3',
+        'nodejs-runner:v2.0.4',
+        'nodejs-runner:v2.0.5',
+        'nodejs-runner:v2.0.6',
+        'nodejs-runner:v2.0.7',
+        'nodejs-runner:v2.0.8',
+        'nodejs-runner:v2.0.9',
+        'nodejs-runner:v2.0.10',
       ],
 
       json: '{}',
@@ -490,7 +499,8 @@ export default {
       },
 
       extraVarsEditMode: 'json',
-      envEditorDialog: false,
+
+      secretStorages: null,
     };
   },
 
@@ -584,7 +594,23 @@ export default {
       this.item.secrets = secrets;
     },
 
-    afterLoadData() {
+    async afterLoadData() {
+      if (this.itemId === 'new') {
+        [
+          this.secretStorages,
+        ] = await Promise.all([
+          this.loadProjectResources('secret_storages'),
+        ]);
+      } else {
+        this.secretStorages = [];
+
+        if (this.item.secret_storage_id) {
+          this.secretStorages.push(
+            await this.loadProjectResource('secret_storages', this.item.secret_storage_id),
+          );
+        }
+      }
+
       this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);
 
       const json = JSON.parse(this.item?.json || '{}');

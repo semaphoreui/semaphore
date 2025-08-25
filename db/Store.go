@@ -52,6 +52,7 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 	Filter       string
 	Ownership    OwnershipFilter
+	TaskFilter   *TaskFilter
 }
 
 type ObjectReferrer struct {
@@ -65,6 +66,7 @@ type ObjectReferrers struct {
 	Repositories []ObjectReferrer `json:"repositories"`
 	Integrations []ObjectReferrer `json:"integrations"`
 	Schedules    []ObjectReferrer `json:"schedules"`
+	AccessKeys   []ObjectReferrer `json:"access_keys"`
 }
 
 type IntegrationReferrers struct {
@@ -170,6 +172,7 @@ type TaskFilter struct {
 	Start  *time.Time `json:"start"`
 	End    *time.Time `json:"end"`
 	UserID *int       `json:"user_id"`
+	Status []task_logger.TaskStatus
 }
 
 type TaskStat struct {
@@ -251,6 +254,16 @@ type ProjectStore interface {
 	UpdateProjectUser(projectUser ProjectUser) error
 }
 
+type ProjectInviteRepository interface {
+	// Project invites
+	GetProjectInvites(projectID int, params RetrieveQueryParams) ([]ProjectInviteWithUser, error)
+	CreateProjectInvite(invite ProjectInvite) (ProjectInvite, error)
+	GetProjectInvite(projectID int, inviteID int) (ProjectInvite, error)
+	GetProjectInviteByToken(token string) (ProjectInvite, error)
+	UpdateProjectInvite(invite ProjectInvite) error
+	DeleteProjectInvite(projectID int, inviteID int) error
+}
+
 // TemplateManager handles template-related operations
 type TemplateManager interface {
 	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams, loadVaults bool) ([]Template, error)
@@ -298,7 +311,9 @@ type EnvironmentManager interface {
 
 type GetAccessKeyOptions struct {
 	Owner         AccessKeyOwner
+	IgnoreOwner   bool
 	EnvironmentID *int
+	StorageID     *int
 }
 
 // AccessKeyManager handles access key-related operations
@@ -315,7 +330,7 @@ type AccessKeyManager interface {
 // IntegrationManager handles integration-related operations
 type IntegrationManager interface {
 	CreateIntegration(integration Integration) (newIntegration Integration, err error)
-	GetIntegrations(projectID int, params RetrieveQueryParams) ([]Integration, error)
+	GetIntegrations(projectID int, params RetrieveQueryParams, includeTaskParams bool) ([]Integration, error)
 	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
 	UpdateIntegration(integration Integration) error
 	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
@@ -373,20 +388,23 @@ type TaskManager interface {
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
 	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
 	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
-	CreateAnsibleTaskHost(host AnsibleTaskHost) error
-	CreateAnsibleTaskError(error AnsibleTaskError) error
-	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
-	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
 	GetTaskStages(projectID int, taskID int) ([]TaskStageWithResult, error)
 	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
 	GetTaskStageOutputs(projectID int, taskID int, stageID int) ([]TaskOutput, error)
 	GetTaskStats(projectID int, templateID *int, unit TaskStatUnit, filter TaskFilter) ([]TaskStat, error)
 }
 
+type AnsibleTaskRepository interface {
+	CreateAnsibleTaskHost(host AnsibleTaskHost) error
+	CreateAnsibleTaskError(error AnsibleTaskError) error
+	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
+	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
+}
+
 // ScheduleManager handles schedule-related operations
 type ScheduleManager interface {
 	GetSchedules() ([]Schedule, error)
-	GetProjectSchedules(projectID int) ([]ScheduleWithTpl, error)
+	GetProjectSchedules(projectID int, includeTaskParams bool) ([]ScheduleWithTpl, error)
 	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
@@ -429,6 +447,15 @@ type EventManager interface {
 	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
 }
 
+type SecretStorageRepository interface {
+	GetSecretStorages(projectID int) ([]SecretStorage, error)
+	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
+	GetSecretStorage(projectID int, storageID int) (SecretStorage, error)
+	UpdateSecretStorage(storage SecretStorage) error
+	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
+	DeleteSecretStorage(projectID int, storageID int) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -436,6 +463,7 @@ type Store interface {
 	OptionsManager
 	UserManager
 	ProjectStore
+	ProjectInviteRepository
 	TemplateManager
 	InventoryManager
 	RepositoryManager
@@ -449,6 +477,7 @@ type Store interface {
 	ViewManager
 	RunnerManager
 	EventManager
+	SecretStorageRepository
 }
 
 var AccessKeyProps = ObjectProps{
@@ -467,6 +496,13 @@ var IntegrationProps = ObjectProps{
 	ReferringColumnSuffix: "integration_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
+}
+
+var TaskParamsProps = ObjectProps{
+	TableName:             "project__task_params",
+	Type:                  reflect.TypeOf(TaskParams{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "params_id",
 }
 
 var IntegrationExtractValueProps = ObjectProps{
@@ -533,6 +569,15 @@ var ProjectUserProps = ObjectProps{
 	PrimaryColumnName: "user_id",
 }
 
+var ProjectInviteProps = ObjectProps{
+	TableName:             "project__invite",
+	Type:                  reflect.TypeOf(ProjectInvite{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "invite_id",
+	SortableColumns:       []string{"created", "status", "role"},
+	DefaultSortingColumn:  "created",
+}
+
 var ProjectProps = ObjectProps{
 	TableName:             "project",
 	Type:                  reflect.TypeOf(Project{}),
@@ -547,6 +592,14 @@ var ScheduleProps = ObjectProps{
 	Type:              reflect.TypeOf(Schedule{}),
 	PrimaryColumnName: "id",
 	Ownerships:        []*ObjectProps{&ProjectProps},
+}
+
+var SecretStorageProps = ObjectProps{
+	TableName:             "project__secret_storage",
+	ReferringColumnSuffix: "storage_id",
+	Type:                  reflect.TypeOf(SecretStorage{}),
+	PrimaryColumnName:     "id",
+	Ownerships:            []*ObjectProps{&ProjectProps},
 }
 
 var UserProps = ObjectProps{
@@ -629,6 +682,11 @@ var UserTotpProps = ObjectProps{
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
+	if p.ReferringColumnSuffix == "" {
+		err = errors.New("referring column suffix is not set")
+		return
+	}
+
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		if !strings.HasSuffix(t.Field(i).Tag.Get("db"), p.ReferringColumnSuffix) {

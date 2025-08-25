@@ -19,7 +19,7 @@ func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err er
 	user.Password = ""
 	user.Created = db.GetParsedTime(tz.Now())
 
-	err = d.sql.Insert(&user)
+	err = d.Sql().Insert(&user)
 
 	if err != nil {
 		return
@@ -45,7 +45,7 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	user.Password = string(pwdHash)
 	user.Created = db.GetParsedTime(tz.Now())
 
-	err = d.sql.Insert(&user.User)
+	err = d.Sql().Insert(&user.User)
 
 	if err != nil {
 		return
@@ -204,12 +204,23 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 		err = nil
 	}
 
+	var emailOtp db.UserEmailOtp
+	err = d.selectOne(&emailOtp, "select * from `user__email_otp` where user_id=?", user.ID)
+
+	if err == nil {
+		user.EmailOtp = &emailOtp
+	}
+
+	if errors.Is(err, db.ErrNotFound) {
+		err = nil
+	}
+
 	return
 }
 
 func (d *SqlDb) GetProUserCount() (count int, err error) {
 
-	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user` where pro"))
+	cnt, err := d.Sql().SelectInt(d.PrepareQuery("select count(*) from `user` where pro"))
 
 	count = int(cnt)
 
@@ -218,7 +229,7 @@ func (d *SqlDb) GetProUserCount() (count int, err error) {
 
 func (d *SqlDb) GetUserCount() (count int, err error) {
 
-	cnt, err := d.sql.SelectInt(d.PrepareQuery("select count(*) from `user`"))
+	cnt, err := d.Sql().SelectInt(d.PrepareQuery("select count(*) from `user`"))
 
 	count = int(cnt)
 
@@ -278,6 +289,17 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		err = nil
 	}
 
+	var emailOtp db.UserEmailOtp
+	err = d.selectOne(&emailOtp, "select * from `user__email_otp` where user_id=?", user.ID)
+
+	if err == nil && !emailOtp.IsExpired() {
+		user.EmailOtp = &emailOtp
+	}
+
+	if errors.Is(err, db.ErrNotFound) {
+		err = nil
+	}
+
 	return
 }
 
@@ -320,11 +342,51 @@ func (d *SqlDb) DeleteTotpVerification(userID int, totpID int) error {
 	return err
 }
 
-func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEmailOtp, err error) {
-	err = db.ErrNotFound
+func (d *SqlDb) insertEmailOtp(userID int, code string) (totp db.UserEmailOtp, err error) {
+
+	totp.UserID = userID
+	totp.Code = code
+	totp.Created = db.GetParsedTime(tz.Now())
+
+	res, err := d.exec(
+		"insert into user__email_otp (user_id, code, created) values (?, ?, ?)",
+		totp.UserID,
+		totp.Code,
+		totp.Created)
+
+	if err != nil {
+		return
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return
+	}
+
+	totp.ID = int(id)
+
 	return
 }
-func (d *SqlDb) DeleteEmailOtpVerification(userID int, totpID int) (err error) {
-	err = db.ErrNotFound
+
+func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEmailOtp, err error) {
+
+	var emailOtp db.UserEmailOtp
+	err = d.selectOne(&emailOtp, "select * from `user__email_otp` where user_id=?", userID)
+
+	if err == nil {
+		now := db.GetParsedTime(tz.Now())
+		_, err = d.exec("update user__email_otp set code=?, created=? where user_id=?", code, now, userID)
+	} else if errors.Is(err, db.ErrNotFound) {
+		err = nil
+		res, err = d.insertEmailOtp(userID, code)
+	} else {
+		return
+	}
+
 	return
+}
+
+func (d *SqlDb) DeleteEmailOtpVerification(userID int, totpID int) error {
+	_, err := d.exec("delete from user__email_otp where user_id=? and id = ?", userID, totpID)
+	return err
 }

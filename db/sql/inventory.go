@@ -7,11 +7,7 @@ import (
 
 func (d *SqlDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
 	err = d.getObject(projectID, db.InventoryProps, inventoryID, &inventory)
-	if err != nil {
-		return
-	}
 
-	err = db.FillInventory(d, &inventory)
 	return
 }
 

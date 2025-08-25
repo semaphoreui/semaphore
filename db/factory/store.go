@@ -24,4 +24,6 @@ func CreateStore() db.Store {
 	default:
 		panic("Unsupported database dialect: " + config.Dialect)
 	}
+	// This line should never be reached due to panic above, but satisfies linter
+	return nil
 }

@@ -51,14 +51,11 @@
                 style="background: gray; color: white; display: block; font-size: 14px;"
               >{{ (newRunner || {}).token }}</code>
 
-              <v-btn
+              <CopyClipboardButton
                 style="position: absolute; right: 10px; top: 2px;"
-                icon
-                color="white"
-                @click="copyToClipboard((newRunner || {}).token)"
-              >
-                <v-icon>mdi-content-copy</v-icon>
-              </v-btn>
+                :text="(newRunner || {}).token"
+              />
+
             </div>
           </div>
 
@@ -82,14 +79,10 @@
                 </v-icon>
               </v-btn>
 
-              <v-btn
+              <CopyClipboardButton
                 style="position: absolute; right: 50px; top: 2px;"
-                icon
-                color="white"
-                @click="copyToClipboard((newRunner || {}).private_key)"
-              >
-                <v-icon>mdi-content-copy</v-icon>
-              </v-btn>
+                :text="(newRunner || {}).private_key"
+              />
             </div>
           </div>
 
@@ -116,14 +109,10 @@
                      class="pa-2"
                 >{{ runnerConfigCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerConfigCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerConfigCommand"
+                />
               </div>
 
               <div class="mt-3">Launching the runner:</div>
@@ -148,14 +137,10 @@
                      class="pa-2"
                 >{{ runnerSetupCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerSetupCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerSetupCommand"
+                />
               </div>
 
               <div class="mt-3">
@@ -180,14 +165,10 @@
                      class="pa-2"
                 >{{ runnerEnvCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerEnvCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerEnvCommand"
+                />
               </div>
             </v-tab-item>
 
@@ -202,14 +183,10 @@
                      class="pa-2"
                 >{{ runnerDockerCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerDockerCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerDockerCommand"
+                />
               </div>
             </v-tab-item>
           </v-tabs-items>
@@ -385,11 +362,14 @@ import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
 import DashboardMenu from '@/components/DashboardMenu.vue';
 import delay from '@/lib/delay';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import PageMixin from '@/components/PageMixin';
 
 export default {
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, PageMixin],
 
   components: {
+    CopyClipboardButton,
     DashboardMenu,
     RunnerForm,
     YesNoDialog,
@@ -397,17 +377,12 @@ export default {
   },
 
   props: {
-    systemInfo: Object,
     projectId: Number,
   },
 
   computed: {
     webHost() {
-      return this.systemInfo?.web_host || '';
-    },
-
-    premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
+      return this.systemInfo?.web_host || window.location.origin;
     },
 
     version() {
@@ -420,7 +395,7 @@ export default {
 
     runnerConfigCommand() {
       return `{
-  "web_host": "${this.webHost}",
+  "web_host": "${this.webHost || window.location.origin}",
   "runner": {
     "token": "${(this.newRunner || {}).token}",
     "private_key_file": "/path/to/private/key"
@@ -468,6 +443,7 @@ semaphore runner start --no-config`;
   },
 
   methods: {
+
     async clearCache(runner) {
       const projectId = this.projectId || this.getProjectIdOfItem(runner.id);
 
@@ -537,21 +513,6 @@ semaphore runner start --no-config`;
         this.newRunner = e.item;
       }
       return this.loadItems();
-    },
-
-    async copyToClipboard(text) {
-      try {
-        await window.navigator.clipboard.writeText(text);
-        EventBus.$emit('i-snackbar', {
-          color: 'success',
-          text: 'The command has been copied to the clipboard.',
-        });
-      } catch (e) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: `Can't copy the command: ${e.message}`,
-        });
-      }
     },
 
     async setActive(runnerId, active) {

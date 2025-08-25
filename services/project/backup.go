@@ -144,7 +144,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	b.keys, err = store.GetAccessKeys(projectID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
+	b.keys, err = store.GetAccessKeys(projectID, db.GetAccessKeyOptions{IgnoreOwner: true}, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
@@ -164,12 +164,20 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	schedules, err := store.GetSchedules()
+	schedules, err := store.GetProjectSchedules(projectID, true)
 	if err != nil {
 		return
 	}
 
-	b.schedules = getSchedulesByProject(projectID, schedules)
+	for _, s := range schedules {
+		b.schedules = append(b.schedules, s.Schedule)
+	}
+	//b.schedules = getSchedulesByProject(projectID, schedules)
+
+	b.secretStorages, err = store.GetSecretStorages(projectID)
+	if err != nil {
+		return
+	}
 
 	b.meta, err = store.GetProject(projectID)
 	if err != nil {
@@ -181,7 +189,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	b.integrations, err = store.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	b.integrations, err = store.GetIntegrations(projectID, db.RetrieveQueryParams{}, true)
 	if err != nil {
 		return
 	}
@@ -190,6 +198,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	b.integrationMatchers = make(map[int][]db.IntegrationMatcher)
 	b.integrationExtractValues = make(map[int][]db.IntegrationExtractValue)
 	for _, o := range b.integrations {
+
 		b.integrationAliases[o.ID], err = store.GetIntegrationAliases(projectID, &o.ID)
 		if err != nil {
 			return
@@ -210,6 +219,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 }
 
 func (b *BackupDB) format() (*BackupFormat, error) {
+
 	schedules := make([]BackupSchedule, len(b.schedules))
 	for i, o := range b.schedules {
 
@@ -223,12 +233,32 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			o,
 			*tplName,
 		}
+
+		if o.TaskParams.InventoryID != nil {
+			schedules[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+		}
 	}
 
 	keys := make([]BackupAccessKey, len(b.keys))
 	for i, o := range b.keys {
 		keys[i] = BackupAccessKey{
-			o,
+			AccessKey: o,
+		}
+	}
+
+	secretStorages := make([]BackupSecretStorage, len(b.secretStorages))
+	for i, o := range b.secretStorages {
+		secretStorages[i] = BackupSecretStorage{
+			SecretStorage: o,
+		}
+
+		for k := range keys {
+			if keys[k].StorageID != nil && *keys[k].StorageID == o.ID {
+				keys[k].Storage = &o.Name
+			}
+			if keys[k].SourceStorageID != nil && *keys[k].SourceStorageID == o.ID {
+				keys[k].SourceStorage = &o.Name
+			}
 		}
 	}
 
@@ -355,6 +385,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Template:      *tplName,
 			AuthSecret:    keyName,
 		}
+
+		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
+			integrations[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+		}
 	}
 
 	var integrationAliases []string
@@ -376,6 +410,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Integration:        integrations,
 		IntegrationAliases: integrationAliases,
 		Schedules:          schedules,
+		SecretStorages:     secretStorages,
 	}, nil
 }
 
@@ -393,7 +428,7 @@ func (b *BackupFormat) Marshal() (res string, err error) {
 		return
 	}
 
-	bytes, err := json.Marshal(data)
+	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return
 	}
