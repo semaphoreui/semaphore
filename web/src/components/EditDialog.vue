@@ -165,9 +165,9 @@ export default {
       this.needReset = val;
       this.$emit('input', val);
       if (val) {
-        window.addEventListener('keydown', this.handleEscape);
+        window.addEventListener('keydown', this.handleControlKeys);
       } else {
-        window.removeEventListener('keydown', this.handleEscape);
+        window.removeEventListener('keydown', this.handleControlKeys);
       }
     },
 
@@ -224,9 +224,12 @@ export default {
       this.needReset = false;
     },
 
-    handleEscape(ev) {
+    handleControlKeys(ev) {
       if (ev.key === 'Escape' && this.dialog !== false && !this.noEscape) {
         this.close();
+      }
+      if (ev.key === 'Enter' && this.dialog !== false) {
+        this.needSave = true;
       }
     },
   },
