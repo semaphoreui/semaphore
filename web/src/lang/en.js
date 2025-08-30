@@ -146,6 +146,8 @@ export default {
   vaultAdd: 'Add Vault',
   vaultRequired: 'Vault Password is required',
   columns: 'Columns',
+  tabs: 'Tabs',
+  placeAllTabAtEnd: 'Place "All" tab at end',
   buildVersion: 'Build Version',
   messageOptional: 'Message (Optional)',
   debug: 'Debug',

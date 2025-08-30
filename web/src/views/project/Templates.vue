@@ -106,7 +106,11 @@
     </v-toolbar>
 
     <v-tabs show-arrows class="pl-4" v-model="viewTab">
-      <v-tab :to="getViewUrl(null)" :disabled="viewItemsLoading">{{ $t('all') }}</v-tab>
+      <v-tab
+        v-if="!allTabAtEnd"
+        :to="getViewUrl(null)"
+        :disabled="viewItemsLoading"
+      >{{ $t('all') }}</v-tab>
 
       <v-tab
         v-for="(view) in views"
@@ -115,6 +119,12 @@
         :disabled="viewItemsLoading"
       >{{ view.title }}
       </v-tab>
+
+      <v-tab
+        v-if="allTabAtEnd"
+        :to="getViewUrl(null)"
+        :disabled="viewItemsLoading"
+      >{{ $t('all') }}</v-tab>
 
       <v-btn
         icon
@@ -237,7 +247,7 @@
       </template>
     </v-data-table>
 
-    <TableSettingsSheet
+    <TemplateSettingsSheet
       v-model="settingsSheet"
       table-name="project__template"
       :headers="headers"
@@ -263,7 +273,7 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
 import EditViewsForm from '@/components/EditViewsForm.vue';
-import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
+import TemplateSettingsSheet from '@/components/TemplateSettingsSheet.vue';
 import TaskList from '@/components/TaskList.vue';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
@@ -277,7 +287,7 @@ import AppsMixin from '@/components/AppsMixin';
 export default {
   components: {
     EditTemplateDialog,
-    TableSettingsSheet,
+    TemplateSettingsSheet,
     TaskStatus,
     TaskLink,
     TaskList,
@@ -310,6 +320,7 @@ export default {
       viewTab: null,
       apps: null,
       itemApp: '',
+      allTabAtEnd: false,
     };
   },
   computed: {
@@ -497,8 +508,11 @@ export default {
       ]);
     },
 
-    onTableSettingsChange({ headers }) {
+    onTableSettingsChange({ headers, settings }) {
       this.filteredHeaders = headers;
+      if (settings && settings.tabs) {
+        this.allTabAtEnd = settings.tabs.allTabAtEnd;
+      }
     },
   },
 };
