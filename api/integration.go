@@ -289,10 +289,12 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 		if err != nil {
 			return
 		}
+	}
 
-		for k, v := range extractedEnvResults {
-			env[k] = v
-		}
+	// Always add extracted environment variables, regardless of whether
+	// the task definition already has environment variables set
+	for k, v := range extractedEnvResults {
+		env[k] = v
 	}
 
 	envStr, err := json.Marshal(env)
