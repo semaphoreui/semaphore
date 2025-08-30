@@ -295,6 +295,7 @@ type ConfigType struct {
 
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	EmailLoginDisableWithOidc bool `json:"email_login_disable_with_oidc,omitempty" env:"SEMAPHORE_EMAIL_LOGIN_DISABLE_WITH_OIDC"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`

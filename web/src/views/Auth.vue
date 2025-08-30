@@ -226,7 +226,7 @@
 
               </div>
 
-              <div v-else>
+              <div v-else-if="loginWithEmail">
                 <v-text-field
                   v-model="email"
                   :label="$t('Email')"
@@ -263,7 +263,7 @@
 
               <div
                 class="auth__divider"
-                v-if="oidcProviders.length > 0"
+                v-if="oidcProviders.length > 0 && (loginWithPassword || loginWithEmail)"
               >or</div>
 
               <v-btn
@@ -336,6 +336,7 @@ import { getErrorMessage } from '@/lib/error';
 import EventBus from '@/event-bus';
 
 export default {
+  // Auth component with OIDC email login control
   data() {
     return {
       signInFormValid: false,
@@ -351,6 +352,7 @@ export default {
 
       oidcProviders: [],
       loginWithPassword: null,
+      loginWithEmail: null,
       authMethods: {},
 
       screen: null,
@@ -418,7 +420,15 @@ export default {
       }).then((resp) => {
         this.oidcProviders = resp.data.oidc_providers;
         this.loginWithPassword = resp.data.login_with_password;
+        this.loginWithEmail = resp.data.login_with_email;
         this.authMethods = resp.data.auth_methods || {};
+
+        // Auto-redirect to OIDC if email and password login are both disabled
+        // and there is exactly one OIDC provider
+        if (!this.loginWithPassword && !this.loginWithEmail
+            && this.oidcProviders.length === 1) {
+          this.oidcSignIn(this.oidcProviders[0].id);
+        }
       });
     },
 
