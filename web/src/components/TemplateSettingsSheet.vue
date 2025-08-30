@@ -36,6 +36,7 @@ export default {
     tableName: String,
     headers: Array,
     projectId: Number,
+    views: Array,
   },
 
   components: { PageBottomSheet },
@@ -56,16 +57,22 @@ export default {
     async value(val) {
       this.sheet = val;
       if (val) {
-        await this.loadAllTabSettings();
+        this.updateAllTabFromViews();
       }
     },
+    
     headers() {
       this.loadSettings();
+    },
+
+    views() {
+      this.updateAllTabFromViews();
     },
   },
 
   created() {
     this.loadSettings();
+    this.updateAllTabFromViews();
   },
 
   methods: {
@@ -74,35 +81,44 @@ export default {
       this.loadSettings();
     },
 
-    async loadAllTabSettings() {
-      try {
-        const response = await axios.get(`/api/project/${this.projectId}/views/all-tab-settings`);
-        this.allTabAtEnd = response.data.allTabAtEnd;
-      } catch (error) {
-        console.error('Failed to load All tab settings:', error);
+    updateAllTabFromViews() {
+      if (!this.views || this.views.length === 0) {
         this.allTabAtEnd = false;
+        return;
       }
+
+      // Calculate allTabAtEnd from the views array using the same logic as backend
+      let allView = null;
+      let maxCustomPosition = -1;
+
+      for (const view of this.views) {
+        if (view.type === 'all' && !view.hidden) {
+          allView = view;
+        } else if (!view.hidden && view.position > maxCustomPosition) {
+          maxCustomPosition = view.position;
+        }
+      }
+
+      // If no All view exists or it's hidden, default to beginning
+      if (!allView) {
+        this.allTabAtEnd = false;
+        return;
+      }
+
+      // If All view position is greater than all other visible views, it should be at end
+      this.allTabAtEnd = allView.position > maxCustomPosition;
     },
 
     async saveAllTabSettings() {
-      try {
-        await axios.post(`/api/project/${this.projectId}/views/all-tab-settings`, {
-          allTabAtEnd: this.allTabAtEnd,
-        });
-
-        // Emit the change to parent component
-        this.$emit('change', {
-          settings: { ...this.settings, tabs: { allTabAtEnd: this.allTabAtEnd } },
-          headers: this.headers.filter((header) => {
-            const column = this.settings.columns[header.value];
-            return !column || column.visible;
-          }),
-        });
-      } catch (error) {
-        console.error('Failed to save All tab settings:', error);
-        // Revert the change if save failed
-        this.allTabAtEnd = !this.allTabAtEnd;
-      }
+      // Emit the change to parent component which will handle the API call
+      this.$emit('change', {
+        settings: { ...this.settings, tabs: { allTabAtEnd: this.allTabAtEnd } },
+        headers: this.headers.filter((header) => {
+          const column = this.settings.columns[header.value];
+          return !column || column.visible;
+        }),
+        allTabAtEnd: this.allTabAtEnd,
+      });
     },
 
     loadSettings() {

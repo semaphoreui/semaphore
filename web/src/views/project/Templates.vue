@@ -252,6 +252,7 @@
       table-name="project__template"
       :headers="headers"
       :project-id="projectId"
+      :views="views"
       @change="onTableSettingsChange"
     />
   </div>
@@ -367,7 +368,6 @@ export default {
   methods: {
     async beforeLoadItems() {
       await this.loadViews();
-      await this.loadAllTabSettings();
     },
 
     allowActions() {
@@ -381,18 +381,25 @@ export default {
       return `/project/${this.projectId}/views/${viewId}/templates`;
     },
 
-    async loadAllTabSettings() {
-      try {
-        const response = await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/views/all-tab-settings`,
-          responseType: 'json',
-        });
-        this.allTabAtEnd = response.data.allTabAtEnd;
-      } catch (error) {
-        console.error('Failed to load All tab settings:', error);
-        this.allTabAtEnd = false;
+    shouldAllTabBeAtEnd(views) {
+      let allView = null;
+      let maxCustomPosition = -1;
+
+      for (const view of views) {
+        if (view.type === 'all' && !view.hidden) {
+          allView = view;
+        } else if (!view.hidden && view.position > maxCustomPosition) {
+          maxCustomPosition = view.position;
+        }
       }
+
+      // If no All view exists or it's hidden, default to beginning
+      if (!allView) {
+        return false;
+      }
+
+      // If All view position is greater than all other visible views, it should be at end
+      return allView.position > maxCustomPosition;
     },
 
     async loadViews() {
@@ -401,6 +408,10 @@ export default {
         url: `/api/project/${this.projectId}/views`,
         responseType: 'json',
       })).data;
+      
+      // Calculate allTabAtEnd from the views array
+      this.allTabAtEnd = this.shouldAllTabBeAtEnd(this.views);
+      
       this.views.sort((v1, v2) => v1.position - v2.position);
 
       if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
@@ -411,7 +422,6 @@ export default {
     async closeEditViewDialog() {
       this.editViewsDialog = false;
       await this.loadViews();
-      await this.loadAllTabSettings();
     },
 
     async onWebsocketDataReceived(data) {
@@ -525,10 +535,53 @@ export default {
       ]);
     },
 
-    onTableSettingsChange({ headers, settings }) {
+    async onTableSettingsChange({ headers, settings, allTabAtEnd }) {
       this.filteredHeaders = headers;
-      if (settings && settings.tabs && settings.tabs.allTabAtEnd !== undefined) {
-        this.allTabAtEnd = settings.tabs.allTabAtEnd;
+      
+      // If allTabAtEnd was changed, update the All view position
+      if (allTabAtEnd !== undefined && allTabAtEnd !== this.allTabAtEnd) {
+        await this.updateAllTabPosition(allTabAtEnd);
+        this.allTabAtEnd = allTabAtEnd;
+      }
+    },
+
+    async updateAllTabPosition(allTabAtEnd) {
+      try {
+        // Find the All view and calculate new position
+        let allView = null;
+        let maxPosition = -1;
+
+        for (const view of this.views) {
+          if (view.type === 'all') {
+            allView = view;
+          } else if (!view.hidden && view.position > maxPosition) {
+            maxPosition = view.position;
+          }
+        }
+
+        if (!allView) {
+          console.error('All view not found');
+          return;
+        }
+
+        const newPosition = allTabAtEnd ? maxPosition + 1 : -1;
+        
+        if (allView.position !== newPosition) {
+          // Update the view position via the standard API
+          const positions = {};
+          positions[allView.id] = newPosition;
+
+          await axios({
+            method: 'post',
+            url: `/api/project/${this.projectId}/views/positions`,
+            data: positions,
+          });
+
+          // Reload views to reflect the change
+          await this.loadViews();
+        }
+      } catch (error) {
+        console.error('Failed to update All tab position:', error);
       }
     },
   },

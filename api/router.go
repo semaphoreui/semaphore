@@ -315,8 +315,6 @@ func Route(
 	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
-	projectUserAPI.Path("/views/all-tab-settings").HandlerFunc(projects.GetAllTabSettings).Methods("GET", "HEAD")
-	projectUserAPI.Path("/views/all-tab-settings").HandlerFunc(projects.SetAllTabSettings).Methods("POST")
 
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
