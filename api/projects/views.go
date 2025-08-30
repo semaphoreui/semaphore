@@ -43,7 +43,7 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, templates)
 }
 
-// GetViews retrieves sorted keys from the database
+// GetViews retrieves sorted views from the database
 func GetViews(w http.ResponseWriter, r *http.Request) {
 	if view := helpers.GetFromContext(r, "view"); view != nil {
 		k := view.(db.View)
@@ -52,23 +52,24 @@ func GetViews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	var views []db.View
-
-	allViews, err := helpers.Store(r).GetViews(project.ID)
+	views, err := helpers.Store(r).GetViews(project.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	// Filter out the special All tab settings view from normal views response
-	for _, view := range allViews {
-		if !view.IsAllTabSettingsView() {
-			views = append(views, view)
+	// Filter out hidden views from normal views response unless explicitly requested
+	showHidden := r.URL.Query().Get("show_hidden") == "true"
+	var filteredViews []db.View
+	
+	for _, view := range views {
+		if !view.Hidden || showHidden {
+			filteredViews = append(filteredViews, view)
 		}
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, views)
+	helpers.WriteJSON(w, http.StatusOK, filteredViews)
 }
 
 // AddView adds a new key to the database
@@ -85,6 +86,11 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 			"error": "Project ID in body and URL must be the same",
 		})
 		return
+	}
+
+	// Set default values for new fields if not provided
+	if view.Type == "" {
+		view.Type = db.ViewTypeCustom
 	}
 
 	if err := view.Validate(); err != nil {
@@ -228,49 +234,63 @@ func SetAllTabSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Find existing All tab settings view
-	var allTabView *db.View
-	maxPosition := 0
+	// Find the All view
+	var allView *db.View
+	maxPosition := -1
 	
 	for i, view := range views {
-		if view.IsAllTabSettingsView() {
-			allTabView = &views[i]
-		} else if view.Position > maxPosition {
+		if view.IsAllView() {
+			allView = &views[i]
+		} else if !view.Hidden && view.Position > maxPosition {
 			maxPosition = view.Position
 		}
 	}
 	
-	// Calculate position based on setting
-	var newPosition int
-	if settings.AllTabAtEnd {
-		newPosition = maxPosition + 1
-	} else {
-		newPosition = 0
-	}
-	
-	if allTabView != nil {
-		// Update existing settings view
-		allTabView.Position = newPosition
-		err = helpers.Store(r).UpdateView(*allTabView)
-	} else {
-		// Create new settings view
-		newView := db.View{
-			ProjectID: project.ID,
-			Title:     db.AllTabViewTitle,
-			Position:  newPosition,
+	if allView == nil {
+		// Create All view if it doesn't exist
+		newPosition := -1
+		if settings.AllTabAtEnd && maxPosition >= 0 {
+			newPosition = maxPosition + 1
 		}
-		_, err = helpers.Store(r).CreateView(newView)
-	}
-	
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
+		
+		allView = &db.View{
+			ProjectID: project.ID,
+			Title:     "All",
+			Position:  newPosition,
+			Hidden:    false,
+			Type:      db.ViewTypeAll,
+		}
+		
+		createdView, err := helpers.Store(r).CreateView(*allView)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		allView = &createdView
+	} else {
+		// Update existing All view position
+		var newPosition int
+		if settings.AllTabAtEnd {
+			newPosition = maxPosition + 1
+		} else {
+			newPosition = -1
+		}
+		
+		if allView.Position != newPosition {
+			allView.Position = newPosition
+			err = helpers.Store(r).UpdateView(*allView)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+		}
 	}
 	
 	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
 		UserID:      helpers.UserFromContext(r).ID,
 		ProjectID:   project.ID,
 		ObjectType:  db.EventView,
+		ObjectID:    allView.ID,
 		Description: fmt.Sprintf("All tab position updated to %s", map[bool]string{true: "end", false: "beginning"}[settings.AllTabAtEnd]),
 	})
 	
