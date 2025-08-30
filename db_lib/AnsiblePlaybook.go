@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/creack/pty"
@@ -27,7 +28,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=False")
 	//cmd.Env = append(cmd.Env, "ANSIBLE_SSH_ARGS=-o UserKnownHostsFile=/dev/null")
 	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(p.Repository.ProjectID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", path.Join(util.Config.GetProjectTmpDir(p.Repository.ProjectID), fmt.Sprintf("template_%d", p.TemplateID))))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, environmentVars...)
 
