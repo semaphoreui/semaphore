@@ -143,7 +143,7 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 		if repo.SSHKeyID != key.ID {
 			continue
 		}
-		err = repo.ClearCache()
+		err = repo.ClearCache(helpers.Store(r))
 		if err != nil {
 			helpers.WriteError(w, err)
 			return

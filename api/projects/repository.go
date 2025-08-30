@@ -169,7 +169,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if oldRepo.GitURL != repository.GitURL {
-		util.LogWarning(oldRepo.ClearCache())
+		util.LogWarning(oldRepo.ClearCache(helpers.Store(r)))
 	}
 
 	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
@@ -201,7 +201,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.LogWarning(repository.ClearCache())
+	util.LogWarning(repository.ClearCache(helpers.Store(r)))
 
 	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
 		UserID:      helpers.UserFromContext(r).ID,

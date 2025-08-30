@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -32,10 +33,25 @@ type Repository struct {
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
 }
 
-func (r Repository) ClearCache() error {
-	// In the new template-based structure, clear all template directories that might contain this repository
-	// This is a temporary solution - ideally we'd only clear templates that actually use this repository
-	return util.ClearDir(util.Config.GetProjectTmpDir(r.ProjectID), true, "template_")
+func (r Repository) ClearCache(templateManager TemplateManager) error {
+	// Find templates that use this repository and clear only their cache directories
+	templates, err := templateManager.GetTemplates(r.ProjectID, TemplateFilter{}, RetrieveQueryParams{})
+	if err != nil {
+		return err
+	}
+
+	// Clear cache only for templates that use this repository
+	for _, template := range templates {
+		if template.RepositoryID == r.ID {
+			templateDir := path.Join(util.Config.GetProjectTmpDir(r.ProjectID), "template_" + strconv.Itoa(template.ID))
+			err := os.RemoveAll(templateDir)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r Repository) getDirNamePrefix() string {
