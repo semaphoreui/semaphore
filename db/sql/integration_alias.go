@@ -67,7 +67,7 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, leve
 	if aliasObj.IntegrationID == nil {
 		level = db.IntegrationAliasProject
 		var projIntegrations []db.Integration
-		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{}, false)
+		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{}, true)
 		if err != nil {
 			return
 		}
