@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -38,17 +39,16 @@ func (t *LocalJob) installInventory() (err error) {
 }
 
 func (t *LocalJob) tmpInventoryFilename() string {
-	if t.Inventory.Repository == nil {
-		return "inventory_" + strconv.Itoa(t.Inventory.ID)
-	}
-	return t.Inventory.Repository.GetDirName(t.Template.ID) + "_inventory_" + strconv.Itoa(t.Inventory.ID)
+	return "inventory_" + strconv.Itoa(t.Inventory.ID)
 }
 
 func (t *LocalJob) tmpInventoryFullPath() string {
 	if t.Inventory.Repository != nil && t.Inventory.Repository.GetType() == db.RepositoryLocal {
 		return t.Inventory.Repository.GetGitURL(true)
 	}
-	pathname := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.tmpInventoryFilename())
+	// Place inventory in template directory: /project_{projectID}/template_{templateID}/inventory_{inventoryID}
+	templateDir := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), fmt.Sprintf("template_%d", t.Template.ID))
+	pathname := path.Join(templateDir, t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
 		pathname += ".yml"
 	}

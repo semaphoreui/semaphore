@@ -164,7 +164,7 @@ func TestGetRepoPath(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
+	if dir != "/tmp/project_0/template_0/src/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
@@ -210,7 +210,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
+	if dir != "/tmp/project_0/template_0/src/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
@@ -567,7 +567,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/project_0/template_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -623,7 +623,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/project_0/template_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -680,7 +680,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/project_0/template_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"id\":0,\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }

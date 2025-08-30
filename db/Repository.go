@@ -33,7 +33,9 @@ type Repository struct {
 }
 
 func (r Repository) ClearCache() error {
-	return util.ClearDir(util.Config.GetProjectTmpDir(r.ProjectID), true, r.getDirNamePrefix())
+	// In the new template-based structure, clear all template directories that might contain this repository
+	// This is a temporary solution - ideally we'd only clear templates that actually use this repository
+	return util.ClearDir(util.Config.GetProjectTmpDir(r.ProjectID), true, "template_")
 }
 
 func (r Repository) getDirNamePrefix() string {
@@ -41,7 +43,7 @@ func (r Repository) getDirNamePrefix() string {
 }
 
 func (r Repository) GetDirName(templateID int) string {
-	return r.getDirNamePrefix() + "template_" + strconv.Itoa(templateID)
+	return path.Join("template_" + strconv.Itoa(templateID), "src")
 }
 
 func (r Repository) GetFullPath(templateID int) string {

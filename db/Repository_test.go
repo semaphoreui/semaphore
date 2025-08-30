@@ -21,7 +21,7 @@ func TestRepository_ClearCache(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4)),
 	}
-	repoDir := path.Join(util.Config.TmpPath, "project_0", "repository_123_55")
+	repoDir := path.Join(util.Config.TmpPath, "project_0", "template_55", "src")
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
