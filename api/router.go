@@ -164,6 +164,11 @@ func Route(
 	runnersAPI.Path("").HandlerFunc(runnerController.UpdateRunner).Methods("PUT")
 	runnersAPI.Path("").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
+	// Repository archive endpoint for proxy git client
+	repositoriesAPI := internalAPI.PathPrefix("/repositories").Subrouter()
+	repositoriesAPI.Use(runners.RunnerMiddleware)
+	repositoriesAPI.HandleFunc("/archive", runners.GetRepositoryArchive).Methods("POST")
+
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
 	publicWebHookRouter.Path("/integrations/{integration_alias}").HandlerFunc(
