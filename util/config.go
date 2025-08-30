@@ -299,6 +299,9 @@ type ConfigType struct {
 
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
+	MCPEnabled bool   `json:"mcp_enabled,omitempty" env:"SEMAPHORE_MCP_ENABLED"`
+	MCPPort    string `json:"mcp_port,omitempty" env:"SEMAPHORE_MCP_PORT"`
+
 	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"SEMAPHORE_INTEGRATION_ALIAS"`
 
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`

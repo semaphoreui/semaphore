@@ -15,6 +15,7 @@ import (
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	proProjects "github.com/semaphoreui/semaphore/pro/api/projects"
 	proFeatures "github.com/semaphoreui/semaphore/pro/pkg/features"
+	mcpService "github.com/semaphoreui/semaphore/services/mcp"
 	"github.com/semaphoreui/semaphore/services/server"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
@@ -26,6 +27,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
+	mcpapi "github.com/semaphoreui/semaphore/api/mcp"
 	"github.com/semaphoreui/semaphore/api/projects"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/api/tasks"
@@ -95,6 +97,7 @@ func Route(
 	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
+	mcpServer *mcpService.Server,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
@@ -505,6 +508,10 @@ func Route(
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values/{value_id}", projects.UpdateIntegrationExtractValue).Methods("PUT")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values/{value_id}", projects.DeleteIntegrationExtractValue).Methods("DELETE")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values/{value_id}/refs", projects.GetIntegrationExtractValueRefs).Methods("GET")
+
+	if mcpServer != nil {
+		mcpapi.Route(r, mcpServer)
+	}
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

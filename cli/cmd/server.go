@@ -1,13 +1,21 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"net/http"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
+
+var serverFlags struct {
+	mcpEnabled bool
+	mcpPort    string
+}
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
+	serverCmd.PersistentFlags().BoolVar(&serverFlags.mcpEnabled, "mcp-enabled", false, "Enable MCP server")
+	serverCmd.PersistentFlags().StringVar(&serverFlags.mcpPort, "mcp-port", "", "Port for MCP server")
 }
 
 var serverCmd = &cobra.Command{

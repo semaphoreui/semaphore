@@ -86,6 +86,21 @@ For more installation options, visit our [Installation page](https://semaphoreui
 * [API Reference](https://semaphoreui.com/api-docs)
 * [Postman Collection](https://www.postman.com/semaphoreui)
 
+## MCP Server
+
+Semaphore includes an optional [Model Context Protocol](https://modelcontextprotocol.io) server that allows tools to interact with your projects programmatically. Enable it with:
+
+```
+semaphore server --mcp-enabled
+```
+
+The server exposes a WebSocket endpoint at `/mcp/ws` where clients can perform operations such as listing projects or triggering tasks:
+
+```
+{"command":"handshake"}
+{"command":"list_projects"}
+```
+
 ## Awesome Semaphore
 
 A curated list of awesome things related to Semaphore UI.

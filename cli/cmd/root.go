@@ -10,6 +10,8 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/services/server"
 
+	mcpService "github.com/semaphoreui/semaphore/services/mcp"
+
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/sockets"
@@ -73,6 +75,12 @@ func Execute() {
 
 func runService() {
 	store := createStore("root")
+
+	util.Config.MCPEnabled = serverFlags.mcpEnabled
+	if serverFlags.mcpPort != "" {
+		util.Config.MCPPort = serverFlags.mcpPort
+	}
+
 	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
@@ -131,6 +139,11 @@ func runService() {
 	go schedulePool.Run()
 	go taskPool.Run()
 
+	var mcpServer *mcpService.Server
+	if util.Config.MCPEnabled {
+		mcpServer = mcpService.NewServer(store, &taskPool)
+	}
+
 	route := api.Route(
 		store,
 		terraformStore,
@@ -144,6 +157,7 @@ func runService() {
 		accessKeyService,
 		environmentService,
 		subscriptionService,
+		mcpServer,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {
