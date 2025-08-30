@@ -291,10 +291,12 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 		}
 	}
 
-	// Always add extracted environment variables, regardless of whether
-	// the task definition already has environment variables set
+	// Add extracted environment variables only if they don't conflict with 
+	// existing task definition variables (task definition has higher priority)
 	for k, v := range extractedEnvResults {
-		env[k] = v
+		if _, exists := env[k]; !exists {
+			env[k] = v
+		}
 	}
 
 	envStr, err := json.Marshal(env)

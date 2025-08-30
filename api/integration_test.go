@@ -95,9 +95,12 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 		json.Unmarshal([]byte(taskDef1.Environment), &env1)
 	}
 	
-	// Always add extracted environment variables (the fix)
+	// Add extracted environment variables only if they don't conflict with 
+	// existing task definition variables (task definition has higher priority)
 	for k, v := range extractedEnvResults {
-		env1[k] = v
+		if _, exists := env1[k]; !exists {
+			env1[k] = v
+		}
 	}
 	
 	envStr1, _ := json.Marshal(env1)
@@ -132,9 +135,12 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 		json.Unmarshal([]byte(taskDef2.Environment), &env2)
 	}
 	
-	// Always add extracted environment variables
+	// Add extracted environment variables only if they don't conflict with 
+	// existing task definition variables (task definition has higher priority)
 	for k, v := range extractedEnvResults {
-		env2[k] = v
+		if _, exists := env2[k]; !exists {
+			env2[k] = v
+		}
 	}
 	
 	envStr2, _ := json.Marshal(env2)
@@ -155,6 +161,52 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	}
 	if envCheck2["EVENT_TYPE"] != "push" {
 		t.Errorf("Expected EVENT_TYPE to be 'push' in environment, got '%v'", envCheck2["EVENT_TYPE"])
+	}
+	
+	// Test case 3: Task definition values should have priority over extracted values
+	taskDef3 := db.Task{
+		ProjectID:   1,
+		TemplateID:  1,
+		Environment: `{"BRANCH_NAME": "production", "EXISTING_VAR": "from_task"}`, // Conflicts with extracted BRANCH_NAME
+		Params:      make(db.MapStringAnyField),
+	}
+	taskDef3.IntegrationID = &integration.ID
+	
+	env3 := make(map[string]any)
+	
+	if taskDef3.Environment != "" {
+		json.Unmarshal([]byte(taskDef3.Environment), &env3)
+	}
+	
+	// Add extracted environment variables only if they don't conflict with 
+	// existing task definition variables (task definition has higher priority)
+	for k, v := range extractedEnvResults {
+		if _, exists := env3[k]; !exists {
+			env3[k] = v
+		}
+	}
+	
+	envStr3, _ := json.Marshal(env3)
+	taskDef3.Environment = string(envStr3)
+	
+	// Verify that task definition values take precedence over extracted values
+	var envCheck3 map[string]any
+	json.Unmarshal([]byte(taskDef3.Environment), &envCheck3)
+	
+	// BRANCH_NAME should remain "production" from task definition, not "main" from extracted
+	if envCheck3["BRANCH_NAME"] != "production" {
+		t.Errorf("Expected BRANCH_NAME to be 'production' (task definition priority), got '%v'", envCheck3["BRANCH_NAME"])
+	}
+	// EXISTING_VAR should remain from task definition
+	if envCheck3["EXISTING_VAR"] != "from_task" {
+		t.Errorf("Expected EXISTING_VAR to be 'from_task', got '%v'", envCheck3["EXISTING_VAR"])
+	}
+	// Non-conflicting extracted values should still be added
+	if envCheck3["COMMIT_HASH"] != "abc123" {
+		t.Errorf("Expected COMMIT_HASH to be 'abc123' in environment, got '%v'", envCheck3["COMMIT_HASH"])
+	}
+	if envCheck3["EVENT_TYPE"] != "push" {
+		t.Errorf("Expected EVENT_TYPE to be 'push' in environment, got '%v'", envCheck3["EVENT_TYPE"])
 	}
 }
 
