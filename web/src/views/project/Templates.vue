@@ -251,6 +251,7 @@
       v-model="settingsSheet"
       table-name="project__template"
       :headers="headers"
+      :project-id="projectId"
       @change="onTableSettingsChange"
     />
   </div>
@@ -366,6 +367,7 @@ export default {
   methods: {
     async beforeLoadItems() {
       await this.loadViews();
+      await this.loadAllTabSettings();
     },
 
     allowActions() {
@@ -377,6 +379,20 @@ export default {
         return `/project/${this.projectId}/templates`;
       }
       return `/project/${this.projectId}/views/${viewId}/templates`;
+    },
+
+    async loadAllTabSettings() {
+      try {
+        const response = await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/views/all-tab-settings`,
+          responseType: 'json',
+        });
+        this.allTabAtEnd = response.data.allTabAtEnd;
+      } catch (error) {
+        console.error('Failed to load All tab settings:', error);
+        this.allTabAtEnd = false;
+      }
     },
 
     async loadViews() {
@@ -395,6 +411,7 @@ export default {
     async closeEditViewDialog() {
       this.editViewsDialog = false;
       await this.loadViews();
+      await this.loadAllTabSettings();
     },
 
     async onWebsocketDataReceived(data) {
@@ -510,7 +527,7 @@ export default {
 
     onTableSettingsChange({ headers, settings }) {
       this.filteredHeaders = headers;
-      if (settings && settings.tabs) {
+      if (settings && settings.tabs && settings.tabs.allTabAtEnd !== undefined) {
         this.allTabAtEnd = settings.tabs.allTabAtEnd;
       }
     },

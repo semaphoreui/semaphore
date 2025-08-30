@@ -54,11 +54,18 @@ func GetViews(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	var views []db.View
 
-	views, err := helpers.Store(r).GetViews(project.ID)
+	allViews, err := helpers.Store(r).GetViews(project.ID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	// Filter out the special All tab settings view from normal views response
+	for _, view := range allViews {
+		if !view.IsAllTabSettingsView() {
+			views = append(views, view)
+		}
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, views)
@@ -183,5 +190,89 @@ func RemoveView(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("View %s deleted", view.Title),
 	})
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetAllTabSettings retrieves the All tab position setting for a project
+func GetAllTabSettings(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	views, err := helpers.Store(r).GetViews(project.ID)
+	
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	
+	allTabAtEnd := db.ShouldAllTabBeAtEnd(views)
+	
+	helpers.WriteJSON(w, http.StatusOK, map[string]bool{
+		"allTabAtEnd": allTabAtEnd,
+	})
+}
+
+// SetAllTabSettings sets the All tab position setting for a project
+func SetAllTabSettings(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	
+	var settings struct {
+		AllTabAtEnd bool `json:"allTabAtEnd"`
+	}
+	
+	if !helpers.Bind(w, r, &settings) {
+		return
+	}
+	
+	views, err := helpers.Store(r).GetViews(project.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	
+	// Find existing All tab settings view
+	var allTabView *db.View
+	maxPosition := 0
+	
+	for i, view := range views {
+		if view.IsAllTabSettingsView() {
+			allTabView = &views[i]
+		} else if view.Position > maxPosition {
+			maxPosition = view.Position
+		}
+	}
+	
+	// Calculate position based on setting
+	var newPosition int
+	if settings.AllTabAtEnd {
+		newPosition = maxPosition + 1
+	} else {
+		newPosition = 0
+	}
+	
+	if allTabView != nil {
+		// Update existing settings view
+		allTabView.Position = newPosition
+		err = helpers.Store(r).UpdateView(*allTabView)
+	} else {
+		// Create new settings view
+		newView := db.View{
+			ProjectID: project.ID,
+			Title:     db.AllTabViewTitle,
+			Position:  newPosition,
+		}
+		_, err = helpers.Store(r).CreateView(newView)
+	}
+	
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventView,
+		Description: fmt.Sprintf("All tab position updated to %s", map[bool]string{true: "end", false: "beginning"}[settings.AllTabAtEnd]),
+	})
+	
 	w.WriteHeader(http.StatusNoContent)
 }

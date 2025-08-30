@@ -19,8 +19,8 @@
       <v-checkbox
         class="mr-6"
         :label="$t('placeAllTabAtEnd')"
-        v-model="settings.tabs.allTabAtEnd"
-        @change="saveSettings()"
+        v-model="allTabAtEnd"
+        @change="saveAllTabSettings()"
       />
     </div>
   </PageBottomSheet>
@@ -28,12 +28,14 @@
 
 <script>
 import PageBottomSheet from '@/components/PageBottomSheet.vue';
+import axios from 'axios';
 
 export default {
   props: {
     value: Boolean,
     tableName: String,
     headers: Array,
+    projectId: Number,
   },
 
   components: { PageBottomSheet },
@@ -42,6 +44,7 @@ export default {
     return {
       sheet: false,
       settings: null,
+      allTabAtEnd: false,
     };
   },
 
@@ -52,6 +55,9 @@ export default {
 
     async value(val) {
       this.sheet = val;
+      if (val) {
+        await this.loadAllTabSettings();
+      }
     },
     headers() {
       this.loadSettings();
@@ -67,6 +73,38 @@ export default {
       localStorage.setItem(`${this.tableName}__settings`, JSON.stringify(this.settings));
       this.loadSettings();
     },
+
+    async loadAllTabSettings() {
+      try {
+        const response = await axios.get(`/api/project/${this.projectId}/views/all-tab-settings`);
+        this.allTabAtEnd = response.data.allTabAtEnd;
+      } catch (error) {
+        console.error('Failed to load All tab settings:', error);
+        this.allTabAtEnd = false;
+      }
+    },
+
+    async saveAllTabSettings() {
+      try {
+        await axios.post(`/api/project/${this.projectId}/views/all-tab-settings`, {
+          allTabAtEnd: this.allTabAtEnd,
+        });
+
+        // Emit the change to parent component
+        this.$emit('change', {
+          settings: { ...this.settings, tabs: { allTabAtEnd: this.allTabAtEnd } },
+          headers: this.headers.filter((header) => {
+            const column = this.settings.columns[header.value];
+            return !column || column.visible;
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save All tab settings:', error);
+        // Revert the change if save failed
+        this.allTabAtEnd = !this.allTabAtEnd;
+      }
+    },
+
     loadSettings() {
       if (localStorage.getItem(`${this.tableName}__settings`)) {
         this.settings = JSON.parse(
@@ -75,7 +113,6 @@ export default {
       } else {
         this.settings = {
           columns: {},
-          tabs: {},
         };
       }
 
@@ -88,16 +125,8 @@ export default {
         }
       });
 
-      // Initialize tab settings
-      if (!this.settings.tabs) {
-        this.settings.tabs = {};
-      }
-      if (this.settings.tabs.allTabAtEnd === undefined) {
-        this.settings.tabs.allTabAtEnd = false;
-      }
-
       this.$emit('change', {
-        settings: this.settings,
+        settings: { ...this.settings, tabs: { allTabAtEnd: this.allTabAtEnd } },
         headers: this.headers.filter((header) => {
           const column = this.settings.columns[header.value];
           return !column || column.visible;
