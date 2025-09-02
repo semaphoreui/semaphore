@@ -7,12 +7,24 @@ import (
 	"net"
 	"net/smtp"
 	"strings"
+	"regexp"
 	"text/template"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/util"
 )
+
+// isValidEmail performs rudimentary email validation to avoid header/content injection
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+func isValidEmail(email string) bool {
+	// Must not contain newlines or percent-encoded variants
+	if strings.ContainsAny(email, "\r\n") || strings.Contains(email, "%0a") || strings.Contains(email, "%0d") {
+		return false
+	}
+	// Must match standard email regex (simple)
+	return emailRegex.MatchString(email)
+}
 
 const (
 	mailerBase = "MIME-version: 1.0\r\n" +
@@ -61,6 +73,11 @@ func Send(
 	subject string,
 	content string,
 ) error {
+	// perform robust email validation
+	if !isValidEmail(to) || !isValidEmail(from) {
+		return fmt.Errorf("invalid email address (to or from)")
+	}
+
 	body := bytes.NewBufferString("")
 	tpl, err := template.New("").Parse(mailerBase)
 	if err != nil {
