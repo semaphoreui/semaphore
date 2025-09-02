@@ -1,0 +1,1 @@
+create index task__output_task_id on task__output (task_id);
