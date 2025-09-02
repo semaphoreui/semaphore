@@ -31,19 +31,30 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// LdapUserData holds LDAP user information including groups
+type LdapUserData struct {
+	User   db.User
+	Groups []string
+}
+
 func convertEntryToMap(entity *ldap.Entry) map[string]any {
 	res := map[string]any{}
 	for _, attr := range entity.Attributes {
 		if len(attr.Values) == 0 {
 			continue
 		}
-		res[attr.Name] = attr.Values[0]
+		// For group membership attributes, store all values as an array
+		if len(attr.Values) > 1 {
+			res[attr.Name] = attr.Values
+		} else {
+			res[attr.Name] = attr.Values[0]
+		}
 	}
 
 	return res
 }
 
-func tryFindLDAPUser(username, password string) (*db.User, error) {
+func tryFindLDAPUser(username, password string) (*LdapUserData, error) {
 	if !util.Config.LdapEnable {
 		return nil, fmt.Errorf("LDAP not configured")
 	}
@@ -101,12 +112,12 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
-	// Get user info
+	// Get user info including group memberships
 	searchRequest = ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(util.Config.LdapSearchFilter, username),
-		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.UID, util.Config.LdapMappings.CN},
+		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.UID, util.Config.LdapMappings.CN, util.Config.LdapMappings.MemberOf},
 		nil,
 	)
 
@@ -128,6 +139,12 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		return nil, err
 	}
 
+	// Extract group memberships from LDAP claims
+	userGroups := extractGroupsFromClaims(entry, util.Config.LdapMappings.MemberOf)
+	
+	// Check if user should be admin based on group membership
+	isAdmin := checkIfUserIsAdmin(userGroups, util.Config.LdapAdminGroups)
+
 	ldapUser := db.User{
 		Username: strings.ToLower(claims.username),
 		Created:  tz.Now(),
@@ -135,6 +152,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 		Email:    claims.email,
 		External: true,
 		Alert:    false,
+		Admin:    isAdmin,
 	}
 
 	err = db.ValidateUser(ldapUser)
@@ -145,7 +163,75 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
-	return &ldapUser, nil
+	return &LdapUserData{
+		User:   ldapUser,
+		Groups: userGroups,
+	}, nil
+}
+
+// extractGroupsFromClaims extracts group memberships from LDAP claims
+func extractGroupsFromClaims(claims map[string]any, groupAttribute string) []string {
+	var groups []string
+	
+	if groupsValue, exists := claims[groupAttribute]; exists {
+		switch v := groupsValue.(type) {
+		case string:
+			groups = append(groups, v)
+		case []string:
+			groups = v
+		case []any:
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					groups = append(groups, str)
+				}
+			}
+		}
+	}
+	
+	return groups
+}
+
+// checkIfUserIsAdmin determines if user should be admin based on group membership
+func checkIfUserIsAdmin(userGroups []string, adminGroups []string) bool {
+	if len(adminGroups) == 0 {
+		return false
+	}
+	
+	for _, userGroup := range userGroups {
+		for _, adminGroup := range adminGroups {
+			if userGroup == adminGroup {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
+// assignRolesBasedOnGroups assigns project roles based on group mappings
+// Note: This is a simplified version that doesn't support project-specific roles
+// The group mapping format should be: "groupName:role" where role is one of: owner, manager, task_runner, guest
+func assignRolesBasedOnGroups(store db.Store, userID int, userGroups []string, groupMappings map[string]string) error {
+	if len(groupMappings) == 0 {
+		return nil
+	}
+	
+	// For now, log the group mappings that would be applied
+	// In a future version, this could be extended to support project-specific role assignment
+	for _, userGroup := range userGroups {
+		if roleStr, exists := groupMappings[userGroup]; exists {
+			// Validate that the role is recognized
+			switch strings.ToLower(roleStr) {
+			case "owner", "manager", "task_runner", "guest":
+				log.Info(fmt.Sprintf("LDAP user %d has group %s mapped to role %s (project assignment not yet implemented)", userID, userGroup, roleStr))
+				// TODO: Implement project assignment when GetProjectByName or similar method is available
+			default:
+				log.Warn("Unknown role in LDAP group mapping: " + roleStr)
+			}
+		}
+	}
+	
+	return nil
 }
 
 // createSession creates session for passed user and stores session details
@@ -234,11 +320,50 @@ func loginByPassword(store db.Store, login string, password string) (user db.Use
 	return
 }
 
-func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
+func loginByLDAP(store db.Store, ldapUserData LdapUserData) (user db.User, err error) {
+	ldapUser := ldapUserData.User
 	user, err = store.GetUserByLoginOrEmail(ldapUser.Username, ldapUser.Email)
 
 	if errors.Is(err, db.ErrNotFound) {
 		user, err = store.CreateUserWithoutPassword(ldapUser)
+		if err != nil {
+			return
+		}
+		
+		// For new users, assign roles based on group membership
+		if len(util.Config.LdapGroupMappings) > 0 {
+			err = assignRolesBasedOnGroups(store, user.ID, ldapUserData.Groups, util.Config.LdapGroupMappings)
+			if err != nil {
+				log.Error("Failed to assign roles based on LDAP groups: " + err.Error())
+				// Don't fail the login, just log the error
+			}
+		}
+	} else if err == nil {
+		// For existing users, update admin status if needed
+		if user.Admin != ldapUser.Admin {
+			user.Admin = ldapUser.Admin
+			// Update the user in the database using UserWithPwd structure
+			userWithPwd := db.UserWithPwd{
+				User: user,
+				Pwd:  "", // Empty password since this is an LDAP user
+			}
+			err = store.UpdateUser(userWithPwd)
+			if err != nil {
+				log.Error("Failed to update user admin status: " + err.Error())
+				// Continue with login even if update fails
+				err = nil
+			}
+		}
+		
+		// For existing users, update roles based on current group membership if configured
+		if len(util.Config.LdapGroupMappings) > 0 {
+			err = assignRolesBasedOnGroups(store, user.ID, ldapUserData.Groups, util.Config.LdapGroupMappings)
+			if err != nil {
+				log.Error("Failed to update roles based on LDAP groups: " + err.Error())
+				// Don't fail the login, just log the error
+				err = nil
+			}
+		}
 	}
 
 	if err != nil {
@@ -334,10 +459,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	var ldapUser *db.User
+	var ldapUserData *LdapUserData
 
 	if util.Config.LdapEnable {
-		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
+		ldapUserData, err = tryFindLDAPUser(login.Auth, login.Password)
 		if err != nil {
 			log.Warn(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -347,10 +472,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	var user db.User
 
-	if ldapUser == nil {
+	if ldapUserData == nil {
 		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
 	} else {
-		user, err = loginByLDAP(helpers.Store(r), *ldapUser)
+		user, err = loginByLDAP(helpers.Store(r), *ldapUserData)
 	}
 
 	if err != nil {

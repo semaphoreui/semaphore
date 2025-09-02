@@ -62,6 +62,7 @@ type LdapMappings struct {
 	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL" default:"mail"`
 	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID" default:"uid"`
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
+	MemberOf string `json:"memberof" env:"SEMAPHORE_LDAP_MAPPING_MEMBEROF" default:"memberOf"`
 }
 
 func (p *LdapMappings) GetUsernameClaim() string {
@@ -265,6 +266,10 @@ type ConfigType struct {
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
+	
+	// ldap group role mappings
+	LdapGroupMappings map[string]string `json:"ldap_group_mappings,omitempty" env:"SEMAPHORE_LDAP_GROUP_MAPPINGS"`
+	LdapAdminGroups   []string          `json:"ldap_admin_groups,omitempty" env:"SEMAPHORE_LDAP_ADMIN_GROUPS"`
 
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
