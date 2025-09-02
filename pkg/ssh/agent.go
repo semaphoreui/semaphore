@@ -102,7 +102,10 @@ func (a *Agent) Close() error {
 	if a.done != nil {
 		close(a.done)
 	}
-	return a.listener.Close()
+	if a.listener != nil {
+		return a.listener.Close()
+	}
+	return nil
 }
 
 func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
