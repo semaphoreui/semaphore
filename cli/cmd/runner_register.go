@@ -53,6 +53,11 @@ func registerRunner() {
 
 	initRunnerRegistrationToken()
 
+	// Ensure Runner config is initialized
+	if util.Config.Runner == nil {
+		util.Config.Runner = &util.RunnerConfig{}
+	}
+
 	// Apply CLI flags to override config values
 	if runnerRegisterArgs.hostname != "" {
 		util.Config.Runner.Name = runnerRegisterArgs.hostname

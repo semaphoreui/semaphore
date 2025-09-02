@@ -428,6 +428,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 			return
 		}
 
+		if config.Runner == nil {
+			config.Runner = &util.RunnerConfig{}
+		}
 		config.Runner.Token = res.Token
 		configFileBuffer, err = json.MarshalIndent(&config, " ", "\t")
 		if err != nil {
