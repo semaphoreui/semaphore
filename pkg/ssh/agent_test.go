@@ -41,3 +41,31 @@ func TestAgent_Close_WithAllNil(t *testing.T) {
 		t.Errorf("Expected no error when closing empty agent, got: %v", err)
 	}
 }
+
+// TestAgent_Close_FailedInitialization simulates the exact scenario from issue #3232
+// where agent initialization fails but the agent is still assigned to installation
+func TestAgent_Close_FailedInitialization(t *testing.T) {
+	// Simulate the scenario described in the issue:
+	// 1. StartSSHAgent() fails during Listen() but returns incomplete agent
+	// 2. Install() method assigns the incomplete agent to installation.SSHAgent
+	// 3. Later, destroyKeys() calls Destroy() which calls Close() on incomplete agent
+	
+	// Create an agent that would be returned by StartSSHAgent() if Listen() failed
+	incompleteAgent := Agent{
+		Keys: []AgentKey{
+			{
+				Key:        []byte("test-private-key"),
+				Passphrase: []byte(""),
+			},
+		},
+		SocketFile: "/tmp/test-socket.sock",
+		// listener and done are nil because Listen() failed
+	}
+
+	// This simulates the destroyKeys() -> Destroy() -> Close() call chain
+	// that was causing the panic
+	err := incompleteAgent.Close()
+	if err != nil {
+		t.Errorf("Expected no error when closing incomplete agent, got: %v", err)
+	}
+}
