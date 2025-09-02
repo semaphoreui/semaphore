@@ -46,4 +46,7 @@ __debug_bin*
 /pro_impl/
 /go.work.x
 /go.work
-/go.work.sum
+/go.work.sum*.log
+config.json
+database.boltdb
+admin

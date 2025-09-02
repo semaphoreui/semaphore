@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
-	"maps"
 	"os"
 	"strings"
 
@@ -35,7 +34,8 @@ type LocalJob struct {
 	becomeKeyInstallation  ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
-	KeyInstaller db_lib.AccessKeyInstaller
+	KeyInstaller  db_lib.AccessKeyInstaller
+	secretVarFile string // temporary file for secret variables (Ansible)
 }
 
 func (t *LocalJob) IsKilled() bool {
@@ -106,25 +106,21 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 	return
 }
 
+// getEnvironmentExtraVarsJSON returns JSON for public extra vars only, secrets are handled separately
 func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]any)
-	extraSecretVars := make(map[string]any)
 
+	// Only include public variables from Environment.JSON
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
 		if err != nil {
 			return
 		}
 	}
-	if t.Secret != "" {
-		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
-		if err != nil {
-			return
-		}
-	}
-	t.Secret = "{}"
 
-	maps.Copy(extraVars, extraSecretVars)
+	// Do not include secrets from t.Secret - they will be handled in separate temp file
+	// Clear the secret to avoid reprocessing
+	t.Secret = "{}"
 
 	taskDetails := make(map[string]any)
 
@@ -185,6 +181,90 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 	return
 }
 
+// getSecretEnvironmentVars returns environment variables for secrets, avoiding command line exposure
+func (t *LocalJob) getSecretEnvironmentVars(prefix string) (secretEnvVars []string, err error) {
+	// Add environment secrets
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type == db.EnvironmentSecretVar {
+			secretEnvVars = append(secretEnvVars, fmt.Sprintf("%s%s=%s", prefix, secret.Name, secret.Secret))
+		}
+	}
+
+	// Add survey secrets from t.Secret
+	if t.Secret != "" {
+		var extraSecretVars map[string]any
+		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
+		if err != nil {
+			return
+		}
+		for name, value := range extraSecretVars {
+			if strValue, ok := value.(string); ok {
+				secretEnvVars = append(secretEnvVars, fmt.Sprintf("%s%s=%s", prefix, name, strValue))
+			}
+		}
+	}
+
+	return
+}
+
+// createSecretExtraVarsFile creates a temporary file with secret variables for Ansible
+func (t *LocalJob) createSecretExtraVarsFile() (tempFile string, err error) {
+	secretVars := make(map[string]any)
+
+	// Add environment secrets
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type == db.EnvironmentSecretVar {
+			secretVars[secret.Name] = secret.Secret
+		}
+	}
+
+	// Add survey secrets from t.Secret (before it's cleared)
+	if t.Secret != "" {
+		var extraSecretVars map[string]any
+		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
+		if err != nil {
+			return
+		}
+		for name, value := range extraSecretVars {
+			secretVars[name] = value
+		}
+	}
+
+	// If no secrets, don't create file
+	if len(secretVars) == 0 {
+		return "", nil
+	}
+
+	// Create temporary file
+	tmpDir := util.Config.GetProjectTmpDir(t.Template.ProjectID)
+	tempFile = path.Join(tmpDir, fmt.Sprintf("secret_vars_%d.json", t.Task.ID))
+
+	jsonData, err := json.Marshal(secretVars)
+	if err != nil {
+		return
+	}
+
+	err = os.WriteFile(tempFile, jsonData, 0600) // Restrictive permissions for secrets
+	if err != nil {
+		return
+	}
+
+	// Store for cleanup
+	t.secretVarFile = tempFile
+
+	return
+}
+
+// cleanupSecretFile removes the temporary secret file if it exists
+func (t *LocalJob) cleanupSecretFile() {
+	if t.secretVarFile != "" {
+		if err := os.Remove(t.secretVarFile); err != nil {
+			t.Log("Warning: Could not remove secret vars file: " + err.Error())
+		}
+		t.secretVarFile = ""
+	}
+}
+
 // nolint: gocyclo
 func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
@@ -203,13 +283,6 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 
 	// Script to run
 	args = append(args, t.Template.Playbook)
-
-	// Include Environment Secret Vars
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type == db.EnvironmentSecretVar {
-			args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-		}
-	}
 
 	// Include extra args from template
 	args = append(args, templateArgs...)
@@ -265,13 +338,6 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 
 	args = append(args, templateArgs...)
 	args = append(args, taskArgs...)
-
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	}
 
 	return
 }
@@ -396,11 +462,12 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--extra-vars", extraVars)
 	}
 
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	// Create temporary file for secrets to avoid exposing them in command line
+	secretFile, err := t.createSecretExtraVarsFile()
+	if err != nil {
+		t.Log("Warning: Could not create secret vars file: " + err.Error())
+	} else if secretFile != "" {
+		args = append(args, "--extra-vars", "@"+secretFile)
 	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
@@ -533,6 +600,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	defer func() {
 		t.destroyKeys()
 		t.destroyInventoryFile()
+		t.cleanupSecretFile()
 		t.App.Clear()
 	}()
 
@@ -582,6 +650,26 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 
 	if err != nil {
 		return
+	}
+
+	// Add secret environment variables to avoid exposing them in command line arguments
+	switch t.Template.App {
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
+		// For Terraform, use TF_VAR_ prefix for variables
+		secretEnvVars, secretErr := t.getSecretEnvironmentVars("TF_VAR_")
+		if secretErr != nil {
+			t.Log("Warning: Failed to process secret environment variables: " + secretErr.Error())
+		} else {
+			environmentVariables = append(environmentVariables, secretEnvVars...)
+		}
+	default:
+		// For Ansible and Shell, add secrets as regular environment variables  
+		secretEnvVars, secretErr := t.getSecretEnvironmentVars("")
+		if secretErr != nil {
+			t.Log("Warning: Failed to process secret environment variables: " + secretErr.Error())
+		} else {
+			environmentVariables = append(environmentVariables, secretEnvVars...)
+		}
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
