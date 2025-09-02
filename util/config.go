@@ -663,8 +663,8 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 
 						newVal, converted := CastValueToKind(val.Interface(), fieldValue.Type().Kind())
 						if !converted {
-							return fmt.Errorf("cannot assign value of type %s to map element of type %s",
-								val.Type(), val)
+							return fmt.Errorf("cannot assign value of type %s to field %s of type %s",
+								val.Type(), field.Name, fieldValue.Type())
 						}
 
 						fieldValue.Set(reflect.ValueOf(newVal))
