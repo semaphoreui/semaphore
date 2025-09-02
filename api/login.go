@@ -275,6 +275,7 @@ type LoginAuthMethods struct {
 type loginMetadata struct {
 	OidcProviders     []loginMetadataOidcProvider `json:"oidc_providers"`
 	LoginWithPassword bool                        `json:"login_with_password"`
+	LoginWithEmail    bool                        `json:"login_with_email"`
 	AuthMethods       LoginAuthMethods            `json:"auth_methods"`
 }
 
@@ -284,6 +285,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		config := &loginMetadata{
 			OidcProviders:     make([]loginMetadataOidcProvider, len(util.Config.OidcProviders)),
 			LoginWithPassword: !util.Config.PasswordLoginDisable,
+			LoginWithEmail:    util.Config.Auth != nil && util.Config.Auth.Email != nil && util.Config.Auth.Email.Enabled,
 		}
 		i := 0
 

@@ -226,7 +226,7 @@
 
               </div>
 
-              <div v-else>
+              <div v-else-if="loginWithEmail">
                 <v-text-field
                   v-model="email"
                   :label="$t('Email')"
@@ -263,7 +263,7 @@
 
               <div
                 class="auth__divider"
-                v-if="oidcProviders.length > 0"
+                v-if="oidcProviders.length > 0 && (loginWithPassword || loginWithEmail)"
               >or</div>
 
               <v-btn
@@ -351,6 +351,7 @@ export default {
 
       oidcProviders: [],
       loginWithPassword: null,
+      loginWithEmail: null,
       authMethods: {},
 
       screen: null,
@@ -418,6 +419,7 @@ export default {
       }).then((resp) => {
         this.oidcProviders = resp.data.oidc_providers;
         this.loginWithPassword = resp.data.login_with_password;
+        this.loginWithEmail = resp.data.login_with_email;
         this.authMethods = resp.data.auth_methods || {};
       });
     },
