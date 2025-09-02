@@ -39,7 +39,10 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 func (p AnsiblePlaybook) runCmd(command string, args []string) error {
 	cmd := p.makeCmd(command, args, nil)
 	p.Logger.LogCmd(cmd)
-	return cmd.Run()
+	err := cmd.Run()
+	// Wait for all log processing to complete before returning
+	p.Logger.WaitLog()
+	return err
 }
 
 func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
@@ -78,7 +81,10 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 
 	defer func() { _ = ptmx.Close() }()
 	cb(cmd.Process)
-	return cmd.Wait()
+	err = cmd.Wait()
+	// Wait for all log processing to complete before returning
+	p.Logger.WaitLog()
+	return err
 }
 
 func (p AnsiblePlaybook) RunGalaxy(args []string) error {
