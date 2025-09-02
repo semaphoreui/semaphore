@@ -663,8 +663,8 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 
 						newVal, converted := CastValueToKind(val.Interface(), fieldValue.Type().Kind())
 						if !converted {
-							return fmt.Errorf("cannot assign value of type %s to field %s of type %s",
-								val.Type(), field.Name, fieldValue.Type())
+							return fmt.Errorf("cannot assign value of type %s to map element of type %s",
+								val.Type(), val)
 						}
 
 						fieldValue.Set(reflect.ValueOf(newVal))
@@ -691,6 +691,16 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 		if reflect.ValueOf(value).Kind() != reflect.Bool {
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
+		}
+	case reflect.Slice:
+		// Handle string representations of slices, e.g., `["-u semaphore -b"]`
+		if str, isString := value.(string); isString {
+			var arr []string
+			err := json.Unmarshal([]byte(str), &arr)
+			if err == nil {
+				res = arr
+				ok = true
+			}
 		}
 	default:
 	}
