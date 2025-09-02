@@ -8,7 +8,7 @@ import (
 func TestAgent_Close_WithNilListener(t *testing.T) {
 	// Create agent with nil listener (simulates failed initialization)
 	agent := Agent{}
-	
+
 	// This should not panic
 	err := agent.Close()
 	if err != nil {
@@ -22,7 +22,7 @@ func TestAgent_Close_WithNilDone(t *testing.T) {
 	agent := Agent{
 		done: nil,
 	}
-	
+
 	// This should not panic
 	err := agent.Close()
 	if err != nil {
@@ -34,7 +34,7 @@ func TestAgent_Close_WithNilDone(t *testing.T) {
 func TestAgent_Close_WithAllNil(t *testing.T) {
 	// Create completely empty agent (simulates NewAgent() result)
 	agent := NewAgent()
-	
+
 	// This should not panic
 	err := agent.Close()
 	if err != nil {
