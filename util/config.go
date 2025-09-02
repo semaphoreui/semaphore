@@ -123,6 +123,12 @@ type RunnerConfig struct {
 	Webhook string `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
 
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+
+	// New registration options
+	Name        string `json:"name,omitempty" env:"SEMAPHORE_RUNNER_NAME"`
+	Active      *bool  `json:"active,omitempty" env:"SEMAPHORE_RUNNER_ACTIVE"`
+	ProjectName string `json:"project_name,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_NAME"`
+	Tag         string `json:"tag,omitempty" env:"SEMAPHORE_RUNNER_TAG"`
 }
 
 type TLSConfig struct {

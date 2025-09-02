@@ -60,6 +60,10 @@ type RunnerRegistration struct {
 	Webhook           string  `json:"webhook,omitempty"`
 	MaxParallelTasks  int     `json:"max_parallel_tasks"`
 	PublicKey         *string `json:"public_key,omitempty"`
+	Name              string  `json:"name,omitempty"`
+	Active            *bool   `json:"active,omitempty"`
+	ProjectName       string  `json:"project_name,omitempty"`
+	Tag               string  `json:"tag,omitempty"`
 }
 
 type jobLogRecord struct {

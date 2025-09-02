@@ -309,6 +309,10 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		Webhook:          register.Webhook,
 		MaxParallelTasks: register.MaxParallelTasks,
 		PublicKey:        register.PublicKey,
+		Name:             register.Name,
+		Active:           register.Active != nil && *register.Active, // Default to false if not specified
+		Tag:              register.Tag,
+		// ProjectID will be nil for global runners, can be enhanced later for project name lookup
 	})
 
 	if err != nil {
