@@ -361,6 +361,10 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		Webhook:           util.Config.Runner.Webhook,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 		PublicKey:         &publicKey,
+		Name:              util.Config.Runner.Name,
+		Active:            util.Config.Runner.Active,
+		ProjectName:       util.Config.Runner.ProjectName,
+		Tag:               util.Config.Runner.Tag,
 	})
 
 	if err != nil {
@@ -424,6 +428,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 			return
 		}
 
+		if config.Runner == nil {
+			config.Runner = &util.RunnerConfig{}
+		}
 		config.Runner.Token = res.Token
 		configFileBuffer, err = json.MarshalIndent(&config, " ", "\t")
 		if err != nil {
