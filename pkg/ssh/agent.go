@@ -144,7 +144,7 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
 	if key.SSHAgent != nil {
 		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
-		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 		if util.Config.SshConfigPath != "" {
 			sshCmd += " -F " + util.Config.SshConfigPath
 		}
