@@ -49,7 +49,7 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	ptmx, err := pty.Start(cmd)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	go func() {

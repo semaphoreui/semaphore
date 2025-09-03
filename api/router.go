@@ -561,6 +561,13 @@ func servePublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if this is a request for the swagger UI
+	swaggerPath := path.Join(webPath, "swagger")
+	if reqPath == swaggerPath || reqPath == swaggerPath+"/" {
+		serveFile(w, r, "swagger/index.html")
+		return
+	}
+
 	if !strings.Contains(reqPath, ".") {
 		serveFile(w, r, "index.html")
 		return

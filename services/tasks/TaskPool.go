@@ -422,6 +422,81 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	return nil
 }
 
+// StopTasksByTemplate stops all active (queued or running) tasks that belong to
+// the specified project and template. If forceStop is true, tasks are marked as
+// stopped immediately and running tasks are killed; otherwise tasks are marked
+// as stopping and will gracefully transition to stopped.
+func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
+	// Handle queued tasks
+	for _, t := range p.state.QueueRange() {
+		if t == nil {
+			continue
+		}
+		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			continue
+		}
+		if t.Task.Status.IsFinished() {
+			continue
+		}
+		if forceStop {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			t.SetStatus(task_logger.TaskStoppingStatus)
+		}
+		// Queued tasks will be dequeued and immediately finalize to Stopped in run()
+	}
+
+	// Handle running tasks
+	for _, t := range p.state.RunningRange() {
+		if t == nil {
+			continue
+		}
+		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			continue
+		}
+		if t.Task.Status.IsFinished() {
+			continue
+		}
+		prevStatus := t.Task.Status
+		if forceStop {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			t.SetStatus(task_logger.TaskStoppingStatus)
+		}
+		if prevStatus == task_logger.TaskRunningStatus {
+			t.kill()
+		}
+	}
+
+	// Update tasks in DB that are neither queued nor running but still active
+	// (e.g., created but not present in this instance's memory state).
+	if tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
+		TaskFilter: &db.TaskFilter{
+			Status: task_logger.UnfinishedTaskStatuses(),
+		},
+	}); err == nil {
+		for _, twt := range tasks {
+
+			// if task is managed locally (queued/running), it was handled above
+			if p.GetTask(twt.Task.ID) != nil {
+				continue
+			}
+
+			// mark non-local task as stopped and write event for history
+			tr := NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if err := tr.populateDetails(); err != nil {
+				log.Error(err)
+				continue
+			}
+
+			tr.SetStatus(task_logger.TaskStoppedStatus)
+			tr.createTaskEvent()
+		}
+	} else {
+		log.Error(err)
+	}
+}
+
 // GetQueuedTasks returns a snapshot of tasks currently queued
 func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
 	return p.state.QueueRange()

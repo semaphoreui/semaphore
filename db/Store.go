@@ -52,6 +52,7 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 	Filter       string
 	Ownership    OwnershipFilter
+	TaskFilter   *TaskFilter
 }
 
 type ObjectReferrer struct {
@@ -171,6 +172,7 @@ type TaskFilter struct {
 	Start  *time.Time `json:"start"`
 	End    *time.Time `json:"end"`
 	UserID *int       `json:"user_id"`
+	Status []task_logger.TaskStatus
 }
 
 type TaskStat struct {

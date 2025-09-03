@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type TaskController struct {
@@ -412,5 +413,19 @@ func GetTaskStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *TaskController) StopAllTasks(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	tpl := helpers.GetFromContext(r, "template").(db.Template)
+
+	var stopObj struct {
+		Force bool `json:"force"`
+	}
+
+	// optional body; ignore bind error and default Force=false
+	if ok := helpers.Bind(w, r, &stopObj); !ok {
+		helpers.WriteErrorStatus(w, "Not allowed", http.StatusBadRequest)
+		return
+	}
+
+	taskPool(r).StopTasksByTemplate(project.ID, tpl.ID, stopObj.Force)
 	w.WriteHeader(http.StatusNoContent)
 }

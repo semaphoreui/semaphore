@@ -44,6 +44,13 @@
       @yes="remove()"
     />
 
+    <YesNoDialog
+      :title="$t('stopAllTasks')"
+      :text="$t('askStopAllTasks')"
+      v-model="stopAllDialog"
+      @yes="stopAllTasks()"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
@@ -64,6 +71,16 @@
       <v-spacer></v-spacer>
 
       <v-btn
+        @click="stopAllDialog = true"
+        color="grey"
+        class="mr-3"
+        v-if="canStop"
+      >
+        Stop all
+      </v-btn>
+
+      <v-btn
+        v-if="canRun"
         color="primary"
         depressed
         class="mr-3"
@@ -98,11 +115,13 @@
       <v-tab
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
-        }/templates/${item.id}/tasks`">{{ $t('template_tasks') }}</v-tab>
+        }/templates/${item.id}/tasks`">{{ $t('template_tasks') }}
+      </v-tab>
       <v-tab
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
-        }/templates/${item.id}/details`">{{ $t('template_details') }}</v-tab>
+        }/templates/${item.id}/details`">{{ $t('template_details') }}
+      </v-tab>
       <v-tab
         v-if="['terraform', 'tofu'].includes(item.app)"
         :to="`/project/${item.project_id}${
@@ -113,7 +132,7 @@
       </v-tab>
     </v-tabs>
 
-    <v-divider style="margin-top: -1px;"/>
+    <v-divider style="margin-top: -1px;" />
 
     <router-view
       class="mt-8"
@@ -130,10 +149,12 @@
 <style lang="scss">
 
 @import '~vuetify/src/styles/settings/_variables';
+
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;
 }
+
 @media #{map-get($display-breakpoints, 'md-and-up')} {
   .TemplateView__description {
     transform: translateY(-12px);
@@ -193,11 +214,20 @@ export default {
       itemRefs: null,
       itemRefsDialog: null,
       newTaskDialog: null,
+      stopAllDialog: null,
       USER_PERMISSIONS,
     };
   },
 
   computed: {
+    canRun() {
+      return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+
+    canStop() {
+      return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+
     canUpdate() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
     },
@@ -242,6 +272,31 @@ export default {
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+
+    async stopAllTasks() {
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/templates/${this.itemId}/stop_all_tasks`,
+          data: {
+            force: true,
+          },
+          responseType: 'json',
+        });
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'All running tasks have been requested to stop',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.stopAllDialog = false;
+      }
     },
 
     async askDelete() {

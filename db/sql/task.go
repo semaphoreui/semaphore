@@ -2,10 +2,11 @@ package sql
 
 import (
 	"encoding/json"
-	"github.com/Masterminds/squirrel"
-	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
 	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
@@ -242,6 +243,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("id desc")
+
+	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
+		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
+	}
 
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)

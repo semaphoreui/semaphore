@@ -147,6 +147,87 @@ definitions:
         type: string
         enum: [owner, manager, task_runner, guest]
 
+  ProjectInvite:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      project_id:
+        type: integer
+        minimum: 1
+      user_id:
+        type: integer
+        minimum: 1
+        description: User ID for user-based invites (optional)
+      email:
+        type: string
+        format: email
+        description: Email address for email-based invites (optional)
+      role:
+        type: string
+        enum: [owner, manager, task_runner, guest]
+        example: manager
+      status:
+        type: string
+        enum: [pending, accepted, declined, expired]
+        example: pending
+      inviter_user_id:
+        type: integer
+        minimum: 1
+        description: ID of the user who created the invite
+      created:
+        type: string
+        format: date-time
+        description: When the invite was created
+      expires_at:
+        type: string
+        format: date-time
+        description: When the invite expires (optional)
+      accepted_at:
+        type: string
+        format: date-time
+        description: When the invite was accepted (optional)
+      inviter_user:
+        $ref: "#/definitions/User"
+        description: Details of the user who created the invite
+      user:
+        $ref: "#/definitions/User"
+        description: Details of the invited user (for user-based invites)
+
+  ProjectInviteRequest:
+    type: object
+    properties:
+#      user_id:
+#        type: integer
+#        minimum: 1
+#        description: User ID to invite (use either user_id or email, not both)
+      email:
+        type: string
+        format: email
+        description: Email address to invite (use either user_id or email, not both)
+        x-example: user@example.com
+      role:
+        type: string
+        enum: [owner, manager, task_runner, guest]
+        example: manager
+      expires_at:
+        type: string
+        format: date-time
+        description: When the invite should expire (optional, defaults to 7 days)
+    required:
+      - role
+
+  AcceptInviteRequest:
+    type: object
+    properties:
+      token:
+        type: string
+        description: The invitation token
+        x-example: "a1b2c3d4e5f6..."
+    required:
+      - token
+
   ProjectBackup:
     type: object
     example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
@@ -1150,6 +1231,13 @@ parameters:
     type: integer
     required: true
     x-example: 13
+  invite_id:
+    name: invite_id
+    description: Invite ID
+    in: path
+    type: integer
+    required: true
+    x-example: 14
 
 paths:
   /debug/gc:
@@ -1573,20 +1661,6 @@ paths:
             items:
               $ref: '#/definitions/Event'
 
-  /project/{project_id}/notifications/test:
-    post:
-      summary: Send test notification
-      description: Sends a test notification to all enabled messengers for the project
-      parameters:
-        - $ref: "#/parameters/project_id"
-      responses:
-        204:
-          description: Test notification dispatched (or alerts disabled)
-        401:
-          description: not authenticated
-        403:
-          description: forbidden
-
   # User management
   /project/{project_id}/users:
     parameters:
@@ -1668,6 +1742,120 @@ paths:
         204:
           description: User updated
 
+  # Invite management
+  /project/{project_id}/invites:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get invitations for project
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          type: string
+          enum: [created, status, role]
+          description: sorting field
+          x-example: created
+        - name: order
+          in: query
+          required: false
+          type: string
+          enum: [asc, desc]
+          description: ordering manner
+          x-example: desc
+      responses:
+        200:
+          description: Project invitations
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/ProjectInvite"
+    post:
+      tags:
+        - project
+      summary: Create project invitation
+      parameters:
+        - name: Invite
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ProjectInviteRequest"
+      responses:
+        201:
+          description: Invitation created
+          schema:
+            $ref: "#/definitions/ProjectInvite"
+        400:
+          description: Bad request (invalid role, missing user_id/email, or both provided)
+        409:
+          description: User already a member or invitation already exists
+
+  /project/{project_id}/invites/{invite_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/invite_id"
+    get:
+      tags:
+        - project
+      summary: Get specific project invitation
+      responses:
+        200:
+          description: Project invitation
+          schema:
+            $ref: "#/definitions/ProjectInvite"
+        404:
+          description: Invitation not found
+#    put:
+#      tags:
+#        - project
+#      summary: Update project invitation status
+#      parameters:
+#        - name: Invite Update
+#          in: body
+#          required: true
+#          schema:
+#            type: object
+#            properties:
+#              status:
+#                type: string
+#                enum: [pending, declined, expired]
+#                example: declined
+#      responses:
+#        204:
+#          description: Invitation updated
+#        400:
+#          description: Invalid status or status transition
+#    delete:
+#      tags:
+#        - project
+#      summary: Delete project invitation
+#      responses:
+#        204:
+#          description: Invitation deleted
+#
+#  /invites/accept:
+#    post:
+#      tags:
+#        - project
+#      summary: Accept project invitation
+#      parameters:
+#        - name: Accept Invite
+#          in: body
+#          required: true
+#          schema:
+#            $ref: "#/definitions/AcceptInviteRequest"
+#      responses:
+#        204:
+#          description: Invitation accepted successfully
+#        400:
+#          description: Invalid token, invitation expired, or user already a member
+#        403:
+#          description: Invitation not for this user
+#        404:
+#          description: Invitation not found
+
   /project/{project_id}/integrations:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -1705,14 +1893,12 @@ paths:
     get:
       tags:
         - integration
-      summary: Get Integration by ID
+      summary: Get Integration
       responses:
         200:
           description: Integration Value
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/Integration"
+            $ref: "#/definitions/Integration"
     put:
       tags:
         - integration
@@ -2251,6 +2437,18 @@ paths:
         204:
           description: template removed
 
+  /project/{project_id}/templates/{template_id}/stop_all_tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    post:
+      tags:
+        - template
+      summary: Stop all active tasks of template
+      responses:
+        204:
+          description: tasks stopped
+
 
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
@@ -2516,3 +2714,17 @@ paths:
             type: array
             items:
               $ref: "#/definitions/App"
+
+  /project/{project_id}/notifications/test:
+    post:
+      tags:
+        - project
+      summary: Send test notification
+      description: Sends a test notification to all enabled messengers for the project
+      parameters:
+        - $ref: "#/parameters/project_id"
+      responses:
+        409:
+          description: Alerts not enabled for the project
+#        204:
+#          description: Test notification dispatched (or alerts disabled)
