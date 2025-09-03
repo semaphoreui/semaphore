@@ -259,7 +259,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	return nil
 }
 
-func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
+func (e BackupTemplate) RestoreWithScheduleHandling(store db.Store, b *BackupDB, skipAutoSchedules bool) error {
 	var InventoryID *int
 	if e.Inventory != nil {
 		if k := findEntityByName[db.Inventory](e.Inventory, b.inventories); k == nil {
@@ -316,7 +316,9 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		return err
 	}
 	b.templates = append(b.templates, newTemplate)
-	if e.Cron != nil {
+	
+	// Only create schedule automatically if no explicit schedules are provided in backup
+	if e.Cron != nil && !skipAutoSchedules {
 		_, err := store.CreateSchedule(
 			db.Schedule{
 				ProjectID:    b.meta.ID,
@@ -354,6 +356,10 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		}
 	}
 	return nil
+}
+
+func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
+	return e.RestoreWithScheduleHandling(store, b, false)
 }
 
 func (e BackupIntegration) Restore(store db.Store, b *BackupDB) error {
@@ -514,19 +520,23 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 	}
 
 	deployTemplates := make([]int, 0)
+	
+	// Check if backup has explicit schedules to avoid duplicates during template restore
+	hasExplicitSchedules := len(backup.Schedules) > 0
+	
 	for i, o := range backup.Templates {
 		if string(o.Type) == "deploy" {
 			deployTemplates = append(deployTemplates, i)
 			continue
 		}
-		if err := o.Restore(store, &b); err != nil {
+		if err := o.RestoreWithScheduleHandling(store, &b, hasExplicitSchedules); err != nil {
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
 
 	for _, i := range deployTemplates {
 		o := backup.Templates[i]
-		if err := o.Restore(store, &b); err != nil {
+		if err := o.RestoreWithScheduleHandling(store, &b, hasExplicitSchedules); err != nil {
 			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}

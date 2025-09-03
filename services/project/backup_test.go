@@ -228,3 +228,124 @@ func TestMakeUniqueNames(t *testing.T) {
 
 	assert.True(t, isUnique(items), "Not unique names")
 }
+
+func TestBackupRestoreScheduleDuplicationFix(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	store := sql.CreateTestStore()
+
+	// Create a simple project
+	proj, err := store.CreateProject(db.Project{
+		Name: "Schedule Test Project",
+	})
+	assert.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
+		Name:      "Test Key",
+	})
+	assert.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test Repo",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	assert.NoError(t, err)
+
+	// Create template for completeness but we'll use the backup format directly
+	_, err = store.CreateTemplate(db.Template{
+		Name:         "Test Template",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		Type:         db.TemplateTask,
+	})
+	assert.NoError(t, err)
+
+	// Create a schedule manually and simulate a backup format that would create duplicates
+	backupFormat := &BackupFormat{
+		Meta: BackupMeta{
+			Project: db.Project{
+				Name: "Schedule Test Project",
+			},
+		},
+		Templates: []BackupTemplate{
+			{
+				Template: db.Template{
+					Name:         "Test Template",
+					Playbook:     "test.yml",
+					Type:         db.TemplateTask,
+				},
+				Repository: "Test Repo",
+				Cron:       stringPtr("0 */4 * * *"), // This would trigger automatic schedule creation
+			},
+		},
+		Schedules: []BackupSchedule{
+			{
+				Schedule: db.Schedule{
+					Name:       "Explicit Schedule",
+					CronFormat: "0 */4 * * *",
+					Active:     true,
+				},
+				Template: "Test Template",
+			},
+		},
+		Repositories: []BackupRepository{
+			{
+				Repository: db.Repository{
+					Name:      "Test Repo",
+					GitURL:    "git@example.com:test/test",
+					GitBranch: "master",
+				},
+				SSHKey: stringPtr("Test Key"),
+			},
+		},
+		Keys: []BackupAccessKey{
+			{
+				AccessKey: db.AccessKey{
+					Name: "Test Key",
+					Type: db.AccessKeyNone,
+				},
+			},
+		},
+	}
+
+	// Create user for restore
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "test",
+			Name:     "Test",
+			Email:    "test@example.com",
+			Admin:    true,
+		},
+	})
+	assert.NoError(t, err)
+
+	// Restore project - this should test our fix
+	restoredProj, err := backupFormat.Restore(user, store)
+	assert.NoError(t, err)
+	assert.Equal(t, proj.Name, restoredProj.Name)
+
+	// Check that only one schedule was created (not duplicated)
+	restoredSchedules, err := store.GetProjectSchedules(restoredProj.ID, true)
+	assert.NoError(t, err)
+	
+	// This test verifies our fix: should have exactly 1 schedule, not 2
+	assert.Len(t, restoredSchedules, 1, "Expected exactly one schedule, but found %d. Duplication issue not fixed.", len(restoredSchedules))
+	
+	if len(restoredSchedules) > 0 {
+		// Verify the schedule name is the explicit one, not a random one
+		assert.Equal(t, "Explicit Schedule", restoredSchedules[0].Schedule.Name, "Schedule should have the explicit name, not a random one")
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
+}

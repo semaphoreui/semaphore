@@ -137,3 +137,7 @@ func (e BackupTemplate) GetName() string {
 func (e BackupSecretStorage) GetName() string {
 	return e.Name
 }
+
+func (e BackupSchedule) GetName() string {
+	return e.Name
+}
