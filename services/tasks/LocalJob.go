@@ -1,10 +1,13 @@
 package tasks
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"os"
+	"os/exec"
 	"strings"
 
 	"path"
@@ -34,8 +37,10 @@ type LocalJob struct {
 	becomeKeyInstallation  ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
-	KeyInstaller  db_lib.AccessKeyInstaller
-	secretVarFile string // temporary file for secret variables (Ansible)
+	KeyInstaller       db_lib.AccessKeyInstaller
+	secretVarFile      string // temporary file for secret variables (Ansible)
+	secretVaultPassword string // vault password for encrypting secret files
+	secretVaultPasswordFile string // temporary file containing vault password
 }
 
 func (t *LocalJob) IsKilled() bool {
@@ -207,7 +212,40 @@ func (t *LocalJob) getSecretEnvironmentVars(prefix string) (secretEnvVars []stri
 	return
 }
 
-// createSecretExtraVarsFile creates a temporary file with secret variables for Ansible
+// generateVaultPassword creates a secure random vault password for encrypting secret files
+func (t *LocalJob) generateVaultPassword() (string, error) {
+	// Generate 32 bytes of random data and encode as hex
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate random vault password: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+// createVaultPasswordFile creates a temporary file containing the vault password
+func (t *LocalJob) createVaultPasswordFile() (string, error) {
+	if t.secretVaultPassword == "" {
+		var err error
+		t.secretVaultPassword, err = t.generateVaultPassword()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	tmpDir := util.Config.GetProjectTmpDir(t.Template.ProjectID)
+	vaultPasswordFile := path.Join(tmpDir, fmt.Sprintf("vault_pass_%d", t.Task.ID))
+
+	err := os.WriteFile(vaultPasswordFile, []byte(t.secretVaultPassword), 0600)
+	if err != nil {
+		return "", fmt.Errorf("failed to create vault password file: %w", err)
+	}
+
+	t.secretVaultPasswordFile = vaultPasswordFile
+	return vaultPasswordFile, nil
+}
+
+// createSecretExtraVarsFile creates a temporary file with secret variables for Ansible, encrypted with ansible-vault
 func (t *LocalJob) createSecretExtraVarsFile() (tempFile string, err error) {
 	secretVars := make(map[string]any)
 
@@ -244,9 +282,28 @@ func (t *LocalJob) createSecretExtraVarsFile() (tempFile string, err error) {
 		return
 	}
 
-	err = os.WriteFile(tempFile, jsonData, 0600) // Restrictive permissions for secrets
+	// Write unencrypted data first
+	err = os.WriteFile(tempFile, jsonData, 0600)
 	if err != nil {
 		return
+	}
+
+	// Create vault password file for encryption
+	vaultPasswordFile, err := t.createVaultPasswordFile()
+	if err != nil {
+		// Clean up the secret file if vault password creation fails
+		os.Remove(tempFile)
+		return "", fmt.Errorf("failed to create vault password file: %w", err)
+	}
+
+	// Encrypt the file using ansible-vault
+	cmd := exec.Command("ansible-vault", "encrypt", "--vault-password-file", vaultPasswordFile, tempFile)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Clean up files if encryption fails
+		os.Remove(tempFile)
+		os.Remove(vaultPasswordFile)
+		return "", fmt.Errorf("failed to encrypt secret vars file with ansible-vault: %w, output: %s", err, string(output))
 	}
 
 	// Store for cleanup
@@ -255,13 +312,19 @@ func (t *LocalJob) createSecretExtraVarsFile() (tempFile string, err error) {
 	return
 }
 
-// cleanupSecretFile removes the temporary secret file if it exists
+// cleanupSecretFile removes the temporary secret file and vault password file if they exist
 func (t *LocalJob) cleanupSecretFile() {
 	if t.secretVarFile != "" {
 		if err := os.Remove(t.secretVarFile); err != nil {
 			t.Log("Warning: Could not remove secret vars file: " + err.Error())
 		}
 		t.secretVarFile = ""
+	}
+	if t.secretVaultPasswordFile != "" {
+		if err := os.Remove(t.secretVaultPasswordFile); err != nil {
+			t.Log("Warning: Could not remove vault password file: " + err.Error())
+		}
+		t.secretVaultPasswordFile = ""
 	}
 }
 
@@ -467,6 +530,10 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	if err != nil {
 		t.Log("Warning: Could not create secret vars file: " + err.Error())
 	} else if secretFile != "" {
+		// Add vault-id for decrypting the secret vars file
+		if t.secretVaultPasswordFile != "" {
+			args = append(args, fmt.Sprintf("--vault-id=secrets@%s", t.secretVaultPasswordFile))
+		}
 		args = append(args, "--extra-vars", "@"+secretFile)
 	}
 

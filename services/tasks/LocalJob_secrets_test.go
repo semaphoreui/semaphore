@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -177,6 +178,69 @@ func TestSecretsInEnvironmentVariables(t *testing.T) {
 		
 		// Built-in vars should still be present
 		assert.NotNil(t, extraVars["semaphore_vars"], "Built-in semaphore_vars should be present")
+	})
+}
+
+// TestVaultEncryption verifies that secret files are properly encrypted with ansible-vault
+func TestVaultEncryption(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	t.Run("Secret file is encrypted with ansible-vault", func(t *testing.T) {
+		// Create the project temp directory
+		projectTmpDir := util.Config.GetProjectTmpDir(0)
+		err := os.MkdirAll(projectTmpDir, 0755)
+		assert.NoError(t, err)
+		defer os.RemoveAll(projectTmpDir)
+
+		job := &LocalJob{
+			Task: db.Task{
+				ID: 12345,
+			},
+			Template: db.Template{
+				ProjectID: 0,
+			},
+			Environment: db.Environment{
+				Secrets: []db.EnvironmentSecret{
+					{
+						Name:   "secret_var",
+						Secret: "secret_value",
+						Type:   db.EnvironmentSecretVar,
+					},
+				},
+			},
+			Secret: `{"survey_secret": "survey_value"}`,
+			Logger: &MockLogger{},
+		}
+
+		secretFile, err := job.createSecretExtraVarsFile()
+		if err != nil {
+			t.Skip("Skipping vault encryption test - ansible-vault may not be available:", err)
+		}
+		defer job.cleanupSecretFile()
+
+		// Verify file was created
+		assert.NotEmpty(t, secretFile, "Secret file should be created")
+		assert.FileExists(t, secretFile, "Secret file should exist")
+
+		// Read the file content
+		content, err := os.ReadFile(secretFile)
+		assert.NoError(t, err)
+
+		// Verify the file is encrypted (ansible-vault files start with $ANSIBLE_VAULT)
+		assert.True(t, strings.HasPrefix(string(content), "$ANSIBLE_VAULT"), 
+			"Secret file should be encrypted with ansible-vault")
+
+		// Verify plain text secrets are not in the encrypted file
+		assert.NotContains(t, string(content), "secret_value", 
+			"Plain text secret should not be visible in encrypted file")
+		assert.NotContains(t, string(content), "survey_value", 
+			"Plain text survey secret should not be visible in encrypted file")
+
+		// Verify vault password file was created
+		assert.NotEmpty(t, job.secretVaultPasswordFile, "Vault password file should be created")
+		assert.FileExists(t, job.secretVaultPasswordFile, "Vault password file should exist")
 	})
 }
 
