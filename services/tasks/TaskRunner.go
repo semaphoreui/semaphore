@@ -284,9 +284,13 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
-	if err != nil {
-		return
+	
+	// Only unmarshal Environment.JSON if it's not empty
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+		if err != nil {
+			return
+		}
 	}
 
 	taskEnvironment := make(map[string]any)
