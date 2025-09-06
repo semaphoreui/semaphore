@@ -31,10 +31,6 @@ type LocalJob struct {
 	killed  bool // killed means that API request to stop the job has been received
 	Process *os.Process
 
-	sshKeyInstallation     ssh.AccessKeyInstallation
-	becomeKeyInstallation  ssh.AccessKeyInstallation
-	vaultFileInstallations map[string]ssh.AccessKeyInstallation
-
 	KeyInstaller db_lib.AccessKeyInstaller
 }
 
@@ -658,18 +654,8 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		}
 	}
 
-	if err := t.installInventory(); err != nil {
-		t.Log("Failed to install inventory: " + err.Error())
-		return err
-	}
-
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
-		return err
-	}
-
-	if err := t.installVaultKeyFiles(); err != nil {
-		t.Log("Failed to install vault password files: " + err.Error())
 		return err
 	}
 
@@ -748,36 +734,4 @@ func (t *LocalJob) checkoutRepository() error {
 	t.SetCommit(commitHash, commitMessage)
 
 	return nil
-}
-
-func (t *LocalJob) installVaultKeyFiles() (err error) {
-	t.vaultFileInstallations = make(map[string]ssh.AccessKeyInstallation)
-
-	if len(t.Template.Vaults) == 0 {
-		return nil
-	}
-
-	for _, vault := range t.Template.Vaults {
-		var name string
-		if vault.Name != nil {
-			name = *vault.Name
-		} else {
-			name = "default"
-		}
-
-		var install ssh.AccessKeyInstallation
-		if vault.Type == db.TemplateVaultPassword {
-			install, err = t.KeyInstaller.Install(*vault.Vault, db.AccessKeyRoleAnsiblePasswordVault, t.Logger)
-			if err != nil {
-				return
-			}
-		}
-		if vault.Type == db.TemplateVaultScript && vault.Script != nil {
-			install.Script = *vault.Script
-		}
-
-		t.vaultFileInstallations[name] = install
-	}
-
-	return
 }

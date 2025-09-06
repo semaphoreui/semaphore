@@ -12,31 +12,6 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-func (t *LocalJob) installInventory() (err error) {
-	if t.Inventory.SSHKeyID != nil {
-		t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
-		if err != nil {
-			return
-		}
-	}
-
-	if t.Inventory.BecomeKeyID != nil {
-		t.becomeKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.BecomeKey, db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
-		if err != nil {
-			return
-		}
-	}
-
-	switch t.Inventory.Type {
-	case db.InventoryFile:
-		err = t.cloneInventoryRepo(t.KeyInstaller)
-	case db.InventoryStatic, db.InventoryStaticYaml:
-		err = t.installStaticInventory()
-	}
-
-	return
-}
-
 func (t *LocalJob) tmpInventoryFilename() string {
 	if t.Inventory.Repository == nil {
 		return "inventory_" + strconv.Itoa(t.Inventory.ID)
