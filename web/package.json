@@ -11,7 +11,7 @@
   "dependencies": {
     "@mdi/font": "^7.0.0",
     "ansi_up": "^6.0.6",
-    "axios": "^1.8.3",
+    "axios": "^1.12.0",
     "chart.js": "^3.8.0",
     "core-js": "^3.40.0",
     "cron-parser": "^5.3.0",
