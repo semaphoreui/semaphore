@@ -21,7 +21,7 @@
           </v-btn>
         </v-card-title>
         <v-card-text>
-          <EditViewsForm :project-id="projectId"/>
+          <EditViewsForm :project-id="projectId" />
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -84,7 +84,7 @@
             <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
           </v-list-item>
 
-          <v-divider v-if="isAdmin && appsMixin.activeAppIds.length > 0"/>
+          <v-divider v-if="isAdmin && appsMixin.activeAppIds.length > 0" />
 
           <v-list-item
             v-if="isAdmin"
@@ -110,7 +110,8 @@
         v-if="!allTabAtEnd"
         :to="getViewUrl(null)"
         :disabled="viewItemsLoading"
-      >{{ $t('all') }}</v-tab>
+      >{{ $t('all') }}
+      </v-tab>
 
       <v-tab
         v-for="(view) in views"
@@ -124,7 +125,8 @@
         v-if="allTabAtEnd"
         :to="getViewUrl(null)"
         :disabled="viewItemsLoading"
-      >{{ $t('all') }}</v-tab>
+      >{{ $t('all') }}
+      </v-tab>
 
       <v-btn
         icon
@@ -136,7 +138,7 @@
       </v-btn>
     </v-tabs>
 
-    <v-divider style="margin-top: -1px;"/>
+    <v-divider style="margin-top: -1px;" />
 
     <v-data-table
       hide-default-footer
@@ -194,7 +196,7 @@
 
       <template v-slot:item.status="{ item }">
         <div class="mt-2 mb-2 d-flex" v-if="item.last_task != null">
-          <TaskStatus :status="item.last_task.status"/>
+          <TaskStatus :status="item.last_task.status" />
         </div>
         <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">{{ $t('notLaunched') }}</div>
       </template>
@@ -207,17 +209,17 @@
             :tooltip="item.last_task.message"
           />
           <div style="color: gray; font-size: 14px;">
-            {{ $t('by', {user_name: item.last_task.user_name}) }}
+            {{ $t('by', { user_name: item.last_task.user_name }) }}
           </div>
         </div>
       </template>
 
       <template v-slot:item.inventory_id="{ item }">
-        {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
+        {{ (inventory.find((x) => x.id === item.inventory_id) || { name: '—' }).name }}
       </template>
 
       <template v-slot:item.environment_id="{ item }">
-        {{ (environment.find((x) => x.id === item.environment_id) || {name: '—'}).name }}
+        {{ (environment.find((x) => x.id === item.environment_id) || { name: '—' }).name }}
       </template>
 
       <template v-slot:item.repository_id="{ item }">
@@ -385,7 +387,8 @@ export default {
       let allView = null;
       let maxCustomPosition = -1;
 
-      for (const view of views) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const view of (views || [])) {
         if (view.type === 'all' && !view.hidden) {
           allView = view;
         } else if (!view.hidden && view.position > maxCustomPosition) {
@@ -408,13 +411,12 @@ export default {
         url: `/api/project/${this.projectId}/views`,
         responseType: 'json',
       })).data;
-      
       // Calculate allTabAtEnd from the views array
       this.allTabAtEnd = this.shouldAllTabBeAtEnd(this.views);
-      
-      this.views.sort((v1, v2) => v1.position - v2.position);
 
-      if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
+      this.views?.sort((v1, v2) => v1.position - v2.position);
+
+      if (this.viewId != null && !this.views?.some((v) => v.id === this.viewId)) {
         await this.$router.push({ path: `/project/${this.projectId}/templates` });
       }
     },
@@ -535,10 +537,10 @@ export default {
       ]);
     },
 
-    async onTableSettingsChange({ headers, settings, allTabAtEnd }) {
+    async onTableSettingsChange({ headers, allTabAtEnd }) {
       this.filteredHeaders = headers;
-      
-      // If allTabAtEnd was changed, update the All view position
+
+      // If allTabAtEnd was changed, update All view position
       if (allTabAtEnd !== undefined && allTabAtEnd !== this.allTabAtEnd) {
         await this.updateAllTabPosition(allTabAtEnd);
         this.allTabAtEnd = allTabAtEnd;
@@ -547,10 +549,11 @@ export default {
 
     async updateAllTabPosition(allTabAtEnd) {
       try {
-        // Find the All view and calculate new position
+        // Find All view and calculate new position
         let allView = null;
         let maxPosition = -1;
 
+        // eslint-disable-next-line no-restricted-syntax
         for (const view of this.views) {
           if (view.type === 'all') {
             allView = view;
@@ -565,7 +568,7 @@ export default {
         }
 
         const newPosition = allTabAtEnd ? maxPosition + 1 : -1;
-        
+
         if (allView.position !== newPosition) {
           // Update the view position via the standard API
           const positions = {};

@@ -2,12 +2,13 @@ package db
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/util"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 // Migration represents sql schema version
@@ -33,6 +34,7 @@ func GetMigrations(dialect string) []Migration {
 			{Version: "2.16.1"},
 			{Version: "2.16.2"},
 			{Version: "2.16.3"},
+			{Version: "2.17.0"},
 		}
 	}
 
@@ -115,6 +117,7 @@ func GetMigrations(dialect string) []Migration {
 		{Version: "2.16.1"},
 		{Version: "2.16.2"},
 		{Version: "2.16.3"},
+		{Version: "2.17.0"},
 	}
 }
 

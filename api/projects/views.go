@@ -61,8 +61,8 @@ func GetViews(w http.ResponseWriter, r *http.Request) {
 
 	// Filter out hidden views from normal views response unless explicitly requested
 	showHidden := r.URL.Query().Get("show_hidden") == "true"
-	var filteredViews []db.View
-	
+	filteredViews := make([]db.View, 0)
+
 	for _, view := range views {
 		if !view.Hidden || showHidden {
 			filteredViews = append(filteredViews, view)

@@ -28,7 +28,6 @@
 
 <script>
 import PageBottomSheet from '@/components/PageBottomSheet.vue';
-import axios from 'axios';
 
 export default {
   props: {
@@ -60,7 +59,7 @@ export default {
         this.updateAllTabFromViews();
       }
     },
-    
+
     headers() {
       this.loadSettings();
     },
@@ -91,7 +90,8 @@ export default {
       let allView = null;
       let maxCustomPosition = -1;
 
-      for (const view of this.views) {
+      for (let i = 0; i < this.views.length; i += 1) {
+        const view = this.views[i];
         if (view.type === 'all' && !view.hidden) {
           allView = view;
         } else if (!view.hidden && view.position > maxCustomPosition) {
