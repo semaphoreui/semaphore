@@ -19,9 +19,22 @@ tags:
     description: User-related API
   - name: integration
     description: Integration API
+  - name: schedule
+    description: Make things happen
+  - name: misc
+    description: Miscellaneous API Endpoints
+  - name: events
+    description: Events
+servers:
+  - url: /api
+    description: local development
+
 paths:
   /debug/gc:
     post:
+      operationId: postDebugGc
+      tags:
+        - misc
       summary: Garbage collector
       description: Run the garbage collector
       responses:
@@ -30,6 +43,9 @@ paths:
 
   "/ping":
     get:
+      operationId: getPing
+      tags:
+        - misc
       summary: PING test
       responses:
         '200':
@@ -45,6 +61,9 @@ paths:
       security: []
   "/ws":
     get:
+      operationId: getWs
+      tags:
+        - misc
       summary: Websocket handler
       responses:
         '200':
@@ -55,6 +74,9 @@ paths:
           content: {}
   "/info":
     get:
+      tags:
+        - misc
+      operationId: getInfo
       summary: Fetches information about semaphore
       description: you must be authenticated to use this
       responses:
@@ -69,6 +91,7 @@ paths:
                 "$ref": "#/components/schemas/InfoType"
   "/auth/login":
     get:
+      operationId: getAuthLogin
       tags:
         - authentication
       summary: Fetches login metadata
@@ -85,6 +108,7 @@ paths:
                 "$ref": "#/components/schemas/LoginMetadata"
       security: []
     post:
+      operationId: postAuthLogin
       tags:
         - authentication
       summary: Performs Login
@@ -106,6 +130,7 @@ paths:
       x-codegen-request-body-name: Login Body
   "/auth/logout":
     post:
+      operationId: postAuthLogout
       tags:
         - authentication
       summary: Destroys current session
@@ -115,6 +140,7 @@ paths:
           content: {}
   "/auth/oidc/{provider_id}/login":
     get:
+      operationId: getOidcLoginBegin
       tags:
         - authentication
       summary: Begin OIDC authentication flow and redirect to OIDC provider
@@ -126,14 +152,10 @@ paths:
             page on error
           content: {}
     parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-        example: mysso
+      - $ref: "#/components/parameters/provider_id"
   "/auth/oidc/{provider_id}/redirect":
     get:
+      operationId: getOidcLoginRedirect
       tags:
         - authentication
       summary: Finish OIDC authentication flow, upon succes you will be logged in
@@ -145,14 +167,10 @@ paths:
             login page on error
           content: {}
     parameters:
-      - name: provider_id
-        in: path
-        required: true
-        schema:
-          type: string
-        example: mysso
+      - $ref: "#/components/parameters/provider_id"
   "/user/":
     get:
+      operationId: getUserBySession
       tags:
         - user
       summary: Fetch logged in user
@@ -168,6 +186,7 @@ paths:
                 "$ref": "#/components/schemas/User"
   "/user/tokens":
     get:
+      operationId: getUserTokens
       tags:
         - authentication
         - user
@@ -187,6 +206,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/APIToken"
     post:
+      operationId: postUserTokens
       tags:
         - authentication
         - user
@@ -203,6 +223,7 @@ paths:
                 "$ref": "#/components/schemas/APIToken"
   "/user/tokens/{api_token_id}":
     delete:
+      operationId: deleteUserToken
       tags:
         - authentication
         - user
@@ -213,6 +234,7 @@ paths:
           content: {}
     parameters:
       - name: api_token_id
+        description: the API Token string
         in: path
         required: true
         schema:
@@ -220,6 +242,7 @@ paths:
         example: kwofd61g93-yuqvex8efmhjkgnbxlo8mp1tin6spyhu=
   "/users":
     get:
+      operationId: getUsers
       tags:
         - user
       summary: Fetches all users
@@ -238,6 +261,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/User"
     post:
+      operationId: postUsers
       tags:
         - user
       summary: Creates a user
@@ -263,6 +287,7 @@ paths:
       x-codegen-request-body-name: User
   "/users/{user_id}/":
     get:
+      operationId: getUserById
       tags:
         - user
       summary: Fetches a user profile
@@ -277,6 +302,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/User"
     put:
+      operationId: putUserById
       tags:
         - user
       summary: Updates user details
@@ -292,6 +318,7 @@ paths:
           content: {}
       x-codegen-request-body-name: User
     delete:
+      operationId: deleteUserById
       tags:
         - user
       summary: Deletes user
@@ -303,6 +330,7 @@ paths:
       - "$ref": "#/components/parameters/user_id"
   "/users/{user_id}/password":
     post:
+      operationId: postUserByIdPassword
       tags:
         - user
       summary: Updates user password
@@ -325,8 +353,9 @@ paths:
       - "$ref": "#/components/parameters/user_id"
   "/projects":
     get:
+      operationId: getProjects
       tags:
-        - projects
+        - project
       summary: Get projects
       responses:
         '200':
@@ -343,8 +372,9 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Project"
     post:
+      operationId: postProjects
       tags:
-        - projects
+        - project
       summary: Create a new project
       requestBody:
         content:
@@ -365,8 +395,9 @@ paths:
       x-codegen-request-body-name: Project
   "/projects/restore":
     post:
+      operationId: postProjectRestore
       tags:
-        - projects
+        - project
       summary: Restore Project
       requestBody:
         content:
@@ -387,6 +418,9 @@ paths:
       x-codegen-request-body-name: Backup
   "/events":
     get:
+      operationId: getEvents
+      tags:
+        - events
       summary: Get Events related to Semaphore and projects you are part of
       responses:
         '200':
@@ -404,8 +438,10 @@ paths:
                   "$ref": "#/components/schemas/Event"
   "/events/last":
     get:
-      summary: Get last 200 Events related to Semaphore and projects you are part
-        of
+      operationId: getEventsRecent
+      tags:
+        - events
+      summary: Get last 200 Events related to Semaphore and projects you are part of
       responses:
         '200':
           description: Array of events in chronological order
@@ -422,6 +458,7 @@ paths:
                   "$ref": "#/components/schemas/Event"
   "/project/{project_id}/":
     get:
+      operationId: getProjectById
       tags:
         - project
       summary: Fetch project
@@ -436,6 +473,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Project"
     put:
+      operationId: putProjectById
       tags:
         - project
       summary: Update project
@@ -457,6 +495,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Project
     delete:
+      operationId: deleteProjectById
       tags:
         - project
       summary: Delete project
@@ -468,6 +507,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/backup":
     get:
+      operationId: getProjectByIdBackup
       tags:
         - project
       summary: Backup A Project
@@ -485,6 +525,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/role":
     get:
+      operationId: getProjectByIdRole
       tags:
         - project
       summary: Fetch permissions of the current user for project
@@ -516,6 +557,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/events":
     get:
+      operationId: getProjectByidEvents
       tags:
         - project
       summary: Get Events related to this project
@@ -537,6 +579,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/users":
     get:
+      operationId: getProjectByIdUsers
       tags:
         - project
       summary: Get users linked to project
@@ -578,6 +621,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/ProjectUser"
     post:
+      operationId: postProjectByIdUsers
       tags:
         - project
       summary: Link user to project
@@ -608,6 +652,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/users/{user_id}":
     put:
+      operationId: putProjectByIdUserById
       tags:
         - project
       summary: Update user role
@@ -632,6 +677,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Project User
     delete:
+      operationId: deleteProjectByIdUserById
       tags:
         - project
       summary: Removes user from project
@@ -644,6 +690,7 @@ paths:
       - "$ref": "#/components/parameters/user_id"
   "/project/{project_id}/invites":
     get:
+      operationId: getProjectByIdInvites
       tags:
         - project
       summary: Get invitations for project
@@ -684,6 +731,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/ProjectInvite"
     post:
+      operationId: postProjectByIdInvites
       tags:
         - project
       summary: Create project invitation
@@ -714,6 +762,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/invites/{invite_id}":
     get:
+      operationId: getProjectByIdInviteById
       tags:
         - project
       summary: Get specific project invitation
@@ -731,6 +780,7 @@ paths:
           description: Invitation not found
           content: {}
     put:
+      operationId: putProjectByIdInviteById
       tags:
         - project
       summary: Update project invitation status
@@ -757,6 +807,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Invite Update
     delete:
+      operationId: deleteProjectByIdInviteById
       tags:
         - project
       summary: Delete project invitation
@@ -769,6 +820,7 @@ paths:
       - "$ref": "#/components/parameters/invite_id"
   "/invites/accept":
     post:
+      operationId: postInvitesAccept
       tags:
         - project
       summary: Accept project invitation
@@ -794,6 +846,7 @@ paths:
       x-codegen-request-body-name: Accept Invite
   "/project/{project_id}/integrations":
     get:
+      operationId: getProjectByIdIntegrations
       tags:
         - project
       summary: get all integrations
@@ -812,6 +865,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Integration"
     post:
+      operationId: postProjectByIdIntegrations
       tags:
         - project
       summary: create a new integration
@@ -836,6 +890,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/integrations/{integration_id}":
     put:
+      operationId: putProjectByIdIntegrationById
       tags:
         - project
       summary: Update Integration
@@ -851,6 +906,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Integration
     delete:
+      operationId: deleteProjectByIdIntegrationById
       tags:
         - project
       summary: Remove integration
@@ -863,6 +919,7 @@ paths:
       - "$ref": "#/components/parameters/integration_id"
   "/project/{project_id}/integrations/{integration_id}/values":
     get:
+      operationId: getProjectByIdIntegrationByIdValues
       tags:
         - integration
       summary: Get Integration Extracted Values linked to integration extractor
@@ -881,6 +938,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/IntegrationExtractValue"
     post:
+      operationId: postProjectByIdIntegrationByIdValues
       tags:
         - project
       summary: Add Integration Extracted Value
@@ -903,6 +961,7 @@ paths:
       - "$ref": "#/components/parameters/integration_id"
   "/project/{project_id}/integrations/{integration_id}/values/{extractvalue_id}":
     put:
+      operationId: putProjectByIdIntegrationByIdValueById
       tags:
         - integration
       summary: Updates Integration ExtractValue
@@ -921,6 +980,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Integration ExtractValue
     delete:
+      operationId: deleteProjectByIdIntegrationByIdValueById
       tags:
         - integration
       summary: Removes integration extract value
@@ -934,6 +994,7 @@ paths:
       - "$ref": "#/components/parameters/extractvalue_id"
   "/project/{project_id}/integrations/{integration_id}/matchers":
     get:
+      operationId: getProjectByIdIntegrationByIdMatchers
       tags:
         - integration
       summary: Get Integration Matcher linked to integration extractor
@@ -952,6 +1013,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/IntegrationMatcher"
     post:
+      operationId: postProjectByIdIntegrationByIdMatchers
       tags:
         - project
       summary: Add Integration Matcher
@@ -974,6 +1036,7 @@ paths:
       - "$ref": "#/components/parameters/integration_id"
   "/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}":
     put:
+      operationId: putProjectByIdIntegrationByIdMatcherById
       tags:
         - integration
       summary: Updates Integration Matcher
@@ -992,6 +1055,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Integration Matcher
     delete:
+      operationId: deleteProjectByIdIntegrationByIdMatcherById
       tags:
         - integration
       summary: Removes integration matcher
@@ -1005,6 +1069,7 @@ paths:
       - "$ref": "#/components/parameters/matcher_id"
   "/project/{project_id}/keys":
     get:
+      operationId: getProjectByIdKeys
       tags:
         - project
       summary: Get access keys linked to project
@@ -1054,6 +1119,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/AccessKey"
     post:
+      operationId: postProjectByIdKeys
       tags:
         - project
       summary: Add access key
@@ -1081,6 +1147,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/keys/{key_id}":
     put:
+      operationId: putProjectByIdKeyById
       tags:
         - project
       summary: Updates access key
@@ -1099,6 +1166,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Access Key
     delete:
+      operationId: deleteProjectByIdKeyById
       tags:
         - project
       summary: Removes access key
@@ -1111,6 +1179,7 @@ paths:
       - "$ref": "#/components/parameters/key_id"
   "/project/{project_id}/repositories":
     get:
+      operationId: getProjectByIdRepositories
       tags:
         - project
       summary: Get repositories
@@ -1150,6 +1219,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Repository"
     post:
+      operationId: postProjectByIdRepositories
       tags:
         - project
       summary: Add repository
@@ -1174,6 +1244,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/repositories/{repository_id}":
     get:
+      operationId: getProjectByIdRepositoryById
       tags:
         - project
       summary: Get repository
@@ -1188,6 +1259,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Repository"
     put:
+      operationId: putProjectByIdRepositoryById
       tags:
         - project
       summary: Updates repository
@@ -1206,6 +1278,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Repository
     delete:
+      operationId: deleteProjectByIdRepositoryById
       tags:
         - project
       summary: Removes repository
@@ -1218,6 +1291,7 @@ paths:
       - "$ref": "#/components/parameters/repository_id"
   "/project/{project_id}/inventory":
     get:
+      operationId: getProjectByIdInventory
       tags:
         - project
       summary: Get inventory
@@ -1255,6 +1329,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Inventory"
     post:
+      operationId: postProjectByIdInventory
       tags:
         - project
       summary: create inventory
@@ -1279,6 +1354,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/inventory/{inventory_id}":
     get:
+      operationId: getProjectByIdInventoryById
       tags:
         - project
       summary: Get inventory
@@ -1293,6 +1369,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Inventory"
     put:
+      operationId: putProjectByIdInventoryById
       tags:
         - project
       summary: Updates inventory
@@ -1308,6 +1385,7 @@ paths:
           content: {}
       x-codegen-request-body-name: Inventory
     delete:
+      operationId: deleteProjectByIdInventoryById
       tags:
         - project
       summary: Removes inventory
@@ -1320,6 +1398,7 @@ paths:
       - "$ref": "#/components/parameters/inventory_id"
   "/project/{project_id}/environment":
     get:
+      operationId: getProjectByIdEnvironment
       tags:
         - project
       summary: Get environment
@@ -1355,6 +1434,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Environment"
     post:
+      operationId: postProjectByIdEnvironment
       tags:
         - project
       summary: Add environment
@@ -1379,6 +1459,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/environment/{environment_id}":
     get:
+      operationId: getProjectByIdEnvironmentById
       tags:
         - project
       summary: Get environment
@@ -1393,6 +1474,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Environment"
     put:
+      operationId: putProjectByIdEnvironmentById
       tags:
         - project
       summary: Update environment
@@ -1408,6 +1490,7 @@ paths:
           content: {}
       x-codegen-request-body-name: environment
     delete:
+      operationId: deleteProjectByIdEnvironmentById
       tags:
         - project
       summary: Removes environment
@@ -1420,6 +1503,7 @@ paths:
       - "$ref": "#/components/parameters/environment_id"
   "/project/{project_id}/templates":
     get:
+      operationId: getProjectByIdTemplates
       tags:
         - project
       summary: Get template
@@ -1461,6 +1545,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Template"
     post:
+      operationId: postProjectByIdTemplates
       tags:
         - project
       summary: create template
@@ -1485,6 +1570,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/templates/{template_id}":
     get:
+      operationId: getProjectByIdTemplateById
       tags:
         - project
       summary: Get template
@@ -1499,6 +1585,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Template"
     put:
+      operationId: putProjectByIdTemplateById
       tags:
         - project
       summary: Updates template
@@ -1514,6 +1601,7 @@ paths:
           content: {}
       x-codegen-request-body-name: template
     delete:
+      operationId: deleteProjectByIdTemplateById
       tags:
         - project
       summary: Removes template
@@ -1526,6 +1614,7 @@ paths:
       - "$ref": "#/components/parameters/template_id"
   "/project/{project_id}/schedules/{schedule_id}":
     get:
+      operationId: getProjectByIdScheduleById
       tags:
         - schedule
       summary: Get schedule
@@ -1540,6 +1629,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Schedule"
     put:
+      operationId: putProjectByIdScheduleById
       tags:
         - schedule
       summary: Updates schedule
@@ -1555,6 +1645,7 @@ paths:
           content: {}
       x-codegen-request-body-name: schedule
     delete:
+      operationId: deleteProjectByIdScheduleById
       tags:
         - schedule
       summary: Deletes schedule
@@ -1567,6 +1658,7 @@ paths:
       - "$ref": "#/components/parameters/schedule_id"
   "/project/{project_id}/schedules":
     post:
+      operationId: postProjectByIdSchedules
       tags:
         - schedule
       summary: create schedule
@@ -1591,6 +1683,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/views":
     get:
+      operationId: getProjectByIdViews
       tags:
         - project
       summary: Get view
@@ -1609,6 +1702,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/View"
     post:
+      operationId: postProjectByIdViews
       tags:
         - project
       summary: create view
@@ -1633,6 +1727,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/views/{view_id}":
     get:
+      operationId: getProjectByIdViewById
       tags:
         - project
       summary: Get view
@@ -1647,6 +1742,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/View"
     put:
+      operationId: putProjectByIdViewById
       tags:
         - project
       summary: Updates view
@@ -1662,6 +1758,7 @@ paths:
           content: {}
       x-codegen-request-body-name: view
     delete:
+      operationId: deleteProjectByIdViewById
       tags:
         - project
       summary: Removes view
@@ -1674,6 +1771,7 @@ paths:
       - "$ref": "#/components/parameters/view_id"
   "/project/{project_id}/tasks":
     get:
+      operationId: getProjectByIdTasks
       tags:
         - project
       summary: Get Tasks related to current project
@@ -1692,6 +1790,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/Task"
     post:
+      operationId: postProjectByIdTasks
       tags:
         - project
       summary: Starts a job
@@ -1725,6 +1824,8 @@ paths:
                       type: boolean
                     limit:
                       type: array
+                      items:
+                        type: string
 
         required: true
       responses:
@@ -1742,6 +1843,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/tasks/last":
     get:
+      operationId: getProjectByIdTasksLast
       tags:
         - project
       summary: Get last 200 Tasks related to current project
@@ -1763,6 +1865,7 @@ paths:
       - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/tasks/{task_id}/stop":
     post:
+      operationId: postProjectByIdTaskByIdStop
       tags:
         - project
       summary: Stop a job
@@ -1775,6 +1878,7 @@ paths:
       - "$ref": "#/components/parameters/task_id"
   "/project/{project_id}/tasks/{task_id}":
     get:
+      operationId: getProjectByIdTaskById
       tags:
         - project
       summary: Get a single task
@@ -1789,6 +1893,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Task"
     delete:
+      operationId: deleteProjectByIdTaskById
       tags:
         - project
       summary: Deletes task (including output)
@@ -1801,6 +1906,7 @@ paths:
       - "$ref": "#/components/parameters/task_id"
   "/project/{project_id}/tasks/{task_id}/output":
     get:
+      operationId: getProjectByIdTaskByIdOutput
       tags:
         - project
       summary: Get task output
@@ -1823,6 +1929,7 @@ paths:
       - "$ref": "#/components/parameters/task_id"
   "/project/{project_id}/tasks/{task_id}/raw_output":
     get:
+      operationId: getProjectByIdTaskByIdRawOutput
       tags:
         - project
       summary: Get task raw output
@@ -1839,6 +1946,9 @@ paths:
       - "$ref": "#/components/parameters/task_id"
   "/apps":
     get:
+      operationId: getApps
+      tags:
+        - misc
       summary: Get apps
       responses:
         '200':
@@ -1962,6 +2072,9 @@ components:
             - guest
     ProjectInvite:
       type: object
+      description: |
+        inviter_user: Details of the user who created the invite
+        user: Details of the invited user (for user-based invites)
       properties:
         id:
           minimum: 1
@@ -2011,10 +2124,8 @@ components:
           description: When the invite was accepted (optional)
         inviter_user:
           "$ref": "#/components/schemas/User"
-          description: Details of the user who created the invite
         user:
           "$ref": "#/components/schemas/User"
-          description: Details of the invited user (for user-based invites)
     ProjectInviteRequest:
       type: object
       properties:
@@ -3015,6 +3126,15 @@ components:
       schema:
         type: integer
       example: 14
+    provider_id:
+      name: provider_id
+      description: OIDC Provider ID
+      in: path
+      required: true
+      schema:
+        type: string
+      example: mysso
+
   securitySchemes:
     cookie:
       type: apiKey
@@ -3024,4 +3144,8 @@ components:
       type: apiKey
       name: Authorization
       in: header
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 x-original-swagger-version: '2.0'

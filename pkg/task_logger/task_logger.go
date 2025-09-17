@@ -70,27 +70,27 @@ func (s TaskStatus) Format() (res string) {
 
 	switch s {
 	case TaskWaitingStatus:
-		res += "WAITING"
+		res += " WAITING"
 	case TaskStartingStatus:
-		res += "STARTING"
+		res += " STARTING"
 	case TaskWaitingConfirmation:
-		res += "WAITING_CONFIRMATION"
+		res += " WAITING_CONFIRMATION"
 	case TaskConfirmed:
-		res += "CONFIRMED"
+		res += " CONFIRMED"
 	case TaskRejected:
-		res += "REJECTED"
+		res += " REJECTED"
 	case TaskRunningStatus:
-		res += "RUNNING"
+		res += " RUNNING"
 	case TaskStoppingStatus:
-		res += "STOPPING"
+		res += " STOPPING"
 	case TaskStoppedStatus:
-		res += "STOPPED"
+		res += " STOPPED"
 	case TaskSuccessStatus:
-		res += "SUCCESS"
+		res += " SUCCESS"
 	case TaskFailStatus:
-		res += "ERROR"
+		res += " ERROR"
 	default:
-		res += "UNKNOWN"
+		res += " UNKNOWN"
 	}
 
 	return

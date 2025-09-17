@@ -274,7 +274,10 @@ func runTask(task *TaskRunner, p *TaskPool) {
 	p.onTaskRun(task)
 
 	log.Info("Task " + strconv.Itoa(task.Task.ID) + " started")
-	go task.run()
+	go func() {
+		time.Sleep(1 * time.Second)
+		task.run()
+	}()
 }
 
 func (p *TaskPool) onTaskRun(t *TaskRunner) {

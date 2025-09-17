@@ -1,8 +1,9 @@
 package projects
 
 import (
-	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
+
+	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -361,15 +362,17 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	//	SSHKeyID:  &noneKey.ID,
 	//})
 
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
+	//if err != nil {
+	//	helpers.WriteError(w, err)
+	//	return
+	//}
 
+	envStr := "{}"
 	emptyEnv, err := store.CreateEnvironment(db.Environment{
 		Name:      "Empty",
 		ProjectID: body.ID,
 		JSON:      "{}",
+		ENV:       &envStr,
 	})
 
 	if err != nil {
