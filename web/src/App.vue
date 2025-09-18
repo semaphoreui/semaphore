@@ -569,6 +569,16 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="compliance" to="/compliance" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-shield-check</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  Compliance Dashboard
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="edit" @click="userDialog = true">
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>

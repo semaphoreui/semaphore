@@ -1,0 +1,407 @@
+// Compliance Dashboard Styles
+// Provides comprehensive styling for the compliance dashboard components
+
+.compliance-dashboard {
+  // Main dashboard container
+  &__container {
+    padding: 16px;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+
+  // Summary cards styling
+  &__summary-cards {
+    margin-bottom: 24px;
+    
+    .v-card {
+      transition: all 0.3s ease;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      }
+    }
+
+    .v-card__text {
+      padding: 20px;
+    }
+
+    .text-h4 {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .text-subtitle-1 {
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+  }
+
+  // Chart containers
+  &__charts {
+    margin-bottom: 24px;
+    
+    .v-card {
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .v-card__title {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px 12px 0 0;
+      padding: 16px 20px;
+      
+      .v-icon {
+        margin-right: 8px;
+      }
+    }
+
+    .v-card__text {
+      padding: 20px;
+      min-height: 300px;
+    }
+  }
+
+  // Data tables styling
+  &__tables {
+    .v-card {
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .v-card__title {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      padding: 16px 20px;
+      
+      .v-icon {
+        margin-right: 8px;
+      }
+    }
+
+    .v-data-table {
+      font-size: 0.875rem;
+      
+      .v-data-table__wrapper {
+        border-radius: 0;
+      }
+    }
+  }
+
+  // Filter controls
+  &__filters {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+    padding: 20px;
+    
+    .v-select {
+      .v-input__control {
+        border-radius: 8px;
+      }
+    }
+  }
+
+  // Loading states
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    
+    .v-progress-circular {
+      color: #667eea;
+    }
+  }
+
+  // Empty states
+  &__empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    
+    .v-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+  }
+}
+
+// Compliance-specific component styles
+.compliance-card {
+  &--success {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+  }
+
+  &--warning {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+  }
+
+  &--error {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    color: white;
+  }
+
+  &--info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+}
+
+// Compliance table enhancements
+.compliance-table {
+  .v-data-table {
+    &__header {
+      background-color: #f8f9fa;
+      font-weight: 600;
+    }
+
+    &__row {
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: #f8f9fa;
+      }
+    }
+  }
+
+  // Status indicators
+  &__status {
+    &--success {
+      color: #28a745;
+    }
+
+    &--warning {
+      color: #ffc107;
+    }
+
+    &--error {
+      color: #dc3545;
+    }
+
+    &--info {
+      color: #17a2b8;
+    }
+  }
+
+  // Progress indicators
+  &__progress {
+    .v-progress-circular {
+      margin-right: 8px;
+    }
+  }
+}
+
+// Compliance charts
+.compliance-chart {
+  &__container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+  }
+
+  &__tooltip {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+  }
+
+  &__legend {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+    gap: 16px;
+    
+    &-item {
+      display: flex;
+      align-items: center;
+      font-size: 0.875rem;
+      
+      &__color {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .compliance-dashboard {
+    &__container {
+      padding: 8px;
+    }
+
+    &__summary-cards {
+      .v-col {
+        margin-bottom: 16px;
+      }
+    }
+
+    &__charts {
+      .v-card__text {
+        padding: 16px;
+        min-height: 250px;
+      }
+    }
+
+    &__tables {
+      .v-data-table {
+        font-size: 0.8rem;
+      }
+    }
+  }
+
+  .compliance-table {
+    .v-data-table {
+      &__header {
+        font-size: 0.8rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .compliance-dashboard {
+    &__summary-cards {
+      .text-h4 {
+        font-size: 1.5rem;
+      }
+      
+      .text-subtitle-1 {
+        font-size: 0.8rem;
+      }
+    }
+
+    &__charts {
+      .v-card__text {
+        min-height: 200px;
+      }
+    }
+  }
+}
+
+// Dark mode support
+.v-application--dark {
+  .compliance-dashboard {
+    &__container {
+      background-color: #121212;
+    }
+
+    &__filters {
+      background: #1e1e1e;
+      color: white;
+    }
+  }
+
+  .compliance-table {
+    .v-data-table {
+      &__header {
+        background-color: #2d2d2d;
+        color: white;
+      }
+    }
+  }
+}
+
+// Animation classes
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter,
+.slide-up-leave-to {
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+// Utility classes
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compliance-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  
+  &--success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  
+  &--warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  
+  &--error {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  
+  &--info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+  }
+}
+
+.compliance-metric {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &__value {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+  
+  &__label {
+    font-size: 0.875rem;
+    opacity: 0.8;
+  }
+  
+  &__trend {
+    font-size: 0.75rem;
+    
+    &--up {
+      color: #28a745;
+    }
+    
+    &--down {
+      color: #dc3545;
+    }
+    
+    &--neutral {
+      color: #6c757d;
+    }
+  }
+}

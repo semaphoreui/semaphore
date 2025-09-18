@@ -28,6 +28,7 @@ import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
+import ComplianceDashboard from '../views/ComplianceDashboard.vue';
 
 Vue.use(VueRouter);
 
@@ -169,6 +170,10 @@ const routes = [
   {
     path: '/accept-invite',
     component: AcceptInvite,
+  },
+  {
+    path: '/compliance',
+    component: ComplianceDashboard,
   },
 ];
 

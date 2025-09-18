@@ -215,6 +215,9 @@ func Route(
 
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
+	// Compliance Dashboard endpoints
+	adminAPI.Path("/compliance/dashboard").HandlerFunc(GetComplianceDashboard).Methods("GET", "HEAD")
+
 	debugAPI := adminAPI.PathPrefix("/debug").Subrouter()
 	debugAPI.Path("/gc").HandlerFunc(debug.GC).Methods("POST")
 	debugAPI.Path("/pprof/dump").HandlerFunc(debug.Dump).Methods("POST")
