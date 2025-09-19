@@ -3,7 +3,7 @@ version: "3.4"
 services:
   dredd:
     environment:
-      SEMAPHORE_DB_DIALECT: sqlite
-      SEMAPHORE_DB_CONFIG: '{"host": "/data/database.sqlite3"}'
+      FORGE_DB_DIALECT: sqlite
+      FORGE_DB_CONFIG: '{"host": "/data/database.sqlite3"}'
     depends_on:
       - server

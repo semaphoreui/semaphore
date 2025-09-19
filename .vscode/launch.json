@@ -11,7 +11,7 @@
             "cwd": "${workspaceFolder}",
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
-                "SEMAPHORE_ADMIN_PASSWORD": "test123"
+                "FORGE_ADMIN_PASSWORD": "test123"
             }
         }, 
         {
@@ -24,7 +24,7 @@
             "cwd": "${workspaceFolder}",
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
-                "SEMAPHORE_USE_REMOTE_RUNNER": "true"
+                "FORGE_USE_REMOTE_RUNNER": "true"
             }
         }, 
         {

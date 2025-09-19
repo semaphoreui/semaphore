@@ -60,11 +60,11 @@ The most popular way to install Semaphore is via Docker.
 
 ```
 docker run -p 3000:3000 --name forge \
-	-e SEMAPHORE_DB_DIALECT=bolt \
-	-e SEMAPHORE_ADMIN=admin \
-	-e SEMAPHORE_ADMIN_PASSWORD=changeme \
-	-e SEMAPHORE_ADMIN_NAME=Admin \
-	-e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
+	-e FORGE_DB_DIALECT=bolt \
+	-e FORGE_ADMIN=admin \
+	-e FORGE_ADMIN_PASSWORD=changeme \
+	-e FORGE_ADMIN_NAME=Admin \
+	-e FORGE_ADMIN_EMAIL=admin@localhost \
 	-d forgeui/forge:latest
 ```
 

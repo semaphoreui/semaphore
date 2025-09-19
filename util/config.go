@@ -50,18 +50,18 @@ const (
 type DbConfig struct {
 	Dialect string `json:"-"`
 
-	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
-	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
-	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"forge"`
-	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
+	Hostname string            `json:"host,omitempty" env:"FORGE_DB_HOST" default:"0.0.0.0"`
+	Username string            `json:"user,omitempty" env:"FORGE_DB_USER"`
+	Password string            `json:"pass,omitempty" env:"FORGE_DB_PASS"`
+	DbName   string            `json:"name,omitempty" env:"FORGE_DB" default:"forge"`
+	Options  map[string]string `json:"options,omitempty" env:"FORGE_DB_OPTIONS"`
 }
 
 type LdapMappings struct {
-	DN   string `json:"dn" env:"SEMAPHORE_LDAP_MAPPING_DN" default:"dn"`
-	Mail string `json:"mail" env:"SEMAPHORE_LDAP_MAPPING_MAIL" default:"mail"`
-	UID  string `json:"uid" env:"SEMAPHORE_LDAP_MAPPING_UID" default:"uid"`
-	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
+	DN   string `json:"dn" env:"FORGE_LDAP_MAPPING_DN" default:"dn"`
+	Mail string `json:"mail" env:"FORGE_LDAP_MAPPING_MAIL" default:"mail"`
+	UID  string `json:"uid" env:"FORGE_LDAP_MAPPING_UID" default:"uid"`
+	CN   string `json:"cn" env:"FORGE_LDAP_MAPPING_CN" default:"cn"`
 }
 
 func (p *LdapMappings) GetUsernameClaim() string {
@@ -106,10 +106,10 @@ const (
 // */
 
 type RunnerConfig struct {
-	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
-	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
-	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
+	RegistrationToken string `json:"-" env:"FORGE_RUNNER_REGISTRATION_TOKEN"`
+	Token             string `json:"token,omitempty" env:"FORGE_RUNNER_TOKEN"`
+	TokenFile         string `json:"token_file,omitempty" env:"FORGE_RUNNER_TOKEN_FILE"`
+	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"FORGE_RUNNER_PRIVATE_KEY_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -118,29 +118,29 @@ type RunnerConfig struct {
 	// 2) Semaphore found runner for task and calls runner's webhook if it provided.
 	// 3) Your server or lambda handling the call and starts the one-off runner.
 	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
-	OneOff bool `json:"one_off,omitempty" env:"SEMAPHORE_RUNNER_ONE_OFF"`
+	OneOff bool `json:"one_off,omitempty" env:"FORGE_RUNNER_ONE_OFF"`
 
-	Webhook string `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Webhook string `json:"webhook,omitempty" env:"FORGE_RUNNER_WEBHOOK"`
 
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"FORGE_RUNNER_MAX_PARALLEL_TASKS"`
 }
 
 type TLSConfig struct {
-	Enabled          bool   `json:"enabled" env:"SEMAPHORE_TLS_ENABLED"`
-	CertFile         string `json:"cert_file" env:"SEMAPHORE_TLS_CERT_FILE"`
-	KeyFile          string `json:"key_file" env:"SEMAPHORE_TLS_KEY_FILE"`
-	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
+	Enabled          bool   `json:"enabled" env:"FORGE_TLS_ENABLED"`
+	CertFile         string `json:"cert_file" env:"FORGE_TLS_CERT_FILE"`
+	KeyFile          string `json:"key_file" env:"FORGE_TLS_KEY_FILE"`
+	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"FORGE_TLS_HTTP_REDIRECT_PORT"`
 }
 
 type TotpConfig struct {
-	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
-	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+	Enabled       bool `json:"enabled" env:"FORGE_TOTP_ENABLED"`
+	AllowRecovery bool `json:"allow_recovery" env:"FORGE_TOTP_ALLOW_RECOVERY"`
 }
 
 type EventLogType struct {
-	Format  FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
-	Enabled bool               `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
-	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
+	Format  FileLogFormat      `json:"format,omitempty" env:"FORGE_EVENT_LOG_FORMAT"`
+	Enabled bool               `json:"enabled" env:"FORGE_EVENT_LOG_ENABLED"`
+	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"FORGE_EVENT_LOGGER"`
 }
 
 type FileLogFormat string
@@ -151,10 +151,10 @@ const (
 )
 
 type TaskLogType struct {
-	Enabled      bool               `json:"enabled" env:"SEMAPHORE_TASK_LOG_ENABLED"`
-	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
-	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
-	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
+	Enabled      bool               `json:"enabled" env:"FORGE_TASK_LOG_ENABLED"`
+	Format       FileLogFormat      `json:"format,omitempty" env:"FORGE_TASK_LOG_FORMAT"`
+	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"FORGE_TASK_LOGGER"`
+	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"FORGE_TASK_RESULT_LOGGER"`
 }
 
 type ConfigLog struct {
@@ -163,32 +163,32 @@ type ConfigLog struct {
 }
 
 type ConfigProcess struct {
-	User   string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID    *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID    *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+	User   string `json:"user,omitempty" env:"FORGE_PROCESS_USER"`
+	UID    *int   `json:"uid,omitempty" env:"FORGE_PROCESS_UID"`
+	Chroot string `json:"chroot,omitempty" env:"FORGE_PROCESS_CHROOT"`
+	GID    *int   `json:"gid,omitempty" env:"FORGE_PROCESS_GID"`
 }
 
 type ScheduleConfig struct {
-	Timezone string `json:"timezone,omitempty" env:"SEMAPHORE_SCHEDULE_TIMEZONE" default:"UTC"`
+	Timezone string `json:"timezone,omitempty" env:"FORGE_SCHEDULE_TIMEZONE" default:"UTC"`
 }
 
 type DebuggingConfig struct {
-	ApiDelay     string `json:"api_delay,omitempty" env:"SEMAPHORE_API_DELAY"`
-	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
+	ApiDelay     string `json:"api_delay,omitempty" env:"FORGE_API_DELAY"`
+	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"FORGE_PPROF_DUMP_DIR"`
 }
 
 type HARedisConfig struct {
-	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
-	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
-	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
-	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
-	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
-	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+	Addr          string `json:"addr,omitempty" env:"FORGE_HA_REDIS_ADDR"`
+	DB            int    `json:"db,omitempty" env:"FORGE_HA_REDIS_DB"`
+	Pass          string `json:"pass,omitempty" env:"FORGE_HA_REDIS_PASS"`
+	User          string `json:"user,omitempty" env:"FORGE_HA_REDIS_USER"`
+	TLS           bool   `json:"tls,omitempty" env:"FORGE_HA_REDIS_TLS"`
+	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"FORGE_HA_REDIS_TLS_SKIP_VERIFY"`
 }
 
 type HAConfig struct {
-	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	Enabled bool           `json:"enabled" env:"FORGE_HA_ENABLED"`
 	Redis   *HARedisConfig `json:"redis,omitempty"`
 }
 
@@ -201,9 +201,9 @@ const (
 )
 
 type TeamsConfig struct {
-	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
-	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
-	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
+	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"FORGE_TEAMS_INVITES_ENABLED"`
+	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"FORGE_TEAMS_INVITE_TYPE" default:"username"`
+	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"FORGE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -213,101 +213,101 @@ type ConfigType struct {
 	Postgres *DbConfig `json:"postgres,omitempty"`
 	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
-	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"FORGE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
-	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"FORGE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
 	Auth *AuthConfig `json:"auth,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
-	Interface string `json:"interface,omitempty" env:"SEMAPHORE_INTERFACE"`
+	Interface string `json:"interface,omitempty" env:"FORGE_INTERFACE"`
 
 	// forge stores ephemeral projects here
-	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/forge" env:"SEMAPHORE_TMP_PATH"`
+	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/forge" env:"FORGE_TMP_PATH"`
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
-	SshConfigPath string `json:"ssh_config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+	SshConfigPath string `json:"ssh_config_path,omitempty" env:"FORGE_SSH_PATH"`
 
-	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
+	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"FORGE_GIT_CLIENT" default:"cmd_git"`
 
 	// web host
-	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`
+	WebHost string `json:"web_host,omitempty" env:"FORGE_WEB_ROOT"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash,omitempty" env:"SEMAPHORE_COOKIE_HASH"`
-	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
+	CookieHash       string `json:"cookie_hash,omitempty" env:"FORGE_COOKIE_HASH"`
+	CookieEncryption string `json:"cookie_encryption,omitempty" env:"FORGE_COOKIE_ENCRYPTION"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
-	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
+	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"FORGE_ACCESS_KEY_ENCRYPTION"`
 
 	// email alerting
-	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
-	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
-	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
-	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
-	EmailUsername      string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
-	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
-	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
-	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
+	EmailAlert         bool   `json:"email_alert,omitempty" env:"FORGE_EMAIL_ALERT"`
+	EmailSender        string `json:"email_sender,omitempty" env:"FORGE_EMAIL_SENDER"`
+	EmailHost          string `json:"email_host,omitempty" env:"FORGE_EMAIL_HOST"`
+	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"FORGE_EMAIL_PORT"`
+	EmailUsername      string `json:"email_username,omitempty" env:"FORGE_EMAIL_USERNAME"`
+	EmailPassword      string `json:"email_password,omitempty" env:"FORGE_EMAIL_PASSWORD"`
+	EmailSecure        bool   `json:"email_secure,omitempty" env:"FORGE_EMAIL_SECURE"`
+	EmailTls           bool   `json:"email_tls,omitempty" env:"FORGE_EMAIL_TLS"`
+	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"FORGE_EMAIL_TLS_MIN_VERSION"`
 
 	// ldap settings
-	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
-	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
-	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
-	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
-	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
-	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
+	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"FORGE_LDAP_ENABLE"`
+	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"FORGE_LDAP_BIND_DN"`
+	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"FORGE_LDAP_BIND_PASSWORD"`
+	LdapServer       string        `json:"ldap_server,omitempty" env:"FORGE_LDAP_SERVER"`
+	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"FORGE_LDAP_SEARCH_DN"`
+	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"FORGE_LDAP_SEARCH_FILTER"`
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
-	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
+	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"FORGE_LDAP_NEEDTLS"`
 
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
-	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
-	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
-	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
-	SlackAlert          bool   `json:"slack_alert,omitempty" env:"SEMAPHORE_SLACK_ALERT"`
-	SlackUrl            string `json:"slack_url,omitempty" env:"SEMAPHORE_SLACK_URL"`
-	RocketChatAlert     bool   `json:"rocketchat_alert,omitempty" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
-	RocketChatUrl       string `json:"rocketchat_url,omitempty" env:"SEMAPHORE_ROCKETCHAT_URL"`
-	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_ALERT"`
-	MicrosoftTeamsUrl   string `json:"microsoft_teams_url,omitempty" env:"SEMAPHORE_MICROSOFT_TEAMS_URL"`
-	DingTalkAlert       bool   `json:"dingtalk_alert,omitempty" env:"SEMAPHORE_DINGTALK_ALERT"`
-	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
-	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
-	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
-	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"FORGE_TELEGRAM_ALERT"`
+	TelegramChat        string `json:"telegram_chat,omitempty" env:"FORGE_TELEGRAM_CHAT"`
+	TelegramToken       string `json:"telegram_token,omitempty" env:"FORGE_TELEGRAM_TOKEN"`
+	SlackAlert          bool   `json:"slack_alert,omitempty" env:"FORGE_SLACK_ALERT"`
+	SlackUrl            string `json:"slack_url,omitempty" env:"FORGE_SLACK_URL"`
+	RocketChatAlert     bool   `json:"rocketchat_alert,omitempty" env:"FORGE_ROCKETCHAT_ALERT"`
+	RocketChatUrl       string `json:"rocketchat_url,omitempty" env:"FORGE_ROCKETCHAT_URL"`
+	MicrosoftTeamsAlert bool   `json:"microsoft_teams_alert,omitempty" env:"FORGE_MICROSOFT_TEAMS_ALERT"`
+	MicrosoftTeamsUrl   string `json:"microsoft_teams_url,omitempty" env:"FORGE_MICROSOFT_TEAMS_URL"`
+	DingTalkAlert       bool   `json:"dingtalk_alert,omitempty" env:"FORGE_DINGTALK_ALERT"`
+	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"FORGE_DINGTALK_URL"`
+	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"FORGE_GOTIFY_ALERT"`
+	GotifyUrl           string `json:"gotify_url,omitempty" env:"FORGE_GOTIFY_URL"`
+	GotifyToken         string `json:"gotify_token,omitempty" env:"FORGE_GOTIFY_TOKEN"`
 
 	// oidc settings
-	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"FORGE_OIDC_PROVIDERS"`
 
-	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
-	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
+	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"FORGE_MAX_TASK_DURATION_SEC"`
+	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"FORGE_MAX_TASKS_PER_TEMPLATE"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"FORGE_MAX_PARALLEL_TASKS"`
 
-	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"FORGE_RUNNER_REGISTRATION_TOKEN"`
 
 	// feature switches
-	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
-	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
+	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"FORGE_PASSWORD_LOGIN_DISABLED"`
+	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"FORGE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
-	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
+	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"FORGE_USE_REMOTE_RUNNER"`
 
-	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"SEMAPHORE_INTEGRATION_ALIAS"`
+	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"FORGE_INTEGRATION_ALIAS"`
 
-	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
+	Apps map[string]App `json:"apps,omitempty" env:"FORGE_APPS"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
 
-	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
+	EnvVars map[string]string `json:"env_vars,omitempty" env:"FORGE_ENV_VARS"`
 
-	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
+	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"FORGE_FORWARDED_ENV_VARS"`
 
 	Teams *TeamsConfig `json:"teams,omitempty"`
 
@@ -436,7 +436,7 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 func loadConfigFile(configPath string) (usedConfigPath *string) {
 	if configPath == "" {
-		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
+		configPath = os.Getenv("FORGE_CONFIG_PATH")
 	}
 
 	// If the configPath option has been set try to load and decode it
@@ -937,7 +937,7 @@ func (d *DbConfig) HasSupportMultipleDatabases() bool {
 }
 
 func (d *DbConfig) GetDbName() string {
-	dbName := os.Getenv("SEMAPHORE_DB_NAME")
+	dbName := os.Getenv("FORGE_DB_NAME")
 	if dbName != "" {
 		return dbName
 	}
@@ -945,7 +945,7 @@ func (d *DbConfig) GetDbName() string {
 }
 
 func (d *DbConfig) GetUsername() string {
-	username := os.Getenv("SEMAPHORE_DB_USER")
+	username := os.Getenv("FORGE_DB_USER")
 	if username != "" {
 		return username
 	}
@@ -953,7 +953,7 @@ func (d *DbConfig) GetUsername() string {
 }
 
 func (d *DbConfig) GetPassword() string {
-	password := os.Getenv("SEMAPHORE_DB_PASS")
+	password := os.Getenv("FORGE_DB_PASS")
 	if password != "" {
 		return password
 	}
@@ -961,7 +961,7 @@ func (d *DbConfig) GetPassword() string {
 }
 
 func (d *DbConfig) GetHostname() string {
-	hostname := os.Getenv("SEMAPHORE_DB_HOST")
+	hostname := os.Getenv("FORGE_DB_HOST")
 	if hostname != "" {
 		return hostname
 	}

@@ -73,20 +73,20 @@ services:
   forge:
     image: forgeui/forge:latest
     environment:
-      SEMAPHORE_DB_DIALECT: "bolt"
-      SEMAPHORE_ADMIN_PASSWORD: "changeme"
-      SEMAPHORE_ADMIN_NAME: "admin"
-      SEMAPHORE_ADMIN_EMAIL: "admin@example.org"
-      SEMAPHORE_LDAP_ACTIVATED: "yes"
-      SEMAPHORE_LDAP_SERVER: "ldap:3389"
-      SEMAPHORE_LDAP_SEARCH_DN: "ou=users,dc=ldap,dc=goauthentik,dc=io"
-      SEMAPHORE_LDAP_BIND_DN: "cn=ldapservice,ou=users,dc=ldap,dc=goauthentik,dc=io"
-      SEMAPHORE_LDAP_SEARCH_FILTER: "(&(objectClass=inetOrgPerson)(cn=%s))"
-      SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
-      SEMAPHORE_LDAP_MAPPING_DN: "dn"
-      SEMAPHORE_LDAP_MAPPING_MAIL: "mail"
-      SEMAPHORE_LDAP_MAPPING_UID: "uid"
-      SEMAPHORE_LDAP_MAPPING_CN: "cn"
+      FORGE_DB_DIALECT: "bolt"
+      FORGE_ADMIN_PASSWORD: "changeme"
+      FORGE_ADMIN_NAME: "admin"
+      FORGE_ADMIN_EMAIL: "admin@example.org"
+      FORGE_LDAP_ACTIVATED: "yes"
+      FORGE_LDAP_SERVER: "ldap:3389"
+      FORGE_LDAP_SEARCH_DN: "ou=users,dc=ldap,dc=goauthentik,dc=io"
+      FORGE_LDAP_BIND_DN: "cn=ldapservice,ou=users,dc=ldap,dc=goauthentik,dc=io"
+      FORGE_LDAP_SEARCH_FILTER: "(&(objectClass=inetOrgPerson)(cn=%s))"
+      FORGE_NON_ADMIN_CAN_CREATE_PROJECT: "yes"
+      FORGE_LDAP_MAPPING_DN: "dn"
+      FORGE_LDAP_MAPPING_MAIL: "mail"
+      FORGE_LDAP_MAPPING_UID: "uid"
+      FORGE_LDAP_MAPPING_CN: "cn"
     env_file:
       - .env
     ports:

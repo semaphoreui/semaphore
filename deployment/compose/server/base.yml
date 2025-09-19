@@ -5,15 +5,15 @@ volumes:
 
 services:
   server:
-    image: docker.io/forgeui/forge:${SEMAPHORE_VERSION:-latest}
+    image: docker.io/forgeui/forge:${FORGE_VERSION:-latest}
     restart: always
     environment:
-      SEMAPHORE_ADMIN_NAME: ${SEMAPHORE_ADMIN_NAME:-Admin}
-      SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN_USERNAME:-admin}
-      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-p455w0rd}
-      SEMAPHORE_ADMIN_EMAIL: ${SEMAPHORE_ADMIN_EMAIL:-admin@localhost}
-      SEMAPHORE_WEB_ROOT: ${SEMAPHORE_WEB_ROOT:-http://0.0.0.0:3000}
-      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
+      FORGE_ADMIN_NAME: ${FORGE_ADMIN_NAME:-Admin}
+      FORGE_ADMIN: ${FORGE_ADMIN_USERNAME:-admin}
+      FORGE_ADMIN_PASSWORD: ${FORGE_ADMIN_PASSWORD:-p455w0rd}
+      FORGE_ADMIN_EMAIL: ${FORGE_ADMIN_EMAIL:-admin@localhost}
+      FORGE_WEB_ROOT: ${FORGE_WEB_ROOT:-http://0.0.0.0:3000}
+      FORGE_ACCESS_KEY_ENCRYPTION: ${FORGE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
     volumes:
       - server:/var/lib/forge
     ports:

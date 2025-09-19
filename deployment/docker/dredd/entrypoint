@@ -4,9 +4,9 @@ set -eo pipefail
 echo "---> Gen forge config"
 cat << EOF > /forge/.dredd/config.json
 {
-  "dialect": "${SEMAPHORE_DB_DIALECT}",
-  "${SEMAPHORE_DB_DIALECT}": ${SEMAPHORE_DB_CONFIG},
-  "access_key_encryption": "${SEMAPHORE_ACCESS_KEY_ENCRYPTION}"
+  "dialect": "${FORGE_DB_DIALECT}",
+  "${FORGE_DB_DIALECT}": ${FORGE_DB_CONFIG},
+  "access_key_encryption": "${FORGE_ACCESS_KEY_ENCRYPTION}"
 }
 EOF
 

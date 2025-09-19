@@ -27,9 +27,9 @@ Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. I
 %setup -q
 
 %build
-export SEMAPHORE_VERSION="development"
-export SEMAPHORE_ARCH="linux_amd64"
-export SEMAPHORE_CONFIG_PATH="./etc/forge"
+export FORGE_VERSION="development"
+export FORGE_ARCH="linux_amd64"
+export FORGE_CONFIG_PATH="./etc/forge"
 export APP_ROOT="./forgeui/"
 
 if ! [[ "$PATH" =~ "$HOME/go/bin:" ]]

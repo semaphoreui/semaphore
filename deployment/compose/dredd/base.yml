@@ -6,11 +6,11 @@ volumes:
 services:
   server:
     environment:
-      SEMAPHORE_ADMIN_PASSWORD: password
-      SEMAPHORE_ADMIN_NAME: Developer
-      SEMAPHORE_ADMIN_EMAIL: admin@localhost
-      SEMAPHORE_ADMIN: admin
-      SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
+      FORGE_ADMIN_PASSWORD: password
+      FORGE_ADMIN_NAME: Developer
+      FORGE_ADMIN_EMAIL: admin@localhost
+      FORGE_ADMIN: admin
+      FORGE_WEB_ROOT: http://0.0.0.0:3000
 
   dredd:
     build:
@@ -20,6 +20,6 @@ services:
       - --config
       - .dredd/dredd.docker.yml
     environment:
-      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
+      FORGE_ACCESS_KEY_ENCRYPTION: ${FORGE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
     volumes:
       - dredd:/data

@@ -418,17 +418,17 @@ forge runner setup --config ./config.runner.json < /tmp/config.runner.stdin`;
     },
 
     runnerEnvCommand() {
-      return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
-SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
-SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
+      return `FORGE_WEB_ROOT=${this.webHost} \\
+FORGE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+FORGE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
 forge runner start --no-config`;
     },
 
     runnerDockerCommand() {
       return `docker run \\
--e SEMAPHORE_WEB_ROOT=${this.webHost} \\
--e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
--e SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
+-e FORGE_WEB_ROOT=${this.webHost} \\
+-e FORGE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+-e FORGE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
 -v "/path/to/private/key:/config.runner.key" \\
 -d forgeui/runner:${this.version}`;
     },

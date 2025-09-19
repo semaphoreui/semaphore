@@ -62,7 +62,7 @@ export default {
   forgeUserChangebyloginLoginUser123Password: 'forge user change-by-login --login user123 --password {makePasswordExample}',
   orCreateNewAdminUser: 'Or create new admin user:',
   close2: 'Close',
-  forge: 'SEMAPHORE',
+  forge: 'FORGE',
   dontHaveAccountOrCantSignIn: 'Don\'t have account or can\'t sign in?',
   password2: 'Password',
   cancel: 'Cancel',

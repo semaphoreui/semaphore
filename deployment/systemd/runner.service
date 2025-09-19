@@ -4,7 +4,7 @@ Requires=network.target
 
 [Service]
 EnvironmentFile=/etc/forge/env
-ExecStart=/usr/bin/forge runner start --config ${SEMAPHORE_CONFIG}
+ExecStart=/usr/bin/forge runner start --config ${FORGE_CONFIG}
 ExecReload=/bin/kill -HUP $MAINPID
 User=forge
 Group=forge

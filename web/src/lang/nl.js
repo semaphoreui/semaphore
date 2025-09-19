@@ -62,7 +62,7 @@ export default {
   forgeUserChangebyloginLoginUser123Password: 'forge gebruiker wijzig-per-inlog --login gebruiker123 --wachtwoord {maakWachtwoordVoorbeeld}',
   orCreateNewAdminUser: 'Of maak een nieuwe admin gebruiker:',
   close2: 'Sluiten',
-  forge: 'SEMAPHORE',
+  forge: 'FORGE',
   dontHaveAccountOrCantSignIn: 'Heeft u geen account of kunt u niet inloggen?',
   password2: 'Wachtwoord',
   cancel: 'Annuleren',

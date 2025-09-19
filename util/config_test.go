@@ -307,12 +307,12 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	envLdapNeedTls := "1"
 	envDbHost := "192.168.0.1"
 
-	os.Setenv("SEMAPHORE_PORT", envPort)                                 //nolint:errcheck
-	os.Setenv("SEMAPHORE_COOKIE_HASH", envCookieHash)                    //nolint:errcheck
-	os.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", envAccessKeyEncryption) //nolint:errcheck
-	os.Setenv("SEMAPHORE_MAX_PARALLEL_TASKS", envMaxParallelTasks)       //nolint:errcheck
-	os.Setenv("SEMAPHORE_LDAP_NEEDTLS", envLdapNeedTls)                  //nolint:errcheck
-	os.Setenv("SEMAPHORE_DB_HOST", envDbHost)                            //nolint:errcheck
+	os.Setenv("FORGE_PORT", envPort)                                 //nolint:errcheck
+	os.Setenv("FORGE_COOKIE_HASH", envCookieHash)                    //nolint:errcheck
+	os.Setenv("FORGE_ACCESS_KEY_ENCRYPTION", envAccessKeyEncryption) //nolint:errcheck
+	os.Setenv("FORGE_MAX_PARALLEL_TASKS", envMaxParallelTasks)       //nolint:errcheck
+	os.Setenv("FORGE_LDAP_NEEDTLS", envLdapNeedTls)                  //nolint:errcheck
+	os.Setenv("FORGE_DB_HOST", envDbHost)                            //nolint:errcheck
 
 	loadConfigEnvironment()
 

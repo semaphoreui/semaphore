@@ -6,12 +6,12 @@ volumes:
 services:
   server:
     environment:
-      SEMAPHORE_DB_DIALECT: postgres
-      SEMAPHORE_DB_HOST: db
-      SEMAPHORE_DB_PORT: 5432
-      SEMAPHORE_DB_USER: ${POSTGRES_USERNAME:-forge}
-      SEMAPHORE_DB_PASS: ${POSTGRES_PASSWORD:-forge}
-      SEMAPHORE_DB: ${POSTGRES_DATABASE:-forge}
+      FORGE_DB_DIALECT: postgres
+      FORGE_DB_HOST: db
+      FORGE_DB_PORT: 5432
+      FORGE_DB_USER: ${POSTGRES_USERNAME:-forge}
+      FORGE_DB_PASS: ${POSTGRES_PASSWORD:-forge}
+      FORGE_DB: ${POSTGRES_DATABASE:-forge}
     depends_on:
       - db
 

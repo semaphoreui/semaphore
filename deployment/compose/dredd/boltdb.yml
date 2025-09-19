@@ -3,7 +3,7 @@ version: "3.4"
 services:
   dredd:
     environment:
-      SEMAPHORE_DB_DIALECT: bolt
-      SEMAPHORE_DB_CONFIG: '{"host": "/data/database.boltdb"}'
+      FORGE_DB_DIALECT: bolt
+      FORGE_DB_CONFIG: '{"host": "/data/database.boltdb"}'
     depends_on:
       - server

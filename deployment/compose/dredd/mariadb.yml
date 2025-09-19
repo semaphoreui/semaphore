@@ -3,8 +3,8 @@ version: "3.4"
 services:
   dredd:
     environment:
-      SEMAPHORE_DB_DIALECT: mysql
-      SEMAPHORE_DB_CONFIG: '{"host": "db:3306","user": "forge","pass": "forge","name": "forge"}'
+      FORGE_DB_DIALECT: mysql
+      FORGE_DB_CONFIG: '{"host": "db:3306","user": "forge","pass": "forge","name": "forge"}'
     depends_on:
       - server
       - db

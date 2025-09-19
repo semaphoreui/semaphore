@@ -125,8 +125,8 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=forgeui/forge
-            SEMAPHORE_VERSION=${{ github.ref_name }}
+            FORGE_IMAGE=forgeui/forge
+            FORGE_VERSION=${{ github.ref_name }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
@@ -181,8 +181,8 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=forgeui/runner
-            SEMAPHORE_VERSION=${{ github.ref_name }}
+            FORGE_IMAGE=forgeui/runner
+            FORGE_VERSION=${{ github.ref_name }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}

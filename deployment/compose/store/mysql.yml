@@ -6,12 +6,12 @@ volumes:
 services:
   server:
     environment:
-      SEMAPHORE_DB_DIALECT: mysql
-      SEMAPHORE_DB_HOST: db
-      SEMAPHORE_DB_PORT: 3306
-      SEMAPHORE_DB_USER: ${MYSQL_USERNAME:-forge}
-      SEMAPHORE_DB_PASS: ${MYSQL_PASSWORD:-forge}
-      SEMAPHORE_DB: ${MYSQL_DATABASE:-forge}
+      FORGE_DB_DIALECT: mysql
+      FORGE_DB_HOST: db
+      FORGE_DB_PORT: 3306
+      FORGE_DB_USER: ${MYSQL_USERNAME:-forge}
+      FORGE_DB_PASS: ${MYSQL_PASSWORD:-forge}
+      FORGE_DB: ${MYSQL_DATABASE:-forge}
     depends_on:
       - db
 

@@ -235,7 +235,7 @@ jobs:
       - migrate-boltdb
 
     env:
-      SEMAPHORE_DB_OPTIONS: '{"sessionConnection": "true"}'
+      FORGE_DB_OPTIONS: '{"sessionConnection": "true"}'
 
     steps:
       - name: Checkout source

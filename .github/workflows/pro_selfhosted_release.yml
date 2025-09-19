@@ -141,8 +141,8 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=public.ecr.aws/forge/pro/server
-            SEMAPHORE_VERSION=${{ github.ref_name }}
+            FORGE_IMAGE=public.ecr.aws/forge/pro/server
+            FORGE_VERSION=${{ github.ref_name }}
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/powershell/Dockerfile
@@ -202,8 +202,8 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=public.ecr.aws/forge/pro/runner
-            SEMAPHORE_VERSION=${{ github.ref_name }}
+            FORGE_IMAGE=public.ecr.aws/forge/pro/runner
+            FORGE_VERSION=${{ github.ref_name }}
             GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64

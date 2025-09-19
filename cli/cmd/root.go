@@ -45,7 +45,7 @@ Complete documentation is available at https://forgeui.com.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		str := persistentFlags.logLevel
 		if str == "" {
-			str = os.Getenv("SEMAPHORE_LOG_LEVEL")
+			str = os.Getenv("FORGE_LOG_LEVEL")
 		}
 		if str == "" {
 			return
