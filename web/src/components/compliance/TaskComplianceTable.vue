@@ -95,7 +95,7 @@
 <script>
 export default {
   name: 'TaskComplianceTable',
-  
+
   props: {
     data: {
       type: Array,
@@ -175,22 +175,22 @@ export default {
   methods: {
     getStatusColor(status) {
       const colorMap = {
-        'success': 'success',
-        'failed': 'error',
-        'stopped': 'warning',
-        'running': 'info',
-        'waiting': 'grey',
+        success: 'success',
+        failed: 'error',
+        stopped: 'warning',
+        running: 'info',
+        waiting: 'grey',
       };
       return colorMap[status] || 'grey';
     },
 
     getStatusTextColor(status) {
       const colorMap = {
-        'success': 'white',
-        'failed': 'white',
-        'stopped': 'white',
-        'running': 'white',
-        'waiting': 'white',
+        success: 'white',
+        failed: 'white',
+        stopped: 'white',
+        running: 'white',
+        waiting: 'white',
       };
       return colorMap[status] || 'white';
     },
@@ -209,17 +209,15 @@ export default {
 
     formatDuration(seconds) {
       if (!seconds) return '-';
-      
+
       const hours = Math.floor(seconds / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
       const secs = seconds % 60;
-      
-      if (hours > 0) {
-        return `${hours}h ${minutes}m`;
+
+      if (hours > 0) { return `${hours}h ${minutes}m`;
       } else if (minutes > 0) {
-        return `${minutes}m ${secs}s`;
-      } else {
-        return `${secs}s`;
+        return ; }
+      return `${secss`;
       }
     },
 

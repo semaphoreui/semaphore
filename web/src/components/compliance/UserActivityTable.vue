@@ -10,34 +10,34 @@
     >
       <template v-slot:item.active="{ item }">
         <v-chip
-          :color="item.active ? 'success' : 'grey'"
-          :text-color="item.active ? 'white' : 'white'"
+          :color="item.active ? success: 'grey'"
+          :text-color="item.active ? white: 'white'"
           small
         >
           <v-icon small left>
             {{ item.active ? 'mdi-check-circle' : 'mdi-close-circle' }}
           </v-icon>
-          {{ item.active ? 'Active' : 'Inactive' }}
+          {{ item.active ? Active: 'Inactive' }}
         </v-chip>
       </template>
 
       <template v-slot:item.admin="{ item }">
         <v-chip
-          :color="item.admin ? 'primary' : 'grey'"
-          :text-color="item.admin ? 'white' : 'white'"
+          :color="item.admin ? primary: 'grey'"
+          :text-color="item.admin ? white: 'white'"
           x-small
         >
-          {{ item.admin ? 'Admin' : 'User' }}
+          {{ item.admin ? Admin: 'User' }}
         </v-chip>
       </template>
 
       <template v-slot:item.external="{ item }">
         <v-chip
-          :color="item.external ? 'warning' : 'success'"
-          :text-color="item.external ? 'white' : 'white'"
+          :color="item.external ? warning: 'success'"
+          :text-color="item.external ? white: 'white'"
           x-small
         >
-          {{ item.external ? 'External' : 'Internal' }}
+          {{ item.external ? External: 'Internal' }}
         </v-chip>
       </template>
 
@@ -84,7 +84,7 @@
 <script>
 export default {
   name: 'UserActivityTable',
-  
+
   props: {
     data: {
       type: Array,
@@ -169,23 +169,20 @@ export default {
 
     formatRelativeTime(dateString) {
       if (!dateString) return '';
-      
+
       const now = new Date();
       const date = new Date(dateString);
       const diffMs = now - date;
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      
-      if (diffDays > 0) {
-        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+      if (diffDays > 0) { return `${diffDays} day${diffDays > 1 ? s: ''} ago`;
       } else if (diffHours > 0) {
-        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        return `${diffHours} hour${diffHours > 1 ? s: ''} ago`;
       } else if (diffMinutes > 0) {
-        return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
-      } else {
-        return 'Just now';
-      }
+        return ; }
+      return 'Just now';
     },
 
     viewUserDetails(user) {

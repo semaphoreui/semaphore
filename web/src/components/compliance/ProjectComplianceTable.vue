@@ -54,7 +54,7 @@
           :text-color="'white'"
           small
         >
-          {{ item.team_size }} member{{ item.team_size !== 1 ? 's' : '' }}
+          {{ item.team_size }} member{{ item.team_size !== 1 ? s: '' }}
         </v-chip>
       </template>
 
@@ -109,7 +109,7 @@
 <script>
 export default {
   name: 'ProjectComplianceTable',
-  
+
   props: {
     data: {
       type: Array,
@@ -214,23 +214,20 @@ export default {
 
     formatRelativeTime(dateString) {
       if (!dateString) return '';
-      
+
       const now = new Date();
       const date = new Date(dateString);
       const diffMs = now - date;
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      
-      if (diffDays > 0) {
-        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+      if (diffDays > 0) { return `${diffDays} day${diffDays > 1 ? s: ''} ago`;
       } else if (diffHours > 0) {
-        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        return `${diffHours} hour${diffHours > 1 ? s: ''} ago`;
       } else if (diffMinutes > 0) {
-        return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
-      } else {
-        return 'Just now';
-      }
+        return ; }
+      return 'Just now';
     },
 
     viewProjectDetails(project) {

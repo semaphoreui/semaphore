@@ -4,14 +4,14 @@
       <v-icon size="48" color="grey">mdi-chart-line</v-icon>
       <div class="text-h6 grey--text mt-2">No data available</div>
     </v-container>
-    
+
     <div v-else class="compliance-chart__container" ref="chartContainer"></div>
-    
+
     <!-- Chart Legend -->
     <div v-if="showLegend && data && data.length > 0" class="compliance-chart__legend">
       <div class="compliance-chart__legend-item">
-        <div 
-          class="compliance-chart__legend-item__color" 
+        <div
+          class="compliance-chart__legend-item__color"
           :style="{ backgroundColor: color }"
         ></div>
         <span>{{ legendLabel }}</span>
@@ -25,7 +25,7 @@ import * as echarts from 'echarts';
 
 export default {
   name: 'ComplianceTrendsChart',
-  
+
   props: {
     data: {
       type: Array,
@@ -42,7 +42,7 @@ export default {
     chartType: {
       type: String,
       default: 'line',
-      validator: value => ['line', 'bar', 'area', 'pie'].includes(value),
+      validator: (value) => ['line', 'bar', 'area', 'pie'].includes(value),
     },
     showLegend: {
       type: Boolean,
@@ -100,7 +100,7 @@ export default {
       if (this.$refs.chartContainer) {
         this.chart = echarts.init(this.$refs.chartContainer);
         this.updateChart();
-        
+
         // Handle window resize
         window.addEventListener('resize', this.handleResize);
       }
@@ -111,12 +111,12 @@ export default {
         return;
       }
 
-      const dates = this.data.map(item => {
+      const dates = this.data.map((item) => {
         const date = new Date(item.date);
         return date.toLocaleDateString();
       });
 
-      const values = this.data.map(item => item.value);
+      const values = this.data.map((item) => item.value);
 
       const option = {
         title: {
@@ -191,7 +191,7 @@ export default {
             type: 'bar',
             barWidth: '60%',
           }];
-        
+
         case 'area':
           return [{
             ...baseConfig,
@@ -221,13 +221,13 @@ export default {
               },
             },
           }];
-        
+
         case 'pie':
           return [{
             ...baseConfig,
             type: 'pie',
             radius: ['40%', '70%'],
-            data: this.data.map(item => ({
+            data: this.data.map((item) => ({
               name: new Date(item.date).toLocaleDateString(),
               value: item.value,
             })),
@@ -239,7 +239,7 @@ export default {
               },
             },
           }];
-        
+
         case 'line':
         default:
           return [{
@@ -291,12 +291,12 @@ export default {
     justify-content: center;
     margin-top: 16px;
     gap: 16px;
-    
+
     &-item {
       display: flex;
       align-items: center;
       font-size: 0.875rem;
-      
+
       &__color {
         width: 12px;
         height: 12px;

@@ -23,14 +23,14 @@
 
       <template v-slot:item.resolved="{ item }">
         <v-chip
-          :color="item.resolved ? 'success' : 'error'"
+          :color="item.resolved ? success: 'error'"
           :text-color="'white'"
           x-small
         >
           <v-icon small left>
             {{ item.resolved ? 'mdi-check' : 'mdi-alert' }}
           </v-icon>
-          {{ item.resolved ? 'Resolved' : 'Open' }}
+          {{ item.resolved ? Resolved: 'Open' }}
         </v-chip>
       </template>
 
@@ -84,7 +84,7 @@
 <script>
 export default {
   name: 'SecurityEventsTable',
-  
+
   props: {
     data: {
       type: Array,
@@ -159,18 +159,18 @@ export default {
   methods: {
     getSeverityColor(severity) {
       const colorMap = {
-        'high': 'error',
-        'medium': 'warning',
-        'low': 'info',
+        high: 'error',
+        medium: 'warning',
+        low: 'info',
       };
       return colorMap[severity] || 'grey';
     },
 
     getSeverityIcon(severity) {
       const iconMap = {
-        'high': 'mdi-alert-circle',
-        'medium': 'mdi-alert',
-        'low': 'mdi-information',
+        high: 'mdi-alert-circle',
+        medium: 'mdi-alert',
+        low: 'mdi-information',
       };
       return iconMap[severity] || 'mdi-help-circle';
     },
@@ -182,23 +182,20 @@ export default {
 
     formatRelativeTime(dateString) {
       if (!dateString) return '';
-      
+
       const now = new Date();
       const date = new Date(dateString);
       const diffMs = now - date;
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      
-      if (diffDays > 0) {
-        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+      if (diffDays > 0) { return `${diffDays} day${diffDays > 1 ? s: ''} ago`;
       } else if (diffHours > 0) {
-        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        return `${diffHours} hour${diffHours > 1 ? s: ''} ago`;
       } else if (diffMinutes > 0) {
-        return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
-      } else {
-        return 'Just now';
-      }
+        return ; }
+      return 'Just now';
     },
 
     viewEventDetails(event) {
