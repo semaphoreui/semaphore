@@ -173,6 +173,7 @@ class ComplianceService {
    * @param {Blob} blob - Report blob data
    * @param {string} filename - Filename for download
    */
+  // eslint-disable-next-line class-methods-use-this
   downloadReport(blob, filename) {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -189,22 +190,23 @@ class ComplianceService {
    * @param {string} range - Date range (last_week, last_month, etc.)
    * @returns {Object} Formatted date range
    */
+  // eslint-disable-next-line class-methods-use-this
   formatDateRange(range) {
     const now = new Date();
     const ranges = {
-      'last_week': 7,
-      'last_month': 30,
-      'last_quarter': 90,
-      'last_year': 365,
+      last_week: 7,
+      last_month: 30,
+      last_quarter: 90,
+      last_year: 365,
     };
-    
+
     const days = ranges[range] || 30;
     const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
-    
+
     return {
       start_date: startDate.toISOString().split('T')[0],
       end_date: now.toISOString().split('T')[0],
-      days: days,
+      days,
     };
   }
 
@@ -219,11 +221,11 @@ class ComplianceService {
       return [];
     }
 
-    return data.map(item => ({
+    return data.map((item) => ({
       date: new Date(item.date),
       value: item.value || 0,
       count: item.count || 0,
-      label: this.formatChartLabel(item.date, type),
+      label: this.formatChartLabel(item.date),
     }));
   }
 
@@ -233,14 +235,15 @@ class ComplianceService {
    * @param {string} type - Data type
    * @returns {string} Formatted label
    */
-  formatChartLabel(dateString, type) {
+  // eslint-disable-next-line class-methods-use-this
+  formatChartLabel(dateString) {
     const date = new Date(dateString);
-    const options = { 
-      month: 'short', 
+    const options = {
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    };
+    ,};
     return date.toLocaleDateString('en-US', options);
   }
 
@@ -249,6 +252,7 @@ class ComplianceService {
    * @param {Object} metrics - Compliance metrics
    * @returns {number} Compliance score (0-100)
    */
+  // eslint-disable-next-line class-methods-use-this
   calculateComplianceScore(metrics) {
     if (!metrics) return 0;
 
@@ -260,7 +264,7 @@ class ComplianceService {
     };
 
     let score = 0;
-    Object.keys(weights).forEach(key => {
+    Object.keys(weights).forEach((key) => {
       if (metrics[key] !== undefined) {
         score += (metrics[key] / 100) * weights[key];
       }
@@ -274,6 +278,7 @@ class ComplianceService {
    * @param {number} score - Compliance score
    * @returns {string} Color class
    */
+  // eslint-disable-next-line class-methods-use-this
   getComplianceStatusColor(score) {
     if (score >= 90) return 'success';
     if (score >= 70) return 'warning';
@@ -285,6 +290,7 @@ class ComplianceService {
    * @param {number} score - Compliance score
    * @returns {string} Status text
    */
+  // eslint-disable-next-line class-methods-use-this
   getComplianceStatusText(score) {
     if (score >= 90) return 'Excellent';
     if (score >= 80) return 'Good';
@@ -298,6 +304,7 @@ class ComplianceService {
    * @param {Error} error - API error
    * @returns {Error} Processed error
    */
+  // eslint-disable-next-line class-methods-use-this
   handleError(error) {
     if (error.response) {
       // Server responded with error status

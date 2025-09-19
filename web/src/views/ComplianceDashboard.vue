@@ -82,13 +82,14 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" sm="6" md="3">
         <v-card color="success" dark>
           <v-card-text>
             <div class="d-flex align-center">
               <v-icon size="40" class="mr-3">mdi-check-circle</v-icon>
               <div>
+// eslint-disable-next-line max-len
                 <div class="text-h4">{{ dashboardData.summary?.success_rate?.toFixed(1) || 0 }}%</div>
                 <div class="text-subtitle-1">Success Rate</div>
               </div>
@@ -96,7 +97,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" sm="6" md="3">
         <v-card color="info" dark>
           <v-card-text>
@@ -110,7 +111,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" sm="6" md="3">
         <v-card color="warning" dark>
           <v-card-text>
@@ -135,7 +136,7 @@
             Task Trends
           </v-card-title>
           <v-card-text>
-            <ComplianceTrendsChart 
+            <ComplianceTrendsChart
               :data="dashboardData.compliance_trends?.daily_tasks"
               title="Task Execution Trends"
               color="#667eea"
@@ -145,7 +146,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="6">
         <v-card>
           <v-card-title>
@@ -153,7 +154,7 @@
             Success Rate Trends
           </v-card-title>
           <v-card-text>
-            <ComplianceTrendsChart 
+            <ComplianceTrendsChart
               :data="dashboardData.compliance_trends?.success_rates"
               title="Success Rate Trends"
               color="#28a745"
@@ -178,7 +179,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="6">
         <v-card>
           <v-card-title>
@@ -205,7 +206,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="6">
         <v-card>
           <v-card-title>
@@ -241,7 +242,7 @@ import SecurityEventsTable from '@/components/compliance/SecurityEventsTable.vue
 
 export default {
   name: 'ComplianceDashboard',
-  
+
   components: {
     ComplianceTrendsChart,
     TaskComplianceTable,
@@ -272,10 +273,10 @@ export default {
   computed: {
     daysParam() {
       const daysMap = {
-        'last_week': 7,
-        'last_month': 30,
-        'last_quarter': 90,
-        'last_year': 365,
+        last_week: 7,
+        last_month: 30,
+        last_quarter: 90,
+        last_year: 365,
       };
       return daysMap[this.dateRange] || 30;
     },
@@ -292,7 +293,7 @@ export default {
         const response = await axios.get('/api/projects');
         this.projectOptions = [
           { text: 'All Projects', value: null },
-          ...response.data.map(project => ({
+          ...response.data.map((project) => ({
             text: project.name,
             value: project.id.toString(),
           })),
@@ -308,7 +309,7 @@ export default {
         const params = {
           days: this.daysParam,
         };
-        
+
         if (this.selectedProject) {
           params.project_id = this.selectedProject;
         }
@@ -329,7 +330,7 @@ export default {
           days: this.daysParam,
           format: 'csv',
         };
-        
+
         if (this.selectedProject) {
           params.project_id = this.selectedProject;
         }
@@ -369,12 +370,12 @@ export default {
 
   &__summary-cards {
     margin-bottom: 24px;
-    
+
     .v-card {
       transition: all 0.3s ease;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      
+
       &:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
@@ -384,7 +385,7 @@ export default {
 
   &__charts {
     margin-bottom: 24px;
-    
+
     .v-card {
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
