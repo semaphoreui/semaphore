@@ -123,7 +123,7 @@
                   border-radius: 10px;
                   margin-top: 5px;"
                      class="pa-2"
-                >semaphore runner start --config /path/to/config/file</pre>
+                >forge runner start --config /path/to/config/file</pre>
               </div>
             </v-tab-item>
             <v-tab-item key="setup">
@@ -151,7 +151,7 @@
                   border-radius: 10px;
                   margin-top: 5px;"
                      class="pa-2"
-                >semaphore runner start --config ./config.runner.json</pre>
+                >forge runner start --config ./config.runner.json</pre>
               </div>
             </v-tab-item>
             <v-tab-item key="env">
@@ -243,7 +243,7 @@
       <v-btn
         class="ml-2 pr-2"
         color="hsl(348deg, 86%, 61%)"
-        href="https://semaphoreui.com/pro#runners"
+        href="https://forgeui.com/pro#runners"
       >
         {{ $t('learn_more_about_pro') }}
         <v-icon>mdi-chevron-right</v-icon>
@@ -259,7 +259,7 @@
       Global runners
       <a
         target="_blank"
-        href="https://docs.semaphoreui.com/administration-guide/runners/#set-up-a-server"
+        href="https://docs.forgeui.com/administration-guide/runners/#set-up-a-server"
       >disabled</a>.
     </v-alert>
 
@@ -414,14 +414,14 @@ yes
 ./
 EOF
 
-semaphore runner setup --config ./config.runner.json < /tmp/config.runner.stdin`;
+forge runner setup --config ./config.runner.json < /tmp/config.runner.stdin`;
     },
 
     runnerEnvCommand() {
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
-semaphore runner start --no-config`;
+forge runner start --no-config`;
     },
 
     runnerDockerCommand() {
@@ -430,7 +430,7 @@ semaphore runner start --no-config`;
 -e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 -e SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
 -v "/path/to/private/key:/config.runner.key" \\
--d semaphoreui/runner:${this.version}`;
+-d forgeui/runner:${this.version}`;
     },
   },
 

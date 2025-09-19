@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/Digital-Data-Co/semaphore/db"
+import "github.com/Digital-Data-Co/forge/db"
 
 func (d *BoltDb) GetView(projectID int, viewID int) (view db.View, err error) {
 	err = d.getObject(projectID, db.ViewProps, intObjectID(viewID), &view)

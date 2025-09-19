@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {

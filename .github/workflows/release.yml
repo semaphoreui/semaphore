@@ -52,7 +52,7 @@ jobs:
         run: |
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
-          PROJECT_NAME=semaphore \
+          PROJECT_NAME=forge \
             task release:prod
 
   deploy-prod:
@@ -85,10 +85,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            forgeui/forge
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Semaphore UI <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -116,7 +116,7 @@ jobs:
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: semaphoreui/semaphore:${{ github.ref_name }}-ansible2.16.5
+          tags: forgeui/forge:${{ github.ref_name }}-ansible2.16.5
 
       - name: Server build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -125,13 +125,13 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=semaphoreui/semaphore
+            SEMAPHORE_IMAGE=forgeui/forge
             SEMAPHORE_VERSION=${{ github.ref_name }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: semaphoreui/semaphore:${{ github.ref_name }}-powershell7.5.0
+          tags: forgeui/forge:${{ github.ref_name }}-powershell7.5.0
 
 
 
@@ -141,10 +141,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/runner
+            forgeui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Semaphore UI <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -172,7 +172,7 @@ jobs:
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner:${{ github.ref_name }}-ansible2.16.5
+          tags: forgeui/runner:${{ github.ref_name }}-ansible2.16.5
 
       - name: Runner build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -181,10 +181,10 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=semaphoreui/runner
+            SEMAPHORE_IMAGE=forgeui/runner
             SEMAPHORE_VERSION=${{ github.ref_name }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner:${{ github.ref_name }}-powershell7.5.0
+          tags: forgeui/runner:${{ github.ref_name }}-powershell7.5.0

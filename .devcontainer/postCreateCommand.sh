@@ -14,7 +14,7 @@ task dredd:hooks
 
 cp ./.devcontainer/config.json ./.dredd/config.json
 
-./bin/semaphore user add \
+./bin/forge user add \
     --admin \
     --login admin \
     --name Admin \

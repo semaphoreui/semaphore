@@ -6,8 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func IntegrationMiddleware(next http.Handler) http.Handler {

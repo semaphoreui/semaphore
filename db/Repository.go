@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 type RepositoryType string

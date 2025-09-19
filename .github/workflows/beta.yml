@@ -50,13 +50,13 @@ jobs:
       - name: Run release
         run: |
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          PROJECT_NAME=semaphore \
+          PROJECT_NAME=forge \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           task release:prod
 
   deploy-beta:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'semaphoreui'
+    if: github.repository_owner == 'forgeui'
 
     steps:
       - name: Checkout source
@@ -83,10 +83,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            forgeui/forge
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Semaphore UI <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -110,10 +110,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/runner
+            forgeui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Semaphore UI <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |

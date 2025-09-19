@@ -10,11 +10,11 @@ import (
 
 	"text/template"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	emailTemplates "github.com/Digital-Data-Co/semaphore/api/templates"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
-	"github.com/Digital-Data-Co/semaphore/util/mailer"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	emailTemplates "github.com/Digital-Data-Co/forge/api/templates"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
+	"github.com/Digital-Data-Co/forge/util/mailer"
 	log "github.com/sirupsen/logrus"
 )
 

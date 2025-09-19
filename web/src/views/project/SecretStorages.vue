@@ -106,7 +106,7 @@
       <v-btn
         class="ml-2 pr-2"
         color="hsl(348deg, 86%, 61%)"
-        href="https://semaphoreui.com/pro#secret_storages"
+        href="https://forgeui.com/pro#secret_storages"
       >
         {{ $t('learn_more_about_pro') }}
         <v-icon>mdi-chevron-right</v-icon>

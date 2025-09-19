@@ -1,15 +1,15 @@
 [Unit]
-Documentation=https://github.com/Digital-Data-Co/semaphore
-Documentation=man:semaphore --help
+Documentation=https://github.com/Digital-Data-Co/forge
+Documentation=man:forge --help
 Description=Semaphore UI
 Requires=network.target
 After=network.target syslog.target
 
 [Service]
-EnvironmentFile=/etc/semaphore/env
-User=semaphore
-Group=semaphore
-ExecStart=/usr/bin/semaphore server --config /home/semaphore/config.json
+EnvironmentFile=/etc/forge/env
+User=forge
+Group=forge
+ExecStart=/usr/bin/forge server --config /home/forge/config.json
 ExecStop=/bin/kill -s QUIT $MAINPID
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always

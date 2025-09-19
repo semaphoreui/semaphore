@@ -13,7 +13,7 @@
 
 If you believe you’ve found a security vulnerability in Semaphore UI, we encourage you to let us know as soon as possible.
 
-Please email us at security@semaphoreui.com with:
+Please email us at security@forgeui.com with:
 
 - A clear description of the vulnerability
 - Steps to reproduce the issue

@@ -16,8 +16,8 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 
 ### Run the application:
 - ALWAYS run the bootstrapping steps first
-- Setup database and admin user: `./bin/semaphore setup` (interactive, use BoltDB option 2 for development)
-- Start server: `./bin/semaphore server --config ./config.json`
+- Setup database and admin user: `./bin/forge setup` (interactive, use BoltDB option 2 for development)
+- Start server: `./bin/forge server --config ./config.json`
 - Web UI: http://localhost:3000 (login: admin / changeme)
 - API: http://localhost:3000/api/ (test with: `curl http://localhost:3000/api/ping`)
 
@@ -26,7 +26,7 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 - **CRITICAL**: Always, manually validate any new code by building and running the application.
 - ALWAYS run through at least one complete end-to-end scenario after making changes:
   1. Build the application: `task build`
-  2. Start the server: `./bin/semaphore server --config ./config.json`
+  2. Start the server: `./bin/forge server --config ./config.json`
   3. Test API endpoint: `curl http://localhost:3000/api/ping` (should return "pong")
   4. Access web UI at http://localhost:3000 and verify it loads
   5. For auth changes: Test login with admin/changeme
@@ -39,10 +39,10 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 task build
 
 # 2. Setup database (if config.json doesn't exist)
-./bin/semaphore setup  # Choose option 2 (BoltDB), use admin/changeme
+./bin/forge setup  # Choose option 2 (BoltDB), use admin/changeme
 
 # 3. Start server
-./bin/semaphore server --config ./config.json
+./bin/forge server --config ./config.json
 
 # 4. Test in another terminal
 curl http://localhost:3000/api/ping  # Should return "pong"
@@ -100,10 +100,10 @@ task test
 task lint
 
 # Setup application (interactive)
-./bin/semaphore setup
+./bin/forge setup
 
 # Start server
-./bin/semaphore server --config ./config.json
+./bin/forge server --config ./config.json
 
 # View available task commands
 task --list

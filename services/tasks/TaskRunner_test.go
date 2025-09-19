@@ -7,17 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/ssh"
+	"github.com/Digital-Data-Co/forge/pkg/ssh"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Digital-Data-Co/semaphore/db_lib"
+	"github.com/Digital-Data-Co/forge/db_lib"
 
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db/bolt"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db/bolt"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 type KeyInstallerMock struct {
@@ -567,7 +567,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"forge_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -623,7 +623,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"forge_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -680,7 +680,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"forge_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
 		t.Fatal("incorrect result")
 	}
 }

@@ -1,12 +1,12 @@
 package db_lib
 
 import (
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 	"os"
 	"path"
 
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
 )
 
 type GitRepositoryDirType int

@@ -3,8 +3,8 @@ set -e
 
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-mkdir -p /etc/semaphore
-cp ${HERE}/../semaphore.service /etc/systemd/system
-cp ${HERE}/../env /etc/semaphore/env
+mkdir -p /etc/forge
+cp ${HERE}/../forge.service /etc/systemd/system
+cp ${HERE}/../env /etc/forge/env
 systemctl daemon-reload
-systemctl start semaphore.service
+systemctl start forge.service

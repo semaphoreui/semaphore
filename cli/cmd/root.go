@@ -7,20 +7,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/services/server"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/services/server"
 
 	"github.com/gorilla/handlers"
-	"github.com/Digital-Data-Co/semaphore/api"
-	"github.com/Digital-Data-Co/semaphore/api/sockets"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db/factory"
-	proFactory "github.com/Digital-Data-Co/semaphore/pro/db/factory"
-	proServer "github.com/Digital-Data-Co/semaphore/pro/services/server"
-	proTasks "github.com/Digital-Data-Co/semaphore/pro/services/tasks"
-	"github.com/Digital-Data-Co/semaphore/services/schedules"
-	"github.com/Digital-Data-Co/semaphore/services/tasks"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api"
+	"github.com/Digital-Data-Co/forge/api/sockets"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db/factory"
+	proFactory "github.com/Digital-Data-Co/forge/pro/db/factory"
+	proServer "github.com/Digital-Data-Co/forge/pro/services/server"
+	proTasks "github.com/Digital-Data-Co/forge/pro/services/tasks"
+	"github.com/Digital-Data-Co/forge/services/schedules"
+	"github.com/Digital-Data-Co/forge/services/tasks"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -32,11 +32,11 @@ var persistentFlags struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "semaphore",
+	Use:   "forge",
 	Short: "Semaphore UI is a beautiful web UI for Ansible",
 	Long: `Semaphore UI is a beautiful web UI for Ansible.
-Source code is available at https://github.com/Digital-Data-Co/semaphore.
-Complete documentation is available at https://semaphoreui.com.`,
+Source code is available at https://github.com/Digital-Data-Co/forge.
+Complete documentation is available at https://forgeui.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)

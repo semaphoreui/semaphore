@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/common_errors"
-	"github.com/Digital-Data-Co/semaphore/services/tasks"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/common_errors"
+	"github.com/Digital-Data-Co/forge/services/tasks"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 )
 

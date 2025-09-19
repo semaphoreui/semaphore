@@ -77,7 +77,7 @@ paths:
       tags:
         - misc
       operationId: getInfo
-      summary: Fetches information about semaphore
+      summary: Fetches information about forge
       description: you must be authenticated to use this
       responses:
         '200':
@@ -2007,7 +2007,7 @@ components:
           example: test-user
         email:
           type: string
-          example: test@ansiblesemaphore.test
+          example: test@ansibleforge.test
         password:
           type: string
           format: password
@@ -2028,7 +2028,7 @@ components:
           example: test-user2
         email:
           type: string
-          example: test2@ansiblesemaphore.test
+          example: test2@ansibleforge.test
         alert:
           type: boolean
         admin:
@@ -2287,7 +2287,7 @@ components:
             cron: "* * * * *"
         repositories:
           - name: Demo
-            git_url: https://github.com/Digital-Data-Co/semaphore-demo.git
+            git_url: https://github.com/Digital-Data-Co/forge-demo.git
             git_branch: main
             ssh_key: None
         keys:

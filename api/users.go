@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
 	log "github.com/sirupsen/logrus"
 	"image/png"
 	"net/http"
 
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 type UsersController struct {

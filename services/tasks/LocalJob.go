@@ -7,15 +7,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/ssh"
+	"github.com/Digital-Data-Co/forge/pkg/ssh"
 
 	"path"
 	"strconv"
 
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db_lib"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db_lib"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 type LocalJob struct {
@@ -111,7 +111,7 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 
 	vars := make(map[string]any)
 	vars["task_details"] = taskDetails
-	extraVars["semaphore_vars"] = vars
+	extraVars["forge_vars"] = vars
 
 	return
 }
@@ -165,7 +165,7 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 
 	vars := make(map[string]any)
 	vars["task_details"] = taskDetails
-	extraVars["semaphore_vars"] = vars
+	extraVars["forge_vars"] = vars
 
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
@@ -232,7 +232,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
-		if name != "semaphore_vars" {
+		if name != "forge_vars" {
 			args = append(args, fmt.Sprintf("%s=%s", name, value))
 		}
 	}
@@ -267,7 +267,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 	}
 
 	for name, value := range extraVars {
-		if name == "semaphore_vars" {
+		if name == "forge_vars" {
 			continue
 		}
 		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))

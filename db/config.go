@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 	"strings"
 )
 

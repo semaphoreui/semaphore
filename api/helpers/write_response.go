@@ -3,8 +3,8 @@ package helpers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/common_errors"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/common_errors"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"runtime/debug"

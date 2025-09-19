@@ -10,8 +10,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 const (

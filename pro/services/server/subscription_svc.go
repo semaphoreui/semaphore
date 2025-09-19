@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
 )
 
 func NewSubscriptionService(userRepo db.UserManager, optionsRepo db.OptionsManager) pro_interfaces.SubscriptionService {

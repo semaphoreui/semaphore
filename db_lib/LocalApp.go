@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 func getEnvironmentVars() []string {

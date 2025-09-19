@@ -43,7 +43,7 @@ docker-compose <server from above> -f deployment/compose/server/config.yml up
 ## Runner
 
 If you want to try the remote runner functionality of Semaphore you could just
-add this snippet to get a runner up and connected to semaphore. Similar to the
+add this snippet to get a runner up and connected to forge. Similar to the
 examples above for the server you got different options like building the runner
 from the source or using our prebuilt images.
 

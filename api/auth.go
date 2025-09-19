@@ -3,9 +3,9 @@ package api
 import (
 	"errors"
 	"github.com/pquerna/otp"
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
@@ -16,13 +16,13 @@ import (
 
 func getSession(r *http.Request) (*db.Session, bool) {
 	// fetch session from cookie
-	cookie, err := r.Cookie("semaphore")
+	cookie, err := r.Cookie("forge")
 	if err != nil {
 		return nil, false
 	}
 
 	value := make(map[string]any)
-	if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
+	if err = util.Cookie.Decode("forge", cookie.Value, &value); err != nil {
 		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}

@@ -3,7 +3,7 @@ package sql
 import (
 	"database/sql"
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {

@@ -1,12 +1,12 @@
 file:
   /usr/local/bin/server-wrapper:
     exists: true
-    owner: semaphore
+    owner: forge
     group: root
     filetype: file
-  /usr/local/bin/semaphore:
+  /usr/local/bin/forge:
     exists: true
-    owner: semaphore
+    owner: forge
     group: root
     filetype: file
 
@@ -48,13 +48,13 @@ package:
     installed: true
 
 user:
-  semaphore:
+  forge:
     exists: true
     uid: 1001
     gid: 0
-    home: /home/semaphore
+    home: /home/forge
 
 command:
-  semaphore:
+  forge:
     exit-status: 0
     timeout: 10000

@@ -3,7 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -27,7 +27,7 @@ var userGetCmd = &cobra.Command{
 		}
 
 		if !ok {
-			fmt.Println("Use command `semaphore user get --help` for details.")
+			fmt.Println("Use command `forge user get --help` for details.")
 			os.Exit(1)
 		}
 

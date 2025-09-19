@@ -3,11 +3,11 @@ package projects
 import (
 	"errors"
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/services/server"
+	"github.com/Digital-Data-Co/forge/services/server"
 	"net/http"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 type KeyController struct {

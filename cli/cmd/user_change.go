@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -62,7 +62,7 @@ var userChangeByLoginCmd = &cobra.Command{
 		}
 
 		if !ok {
-			fmt.Println("Use command `semaphore user change-by-login --help` for details.")
+			fmt.Println("Use command `forge user change-by-login --help` for details.")
 			os.Exit(1)
 		}
 
@@ -92,7 +92,7 @@ var userChangeByEmailCmd = &cobra.Command{
 		}
 
 		if !ok {
-			fmt.Println("Use command `semaphore user change-by-email --help` for details.")
+			fmt.Println("Use command `forge user change-by-email --help` for details.")
 			os.Exit(1)
 		}
 

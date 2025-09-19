@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-echo "---> Gen semaphore config"
-cat << EOF > /semaphore/.dredd/config.json
+echo "---> Gen forge config"
+cat << EOF > /forge/.dredd/config.json
 {
   "dialect": "${SEMAPHORE_DB_DIALECT}",
   "${SEMAPHORE_DB_DIALECT}": ${SEMAPHORE_DB_CONFIG},
@@ -10,7 +10,7 @@ cat << EOF > /semaphore/.dredd/config.json
 }
 EOF
 
-echo "---> Waiting for semaphore"
+echo "---> Waiting for forge"
 while ! nc -z server 3000; do
   sleep 1
 done

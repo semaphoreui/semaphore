@@ -3,4 +3,4 @@ version: "3.4"
 services:
   server:
     volumes:
-      - ${SEMAPHORE_RUNNER_LOCAL_CONFIG:-config.json}:/etc/semaphore/config.json:Z
+      - ${SEMAPHORE_RUNNER_LOCAL_CONFIG:-config.json}:/etc/forge/config.json:Z

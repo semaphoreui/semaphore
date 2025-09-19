@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 	"net/url"
 	"slices"
 	"strconv"

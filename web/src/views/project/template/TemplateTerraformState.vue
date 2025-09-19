@@ -201,7 +201,7 @@
             </span>
           <v-btn
             color="hsl(348deg, 86%, 61%)"
-            href="https://semaphoreui.com/pro#runners"
+            href="https://forgeui.com/pro#runners"
           >
             Learn more
             <v-icon>mdi-chevron-right</v-icon>

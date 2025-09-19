@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db/bolt"
-	"github.com/Digital-Data-Co/semaphore/db/factory"
-	"github.com/Digital-Data-Co/semaphore/db/sql"
-	"github.com/Digital-Data-Co/semaphore/pkg/random"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db/bolt"
+	"github.com/Digital-Data-Co/forge/db/factory"
+	"github.com/Digital-Data-Co/forge/db/sql"
+	"github.com/Digital-Data-Co/forge/pkg/random"
+	"github.com/Digital-Data-Co/forge/util"
 	"github.com/snikch/goodman/transaction"
 )
 
@@ -23,7 +23,7 @@ func addTestRunnerUser() {
 	testRunnerUser = &db.User{
 		Username: "ITU-" + uid,
 		Name:     "ITU-" + uid,
-		Email:    uid + "@semaphore.test",
+		Email:    uid + "@forge.test",
 		Created:  db.GetParsedTime(tz.Now()),
 		Admin:    true,
 	}
@@ -170,7 +170,7 @@ func addUser() *db.User {
 	user := db.User{
 		Created:  tz.Now(),
 		Username: "ITU-" + uid,
-		Email:    "test@semaphore." + uid,
+		Email:    "test@forge." + uid,
 		Name:     "ITU-" + uid,
 	}
 

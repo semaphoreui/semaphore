@@ -2,7 +2,7 @@ package sql
 
 import (
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {

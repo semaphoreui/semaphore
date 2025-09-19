@@ -3,11 +3,11 @@ package projects
 import (
 	"net/http"
 
-	"github.com/Digital-Data-Co/semaphore/services/server"
+	"github.com/Digital-Data-Co/forge/services/server"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -100,7 +100,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 	demoRepo, err = store.CreateRepository(db.Repository{
 		Name:      "Demo",
 		ProjectID: projectID,
-		GitURL:    "https://github.com/Digital-Data-Co/semaphore-demo.git",
+		GitURL:    "https://github.com/Digital-Data-Co/forge-demo.git",
 		GitBranch: "main",
 		SSHKeyID:  noneKeyID,
 	})
@@ -149,7 +149,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 
 	desc = "Pings the website to provide a real-world example of using Semaphore."
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Ping semaphoreui.com",
+		Name:          "Ping forgeui.com",
 		Playbook:      "ping.yml",
 		Description:   &desc,
 		ProjectID:     projectID,

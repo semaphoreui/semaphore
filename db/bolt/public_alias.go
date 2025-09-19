@@ -3,7 +3,7 @@ package bolt
 import (
 	"errors"
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 	"reflect"
 )
 

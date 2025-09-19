@@ -1,8 +1,8 @@
 version: "3"
 
 vars:
-  DOCKER_ORG: semaphoreui
-  DOCKER_SERVER: semaphore
+  DOCKER_ORG: forgeui
+  DOCKER_SERVER: forge
   DOCKER_RUNNER: runner
   DOCKER_CMD: docker
 
@@ -59,7 +59,7 @@ tasks:
     cmds:
       - >-
         env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
-        go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+        go build -o bin/forge{{ if eq OS "windows" }}.exe{{ end }}
         -tags "netgo"
         -gcflags="all=-N -l"
         -ldflags "-X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli
@@ -70,7 +70,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/Digital-Data-Co/semaphore"
+      IMPORT: "github.com/Digital-Data-Co/forge"
 
   build:fe:
     desc: Build VueJS project
@@ -99,7 +99,7 @@ tasks:
     cmds:
       - >-
         env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
-        go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
+        go build -o bin/forge{{ if eq OS "windows" }}.exe{{ end }}
         -tags "netgo"
         -ldflags "-s -w -X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli
     vars:
@@ -109,7 +109,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/Digital-Data-Co/semaphore"
+      IMPORT: "github.com/Digital-Data-Co/forge"
 
   lint:
     cmds:

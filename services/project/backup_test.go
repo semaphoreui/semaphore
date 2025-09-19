@@ -2,11 +2,11 @@ package project
 
 import (
 	"encoding/json"
-	"github.com/Digital-Data-Co/semaphore/db/sql"
+	"github.com/Digital-Data-Co/forge/db/sql"
 	"testing"
 
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
 	"github.com/stretchr/testify/assert"
 )
 

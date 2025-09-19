@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 	"net/http"
 	"net/http/httptest"
 	"testing"

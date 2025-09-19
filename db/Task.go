@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 type DefaultTaskParams struct {

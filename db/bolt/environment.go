@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/Digital-Data-Co/semaphore/db"
+import "github.com/Digital-Data-Co/forge/db"
 
 func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
 	err = d.getObject(projectID, db.EnvironmentProps, intObjectID(environmentID), &environment)

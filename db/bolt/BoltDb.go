@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
 	"go.etcd.io/bbolt"
 )
 
@@ -1007,7 +1007,7 @@ func CreateTestStore() *BoltDb {
 		},
 	}
 
-	fn := "/tmp/test_semaphore_db_" + util.RandString(5)
+	fn := "/tmp/test_forge_db_" + util.RandString(5)
 	store := CreateBoltDB()
 
 	store.Filename = fn

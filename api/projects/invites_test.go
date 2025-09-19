@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 // Mock store for testing

@@ -25,9 +25,9 @@ services:
     depends_on:
       - ldap
 
-  semaphore:
-    image: semaphoreui/semaphore:latest
-#    container_name: semaphore
+  forge:
+    image: forgeui/forge:latest
+#    container_name: forge
     environment:
       SEMAPHORE_DB_DIALECT: "bolt"
       SEMAPHORE_ADMIN_PASSWORD: "changeme"
@@ -43,11 +43,11 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - semaphore_data:/var/lib/semaphore
+      - forge_data:/var/lib/forge
     depends_on:
       - ldap
 
 volumes:
   ldap_data:
   ldap_config:
-  semaphore_data:
+  forge_data:

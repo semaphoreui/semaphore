@@ -2,10 +2,10 @@
 
 Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOps tools.
 
-[![roadmap](https://img.shields.io/badge/roadmap-gray?style=for-the-badge&logo=github)](https://github.com/orgs/semaphoreui/projects/11)
+[![roadmap](https://img.shields.io/badge/roadmap-gray?style=for-the-badge&logo=github)](https://github.com/orgs/forgeui/projects/11)
 [![telegram](https://img.shields.io/badge/discord_community-510b80?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
-[![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
-<!-- [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/) -->
+[![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@forgeui) 
+<!-- [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://forgeui.com/install/docker/) -->
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
@@ -20,7 +20,7 @@ Thank you, [Thomas](https://github.com/tboerger) and [Brian](https://github.com/
 <!--
 ## Live Demo
 
-Try the latest version of Semaphore at [https://portal.semaphoreui.com](https://portal.semaphoreui.com).
+Try the latest version of Semaphore at [https://portal.forgeui.com](https://portal.forgeui.com).
 -->
 
 ## What is Semaphore UI?
@@ -44,63 +44,63 @@ Semaphore UI allows you to:
 ## Getting Started
 
 You can install Semaphore using the following methods:
-* [Docker](https://semaphoreui.com/install/docker)
+* [Docker](https://forgeui.com/install/docker)
 * Deploy a VM from a marketplace:
   * [AWS](https://aws.amazon.com/marketplace/pp/prodview-xavlsdkqybxtq)
-  * [DigitalOcean](https://marketplace.digitalocean.com/apps/semaphore?refcode=b55d7c0077b8&action=deploy)
-  * [Vultr](https://www.vultr.com/marketplace/apps/semaphore)
-  * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
-* [Snap](http://snapcraft.io/semaphore)
-* [Binary file](https://semaphoreui.com/install/binary)
-* [Debian or RPM package](https://semaphoreui.com/install/binary)
+  * [DigitalOcean](https://marketplace.digitalocean.com/apps/forge?refcode=b55d7c0077b8&action=deploy)
+  * [Vultr](https://www.vultr.com/marketplace/apps/forge)
+  * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/forge)
+* [Snap](http://snapcraft.io/forge)
+* [Binary file](https://forgeui.com/install/binary)
+* [Debian or RPM package](https://forgeui.com/install/binary)
 
 ### Docker
 
 The most popular way to install Semaphore is via Docker.
 
 ```
-docker run -p 3000:3000 --name semaphore \
+docker run -p 3000:3000 --name forge \
 	-e SEMAPHORE_DB_DIALECT=bolt \
 	-e SEMAPHORE_ADMIN=admin \
 	-e SEMAPHORE_ADMIN_PASSWORD=changeme \
 	-e SEMAPHORE_ADMIN_NAME=Admin \
 	-e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
-	-d semaphoreui/semaphore:latest
+	-d forgeui/forge:latest
 ```
 
-We recommend using the [Container Configurator](https://semaphoreui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
+We recommend using the [Container Configurator](https://forgeui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
 
 <!--
 ### SaaS
 
-We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://portal.semaphoreui.com).
+We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://portal.forgeui.com).
 -->
 
 ### Other Installation Methods
 
-For more installation options, visit our [Installation page](https://semaphoreui.com/install).
+For more installation options, visit our [Installation page](https://forgeui.com/install).
 
 ## Documentation
 
-* [User Guide](https://docs.semaphoreui.com)
-* [API Reference](https://semaphoreui.com/api-docs)
-* [Postman Collection](https://www.postman.com/semaphoreui)
+* [User Guide](https://docs.forgeui.com)
+* [API Reference](https://forgeui.com/api-docs)
+* [Postman Collection](https://www.postman.com/forgeui)
 
 ## Awesome Semaphore
 
 A curated list of awesome things related to Semaphore UI.
 
 * [Ebdruplab — Ansible Collections](https://github.com/Ebdruplab/ansible-collection_ebdruplab) &mdash; Ansible modules and a role for managing Semaphore.
-* [SemaphoreUI MCP Server](https://github.com/cloin/semaphore-mcp) &mdash; A Model Context Protocol (MCP) server that provides AI assistants with powerful automation capabilities for SemaphoreUI.
-* [Terraform SemaphoreUI Provider](https://github.com/CruGlobal/terraform-provider-semaphoreui) &mdash; Manage Semaphore UI resources using Terraform.
+* [SemaphoreUI MCP Server](https://github.com/cloin/forge-mcp) &mdash; A Model Context Protocol (MCP) server that provides AI assistants with powerful automation capabilities for SemaphoreUI.
+* [Terraform SemaphoreUI Provider](https://github.com/CruGlobal/terraform-provider-forgeui) &mdash; Manage Semaphore UI resources using Terraform.
 * [PSSemaphore](https://github.com/robinmalik/PSSemaphore) &mdash; A PowerShell module designed to work against the Ansible Semaphore REST API.
 
-[//]: # (* [Ansible UI Semaphore]&#40;https://github.com/morbidick/ansible-role-semaphore&#41; &mdash; Ansible role to install and configure the Ansible UI Semaphore.)
+[//]: # (* [Ansible UI Semaphore]&#40;https://github.com/morbidick/ansible-role-forge&#41; &mdash; Ansible role to install and configure the Ansible UI Semaphore.)
 
 ## Contribution
 
-* [Contribution Guide](https://github.com/Digital-Data-Co/semaphore/blob/develop/CONTRIBUTING.md)
-* [Dev Container](https://codespaces.new/semaphoreui/semaphore) (default user `admin` / `changeme`)
+* [Contribution Guide](https://github.com/Digital-Data-Co/forge/blob/develop/CONTRIBUTING.md)
+* [Dev Container](https://codespaces.new/forgeui/forge) (default user `admin` / `changeme`)
 
 ## License
 

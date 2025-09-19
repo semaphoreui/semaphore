@@ -9,9 +9,9 @@ services:
       SEMAPHORE_DB_DIALECT: mysql
       SEMAPHORE_DB_HOST: db
       SEMAPHORE_DB_PORT: 3306
-      SEMAPHORE_DB_USER: ${MYSQL_USERNAME:-semaphore}
-      SEMAPHORE_DB_PASS: ${MYSQL_PASSWORD:-semaphore}
-      SEMAPHORE_DB: ${MYSQL_DATABASE:-semaphore}
+      SEMAPHORE_DB_USER: ${MYSQL_USERNAME:-forge}
+      SEMAPHORE_DB_PASS: ${MYSQL_PASSWORD:-forge}
+      SEMAPHORE_DB: ${MYSQL_DATABASE:-forge}
     depends_on:
       - db
 
@@ -20,8 +20,8 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT:-root}
-      MYSQL_USER: ${MYSQL_USERNAME:-semaphore}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-semaphore}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-semaphore}
+      MYSQL_USER: ${MYSQL_USERNAME:-forge}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-forge}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-forge}
     volumes:
       - mysql:/var/lib/mysql

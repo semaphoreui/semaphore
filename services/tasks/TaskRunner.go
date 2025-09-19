@@ -8,15 +8,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Digital-Data-Co/semaphore/db_lib"
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
-	"github.com/Digital-Data-Co/semaphore/services/tasks/hooks"
+	"github.com/Digital-Data-Co/forge/db_lib"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/services/tasks/hooks"
 
-	"github.com/Digital-Data-Co/semaphore/api/sockets"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/sockets"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 )
 

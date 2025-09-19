@@ -2,7 +2,7 @@ package sql
 
 import (
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db.Integration, err error) {

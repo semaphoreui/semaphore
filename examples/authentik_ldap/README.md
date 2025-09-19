@@ -15,7 +15,7 @@
 4. Set up Athentik LDAP and Semaphore containers:
    1. Copy `AUTHENTIK_TOKEN` to clipboard.
       
-      <img src="https://github.com/Digital-Data-Co/semaphore/assets/914224/9e08d4cc-4526-4ace-8b45-2c065188857b" width="600">
+      <img src="https://github.com/Digital-Data-Co/forge/assets/914224/9e08d4cc-4526-4ace-8b45-2c065188857b" width="600">
    2. Open `.env` file and:
       1. Paste copied value after `AUTHENTIK_TOKEN=`
       2. Enter your `ldapservice` user password after `SEMAPHORE_LDAP_BIND_PASSWORD=`
@@ -29,4 +29,4 @@
     2. Login as `ldapservice`
     3. Create demo project
 
-       <img src="https://github.com/Digital-Data-Co/semaphore/assets/914224/98b780a7-bfbc-4b45-941f-7dd6ca337685" width="600">
+       <img src="https://github.com/Digital-Data-Co/forge/assets/914224/98b780a7-bfbc-4b45-941f-7dd6ca337685" width="600">

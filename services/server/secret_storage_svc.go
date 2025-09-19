@@ -1,9 +1,9 @@
 package server
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/random"
-	pro "github.com/Digital-Data-Co/semaphore/pro/services/server"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/random"
+	pro "github.com/Digital-Data-Co/forge/pro/services/server"
 )
 
 type SecretStorageService interface {

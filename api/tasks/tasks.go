@@ -3,11 +3,11 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	task2 "github.com/Digital-Data-Co/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	task2 "github.com/Digital-Data-Co/forge/services/tasks"
 )
 
 func TaskMiddleware(next http.Handler) http.Handler {

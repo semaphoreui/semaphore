@@ -2,8 +2,8 @@
 set -e
 echoerr() { printf "%s\n" "$*" >&2; }
 
-export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
-export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
+export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/forge}"
+export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/forge}"
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
@@ -13,7 +13,7 @@ else
     echoerr "No additional python dependencies to install"
 fi
 
-echoerr "Starting semaphore runner"
+echoerr "Starting forge runner"
 if test "$#" -ne 1; then
     if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ]; then
 
@@ -21,9 +21,9 @@ if test "$#" -ne 1; then
         export SEMAPHORE_RUNNER_TOKEN_FILE="${SEMAPHORE_TMP_PATH}/runner_token.txt"
       fi
 
-      exec /usr/local/bin/semaphore runner start --no-config --register
+      exec /usr/local/bin/forge runner start --no-config --register
     else
-      exec /usr/local/bin/semaphore runner start --no-config
+      exec /usr/local/bin/forge runner start --no-config
     fi
 else
     exec "$@"

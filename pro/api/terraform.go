@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/services/server"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/services/server"
 	"net/http"
 )
 

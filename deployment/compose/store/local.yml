@@ -10,9 +10,9 @@ services:
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: root
-      MARIADB_USER: semaphore
-      MARIADB_PASSWORD: semaphore
-      MARIADB_DATABASE: semaphore
+      MARIADB_USER: forge
+      MARIADB_PASSWORD: forge
+      MARIADB_DATABASE: forge
     volumes:
       - mariadb:/var/lib/mysql
     ports:
@@ -22,9 +22,9 @@ services:
     image: postgres:14.3
     restart: always
     environment:
-      POSTGRES_USER: semaphore
-      POSTGRES_PASSWORD: semaphore
-      POSTGRES_DB: semaphore
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forge
+      POSTGRES_DB: forge
     volumes:
       - postgres:/var/lib/postgresql
     ports:

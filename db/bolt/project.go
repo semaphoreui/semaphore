@@ -1,8 +1,8 @@
 package bolt
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 )
 
 func (d *BoltDb) CreateProject(project db.Project) (db.Project, error) {

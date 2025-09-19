@@ -17,15 +17,15 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gorilla/mux"
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/random"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/random"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -198,7 +198,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		return
 	}
 
-	encoded, err := util.Cookie.Encode("semaphore", map[string]any{
+	encoded, err := util.Cookie.Encode("forge", map[string]any{
 		"user":    user.ID,
 		"session": newSession.ID,
 	})
@@ -207,7 +207,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "semaphore",
+		Name:     "forge",
 		Value:    encoded,
 		Path:     "/",
 		HttpOnly: true,
@@ -396,7 +396,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "semaphore",
+		Name:     "forge",
 		Value:    "",
 		Expires:  tz.Now().Add(24 * 7 * time.Hour * -1),
 		Path:     "/",

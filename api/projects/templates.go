@@ -2,11 +2,11 @@ package projects
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 	"net/http"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context

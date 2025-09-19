@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 type EnvironmentService interface {

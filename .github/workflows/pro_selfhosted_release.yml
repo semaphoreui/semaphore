@@ -37,7 +37,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/Digital-Data-Co/semaphorepro-module.git pro_impl
+          git clone https://${{ secrets.GH_TOKEN }}@github.com/Digital-Data-Co/forgepro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
@@ -59,12 +59,12 @@ jobs:
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
-          PROJECT_NAME=semaphorepro \
+          PROJECT_NAME=forgepro \
             task release:prod
 
   deploy-prod:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'semaphoreui'
+    if: github.repository_owner == 'forgeui'
 
     steps:
       - name: Checkout source
@@ -96,10 +96,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            public.ecr.aws/semaphore/pro/server
+            public.ecr.aws/forge/pro/server
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Semaphore UI <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -132,7 +132,7 @@ jobs:
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-ansible2.16.5
+          tags: public.ecr.aws/forge/pro/server:${{ github.ref_name }}-ansible2.16.5
 
       - name: Server build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -141,7 +141,7 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=public.ecr.aws/semaphore/pro/server
+            SEMAPHORE_IMAGE=public.ecr.aws/forge/pro/server
             SEMAPHORE_VERSION=${{ github.ref_name }}
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
@@ -149,7 +149,7 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-powershell7.5.0
+          tags: public.ecr.aws/forge/pro/server:${{ github.ref_name }}-powershell7.5.0
 
 
 
@@ -159,10 +159,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            public.ecr.aws/semaphore/pro/runner
+            public.ecr.aws/forge/pro/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@semaphoreui.com>
+            maintainer=Semaphore UI <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -193,7 +193,7 @@ jobs:
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-ansible2.16.5
+          tags: public.ecr.aws/forge/pro/runner:${{ github.ref_name }}-ansible2.16.5
 
       - name: Runner build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -202,11 +202,11 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=public.ecr.aws/semaphore/pro/runner
+            SEMAPHORE_IMAGE=public.ecr.aws/forge/pro/runner
             SEMAPHORE_VERSION=${{ github.ref_name }}
             GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-powershell7.5.0
+          tags: public.ecr.aws/forge/pro/runner:${{ github.ref_name }}-powershell7.5.0

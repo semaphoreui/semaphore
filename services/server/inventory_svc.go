@@ -1,6 +1,6 @@
 package server
 
-import "github.com/Digital-Data-Co/semaphore/db"
+import "github.com/Digital-Data-Co/forge/db"
 
 type InventoryService interface {
 	GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error)

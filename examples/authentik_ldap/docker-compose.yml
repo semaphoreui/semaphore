@@ -70,8 +70,8 @@ services:
       AUTHENTIK_INSECURE: "false"
     env_file:
       - .env
-  semaphore:
-    image: semaphoreui/semaphore:latest
+  forge:
+    image: forgeui/forge:latest
     environment:
       SEMAPHORE_DB_DIALECT: "bolt"
       SEMAPHORE_ADMIN_PASSWORD: "changeme"
@@ -92,10 +92,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - semaphore_data:/var/lib/semaphore
+      - forge_data:/var/lib/forge
     depends_on:
       - ldap
 volumes:
   database:
   redis:
-  semaphore_data:
+  forge_data:

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 // contains checks if a slice contains a specific string

@@ -7,17 +7,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/random"
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
-	"github.com/Digital-Data-Co/semaphore/pro/pkg/stage_parsers"
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
-	"github.com/Digital-Data-Co/semaphore/services/server"
+	"github.com/Digital-Data-Co/forge/pkg/random"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
+	"github.com/Digital-Data-Co/forge/pro/pkg/stage_parsers"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/services/server"
 
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db_lib"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db_lib"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
 
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 )
 

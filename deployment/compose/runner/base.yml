@@ -2,7 +2,7 @@ version: "3.4"
 
 services:
   runner:
-    image: docker.io/semaphoreui/runner:${SEMAPHORE_VERSION:-latest}
+    image: docker.io/forgeui/runner:${SEMAPHORE_VERSION:-latest}
     restart: always
     environment:
       SEMAPHORE_WEB_ROOT: ${SEMAPHORE_WEB_ROOT:-http://server:3000}

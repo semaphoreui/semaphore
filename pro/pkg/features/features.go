@@ -1,6 +1,6 @@
 package features
 
-import "github.com/Digital-Data-Co/semaphore/db"
+import "github.com/Digital-Data-Co/forge/db"
 
 func GetFeatures(user *db.User) map[string]bool {
 	return map[string]bool{

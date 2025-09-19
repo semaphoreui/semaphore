@@ -1,10 +1,10 @@
 package factory
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db/bolt"
-	"github.com/Digital-Data-Co/semaphore/db/sql"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db/bolt"
+	"github.com/Digital-Data-Co/forge/db/sql"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 func CreateStore() db.Store {

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -50,7 +50,7 @@ var userAddCmd = &cobra.Command{
 		}
 
 		if !ok {
-			fmt.Println("Use command `semaphore user add --help` for details.")
+			fmt.Println("Use command `forge user add --help` for details.")
 			os.Exit(1)
 		}
 

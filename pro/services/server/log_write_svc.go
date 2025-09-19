@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
 )
 
 type LogWriteServiceImpl struct {

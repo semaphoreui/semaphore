@@ -3,11 +3,11 @@ Description=Semaphore Runner
 Requires=network.target
 
 [Service]
-EnvironmentFile=/etc/semaphore/env
-ExecStart=/usr/bin/semaphore runner start --config ${SEMAPHORE_CONFIG}
+EnvironmentFile=/etc/forge/env
+ExecStart=/usr/bin/forge runner start --config ${SEMAPHORE_CONFIG}
 ExecReload=/bin/kill -HUP $MAINPID
-User=semaphore
-Group=semaphore
+User=forge
+Group=forge
 Restart=always
 RestartSec=3s
 

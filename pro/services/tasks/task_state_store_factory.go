@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"github.com/Digital-Data-Co/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/forge/services/tasks"
 )
 
 func NewTaskStateStore() tasks.TaskStateStore {

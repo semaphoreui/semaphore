@@ -2,8 +2,8 @@ package bolt
 
 import (
 	"encoding/json"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 	"go.etcd.io/bbolt"
 )
 

@@ -27,10 +27,10 @@ When creating a pull-request you should:
       cd $GOPATH/src/github.com/Digital-Data-Co
       ```
 
-2) Clone semaphore (with submodules)
+2) Clone forge (with submodules)
 
    ```
-   git clone --recursive git@github.com:semaphoreui/semaphore.git && cd semaphore
+   git clone --recursive git@github.com:forgeui/forge.git && cd forge
    ```
 
 3) Install dev dependencies
@@ -44,7 +44,7 @@ When creating a pull-request you should:
 4) Create database if you want to use MySQL (Semaphore also supports [bbolt](https://github.com/etcd-io/bbolt), it doesn't require additional action)
 
    ```
-   echo "create database semaphore;" | mysql -uroot -p
+   echo "create database forge;" | mysql -uroot -p
    ```
 
 5) Compile, set up & run
@@ -92,7 +92,7 @@ As Dredd and the application database config may differ it expects it's own conf
 4) Start Semaphore server (add `--config` option if required):
 
 5) ```bash
-    ./bin/semaphore server
+    ./bin/forge server
     ```
 5) Start Dredd tests
 

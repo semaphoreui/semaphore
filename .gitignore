@@ -25,7 +25,7 @@ api/public/**/*
 node_modules/
 
 /.idea/
-/semaphore.iml
+/forge.iml
 /bin/
 
 /vendor/

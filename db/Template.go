@@ -114,13 +114,13 @@ type Template struct {
 	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
 
-	// Name as described in https://github.com/Digital-Data-Co/semaphore/issues/188
+	// Name as described in https://github.com/Digital-Data-Co/forge/issues/188
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
 	// to fit into []string
 	Arguments *string `db:"arguments" json:"arguments,omitempty"`
-	// if true, semaphore will not prepend any arguments to `arguments` like inventory, etc
+	// if true, forge will not prepend any arguments to `arguments` like inventory, etc
 	AllowOverrideArgsInTask bool `db:"allow_override_args_in_task" json:"allow_override_args_in_task,omitempty"`
 
 	Description *string `db:"description" json:"description,omitempty"`

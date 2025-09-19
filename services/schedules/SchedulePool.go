@@ -5,13 +5,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/services/server"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/services/server"
+	"github.com/Digital-Data-Co/forge/util"
 
 	"github.com/robfig/cron/v3"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db_lib"
-	"github.com/Digital-Data-Co/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db_lib"
+	"github.com/Digital-Data-Co/forge/services/tasks"
 	log "github.com/sirupsen/logrus"
 )
 

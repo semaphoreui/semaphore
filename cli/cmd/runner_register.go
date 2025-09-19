@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/util"
 	"github.com/spf13/cobra"
 )
 

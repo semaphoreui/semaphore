@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
-	"github.com/Digital-Data-Co/semaphore/services/runners"
-	"github.com/Digital-Data-Co/semaphore/services/server"
-	"github.com/Digital-Data-Co/semaphore/services/tasks"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/services/runners"
+	"github.com/Digital-Data-Co/forge/services/server"
+	"github.com/Digital-Data-Co/forge/services/tasks"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 )
 

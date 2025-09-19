@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 )
 
 func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {

@@ -22,7 +22,7 @@
             color="info"
             style="font-family: monospace;"
           >
-            {{ $t('semaphoreUserList') }}
+            {{ $t('forgeUserList') }}
           </v-alert>
           <p class="text-body-1">
             {{ $t('youCanChangePasswordOfExistingUser') }}
@@ -34,7 +34,7 @@
             style="font-family: monospace;"
           >
             {{
-              $t('semaphoreUserChangebyloginLoginUser123Password', {
+              $t('forgeUserChangebyloginLoginUser123Password', {
                 makePasswordExample:
                   makePasswordExample()
               })
@@ -49,7 +49,7 @@
             color="info"
             style="font-family: monospace;"
           >
-            semaphore user add --admin --login user123 --name User123
+            forge user add --admin --login user123 --name User123
             --email user123@example.com --password {{ makePasswordExample() }}
           </v-alert>
         </v-card-text>

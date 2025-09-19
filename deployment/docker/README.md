@@ -26,8 +26,8 @@ If you want to customize the image names or if you want to use [Podman][podman]
 instead of [Docker][docker] you are able to provide some set of environment
 variables to the [Task][gotask] command:
 
-* `DOCKER_ORG`: Define a custom organization for the image, defaults to `semaphoreui`
-* `DOCKER_SERVER`: Define a different name for the server image, defaults to `semaphore`
+* `DOCKER_ORG`: Define a custom organization for the image, defaults to `forgeui`
+* `DOCKER_SERVER`: Define a different name for the server image, defaults to `forge`
 * `DOCKER_RUNNER`: Define a different name for the runner image, defaults to `runner`
 * `DOCKER_CMD`: Use another command to build the image, defaults to `docker`
 
@@ -48,7 +48,7 @@ variables for `INSTALL_PATH` (`/usr/local/bin`) and `REQUIRE_SUDO` (true).
 task docker:test
 ```
 
-[dockerhub]: https://hub.docker.com/r/semaphoreui/semaphore
+[dockerhub]: https://hub.docker.com/r/forgeui/forge
 [docker]: https://docs.docker.com/engine/install/
 [podman]: https://podman.io/docs/installation
 [gotask]: https://taskfile.dev/installation/
@@ -57,4 +57,4 @@ task docker:test
 [hadolint]: https://github.com/hadolint/hadolint
 [goss]: https://github.com/goss-org/goss
 [snippets]: ../compose/README.md
-[documentation]: https://docs.semaphoreui.com/administration-guide/installation
+[documentation]: https://docs.forgeui.com/administration-guide/installation

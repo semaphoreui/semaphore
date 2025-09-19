@@ -7,8 +7,8 @@ WORKDIR /usr/local
 # hadolint ignore=DL4006
 RUN curl -sL https://taskfile.dev/install.sh | sh
 
-WORKDIR /go/src/semaphore
-COPY . /go/src/semaphore
+WORKDIR /go/src/forge
+COPY . /go/src/forge
 
 RUN --mount=type=cache,target=/go/pkg \
     go mod download -x
@@ -19,7 +19,7 @@ ARG TARGETARCH
 ARG GH_TOKEN
 
 RUN if [ -n "$APP_BUILD_TYPE" ]; then \
-      git clone https://${GH_TOKEN}@github.com/Digital-Data-Co/semaphorepro-module.git pro_impl && \
+      git clone https://${GH_TOKEN}@github.com/Digital-Data-Co/forgepro-module.git pro_impl && \
       go work init . ./pro_impl; \
     fi
 
@@ -52,37 +52,37 @@ ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
 ARG ANSIBLE_VERSION=11.1.0
 ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
-ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
+ARG ANSIBLE_VENV_PATH=/opt/forge/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U \
     bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip jq && \
     rm -rf /var/cache/apk/* && \
-    adduser -D -u 1001 -G root semaphore && \
-    mkdir -p /tmp/semaphore && \
-    mkdir -p /etc/semaphore && \
-    mkdir -p /var/lib/semaphore && \
-    mkdir -p /opt/semaphore && \
-    chown -R semaphore:0 /tmp/semaphore && \
-    chown -R semaphore:0 /etc/semaphore && \
-    chown -R semaphore:0 /var/lib/semaphore && \
-    chown -R semaphore:0 /opt/semaphore && \
+    adduser -D -u 1001 -G root forge && \
+    mkdir -p /tmp/forge && \
+    mkdir -p /etc/forge && \
+    mkdir -p /var/lib/forge && \
+    mkdir -p /opt/forge && \
+    chown -R forge:0 /tmp/forge && \
+    chown -R forge:0 /etc/forge && \
+    chown -R forge:0 /var/lib/forge && \
+    chown -R forge:0 /opt/forge && \
     find /usr/lib/python* -iname __pycache__ | xargs rm -rf
 
-RUN echo $'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null' > /etc/ssh/ssh_config.d/semaphore.conf
+RUN echo $'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null' > /etc/ssh/ssh_config.d/forge.conf
 
 COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /etc/ansible/ansible.cfg
-COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
-COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
+COPY --from=builder /go/src/forge/deployment/docker/server/server-wrapper /usr/local/bin/
+COPY --from=builder /go/src/forge/bin/forge /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
 COPY --from=builder /tmp/terraform /usr/local/bin/
 COPY --from=builder /tmp/terragrunt /usr/local/bin/
 
-RUN chown -R semaphore:0 /usr/local/bin/server-wrapper && \
+RUN chown -R forge:0 /usr/local/bin/server-wrapper && \
     chmod +x /usr/local/bin/server-wrapper && \
-    chown -R semaphore:0 /usr/local/bin/semaphore && \
-    chmod +x /usr/local/bin/semaphore
+    chown -R forge:0 /usr/local/bin/forge && \
+    chmod +x /usr/local/bin/forge
 
-WORKDIR /home/semaphore
+WORKDIR /home/forge
 
 RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo && \
      mkdir -p ${ANSIBLE_VENV_PATH} && \
@@ -92,7 +92,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
-     chown -R semaphore:0 /opt/semaphore
+     chown -R forge:0 /opt/forge
 
 USER 1001
 EXPOSE 3000

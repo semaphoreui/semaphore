@@ -2,14 +2,14 @@ package ssh
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/random"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/random"
+	"github.com/Digital-Data-Co/forge/util"
 	"io"
 	"net"
 	"path"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )

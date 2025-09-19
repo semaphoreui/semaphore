@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/db/sql"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/db/sql"
 )
 
 type AnsibleTaskStoreImpl struct {

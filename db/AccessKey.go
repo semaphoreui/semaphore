@@ -2,9 +2,9 @@ package db
 
 import (
 	"fmt"
-	//"github.com/Digital-Data-Co/semaphore/pkg/ssh"
-	//"github.com/Digital-Data-Co/semaphore/pkg/random"
-	//"github.com/Digital-Data-Co/semaphore/pkg/ssh"
+	//"github.com/Digital-Data-Co/forge/pkg/ssh"
+	//"github.com/Digital-Data-Co/forge/pkg/random"
+	//"github.com/Digital-Data-Co/forge/pkg/ssh"
 	//"path"
 )
 
@@ -24,7 +24,7 @@ const (
 	AccessKeyShared      AccessKeyOwner = ""
 )
 
-// AccessKey represents a key used to access a machine with ansible from semaphore
+// AccessKey represents a key used to access a machine with ansible from forge
 type AccessKey struct {
 	ID   int    `db:"id" json:"id" backup:"-"`
 	Name string `db:"name" json:"name" binding:"required"`

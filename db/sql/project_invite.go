@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) (invites []db.ProjectInviteWithUser, err error) {

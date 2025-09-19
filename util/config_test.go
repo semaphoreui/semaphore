@@ -350,7 +350,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if Config.Port != ":3000" {
 		t.Error(errMsg)
 	}
-	if Config.TmpPath != "/tmp/semaphore" {
+	if Config.TmpPath != "/tmp/forge" {
 		t.Error(errMsg)
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
-	pro "github.com/Digital-Data-Co/semaphore/pro/services/server"
+	"github.com/Digital-Data-Co/forge/db"
+	pro "github.com/Digital-Data-Co/forge/pro/services/server"
 	"strings"
 )
 

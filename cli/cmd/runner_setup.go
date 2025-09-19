@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/cli/setup"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/cli/setup"
+	"github.com/Digital-Data-Co/forge/util"
 	"github.com/spf13/cobra"
 )
 
@@ -39,8 +39,8 @@ func doRunnerSetup() int {
 		}
 	}
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore runner start --config %v\n\n", resultConfigPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore runner start --config %v &\n\n", resultConfigPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./forge runner start --config %v\n\n", resultConfigPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./forge runner start --config %v &\n\n", resultConfigPath)
 
 	return 0
 }

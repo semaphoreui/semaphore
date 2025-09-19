@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
-	projectService "github.com/Digital-Data-Co/semaphore/services/project"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
+	projectService "github.com/Digital-Data-Co/forge/services/project"
 	log "github.com/sirupsen/logrus"
 )
 

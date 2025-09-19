@@ -142,7 +142,7 @@
       <div>
         Don't have subscription key? <a
         target="_blank"
-        href="https://portal.semaphoreui.com/auth/login?new_project=premium"
+        href="https://portal.forgeui.com/auth/login?new_project=premium"
       >Get one</a>.
       </div>
     </div>

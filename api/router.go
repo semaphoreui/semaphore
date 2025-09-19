@@ -10,27 +10,27 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/forge/pro_interfaces"
 
-	proApi "github.com/Digital-Data-Co/semaphore/pro/api"
-	proProjects "github.com/Digital-Data-Co/semaphore/pro/api/projects"
-	proFeatures "github.com/Digital-Data-Co/semaphore/pro/pkg/features"
-	"github.com/Digital-Data-Co/semaphore/services/server"
-	taskServices "github.com/Digital-Data-Co/semaphore/services/tasks"
+	proApi "github.com/Digital-Data-Co/forge/pro/api"
+	proProjects "github.com/Digital-Data-Co/forge/pro/api/projects"
+	proFeatures "github.com/Digital-Data-Co/forge/pro/pkg/features"
+	"github.com/Digital-Data-Co/forge/services/server"
+	taskServices "github.com/Digital-Data-Co/forge/services/tasks"
 
-	"github.com/Digital-Data-Co/semaphore/api/debug"
-	"github.com/Digital-Data-Co/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/forge/api/debug"
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/Digital-Data-Co/semaphore/api/runners"
+	"github.com/Digital-Data-Co/forge/api/runners"
 
 	"github.com/gorilla/mux"
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/api/projects"
-	"github.com/Digital-Data-Co/semaphore/api/sockets"
-	"github.com/Digital-Data-Co/semaphore/api/tasks"
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/api/projects"
+	"github.com/Digital-Data-Co/forge/api/sockets"
+	"github.com/Digital-Data-Co/forge/api/tasks"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 var startTime = tz.Now()

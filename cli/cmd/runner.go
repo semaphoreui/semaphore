@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/Digital-Data-Co/semaphore/pkg/ssh"
-	"github.com/Digital-Data-Co/semaphore/services/runners"
+	"github.com/Digital-Data-Co/forge/pkg/ssh"
+	"github.com/Digital-Data-Co/forge/services/runners"
 	"github.com/spf13/cobra"
 	"os"
 )

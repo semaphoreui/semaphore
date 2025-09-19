@@ -1,9 +1,9 @@
 package db_lib
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/pkg/ssh"
-	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/pkg/ssh"
+	"github.com/Digital-Data-Co/forge/pkg/task_logger"
 )
 
 type AccessKeyInstaller interface {

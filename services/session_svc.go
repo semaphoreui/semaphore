@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/Digital-Data-Co/semaphore/db"
-	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
@@ -26,7 +26,7 @@ func (s *sessionServiceImpl) GetSession(cookie http.Cookie) (*db.Session, bool) 
 	var err error
 
 	value := make(map[string]any)
-	if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
+	if err = util.Cookie.Decode("forge", cookie.Value, &value); err != nil {
 		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}

@@ -33,7 +33,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/Digital-Data-Co/semaphorepro-module.git pro_impl
+          git clone https://${{ secrets.GH_TOKEN }}@github.com/Digital-Data-Co/forgepro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
@@ -53,8 +53,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: semaphore
-          path: bin/semaphore
+          name: forge
+          path: bin/forge
           retention-days: 1
 
   migrate-boltdb:
@@ -67,7 +67,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
@@ -83,7 +83,7 @@ jobs:
 
       - name: Migrate database
         run: |
-          chmod +x ./semaphore && ./semaphore migrate --config config.json
+          chmod +x ./forge && ./forge migrate --config config.json
 
   migrate-mysql:
     runs-on: ubuntu-latest
@@ -96,9 +96,9 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
-          MYSQL_USER: semaphore
+          MYSQL_USER: forge
           MYSQL_PASSWORD: p455w0rd
-          MYSQL_DATABASE: semaphore
+          MYSQL_DATABASE: forge
         options: >-
           --health-cmd "mysqladmin ping"
           --health-interval 10s
@@ -111,7 +111,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
@@ -119,9 +119,9 @@ jobs:
             {
               "mysql": {
                 "host": "localhost:3306",
-                "user": "semaphore",
+                "user": "forge",
                 "pass": "p455w0rd",
-                "name": "semaphore"
+                "name": "forge"
               },
               "dialect": "mysql",
               "email_alert": false
@@ -130,7 +130,7 @@ jobs:
 
       - name: Migrate database
         run: |
-          chmod +x ./semaphore && ./semaphore migrate --config config.json
+          chmod +x ./forge && ./forge migrate --config config.json
 
   migrate-mariadb:
     runs-on: ubuntu-latest
@@ -143,9 +143,9 @@ jobs:
         image: mariadb:10.4
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
-          MARIADB_USER: semaphore
+          MARIADB_USER: forge
           MARIADB_PASSWORD: p455w0rd
-          MARIADB_DATABASE: semaphore
+          MARIADB_DATABASE: forge
         options: >-
           --health-cmd "mysqladmin ping"
           --health-interval 10s
@@ -158,7 +158,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
@@ -166,9 +166,9 @@ jobs:
             {
               "mysql": {
                 "host": "localhost:3306",
-                "user": "semaphore",
+                "user": "forge",
                 "pass": "p455w0rd",
-                "name": "semaphore"
+                "name": "forge"
               },
               "dialect": "mysql",
               "email_alert": false
@@ -177,7 +177,7 @@ jobs:
 
       - name: Migrate database
         run: |
-          chmod +x ./semaphore && ./semaphore migrate --config config.json
+          chmod +x ./forge && ./forge migrate --config config.json
 
   migrate-postgres:
     runs-on: ubuntu-latest
@@ -189,9 +189,9 @@ jobs:
       postgres:
         image: postgres:12.18
         env:
-          POSTGRES_USER: semaphore
+          POSTGRES_USER: forge
           POSTGRES_PASSWORD: p455w0rd
-          POSTGRES_DB: semaphore
+          POSTGRES_DB: forge
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -204,7 +204,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
@@ -212,9 +212,9 @@ jobs:
             {
               "postgres": {
                 "host": "localhost:5432",
-                "user": "semaphore",
+                "user": "forge",
                 "pass": "p455w0rd",
-                "name": "semaphore",
+                "name": "forge",
                 "options": {
                   "sslmode": "disable"
                 }
@@ -226,7 +226,7 @@ jobs:
 
       - name: Migrate database
         run: |
-          chmod +x ./semaphore && ./semaphore migrate --config config.json
+          chmod +x ./forge && ./forge migrate --config config.json
 
   integrate-boltdb:
     runs-on: ubuntu-latest
@@ -260,14 +260,14 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
           cat > config.stdin <<EOF
           2
           /tmp/database.bolt
-          /tmp/semaphore
+          /tmp/forge
           http://localhost:3000
           no
           no
@@ -284,7 +284,7 @@ jobs:
 
       - name: Execute setup
         run: |
-          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+          chmod +x ./forge && ./forge setup - < config.stdin
 
       - name: Launch dredd
         run: |
@@ -304,9 +304,9 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
-          MYSQL_USER: semaphore
+          MYSQL_USER: forge
           MYSQL_PASSWORD: p455w0rd
-          MYSQL_DATABASE: semaphore
+          MYSQL_DATABASE: forge
         options: >-
           --health-cmd "mysqladmin ping"
           --health-interval 10s
@@ -338,17 +338,17 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
           cat > config.stdin <<EOF
           1
           localhost:3306
-          semaphore
+          forge
           p455w0rd
-          semaphore
-          /tmp/semaphore
+          forge
+          /tmp/forge
           http://localhost:3000
           no
           no
@@ -365,7 +365,7 @@ jobs:
 
       - name: Execute setup
         run: |
-          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+          chmod +x ./forge && ./forge setup - < config.stdin
 
       - name: Launch dredd
         run: |
@@ -385,9 +385,9 @@ jobs:
         image: mariadb:10.4
         env:
           MARIADB_ROOT_PASSWORD: p455w0rd
-          MARIADB_USER: semaphore
+          MARIADB_USER: forge
           MARIADB_PASSWORD: p455w0rd
-          MARIADB_DATABASE: semaphore
+          MARIADB_DATABASE: forge
         options: >-
           --health-cmd "mysqladmin ping"
           --health-interval 10s
@@ -419,17 +419,17 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
           cat > config.stdin <<EOF
           1
           localhost:3306
-          semaphore
+          forge
           p455w0rd
-          semaphore
-          /tmp/semaphore
+          forge
+          /tmp/forge
           http://localhost:3000
           no
           no
@@ -446,7 +446,7 @@ jobs:
 
       - name: Execute setup
         run: |
-          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+          chmod +x ./forge && ./forge setup - < config.stdin
 
       - name: Launch dredd
         run: |
@@ -465,9 +465,9 @@ jobs:
       postgres:
         image: postgres:12.18
         env:
-          POSTGRES_USER: semaphore
+          POSTGRES_USER: forge
           POSTGRES_PASSWORD: p455w0rd
-          POSTGRES_DB: semaphore
+          POSTGRES_DB: forge
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -499,17 +499,17 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: semaphore
+          name: forge
 
       - name: Write config
         run: |
           cat > config.stdin <<EOF
           3
           localhost:5432
-          semaphore
+          forge
           p455w0rd
-          semaphore
-          /tmp/semaphore
+          forge
+          /tmp/forge
           http://localhost:3000
           no
           no
@@ -526,7 +526,7 @@ jobs:
 
       - name: Execute setup
         run: |
-          chmod +x ./semaphore && ./semaphore setup - < config.stdin
+          chmod +x ./forge && ./forge setup - < config.stdin
 
       - name: Launch dredd
         run: |

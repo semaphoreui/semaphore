@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 	"github.com/spf13/cobra"
 )
 

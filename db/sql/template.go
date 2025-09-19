@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {

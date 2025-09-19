@@ -3,7 +3,7 @@ package sql
 import (
 	"fmt"
 	"github.com/Masterminds/squirrel"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/db"
 )
 
 func validateTag(tag string) error {

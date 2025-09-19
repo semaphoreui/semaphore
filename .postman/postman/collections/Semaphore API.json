@@ -175,7 +175,7 @@
 			"name": "info",
 			"item": [
 				{
-					"name": "Fetches information about semaphore",
+					"name": "Fetches information about forge",
 					"id": "b24f5bef-31a9-4b6b-a88b-7335708054b4",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true

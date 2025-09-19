@@ -1,6 +1,6 @@
 {
    "bolt": {
-       "host": "/workspaces/semaphore/database.boltdb",
+       "host": "/workspaces/forge/database.boltdb",
        "options": {
            "sessionConnection": "false"
        }

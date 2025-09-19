@@ -2,14 +2,14 @@
 %global _missing_build_ids_terminate_build 0
 %global _dwz_low_mem_die_limit 0
 
-Name:           semaphore
+Name:           forge
 Version:        2.8.90
 Release:        1%{?dist}
 Summary:        Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 License:        MIT
-URL:            https://github.com/Digital-Data-Co/semaphore
-Source:         https://github.com/Digital-Data-Co/semaphore/archive/refs/tags/v2.8.90.zip
+URL:            https://github.com/Digital-Data-Co/forge
+Source:         https://github.com/Digital-Data-Co/forge/archive/refs/tags/v2.8.90.zip
 
 BuildRequires:  golang
 BuildRequires:  nodejs
@@ -29,8 +29,8 @@ Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. I
 %build
 export SEMAPHORE_VERSION="development"
 export SEMAPHORE_ARCH="linux_amd64"
-export SEMAPHORE_CONFIG_PATH="./etc/semaphore"
-export APP_ROOT="./semaphoreui/"
+export SEMAPHORE_CONFIG_PATH="./etc/forge"
+export APP_ROOT="./forgeui/"
 
 if ! [[ "$PATH" =~ "$HOME/go/bin:" ]]
 then
@@ -39,18 +39,18 @@ fi
 export PATH
 go-task all
 
-cat > semaphoreui.service <<EOF
+cat > forgeui.service <<EOF
 [Unit]
 Description=Semaphore Ansible
-Documentation=https://github.com/Digital-Data-Co/semaphore
+Documentation=https://github.com/Digital-Data-Co/forge
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=simple
 ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=%{_bindir}/semaphore service --config=/etc/semaphore/config.json
-SyslogIdentifier=semaphore
+ExecStart=%{_bindir}/forge service --config=/etc/forge/config.json
+SyslogIdentifier=forge
 Restart=always
 
 [Install]
@@ -58,26 +58,26 @@ WantedBy=multi-user.target
 
 EOF
 
-cat > semaphore-setup <<EOF
-semaphore setup --config=/etc/semaphore/config.json
+cat > forge-setup <<EOF
+forge setup --config=/etc/forge/config.json
 EOF
 
 %install
-mkdir -p %{buildroot}%{_sysconfdir}/semaphore/
+mkdir -p %{buildroot}%{_sysconfdir}/forge/
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_unitdir}
 
-install -m 755 bin/semaphore %{buildroot}%{_bindir}/semaphore
-install -m 755 semaphore-setup %{buildroot}%{_bindir}/semaphore-setup
-install -m 755 semaphoreui.service %{buildroot}%{_unitdir}/semaphoreui.service
+install -m 755 bin/forge %{buildroot}%{_bindir}/forge
+install -m 755 forge-setup %{buildroot}%{_bindir}/forge-setup
+install -m 755 forgeui.service %{buildroot}%{_unitdir}/forgeui.service
 
 %files
 %license LICENSE
 %doc README.md CONTRIBUTING.md
-%attr(755, root, root) %{_bindir}/semaphore
-%attr(755, root, root) %{_bindir}/semaphore-setup
-%attr(644, root,root) %{_sysconfdir}/semaphore/
-%{_unitdir}/semaphoreui.service
+%attr(755, root, root) %{_bindir}/forge
+%attr(755, root, root) %{_bindir}/forge-setup
+%attr(644, root,root) %{_sysconfdir}/forge/
+%{_unitdir}/forgeui.service
 
 %changelog
 * Wed Jun 28 2023 Neftali Yagua

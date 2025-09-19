@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Digital-Data-Co/semaphore/pkg/conv"
-	"github.com/Digital-Data-Co/semaphore/services/server"
-	task2 "github.com/Digital-Data-Co/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/forge/pkg/conv"
+	"github.com/Digital-Data-Co/forge/services/server"
+	task2 "github.com/Digital-Data-Co/forge/services/tasks"
 
-	"github.com/Digital-Data-Co/semaphore/api/helpers"
-	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/forge/api/helpers"
+	"github.com/Digital-Data-Co/forge/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/thedevsaddam/gojsonq/v2"
 )
