@@ -104,7 +104,7 @@ export default {
     loading: {
       type: Boolean,
       default: false,
-    },
+    }
   },
 
   data() {
@@ -230,7 +230,7 @@ export default {
       // Emit event to parent component to handle task details view
       this.$emit('view-task', task);
     },
-  },
+  }
 };
 </script>
 
