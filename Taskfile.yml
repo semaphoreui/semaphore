@@ -174,7 +174,7 @@ tasks:
       - goreleaser
 
   release:test:
-    desc: Create a local test release
+    desc: Create a local test releases
     cmds:
       - goreleaser --auto-snapshot --clean --skip=sign
 
