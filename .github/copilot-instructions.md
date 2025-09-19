@@ -23,7 +23,7 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 
 ## Validation
 
-- **CRITICAL**: Always manually validate any new code by building and running the application.
+- **CRITICAL**: Always, manually validate any new code by building and running the application.
 - ALWAYS run through at least one complete end-to-end scenario after making changes:
   1. Build the application: `task build`
   2. Start the server: `./bin/semaphore server --config ./config.json`
