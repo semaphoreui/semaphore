@@ -1,4 +1,4 @@
-# FORGE UI v.0.0.9
+# FORGE UI v.0.0.10
 
 Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOps tools.
 
