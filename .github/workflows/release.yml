@@ -50,8 +50,6 @@ jobs:
 
       - name: Run release
         run: |
-          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           PROJECT_NAME=forge \
             task release:prod
 
