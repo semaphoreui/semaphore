@@ -1,7 +1,7 @@
 package bolt
 
 import (
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 func (d *BoltDb) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {

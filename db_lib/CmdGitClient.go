@@ -2,12 +2,12 @@ package db_lib
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/Digital-Data-Co/semaphore/pkg/ssh"
 	"os/exec"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/util"
 )
 
 type CmdGitClient struct {

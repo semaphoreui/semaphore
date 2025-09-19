@@ -3,12 +3,12 @@ package sql
 import (
 	"fmt"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 	"path"
 	"regexp"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 	log "github.com/sirupsen/logrus"
 )
 

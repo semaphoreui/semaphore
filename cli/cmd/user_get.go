@@ -3,7 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 	"github.com/spf13/cobra"
 	"os"
 )

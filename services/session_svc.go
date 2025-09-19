@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"

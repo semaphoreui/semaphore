@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 type mockProjectStore struct {

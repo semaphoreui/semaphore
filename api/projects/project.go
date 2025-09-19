@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services/server"
-	"github.com/semaphoreui/semaphore/services/tasks"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/api/helpers"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/services/server"
+	"github.com/Digital-Data-Co/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/api/helpers"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 

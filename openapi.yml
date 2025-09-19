@@ -2287,7 +2287,7 @@ components:
             cron: "* * * * *"
         repositories:
           - name: Demo
-            git_url: https://github.com/semaphoreui/semaphore-demo.git
+            git_url: https://github.com/Digital-Data-Co/semaphore-demo.git
             git_branch: main
             ssh_key: None
         keys:

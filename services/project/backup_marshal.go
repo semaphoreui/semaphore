@@ -2,7 +2,7 @@ package project
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 	"reflect"
 )
 

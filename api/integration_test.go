@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 func TestIntegrationMatch(t *testing.T) {

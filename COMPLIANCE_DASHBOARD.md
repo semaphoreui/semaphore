@@ -152,7 +152,7 @@ adminAPI.Path("/compliance/dashboard").HandlerFunc(GetComplianceDashboard).Metho
 
 2. **Import Compliance Module** (already implemented in `api/compliance.go`):
 ```go
-import "github.com/semaphoreui/semaphore/api"
+import "github.com/Digital-Data-Co/semaphore/api"
 ```
 
 ### Frontend Setup

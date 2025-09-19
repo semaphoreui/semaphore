@@ -8,8 +8,8 @@ Release:        1%{?dist}
 Summary:        Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 License:        MIT
-URL:            https://github.com/semaphoreui/semaphore
-Source:         https://github.com/semaphoreui/semaphore/archive/refs/tags/v2.8.90.zip
+URL:            https://github.com/Digital-Data-Co/semaphore
+Source:         https://github.com/Digital-Data-Co/semaphore/archive/refs/tags/v2.8.90.zip
 
 BuildRequires:  golang
 BuildRequires:  nodejs
@@ -42,7 +42,7 @@ go-task all
 cat > semaphoreui.service <<EOF
 [Unit]
 Description=Semaphore Ansible
-Documentation=https://github.com/semaphoreui/semaphore
+Documentation=https://github.com/Digital-Data-Co/semaphore
 Wants=network-online.target
 After=network-online.target
 

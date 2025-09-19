@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

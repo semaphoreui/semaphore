@@ -23,8 +23,8 @@ When creating a pull-request you should:
    * Create required directory and switch to it:
    
       ```bash
-      mkdir -p $GOPATH/src/github.com/semaphoreui
-      cd $GOPATH/src/github.com/semaphoreui
+      mkdir -p $GOPATH/src/github.com/Digital-Data-Co
+      cd $GOPATH/src/github.com/Digital-Data-Co
       ```
 
 2) Clone semaphore (with submodules)

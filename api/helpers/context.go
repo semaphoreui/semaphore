@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 func GetFromContext(r *http.Request, key string) any {

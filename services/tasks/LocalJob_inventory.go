@@ -5,11 +5,11 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db_lib"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/util"
 )
 
 func (t *LocalJob) installInventory() (err error) {

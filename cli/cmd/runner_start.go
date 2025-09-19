@@ -3,7 +3,7 @@ package cmd
 import (
 	"time"
 
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

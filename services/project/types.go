@@ -1,7 +1,7 @@
 package project
 
 import (
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 type BackupDB struct {

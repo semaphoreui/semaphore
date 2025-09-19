@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/cli/setup"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/factory"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/cli/setup"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db/factory"
+	"github.com/Digital-Data-Co/semaphore/util"
 	"github.com/spf13/cobra"
 )
 

@@ -1,8 +1,8 @@
-module github.com/semaphoreui/semaphore/pro
+module github.com/Digital-Data-Co/semaphore/pro
 
 go 1.24.2
 
-require github.com/semaphoreui/semaphore v0.0.0-20250712180151-72836311c5b9
+require github.com/Digital-Data-Co/semaphore v0.0.0-20250712180151-72836311c5b9
 
 require (
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
@@ -15,4 +15,4 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
 
-replace github.com/semaphoreui/semaphore => ../
+replace github.com/Digital-Data-Co/semaphore => ../

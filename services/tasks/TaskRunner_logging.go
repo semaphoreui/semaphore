@@ -8,11 +8,11 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 
-	"github.com/semaphoreui/semaphore/api/sockets"
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/api/sockets"
+	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 

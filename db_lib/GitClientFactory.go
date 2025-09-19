@@ -1,6 +1,6 @@
 package db_lib
 
-import "github.com/semaphoreui/semaphore/util"
+import "github.com/Digital-Data-Co/semaphore/util"
 
 func CreateDefaultGitClient(keyInstaller AccessKeyInstaller) GitClient {
 	switch util.Config.GitClientId {

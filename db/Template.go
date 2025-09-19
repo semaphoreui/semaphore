@@ -114,7 +114,7 @@ type Template struct {
 	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
 
-	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
+	// Name as described in https://github.com/Digital-Data-Co/semaphore/issues/188
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`

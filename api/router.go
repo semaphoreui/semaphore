@@ -10,27 +10,27 @@ import (
 	"strings"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
 
-	proApi "github.com/semaphoreui/semaphore/pro/api"
-	proProjects "github.com/semaphoreui/semaphore/pro/api/projects"
-	proFeatures "github.com/semaphoreui/semaphore/pro/pkg/features"
-	"github.com/semaphoreui/semaphore/services/server"
-	taskServices "github.com/semaphoreui/semaphore/services/tasks"
+	proApi "github.com/Digital-Data-Co/semaphore/pro/api"
+	proProjects "github.com/Digital-Data-Co/semaphore/pro/api/projects"
+	proFeatures "github.com/Digital-Data-Co/semaphore/pro/pkg/features"
+	"github.com/Digital-Data-Co/semaphore/services/server"
+	taskServices "github.com/Digital-Data-Co/semaphore/services/tasks"
 
-	"github.com/semaphoreui/semaphore/api/debug"
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/api/debug"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/semaphoreui/semaphore/api/runners"
+	"github.com/Digital-Data-Co/semaphore/api/runners"
 
 	"github.com/gorilla/mux"
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/api/projects"
-	"github.com/semaphoreui/semaphore/api/sockets"
-	"github.com/semaphoreui/semaphore/api/tasks"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/api/helpers"
+	"github.com/Digital-Data-Co/semaphore/api/projects"
+	"github.com/Digital-Data-Co/semaphore/api/sockets"
+	"github.com/Digital-Data-Co/semaphore/api/tasks"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/util"
 )
 
 var startTime = tz.Now()

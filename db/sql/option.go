@@ -3,7 +3,7 @@ package sql
 import (
 	"errors"
 	"github.com/Masterminds/squirrel"
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 func (d *SqlDb) SetOption(key string, value string) error {

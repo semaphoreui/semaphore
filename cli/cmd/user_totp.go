@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pquerna/otp/totp"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/util"
 	"github.com/spf13/cobra"
 	"os"
 )

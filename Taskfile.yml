@@ -70,7 +70,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/semaphoreui/semaphore"
+      IMPORT: "github.com/Digital-Data-Co/semaphore"
 
   build:fe:
     desc: Build VueJS project
@@ -109,7 +109,7 @@ tasks:
         sh: git log --pretty=format:'%h' -n 1
       VERSION: "{{ if eq .GITHUB_REF_TYPE \"tag\" }}{{ .GITHUB_REF_NAME }}{{ else }}{{ .TAG }}{{ end }}"
       DATE: "{{ now | unixEpoch }}"
-      IMPORT: "github.com/semaphoreui/semaphore"
+      IMPORT: "github.com/Digital-Data-Co/semaphore"
 
   lint:
     cmds:

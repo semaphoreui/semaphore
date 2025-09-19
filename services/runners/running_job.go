@@ -3,14 +3,14 @@ package runners
 import (
 	"bufio"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 	"io"
 	"os/exec"
 	"sync"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/semaphore/services/tasks"
 	log "github.com/sirupsen/logrus"
 )
 

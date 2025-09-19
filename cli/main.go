@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/semaphoreui/semaphore/cli/cmd"
+	"github.com/Digital-Data-Co/semaphore/cli/cmd"
 )
 
 func main() {

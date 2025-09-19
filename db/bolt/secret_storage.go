@@ -1,6 +1,6 @@
 package bolt
 
-import "github.com/semaphoreui/semaphore/db"
+import "github.com/Digital-Data-Co/semaphore/db"
 
 func (d *BoltDb) GetSecretStorages(projectID int) ([]db.SecretStorage, error) {
 	return []db.SecretStorage{}, nil

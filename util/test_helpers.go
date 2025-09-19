@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 	"math/rand"
 )
 

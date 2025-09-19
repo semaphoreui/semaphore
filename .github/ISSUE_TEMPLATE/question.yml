@@ -15,7 +15,7 @@ body:
           - [ ] Read the [troubleshooting guide](https://docs.semaphoreui.com/administration-guide/troubleshooting)
           - [ ] Read the [documentation regarding manual installations](https://docs.semaphoreui.com/administration-guide/installation_manually) if you did install Semaphore that way
 
-        - [ ] Check if there are existing [issues](https://github.com/semaphoreui/semaphore/issues) or [discussions](https://github.com/semaphoreui/semaphore/discussions) regarding your topic
+        - [ ] Check if there are existing [issues](https://github.com/Digital-Data-Co/semaphore/issues) or [discussions](https://github.com/Digital-Data-Co/semaphore/discussions) regarding your topic
 
   - type: textarea
     id: question

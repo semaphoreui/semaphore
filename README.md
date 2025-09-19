@@ -99,7 +99,7 @@ A curated list of awesome things related to Semaphore UI.
 
 ## Contribution
 
-* [Contribution Guide](https://github.com/semaphoreui/semaphore/blob/develop/CONTRIBUTING.md)
+* [Contribution Guide](https://github.com/Digital-Data-Co/semaphore/blob/develop/CONTRIBUTING.md)
 * [Dev Container](https://codespaces.new/semaphoreui/semaphore) (default user `admin` / `changeme`)
 
 ## License

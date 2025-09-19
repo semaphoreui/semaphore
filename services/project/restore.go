@@ -3,8 +3,8 @@ package project
 import (
 	"fmt"
 
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/services/schedules"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {

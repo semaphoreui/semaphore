@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
-	"github.com/semaphoreui/semaphore/db/factory"
-	"github.com/semaphoreui/semaphore/db/sql"
-	"github.com/semaphoreui/semaphore/pkg/random"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db/bolt"
+	"github.com/Digital-Data-Co/semaphore/db/factory"
+	"github.com/Digital-Data-Co/semaphore/db/sql"
+	"github.com/Digital-Data-Co/semaphore/pkg/random"
+	"github.com/Digital-Data-Co/semaphore/util"
 	"github.com/snikch/goodman/transaction"
 )
 

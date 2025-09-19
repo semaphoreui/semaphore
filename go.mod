@@ -1,4 +1,4 @@
-module github.com/semaphoreui/semaphore
+module github.com/Digital-Data-Co/semaphore
 
 go 1.24.2
 
@@ -20,7 +20,7 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/semaphoreui/semaphore/pro v0.0.0
+	github.com/Digital-Data-Co/semaphore/pro v0.0.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
 	github.com/spf13/cobra v1.9.1
@@ -33,7 +33,7 @@ require (
 	modernc.org/sqlite v1.38.0
 )
 
-replace github.com/semaphoreui/semaphore/pro => ./pro
+replace github.com/Digital-Data-Co/semaphore/pro => ./pro
 
 require (
 	dario.cat/mergo v1.0.1 // indirect

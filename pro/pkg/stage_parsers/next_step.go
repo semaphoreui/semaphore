@@ -1,8 +1,8 @@
 package stage_parsers
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
 )
 
 func MoveToNextStage(

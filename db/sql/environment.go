@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"github.com/semaphoreui/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db"
 )
 
 func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {

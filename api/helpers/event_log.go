@@ -1,8 +1,8 @@
 package helpers
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )

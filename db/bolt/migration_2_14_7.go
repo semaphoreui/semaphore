@@ -2,7 +2,7 @@ package bolt
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/Digital-Data-Co/semaphore/pkg/conv"
 )
 
 type migration_2_14_7 struct {

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/util"
-	"github.com/semaphoreui/semaphore/util/mailer"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/util/mailer"
 )
 
 //go:embed templates/*.tmpl

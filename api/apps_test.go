@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/Digital-Data-Co/semaphore/pkg/conv"
 	"testing"
 )
 

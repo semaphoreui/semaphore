@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/util"
 	"net/http"
 	"net/http/httptest"
 	"testing"

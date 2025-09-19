@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/Digital-Data-Co/semaphore/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
 
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/pkg/task_logger"
+	"github.com/Digital-Data-Co/semaphore/util"
 )
 
 type DefaultTaskParams struct {

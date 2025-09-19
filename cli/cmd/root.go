@@ -7,20 +7,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/services/server"
+	"github.com/Digital-Data-Co/semaphore/api/helpers"
+	"github.com/Digital-Data-Co/semaphore/services/server"
 
 	"github.com/gorilla/handlers"
-	"github.com/semaphoreui/semaphore/api"
-	"github.com/semaphoreui/semaphore/api/sockets"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/factory"
-	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
-	proServer "github.com/semaphoreui/semaphore/pro/services/server"
-	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
-	"github.com/semaphoreui/semaphore/services/schedules"
-	"github.com/semaphoreui/semaphore/services/tasks"
-	"github.com/semaphoreui/semaphore/util"
+	"github.com/Digital-Data-Co/semaphore/api"
+	"github.com/Digital-Data-Co/semaphore/api/sockets"
+	"github.com/Digital-Data-Co/semaphore/db"
+	"github.com/Digital-Data-Co/semaphore/db/factory"
+	proFactory "github.com/Digital-Data-Co/semaphore/pro/db/factory"
+	proServer "github.com/Digital-Data-Co/semaphore/pro/services/server"
+	proTasks "github.com/Digital-Data-Co/semaphore/pro/services/tasks"
+	"github.com/Digital-Data-Co/semaphore/services/schedules"
+	"github.com/Digital-Data-Co/semaphore/services/tasks"
+	"github.com/Digital-Data-Co/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +35,7 @@ var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Semaphore UI is a beautiful web UI for Ansible",
 	Long: `Semaphore UI is a beautiful web UI for Ansible.
-Source code is available at https://github.com/semaphoreui/semaphore.
+Source code is available at https://github.com/Digital-Data-Co/semaphore.
 Complete documentation is available at https://semaphoreui.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()

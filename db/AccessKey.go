@@ -2,9 +2,9 @@ package db
 
 import (
 	"fmt"
-	//"github.com/semaphoreui/semaphore/pkg/ssh"
-	//"github.com/semaphoreui/semaphore/pkg/random"
-	//"github.com/semaphoreui/semaphore/pkg/ssh"
+	//"github.com/Digital-Data-Co/semaphore/pkg/ssh"
+	//"github.com/Digital-Data-Co/semaphore/pkg/random"
+	//"github.com/Digital-Data-Co/semaphore/pkg/ssh"
 	//"path"
 )
 
