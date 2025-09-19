@@ -1,4 +1,4 @@
-# Semaphore UI
+# FORGE UI
 
 Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOps tools.
 
