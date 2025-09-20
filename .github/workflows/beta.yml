@@ -4,6 +4,7 @@ name: Community Beta
   push:
     tags:
       - v*-beta*
+ 
 
 jobs:
   prerelease:
