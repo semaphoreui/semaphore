@@ -67,7 +67,7 @@ export default {
     smooth: {
       type: Boolean,
       default: true,
-    },
+    }
   },
 
   data() {
@@ -133,13 +133,7 @@ export default {
             if (params && params.length > 0) {
               const data = params[0];
               const originalData = this.data[data.dataIndex];
-              return `
-                <div>
-                  <strong>${data.name}</strong><br/>
-                  Value: ${data.value}<br/>
-                  Count: ${originalData.count || 0}
-                </div>
-              `;
+              return `<div><strong>${data.name}</strong><br/>Value: ${data.value}<br/>Count: ${originalData.count || 0}</div>`;
             }
             return '';
           },
