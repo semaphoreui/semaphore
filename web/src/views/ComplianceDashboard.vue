@@ -89,8 +89,9 @@
             <div class="d-flex align-center">
               <v-icon size="40" class="mr-3">mdi-check-circle</v-icon>
               <div>
-// eslint-disable-next-line max-len
-                <div class="text-h4">{{ dashboardData.summary?.success_rate?.toFixed(1) || 0 }}%</div>
+                <div class="text-h4">
+                  {{ dashboardData.summary?.success_rate?.toFixed(1) || 0 }}%
+                </div>
                 <div class="text-subtitle-1">Success Rate</div>
               </div>
             </div>

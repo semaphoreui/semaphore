@@ -54,7 +54,7 @@
           :text-color="'white'"
           small
         >
-          {{ item.team_size }} member{{ item.team_size !== 1 ? s: '' }}
+          {{ item.team_size }} member{{ item.team_size !== 1 ? 's' : '' }}
         </v-chip>
       </template>
 
@@ -222,11 +222,15 @@ export default {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-      if (diffDays > 0) { return `${diffDays} day${diffDays > 1 ? s: ''} ago`;
-      } else if (diffHours > 0) {
-        return `${diffHours} hour${diffHours > 1 ? s: ''} ago`;
-      } else if (diffMinutes > 0) {
-        return ; }
+      if (diffDays > 0) {
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      }
+      if (diffHours > 0) {
+        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      }
+      if (diffMinutes > 0) {
+        return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+      }
       return 'Just now';
     },
 

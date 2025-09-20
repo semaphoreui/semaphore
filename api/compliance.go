@@ -1,9 +1,9 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
@@ -199,12 +199,34 @@ func GetComplianceDashboard(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, dashboardData)
 }
 
+// getAllTasksAcrossProjects retrieves all tasks across all projects
+func getAllTasksAcrossProjects(store db.Store, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
+	var allTasks []db.TaskWithTpl
+	
+	// Get all projects
+	projects, err := store.GetAllProjects()
+	if err != nil {
+		return allTasks, err
+	}
+	
+	// Get tasks for each project
+	for _, project := range projects {
+		tasks, err := store.GetProjectTasks(project.ID, params)
+		if err != nil {
+			continue // Skip projects with errors
+		}
+		allTasks = append(allTasks, tasks...)
+	}
+	
+	return allTasks, nil
+}
+
 // getComplianceSummary retrieves high-level compliance metrics
 func getComplianceSummary(store db.Store, startDate, endDate time.Time, projectID string) (ComplianceSummary, error) {
 	var summary ComplianceSummary
 	
 	// Get total tasks
-	tasks, err := store.GetTasks(db.RetrieveQueryParams{
+	tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
 		SortBy: "created",
 		SortInverted: true,
 	})
@@ -215,9 +237,9 @@ func getComplianceSummary(store db.Store, startDate, endDate time.Time, projectI
 	// Filter tasks by date range and project if specified
 	var filteredTasks []db.Task
 	for _, task := range tasks {
-		if task.Created.After(startDate) && task.Created.Before(endDate) {
-			if projectID == "" || strconv.Itoa(task.ProjectID) == projectID {
-				filteredTasks = append(filteredTasks, task)
+		if task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
+			if projectID == "" || strconv.Itoa(task.Task.ProjectID) == projectID {
+				filteredTasks = append(filteredTasks, task.Task)
 			}
 		}
 	}
@@ -271,7 +293,7 @@ func getComplianceSummary(store db.Store, startDate, endDate time.Time, projectI
 	// Calculate compliant projects (projects with >80% success rate)
 	compliantProjects := 0
 	for _, project := range projects {
-		projectTasks, err := store.GetTasks(db.RetrieveQueryParams{
+		projectTasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
 			SortBy: "created",
 			SortInverted: true,
 		})
@@ -312,7 +334,7 @@ func getComplianceSummary(store db.Store, startDate, endDate time.Time, projectI
 func getTaskComplianceData(store db.Store, startDate, endDate time.Time, projectID string) ([]TaskComplianceData, error) {
 	var taskCompliance []TaskComplianceData
 	
-	tasks, err := store.GetTasks(db.RetrieveQueryParams{
+	tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
 		SortBy: "created",
 		SortInverted: true,
 		Count: 100, // Limit to recent 100 tasks
@@ -322,27 +344,27 @@ func getTaskComplianceData(store db.Store, startDate, endDate time.Time, project
 	}
 
 	for _, task := range tasks {
-		if task.Created.After(startDate) && task.Created.Before(endDate) {
-			if projectID != "" && strconv.Itoa(task.ProjectID) != projectID {
+		if task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
+			if projectID != "" && strconv.Itoa(task.Task.ProjectID) != projectID {
 				continue
 			}
 
 			// Get project name
-			project, err := store.GetProject(task.ProjectID)
+			project, err := store.GetProject(task.Task.ProjectID)
 			if err != nil {
 				continue
 			}
 
 			// Get template name
-			template, err := store.GetTemplate(task.ProjectID, task.TemplateID)
+			template, err := store.GetTemplate(task.Task.ProjectID, task.Task.TemplateID)
 			if err != nil {
 				continue
 			}
 
 			// Get username if available
 			var username *string
-			if task.UserID != nil {
-				user, err := store.GetUser(*task.UserID)
+			if task.Task.UserID != nil {
+				user, err := store.GetUser(*task.Task.UserID)
 				if err == nil {
 					username = &user.Username
 				}
@@ -352,13 +374,13 @@ func getTaskComplianceData(store db.Store, startDate, endDate time.Time, project
 			complianceScore := 100
 			var issues []string
 
-			if task.Status == "failed" || task.Status == "stopped" {
+			if task.Task.Status == "failed" || task.Task.Status == "stopped" {
 				complianceScore -= 50
 				issues = append(issues, "Task execution failed")
 			}
 
-			if task.End != nil && task.Start != nil {
-				duration := task.End.Sub(*task.Start)
+			if task.Task.End != nil && task.Task.Start != nil {
+				duration := task.Task.End.Sub(*task.Task.Start)
 				if duration.Minutes() > 60 { // Tasks taking more than 1 hour
 					complianceScore -= 10
 					issues = append(issues, "Task execution time exceeded threshold")
@@ -367,22 +389,22 @@ func getTaskComplianceData(store db.Store, startDate, endDate time.Time, project
 
 			// Calculate duration in seconds
 			var duration *int
-			if task.End != nil && task.Start != nil {
-				dur := int(task.End.Sub(*task.Start).Seconds())
+			if task.Task.End != nil && task.Task.Start != nil {
+				dur := int(task.Task.End.Sub(*task.Task.Start).Seconds())
 				duration = &dur
 			}
 
 			taskData := TaskComplianceData{
-				TaskID:          task.ID,
-				ProjectID:       task.ProjectID,
+				TaskID:          task.Task.ID,
+				ProjectID:       task.Task.ProjectID,
 				ProjectName:     project.Name,
 				TemplateName:    template.Name,
-				Status:          string(task.Status),
-				Created:         task.Created,
-				Start:           task.Start,
-				End:             task.End,
+				Status:          string(task.Task.Status),
+				Created:         task.Task.Created,
+				Start:           task.Task.Start,
+				End:             task.Task.End,
 				Duration:        duration,
-				UserID:          task.UserID,
+				UserID:          task.Task.UserID,
 				Username:        username,
 				ComplianceScore: complianceScore,
 				Issues:          issues,
@@ -419,7 +441,7 @@ func getUserActivityData(store db.Store, startDate, endDate time.Time) ([]UserAc
 		}
 
 		// Count user's tasks in the date range
-		tasks, err := store.GetTasks(db.RetrieveQueryParams{
+		tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
 			SortBy: "created",
 			SortInverted: true,
 		})
@@ -429,8 +451,8 @@ func getUserActivityData(store db.Store, startDate, endDate time.Time) ([]UserAc
 
 		taskCount := 0
 		for _, task := range tasks {
-			if task.UserID != nil && *task.UserID == user.ID {
-				if task.Created.After(startDate) && task.Created.Before(endDate) {
+			if task.Task.UserID != nil && *task.Task.UserID == user.ID {
+				if task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
 					taskCount++
 				}
 			}
@@ -471,7 +493,7 @@ func getProjectComplianceData(store db.Store, startDate, endDate time.Time) ([]P
 
 	for _, project := range projects {
 		// Get all tasks for this project
-		tasks, err := store.GetTasks(db.RetrieveQueryParams{
+		tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
 			SortBy: "created",
 			SortInverted: true,
 		})
@@ -483,10 +505,10 @@ func getProjectComplianceData(store db.Store, startDate, endDate time.Time) ([]P
 		var lastActivity *time.Time
 		
 		for _, task := range tasks {
-			if task.ProjectID == project.ID && task.Created.After(startDate) && task.Created.Before(endDate) {
-				projectTasks = append(projectTasks, task)
-				if lastActivity == nil || task.Created.After(*lastActivity) {
-					lastActivity = &task.Created
+			if task.Task.ProjectID == project.ID && task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
+				projectTasks = append(projectTasks, task.Task)
+				if lastActivity == nil || task.Task.Created.After(*lastActivity) {
+					lastActivity = &task.Task.Created
 				}
 			}
 		}
@@ -523,7 +545,7 @@ func getProjectComplianceData(store db.Store, startDate, endDate time.Time) ([]P
 		}
 
 		// Get team size
-		projectUsers, err := store.GetProjectUsers(project.ID)
+		projectUsers, err := store.GetProjectUsers(project.ID, db.RetrieveQueryParams{})
 		if err != nil {
 			continue
 		}
@@ -647,7 +669,7 @@ func getComplianceTrends(store db.Store, startDate, endDate time.Time, projectID
 		dayEnd := d.AddDate(0, 0, 1)
 		
 		// Count tasks for this day
-		tasks, err := store.GetTasks(db.RetrieveQueryParams{
+		tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
 			SortBy: "created",
 			SortInverted: true,
 		})
@@ -658,10 +680,10 @@ func getComplianceTrends(store db.Store, startDate, endDate time.Time, projectID
 		taskCount := 0
 		successCount := 0
 		for _, task := range tasks {
-			if task.Created.After(dayStart) && task.Created.Before(dayEnd) {
-				if projectID == "" || strconv.Itoa(task.ProjectID) == projectID {
+			if task.Task.Created.After(dayStart) && task.Task.Created.Before(dayEnd) {
+				if projectID == "" || strconv.Itoa(task.Task.ProjectID) == projectID {
 					taskCount++
-					if task.Status == "success" {
+					if task.Task.Status == "success" {
 						successCount++
 					}
 				}
