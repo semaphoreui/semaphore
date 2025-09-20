@@ -1,5 +1,5 @@
 [Unit]
-Description=Semaphore Runner
+Description=Forge Runner
 Requires=network.target
 
 [Service]

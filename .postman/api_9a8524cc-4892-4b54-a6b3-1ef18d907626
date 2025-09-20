@@ -9,7 +9,7 @@ id = 9a8524cc-4892-4b54-a6b3-1ef18d907626
 
 [config.relations.collections]
 rootDirectory = postman/collections
-files[] = {"id":"2979975-3d96a8d7-604d-47ec-832c-2876f64dbc1f","path":"Semaphore API.json","metaData":{}}
+files[] = {"id":"2979975-3d96a8d7-604d-47ec-832c-2876f64dbc1f","path":"Forge API.json","metaData":{}}
 
 [config.relations.collections.metaData]
 

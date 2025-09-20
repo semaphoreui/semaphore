@@ -51,7 +51,7 @@ var totpEnableCmd = &cobra.Command{
 		}
 
 		key, err := totp.Generate(totp.GenerateOpts{
-			Issuer:      "Semaphore",
+			Issuer:      "Forge",
 			AccountName: user.Email,
 		})
 

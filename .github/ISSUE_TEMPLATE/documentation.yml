@@ -13,7 +13,7 @@ body:
         
         - [ ] Read the [documentation](https://docs.forgeui.com/)
           - [ ] Read the [troubleshooting guide](https://docs.forgeui.com/administration-guide/troubleshooting)
-          - [ ] Read the [documentation regarding manual installations](https://docs.forgeui.com/administration-guide/installation_manually) if you did install Semaphore that way
+          - [ ] Read the [documentation regarding manual installations](https://docs.forgeui.com/administration-guide/installation_manually) if you did install Forge that way
 
         - [ ] Check if there are existing [issues](https://github.com/Digital-Data-Co/forge/issues) or [discussions](https://github.com/Digital-Data-Co/forge/discussions) regarding your topic
 
@@ -33,7 +33,7 @@ body:
     attributes:
       label: Related to
       description: |
-        To what parts of Semaphore is the documentation related? (if any)
+        To what parts of Forge is the documentation related? (if any)
 
       multiple: true
       options:

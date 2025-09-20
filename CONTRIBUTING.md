@@ -41,7 +41,7 @@ When creating a pull-request you should:
    ```
    Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
-4) Create database if you want to use MySQL (Semaphore also supports [bbolt](https://github.com/etcd-io/bbolt), it doesn't require additional action)
+4) Create database if you want to use MySQL (Forge also supports [bbolt](https://github.com/etcd-io/bbolt), it doesn't require additional action)
 
    ```
    echo "create database forge;" | mysql -uroot -p
@@ -79,7 +79,7 @@ As Dredd and the application database config may differ it expects it's own conf
     ```bash
     npm install -g dredd
     ```
-3) Create `./dredd/config.json` for Dredd. It must contain database connection same as used in Semaphore server.
+3) Create `./dredd/config.json` for Dredd. It must contain database connection same as used in Forge server.
    You can use any supported database dialect for tests. For example BoltDB.
     ```json
    {
@@ -89,7 +89,7 @@ As Dredd and the application database config may differ it expects it's own conf
         "dialect": "bolt"
     }
     ```
-4) Start Semaphore server (add `--config` option if required):
+4) Start Forge server (add `--config` option if required):
 
 5) ```bash
     ./bin/forge server

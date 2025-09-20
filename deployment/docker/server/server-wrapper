@@ -42,7 +42,7 @@ file_env 'FORGE_DB_USER'
 file_env 'FORGE_DB_PASS'
 file_env 'FORGE_ADMIN'
 export FORGE_ADMIN_EMAIL="${FORGE_ADMIN_EMAIL:-admin@localhost}"
-export FORGE_ADMIN_NAME="${FORGE_ADMIN_NAME:-Semaphore Admin}"
+export FORGE_ADMIN_NAME="${FORGE_ADMIN_NAME:-Forge Admin}"
 file_env 'FORGE_ADMIN_PASSWORD'
 export FORGE_LDAP_ACTIVATED="${FORGE_LDAP_ACTIVATED:-no}"
 export FORGE_LDAP_HOST="${FORGE_LDAP_HOST:-}"
@@ -57,12 +57,12 @@ file_env 'FORGE_ACCESS_KEY_ENCRYPTION'
 
 
 [ -d "${FORGE_CONFIG_PATH}" ] || mkdir -p "${FORGE_CONFIG_PATH}" || {
-    echo "Can't create Semaphore config path ${FORGE_CONFIG_PATH}."
+    echo "Can't create Forge config path ${FORGE_CONFIG_PATH}."
     exit 1
 }
 
 [ -d "${FORGE_DB_PATH}" ] || mkdir -p "${FORGE_DB_PATH}" || {
-    echo "Can't create Semaphore data path ${FORGE_DB_PATH}."
+    echo "Can't create Forge data path ${FORGE_DB_PATH}."
     exit 1
 }
 
@@ -166,7 +166,7 @@ if [ ! -f "${FORGE_CONFIG_PATH}/config.json" ]; then
 
     FORGE_TMP_PATH=${FORGE_TMP_PATH:-/tmp/forge}
     [ -d "${FORGE_TMP_PATH}" ] || mkdir -p "${FORGE_TMP_PATH}" || {
-        echo "Can't create Semaphore tmp path ${FORGE_TMP_PATH}."
+        echo "Can't create Forge tmp path ${FORGE_TMP_PATH}."
         exit 1
     }
 
@@ -271,7 +271,7 @@ fi
 
 
 #
-# Start Semaphore server
+# Start Forge server
 #
 echoerr "Starting forge server"
 if test "$#" -ne 1; then

@@ -11,7 +11,7 @@
 
 ## Reporting a Vulnerability
 
-If you believe you’ve found a security vulnerability in Semaphore UI, we encourage you to let us know as soon as possible.
+If you believe you’ve found a security vulnerability in FORGE, we encourage you to let us know as soon as possible.
 
 Please email us at security@forgeui.com with:
 
@@ -27,7 +27,7 @@ We ask that you **do not publicly disclose** the issue until we’ve had a chanc
 
 This policy applies to:
 
-- Semaphore UI (self-hosted)
+- FORGE (self-hosted)
 - Official installers, containers, and packages distributed through our GitHub or website
 
 This policy does **not** apply to third-party plugins or custom modifications.

@@ -1,8 +1,8 @@
-# Semaphore UI Development Instructions
+# FORGE Development Instructions
 
 **Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
 
-Semaphore UI is a modern web interface for managing popular DevOps tools like Ansible, Terraform, PowerShell, and Bash scripts. It's built with Go (backend) and Vue.js (frontend), using Task runner for build automation.
+FORGE is a modern web interface for managing popular DevOps tools like Ansible, Terraform, PowerShell, and Bash scripts. It's built with Go (backend) and Vue.js (frontend), using Task runner for build automation.
 
 ## Working Effectively
 

@@ -147,7 +147,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		return
 	}
 
-	desc = "Pings the website to provide a real-world example of using Semaphore."
+	desc = "Pings the website to provide a real-world example of using Forge."
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Ping forgeui.com",
 		Playbook:      "ping.yml",

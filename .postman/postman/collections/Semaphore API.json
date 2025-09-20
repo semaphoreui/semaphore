@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "3d96a8d7-604d-47ec-832c-2876f64dbc1f",
-		"name": "Semaphore API",
-		"description": "Semaphore API provides endpoints for managing and interacting with the Semaphore UI.\nThis documentation outlines the available operations and data models.\n",
+		"name": "Forge API",
+		"description": "Forge API provides endpoints for managing and interacting with the FORGE.\nThis documentation outlines the available operations and data models.\n",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_uid": "2979975-3d96a8d7-604d-47ec-832c-2876f64dbc1f"
 	},
@@ -620,7 +620,7 @@
 											"response": [
 												{
 													"id": "c961634e-53b3-464d-8700-1f7a50bd8930",
-													"name": "Redirection to the Semaphore root URL on success, or to the login page on error",
+													"name": "Redirection to the Forge root URL on success, or to the login page on error",
 													"originalRequest": {
 														"method": "GET",
 														"header": [
@@ -1780,7 +1780,7 @@
 					"name": "last",
 					"item": [
 						{
-							"name": "Get last 200 Events related to Semaphore and projects you are part of",
+							"name": "Get last 200 Events related to Forge and projects you are part of",
 							"id": "716eed97-b5c6-436b-9815-13ee33dfb791",
 							"protocolProfileBehavior": {
 								"disableBodyPruning": true
@@ -1850,7 +1850,7 @@
 					"id": "9aa87430-581f-4df2-b5b0-0e907eb51d8c"
 				},
 				{
-					"name": "Get Events related to Semaphore and projects you are part of",
+					"name": "Get Events related to Forge and projects you are part of",
 					"id": "8892a736-a9e9-4e04-9fbf-7318e18bcb69",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true

@@ -11,7 +11,7 @@
         </v-card-title>
         <v-card-text>
           <p class="text-body-1">
-            {{ $t('firstlyYouNeedAccessToTheServerWhereSemaphoreRunni') }}
+            {{ $t('firstlyYouNeedAccessToTheServerWhereForgeRunni') }}
           </p>
           <p class="text-body-1">
             {{ $t('executeTheFollowingCommandOnTheServerToSeeExisting') }}

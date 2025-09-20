@@ -1,9 +1,9 @@
 ---
 swagger: '2.0'
 info:
-  title: Semaphore API
+  title: Forge API
   description: |
-    Semaphore API provides endpoints for managing and interacting with the Semaphore UI.
+    Forge API provides endpoints for managing and interacting with the FORGE.
     This documentation outlines the available operations and data models.
   version: "2.16.14"
 
@@ -1356,7 +1356,7 @@ paths:
       description: The user agent is redirected here by the OIDC provider to complete authentication
       responses:
         302:
-          description: Redirection to the Semaphore root URL on success, or to the login page on error
+          description: Redirection to the Forge root URL on success, or to the login page on error
 
   # User Tokens
   /user/:
@@ -1554,7 +1554,7 @@ paths:
 
   /events:
     get:
-      summary: Get Events related to Semaphore and projects you are part of
+      summary: Get Events related to Forge and projects you are part of
       responses:
         200:
           description: Array of events in chronological order
@@ -1565,7 +1565,7 @@ paths:
   
   /events/last:
     get:
-      summary: Get last 200 Events related to Semaphore and projects you are part of
+      summary: Get last 200 Events related to Forge and projects you are part of
       responses:
         200:
           description: Array of events in chronological order

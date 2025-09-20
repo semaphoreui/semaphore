@@ -1,7 +1,7 @@
 [Unit]
 Documentation=https://github.com/Digital-Data-Co/forge
 Documentation=man:forge --help
-Description=Semaphore UI
+Description=FORGE
 Requires=network.target
 After=network.target syslog.target
 

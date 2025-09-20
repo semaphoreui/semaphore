@@ -87,8 +87,8 @@ jobs:
           images: |
             forgeui/forge
           labels: |
-            org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@forgeui.com>
+            org.opencontainers.image.vendor=ForgeUI
+            maintainer=FORGE <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
@@ -143,8 +143,8 @@ jobs:
           images: |
             forgeui/runner
           labels: |
-            org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@forgeui.com>
+            org.opencontainers.image.vendor=ForgeUI
+            maintainer=FORGE <support@forgeui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |

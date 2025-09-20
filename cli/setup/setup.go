@@ -23,7 +23,7 @@ Hello! You will now be guided through a setup to:
 
 func InteractiveRunnerSetup(conf *util.ConfigType) {
 
-	askValue("Semaphore server URL", "", &conf.WebHost)
+	askValue("Forge server URL", "", &conf.WebHost)
 
 	conf.Runner = &util.RunnerConfig{}
 

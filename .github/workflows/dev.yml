@@ -659,8 +659,8 @@ jobs:
           images: |
             forgeui/forge
           labels: |
-            org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@forgeui.com>
+            org.opencontainers.image.vendor=FORGE
+            maintainer=Digital Data <support@forgeui.com>
           tags: |
             type=raw,value=develop
           flavor: |
@@ -714,8 +714,8 @@ jobs:
           images: |
             forgeui/runner
           labels: |
-            org.opencontainers.image.vendor=SemaphoreUI
-            maintainer=Semaphore UI <support@forgeui.com>
+            org.opencontainers.image.vendor=FORGE
+            maintainer=Digital Data <support@forgeui.com>
           tags: |
             type=raw,value=develop
           flavor: |

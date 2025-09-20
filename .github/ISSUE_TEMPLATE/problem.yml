@@ -1,7 +1,7 @@
 ---
 
 name: Problem
-description: You have encountered problems when using Semaphore
+description: You have encountered problems when using Forge
 title: "Problem: "
 labels: ['problem', 'triage']
 
@@ -32,7 +32,7 @@ body:
     attributes:
       label: Impact
       description: |
-        What parts of Semaphore are impacted by the problem?
+        What parts of Forge are impacted by the problem?
 
       multiple: true
       options:
@@ -43,7 +43,7 @@ body:
         - Configuration
         - Database
         - Docker
-        - Semaphore Project
+        - Forge Project
         - Other
     validations:
       required: true
@@ -53,7 +53,7 @@ body:
     attributes:
       label: Installation method
       description: |
-        How did you install Semaphore?
+        How did you install Forge?
 
       multiple: false
       options:
@@ -84,7 +84,7 @@ body:
     attributes:
       label: Browser
       description: |
-        If the problem occurs in the Semaphore WebUI - in what browsers do you see it?
+        If the problem occurs in the Forge WebUI - in what browsers do you see it?
 
       multiple: true
       options:
@@ -97,9 +97,9 @@ body:
   - type: textarea
     id: version-forge
     attributes:
-      label: Semaphore Version
+      label: Forge Version
       description: |
-        What version of Semaphore are you running?
+        What version of Forge are you running?
         > Command: `forge version`
     validations:
       required: true
@@ -146,7 +146,7 @@ body:
     attributes:
       label: Manual installation - system information
       description: |
-        If you have installed Semaphore using the package or binary:
+        If you have installed Forge using the package or binary:
         
         Please share your operating system & -version!
         > Command: `uname -a`
@@ -160,7 +160,7 @@ body:
     attributes:
       label: Configuration
       description: |
-        Please provide Semaphore configuration related to your problem - like:
+        Please provide Forge configuration related to your problem - like:
         * Config file options
         * Environment variables
         * WebUI configuration

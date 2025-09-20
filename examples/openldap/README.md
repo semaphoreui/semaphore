@@ -1,4 +1,4 @@
-# Semaphore with OpenLDAP example
+# Forge with OpenLDAP example
 
 1. Start stack by command:
    ```
@@ -11,7 +11,7 @@
    
       <img src="https://github.com/Digital-Data-Co/forge/assets/914224/4eee81d7-0e22-4e20-9bc2-385add519ab5" width="600">
 
-3. Create new Semaphore project:
+3. Create new Forge project:
    1. Open http://localhost:3000
    2. Login as `john`
    3. Create demo project

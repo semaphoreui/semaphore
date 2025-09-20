@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Project is the top level structure in Semaphore
+// Project is the top level structure in Forge
 type Project struct {
 	ID                     int       `db:"id" json:"id" backup:"-"`
 	Name                   string    `db:"name" json:"name" binding:"required"`

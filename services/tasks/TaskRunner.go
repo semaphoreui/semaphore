@@ -43,7 +43,7 @@ type TaskRunner struct {
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
 
-	// job executes Ansible and returns stdout to Semaphore logs
+	// job executes Ansible and returns stdout to Forge logs
 	job Job
 
 	RunnerID        int

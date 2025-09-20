@@ -1,4 +1,4 @@
-# Semaphore with Authentik LDAP example
+# Forge with Authentik LDAP example
 
 
 1. Start stack by command:
@@ -12,7 +12,7 @@
 2. To start the initial setup, navigate to http://localhsot:9000/if/flow/initial-setup/. 
    There you are prompted to set a password for the `akadmin` user (the default user).
 3. Set up LDAP in Athentik according to the video tutorial [Authentik - LDAP Generic Setup](https://youtu.be/RtPKMMKRT_E).
-4. Set up Athentik LDAP and Semaphore containers:
+4. Set up Athentik LDAP and Forge containers:
    1. Copy `AUTHENTIK_TOKEN` to clipboard.
       
       <img src="https://github.com/Digital-Data-Co/forge/assets/914224/9e08d4cc-4526-4ace-8b45-2c065188857b" width="600">
@@ -24,7 +24,7 @@
       docker-compose down
       docker-compose up -d
       ```
-5. Create new Semaphore project:
+5. Create new Forge project:
     1. Open http://localhost:3000
     2. Login as `ldapservice`
     3. Create demo project

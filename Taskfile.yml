@@ -8,7 +8,7 @@ vars:
 
 tasks:
   all:
-    desc: Install, test and build Semaphore for local architecture
+    desc: Install, test and build Forge for local architecture
     cmds:
       - task: deps
       - task: test
@@ -238,7 +238,7 @@ tasks:
       - dgoss run -it "{{ .DOCKER_ORG }}/{{ .DOCKER_RUNNER }}:test"
 
   docker:build:
-    desc: Build all defined images for Semaphore
+    desc: Build all defined images for Forge
     vars:
       tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
     cmds:
@@ -250,21 +250,21 @@ tasks:
           tag: "{{ .tag }}"
 
   docker:build:debug:
-    desc: Build an DEBUG image for Semaphore server
+    desc: Build an DEBUG image for Forge server
     vars:
       tag: "debug"
     cmds:
       - "{{ .DOCKER_CMD }} build -f deployment/docker/debug/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
 
   docker:build:server:
-    desc: Build an image for Semaphore server
+    desc: Build an image for Forge server
     vars:
       tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
     cmds:
       - "{{ .DOCKER_CMD }} build -f deployment/docker/server/Dockerfile -t {{ .DOCKER_ORG }}/{{ .DOCKER_SERVER }}:{{ .tag }} ."
 
   docker:build:runner:
-    desc: Build an image for Semaphore runner
+    desc: Build an image for Forge runner
     vars:
       tag: "{{ if .tag }}{{ .tag }}{{ else }}latest{{ end }}"
     cmds:

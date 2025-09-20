@@ -5,7 +5,7 @@
 Name:           forge
 Version:        2.8.90
 Release:        1%{?dist}
-Summary:        Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
+Summary:        FORGE is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 License:        MIT
 URL:            https://github.com/Digital-Data-Co/forge
@@ -21,7 +21,7 @@ BuildRequires:  systemd-rpm-macros
 Requires:       ansible
 
 %description
-Semaphore UI is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
+FORGE is a modern UI for Ansible, Terraform, OpenTofu, Bash and Pulumi. It lets you easily run Ansible playbooks, get notifications about fails, control access to deployment system.
 
 %prep
 %setup -q
@@ -41,7 +41,7 @@ go-task all
 
 cat > forgeui.service <<EOF
 [Unit]
-Description=Semaphore Ansible
+Description=Forge Ansible
 Documentation=https://github.com/Digital-Data-Co/forge
 Wants=network-online.target
 After=network-online.target

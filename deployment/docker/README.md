@@ -8,7 +8,7 @@ install [Docker][docker] and [Task][gotask] on your system.
 If you just want to use our pre-built images please follow the instructions on
 our [documentation][documentation].
 
-If you want to use [docker-compose][dockercompose] to start Semaphore you could
+If you want to use [docker-compose][dockercompose] to start Forge you could
 also read about it on our [documentation][documentation] or take a look at our
 collection of [snippets][snippets] within this repository.
 
@@ -34,7 +34,7 @@ variables to the [Task][gotask] command:
 ## Test
 
 We defined tasks to handle some linting and to verify the images contain the
-tools and binaries that are required to run Semaphore. Here we are using
+tools and binaries that are required to run Forge. Here we are using
 [Hadolint][hadolint] to ensure we are mostly following best-practices and
 [Goss][goss] which is using a configuration file to define the requirements.
 

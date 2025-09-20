@@ -69,7 +69,7 @@ nfpms:
     package_name: "{{ .Env.PROJECT_NAME }}"
     description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
     homepage: https://github.com/Digital-Data-Co/forge
-    vendor: Semaphore UI
+    vendor: FORGE
     maintainer: Denis Gukov <denis@forgeui.com>
     license: MIT
 

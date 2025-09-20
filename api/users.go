@@ -315,7 +315,7 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Semaphore",
+		Issuer:      "Forge",
 		AccountName: user.Email,
 	})
 

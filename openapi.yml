@@ -1,9 +1,9 @@
 ---
 openapi: 3.0.1
 info:
-  title: Semaphore API
+  title: Forge API
   description: |
-    Semaphore API provides endpoints for managing and interacting with the Semaphore UI.
+    Forge API provides endpoints for managing and interacting with the FORGE.
     This documentation outlines the available operations and data models.
   version: 2.14.0-beta1
 security:
@@ -163,7 +163,7 @@ paths:
         authentication
       responses:
         '302':
-          description: Redirection to the Semaphore root URL on success, or to the
+          description: Redirection to the Forge root URL on success, or to the
             login page on error
           content: {}
     parameters:
@@ -421,7 +421,7 @@ paths:
       operationId: getEvents
       tags:
         - events
-      summary: Get Events related to Semaphore and projects you are part of
+      summary: Get Events related to Forge and projects you are part of
       responses:
         '200':
           description: Array of events in chronological order
@@ -441,7 +441,7 @@ paths:
       operationId: getEventsRecent
       tags:
         - events
-      summary: Get last 200 Events related to Semaphore and projects you are part of
+      summary: Get last 200 Events related to Forge and projects you are part of
       responses:
         '200':
           description: Array of events in chronological order

@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/lib/error';
 import ProjectMixin from '@/components/ProjectMixin';
 
 /**
- * Most of Semaphore entities (keys, environments, etc) have similar REST API for
+ * Most of Forge entities (keys, environments, etc) have similar REST API for
  * access and manipulation.
  * This class presents mixin for creating editing form for such entities.
  * This class should be used as mixin in Vue-template.

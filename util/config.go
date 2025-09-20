@@ -115,9 +115,9 @@ type RunnerConfig struct {
 	// How it works?
 	// Example:
 	// 1) User starts the task.
-	// 2) Semaphore found runner for task and calls runner's webhook if it provided.
+	// 2) Forge found runner for task and calls runner's webhook if it provided.
 	// 3) Your server or lambda handling the call and starts the one-off runner.
-	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
+	// 4) The runner connects to the Forge server and handles the enqueued task(s).
 	OneOff bool `json:"one_off,omitempty" env:"FORGE_RUNNER_ONE_OFF"`
 
 	Webhook string `json:"webhook,omitempty" env:"FORGE_RUNNER_WEBHOOK"`
@@ -890,10 +890,10 @@ func mapToQueryString(m map[string]string) (str string) {
 	return
 }
 
-// FindSemaphore looks in the PATH for the forge variable
+// FindForge looks in the PATH for the forge variable
 // if not found it will attempt to find the absolute path of the first
 // os argument, the forge command, and return it
-func FindSemaphore() string {
+func FindForge() string {
 	cmdPath, _ := exec.LookPath("forge") //nolint: gas
 
 	if len(cmdPath) == 0 {

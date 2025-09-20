@@ -9,7 +9,7 @@ Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOp
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
-If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
+If your project has grown and deploying from the terminal is no longer feasible, then FORGE is the tool you need.
 
 ## Gratitude
 
@@ -20,14 +20,14 @@ Thank you, [Thomas](https://github.com/tboerger) and [Brian](https://github.com/
 <!--
 ## Live Demo
 
-Try the latest version of Semaphore at [https://portal.forgeui.com](https://portal.forgeui.com).
+Try the latest version of Forge at [https://portal.forgeui.com](https://portal.forgeui.com).
 -->
 
-## What is Semaphore UI?
+## What is FORGE?
 
-Semaphore UI is a modern web interface for managing popular DevOps tools.
+FORGE is a modern web interface for managing popular DevOps tools.
 
-Semaphore UI allows you to:
+FORGE allows you to:
 * Easily run Ansible playbooks, Terraform and OpenTofu code, as well as Bash and PowerShell scripts.
 * Receive notifications about failed tasks.
 * Control access to your deployment system.
@@ -36,14 +36,14 @@ Semaphore UI allows you to:
 
 1. **Projects** is a collection of related resources, configurations, and tasks.
 2. **Task Templates** are reusable definitions of tasks that can be executed on demand or scheduled.
-3. **Task** is a specific instance of a job or operation executed by Semaphore.
+3. **Task** is a specific instance of a job or operation executed by Forge.
 4. **Schedules** allow you to automate task execution at specified times or intervals.
 5. **Inventory** is a collection of target hosts (servers, virtual machines, containers, etc.) on which tasks will be executed.
 6. **Variable Group** refers to a configuration context that holds sensitive information such as environment variables and secrets used by tasks during execution.
 
 ## Getting Started
 
-You can install Semaphore using the following methods:
+You can install Forge using the following methods:
 * [Docker](https://forgeui.com/install/docker)
 * Deploy a VM from a marketplace:
   * [AWS](https://aws.amazon.com/marketplace/pp/prodview-xavlsdkqybxtq)
@@ -56,7 +56,7 @@ You can install Semaphore using the following methods:
 
 ### Docker
 
-The most popular way to install Semaphore is via Docker.
+The most popular way to install Forge is via Docker.
 
 ```
 docker run -p 3000:3000 --name forge \
@@ -68,12 +68,12 @@ docker run -p 3000:3000 --name forge \
 	-d forgeui/forge:latest
 ```
 
-We recommend using the [Container Configurator](https://forgeui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
+We recommend using the [Container Configurator](https://forgeui.com/install/docker/) to get the ideal Docker configuration for Forge.
 
 <!--
 ### SaaS
 
-We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://portal.forgeui.com).
+We offer a SaaS solution for using FORGE without installation. Check it out at [Forge Cloud](https://portal.forgeui.com).
 -->
 
 ### Other Installation Methods
@@ -86,16 +86,16 @@ For more installation options, visit our [Installation page](https://forgeui.com
 * [API Reference](https://forgeui.com/api-docs)
 * [Postman Collection](https://www.postman.com/forgeui)
 
-## Awesome Semaphore
+## Awesome Forge
 
-A curated list of awesome things related to Semaphore UI.
+A curated list of awesome things related to FORGE.
 
-* [Ebdruplab — Ansible Collections](https://github.com/Ebdruplab/ansible-collection_ebdruplab) &mdash; Ansible modules and a role for managing Semaphore.
-* [SemaphoreUI MCP Server](https://github.com/cloin/forge-mcp) &mdash; A Model Context Protocol (MCP) server that provides AI assistants with powerful automation capabilities for SemaphoreUI.
-* [Terraform SemaphoreUI Provider](https://github.com/CruGlobal/terraform-provider-forgeui) &mdash; Manage Semaphore UI resources using Terraform.
-* [PSSemaphore](https://github.com/robinmalik/PSSemaphore) &mdash; A PowerShell module designed to work against the Ansible Semaphore REST API.
+* [Ebdruplab — Ansible Collections](https://github.com/Ebdruplab/ansible-collection_ebdruplab) &mdash; Ansible modules and a role for managing Forge.
+* [ForgeUI MCP Server](https://github.com/cloin/forge-mcp) &mdash; A Model Context Protocol (MCP) server that provides AI assistants with powerful automation capabilities for ForgeUI.
+* [Terraform ForgeUI Provider](https://github.com/CruGlobal/terraform-provider-forgeui) &mdash; Manage FORGE resources using Terraform.
+* [PSForge](https://github.com/robinmalik/PSForge) &mdash; A PowerShell module designed to work against the Ansible Forge REST API.
 
-[//]: # (* [Ansible UI Semaphore]&#40;https://github.com/morbidick/ansible-role-forge&#41; &mdash; Ansible role to install and configure the Ansible UI Semaphore.)
+[//]: # (* [Ansible UI Forge]&#40;https://github.com/morbidick/ansible-role-forge&#41; &mdash; Ansible role to install and configure the Ansible UI Forge.)
 
 ## Contribution
 

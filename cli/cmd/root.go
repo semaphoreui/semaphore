@@ -33,8 +33,8 @@ var persistentFlags struct {
 
 var rootCmd = &cobra.Command{
 	Use:   "forge",
-	Short: "Semaphore UI is a beautiful web UI for Ansible",
-	Long: `Semaphore UI is a beautiful web UI for Ansible.
+	Short: "FORGE is a beautiful web UI for Ansible",
+	Long: `FORGE is a beautiful web UI for Ansible.
 Source code is available at https://github.com/Digital-Data-Co/forge.
 Complete documentation is available at https://forgeui.com.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -121,7 +121,7 @@ func runService() {
 	}
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
-	fmt.Printf("Semaphore %v\n", util.Version())
+	fmt.Printf("Forge %v\n", util.Version())
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 

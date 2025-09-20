@@ -1,7 +1,7 @@
 # Compose
 
 With the `docker-compose` snippets within this directory you are able to plug
-different setups of Semaphore UI together. Below you can find some example
+different setups of FORGE together. Below you can find some example
 combinations.
 
 Some of the snippets define environment variables which could be optionally
@@ -42,7 +42,7 @@ docker-compose <server from above> -f deployment/compose/server/config.yml up
 
 ## Runner
 
-If you want to try the remote runner functionality of Semaphore you could just
+If you want to try the remote runner functionality of Forge you could just
 add this snippet to get a runner up and connected to forge. Similar to the
 examples above for the server you got different options like building the runner
 from the source or using our prebuilt images.

@@ -13,7 +13,7 @@ func init() {
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version of Semaphore",
+	Short: "Print the version of Forge",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(util.Version())
 	},

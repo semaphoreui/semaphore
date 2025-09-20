@@ -1,6 +1,6 @@
-# Compliance Dashboard for Semaphore
+# Compliance Dashboard for Forge
 
-A comprehensive compliance dashboard designed for compliance officers to monitor historical data and status reports in the Semaphore CI/CD platform.
+A comprehensive compliance dashboard designed for compliance officers to monitor historical data and status reports in the Forge CI/CD platform.
 
 ## Overview
 
@@ -188,7 +188,7 @@ import "github.com/Digital-Data-Co/forge/api"
 
 1. **Admin Access Required**: Only users with admin privileges can access the compliance dashboard
 2. **Navigation**: Access via the main navigation menu under "Compliance Dashboard"
-3. **URL**: Navigate to `/compliance` in your Semaphore instance
+3. **URL**: Navigate to `/compliance` in your Forge instance
 
 ### Dashboard Features
 
@@ -289,14 +289,14 @@ Enable debug mode by adding `?debug=true` to the dashboard URL for additional lo
 
 ## License
 
-This compliance dashboard is part of the Semaphore project and follows the same licensing terms.
+This compliance dashboard is part of the Forge project and follows the same licensing terms.
 
 ## Support
 
 For issues and questions:
 1. Check the troubleshooting section above
-2. Review the Semaphore documentation
-3. Create an issue in the Semaphore repository
+2. Review the Forge documentation
+3. Create an issue in the Forge repository
 4. Contact the development team for enterprise support
 
 ---
