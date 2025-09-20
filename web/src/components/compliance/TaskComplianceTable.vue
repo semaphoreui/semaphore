@@ -104,7 +104,7 @@ export default {
     loading: {
       type: Boolean,
       default: false,
-    }
+    },
   },
 
   data() {
@@ -216,7 +216,8 @@ export default {
 
       if (hours > 0) {
         return `${hours}h ${minutes}m`;
-      } else if (minutes > 0) {
+      }
+      if (minutes > 0) {
         return `${minutes}m ${secs}s`;
       }
       return `${secs}s`;
@@ -231,7 +232,7 @@ export default {
       // Emit event to parent component to handle task details view
       this.$emit('view-task', task);
     },
-  }
+  },
 };
 </script>
 

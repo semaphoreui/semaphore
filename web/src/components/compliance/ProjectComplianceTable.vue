@@ -118,7 +118,7 @@ export default {
     loading: {
       type: Boolean,
       default: false,
-    }
+    },
   },
 
   data() {
@@ -224,9 +224,11 @@ export default {
 
       if (diffDays > 0) {
         return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-      } else if (diffHours > 0) {
+      }
+      if (diffHours > 0) {
         return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-      } else if (diffMinutes > 0) {
+      }
+      if (diffMinutes > 0) {
         return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
       }
       return 'Just now';

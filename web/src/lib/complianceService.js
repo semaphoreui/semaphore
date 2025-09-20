@@ -213,10 +213,9 @@ class ComplianceService {
   /**
    * Process compliance data for charts
    * @param {Array} data - Raw compliance data
-   * @param {string} type - Data type (tasks, users, success_rates, etc.)
    * @returns {Array} Processed chart data
    */
-  processChartData(data, type) {
+  processChartData(data) {
     if (!data || !Array.isArray(data)) {
       return [];
     }
@@ -232,7 +231,6 @@ class ComplianceService {
   /**
    * Format chart label
    * @param {string} dateString - Date string
-   * @param {string} type - Data type
    * @returns {string} Formatted label
    */
   // eslint-disable-next-line class-methods-use-this
@@ -242,8 +240,8 @@ class ComplianceService {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    ,};
+      minute: '2-digit',
+    };
     return date.toLocaleDateString('en-US', options);
   }
 
@@ -310,13 +308,13 @@ class ComplianceService {
       // Server responded with error status
       const message = error.response.data?.message || error.response.data?.error || 'Server error';
       return new Error(`${error.response.status}: ${message}`);
-    } else if (error.request) {
+    }
+    if (error.request) {
       // Request was made but no response received
       return new Error('Network error: Unable to connect to server');
-    } else {
-      // Something else happened
-      return new Error(error.message || 'Unknown error occurred');
     }
+    // Something else happened
+    return new Error(error.message || 'Unknown error occurred');
   }
 }
 
