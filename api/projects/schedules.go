@@ -43,7 +43,7 @@ func GetSchedule(w http.ResponseWriter, r *http.Request) {
 func GetProjectSchedules(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	tplSchedules, err := helpers.Store(r).GetProjectSchedules(project.ID, false)
+	tplSchedules, err := helpers.Store(r).GetProjectSchedules(project.ID, false, false)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

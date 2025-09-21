@@ -47,7 +47,7 @@ jobs:
       - name: Import gnupg
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "A4FB 7208 48EA 79FA EC4E 9C30 0443 8136 6A5D 4731" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Reset repo
@@ -58,7 +58,8 @@ jobs:
         run: |
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          GPG_KEY_ID="A4FB 7208 48EA 79FA EC4E 9C30 0443 8136 6A5D 4731" \
+          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
+          PROJECT_NAME=semaphorepro \
             task release:prod
 
   deploy-prod:

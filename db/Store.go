@@ -404,7 +404,7 @@ type AnsibleTaskRepository interface {
 // ScheduleManager handles schedule-related operations
 type ScheduleManager interface {
 	GetSchedules() ([]Schedule, error)
-	GetProjectSchedules(projectID int, includeTaskParams bool) ([]ScheduleWithTpl, error)
+	GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) ([]ScheduleWithTpl, error)
 	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error

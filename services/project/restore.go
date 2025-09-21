@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services/schedules"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -91,12 +90,18 @@ func (e BackupSchedule) Restore(store db.Store, b *BackupDB) error {
 	}
 	v.TemplateID = tpl.ID
 
-	//if v.TaskParams != nil {
+	if e.CheckableRepository != nil {
+		repo := findEntityByName[db.Repository](e.CheckableRepository, b.repositories)
+		if repo == nil {
+			return fmt.Errorf("repo does not exist in repositories[].name")
+		}
+		v.RepositoryID = &repo.ID
+	}
+
 	inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
 	if inv != nil {
 		v.TaskParams.InventoryID = &inv.ID
 	}
-	//}
 
 	newSchedule, err := store.CreateSchedule(v)
 	if err != nil {
@@ -125,11 +130,11 @@ func (e BackupAccessKey) Restore(store db.Store, b *BackupDB) error {
 	}
 
 	if e.SourceStorage != nil {
-		storage := findEntityByName[db.SecretStorage](e.SourceStorage, b.secretStorages)
-		if storage == nil {
+		sourceStorage := findEntityByName[db.SecretStorage](e.SourceStorage, b.secretStorages)
+		if sourceStorage == nil {
 			return fmt.Errorf("secret storage does not exist in secret_storage[].name")
 		}
-		key.StorageID = &storage.ID
+		key.SourceStorageID = &sourceStorage.ID
 	}
 
 	newKey, err := store.CreateAccessKey(key)
@@ -250,12 +255,6 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
 
-	if e.Cron != nil {
-		if err := schedules.ValidateCronFormat(*e.Cron); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -316,19 +315,6 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		return err
 	}
 	b.templates = append(b.templates, newTemplate)
-	if e.Cron != nil {
-		_, err := store.CreateSchedule(
-			db.Schedule{
-				ProjectID:    b.meta.ID,
-				TemplateID:   newTemplate.ID,
-				CronFormat:   *e.Cron,
-				RepositoryID: &RepositoryID,
-			},
-		)
-		if err != nil {
-			return err
-		}
-	}
 
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {

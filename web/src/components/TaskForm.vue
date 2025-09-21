@@ -4,6 +4,7 @@
     lazy-validation
     v-model="formValid"
     v-if="isLoaded()"
+    @submit.prevent="save()"
   >
     <v-alert
       :value="formError"
