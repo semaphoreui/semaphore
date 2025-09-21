@@ -164,7 +164,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	schedules, err := store.GetProjectSchedules(projectID, true)
+	schedules, err := store.GetProjectSchedules(projectID, true, true)
 	if err != nil {
 		return
 	}
@@ -172,7 +172,6 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	for _, s := range schedules {
 		b.schedules = append(b.schedules, s.Schedule)
 	}
-	//b.schedules = getSchedulesByProject(projectID, schedules)
 
 	b.secretStorages, err = store.GetSecretStorages(projectID)
 	if err != nil {
@@ -224,6 +223,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	for i, o := range b.schedules {
 
 		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+		var repoName *string
+		if o.RepositoryID != nil {
+			repoName, _ = findNameByID[db.Repository](*o.RepositoryID, b.repositories)
+		}
 
 		if tplName == nil {
 			continue
@@ -232,6 +235,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		schedules[i] = BackupSchedule{
 			o,
 			*tplName,
+			repoName,
 		}
 
 		if o.TaskParams.InventoryID != nil {
@@ -351,7 +355,6 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Inventory:     Inventory,
 			Environment:   Environment,
 			BuildTemplate: BuildTemplate,
-			Cron:          getScheduleByTemplate(o.ID, b.schedules),
 			Vaults:        vaults,
 		}
 	}

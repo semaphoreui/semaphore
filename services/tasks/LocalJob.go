@@ -3,10 +3,11 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"maps"
 	"os"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 
 	"path"
 	"strconv"
@@ -64,6 +65,9 @@ func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
 }
 
 func (t *LocalJob) SetCommit(hash, message string) {
+	// TODO: is this the correct place to do?
+	t.Task.CommitHash = &hash
+	t.Task.CommitMessage = message
 	t.Logger.SetCommit(hash, message)
 }
 
@@ -88,6 +92,12 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 
 	taskDetails["username"] = username
 	taskDetails["url"] = t.Task.GetUrl()
+	taskDetails["commit_hash"] = t.Task.CommitHash
+	taskDetails["commit_message"] = t.Task.CommitMessage
+	taskDetails["inventory_name"] = t.Inventory.Name
+	taskDetails["inventory_id"] = t.Inventory.ID
+	taskDetails["repository_name"] = t.Repository.Name
+	taskDetails["repository_id"] = t.Repository.ID
 
 	if t.Template.Type != db.TemplateTask {
 		taskDetails["type"] = t.Template.Type
@@ -136,6 +146,12 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 
 	taskDetails["username"] = username
 	taskDetails["url"] = t.Task.GetUrl()
+	taskDetails["commit_hash"] = t.Task.CommitHash
+	taskDetails["commit_message"] = t.Task.CommitMessage
+	taskDetails["inventory_name"] = t.Inventory.Name
+	taskDetails["inventory_id"] = t.Inventory.ID
+	taskDetails["repository_name"] = t.Repository.Name
+	taskDetails["repository_id"] = t.Repository.ID
 
 	if t.Template.Type != db.TemplateTask {
 		taskDetails["type"] = t.Template.Type

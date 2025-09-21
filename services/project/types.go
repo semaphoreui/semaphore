@@ -53,7 +53,8 @@ type BackupAccessKey struct {
 
 type BackupSchedule struct {
 	db.Schedule
-	Template string `backup:"template"`
+	Template            string  `backup:"template"`
+	CheckableRepository *string `backup:"checkable_repository"`
 }
 
 type BackupView struct {
@@ -80,7 +81,7 @@ type BackupTemplate struct {
 	BuildTemplate *string               `backup:"build_template"`
 	View          *string               `backup:"view"`
 	Vaults        []BackupTemplateVault `backup:"vaults"`
-	Cron          *string               `backup:"cron"`
+	//Cron          *string               `backup:"cron"`
 
 	// Deprecated: Left here for compatibility with old backups
 	VaultKey *string `json:"vault_key"`
