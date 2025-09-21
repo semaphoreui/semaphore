@@ -369,15 +369,21 @@ export default {
     },
 
     async loadViews() {
-      this.views = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/views`,
-        responseType: 'json',
-      })).data;
-      this.views.sort((v1, v2) => v1.position - v2.position);
+      try {
+        this.views = (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/views`,
+          responseType: 'json',
+        })).data;
+        this.views.sort((v1, v2) => v1.position - v2.position);
 
-      if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
-        await this.$router.push({ path: `/project/${this.projectId}/templates` });
+        if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
+          await this.$router.push({ path: `/project/${this.projectId}/templates` });
+        }
+      } catch (err) {
+        console.error('Failed to load views:', err);
+        // Set default empty array to ensure the page can still render
+        this.views = [];
       }
     },
 
@@ -486,15 +492,32 @@ export default {
     },
 
     async loadData() {
-      [
-        this.inventory,
-        this.environment,
-        this.repositories,
-      ] = await Promise.all([
-        this.loadProjectResources('inventory'),
-        this.loadProjectResources('environment'),
-        this.loadProjectResources('repositories'),
-      ]);
+      try {
+        [
+          this.inventory,
+          this.environment,
+          this.repositories,
+        ] = await Promise.all([
+          this.loadProjectResources('inventory').catch((err) => {
+            console.error('Failed to load inventory:', err);
+            return [];
+          }),
+          this.loadProjectResources('environment').catch((err) => {
+            console.error('Failed to load environment:', err);
+            return [];
+          }),
+          this.loadProjectResources('repositories').catch((err) => {
+            console.error('Failed to load repositories:', err);
+            return [];
+          }),
+        ]);
+      } catch (err) {
+        console.error('Failed to load project data:', err);
+        // Set defaults to ensure the page can still render
+        this.inventory = this.inventory || [];
+        this.environment = this.environment || [];
+        this.repositories = this.repositories || [];
+      }
     },
 
     onTableSettingsChange({ headers }) {

@@ -12,14 +12,21 @@ export default {
   },
 
   async created() {
-    const apps = await this.loadAppsDataFromBackend();
+    try {
+      const apps = await this.loadAppsDataFromBackend();
 
-    this.appsMixin.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
+      this.appsMixin.activeAppIds = apps.filter((app) => app.active).map((app) => app.id);
 
-    this.appsMixin.apps = apps.reduce((prev, app) => ({
-      ...prev,
-      [app.id]: app,
-    }), {});
+      this.appsMixin.apps = apps.reduce((prev, app) => ({
+        ...prev,
+        [app.id]: app,
+      }), {});
+    } catch (err) {
+      console.error('Failed to load apps data:', err);
+      // Set defaults to ensure the page can still render
+      this.appsMixin.activeAppIds = [];
+      this.appsMixin.apps = {};
+    }
   },
 
   computed: {
@@ -30,11 +37,16 @@ export default {
 
   methods: {
     async loadAppsDataFromBackend() {
-      return (await axios({
-        method: 'get',
-        url: '/api/apps',
-        responseType: 'json',
-      })).data;
+      try {
+        return (await axios({
+          method: 'get',
+          url: '/api/apps',
+          responseType: 'json',
+        })).data;
+      } catch (err) {
+        console.error('Failed to load apps from backend:', err);
+        return [];
+      }
     },
 
     getAppColor(id) {

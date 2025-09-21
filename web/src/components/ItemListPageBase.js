@@ -136,11 +136,17 @@ export default {
     },
 
     async loadItems() {
-      this.items = (await axios({
-        method: 'get',
-        url: this.getItemsUrl(),
-        responseType: 'json',
-      })).data;
+      try {
+        this.items = (await axios({
+          method: 'get',
+          url: this.getItemsUrl(),
+          responseType: 'json',
+        })).data;
+      } catch (err) {
+        console.error('Failed to load items:', err);
+        // Set default empty array to ensure the page can still render
+        this.items = [];
+      }
     },
   },
 };
