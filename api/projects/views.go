@@ -33,7 +33,11 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	view := helpers.GetFromContext(r, "view").(db.View)
 
-	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{ViewID: &view.ID}, helpers.QueryParams(r.URL))
+	templates, err := helpers.Store(r).GetTemplates(
+		project.ID,
+		db.TemplateFilter{ViewID: &view.ID},
+		helpers.QueryParams(r.URL),
+		false)
 
 	if err != nil {
 		helpers.WriteError(w, err)

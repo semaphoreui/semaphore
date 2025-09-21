@@ -125,7 +125,7 @@ func (b *BackupDB) makeUniqueNames() {
 
 func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 
-	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{}, true)
 	if err != nil {
 		return
 	}

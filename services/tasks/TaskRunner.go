@@ -235,7 +235,7 @@ func (t *TaskRunner) run() {
 	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
 		BuildTemplateID: &t.Task.TemplateID,
 		AutorunOnly:     true,
-	}, db.RetrieveQueryParams{})
+	}, db.RetrieveQueryParams{}, true)
 
 	if err != nil {
 		t.Log("Running app failed: " + err.Error())

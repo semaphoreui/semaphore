@@ -129,13 +129,12 @@
     <v-divider style="margin-top: -1px;"/>
 
     <v-data-table
-      hide-default-footer
       class="mt-4 templates-table"
       single-expand
       show-expand
       :headers="filteredHeaders"
       :items="items"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="100"
       :expanded.sync="openedItems"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
@@ -148,10 +147,6 @@
         >
           {{ getAppIcon(item.app) }}
         </v-icon>
-
-        <!--        <v-icon class="mr-3" small>-->
-        <!--          {{ TEMPLATE_TYPE_ICONS[item.type] }}-->
-        <!--        </v-icon>-->
 
         <router-link
           :to="viewId

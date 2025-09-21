@@ -153,7 +153,7 @@ func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, descriptio
 	return
 }
 
-func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams, loadVaults bool) (templates []db.Template, err error) {
 
 	pp, err := params.Validate(db.TemplateProps)
 	if err != nil {
@@ -234,6 +234,14 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 			OrderBy("pt.name " + order)
 	}
 
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
+	}
+
+	if params.Offset > 0 {
+		q = q.Offset(uint64(params.Offset))
+	}
+
 	query, args, err := q.ToSql()
 
 	if err != nil {
@@ -257,6 +265,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	}
 
 	var tasks []db.TaskWithTpl
+
 	err = d.getTasks(projectID, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
 
 	if err != nil {
@@ -269,10 +278,6 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		if tpl.LastTaskID != nil {
 			for _, tsk := range tasks {
 				if tsk.ID == *tpl.LastTaskID {
-					err = tsk.Fill(d)
-					if err != nil {
-						return
-					}
 					template.LastTask = &tsk
 					break
 				}
@@ -287,9 +292,11 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 			return
 		}
 
-		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
-		if err != nil {
-			return
+		if loadVaults {
+			template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+			if err != nil {
+				return
+			}
 		}
 
 		templates = append(templates, template)
