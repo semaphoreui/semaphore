@@ -126,7 +126,12 @@
           <v-col cols="12">
             <v-alert type="info" outlined v-if="suggestedModule">
               Suggested module: <strong>{{ suggestedModule.name }}</strong>
-              <div class="caption" v-if="suggestedModule.path">Path: {{ suggestedModule.path }}</div>
+              <div
+                class="caption"
+                v-if="suggestedModule.path"
+              >
+                Path: {{ suggestedModule.path }}
+              </div>
             </v-alert>
           </v-col>
 
@@ -141,7 +146,7 @@
       </v-form>
     </v-container>
   </div>
-  
+
 </template>
 
 <script>
@@ -212,11 +217,11 @@ export default {
     },
   },
   watch: {
-    'form.cloudProvider'() {
+    'form.cloudProvider': function () {
       this.form.instanceType = null;
       this.refreshModules();
     },
-    'form.kubernetesType'() {
+    'form.kubernetesType': function () {
       this.refreshModules();
     },
     selectedRepositoryId() {
@@ -258,7 +263,7 @@ export default {
           url: `/api/project/${this.projectId}/repositories/${this.selectedRepositoryId}/modules`,
           params,
           responseType: 'json',
-          validateStatus: (s) => s >= 200 && s < 300 || s === 404,
+          validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
         })).data;
         if (Array.isArray(data) && data.length > 0) {
           this.modules = data;
@@ -291,6 +296,3 @@ export default {
 
 <style scoped>
 </style>
-
-
-
