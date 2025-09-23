@@ -35,7 +35,7 @@ import (
 
 var startTime = tz.Now()
 
-//go:embed public/*
+//go:embed public
 var publicAssets embed.FS
 
 // StoreMiddleware WTF?
