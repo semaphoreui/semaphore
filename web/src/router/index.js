@@ -30,10 +30,15 @@ import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import ComplianceDashboard from '../views/ComplianceDashboard.vue';
 import ModuleSelector from '../views/project/ModuleSelector.vue';
+import Home from '../views/Home.vue';
 
 Vue.use(VueRouter);
 
 const routes = [
+  {
+    path: '/',
+    component: Home,
+  },
   {
     path: '/project/new',
     component: New,
