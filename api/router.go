@@ -24,13 +24,13 @@ import (
 
 	"github.com/Digital-Data-Co/forge/api/runners"
 
-	"github.com/gorilla/mux"
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/api/projects"
 	"github.com/Digital-Data-Co/forge/api/sockets"
 	"github.com/Digital-Data-Co/forge/api/tasks"
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/util"
+	"github.com/gorilla/mux"
 )
 
 var startTime = tz.Now()
@@ -403,6 +403,7 @@ func Route(
 
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.GetRepositories).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}/refs", projects.GetRepositoryRefs).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/modules", repositoryController.GetRepositoryModules).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 	projectRepoManagement.HandleFunc("/{repository_id}/branches", repositoryController.GetRepositoryBranches).Methods("GET", "HEAD")
