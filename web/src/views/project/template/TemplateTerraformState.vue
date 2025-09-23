@@ -268,14 +268,9 @@
               </td>
             </template>
           </v-data-table>
-
-          
-
         </v-card-text>
       </v-card>
-
     </div>
-
   </div>
 </template>
 <style lang="scss">
