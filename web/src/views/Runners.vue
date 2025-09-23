@@ -219,36 +219,11 @@
       </v-btn>
     </v-toolbar>
 
-    <v-btn
-      v-else-if="premiumFeatures.project_runners"
-      style="position: absolute; right: 15px; top: 15px;"
-      color="primary"
-      @click="editItem('new')"
-    >{{ $t('newRunner') }}
-    </v-btn>
+    <!-- Hide PRO-only project runners add button in project context -->
 
     <v-divider v-if="!projectId" />
 
-    <v-alert
-      v-if="!premiumFeatures.project_runners"
-      type="info"
-      text
-      color="hsl(348deg, 86%, 61%)"
-      style="border-radius: 0;"
-    >
-      <span v-if="projectId" v-html="$t('project_runners_only_pro')"></span>
-
-      <span v-else v-html="$t('foss_runners_limited')"></span>
-
-      <v-btn
-        class="ml-2 pr-2"
-        color="hsl(348deg, 86%, 61%)"
-        href="https://forgeui.com/pro#runners"
-      >
-        {{ $t('learn_more_about_pro') }}
-        <v-icon>mdi-chevron-right</v-icon>
-      </v-btn>
-    </v-alert>
+    <!-- Hide PRO upsell for project runners -->
 
     <v-alert
       style="border-radius: 0;"

@@ -189,24 +189,7 @@
 
         <v-divider />
 
-        <v-alert
-          type="info"
-          text
-          color="hsl(348deg, 86%, 61%)"
-          style="border-radius: 0;"
-          v-if="!premiumFeatures.terraform_backend"
-        >
-            <span class="mr-2">
-              Terraform/OpenTofu HTTP backend available only in <b>PRO</b> version.
-            </span>
-          <v-btn
-            color="hsl(348deg, 86%, 61%)"
-            href="https://forgeui.com/pro#runners"
-          >
-            Learn more
-            <v-icon>mdi-chevron-right</v-icon>
-          </v-btn>
-        </v-alert>
+        <!-- Hide PRO upsell for Terraform backend -->
         <v-card-text>
 
           <h3>Aliases</h3>
@@ -229,7 +212,6 @@
           <v-btn
             color="primary"
             @click="addAlias()"
-            :disabled="!premiumFeatures.terraform_backend"
             class="mb-8"
           >
             {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
@@ -244,7 +226,6 @@
             style="
               background: transparent;
             "
-            v-if="premiumFeatures.terraform_backend"
             :headers="headers"
             :items="states"
             :footer-props="{ itemsPerPageOptions: [20] }"
@@ -288,9 +269,7 @@
             </template>
           </v-data-table>
 
-          <v-container v-else>
-            <div style="text-align: center; color: grey;">No state available.</div>
-          </v-container>
+          
 
         </v-card-text>
       </v-card>

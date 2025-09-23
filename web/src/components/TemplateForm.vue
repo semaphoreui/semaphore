@@ -275,7 +275,6 @@
         <div class="mb-4">
 
           <v-autocomplete
-            v-if="premiumFeatures.project_runners"
             v-model="item.runner_tag"
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
@@ -440,7 +439,7 @@
             v-model="item.task_params.override_backend"
             :true-value="true"
             :false-value="false"
-            v-if="needField('override_backend') && premiumFeatures.terraform_backend"
+            v-if="needField('override_backend')"
           />
 
           <v-text-field
@@ -451,7 +450,7 @@
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
             :rules="[v => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
-            v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
+            v-if="needField('backend_filename')"
           ></v-text-field>
 
         </div>
