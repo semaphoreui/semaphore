@@ -18,7 +18,7 @@
       </v-col>
     </v-row>
   </v-container>
-  
+
 </template>
 
 <script>
@@ -34,5 +34,3 @@ export default {
 
 <style scoped>
 </style>
-
-
