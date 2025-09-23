@@ -29,6 +29,7 @@ import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import ComplianceDashboard from '../views/ComplianceDashboard.vue';
+import ModuleSelector from '../views/project/ModuleSelector.vue';
 
 Vue.use(VueRouter);
 
@@ -76,6 +77,10 @@ const routes = [
   {
     path: '/project/:projectId/templates',
     component: Templates,
+  },
+  {
+    path: '/project/:projectId/module-selector',
+    component: ModuleSelector,
   },
   {
     path: '/project/:projectId/views/:viewId/templates',
