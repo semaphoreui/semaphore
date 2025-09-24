@@ -30,6 +30,8 @@ import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import ComplianceDashboard from '../views/ComplianceDashboard.vue';
 import ModuleSelector from '../views/project/ModuleSelector.vue';
+import TerraformModule from '@/views/TerraformModule.vue'; // <- Added
+
 
 Vue.use(VueRouter);
 
@@ -180,6 +182,11 @@ const routes = [
     path: '/compliance',
     component: ComplianceDashboard,
   },
+  {
+    path: '/terraform-module',
+    component: TerraformModule, // <- Added
+  }
+
 ];
 
 const router = new VueRouter({
