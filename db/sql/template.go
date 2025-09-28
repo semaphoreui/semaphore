@@ -153,17 +153,17 @@ func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, descriptio
 	return
 }
 
-func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
 
 	pp, err := params.Validate(db.TemplateProps)
 	if err != nil {
 		return
 	}
 
-	templates = []db.Template{}
+	templates = []db.TemplateWithPerms{}
 
 	type templateWithLastTask struct {
-		db.Template
+		db.TemplateWithPerms
 		LastTaskID *int `db:"last_task_id"`
 	}
 
@@ -289,7 +289,7 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	}
 
 	for _, tpl := range tpls {
-		template := tpl.Template
+		template := tpl.TemplateWithPerms
 
 		if tpl.LastTaskID != nil {
 			for _, tsk := range tasks {
@@ -323,6 +323,23 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	return
 }
 
+func (d *SqlDb) GetTemplatesWithPermissions(projectID int, userID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
+	return d.getTemplates(projectID, &userID, filter, params)
+}
+
+func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
+	res, err := d.getTemplates(projectID, nil, filter, params)
+	if err != nil {
+		return
+	}
+
+	for _, tpl := range res {
+		templates = append(templates, tpl.Template)
+	}
+
+	return
+}
+
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.selectOne(
 		&template,
@@ -345,4 +362,20 @@ func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
 
 func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
 	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
+}
+
+func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
+	return
+}
+func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRole, err error) {
+	return
+}
+func (d *SqlDb) CreateTemplateRole(role db.TemplateRole) (newRole db.TemplateRole, err error) {
+	return
+}
+func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
+	return nil
+}
+func (d *SqlDb) UpdateTemplateRole(role db.TemplateRole) error {
+	return nil
 }

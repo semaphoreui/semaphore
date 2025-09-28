@@ -267,6 +267,7 @@ type ProjectInviteRepository interface {
 // TemplateManager handles template-related operations
 type TemplateManager interface {
 	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplatesWithPermissions(projectID int, userID int, filter TemplateFilter, params RetrieveQueryParams) ([]TemplateWithPerms, error)
 	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
@@ -276,6 +277,12 @@ type TemplateManager interface {
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
+
+	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
+	GetTemplateRoles(projectID int, templateID int) ([]TemplateRole, error)
+	CreateTemplateRole(role TemplateRole) (TemplateRole, error)
+	DeleteTemplateRole(projectID int, templateID int, roleID int) error
+	UpdateTemplateRole(role TemplateRole) error
 }
 
 // InventoryManager handles inventory-related operations

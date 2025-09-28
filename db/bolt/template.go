@@ -70,6 +70,21 @@ func (d *BoltDb) SetTemplateDescription(projectID int, templateID int, descripti
 	return err
 }
 
+func (d *BoltDb) GetTemplatesWithPermissions(projectID int, userID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
+	res, err := d.GetTemplates(projectID, filter, params)
+	if err != nil {
+		return
+	}
+
+	for _, tpl := range res {
+		var tplWithPerms db.TemplateWithPerms
+		tplWithPerms.Template = tpl
+		templates = append(templates, tplWithPerms)
+	}
+
+	return
+}
+
 func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
 	var view db.View
 
@@ -279,4 +294,20 @@ func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
 
 func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
 	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
+}
+
+func (d *BoltDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
+	return
+}
+func (d *BoltDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRole, err error) {
+	return
+}
+func (d *BoltDb) CreateTemplateRole(role db.TemplateRole) (newRole db.TemplateRole, err error) {
+	return
+}
+func (d *BoltDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
+	return nil
+}
+func (d *BoltDb) UpdateTemplateRole(role db.TemplateRole) error {
+	return nil
 }
