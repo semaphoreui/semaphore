@@ -367,15 +367,15 @@ func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferre
 func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
 	return
 }
-func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRole, err error) {
+func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplatePerm, err error) {
 	return
 }
-func (d *SqlDb) CreateTemplateRole(role db.TemplateRole) (newRole db.TemplateRole, err error) {
+func (d *SqlDb) CreateTemplateRole(role db.TemplatePerm) (newRole db.TemplatePerm, err error) {
 	return
 }
 func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
 	return nil
 }
-func (d *SqlDb) UpdateTemplateRole(role db.TemplateRole) error {
+func (d *SqlDb) UpdateTemplateRole(role db.TemplatePerm) error {
 	return nil
 }

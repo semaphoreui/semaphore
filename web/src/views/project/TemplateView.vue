@@ -123,6 +123,11 @@
         }/templates/${item.id}/details`">{{ $t('template_details') }}
       </v-tab>
       <v-tab
+        :to="`/project/${item.project_id}${
+          $route.params.viewId ? `/views/${$route.params.viewId}` : ''
+        }/templates/${item.id}/perms`">{{ $t('Permissions') }}
+      </v-tab>
+      <v-tab
         v-if="['terraform', 'tofu'].includes(item.app)"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''

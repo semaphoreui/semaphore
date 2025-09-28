@@ -279,10 +279,10 @@ type TemplateManager interface {
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 
 	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
-	GetTemplateRoles(projectID int, templateID int) ([]TemplateRole, error)
-	CreateTemplateRole(role TemplateRole) (TemplateRole, error)
+	GetTemplateRoles(projectID int, templateID int) ([]TemplatePerm, error)
+	CreateTemplateRole(role TemplatePerm) (TemplatePerm, error)
 	DeleteTemplateRole(projectID int, templateID int, roleID int) error
-	UpdateTemplateRole(role TemplateRole) error
+	UpdateTemplateRole(role TemplatePerm) error
 }
 
 // InventoryManager handles inventory-related operations
@@ -462,6 +462,14 @@ type SecretStorageRepository interface {
 	UpdateSecretStorage(storage SecretStorage) error
 	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
 	DeleteSecretStorage(projectID int, storageID int) error
+}
+
+type RoleRepository interface {
+	GetRole(roleID int) (Role, error)
+	GetRoles() ([]Role, error)
+	UpdateRole(role Role) error
+	CreateRole(role Role) (Role, error)
+	DeleteRole(role int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces

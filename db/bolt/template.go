@@ -299,15 +299,15 @@ func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferr
 func (d *BoltDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
 	return
 }
-func (d *BoltDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRole, err error) {
+func (d *BoltDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplatePerm, err error) {
 	return
 }
-func (d *BoltDb) CreateTemplateRole(role db.TemplateRole) (newRole db.TemplateRole, err error) {
+func (d *BoltDb) CreateTemplateRole(role db.TemplatePerm) (newRole db.TemplatePerm, err error) {
 	return
 }
 func (d *BoltDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
 	return nil
 }
-func (d *BoltDb) UpdateTemplateRole(role db.TemplateRole) error {
+func (d *BoltDb) UpdateTemplateRole(role db.TemplatePerm) error {
 	return nil
 }
