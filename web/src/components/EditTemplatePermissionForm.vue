@@ -95,13 +95,13 @@ export default {
     permissions: {
       handler(newPermissions) {
         if (!this.item) return;
-        
+
         let permissionValue = 0;
         if (newPermissions.canRunProjectTasks) permissionValue |= 1;
         if (newPermissions.canUpdateProject) permissionValue |= 2;
         if (newPermissions.canManageProjectResources) permissionValue |= 4;
         if (newPermissions.canManageProjectUsers) permissionValue |= 8;
-        
+
         this.item.permissions = permissionValue;
       },
       deep: true,
@@ -111,7 +111,7 @@ export default {
     'item.permissions': {
       handler(newPermissions) {
         if (newPermissions === undefined || newPermissions === null) return;
-        
+
         this.permissions.canRunProjectTasks = !!(newPermissions & 1);
         this.permissions.canUpdateProject = !!(newPermissions & 2);
         this.permissions.canManageProjectResources = !!(newPermissions & 4);
@@ -156,7 +156,7 @@ export default {
         if (this.permissions.canUpdateProject) permissionValue |= 2;
         if (this.permissions.canManageProjectResources) permissionValue |= 4;
         if (this.permissions.canManageProjectUsers) permissionValue |= 8;
-        
+
         this.item.permissions = permissionValue;
         this.item.template_id = parseInt(this.templateId, 10);
         this.item.project_id = this.projectId;

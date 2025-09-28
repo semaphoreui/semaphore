@@ -333,30 +333,35 @@ func DetachInventory(w http.ResponseWriter, r *http.Request) {
 
 func (c *TemplateController) GetTemplatePerms(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	tpl := helpers.GetFromContext(r, "inventory").(db.Template)
-	user := helpers.UserFromContext(r)
+	tpl := helpers.GetFromContext(r, "template").(db.Template)
 
-	perm, err := c.templateRepo.GetTemplatePermission(project.ID, tpl.ID, user.ID)
+	perms, err := helpers.Store(r).GetTemplateRoles(project.ID, tpl.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, perm)
+	helpers.WriteJSON(w, http.StatusOK, perms)
 }
 
 func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	tpl := helpers.GetFromContext(r, "template").(db.Template)
-	user := helpers.UserFromContext(r)
+	template := helpers.GetFromContext(r, "template").(db.Template)
 
-	perm, err := c.templateRepo.GetTemplatePermission(project.ID, tpl.ID, user.ID)
+	var perm db.TemplatePerm
+	if !helpers.Bind(w, r, &perm) {
+		return
+	}
+
+	perm.ProjectID = template.ProjectID
+	perm.TemplateID = template.ID
+
+	newPerm, err := helpers.Store(r).CreateTemplateRole(perm)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, perm)
+	helpers.WriteJSON(w, http.StatusCreated, newPerm)
 }
 
 func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.Request) {

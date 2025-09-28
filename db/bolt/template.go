@@ -300,6 +300,7 @@ func (d *BoltDb) GetTemplatePermission(projectID int, templateID int, userID int
 	return
 }
 func (d *BoltDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplatePerm, err error) {
+	roles = []db.TemplatePerm{}
 	return
 }
 func (d *BoltDb) CreateTemplateRole(role db.TemplatePerm) (newRole db.TemplatePerm, err error) {

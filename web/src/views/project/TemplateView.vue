@@ -141,6 +141,7 @@
 
     <router-view
       class="mt-8"
+      :project-id="projectId"
       :template="item"
       :inventory="inventory"
       :environment="environment"

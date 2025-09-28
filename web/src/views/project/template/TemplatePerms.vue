@@ -1,100 +1,130 @@
 <template>
-  <v-container fluid class="pb-0">
-    <v-row class="mb-2">
-      <v-col>
-        <v-list subheader>
-          <v-list-item>
-            <v-list-item-icon>
-              <v-icon>mdi-book-play</v-icon>
-            </v-list-item-icon>
+  <div v-if="items != null">
+    <EditTemplatePermissionDialog
+      v-model="editDialog"
+      :project-id="projectId"
+      :template-id="templateId"
+      :item-id="itemId"
+      @save="loadItems()"
+    />
 
-            <v-list-item-content>
-              <v-list-item-title>{{ $t('playbook') }}</v-list-item-title>
-              <v-list-item-subtitle>{{ template.playbook }}</v-list-item-subtitle>
-            </v-list-item-content>
-          </v-list-item>
-        </v-list>
-      </v-col>
-      <v-col>
-        <v-list subheader>
-          <v-list-item>
-            <v-list-item-icon>
-              <v-icon>{{ TEMPLATE_TYPE_ICONS[template.type] }}</v-icon>
-            </v-list-item-icon>
+    <YesNoDialog
+      :title="$t('deleteTemplatePermission')"
+      :text="$t('askDeleteTemplatePermission')"
+      v-model="deleteItemDialog"
+      @yes="deleteItem(itemId)"
+    />
 
-            <v-list-item-content>
-              <v-list-item-title>{{ $t('type') }}</v-list-item-title>
-              <v-list-item-subtitle>{{ $t(TEMPLATE_TYPE_TITLES[template.type]) }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
-          </v-list-item>
-        </v-list>
-      </v-col>
-      <v-col>
-        <v-list subheader>
-          <v-list-item>
-            <v-list-item-icon>
-              <v-icon>mdi-monitor</v-icon>
-            </v-list-item-icon>
+    <v-toolbar flat>
+      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
+      <v-toolbar-title>{{ $t('templatePermissions') }}</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <v-btn
+        color="primary"
+        @click="editItem('new')"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+      >{{ $t('newTemplatePermission') }}
+      </v-btn>
+    </v-toolbar>
 
-            <v-list-item-content>
-              <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ (inventory.find((x) => x.id === template.inventory_id) || {name: '—'}).name }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
-          </v-list-item>
-        </v-list>
-      </v-col>
-      <v-col>
-        <v-list subheader>
-          <v-list-item>
-            <v-list-item-icon>
-              <v-icon>mdi-code-braces</v-icon>
-            </v-list-item-icon>
-            <v-list-item-content>
-              <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ environment.find((x) => x.id === template.environment_id).name }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
-          </v-list-item>
-        </v-list>
-      </v-col>
-      <v-col>
-        <v-list subheader>
-          <v-list-item>
-            <v-list-item-icon>
-              <v-icon>mdi-git</v-icon>
-            </v-list-item-icon>
-            <v-list-item-content>
-              <v-list-item-title>{{ $t('repository2') }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ repositories.find((x) => x.id === template.repository_id).name }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
-          </v-list-item>
-        </v-list>
-      </v-col>
-    </v-row>
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      hide-default-footer
+      class="mt-4"
+      :items-per-page="Number.MAX_VALUE"
+      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+    >
+      <template v-slot:item.role="{ item }">
+        <v-chip
+          :color="getRoleColor(item.role_id)"
+          text-color="white"
+          small
+        >
+          {{ getRoleName(item.role_id) }}
+        </v-chip>
+      </template>
 
-    <TaskStats :project-id="template.project_id" :template-id="template.id" />
+      <template v-slot:item.permissions="{ item }">
+        <div class="permissions-list">
+          <v-chip
+            v-if="item.permissions & 1"
+            small
+            color="blue"
+            text-color="white"
+            class="mr-1 mb-1"
+          >
+            {{ $t('canRunProjectTasks') }}
+          </v-chip>
+          <v-chip
+            v-if="item.permissions & 2"
+            small
+            color="green"
+            text-color="white"
+            class="mr-1 mb-1"
+          >
+            {{ $t('canUpdateProject') }}
+          </v-chip>
+          <v-chip
+            v-if="item.permissions & 4"
+            small
+            color="orange"
+            text-color="white"
+            class="mr-1 mb-1"
+          >
+            {{ $t('canManageProjectResources') }}
+          </v-chip>
+          <v-chip
+            v-if="item.permissions & 8"
+            small
+            color="red"
+            text-color="white"
+            class="mr-1 mb-1"
+          >
+            {{ $t('canManageProjectUsers') }}
+          </v-chip>
+          <span v-if="item.permissions === 0" class="text--secondary">
+            {{ $t('noPermissions') }}
+          </span>
+        </div>
+      </template>
 
-  </v-container>
-
+      <template v-slot:item.actions="{ item }">
+        <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn
+            @click="editItem(item.id)"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
+        </v-btn-toggle>
+      </template>
+    </v-data-table>
+  </div>
 </template>
+
 <script>
-import {
-  TEMPLATE_TYPE_ACTION_TITLES,
-  TEMPLATE_TYPE_ICONS,
-  TEMPLATE_TYPE_TITLES,
-} from '@/lib/constants';
-import TaskStats from '@/components/TaskStats.vue';
+import ItemListPageBase from '@/components/ItemListPageBase';
+import EditTemplatePermissionDialog from '@/components/EditTemplatePermissionDialog.vue';
+import YesNoDialog from '@/components/YesNoDialog.vue';
+import axios from 'axios';
+import { USER_PERMISSIONS } from '@/lib/constants';
 
 export default {
-  components: { TaskStats },
+  components: {
+    EditTemplatePermissionDialog,
+    YesNoDialog,
+  },
+  mixins: [ItemListPageBase],
 
   props: {
+    projectId: Number,
     template: Object,
     repositories: Array,
     inventory: Array,
@@ -103,25 +133,94 @@ export default {
 
   data() {
     return {
-      dateRanges: [{
-        text: 'Past week',
-        value: 'last_week',
-      }, {
-        text: 'Past month',
-        value: 'last_month',
-      }, {
-        text: 'Past year',
-        value: 'last_year',
-      }],
-      users: [{
-        text: 'All users',
-        value: null,
-      }],
-      TEMPLATE_TYPE_ICONS,
-      TEMPLATE_TYPE_TITLES,
-      TEMPLATE_TYPE_ACTION_TITLES,
+      USER_PERMISSIONS,
+      availableRoles: [],
     };
   },
 
+  computed: {
+    templateId() {
+      return this.template.id;
+    },
+  },
+
+  async created() {
+    await this.loadRoles();
+  },
+
+  methods: {
+    async loadRoles() {
+      try {
+        const response = await axios.get('/api/roles');
+        this.availableRoles = response.data;
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load roles:', error);
+      }
+    },
+
+    getRoleName(roleId) {
+      const role = this.availableRoles.find((r) => r.id === roleId);
+      return role ? role.name : `Role ${roleId}`;
+    },
+
+    getRoleColor(roleId) {
+      const role = this.availableRoles.find((r) => r.id === roleId);
+      if (!role) return 'gray';
+
+      // Color based on role slug or default colors
+      const colorMap = {
+        owner: 'red',
+        manager: 'orange',
+        task_runner: 'blue',
+        guest: 'gray',
+      };
+
+      return colorMap[role.slug] || 'primary';
+    },
+
+    allowActions() {
+      return this.can(USER_PERMISSIONS.manageProjectResources);
+    },
+
+    getHeaders() {
+      return [
+        {
+          text: this.$i18n.t('role'),
+          value: 'role',
+          width: '25%',
+        },
+        {
+          text: this.$i18n.t('permissions'),
+          value: 'permissions',
+          width: '65%',
+        },
+        {
+          value: 'actions',
+          sortable: false,
+          width: '10%',
+        }];
+    },
+
+    getSingleItemUrl() {
+      return `/api/project/${this.projectId}/templates/${this.templateId}/perms/${this.itemId}`;
+    },
+
+    getItemsUrl() {
+      return `/api/project/${this.projectId}/templates/${this.templateId}/perms`;
+    },
+
+    getEventName() {
+      return 'i-template-perms';
+    },
+  },
 };
 </script>
+
+<style scoped>
+.permissions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+</style>
