@@ -466,6 +466,7 @@ type SecretStorageRepository interface {
 
 type RoleRepository interface {
 	GetRole(roleID int) (Role, error)
+	GetRoleBySlug(slug string) (Role, error)
 	GetRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)

@@ -68,15 +68,15 @@
         <v-select
           hide-details
           v-model="item.role"
-          :items="USER_ROLES"
+          :items="userRoles"
           item-value="slug"
-          item-text="title"
+          item-text="name"
           :style="{width: '200px'}"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ USER_ROLES.find(r => r.slug === item.role).title }}</div>
+        <div v-else>{{ userRoles.find(r => r.slug === item.role).name }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -104,10 +104,10 @@ export default {
     systemInfo: Object,
   },
 
-  data() {
-    return {
-      USER_ROLES,
-    };
+  computed: {
+    userRoles() {
+      return [...USER_ROLES, ...this.systemInfo.roles];
+    },
   },
 
   methods: {

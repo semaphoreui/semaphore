@@ -55,7 +55,7 @@
       :label="$t('role')"
       :items="USER_ROLES"
       item-value="slug"
-      item-text="title"
+      item-text="name"
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"

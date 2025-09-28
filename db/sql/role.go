@@ -44,3 +44,9 @@ func (d *SqlDb) DeleteRole(roleID int) error {
 	res, err := d.exec("delete from `role` where id=?", roleID)
 	return validateMutationResult(res, err)
 }
+
+func (d *SqlDb) GetRoleBySlug(slug string) (db.Role, error) {
+	var role db.Role
+	err := d.selectOne(&role, "select * from `role` where slug=?", slug)
+	return role, err
+}

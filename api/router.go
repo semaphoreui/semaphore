@@ -669,6 +669,13 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		timezone = "UTC"
 	}
 
+	roles, err := helpers.Store(r).GetRoles()
+	if err != nil {
+		log.WithError(err).Error("Failed to get roles")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
 	body := map[string]any{
 		"version":           util.Version(),
 		"ansible":           util.AnsibleVersion(),
@@ -679,6 +686,7 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"git_client":        util.Config.GitClientId,
 		"schedule_timezone": timezone,
 		"teams":             util.Config.Teams,
+		"roles":             roles,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
