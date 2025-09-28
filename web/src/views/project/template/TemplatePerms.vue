@@ -15,17 +15,12 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('templatePermissions') }}</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newTemplatePermission') }}
-      </v-btn>
-    </v-toolbar>
+    <v-btn
+      color="primary"
+      @click="editItem('new')"
+      style="position: absolute; right: 16px;"
+    >{{ $t('Add Role') }}
+    </v-btn>
 
     <v-data-table
       :headers="headers"
@@ -33,7 +28,6 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.role="{ item }">
         <v-chip

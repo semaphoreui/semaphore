@@ -20,6 +20,8 @@
       :label="$t('role')"
       :rules="[v => !!v || $t('role_required')]"
       required
+      outlined
+      dense
       :disabled="formSaving"
     >
       <template v-slot:item="{ item: role }">
@@ -30,29 +32,31 @@
       </template>
     </v-select>
 
-    <v-divider class="my-4"></v-divider>
-
     <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canRunProjectTasks"
       :label="$t('canRunProjectTasks')"
       :disabled="formSaving"
     ></v-checkbox>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canUpdateProject"
       :label="$t('canUpdateProject')"
       :disabled="formSaving"
     ></v-checkbox>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canManageProjectResources"
       :label="$t('canManageProjectResources')"
       :disabled="formSaving"
     ></v-checkbox>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canManageProjectUsers"
       :label="$t('canManageProjectUsers')"
       :disabled="formSaving"
