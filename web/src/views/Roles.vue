@@ -8,7 +8,7 @@
       :hide-buttons="hideEditDialogButtons"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <UserForm
+        <RoleForm
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -16,9 +16,6 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="true"
-          @hide-action-buttons="hideEditDialogButtons = true"
-          @show-action-buttons="hideEditDialogButtons = false"
-          :auth-methods="authMethods"
         />
       </template>
     </EditDialog>
@@ -96,7 +93,7 @@ import EventBus from '@/event-bus';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
-import UserForm from '@/components/UserForm.vue';
+import RoleForm from '@/components/RoleForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
@@ -107,13 +104,12 @@ export default {
 
   components: {
     YesNoDialog,
-    UserForm,
+    RoleForm,
     EditDialog,
   },
 
   data() {
     return {
-      hideEditDialogButtons: false,
     };
   },
 
@@ -140,15 +136,15 @@ export default {
     },
 
     getItemsUrl() {
-      return '/api/users';
+      return '/api/roles';
     },
 
     getSingleItemUrl() {
-      return `/api/users/${this.itemId}`;
+      return `/api/roles/${this.itemId}`;
     },
 
     getEventName() {
-      return 'i-user';
+      return 'i-role';
     },
   },
 };
