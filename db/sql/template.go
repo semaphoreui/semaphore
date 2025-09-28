@@ -3,6 +3,8 @@ package sql
 import (
 	"encoding/json"
 
+	"errors"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -365,17 +367,101 @@ func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferre
 }
 
 func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
+	var projectUser db.ProjectUser
+	projectUser, err = d.GetProjectUser(projectID, userID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil // user not in project, no permissions
+		}
+		return
+	}
+
+	perm = projectUser.Role.GetPermissions()
+
+	var roleIDs []int
+	query, args, err := squirrel.Select("role_id").
+		From("project__user_role").
+		Where("project_id = ?", projectID).
+		Where("user_id = ?", userID).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&roleIDs, query, args...)
+	if err != nil {
+		return
+	}
+
+	if len(roleIDs) == 0 {
+		return
+	}
+
+	var templateRoles []db.TemplatePerm
+	query, args, err = squirrel.Select("*").
+		From("template__role").
+		Where("project_id = ?", projectID).
+		Where("template_id = ?", templateID).
+		Where(squirrel.Eq{"role_id": roleIDs}).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&templateRoles, query, args...)
+	if err != nil {
+		return
+	}
+
+	for _, tr := range templateRoles {
+		perm |= tr.Permissions
+	}
+
 	return
 }
+
 func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplatePerm, err error) {
+	query, args, err := squirrel.Select("*").
+		From("template__role").
+		Where("project_id = ?", projectID).
+		Where("template_id = ?", templateID).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&roles, query, args...)
 	return
 }
 func (d *SqlDb) CreateTemplateRole(role db.TemplatePerm) (newRole db.TemplatePerm, err error) {
+	insertID, err := d.insert(
+		"id",
+		"insert into template__role (project_id, template_id, role_id, permissions) values (?, ?, ?, ?)",
+		role.ProjectID,
+		role.TemplateID,
+		role.RoleID,
+		role.Permissions)
+
+	if err != nil {
+		return
+	}
+
+	newRole = role
+	newRole.ID = insertID
 	return
 }
 func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
-	return nil
+	_, err := d.exec("delete from template__role where project_id=? and template_id=? and role_id=?", projectID, templateID, roleID)
+	return err
 }
 func (d *SqlDb) UpdateTemplateRole(role db.TemplatePerm) error {
-	return nil
+	_, err := d.exec(
+		"update template__role set permissions=? where id=?",
+		role.Permissions,
+		role.ID)
+
+	return err
 }
