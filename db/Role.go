@@ -7,6 +7,13 @@ type Role struct {
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
 }
 
+func ValidateRole(role Role) error {
+	if role.Name == "" {
+		return &ValidationError{Message: "Role name cannot be empty"}
+	}
+	return nil
+}
+
 type TemplatePerm struct {
 	ID          int                   `db:"id" json:"id"`
 	RoleID      int                   `db:"role_id" json:"role_id"`

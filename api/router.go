@@ -19,6 +19,7 @@ import (
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/semaphoreui/semaphore/api/debug"
+	"github.com/semaphoreui/semaphore/api/tasks"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	log "github.com/sirupsen/logrus"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/projects"
 	"github.com/semaphoreui/semaphore/api/sockets"
-	"github.com/semaphoreui/semaphore/api/tasks"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -233,7 +233,7 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(clearGlobalRunnerCache).Methods("DELETE")
 
 	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
-	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.GetRole).Methods("GET", "HEAD")
 	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
 	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
 

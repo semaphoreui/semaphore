@@ -619,6 +619,14 @@ var SecretStorageProps = ObjectProps{
 	Ownerships:            []*ObjectProps{&ProjectProps},
 }
 
+var RoleProps = ObjectProps{
+	TableName:         "role",
+	Type:              reflect.TypeOf(Role{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
+	SortableColumns:   []string{"name"},
+}
+
 var UserProps = ObjectProps{
 	TableName:         "user",
 	Type:              reflect.TypeOf(User{}),

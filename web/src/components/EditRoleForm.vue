@@ -16,6 +16,8 @@
       v-model="item.name"
       :label="$t('name')"
       :rules="[v => !!v || $t('name_required')]"
+      outlined
+      dense
       required
       :disabled="formSaving"
     ></v-text-field>
@@ -24,6 +26,8 @@
       v-model="item.slug"
       :label="$t('slug')"
       :rules="[v => !!v || $t('slug_required'), v => this.validateSlug(v)]"
+      outlined
+      dense
       required
       :disabled="formSaving"
       :hint="$t('slugHint')"
@@ -35,24 +39,28 @@
     <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canRunProjectTasks"
       :label="$t('canRunProjectTasks')"
       :disabled="formSaving"
     ></v-checkbox>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canUpdateProject"
       :label="$t('canUpdateProject')"
       :disabled="formSaving"
     ></v-checkbox>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canManageProjectResources"
       :label="$t('canManageProjectResources')"
       :disabled="formSaving"
     ></v-checkbox>
 
     <v-checkbox
+      class="mt-0"
       v-model="permissions.canManageProjectUsers"
       :label="$t('canManageProjectUsers')"
       :disabled="formSaving"
@@ -83,13 +91,13 @@ export default {
     permissions: {
       handler(newPermissions) {
         if (!this.item) return;
-        
+
         let permissionValue = 0;
         if (newPermissions.canRunProjectTasks) permissionValue |= 1;
         if (newPermissions.canUpdateProject) permissionValue |= 2;
         if (newPermissions.canManageProjectResources) permissionValue |= 4;
         if (newPermissions.canManageProjectUsers) permissionValue |= 8;
-        
+
         this.item.permissions = permissionValue;
       },
       deep: true,
@@ -99,7 +107,7 @@ export default {
     'item.permissions': {
       handler(newPermissions) {
         if (newPermissions === undefined || newPermissions === null) return;
-        
+
         this.permissions.canRunProjectTasks = !!(newPermissions & 1);
         this.permissions.canUpdateProject = !!(newPermissions & 2);
         this.permissions.canManageProjectResources = !!(newPermissions & 4);
@@ -112,13 +120,13 @@ export default {
   methods: {
     validateSlug(value) {
       if (!value) return true; // Required validation is handled separately
-      
+
       // Slug should be lowercase, alphanumeric with underscores/hyphens
       const slugPattern = /^[a-z0-9_-]+$/;
       if (!slugPattern.test(value)) {
         return this.$t('invalidSlugFormat');
       }
-      
+
       return true;
     },
 
@@ -146,7 +154,7 @@ export default {
         if (this.permissions.canUpdateProject) permissionValue |= 2;
         if (this.permissions.canManageProjectResources) permissionValue |= 4;
         if (this.permissions.canManageProjectUsers) permissionValue |= 8;
-        
+
         this.item.permissions = permissionValue;
       }
     },

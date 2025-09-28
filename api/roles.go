@@ -17,7 +17,23 @@ func NewRolesController(roleRepo db.RoleRepository) *RolesController {
 	}
 }
 
+func (c *RolesController) GetRole(w http.ResponseWriter, r *http.Request) {
+	roleID, err := helpers.GetIntParam("role_id", w, r)
+	if err != nil {
+		return
+	}
+
+	role, err := c.roleRepo.GetRole(roleID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, role)
+}
+
 func (c *RolesController) GetRoles(w http.ResponseWriter, r *http.Request) {
+
 	roles, err := c.roleRepo.GetRoles()
 	if err != nil {
 		helpers.WriteError(w, err)

@@ -25,3 +25,7 @@ func SetContextValue(r *http.Request, key string, value any) *http.Request {
 func UserFromContext(r *http.Request) *db.User {
 	return GetFromContext(r, "user").(*db.User)
 }
+
+func GetRole(r *http.Request) db.Role {
+	return GetFromContext(r, "role").(db.Role)
+}

@@ -5,7 +5,6 @@
       save-button-text="Save"
       :title="$t('editRole')"
       @save="loadItems()"
-      :hide-buttons="hideEditDialogButtons"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <RoleForm
@@ -93,13 +92,12 @@ import EventBus from '@/event-bus';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
-import RoleForm from '@/components/RoleForm.vue';
+import RoleForm from '@/components/EditRoleForm.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   props: {
-    authMethods: Object,
   },
 
   components: {
