@@ -112,6 +112,8 @@ func Route(
 	subscriptionController := proApi.NewSubscriptionController(store, store)
 	projectRunnerController := proProjects.NewProjectRunnerController()
 	taskController := projects.NewTaskController(ansibleTaskRepo)
+	rolesController := NewRolesController()
+	templateController := projects.NewTemplateController()
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -213,6 +215,9 @@ func Route(
 	adminAPI.Path("/runners").HandlerFunc(getAllRunners).Methods("GET", "HEAD")
 	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
 
+	adminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
+	adminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
+
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
 	debugAPI := adminAPI.PathPrefix("/debug").Subrouter()
@@ -226,6 +231,12 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}/active").HandlerFunc(setGlobalRunnerActive).Methods("POST")
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(deleteGlobalRunner).Methods("DELETE")
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(clearGlobalRunnerCache).Methods("DELETE")
+
+	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
+	rolesAPI.Use(globalRunnerMiddleware)
+	rolesAPI.Path("/{runner_id}").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
+	rolesAPI.Path("/{runner_id}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
+	rolesAPI.Path("/{runner_id}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
@@ -444,6 +455,11 @@ func Route(
 	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetTemplateSchedules).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/stats", projects.GetTaskStats).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/stop_all_tasks", taskController.StopAllTasks).Methods("POST")
+
+	projectTmplManagement.HandleFunc("/{template_id}/perms", templateController.GetTemplatePerms).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/perms", templateController.AddTemplatePerm).Methods("POST")
+	projectTmplManagement.HandleFunc("/{template_id}/perms/{perm_id}", templateController.UpdateTemplatePerm).Methods("PUT")
+	projectTmplManagement.HandleFunc("/{template_id}/perms/{perm_id}", templateController.DeleteTemplatePerm).Methods("DELETE")
 
 	projectTmplInvManagement := projectTmplManagement.PathPrefix("/{template_id}/inventory").Subrouter()
 	projectTmplInvManagement.Use(projects.InventoryMiddleware)

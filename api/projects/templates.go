@@ -2,8 +2,9 @@ package projects
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/util"
 	"net/http"
+
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -28,6 +29,14 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 		r = helpers.SetContextValue(r, "template", template)
 		next.ServeHTTP(w, r)
 	})
+}
+
+type TemplateController struct {
+	templateRepo db.TemplateManager
+}
+
+func NewTemplateController() *TemplateController {
+	return &TemplateController{}
 }
 
 // GetTemplate returns single template by ID
@@ -314,6 +323,75 @@ func DetachInventory(w http.ResponseWriter, r *http.Request) {
 
 	inv.TemplateID = nil
 	err := helpers.Store(r).UpdateInventory(inv)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *TemplateController) GetTemplatePerms(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	tpl := helpers.GetFromContext(r, "inventory").(db.Template)
+	user := helpers.UserFromContext(r)
+
+	perm, err := c.templateRepo.GetTemplatePermission(project.ID, tpl.ID, user.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, perm)
+}
+
+func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	tpl := helpers.GetFromContext(r, "template").(db.Template)
+	user := helpers.UserFromContext(r)
+
+	perm, err := c.templateRepo.GetTemplatePermission(project.ID, tpl.ID, user.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, perm)
+}
+
+func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.Request) {
+	template := helpers.GetFromContext(r, "template").(db.Template)
+	permID, err := helpers.GetIntParam("perm_id", w, r)
+	if err != nil {
+		return
+	}
+
+	var perm db.TemplatePerm
+	if !helpers.Bind(w, r, &perm) {
+		return
+	}
+
+	perm.ID = permID
+	perm.ProjectID = template.ProjectID
+	perm.TemplateID = template.ID
+
+	err = helpers.Store(r).UpdateTemplateRole(perm)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.Request) {
+	template := helpers.GetFromContext(r, "template").(db.Template)
+	permID, err := helpers.GetIntParam("perm_id", w, r)
+	if err != nil {
+		return
+	}
+
+	err = helpers.Store(r).DeleteTemplateRole(template.ProjectID, template.ID, permID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
