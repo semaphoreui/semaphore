@@ -112,7 +112,7 @@ func Route(
 	subscriptionController := proApi.NewSubscriptionController(store, store)
 	projectRunnerController := proProjects.NewProjectRunnerController()
 	taskController := projects.NewTaskController(ansibleTaskRepo)
-	rolesController := NewRolesController()
+	rolesController := NewRolesController(store)
 	templateController := projects.NewTemplateController()
 
 	r := mux.NewRouter()
@@ -233,10 +233,9 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(clearGlobalRunnerCache).Methods("DELETE")
 
 	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
-	rolesAPI.Use(globalRunnerMiddleware)
-	rolesAPI.Path("/{runner_id}").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
-	rolesAPI.Path("/{runner_id}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
-	rolesAPI.Path("/{runner_id}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)

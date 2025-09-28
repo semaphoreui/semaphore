@@ -494,6 +494,7 @@ type Store interface {
 	RunnerManager
 	EventManager
 	SecretStorageRepository
+	RoleRepository
 }
 
 var AccessKeyProps = ObjectProps{
