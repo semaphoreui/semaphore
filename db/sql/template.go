@@ -162,7 +162,7 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		return
 	}
 
-	templates = []db.TemplateWithPerms{}
+	templates = make([]db.TemplateWithPerms, 0)
 
 	type templateWithLastTask struct {
 		db.TemplateWithPerms
@@ -334,6 +334,8 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	if err != nil {
 		return
 	}
+
+	templates = make([]db.Template, 0, len(res))
 
 	for _, tpl := range res {
 		templates = append(templates, tpl.Template)
