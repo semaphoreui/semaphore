@@ -31,10 +31,9 @@
       required
       :disabled="formSaving"
       :hint="$t('slugHint')"
-      persistent-hint
     ></v-text-field>
 
-    <v-divider class="my-4"></v-divider>
+<!--    <v-divider class="my-4"></v-divider>-->
 
     <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
 

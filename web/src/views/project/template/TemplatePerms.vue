@@ -30,13 +30,7 @@
       :items-per-page="Number.MAX_VALUE"
     >
       <template v-slot:item.role="{ item }">
-        <v-chip
-          :color="getRoleColor(item.role_id)"
-          text-color="white"
-          small
-        >
-          {{ getRoleName(item.role_id) }}
-        </v-chip>
+        {{ getRoleName(item.role_id) }}
       </template>
 
       <template v-slot:item.permissions="{ item }">
@@ -87,13 +81,11 @@
         <v-btn-toggle dense :value-comparator="() => false">
           <v-btn
             @click="editItem(item.id)"
-            v-if="can(USER_PERMISSIONS.manageProjectResources)"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
           <v-btn
             @click="askDeleteItem(item.id)"
-            v-if="can(USER_PERMISSIONS.manageProjectResources)"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -174,7 +166,7 @@ export default {
     },
 
     allowActions() {
-      return this.can(USER_PERMISSIONS.manageProjectResources);
+      return true;
     },
 
     getHeaders() {

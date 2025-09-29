@@ -368,6 +368,24 @@ func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferre
 	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
 }
 
+func (d *SqlDb) GetTemplateRole(projectID int, templateID int, id int) (templateRole db.TemplateRolePerm, err error) {
+
+	query, args, err := squirrel.Select("*").
+		From("project__template_role").
+		Where("project_id = ?", projectID).
+		Where("template_id = ?", templateID).
+		Where("id = ?", id).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	err = d.selectOne(&templateRole, query, args...)
+
+	return
+}
+
 func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
 	var projectUser db.ProjectUser
 	projectUser, err = d.GetProjectUser(projectID, userID)
@@ -380,53 +398,49 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 
 	perm = projectUser.Role.GetPermissions()
 
-	var roleIDs []int
-	query, args, err := squirrel.Select("role_id").
-		From("project__user_role").
-		Where("project_id = ?", projectID).
-		Where("user_id = ?", userID).
-		ToSql()
+	role, err := d.GetRoleBySlug(string(projectUser.Role))
+
+	if errors.Is(err, db.ErrNotFound) {
+		err = nil
+		return
+	}
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.selectAll(&roleIDs, query, args...)
-	if err != nil {
-		return
-	}
-
-	if len(roleIDs) == 0 {
-		return
-	}
-
-	var templateRoles []db.TemplatePerm
-	query, args, err = squirrel.Select("*").
-		From("template__role").
+	query, args, err := squirrel.Select("permissions").
+		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
-		Where(squirrel.Eq{"role_id": roleIDs}).
+		Where("role_id = ?", role.ID).
 		ToSql()
 
 	if err != nil {
 		return
 	}
 
-	_, err = d.selectAll(&templateRoles, query, args...)
+	var templateRole db.TemplateRolePerm
+
+	err = d.selectOne(&templateRole, query, args...)
+
+	if errors.Is(err, db.ErrNotFound) {
+		err = nil
+		return
+	}
+
 	if err != nil {
 		return
 	}
 
-	for _, tr := range templateRoles {
-		perm |= tr.Permissions
-	}
+	perm |= templateRole.Permissions
 
 	return
 }
 
-func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplatePerm, err error) {
+func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRolePerm, err error) {
 	query, args, err := squirrel.Select("*").
-		From("template__role").
+		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
 		ToSql()
@@ -438,10 +452,10 @@ func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.Temp
 	_, err = d.selectAll(&roles, query, args...)
 	return
 }
-func (d *SqlDb) CreateTemplateRole(role db.TemplatePerm) (newRole db.TemplatePerm, err error) {
+func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.TemplateRolePerm, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into template__role (project_id, template_id, role_id, permissions) values (?, ?, ?, ?)",
+		"insert into project__template_role (project_id, template_id, role_id, permissions) values (?, ?, ?, ?)",
 		role.ProjectID,
 		role.TemplateID,
 		role.RoleID,
@@ -455,14 +469,17 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplatePerm) (newRole db.TemplatePer
 	newRole.ID = insertID
 	return
 }
-func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
-	_, err := d.exec("delete from template__role where project_id=? and template_id=? and role_id=?", projectID, templateID, roleID)
+func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, id int) error {
+	_, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
 	return err
 }
-func (d *SqlDb) UpdateTemplateRole(role db.TemplatePerm) error {
+func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 	_, err := d.exec(
-		"update template__role set permissions=? where id=?",
+		"update project__template_role set permissions=? "+
+			"where project_id=? and template_id=? and id=?",
 		role.Permissions,
+		role.ProjectID,
+		role.TemplateID,
 		role.ID)
 
 	return err

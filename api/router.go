@@ -113,7 +113,7 @@ func Route(
 	projectRunnerController := proProjects.NewProjectRunnerController()
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := NewRolesController(store)
-	templateController := projects.NewTemplateController()
+	templateController := projects.NewTemplateController(store, store)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -457,6 +457,7 @@ func Route(
 
 	projectTmplManagement.HandleFunc("/{template_id}/perms", templateController.GetTemplatePerms).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/perms", templateController.AddTemplatePerm).Methods("POST")
+	projectTmplManagement.HandleFunc("/{template_id}/perms/{perm_id}", templateController.GetTemplatePerm).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/perms/{perm_id}", templateController.UpdateTemplatePerm).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}/perms/{perm_id}", templateController.DeleteTemplatePerm).Methods("DELETE")
 
