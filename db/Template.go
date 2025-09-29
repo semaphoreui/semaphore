@@ -162,7 +162,7 @@ type Template struct {
 
 type TemplateWithPerms struct {
 	Template
-	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
+	Permissions *ProjectUserPermission `db:"permissions" json:"permissions"`
 }
 
 func (tpl *Template) FillParams(target any) error {

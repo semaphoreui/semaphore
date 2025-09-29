@@ -34,12 +34,7 @@ func taskPool(r *http.Request) *tasks.TaskPool {
 func AddTask(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.GetFromContext(r, "user").(*db.User)
-
-	var taskObj db.Task
-
-	if !helpers.Bind(w, r, &taskObj) {
-		return
-	}
+	taskObj := helpers.GetFromContext(r, "task").(db.Task)
 
 	tpl, err := helpers.Store(r).GetTemplate(project.ID, taskObj.TemplateID)
 	if err != nil {
@@ -119,6 +114,7 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
+		user := helpers.GetFromContext(r, "user").(*db.User)
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 
 		if err != nil {
@@ -134,21 +130,47 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+
+		perm, err := helpers.Store(r).GetTemplatePermission(project.ID, task.TemplateID, user.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		permissions |= perm
+
+		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "task", task)
 		next.ServeHTTP(w, r)
 	})
 }
 
-//type ansibleTaskResult struct {
-//	App        string              `json:"app"`
-//	TemplateID int                 `json:"template_id"`
-//	Hosts      db.AnsibleTaskHost  `json:"hosts"`
-//	Errors     db.AnsibleTaskError `json:"errors"`
-//}
+// GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
+func NewTaskMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := helpers.GetFromContext(r, "project").(db.Project)
+		user := helpers.GetFromContext(r, "user").(*db.User)
 
-//func GetAnsibleTaskResult() (res ansibleTaskResult, err error) {
-//	return
-//}
+		var taskObj db.Task
+
+		if !helpers.Bind(w, r, &taskObj) {
+			return
+		}
+
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+
+		perm, err := helpers.Store(r).GetTemplatePermission(project.ID, taskObj.TemplateID, user.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		permissions |= perm
+
+		r = helpers.SetContextValue(r, "permissions", permissions)
+		r = helpers.SetContextValue(r, "task", taskObj)
+		next.ServeHTTP(w, r)
+	})
+}
 
 func (c *TaskController) GetAnsibleTaskHosts(w http.ResponseWriter, r *http.Request) {
 	task := helpers.GetFromContext(r, "task").(db.Task)

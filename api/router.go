@@ -274,7 +274,7 @@ func Route(
 	//
 	// Start and Stop tasks
 	projectTaskStart := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectTaskStart.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
+	projectTaskStart.Use(projects.ProjectMiddleware, projects.NewTaskMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
 	projectTaskStart.Path("/tasks").HandlerFunc(projects.AddTask).Methods("POST")
 
 	projectTaskStop := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()

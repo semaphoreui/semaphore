@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -41,7 +42,22 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		r = helpers.SetContextValue(r, "projectUserRole", projectUser.Role)
+		roleSlug := projectUser.Role
+
+		permissions := roleSlug.GetPermissions()
+
+		role, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role))
+
+		if err == nil {
+			roleSlug = db.ProjectUserRole(role.Slug)
+			permissions = role.Permissions
+		} else if !errors.Is(err, db.ErrNotFound) {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		r = helpers.SetContextValue(r, "projectUserRole", roleSlug)
+		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
 		next.ServeHTTP(w, r)
 	})
@@ -52,9 +68,13 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			me := helpers.GetFromContext(r, "user").(*db.User)
-			myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+			//myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
-			if !me.Admin && r.Method != "GET" && r.Method != "HEAD" && !myRole.Can(permissions) {
+			userPerms := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+
+			can := (userPerms & permissions) == permissions
+
+			if !me.Admin && r.Method != "GET" && r.Method != "HEAD" && !can {
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}
