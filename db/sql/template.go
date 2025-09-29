@@ -178,7 +178,8 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		}
 	}
 
-	q := squirrel.Select("pt.id",
+	fields := []string{
+		"pt.id",
 		"pt.project_id",
 		"pt.inventory_id",
 		"pt.repository_id",
@@ -200,8 +201,18 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		"pt.task_params",
 		"pt.allow_override_branch_in_task",
 		"pt.allow_parallel_tasks",
-		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id").
-		From("project__template pt")
+		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
+	}
+
+	if userID != nil {
+		fields = append(fields, "pr.permissions permissions")
+	}
+
+	q := squirrel.Select(fields...).From("project__template pt")
+
+	if userID != nil {
+		q = q.LeftJoin("project__template_role pr ON (pr.template_id = pt.id)")
+	}
 
 	if filter.App != nil {
 		q = q.Where("pt.app=?", *filter.App)
