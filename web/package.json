@@ -48,7 +48,7 @@
     "gulp-rename": "^2.0.0",
     "nanoid": ">=3.1.31",
     "nyc": "^17.0.0",
-    "openai": "^4.65.0",
+    "openai": "^5.0.0",
     "plugin-error": "^2.0.1",
     "prettier": "^3.4.2",
     "sass": "~1.32.12",
