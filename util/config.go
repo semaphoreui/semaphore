@@ -1123,6 +1123,7 @@ var appCommands = map[string]string{
 	"tofu":       "tofu",
 	"terragrunt": "terragrunt",
 	"bash":       "bash",
+	"json":       "jq",
 }
 
 var appPriorities = map[string]int{
@@ -1133,6 +1134,7 @@ var appPriorities = map[string]int{
 	"bash":       700,
 	"powershell": 600,
 	"python":     500,
+	"json":       400,
 }
 
 func LookupDefaultApps() {

@@ -96,6 +96,11 @@ export const APP_ICONS = {
     color: '#4b3b7a',
     darkColor: '#4b3b7a',
   },
+  json: {
+    icon: 'mdi-code-json',
+    color: '#f39c12',
+    darkColor: '#f39c12',
+  },
   pulumi: {
     icon: '$vuetify.icons.pulumi',
     color: 'black',
