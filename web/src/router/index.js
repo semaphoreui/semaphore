@@ -183,6 +183,10 @@ const routes = [
     component: ComplianceDashboard,
   },
   {
+    path: '/module-selector',
+    component: ModuleSelector,
+  },
+  {
     path: '/terraform-module',
     component: TerraformModule, // <- Added
   }
