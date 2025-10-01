@@ -22,36 +22,13 @@
       dense
     ></v-text-field>
 
-    <v-text-field
-      v-model.number="item.max_parallel_tasks"
-      :label="$t('maxNumberOfParallelTasksOptional')"
-      :disabled="formSaving"
-      :rules="[
-        v => (v == null || v === '' || Math.floor(v) === v) || $t('mustBeInteger'),
-        v => (v == null || v === '' || v >= 0) || $t('mustBe0OrGreater'),
-      ]"
-      hint="Should be 0 or greater, 0 - unlimited."
-      type="number"
-      :step="1"
-      outlined
-      dense
-    ></v-text-field>
-
-    <v-text-field
-      v-model="item.alert_chat"
-      :label="$t('telegramChatIdOptional')"
-      :disabled="formSaving"
-      data-testid="newProject-tg"
-      outlined
-      dense
-    ></v-text-field>
-
-    <v-checkbox
+    <v-switch
       class="mt-0"
       v-model="item.alert"
       :label="$t('allowAlertsForThisProject')"
       data-testid="newProject-alert"
-    ></v-checkbox>
+      inset
+    ></v-switch>
 
     <v-switch
       v-if="itemId === 'new'"
@@ -82,8 +59,9 @@ export default {
       return `/api/project/${this.itemId}`;
     },
     beforeSave() {
-      if (this.item.max_parallel_tasks === '') {
-        this.item.max_parallel_tasks = 0;
+      // Set alerts enabled by default for new projects
+      if (this.itemId === 'new' && this.item.alert === undefined) {
+        this.item.alert = true;
       }
     },
   },
