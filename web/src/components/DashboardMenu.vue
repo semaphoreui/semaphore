@@ -30,18 +30,6 @@
         key="compliance-dashboard"
         :to="`/compliance`"
       >{{ $t('Compliance Dashboard') }}</v-tab>
-      <v-tab
-        key="terraform-module"
-        :to="`/terraform-module`"
-      >{{ $t('Terraform Module') }}</v-tab>
-      <v-tab
-        v-if="projectType === ''"
-        key="runners"
-        :to="`/project/${projectId}/runners`"
-        data-testid="dashboard-runners"
-      >
-        {{ $t('runners') }}
-      </v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px;" />

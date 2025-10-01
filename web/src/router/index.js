@@ -23,12 +23,12 @@ import New from '../views/project/New.vue';
 import Integrations from '../views/project/Integrations.vue';
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
 import Apps from '../views/Apps.vue';
-import Runners from '../views/Runners.vue';
 import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import ComplianceDashboard from '../views/ComplianceDashboard.vue';
+import Alerts from '../views/Alerts.vue';
 import ModuleSelector from '../views/project/ModuleSelector.vue';
 
 Vue.use(VueRouter);
@@ -61,10 +61,6 @@ const routes = [
   {
     path: '/project/:projectId/activity',
     component: Activity,
-  },
-  {
-    path: '/project/:projectId/runners',
-    component: Runners,
   },
   {
     path: '/project/:projectId/schedule',
@@ -157,10 +153,6 @@ const routes = [
     component: Users,
   },
   {
-    path: '/runners',
-    component: Runners,
-  },
-  {
     path: '/tasks',
     component: Tasks,
   },
@@ -179,6 +171,10 @@ const routes = [
   {
     path: '/compliance',
     component: ComplianceDashboard,
+  },
+  {
+    path: '/alerts',
+    component: Alerts,
   },
   {
     path: '/module-selector',
