@@ -73,23 +73,39 @@
       justify-center
       class="pa-0"
     >
-      <v-card class="px-5 py-5" style="border-radius: 15px;">
-        <v-card-text>
-          <v-form
-            @submit.prevent
-            ref="signInForm"
-            lazy-validation
-            v-model="signInFormValid"
-            style="width: 350px;"
-          >
+      <div class="auth-content">
+        <!-- Branding and Image Section -->
+        <div class="brand-section text-center mb-8">
+          <div class="brand-logo">
             <v-img
-              width="80"
-              height="80"
+              width="150"
+              height="150"
               transition="0"
               src="favicon.png"
               style="margin: auto;"
               class="mb-4"
             />
+            <h1 class="display-1 font-weight-bold text-white mb-2">
+              DIGITAL DATA FORGE
+            </h1>
+            <p class="headline text-white mb-0">
+              Build, Update, Comply
+            </p>
+          </div>
+        </div>
+
+        <!-- Login Form Section -->
+        <v-card
+          class="px-5 py-5"
+          style="border-radius: 15px; width: 100%; max-width: 400px; margin: 0 auto;"
+        >
+          <v-card-text>
+            <v-form
+              @submit.prevent
+              ref="signInForm"
+              lazy-validation
+              v-model="signInFormValid"
+            >
 
             <h2 v-if="screen === 'verification'" class="text-center pt-4 pb-6">
               Two-step verification
@@ -192,6 +208,7 @@
 
               <div v-if="loginWithPassword">
                 <v-text-field
+                  ref="usernameField"
                   v-model="username"
                   v-bind:label='$t("username")'
                   :rules="[v => !!v || $t('username_required')]"
@@ -201,6 +218,7 @@
                 ></v-text-field>
 
                 <v-text-field
+                  ref="passwordField"
                   v-model="password"
                   :label="$t('password')"
                   :rules="[v => !!v || $t('password_required')]"
@@ -293,9 +311,10 @@
               </div>
 
             </div>
-          </v-form>
-        </v-card-text>
-      </v-card>
+            </v-form>
+          </v-card-text>
+        </v-card>
+      </div>
     </v-container>
   </div>
 </template>
@@ -321,13 +340,93 @@
   }
 }
 .auth {
-  height: 100vh;
-  background: #80808024;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 2rem 0;
 }
-.auth {
+
+.auth::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-image: url("../assets/background.svg");
-  background-color: #005057;
   background-size: cover;
+  opacity: 0.3;
+  z-index: 0;
+}
+
+.auth .v-container {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+.brand-section {
+  margin-bottom: 2rem;
+}
+
+.brand-logo {
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+.brand-logo h1 {
+  background: linear-gradient(45deg, #00ffff, #0080ff, #8000ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+}
+
+.brand-logo p {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+}
+
+.v-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+@media (max-width: 960px) {
+  .brand-logo h1 {
+    font-size: 2.5rem !important;
+  }
+
+  .brand-logo p {
+    font-size: 1.2rem !important;
+  }
+
+  .auth-content {
+    padding: 1rem;
+  }
+
+  .brand-section {
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .brand-logo h1 {
+    font-size: 2rem !important;
+  }
+
+  .brand-logo p {
+    font-size: 1rem !important;
+  }
 }
 </style>
 <script>
@@ -381,6 +480,28 @@ export default {
       default:
         throw new Error(`Unknown authentication status: ${status}`);
     }
+  },
+
+  mounted() {
+    // Focus username field when component is mounted and login form is ready
+    this.$nextTick(() => {
+      if (this.loginWithPassword && this.$refs.usernameField) {
+        this.$refs.usernameField.focus();
+      }
+    });
+  },
+
+  watch: {
+    loginWithPassword(newVal) {
+      // Focus username field when login form becomes available
+      if (newVal) {
+        this.$nextTick(() => {
+          if (this.$refs.usernameField) {
+            this.$refs.usernameField.focus();
+          }
+        });
+      }
+    },
   },
 
   methods: {

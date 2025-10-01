@@ -146,7 +146,7 @@
     <v-navigation-drawer
       app
       dark
-      :color="darkMode ? '#003236' : '#005057'"
+      :color="darkMode ? '#0f172a' : '#1e293b'"
       fixed
       width="260"
       v-model="drawer"
