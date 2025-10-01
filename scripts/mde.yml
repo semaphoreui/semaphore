@@ -1,0 +1,80 @@
+- hosts: all
+  become: true
+  become_user: root 
+
+  tasks:
+
+  - name: Create MDE directory
+    ansible.builtin.shell:
+      cmd: mkdir -p /etc/opt/microsoft/mdatp
+    register: 
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+
+  - name: Copy MDE Onboard json file
+    ansible.builtin.copy:
+      src: ./mdatp_onboard.json
+      dest: /etc/opt/microsoft/mdatp/
+      owner: root
+      group: root
+      mode: '0644'
+    register: mde_onboard_copy_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Copy MDE managed json file
+    ansible.builtin.copy:
+      src: ./mdatp_managed.json
+      dest: /etc/opt/microsoft/mdatp/managed/
+      owner: root
+      group: root
+      mode: '0644'
+    register: mde_managed_copy_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+
+  - name: Add Microsoft Repo
+    ansible.builtin.shell:
+      cmd:  dnf config-manager --add-repo=https://packages.microsoft.com/config/rhel/9/prod.repo
+    register: microsoft_repo_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+
+  - name: Ensure system is up to date
+    dnf:
+      update_cache: true
+      name: "*"
+      state: latest
+    register: system_update_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - mde
+      - stig
+
+  - name: Add Microsoft Azure CLI and MDE
+    ansible.builtin.shell: | 
+       rpm --import https://packages.microsoft.com/keys/microsoft.asc
+       dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+       dnf install -y azure-cli mdatp
+    register: microsoft_installs_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+      - stig
