@@ -23,11 +23,6 @@
         </div>
 
         <div class="text-right">
-          <v-btn
-            color="success" class="mr-3" @click="createDemoProject()"
-          >{{ $t('CreateDemoProject') }}
-          </v-btn>
-
           <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
         </div>
       </div>
@@ -64,12 +59,6 @@ export default {
 
     async createProject() {
       await this.$refs.editForm.save();
-    },
-
-    async createDemoProject() {
-      await this.$refs.editForm.save({
-        demo: true,
-      });
     },
   },
 };
