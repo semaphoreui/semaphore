@@ -324,7 +324,7 @@ export default {
   computed: {
     hasEnabledIntegrations() {
       return Object.values(this.alertConfig.integrations).some(
-        (enabled) => enabled
+        (enabled) => enabled,
       );
     },
   },
