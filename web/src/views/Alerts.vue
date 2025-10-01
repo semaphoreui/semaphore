@@ -1,6 +1,13 @@
 <template>
   <div>
     <v-toolbar flat>
+      <v-btn
+        icon
+        class="mr-4"
+        @click="returnToProjects()"
+      >
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Alert Configuration</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -331,6 +338,10 @@ export default {
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+
+    async returnToProjects() {
+      EventBus.$emit('i-open-last-project');
     },
     async saveAlerts() {
       this.saving = true;

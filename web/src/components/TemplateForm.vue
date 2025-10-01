@@ -841,7 +841,9 @@ export default {
           }
         }
 
-        const sourceSchedule = (await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`))[0];
+        const sourceSchedule = (
+          await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`)
+        )[0];
 
         if (sourceSchedule != null) {
           this.cronFormat = sourceSchedule.cron_format;

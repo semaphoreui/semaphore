@@ -232,7 +232,9 @@ export default {
           //   baseURI = baseURI.substring(0, baseURI.length - 1);
           // }
 
-          this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+          this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${
+            this.item.totp.id
+          }/qr`;
         }
       } else if (this.item.totp != null) {
         await axios({
@@ -254,7 +256,9 @@ export default {
         this.totpQrUrl = null;
       } else {
         this.totpEnabled = true;
-        this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+        this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${
+          this.item.totp.id
+        }/qr`;
       }
     },
 

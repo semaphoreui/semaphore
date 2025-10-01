@@ -43,7 +43,6 @@
     <v-tabs class="task-log-view__tabs" right v-model="tab">
       <v-tab>Log</v-tab>
       <v-tab :disabled="!isTaskStopped">Details</v-tab>
-      <v-tab :disabled="!isTaskStopped">Summary</v-tab>
     </v-tabs>
 
     <div v-if="tab === 0">
@@ -115,15 +114,6 @@
       </v-container>
     </div>
 
-    <div v-else-if="tab === 2">
-      <v-divider style="margin-top: -1px;" />
-
-      <AnsibleStageView
-        :premium-features="systemInfo.premium_features"
-        :project-id="projectId"
-        :task-id="itemId"
-      />
-    </div>
 
   </div>
 </template>
@@ -231,12 +221,11 @@ import socket from '@/socket';
 import VirtualList from 'vue-virtual-scroll-list';
 import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
 import ProjectMixin from '@/components/ProjectMixin';
-import AnsibleStageView from '@/components/AnsibleStageView.vue';
 import TaskDetails from '@/components/TaskDetails.vue';
 
 export default {
   components: {
-    TaskDetails, AnsibleStageView, TaskStatus, VirtualList,
+    TaskDetails, TaskStatus, VirtualList,
   },
 
   mixins: [ProjectMixin],
@@ -294,7 +283,8 @@ export default {
     },
 
     rawLogURL() {
-      return `${this.systemInfo?.web_host || ''}/api/project/${this.projectId}/tasks/${this.itemId}/raw_output`;
+      const baseUrl = this.systemInfo?.web_host || '';
+      return `${baseUrl}/api/project/${this.projectId}/tasks/${this.itemId}/raw_output`;
     },
 
     canStop() {
