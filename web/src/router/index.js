@@ -31,7 +31,6 @@ import SecretStorage from '../views/project/SecretStorages.vue';
 import ComplianceDashboard from '../views/ComplianceDashboard.vue';
 import ModuleSelector from '../views/project/ModuleSelector.vue';
 
-
 Vue.use(VueRouter);
 
 const routes = [
