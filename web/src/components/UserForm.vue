@@ -96,38 +96,29 @@
 
           <v-row class="pb-5 pt-2">
             <v-col cols="6">
-              <v-checkbox
-                dense
-                hide-details
+              <v-switch
                 v-model="item.alert"
                 :label="$t('sendAlerts')"
-              ></v-checkbox>
+                inset
+                class="mt-0"
+              ></v-switch>
             </v-col>
             <v-col cols="6" v-if="isAdmin">
-              <v-checkbox
-                dense
-                hide-details
+              <v-switch
                 v-model="item.admin"
                 :label="$t('adminUser')"
-              ></v-checkbox>
-            </v-col>
-            <v-col cols="6">
-              <v-checkbox
-                :disabled="!isAdmin"
-                dense
-                hide-details
-                v-model="item.pro"
-                :label="$t('Pro user')"
-              ></v-checkbox>
+                inset
+                class="mt-0"
+              ></v-switch>
             </v-col>
             <v-col cols="6" v-if="isAdmin">
-              <v-checkbox
+              <v-switch
                 :disabled="!isNew"
-                dense
-                hide-details
                 v-model="item.external"
                 :label="$t('external')"
-              ></v-checkbox>
+                inset
+                class="mt-0"
+              ></v-switch>
             </v-col>
           </v-row>
         </v-form>
