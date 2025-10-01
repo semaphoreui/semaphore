@@ -1,6 +1,13 @@
 <template>
   <div>
     <v-toolbar flat>
+      <v-btn
+        icon
+        class="mr-4"
+        @click="returnToProjects()"
+      >
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
         <v-icon class="mr-2">mdi-shield-check</v-icon>
@@ -354,6 +361,10 @@ export default {
 
     showDrawer() {
       this.$emit('show-drawer');
+    },
+
+    async returnToProjects() {
+      EventBus.$emit('i-open-last-project');
     },
   },
 };
