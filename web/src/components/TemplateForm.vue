@@ -297,7 +297,6 @@
           >
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
-              <v-chip class="ml-2" small color="error">New</v-chip>
             </template>
           </v-checkbox>
 
