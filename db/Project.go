@@ -8,6 +8,7 @@ import (
 type Project struct {
 	ID                     int       `db:"id" json:"id" backup:"-"`
 	Name                   string    `db:"name" json:"name" binding:"required"`
+	Description            *string   `db:"description" json:"description,omitempty"`
 	Created                time.Time `db:"created" json:"created" backup:"-"`
 	Alert                  bool      `db:"alert" json:"alert,omitempty"`
 	AlertChat              *string   `db:"alert_chat" json:"alert_chat,omitempty"`

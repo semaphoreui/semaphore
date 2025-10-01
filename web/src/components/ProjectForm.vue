@@ -22,6 +22,19 @@
       dense
     ></v-text-field>
 
+    <v-textarea
+      v-model="item.description"
+      label="Project Description"
+      :disabled="formSaving"
+      data-testid="newProject-description"
+      outlined
+      rows="3"
+      auto-grow
+      counter="500"
+      hint="Optional description for your project"
+      persistent-hint
+    ></v-textarea>
+
     <v-switch
       class="mt-0"
       v-model="item.alert"
@@ -51,6 +64,12 @@ export default {
       default: 'projectName',
     },
   },
+  created() {
+    // Set default values for new projects
+    if (this.itemId === 'new' && this.item) {
+      this.item.alert = true;
+    }
+  },
   methods: {
     getItemsUrl() {
       return '/api/projects';
@@ -60,7 +79,7 @@ export default {
     },
     beforeSave() {
       // Set alerts enabled by default for new projects
-      if (this.itemId === 'new' && this.item.alert === undefined) {
+      if (this.itemId === 'new') {
         this.item.alert = true;
       }
     },
