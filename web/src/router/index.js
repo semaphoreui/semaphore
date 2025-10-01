@@ -28,8 +28,8 @@ import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import ComplianceDashboard from '../views/ComplianceDashboard.vue';
-import Alerts from '../views/Alerts.vue';
 import ModuleSelector from '../views/project/ModuleSelector.vue';
+import Alerts from '../views/Alerts.vue';
 
 Vue.use(VueRouter);
 
