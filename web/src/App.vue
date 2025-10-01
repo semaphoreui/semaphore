@@ -499,20 +499,6 @@
               <v-divider/>
 
               <v-list-item
-                key="runners"
-                to="/runners"
-                v-if="user.admin"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-cogs</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  {{ $t('runners') }}
-                </v-list-item-content>
-              </v-list-item>
-
-              <v-list-item
                 key="tasks"
                 to="/tasks"
                 v-if="user.admin"
@@ -576,6 +562,16 @@
 
                 <v-list-item-content>
                   Module Selector
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="alerts" to="/alerts" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-bell</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  Alerts
                 </v-list-item-content>
               </v-list-item>
 
