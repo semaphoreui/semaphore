@@ -124,6 +124,7 @@ export const APP_SHORT_TITLE = {
   terraform: 'Terraform',
   tofu: 'OpenTofu',
   terragrunt: 'Terragrunt',
+  json: 'JSON',
   bash: 'Bash',
   pulumi: 'Pulumi',
   python: 'Python',
@@ -135,6 +136,7 @@ export const APP_TITLE = {
   terraform: 'Terraform Code',
   tofu: 'OpenTofu Code',
   terragrunt: 'Terragrunt Code',
+  json: 'JSON Template',
   bash: 'Bash Script',
   pulumi: 'Pulumi Code',
   python: 'Python Script',
@@ -252,4 +254,5 @@ export const APP_FIELDS = {
   terraform: TERRAFORM_FIELDS,
   tofu: TERRAFORM_FIELDS,
   terragrunt: TERRAFORM_FIELDS,
+  json: UNKNOWN_APP_FIELDS,
 };
