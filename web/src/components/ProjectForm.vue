@@ -45,6 +45,26 @@
 
     <v-switch
       v-if="itemId === 'new'"
+      v-model="item.import"
+      label="Import"
+      class="mt-0"
+      data-testid="newProject-import"
+      inset
+    ></v-switch>
+
+    <v-text-field
+      v-if="itemId === 'new' && item.import"
+      v-model="item.path"
+      label="Path"
+      :disabled="formSaving"
+      data-testid="newProject-path"
+      outlined
+      dense
+      class="mt-4"
+    ></v-text-field>
+
+    <v-switch
+      v-if="itemId === 'new'"
       v-model="item.demo"
       label="Demo"
       style="position: absolute; left: 24px; bottom: 15px;"
@@ -68,6 +88,7 @@ export default {
     // Set default values for new projects
     if (this.itemId === 'new' && this.item) {
       this.item.alert = true;
+      this.item.path = '/local/path';
     }
   },
   methods: {
