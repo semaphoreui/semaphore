@@ -10,7 +10,6 @@ import (
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/services/server"
 
-	"github.com/gorilla/handlers"
 	"github.com/Digital-Data-Co/forge/api"
 	"github.com/Digital-Data-Co/forge/api/sockets"
 	"github.com/Digital-Data-Co/forge/db"
@@ -21,6 +20,7 @@ import (
 	"github.com/Digital-Data-Co/forge/services/schedules"
 	"github.com/Digital-Data-Co/forge/services/tasks"
 	"github.com/Digital-Data-Co/forge/util"
+	"github.com/gorilla/handlers"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +36,7 @@ var rootCmd = &cobra.Command{
 	Short: "FORGE is a beautiful web UI for Ansible",
 	Long: `FORGE is a beautiful web UI for Ansible.
 Source code is available at https://github.com/Digital-Data-Co/forge.
-Complete documentation is available at https://forgeui.com.`,
+Complete documentation is available at https://digitaldata.co.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 		os.Exit(0)

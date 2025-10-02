@@ -149,7 +149,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 
 	desc = "Pings the website to provide a real-world example of using Forge."
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Ping forgeui.com",
+		Name:          "Ping digitaldata.co",
 		Playbook:      "ping.yml",
 		Description:   &desc,
 		ProjectID:     projectID,

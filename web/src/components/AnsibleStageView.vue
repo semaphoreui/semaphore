@@ -14,7 +14,7 @@
       <v-btn
         color="hsl(348deg, 86%, 61%)"
         target="_blank"
-        href="https://forgeui.com/pro#task_result"
+        href="https://digitaldata.co/pro#task_result"
       >
         Learn more
         <v-icon>mdi-chevron-right</v-icon>

@@ -234,7 +234,7 @@
       Global runners
       <a
         target="_blank"
-        href="https://docs.forgeui.com/administration-guide/runners/#set-up-a-server"
+        href="https://docs.digitaldata.co/administration-guide/runners/#set-up-a-server"
       >disabled</a>.
     </v-alert>
 

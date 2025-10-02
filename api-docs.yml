@@ -43,7 +43,7 @@ definitions:
       auth:
         type: string
         description: Username/Email address
-        x-example: user@forgeui.com
+        x-example: user@digitaldata.co
       password:
         type: string
         format: password
