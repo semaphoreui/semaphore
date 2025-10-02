@@ -41,6 +41,8 @@
       :label="$t('allowAlertsForThisProject')"
       data-testid="newProject-alert"
       inset
+      :value="true"
+      disabled
     ></v-switch>
 
     <v-switch
@@ -67,7 +69,7 @@
       v-if="itemId === 'new'"
       v-model="item.demo"
       label="Demo"
-      style="position: absolute; left: 24px; bottom: 15px;"
+      class="mt-4"
       hide-details
     />
 
@@ -90,6 +92,10 @@ export default {
       this.item.alert = true;
       this.item.path = '/local/path';
     }
+    // Always ensure alerts are enabled
+    if (this.item) {
+      this.item.alert = true;
+    }
   },
   methods: {
     getItemsUrl() {
@@ -99,10 +105,8 @@ export default {
       return `/api/project/${this.itemId}`;
     },
     beforeSave() {
-      // Set alerts enabled by default for new projects
-      if (this.itemId === 'new') {
-        this.item.alert = true;
-      }
+      // Always ensure alerts are enabled for all projects
+      this.item.alert = true;
     },
   },
 };
