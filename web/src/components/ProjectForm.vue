@@ -12,6 +12,7 @@
     >{{ formError }}</v-alert>
 
     <v-text-field
+      ref="projectNameField"
       v-model="item.name"
       :label="$t(projectNameTitle)"
       :rules="[v => !!v || $t('project_name_required')]"
@@ -20,6 +21,7 @@
       data-testid="newProject-name"
       outlined
       dense
+      autofocus
     ></v-text-field>
 
     <v-textarea
@@ -96,6 +98,14 @@ export default {
     if (this.item) {
       this.item.alert = true;
     }
+  },
+  mounted() {
+    // Focus the project name field when component is mounted
+    this.$nextTick(() => {
+      if (this.$refs.projectNameField) {
+        this.$refs.projectNameField.focus();
+      }
+    });
   },
   methods: {
     getItemsUrl() {
