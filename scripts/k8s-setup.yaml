@@ -1,0 +1,161 @@
+- hosts: all
+  become: true
+  become_user: root 
+
+  vars:
+    resource_group: <change per environment>
+
+
+  tasks:
+  
+  - name: Add Docker Repo
+    ansible.builtin.shell:
+      cmd:  dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
+    register: docker_repo_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+  
+  - name: Add Kubernetes Repo
+    yum_repository:
+     name: Kubernetes
+     description: Kubernetes
+     baseurl: https://pkgs.k8s.io/core:/stable:/v1.30/rpm
+     enabled: yes
+     gpgcheck: yes
+     gpgkey: https://pkgs.k8s.io/core:/stable:/v1.30/rpm/repodata/repomd.xml.key
+    register: k8s_repo_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: Copy containerd module file with owner and permissions
+    ansible.builtin.copy:
+      src: ./containerd.conf
+      dest: /etc/modules-load.d/containerd.conf
+      owner: root
+      group: root
+      mode: '0644'
+    register: containerd_copy_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: Containerd Service Prep
+    ansible.builtin.shell:
+       mkdir -p /datadrive/containerd
+    register: containerd_svc_prep_result
+    ignore_errors: true
+    tags:
+      - dev 
+      - baseimage
+      - k8s
+
+  - name: Ensure containerd is installed
+    dnf:
+      name: containerd
+      update_cache: true
+      disable_gpg_check: true
+      state: present
+    register: containerd_install_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s 
+
+  - name: containerd Service
+    ansible.builtin.service:
+      name: containerd
+      enabled: yes
+    register: containerd_service_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: Containerd Setup
+    ansible.builtin.shell: | 
+      containerd config default | tee /etc/containerd/config.toml
+      sed -i 's/3.8/3.9/g' /etc/containerd/config.toml
+      sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+      sed -i 's/root = "/var/lib/containerd"/root = "/datadrive/containerd"/g' /etc/containerd/config.toml  # Set permissions on datadrive/containerd to 755 and change to symlink from "/var/lib/containerd"/root
+      service containerd restart
+    register: containerd_setup_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: Ensure kubernetes tools are installed
+    dnf:
+      name: 
+        - kubelet
+        - kubeadm
+        - kubectl
+      state: present
+      disable_gpg_check: yes
+    register: k8s_install_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: Modprobe Overlay setup
+    ansible.builtin.shell:
+      cmd:  modprobe overlay
+    register: overlay_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: Modprobe Netfilter setup
+    ansible.builtin.shell:
+      cmd:  modprobe br_netfilter
+    register: netfliter_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: IPv4 IP_Forward set perm
+    ansible.builtin.shell:
+      cmd:  echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+    register: ip_forward_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+
+  - name: sysctl reload
+    ansible.builtin.shell:
+      cmd:  sysctl --system
+    register: sysctl_reload_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s
+        
+  - name: Disable SWAP
+    ansible.builtin.shell:
+      cmd:  swapoff -a
+    register: disable_swap_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - k8s

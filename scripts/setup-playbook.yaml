@@ -1,0 +1,508 @@
+- hosts: all
+  become: true
+  become_user: root 
+
+  vars:
+    resource_group: <change per environment>
+
+
+  tasks:
+
+  - name: Copy containerd module file with owner and permissions
+    ansible.builtin.copy:
+      src: ./containerd.conf
+      dest: /etc/modules-load.d/containerd.conf
+      owner: root
+      group: root
+      mode: '0644'
+    register: containerd_copy_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+
+  - name: Create MDE directory
+    ansible.builtin.shell:
+      cmd: mkdir -p /etc/opt/microsoft/mdatp
+    register: 
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+
+  - name: Copy MDE Onboard json file
+    ansible.builtin.copy:
+      src: ./mdatp_onboard.json
+      dest: /etc/opt/microsoft/mdatp/
+      owner: root
+      group: root
+      mode: '0644'
+    register: mde_onboard_copy_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Copy MDE managed json file
+    ansible.builtin.copy:
+      src: ./mdatp_managed.json
+      dest: /etc/opt/microsoft/mdatp/managed/
+      owner: root
+      group: root
+      mode: '0644'
+    register: mde_managed_copy_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+
+  - name: Copy STIG Partitions file
+    ansible.builtin.copy:
+      src: ./stig_partitions.sh
+      dest: ~/stig_partitions.sh
+    register: copy_stig_partitions_script_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Copy DATT RPM
+    ansible.builtin.copy:
+      src: ./CM308935_datt-1.6.26.x86_64.rpm
+      dest: ~/CM308935_datt-1.6.26.x86_64.rpm
+    register: copy_datt_rpm_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - DoD
+
+  - name: Enable FIPS
+    ansible.builtin.shell:
+      cmd:  fips-mode-setup --enable
+    register: enable_fips_result
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Execute STIG Partitions
+    ansible.builtin.shell:
+      cmd:  bash ~/stig_partitions.sh
+    register: stig_partitions_result
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Reboot a slow machine that might have lots of updates to apply
+    ansible.builtin.reboot:
+      reboot_timeout: 3600
+    tags:
+      - dev
+      - baseimage
+
+  - name: Auditd Service Prep
+    ansible.builtin.shell: |
+      mkdir -p /var/log/audit
+      echo "/dev/mapper/rootvg-var--log--audit--lv /var/log/audit   xfs  defaults,nodev,nosuid,noexec        0 0" |  tee -a /etc/fstab
+      mount /dev/mapper/rootvg-var--log--audit--lv /var/log/audit
+    register: auditd_prep_result
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Resetup auditd service
+    ansible.builtin.shell: |
+       chmod 700 /var/log/audit
+       chcon -t auditd_log_t /var/log/audit
+    register: auditd_service_result
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Enable and Start auditd service
+    ansible.builtin.shell:
+      service auditd restart
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Add Microsoft Repo
+    ansible.builtin.shell:
+      cmd:  dnf config-manager --add-repo=https://packages.microsoft.com/config/rhel/9/prod.repo
+    register: microsoft_repo_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+
+  - name: Ensure system is up to date
+    dnf:
+      update_cache: true
+      name: "*"
+      state: latest
+    register: system_update_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - mde
+      - stig
+
+  - name: Add Microsoft Azure CLI and MDE
+    ansible.builtin.shell: | 
+       rpm --import https://packages.microsoft.com/keys/microsoft.asc
+       dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+       dnf install -y azure-cli mdatp
+    register: microsoft_installs_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - mde
+      - stig
+
+  - name: Create SCC directory
+    ansible.builtin.shell:
+      cmd:  mkdir -p /opt/scc
+    register: scc_dir_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - dod
+      - stig
+
+  - name: Download and install SCAP
+    ansible.builtin.unarchive: 
+      src: https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-5.10_rhel9_x86_64_bundle.zip
+      dest: ~/
+      remote_src: yes
+    register: download_scc_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+      - dod
+
+  - name: Install SCAP RPM
+    ansible.builtin.shell:
+      cmd:  rpm -i ~/scc-5.10_rhel9_x86_64/scc-5.10.rhel9.x86_64.rpm --nodigest
+    register: scap_install_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - dod
+      - stig
+
+  - name: Download SCAP files #Red Hat
+    ansible.builtin.get_url:
+      url: https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RHEL_9_V2R1_STIG_SCAP_1-3_benchmark.zip
+      dest: /opt/scc/
+      owner: root
+    register: scap_rhel_download_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - stig
+      - dod
+
+  - name: Import SCAP RHEL benchmark
+    ansible.builtin.shell:
+      cmd: /opt/scc/cscc -is /opt/scc/U_RHEL_9_V2R1_STIG_SCAP_1-3_benchmark.zip
+    register: scap_rhel_install_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+      - dod
+      - redhat
+
+  - name: Copy STIG Manual txt file
+    ansible.builtin.copy:
+      src: ./RHEL_9_STIG_2.1.2_Autoanswer.txt
+      dest: /opt/scc/Resources/Content/Manual_Questions/Completed_Files/RHEL_9_STIG_2.1.2_Autoanswer.txt
+    register: 
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - dod
+
+  - name: Ensure openscap is installed
+    dnf:
+      name:
+        - openscap-scanner 
+        - scap-security-guide
+      state: present
+    register: openscap_install_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+
+  - name: Ensure iproute-tc is installed
+    dnf:
+      name: iproute-tc
+      state: present
+    register: 
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+
+  - name: Add user to sudoers
+    ansible.builtin.shell:
+      cmd: usermod -aG wheel dd
+    register: sudo_enable_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+
+  - name: DATT Install
+    ansible.builtin.shell:
+      cmd: rpm -i ~/CM308935_datt-1.6.26.x86_64.rpm --nodigest
+    register: datt_install_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - dod
+
+  - name: Run OpenSCAP Evaluation Report and Remediation Creation # Still not as good as running the direct "remediation"
+    ansible.builtin.shell: 
+      cmd: oscap xccdf generate fix --fix-type bash --fetch-remote-resources --output ~/remediation-script.sh --profile xccdf_org.ssgproject.content_profile_stig --report ~/oscap_report_post.html /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
+    register: oscap_remediation_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - stig
+
+  - name: V-258046 - RHEL 9 system accounts must not have an interactive login shell.
+    ansible.builtin.shell:
+      cmd:  usermod --shell /sbin/nologin "{{ item }}"
+    loop:
+      - shutdown
+      - libstoragemgmt
+      - sync
+      - sshd
+      - setroubleshoot
+      - halt
+      - clevis 
+    register: disable_interactive_shell_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+      - redhat
+
+  - name: Enable Faillock #V-258055, V-258056, V-258057, V-258060, V-258070
+    ansible.builtin.copy:
+      src: ./faillock.conf
+      dest: /etc/security/faillock.conf
+      owner: root
+      group: root
+      mode: '0644'
+    register: enable_faillock_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - stig
+      - redhat
+
+  - name: Execute OpenSCAP Remediation fix # Leaves 9 failures
+    ansible.builtin.shell:
+      cmd: bash ~/remediation-script.sh
+    register: openscap_fix_result
+    ignore_errors: true
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - stig
+
+  - name: Install AIDE package
+    ansible.builtin.dnf:
+      name: aide
+      state: present
+    register: aide_result
+    ignore_errors: true
+
+  - name: Initialize AIDE
+    ansible.builtin.shell: aide --init
+    register: aide_init_result
+    ignore_errors: true
+
+  - name: Configure boot loader superuser password
+    ansible.builtin.shell: |
+      echo -e "1qaz2wsx3edc$RFV\n1qaz2wsx3edc$RFV" | grub2-setpassword | awk '/hash of / {print $NF}' >> /boot/grub2/user.cfg
+      grub2-mkconfig -o /boot/grub2/grub.cfg
+    register: grub_password_result
+    ignore_errors: true
+
+  - name: Set permissions for cron configuration directories
+    ansible.builtin.file:
+      path: /etc/cron.d/
+      mode: '0700'
+      recurse: yes
+    register: cron_permissions_result
+    ignore_errors: true
+
+  - name: Set permissions for root initialization files
+    ansible.builtin.file:
+      path: /root
+      mode: '0740'
+      recurse: yes
+    register: root_permissions_result
+    ignore_errors: true
+
+  - name: Ensure SSH server configuration file has correct permissions
+    ansible.builtin.file:
+      path: /etc/ssh/sshd_config.d
+      mode: '0600'
+      recurse: yes
+    register: ssh_permissions_result
+    ignore_errors: true
+
+  - name: Ensure account lockouts persist
+    ansible.builtin.lineinfile:
+      path: /etc/security/faillock.conf
+      regexp: '^#?\s*/var/run/faillock'
+      line: '/var/log/faillock'
+    register: faillock_config_result
+    ignore_errors: true
+
+  - name: Restrict ptrace usage
+    ansible.builtin.shell:
+      cmd: echo "kernel.yama.ptrace_scope = 1" >> /etc/sysctl.d/ptrace.conf
+    register: ptrace_restrict_result
+    ignore_errors: true
+
+  - name: Apply sysctl changes
+    ansible.builtin.shell: sysctl --system
+    register: sysctl_result
+    ignore_errors: true
+
+  - name: Install and enable USBGuard
+    ansible.builtin.dnf:
+      name: usbguard
+      state: present
+    register: usbguard_install_result
+    ignore_errors: true
+
+  - name: Enable USBGuard logging
+    ansible.builtin.lineinfile:
+      path: /etc/usbguard/usbguard-daemon.conf
+      regexp: '^AuditBackend='
+      line: 'AuditBackend=LinuxAudit'
+    register: usbguard_logging_result
+    ignore_errors: true
+
+  - name: Ensure system clocks are synchronized
+    ansible.builtin.lineinfile:
+      path: /etc/chrony.conf
+      regexp: '^pool 2.rhel.pool.ntp.org iburst maxpoll 16'
+      line: 'server 0.us.pool.ntp.mil iburst maxpoll 16'
+    register: chrony_config_result
+    ignore_errors: true
+
+  - name: Enable pcscd service
+    ansible.builtin.systemd:
+      name: pcscd
+      enabled: yes
+      state: started
+    register: pcscd_service_result
+    ignore_errors: true
+
+  - name: Protect audit logs from unauthorized changes
+    ansible.builtin.blockinfile:
+      path: /etc/audit/rules.d/audit.rules
+      block: |
+        --loginuid-immutable
+        -e 2
+    register: audit_protection_result
+    ignore_errors: true
+
+  - name: Enable password protection for sudo commands
+    ansible.builtin.shell: find /etc/sudoers /etc/sudoers.d -type f -exec sed -i '/NOPASSWD/ s/^/# /g' {} \;
+    register: sudo_protection_result
+    ignore_errors: true
+
+  - name: Set password expiration policy
+    ansible.builtin.shell: passwd -x 60 -n 1 root
+    register: passwd_policy_result
+    ignore_errors: true
+
+  - name: Install and configure Postfix
+    ansible.builtin.dnf:
+      name: postfix
+      state: present
+    register: postfix_install_result
+    ignore_errors: true
+
+  - name: Enable and start Postfix service
+    ansible.builtin.systemd:
+      name: postfix
+      enabled: yes
+      state: started
+    register: postfix_service_result
+    ignore_errors: true
+
+  - name: Update mail aliases
+    ansible.builtin.lineinfile:
+      path: /etc/aliases
+      regexp: '^root:'
+      line: 'root: isso'
+    register: mail_alias_result
+    ignore_errors: true
+
+  - name: Apply changes to mail aliases
+    ansible.builtin.shell: newaliases
+    register: newaliases_result
+    ignore_errors: true
+
+  - name: Prevent unrestricted mail relaying
+    ansible.builtin.shell: postconf -e 'smtpd_clinet_restrictions = permit_mynetworks,reject'
+    register: mail_relay_result
+    ignore_errors: true
+
+  - name: Fix vm_overcommit_memory issue
+    ansible.builtin.shell: sysctl  -w vm/overcommit_memory=1
+    register: overcommit_result
+    ignore_errors: true
+
+  - name: Fix kernel panic value
+    ansible.builtin.shell: sysctl  -w kernel/panic=10
+    register: kernel_panic_result
+    ignore_errors: true
+
+  - name: Finale Reboot
+    ansible.builtin.reboot:
+      reboot_timeout: 3600
+    tags:
+      - dev
+      - baseimage
