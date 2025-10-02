@@ -424,6 +424,7 @@ import DashboardMenu from '@/components/DashboardMenu.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import axios from 'axios';
+import EventBus from '@/event-bus';
 import { generateTerragruntConfig } from '@/utils/terraformGenerator';
 
 export default {
