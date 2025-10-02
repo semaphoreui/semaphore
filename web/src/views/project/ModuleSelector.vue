@@ -407,7 +407,17 @@
                   :loading="savingTerraformTemplate"
                 >
                   <v-icon left>mdi-content-save</v-icon>
-                  Save as Template
+                  Save Terraform as Template
+                </v-btn>
+                <v-btn
+                  color="success"
+                  small
+                  class="ml-2"
+                  @click="saveTerragruntAsTemplate"
+                  :loading="savingTerragruntTemplate"
+                >
+                  <v-icon left>mdi-content-save</v-icon>
+                  Save Terragrunt as Template
                 </v-btn>
               </div>
             </v-card-text>
@@ -508,6 +518,7 @@ export default {
       },
       savingTemplate: false,
       savingTerraformTemplate: false,
+      savingTerragruntTemplate: false,
       showJsonOutput: true,
       showTerraformOutput: true,
     };
@@ -876,6 +887,71 @@ export default {
         this.$toast?.error(errorText);
       } finally {
         this.savingTerraformTemplate = false;
+      }
+    },
+
+    async saveTerragruntAsTemplate() {
+      if (!this.terraformOutput || !this.terraformOutput.terragrunt) {
+        this.$toast?.error('No Terragrunt output to save');
+        return;
+      }
+
+      try {
+        this.savingTerragruntTemplate = true;
+
+        // Debug logging
+        console.log('Saving Terragrunt template for projectId:', this.projectId);
+        console.log('Selected repository ID:', this.selectedRepositoryId);
+
+        // Create template data with Terragrunt files
+        const providerName = this.form.cloudProvider || 'Unknown';
+        const dateStr = new Date().toLocaleDateString();
+        const templateName = ['Terragrunt Config -', providerName, '-', dateStr].join(' ');
+        const templateDescription = [
+          'Generated Terragrunt configuration for',
+          this.form.cloudProvider,
+          'with',
+          this.form.kubernetesType,
+        ].join(' ');
+
+        // Combine all Terragrunt files into a single playbook
+        const terragruntContent = Object.keys(this.terraformOutput.terragrunt || {})
+          .map((filename) => `# ${filename}\n${this.terraformOutput.terragrunt[filename]}`)
+          .join('\n\n');
+
+        const templateData = {
+          name: templateName,
+          app: 'terragrunt',
+          playbook: terragruntContent,
+          description: templateDescription,
+          arguments: [],
+          environment: [],
+          inventory: null,
+          repository: this.selectedRepositoryId,
+        };
+
+        console.log('Terragrunt template data:', templateData);
+
+        // Save template via API
+        const response = await axios({
+          method: 'POST',
+          url: `/api/project/${this.projectId}/templates`,
+          data: templateData,
+          responseType: 'json',
+        });
+
+        console.log('Terragrunt template save response:', response);
+
+        this.$toast?.success('Terragrunt template saved successfully!');
+        // Optionally redirect to templates page
+        this.$router.push(`/project/${this.projectId}/templates`);
+      } catch (error) {
+        console.error('Error saving Terragrunt template:', error);
+        const errorMessage = error.response?.data?.message || error.message;
+        const errorText = ['Failed to save Terragrunt template:', errorMessage].join(' ');
+        this.$toast?.error(errorText);
+      } finally {
+        this.savingTerragruntTemplate = false;
       }
     },
 

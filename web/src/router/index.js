@@ -5,6 +5,7 @@ import Tasks from '@/views/Tasks.vue';
 import TaskList from '@/components/TaskList.vue';
 import TemplateDetails from '@/views/project/template/TemplateDetails.vue';
 import TemplateTerraformState from '@/views/project/template/TemplateTerraformState.vue';
+import TemplateJsonView from '@/views/project/template/TemplateJsonView.vue';
 import Invites from '@/views/project/Invites.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
@@ -95,6 +96,9 @@ const routes = [
     }, {
       path: 'state',
       component: TemplateTerraformState,
+    }, {
+      path: 'json',
+      component: TemplateJsonView,
     }],
   },
   {
@@ -110,6 +114,9 @@ const routes = [
     }, {
       path: 'state',
       component: TemplateTerraformState,
+    }, {
+      path: 'json',
+      component: TemplateJsonView,
     }],
   },
   {

@@ -130,6 +130,14 @@
       >
         {{ $t('template_tf_workspaces') }}
       </v-tab>
+      <v-tab
+        v-if="item.app === 'json'"
+        :to="`/project/${item.project_id}${
+          $route.params.viewId ? `/views/${$route.params.viewId}` : ''
+        }/templates/${item.id}/json`"
+      >
+        JSON Content
+      </v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px;" />
