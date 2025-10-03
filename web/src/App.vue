@@ -1063,7 +1063,7 @@ export default {
       languages: [
         {
           id: '',
-          flag: getSystemLang().flag,
+          flag: 'us',
           title: 'System',
         },
         ...Object.keys(LANGUAGES).map((lang) => ({
