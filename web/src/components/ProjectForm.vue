@@ -21,7 +21,6 @@
       data-testid="newProject-name"
       outlined
       dense
-      autofocus
     ></v-text-field>
 
     <v-textarea

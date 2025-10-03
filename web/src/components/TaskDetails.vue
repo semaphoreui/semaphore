@@ -285,7 +285,7 @@ export default {
     async loadTaskFiles() {
       try {
         const response = await this.$http.get(
-          `/api/project/${this.projectId}/tasks/${this.item.id}/files`
+          `/api/project/${this.projectId}/tasks/${this.item.id}/files`,
         );
         this.taskFiles = response.data || [];
       } catch (error) {
@@ -317,7 +317,7 @@ export default {
 
       const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
       const i = Math.floor(Math.log(bytes) / Math.log(1024));
-      return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+      return `${Math.round((bytes / (1024 ** i)) * 100) / 100} ${sizes[i]}`;
     },
 
     async downloadFile(file) {
@@ -326,7 +326,7 @@ export default {
           `/api/project/${this.projectId}/tasks/${this.item.id}/files/${file.id}`,
           {
             responseType: 'blob',
-          }
+          },
         );
 
         const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -344,13 +344,13 @@ export default {
     },
 
     async deleteFile(file) {
-      if (!confirm(`Are you sure you want to delete "${file.filename}"?`)) {
+      if (!window.confirm(`Are you sure you want to delete "${file.filename}"?`)) {
         return;
       }
 
       try {
         await this.$http.delete(
-          `/api/project/${this.projectId}/tasks/${this.item.id}/files/${file.id}`
+          `/api/project/${this.projectId}/tasks/${this.item.id}/files/${file.id}`,
         );
         await this.loadTaskFiles(); // Reload the list
         this.$toast?.success('File deleted successfully');
