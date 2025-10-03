@@ -250,6 +250,68 @@
                     />
                   </v-expansion-panel-content>
                 </v-expansion-panel>
+
+                <v-expansion-panel v-if="alertConfig.integrations.discord">
+                  <v-expansion-panel-header>
+                    <v-icon left>mdi-discord</v-icon>
+                    Discord Configuration
+                  </v-expansion-panel-header>
+                  <v-expansion-panel-content>
+                    <v-text-field
+                      v-model="alertConfig.discord.webhookUrl"
+                      label="Webhook URL"
+                      outlined
+                      dense
+                      hint="Enter your Discord webhook URL"
+                    />
+                    <v-text-field
+                      v-model="alertConfig.discord.username"
+                      label="Username"
+                      outlined
+                      dense
+                      hint="Bot username for Discord messages"
+                    />
+                    <v-text-field
+                      v-model="alertConfig.discord.avatarUrl"
+                      label="Avatar URL"
+                      outlined
+                      dense
+                      hint="Optional avatar URL for the bot"
+                    />
+                  </v-expansion-panel-content>
+                </v-expansion-panel>
+
+                <v-expansion-panel v-if="alertConfig.integrations.pagerduty">
+                  <v-expansion-panel-header>
+                    <v-icon left>mdi-bell-alert</v-icon>
+                    PagerDuty Configuration
+                  </v-expansion-panel-header>
+                  <v-expansion-panel-content>
+                    <v-text-field
+                      v-model="alertConfig.pagerduty.integrationKey"
+                      label="Integration Key"
+                      outlined
+                      dense
+                      type="password"
+                      hint="Enter your PagerDuty integration key"
+                    />
+                    <v-text-field
+                      v-model="alertConfig.pagerduty.serviceId"
+                      label="Service ID"
+                      outlined
+                      dense
+                      hint="Enter your PagerDuty service ID"
+                    />
+                    <v-select
+                      v-model="alertConfig.pagerduty.severity"
+                      :items="pagerdutySeverityOptions"
+                      label="Default Severity"
+                      outlined
+                      dense
+                      hint="Default severity level for alerts"
+                    />
+                  </v-expansion-panel-content>
+                </v-expansion-panel>
               </v-expansion-panels>
             </v-card-text>
           </v-tab-item>
@@ -293,6 +355,12 @@ export default {
       testing: false,
       success: null,
       error: null,
+      pagerdutySeverityOptions: [
+        { text: 'Critical', value: 'critical' },
+        { text: 'Error', value: 'error' },
+        { text: 'Warning', value: 'warning' },
+        { text: 'Info', value: 'info' },
+      ],
       alertConfig: {
         types: {
           taskFailure: true,
@@ -324,6 +392,16 @@ export default {
         webhook: {
           url: '',
           secret: '',
+        },
+        discord: {
+          webhookUrl: '',
+          username: 'Forge Bot',
+          avatarUrl: '',
+        },
+        pagerduty: {
+          integrationKey: '',
+          serviceId: '',
+          severity: 'warning',
         },
       },
     };
