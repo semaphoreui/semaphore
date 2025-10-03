@@ -66,6 +66,16 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       </v-card-text>
 
       <v-card-actions v-if="!hideButtons">
+        <v-btn
+          v-if="showDeleteButton"
+          color="red"
+          outlined
+          @click="deleteItem()"
+          class="mr-auto"
+        >
+          {{ deleteButtonText || $t('delete') }}
+        </v-btn>
+
         <v-spacer></v-spacer>
 
         <v-btn
@@ -148,6 +158,8 @@ export default {
     helpButton: Boolean,
     noBodyPaddings: Boolean,
     noEscape: Boolean,
+    showDeleteButton: Boolean,
+    deleteButtonText: String,
   },
 
   data() {
@@ -228,6 +240,10 @@ export default {
       if (ev.key === 'Escape' && this.dialog !== false && !this.noEscape) {
         this.close();
       }
+    },
+
+    deleteItem() {
+      this.$emit('delete');
     },
   },
 };

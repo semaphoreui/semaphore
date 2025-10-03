@@ -155,8 +155,9 @@
 
         <router-link
           :to="viewId
-              ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
-              : `/project/${projectId}/templates/${item.id}`"
+              ? `/project/${projectId}/views/${viewId}/templates/${item.id}/details`
+              : `/project/${projectId}/templates/${item.id}/details`"
+          class="task-name-link"
         >{{ item.name }}
         </router-link>
       </template>
@@ -216,8 +217,21 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="createTask(item.id)">
+          <v-btn @click="createTask(item.id)" title="Run Task">
             <v-icon>mdi-play</v-icon>
+          </v-btn>
+          <v-btn
+            @click="stopTask(item)"
+            title="Stop Task"
+            :disabled="!item.last_task || !isTaskRunning(item.last_task.status)"
+          >
+            <v-icon>mdi-stop</v-icon>
+          </v-btn>
+          <v-btn @click="copyTask(item)" title="Copy Task">
+            <v-icon>mdi-content-copy</v-icon>
+          </v-btn>
+          <v-btn @click="editTask(item)" title="Edit Task">
+            <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>
       </template>
@@ -250,6 +264,16 @@
 
 .templates-table .text-start:first-child {
   padding-right: 0 !important;
+}
+
+.task-name-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.task-name-link:hover {
+  text-decoration: underline;
 }
 
 @media #{map-get($display-breakpoints, 'sm-and-down')} {
@@ -428,6 +452,35 @@ export default {
     createTask(itemId) {
       this.itemId = itemId;
       this.newTaskDialog = true;
+    },
+
+    stopTask(item) {
+      if (item.last_task && item.last_task.id) {
+        EventBus.$emit('i-stop-task', { taskId: item.last_task.id });
+      }
+    },
+
+    copyTask(item) {
+      // Clone the task and navigate to edit screen
+      this.$router.push({
+        path: this.viewId
+          ? `/project/${this.projectId}/views/${this.viewId}/templates/${item.id}/details`
+          : `/project/${this.projectId}/templates/${item.id}/details`,
+        query: { copy: 'true' }
+      });
+    },
+
+    editTask(item) {
+      // Navigate to edit screen
+      this.$router.push({
+        path: this.viewId
+          ? `/project/${this.projectId}/views/${this.viewId}/templates/${item.id}/details`
+          : `/project/${this.projectId}/templates/${item.id}/details`
+      });
+    },
+
+    isTaskRunning(status) {
+      return status === 'running' || status === 'starting';
     },
 
     getHeaders() {

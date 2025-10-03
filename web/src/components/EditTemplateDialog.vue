@@ -9,6 +9,9 @@
       :title="(itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
         ' \'' + getAppTitle(itemApp) + '\''"
       @save="onSave"
+      @delete="onDelete"
+      :show-delete-button="itemId !== 'new'"
+      :delete-button-text="$t('deleteTemplate')"
       :content-class="`EditTemplateDialog EditTemplateDialog--${id}`"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -85,6 +88,10 @@ export default {
   methods: {
     onSave(e) {
       this.$emit('save', e);
+    },
+
+    onDelete() {
+      this.$emit('delete');
     },
   },
 
