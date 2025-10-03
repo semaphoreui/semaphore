@@ -36,7 +36,6 @@
       persistent-hint
     ></v-textarea>
 
-
     <v-switch
       v-if="itemId === 'new'"
       v-model="item.import"
