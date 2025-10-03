@@ -77,7 +77,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/module-selector',
-    component: ModuleSelector,
+    redirect: '/project/new',
   },
   {
     path: '/project/:projectId/views/:viewId/templates',
