@@ -199,7 +199,7 @@ import axios from 'axios';
 function formatDate(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
 }
 
 export default {
