@@ -997,6 +997,136 @@ func (d *BoltDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUn
 	return
 }
 
+// TaskFile methods
+
+func (d *BoltDb) CreateTaskFile(taskFile db.TaskFile) (db.TaskFile, error) {
+	result, err := d.createObject(0, db.ObjectProps{
+		TableName: "task_files",
+		Type:      reflect.TypeOf(taskFile),
+	}, &taskFile)
+	if err != nil {
+		return taskFile, err
+	}
+	return result.(db.TaskFile), nil
+}
+
+func (d *BoltDb) GetTaskFiles(projectID int, taskID int) ([]db.TaskFile, error) {
+	var taskFiles []db.TaskFile
+
+	err := d.db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("task_files"))
+		if bucket == nil {
+			return nil
+		}
+
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var taskFile db.TaskFile
+			if err := json.Unmarshal(v, &taskFile); err != nil {
+				continue
+			}
+
+			if taskFile.ProjectID == projectID && taskFile.TaskID == taskID {
+				taskFiles = append(taskFiles, taskFile)
+			}
+		}
+
+		// Sort by created date descending
+		sort.Slice(taskFiles, func(i, j int) bool {
+			return taskFiles[i].Created.After(taskFiles[j].Created)
+		})
+
+		return nil
+	})
+
+	return taskFiles, err
+}
+
+func (d *BoltDb) GetTaskFile(projectID int, taskID int, fileID int) (db.TaskFile, error) {
+	var taskFile db.TaskFile
+
+	err := d.db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("task_files"))
+		if bucket == nil {
+			return errors.New("task file not found")
+		}
+
+		v := bucket.Get([]byte(fmt.Sprintf("%d", fileID)))
+		if v == nil {
+			return errors.New("task file not found")
+		}
+
+		if err := json.Unmarshal(v, &taskFile); err != nil {
+			return err
+		}
+
+		if taskFile.ProjectID != projectID || taskFile.TaskID != taskID {
+			return errors.New("task file not found")
+		}
+
+		return nil
+	})
+
+	return taskFile, err
+}
+
+func (d *BoltDb) DeleteTaskFile(projectID int, taskID int, fileID int) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("task_files"))
+		if bucket == nil {
+			return nil
+		}
+
+		// First verify the file exists and belongs to the project/task
+		v := bucket.Get([]byte(fmt.Sprintf("%d", fileID)))
+		if v == nil {
+			return nil // File doesn't exist, nothing to delete
+		}
+
+		var taskFile db.TaskFile
+		if err := json.Unmarshal(v, &taskFile); err != nil {
+			return err
+		}
+
+		if taskFile.ProjectID != projectID || taskFile.TaskID != taskID {
+			return errors.New("task file not found")
+		}
+
+		return bucket.Delete([]byte(fmt.Sprintf("%d", fileID)))
+	})
+}
+
+func (d *BoltDb) DeleteTaskFiles(projectID int, taskID int) error {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("task_files"))
+		if bucket == nil {
+			return nil
+		}
+
+		var keysToDelete [][]byte
+
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var taskFile db.TaskFile
+			if err := json.Unmarshal(v, &taskFile); err != nil {
+				continue
+			}
+
+			if taskFile.ProjectID == projectID && taskFile.TaskID == taskID {
+				keysToDelete = append(keysToDelete, k)
+			}
+		}
+
+		for _, key := range keysToDelete {
+			if err := bucket.Delete(key); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 func CreateTestStore() *BoltDb {
 	util.Config = &util.ConfigType{
 		BoltDb:  &util.DbConfig{},

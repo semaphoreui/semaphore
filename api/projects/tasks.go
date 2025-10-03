@@ -11,6 +11,7 @@ import (
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/pkg/common_errors"
+	"github.com/Digital-Data-Co/forge/services/files"
 	"github.com/Digital-Data-Co/forge/services/tasks"
 	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
@@ -427,5 +428,90 @@ func (c *TaskController) StopAllTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	taskPool(r).StopTasksByTemplate(project.ID, tpl.ID, stopObj.Force)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetTaskFiles returns all files associated with a task
+func GetTaskFiles(w http.ResponseWriter, r *http.Request) {
+	task := helpers.GetFromContext(r, "task").(db.Task)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+
+	taskFiles, err := helpers.Store(r).GetTaskFiles(project.ID, task.ID)
+	if err != nil {
+		util.LogErrorF(err, log.Fields{"error": "Cannot get task files from database"})
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, taskFiles)
+}
+
+// GetTaskFile returns a specific task file for download
+func GetTaskFile(w http.ResponseWriter, r *http.Request) {
+	task := helpers.GetFromContext(r, "task").(db.Task)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+
+	fileID, err := helpers.GetIntParam("fileId", w, r)
+	if err != nil {
+		return
+	}
+
+	taskFile, err := helpers.Store(r).GetTaskFile(project.ID, task.ID, fileID)
+	if err != nil {
+		util.LogErrorF(err, log.Fields{"error": "Cannot get task file from database"})
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Get file from storage
+	fileStorage := files.NewTaskFileStorage()
+	fileData, err := fileStorage.ReadFile(&taskFile)
+	if err != nil {
+		util.LogErrorF(err, log.Fields{"error": "Cannot read task file from storage"})
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Set appropriate headers for file download
+	w.Header().Set("Content-Type", taskFile.MimeType)
+	w.Header().Set("Content-Disposition", "attachment; filename="+taskFile.Filename)
+	w.Header().Set("Content-Length", strconv.FormatInt(taskFile.FileSize, 10))
+	w.WriteHeader(http.StatusOK)
+	w.Write(fileData)
+}
+
+// DeleteTaskFile deletes a specific task file
+func DeleteTaskFile(w http.ResponseWriter, r *http.Request) {
+	task := helpers.GetFromContext(r, "task").(db.Task)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+
+	fileID, err := helpers.GetIntParam("fileId", w, r)
+	if err != nil {
+		return
+	}
+
+	// Get task file first to delete from storage
+	taskFile, err := helpers.Store(r).GetTaskFile(project.ID, task.ID, fileID)
+	if err != nil {
+		util.LogErrorF(err, log.Fields{"error": "Cannot get task file from database"})
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Delete from storage
+	fileStorage := files.NewTaskFileStorage()
+	if err := fileStorage.DeleteFile(&taskFile); err != nil {
+		util.LogErrorF(err, log.Fields{"error": "Cannot delete task file from storage"})
+		// Continue with database deletion even if storage deletion fails
+	}
+
+	// Delete from database
+	err = helpers.Store(r).DeleteTaskFile(project.ID, task.ID, fileID)
+	if err != nil {
+		util.LogErrorF(err, log.Fields{"error": "Cannot delete task file from database"})
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

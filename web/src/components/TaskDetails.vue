@@ -164,6 +164,62 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <v-row v-if="taskFiles.length > 0">
+      <v-col cols="12">
+        <v-card
+          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          style="background: #8585850f"
+          class="mb-5"
+        >
+          <v-card-title>
+            <v-icon class="mr-2">mdi-file-download</v-icon>
+            Task Files
+          </v-card-title>
+          <v-card-text>
+            <v-data-table
+              :headers="fileHeaders"
+              :items="taskFiles"
+              :items-per-page="10"
+              class="elevation-0"
+              hide-default-footer
+            >
+              <template v-slot:item.filename="{ item }">
+                <div class="d-flex align-center">
+                  <v-icon class="mr-2">{{ getFileIcon(item.mime_type) }}</v-icon>
+                  {{ item.filename }}
+                </div>
+              </template>
+              <template v-slot:item.file_size="{ item }">
+                {{ formatFileSize(item.file_size) }}
+              </template>
+              <template v-slot:item.created="{ item }">
+                {{ item.created | formatDate }}
+              </template>
+              <template v-slot:item.actions="{ item }">
+                <v-btn
+                  small
+                  color="primary"
+                  @click="downloadFile(item)"
+                >
+                  <v-icon left>mdi-download</v-icon>
+                  Download
+                </v-btn>
+                <v-btn
+                  small
+                  color="error"
+                  class="ml-2"
+                  @click="deleteFile(item)"
+                >
+                  <v-icon left>mdi-delete</v-icon>
+                  Delete
+                </v-btn>
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
   </div>
 </template>
 
@@ -195,6 +251,14 @@ export default {
   data() {
     return {
       template: null,
+      taskFiles: [],
+      fileHeaders: [
+        { text: 'Filename', value: 'filename' },
+        { text: 'Size', value: 'file_size' },
+        { text: 'Type', value: 'mime_type' },
+        { text: 'Created', value: 'created' },
+        { text: 'Actions', value: 'actions', sortable: false },
+      ],
     };
   },
 
@@ -215,6 +279,85 @@ export default {
   methods: {
     async loadData() {
       this.template = await this.loadProjectResource('templates', this.item.template_id);
+      await this.loadTaskFiles();
+    },
+
+    async loadTaskFiles() {
+      try {
+        const response = await this.$http.get(
+          `/api/project/${this.projectId}/tasks/${this.item.id}/files`
+        );
+        this.taskFiles = response.data || [];
+      } catch (error) {
+        console.error('Failed to load task files:', error);
+        this.taskFiles = [];
+      }
+    },
+
+    getFileIcon(mimeType) {
+      if (!mimeType) return 'mdi-file';
+
+      if (mimeType.startsWith('text/')) return 'mdi-file-document';
+      if (mimeType.startsWith('image/')) return 'mdi-file-image';
+      if (mimeType.startsWith('video/')) return 'mdi-file-video';
+      if (mimeType.startsWith('audio/')) return 'mdi-file-music';
+      if (mimeType.includes('pdf')) return 'mdi-file-pdf-box';
+      if (mimeType.includes('zip') || mimeType.includes('tar') || mimeType.includes('gzip')) {
+        return 'mdi-file-archive';
+      }
+      if (mimeType.includes('json')) return 'mdi-code-json';
+      if (mimeType.includes('xml')) return 'mdi-file-xml';
+      if (mimeType.includes('csv')) return 'mdi-file-delimited';
+
+      return 'mdi-file';
+    },
+
+    formatFileSize(bytes) {
+      if (!bytes) return '0 B';
+
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    },
+
+    async downloadFile(file) {
+      try {
+        const response = await this.$http.get(
+          `/api/project/${this.projectId}/tasks/${this.item.id}/files/${file.id}`,
+          {
+            responseType: 'blob',
+          }
+        );
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', file.filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Failed to download file:', error);
+        this.$toast?.error('Failed to download file');
+      }
+    },
+
+    async deleteFile(file) {
+      if (!confirm(`Are you sure you want to delete "${file.filename}"?`)) {
+        return;
+      }
+
+      try {
+        await this.$http.delete(
+          `/api/project/${this.projectId}/tasks/${this.item.id}/files/${file.id}`
+        );
+        await this.loadTaskFiles(); // Reload the list
+        this.$toast?.success('File deleted successfully');
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+        this.$toast?.error('Failed to delete file');
+      }
     },
   },
 };

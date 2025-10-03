@@ -456,6 +456,15 @@ type SecretStorageRepository interface {
 	DeleteSecretStorage(projectID int, storageID int) error
 }
 
+// TaskFileManager handles task file operations
+type TaskFileManager interface {
+	CreateTaskFile(taskFile TaskFile) (TaskFile, error)
+	GetTaskFiles(projectID int, taskID int) ([]TaskFile, error)
+	GetTaskFile(projectID int, taskID int, fileID int) (TaskFile, error)
+	DeleteTaskFile(projectID int, taskID int, fileID int) error
+	DeleteTaskFiles(projectID int, taskID int) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -478,6 +487,7 @@ type Store interface {
 	RunnerManager
 	EventManager
 	SecretStorageRepository
+	TaskFileManager
 }
 
 var AccessKeyProps = ObjectProps{

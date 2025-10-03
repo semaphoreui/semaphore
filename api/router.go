@@ -35,7 +35,7 @@ import (
 
 var startTime = tz.Now()
 
-//go:embed public
+//go:embed public/*
 var publicAssets embed.FS
 
 // StoreMiddleware WTF?
@@ -465,6 +465,9 @@ func Route(
 	projectTaskManagement.HandleFunc("/{task_id}/stages", projects.GetTaskStages).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/ansible/hosts", taskController.GetAnsibleTaskHosts).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/ansible/errors", taskController.GetAnsibleTaskErrors).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}/files", projects.GetTaskFiles).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}/files/{fileId}", projects.GetTaskFile).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}/files/{fileId}", projects.DeleteTaskFile).Methods("DELETE")
 
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)

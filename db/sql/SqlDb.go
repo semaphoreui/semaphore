@@ -980,3 +980,88 @@ func (d *SqlDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUni
 
 	return
 }
+
+// TaskFile methods
+
+func (d *SqlDb) CreateTaskFile(taskFile db.TaskFile) (db.TaskFile, error) {
+	query, args, err := squirrel.Insert("task_files").
+		Columns("task_id", "project_id", "filename", "original_path", "file_size", "mime_type", "checksum", "description").
+		Values(taskFile.TaskID, taskFile.ProjectID, taskFile.Filename, taskFile.OriginalPath, taskFile.FileSize, taskFile.MimeType, taskFile.Checksum, taskFile.Description).
+		ToSql()
+
+	if err != nil {
+		return taskFile, err
+	}
+
+	result, err := d.connection.Exec(query, args...)
+	if err != nil {
+		return taskFile, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return taskFile, err
+	}
+
+	taskFile.ID = int(id)
+	return taskFile, nil
+}
+
+func (d *SqlDb) GetTaskFiles(projectID int, taskID int) ([]db.TaskFile, error) {
+	var taskFiles []db.TaskFile
+
+	query, args, err := squirrel.Select("*").
+		From("task_files").
+		Where("project_id = ? AND task_id = ?", projectID, taskID).
+		OrderBy("created DESC").
+		ToSql()
+
+	if err != nil {
+		return taskFiles, err
+	}
+
+	_, err = d.connection.SelectAll(&taskFiles, query, args...)
+	return taskFiles, err
+}
+
+func (d *SqlDb) GetTaskFile(projectID int, taskID int, fileID int) (db.TaskFile, error) {
+	var taskFile db.TaskFile
+
+	query, args, err := squirrel.Select("*").
+		From("task_files").
+		Where("project_id = ? AND task_id = ? AND id = ?", projectID, taskID, fileID).
+		ToSql()
+
+	if err != nil {
+		return taskFile, err
+	}
+
+	err = d.connection.SelectOne(&taskFile, query, args...)
+	return taskFile, err
+}
+
+func (d *SqlDb) DeleteTaskFile(projectID int, taskID int, fileID int) error {
+	query, args, err := squirrel.Delete("task_files").
+		Where("project_id = ? AND task_id = ? AND id = ?", projectID, taskID, fileID).
+		ToSql()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.connection.Exec(query, args...)
+	return err
+}
+
+func (d *SqlDb) DeleteTaskFiles(projectID int, taskID int) error {
+	query, args, err := squirrel.Delete("task_files").
+		Where("project_id = ? AND task_id = ?", projectID, taskID).
+		ToSql()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.connection.Exec(query, args...)
+	return err
+}
