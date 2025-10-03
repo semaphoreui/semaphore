@@ -465,6 +465,62 @@ type TaskFileManager interface {
 	DeleteTaskFiles(projectID int, taskID int) error
 }
 
+// ProjectAlertConfigManager handles project alert configuration operations
+type ProjectAlertConfigManager interface {
+	CreateProjectAlertConfig(config ProjectAlertConfig) (ProjectAlertConfig, error)
+	GetProjectAlertConfig(projectID int) (ProjectAlertConfig, error)
+	UpdateProjectAlertConfig(config ProjectAlertConfig) (ProjectAlertConfig, error)
+	DeleteProjectAlertConfig(projectID int) error
+}
+
+// ComplianceStore handles compliance-related operations
+type ComplianceStore interface {
+	// SCAP Content operations
+	CreateScapContent(content *ScapContent) error
+	GetScapContent(id int) (*ScapContent, error)
+	GetScapContentsByProject(projectID int) ([]*ScapContent, error)
+	UpdateScapContent(content *ScapContent) error
+	DeleteScapContent(id int) error
+
+	// SCAP Profile operations
+	CreateScapProfile(profile *ScapProfile) error
+	GetScapProfilesByContent(contentID int) ([]*ScapProfile, error)
+	GetScapProfile(contentID int, profileID string) (*ScapProfile, error)
+	DeleteScapProfilesByContent(contentID int) error
+
+	// Compliance Policy operations
+	CreateCompliancePolicy(policy *CompliancePolicy) error
+	GetCompliancePolicy(id int) (*CompliancePolicy, error)
+	GetCompliancePoliciesByProject(projectID int) ([]*CompliancePolicy, error)
+	UpdateCompliancePolicy(policy *CompliancePolicy) error
+	DeleteCompliancePolicy(id int) error
+
+	// Policy Assignment operations
+	CreatePolicyAssignment(assignment *PolicyAssignment) error
+	GetPolicyAssignments(policyID int) ([]*PolicyAssignment, error)
+	DeletePolicyAssignments(policyID int) error
+	DeletePolicyAssignment(id int) error
+
+	// Compliance Scan operations
+	CreateComplianceScan(scan *ComplianceScan) error
+	GetComplianceScan(id int) (*ComplianceScan, error)
+	GetComplianceScansByProject(projectID int, limit, offset int) ([]*ComplianceScan, error)
+	GetComplianceScansByPolicy(policyID int) ([]*ComplianceScan, error)
+	UpdateComplianceScan(scan *ComplianceScan) error
+
+	// Compliance Report operations
+	CreateComplianceReport(report *ComplianceReport) error
+	GetComplianceReport(id int) (*ComplianceReport, error)
+	GetComplianceReportsByScan(scanID int) ([]*ComplianceReport, error)
+	GetComplianceReportsByProject(projectID int, filters map[string]interface{}, limit, offset int) ([]*ComplianceReport, error)
+	UpdateComplianceReport(report *ComplianceReport) error
+
+	// Compliance Rule Result operations
+	CreateComplianceRuleResult(result *ComplianceRuleResult) error
+	GetComplianceRuleResultsByReport(reportID int) ([]*ComplianceRuleResult, error)
+	DeleteComplianceRuleResultsByReport(reportID int) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -488,6 +544,7 @@ type Store interface {
 	EventManager
 	SecretStorageRepository
 	TaskFileManager
+	ComplianceStore
 }
 
 var AccessKeyProps = ObjectProps{
@@ -689,6 +746,72 @@ var UserTotpProps = ObjectProps{
 	TableName:         "user__totp",
 	Type:              reflect.TypeOf(UserTotp{}),
 	PrimaryColumnName: "id",
+}
+
+// Compliance ObjectProps
+var ScapContentProps = ObjectProps{
+	TableName:         "scap_content",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(ScapContent{}),
+	IsGlobal:          false,
+	DefaultSortingColumn: "uploaded_at",
+	SortInverted:      true,
+}
+
+var ScapProfileProps = ObjectProps{
+	TableName:         "scap_profile",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(ScapProfile{}),
+	IsGlobal:          false,
+	ReferringColumnSuffix: "content_id",
+	DefaultSortingColumn: "title",
+}
+
+var CompliancePolicyProps = ObjectProps{
+	TableName:         "compliance_policy",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(CompliancePolicy{}),
+	IsGlobal:          false,
+	DefaultSortingColumn: "created",
+	SortInverted:      true,
+}
+
+var PolicyAssignmentProps = ObjectProps{
+	TableName:         "policy_assignment",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(PolicyAssignment{}),
+	IsGlobal:          false,
+	ReferringColumnSuffix: "policy_id",
+	DefaultSortingColumn: "created",
+	SortInverted:      true,
+}
+
+var ComplianceScanProps = ObjectProps{
+	TableName:         "compliance_scan",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(ComplianceScan{}),
+	IsGlobal:          false,
+	DefaultSortingColumn: "created",
+	SortInverted:      true,
+}
+
+var ComplianceReportProps = ObjectProps{
+	TableName:         "compliance_report",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(ComplianceReport{}),
+	IsGlobal:          false,
+	ReferringColumnSuffix: "scan_id",
+	DefaultSortingColumn: "created",
+	SortInverted:      true,
+}
+
+var ComplianceRuleResultProps = ObjectProps{
+	TableName:         "compliance_rule_result",
+	PrimaryColumnName: "id",
+	Type:              reflect.TypeOf(ComplianceRuleResult{}),
+	IsGlobal:          false,
+	ReferringColumnSuffix: "report_id",
+	DefaultSortingColumn: "severity",
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {

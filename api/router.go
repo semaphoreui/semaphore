@@ -29,6 +29,7 @@ import (
 	"github.com/Digital-Data-Co/forge/api/sockets"
 	"github.com/Digital-Data-Co/forge/api/tasks"
 	"github.com/Digital-Data-Co/forge/db"
+	"github.com/Digital-Data-Co/forge/services/compliance"
 	"github.com/Digital-Data-Co/forge/util"
 	"github.com/gorilla/mux"
 )
@@ -113,6 +114,12 @@ func Route(
 	projectRunnerController := proProjects.NewProjectRunnerController()
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 
+	// Initialize compliance services
+	contentSvc := compliance.NewContentService(store)
+	policySvc := compliance.NewPolicyService(store)
+	scannerSvc := compliance.NewScannerService(store, contentSvc, policySvc, taskPool)
+	complianceController := NewComplianceController(store, contentSvc, policySvc, scannerSvc)
+
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
@@ -134,6 +141,9 @@ func Route(
 		}
 	}
 
+	// Apply security middleware
+	r.Use(SecurityHeadersMiddleware)
+	r.Use(CORSHeadersMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
 
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
@@ -141,7 +151,7 @@ func Route(
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
-	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
+	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware, RateLimitMiddleware(AuthRateLimiter))
 
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/verify/email", startEmailVerification).Methods("POST")
@@ -181,7 +191,7 @@ func Route(
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, RateLimitMiddleware(GeneralRateLimiter), authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
 
@@ -215,8 +225,8 @@ func Route(
 
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
-	// Compliance Dashboard endpoints
-	adminAPI.Path("/compliance/dashboard").HandlerFunc(GetComplianceDashboard).Methods("GET", "HEAD")
+	// Compliance Dashboard endpoints (placeholder for future implementation)
+	// adminAPI.Path("/compliance/dashboard").HandlerFunc(GetComplianceDashboard).Methods("GET", "HEAD")
 
 	debugAPI := adminAPI.PathPrefix("/debug").Subrouter()
 	debugAPI.Path("/gc").HandlerFunc(debug.GC).Methods("POST")
@@ -327,6 +337,53 @@ func Route(
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")
 	projectUserAPI.Path("/runner_tags").HandlerFunc(projectRunnerController.GetRunnerTags).Methods("GET", "HEAD")
+
+	// Compliance endpoints
+	projectUserAPI.Path("/compliance/preflight").HandlerFunc(complianceController.PreflightCheck).Methods("GET", "HEAD")
+
+	// SCAP Content endpoints
+	projectUserAPI.Path("/compliance/contents").HandlerFunc(complianceController.GetContents).Methods("GET", "HEAD")
+
+	// File upload endpoint with security
+	complianceUploadAPI := projectUserAPI.PathPrefix("/compliance/contents").Subrouter()
+	complianceUploadAPI.Use(SecureFileUploadMiddleware(ComplianceFileSecurityConfig()))
+	complianceUploadAPI.Path("").HandlerFunc(complianceController.UploadContent).Methods("POST")
+
+	// SCAP Content management
+	complianceContentAPI := projectUserAPI.PathPrefix("/compliance/contents").Subrouter()
+	complianceContentAPI.Path("/{id}").HandlerFunc(complianceController.GetContent).Methods("GET", "HEAD")
+	complianceContentAPI.Path("/{id}").HandlerFunc(complianceController.DeleteContent).Methods("DELETE")
+	complianceContentAPI.Path("/{id}/profiles").HandlerFunc(complianceController.GetContentProfiles).Methods("GET", "HEAD")
+
+	// Policy endpoints
+	projectUserAPI.Path("/compliance/policies").HandlerFunc(complianceController.GetPolicies).Methods("GET", "HEAD")
+	projectUserAPI.Path("/compliance/policies").HandlerFunc(complianceController.CreatePolicy).Methods("POST")
+
+	// Policy management
+	compliancePolicyAPI := projectUserAPI.PathPrefix("/compliance/policies").Subrouter()
+	compliancePolicyAPI.Path("/{id}").HandlerFunc(complianceController.GetPolicy).Methods("GET", "HEAD")
+	compliancePolicyAPI.Path("/{id}").HandlerFunc(complianceController.UpdatePolicy).Methods("PUT")
+	compliancePolicyAPI.Path("/{id}").HandlerFunc(complianceController.DeletePolicy).Methods("DELETE")
+	compliancePolicyAPI.Path("/{id}/assignments").HandlerFunc(complianceController.GetPolicyAssignments).Methods("GET", "HEAD")
+	compliancePolicyAPI.Path("/{id}/assignments").HandlerFunc(complianceController.AssignPolicy).Methods("PUT")
+	compliancePolicyAPI.Path("/{id}/scan").HandlerFunc(complianceController.ScanPolicy).Methods("POST")
+
+	// Scan endpoints
+	projectUserAPI.Path("/compliance/scans").HandlerFunc(complianceController.GetScans).Methods("GET", "HEAD")
+
+	// Scan management
+	complianceScanAPI := projectUserAPI.PathPrefix("/compliance/scans").Subrouter()
+	complianceScanAPI.Path("/{id}").HandlerFunc(complianceController.GetScan).Methods("GET", "HEAD")
+	complianceScanAPI.Path("/{id}").HandlerFunc(complianceController.CancelScan).Methods("POST")
+	complianceScanAPI.Path("/{id}/reports").HandlerFunc(complianceController.GetScanReports).Methods("GET", "HEAD")
+
+	// Report endpoints
+	projectUserAPI.Path("/compliance/reports").HandlerFunc(complianceController.GetReports).Methods("GET", "HEAD")
+
+	// Report management
+	complianceReportAPI := projectUserAPI.PathPrefix("/compliance/reports").Subrouter()
+	complianceReportAPI.Path("/{id}").HandlerFunc(complianceController.GetReport).Methods("GET", "HEAD")
+	complianceReportAPI.Path("/{id}/arf").HandlerFunc(complianceController.DownloadArf).Methods("GET", "HEAD")
 
 	projectRunnersAPI := projectUserAPI.PathPrefix("/runners").Subrouter()
 	projectRunnersAPI.Use(projectRunnerController.RunnerMiddleware)

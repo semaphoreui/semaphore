@@ -1,757 +1,553 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
-	"github.com/Digital-Data-Co/forge/util"
+	"github.com/Digital-Data-Co/forge/services/compliance"
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
 
-// ComplianceDashboardData represents the data structure for compliance dashboard
-type ComplianceDashboardData struct {
-	Summary              ComplianceSummary              `json:"summary"`
-	TaskCompliance       []TaskComplianceData           `json:"task_compliance"`
-	UserActivity         []UserActivityData             `json:"user_activity"`
-	ProjectCompliance    []ProjectComplianceData        `json:"project_compliance"`
-	SecurityEvents       []SecurityEventData            `json:"security_events"`
-	ComplianceTrends     ComplianceTrendsData           `json:"compliance_trends"`
-	LastUpdated          time.Time                      `json:"last_updated"`
+// ComplianceController handles compliance-related API endpoints
+type ComplianceController struct {
+	store      db.Store
+	contentSvc *compliance.ContentService
+	policySvc  *compliance.PolicyService
+	scannerSvc *compliance.ScannerService
 }
 
-// ComplianceSummary provides high-level compliance metrics
-type ComplianceSummary struct {
-	TotalTasks           int     `json:"total_tasks"`
-	SuccessfulTasks      int     `json:"successful_tasks"`
-	FailedTasks          int     `json:"failed_tasks"`
-	SuccessRate          float64 `json:"success_rate"`
-	TotalUsers           int     `json:"total_users"`
-	ActiveUsers          int     `json:"active_users"`
-	TotalProjects        int     `json:"total_projects"`
-	CompliantProjects    int     `json:"compliant_projects"`
-	ComplianceRate       float64 `json:"compliance_rate"`
-	SecurityIncidents    int     `json:"security_incidents"`
-	LastAuditDate        *time.Time `json:"last_audit_date"`
+// NewComplianceController creates a new compliance controller
+func NewComplianceController(store db.Store, contentSvc *compliance.ContentService, policySvc *compliance.PolicyService, scannerSvc *compliance.ScannerService) *ComplianceController {
+	return &ComplianceController{
+		store:      store,
+		contentSvc: contentSvc,
+		policySvc:  policySvc,
+		scannerSvc: scannerSvc,
+	}
 }
 
-// TaskComplianceData represents task-level compliance information
-type TaskComplianceData struct {
-	TaskID          int       `json:"task_id"`
-	ProjectID       int       `json:"project_id"`
-	ProjectName     string    `json:"project_name"`
-	TemplateName    string    `json:"template_name"`
-	Status          string    `json:"status"`
-	Created         time.Time `json:"created"`
-	Start           *time.Time `json:"start"`
-	End             *time.Time `json:"end"`
-	Duration        *int      `json:"duration_seconds"`
-	UserID          *int      `json:"user_id"`
-	Username        *string   `json:"username"`
-	ComplianceScore int       `json:"compliance_score"`
-	Issues          []string  `json:"issues"`
+// PreflightCheck validates OpenSCAP installation
+func (c *ComplianceController) PreflightCheck(w http.ResponseWriter, r *http.Request) {
+	result := c.scannerSvc.PreflightCheck()
+	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
-// UserActivityData represents user activity for compliance tracking
-type UserActivityData struct {
-	UserID       int       `json:"user_id"`
-	Username     string    `json:"username"`
-	Name         string    `json:"name"`
-	Email        string    `json:"email"`
-	LastActivity *time.Time `json:"last_activity"`
-	TotalTasks   int       `json:"total_tasks"`
-	Admin        bool      `json:"admin"`
-	External     bool      `json:"external"`
-	Active       bool      `json:"active"`
-}
+// Content endpoints
 
-// ProjectComplianceData represents project-level compliance information
-type ProjectComplianceData struct {
-	ProjectID        int       `json:"project_id"`
-	ProjectName      string    `json:"project_name"`
-	Created         time.Time `json:"created"`
-	TotalTasks      int       `json:"total_tasks"`
-	SuccessfulTasks int       `json:"successful_tasks"`
-	FailedTasks     int       `json:"failed_tasks"`
-	SuccessRate     float64   `json:"success_rate"`
-	ComplianceScore int       `json:"compliance_score"`
-	LastActivity    *time.Time `json:"last_activity"`
-	TeamSize        int       `json:"team_size"`
-	Issues          []string  `json:"issues"`
-}
-
-// SecurityEventData represents security-related events
-type SecurityEventData struct {
-	EventID      int       `json:"event_id"`
-	EventType    string    `json:"event_type"`
-	Description  string    `json:"description"`
-	UserID       *int      `json:"user_id"`
-	Username     *string   `json:"username"`
-	ProjectID    *int      `json:"project_id"`
-	ProjectName  *string   `json:"project_name"`
-	Created      time.Time `json:"created"`
-	Severity     string    `json:"severity"`
-	Resolved     bool      `json:"resolved"`
-}
-
-// ComplianceTrendsData represents compliance trends over time
-type ComplianceTrendsData struct {
-	DailyTasks     []TrendDataPoint `json:"daily_tasks"`
-	DailyUsers     []TrendDataPoint `json:"daily_users"`
-	SuccessRates   []TrendDataPoint `json:"success_rates"`
-	SecurityEvents []TrendDataPoint `json:"security_events"`
-}
-
-// TrendDataPoint represents a single data point in a trend
-type TrendDataPoint struct {
-	Date  time.Time `json:"date"`
-	Value float64   `json:"value"`
-	Count int       `json:"count"`
-}
-
-// GetComplianceDashboard returns comprehensive compliance dashboard data
-func GetComplianceDashboard(w http.ResponseWriter, r *http.Request) {
+// UploadContent uploads a SCAP DataStream file
+func (c *ComplianceController) UploadContent(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.GetFromContext(r, "user").(*db.User)
-	
-	// Check if user has admin privileges for compliance dashboard
-	if !user.Admin {
-		helpers.WriteErrorStatus(w, "Access denied: Admin privileges required", http.StatusForbidden)
+	projectID := project.ID
+	userID := user.ID
+
+	// Parse multipart form
+	err := r.ParseMultipartForm(32 << 20) // 32 MB max
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Failed to parse form"})
 		return
 	}
 
-	// Parse query parameters
-	days := 30 // default to last 30 days
-	if daysParam := r.URL.Query().Get("days"); daysParam != "" {
-		if parsedDays, err := strconv.Atoi(daysParam); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	projectID := r.URL.Query().Get("project_id")
-	
-	// Calculate date range
-	endDate := time.Now()
-	startDate := endDate.AddDate(0, 0, -days)
-
-	store := helpers.Store(r)
-	
-	// Get summary data
-	summary, err := getComplianceSummary(store, startDate, endDate, projectID)
+	file, header, err := r.FormFile("file")
 	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Failed to get compliance summary"})
-		helpers.WriteError(w, err)
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "No file provided"})
+		return
+	}
+	defer file.Close()
+
+	// Read file content
+	contentData, err := io.ReadAll(file)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to read file"})
 		return
 	}
 
-	// Get task compliance data
-	taskCompliance, err := getTaskComplianceData(store, startDate, endDate, projectID)
-	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Failed to get task compliance data"})
-		helpers.WriteError(w, err)
+	// Perform additional file content validation
+	if err := ScanFileForMalware(contentData); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
-	// Get user activity data
-	userActivity, err := getUserActivityData(store, startDate, endDate)
+	// Get name from form or use filename
+	name := r.FormValue("name")
+	if name == "" {
+		name = header.Filename
+	}
+
+	source := r.FormValue("source")
+
+	// Upload and process content
+	content, profiles, err := c.contentSvc.UploadContent(projectID, userID, name, source, contentData)
 	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Failed to get user activity data"})
-		helpers.WriteError(w, err)
+		log.WithError(err).Error("Failed to upload content")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	// Get project compliance data
-	projectCompliance, err := getProjectComplianceData(store, startDate, endDate)
+	response := map[string]interface{}{
+		"content":  content,
+		"profiles": profiles,
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, response)
+}
+
+// GetContents retrieves all SCAP contents for a project
+func (c *ComplianceController) GetContents(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	projectID := project.ID
+
+	contents, err := c.contentSvc.GetContentsByProject(projectID)
 	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Failed to get project compliance data"})
-		helpers.WriteError(w, err)
+		log.WithError(err).Error("Failed to get contents")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	// Get security events
-	securityEvents, err := getSecurityEventsData(store, startDate, endDate, projectID)
+	helpers.WriteJSON(w, http.StatusOK, contents)
+}
+
+// GetContent retrieves a specific SCAP content
+func (c *ComplianceController) GetContent(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	contentID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Failed to get security events data"})
-		helpers.WriteError(w, err)
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid content ID"})
 		return
 	}
 
-	// Get compliance trends
-	trends, err := getComplianceTrends(store, startDate, endDate, projectID)
+	content, err := c.contentSvc.GetContent(contentID)
 	if err != nil {
-		util.LogErrorF(err, log.Fields{"error": "Failed to get compliance trends"})
-		helpers.WriteError(w, err)
+		if err == db.ErrNotFound {
+			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Content not found"})
+			return
+		}
+		log.WithError(err).Error("Failed to get content")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	dashboardData := ComplianceDashboardData{
-		Summary:           summary,
-		TaskCompliance:    taskCompliance,
-		UserActivity:      userActivity,
-		ProjectCompliance: projectCompliance,
-		SecurityEvents:    securityEvents,
-		ComplianceTrends:  trends,
-		LastUpdated:       time.Now(),
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, dashboardData)
+	helpers.WriteJSON(w, http.StatusOK, content)
 }
 
-// getAllTasksAcrossProjects retrieves all tasks across all projects
-func getAllTasksAcrossProjects(store db.Store, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
-	var allTasks []db.TaskWithTpl
-	
-	// Get all projects
-	projects, err := store.GetAllProjects()
+// GetContentProfiles retrieves profiles for a content
+func (c *ComplianceController) GetContentProfiles(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	contentID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		return allTasks, err
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid content ID"})
+		return
 	}
-	
-	// Get tasks for each project
-	for _, project := range projects {
-		tasks, err := store.GetProjectTasks(project.ID, params)
-		if err != nil {
-			continue // Skip projects with errors
-		}
-		allTasks = append(allTasks, tasks...)
+
+	profiles, err := c.contentSvc.GetProfilesByContent(contentID)
+	if err != nil {
+		log.WithError(err).Error("Failed to get profiles")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
-	
-	return allTasks, nil
+
+	helpers.WriteJSON(w, http.StatusOK, profiles)
 }
 
-// getComplianceSummary retrieves high-level compliance metrics
-func getComplianceSummary(store db.Store, startDate, endDate time.Time, projectID string) (ComplianceSummary, error) {
-	var summary ComplianceSummary
-	
-	// Get total tasks
-	tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
-		SortBy: "created",
-		SortInverted: true,
-	})
+// DeleteContent deletes a SCAP content
+func (c *ComplianceController) DeleteContent(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	contentID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		return summary, err
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid content ID"})
+		return
 	}
 
-	// Filter tasks by date range and project if specified
-	var filteredTasks []db.Task
-	for _, task := range tasks {
-		if task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
-			if projectID == "" || strconv.Itoa(task.Task.ProjectID) == projectID {
-				filteredTasks = append(filteredTasks, task.Task)
-			}
-		}
-	}
-
-	summary.TotalTasks = len(filteredTasks)
-	
-	// Count successful and failed tasks
-	for _, task := range filteredTasks {
-		if task.Status == "success" {
-			summary.SuccessfulTasks++
-		} else if task.Status == "failed" || task.Status == "stopped" {
-			summary.FailedTasks++
-		}
-	}
-
-	if summary.TotalTasks > 0 {
-		summary.SuccessRate = float64(summary.SuccessfulTasks) / float64(summary.TotalTasks) * 100
-	}
-
-	// Get user statistics
-	users, err := store.GetUsers(db.RetrieveQueryParams{})
+	err = c.contentSvc.DeleteContent(contentID)
 	if err != nil {
-		return summary, err
-	}
-	
-	summary.TotalUsers = len(users)
-	
-	// Count active users (users with recent activity)
-	activeUserCount := 0
-	for _, user := range users {
-		// Check if user has recent activity (last 7 days)
-		userEvents, err := store.GetUserEvents(user.ID, db.RetrieveQueryParams{
-			Count: 1,
-		})
-		if err == nil && len(userEvents) > 0 {
-			if userEvents[0].Created.After(time.Now().AddDate(0, 0, -7)) {
-				activeUserCount++
-			}
-		}
-	}
-	summary.ActiveUsers = activeUserCount
-
-	// Get project statistics
-	projects, err := store.GetAllProjects()
-	if err != nil {
-		return summary, err
-	}
-	
-	summary.TotalProjects = len(projects)
-	
-	// Calculate compliant projects (projects with >80% success rate)
-	compliantProjects := 0
-	for _, project := range projects {
-		projectTasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
-			SortBy: "created",
-			SortInverted: true,
-		})
-		if err != nil {
-			continue
-		}
-		
-		var projectTaskCount, projectSuccessCount int
-		for _, task := range projectTasks {
-			if task.ProjectID == project.ID && task.Created.After(startDate) && task.Created.Before(endDate) {
-				projectTaskCount++
-				if task.Status == "success" {
-					projectSuccessCount++
-				}
-			}
-		}
-		
-		if projectTaskCount > 0 {
-			successRate := float64(projectSuccessCount) / float64(projectTaskCount) * 100
-			if successRate >= 80 {
-				compliantProjects++
-			}
-		}
-	}
-	
-	summary.CompliantProjects = compliantProjects
-	if summary.TotalProjects > 0 {
-		summary.ComplianceRate = float64(compliantProjects) / float64(summary.TotalProjects) * 100
+		log.WithError(err).Error("Failed to delete content")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
 
-	// Count security incidents (failed tasks with security implications)
-	summary.SecurityIncidents = summary.FailedTasks // Simplified for now
-
-	return summary, nil
+	helpers.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// getTaskComplianceData retrieves task-level compliance information
-func getTaskComplianceData(store db.Store, startDate, endDate time.Time, projectID string) ([]TaskComplianceData, error) {
-	var taskCompliance []TaskComplianceData
-	
-	tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
-		SortBy: "created",
-		SortInverted: true,
-		Count: 100, // Limit to recent 100 tasks
-	})
+// Policy endpoints
+
+// CreatePolicy creates a new compliance policy
+func (c *ComplianceController) CreatePolicy(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	user := helpers.GetFromContext(r, "user").(*db.User)
+	projectID := project.ID
+	userID := user.ID
+
+	var request struct {
+		Name      string                 `json:"name"`
+		ContentID int                    `json:"content_id"`
+		ProfileID string                 `json:"profile_id"`
+		Attrs     map[string]interface{} `json:"attrs"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	policy, err := c.policySvc.CreatePolicy(projectID, userID, request.Name, request.ProfileID, request.ContentID, request.Attrs)
 	if err != nil {
-		return taskCompliance, err
+		log.WithError(err).Error("Failed to create policy")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
 
-	for _, task := range tasks {
-		if task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
-			if projectID != "" && strconv.Itoa(task.Task.ProjectID) != projectID {
-				continue
-			}
-
-			// Get project name
-			project, err := store.GetProject(task.Task.ProjectID)
-			if err != nil {
-				continue
-			}
-
-			// Get template name
-			template, err := store.GetTemplate(task.Task.ProjectID, task.Task.TemplateID)
-			if err != nil {
-				continue
-			}
-
-			// Get username if available
-			var username *string
-			if task.Task.UserID != nil {
-				user, err := store.GetUser(*task.Task.UserID)
-				if err == nil {
-					username = &user.Username
-				}
-			}
-
-			// Calculate compliance score
-			complianceScore := 100
-			var issues []string
-
-			if task.Task.Status == "failed" || task.Task.Status == "stopped" {
-				complianceScore -= 50
-				issues = append(issues, "Task execution failed")
-			}
-
-			if task.Task.End != nil && task.Task.Start != nil {
-				duration := task.Task.End.Sub(*task.Task.Start)
-				if duration.Minutes() > 60 { // Tasks taking more than 1 hour
-					complianceScore -= 10
-					issues = append(issues, "Task execution time exceeded threshold")
-				}
-			}
-
-			// Calculate duration in seconds
-			var duration *int
-			if task.Task.End != nil && task.Task.Start != nil {
-				dur := int(task.Task.End.Sub(*task.Task.Start).Seconds())
-				duration = &dur
-			}
-
-			taskData := TaskComplianceData{
-				TaskID:          task.Task.ID,
-				ProjectID:       task.Task.ProjectID,
-				ProjectName:     project.Name,
-				TemplateName:    template.Name,
-				Status:          string(task.Task.Status),
-				Created:         task.Task.Created,
-				Start:           task.Task.Start,
-				End:             task.Task.End,
-				Duration:        duration,
-				UserID:          task.Task.UserID,
-				Username:        username,
-				ComplianceScore: complianceScore,
-				Issues:          issues,
-			}
-
-			taskCompliance = append(taskCompliance, taskData)
-		}
-	}
-
-	return taskCompliance, nil
+	helpers.WriteJSON(w, http.StatusCreated, policy)
 }
 
-// getUserActivityData retrieves user activity information
-func getUserActivityData(store db.Store, startDate, endDate time.Time) ([]UserActivityData, error) {
-	var userActivity []UserActivityData
-	
-	users, err := store.GetUsers(db.RetrieveQueryParams{})
+// GetPolicies retrieves all policies for a project
+func (c *ComplianceController) GetPolicies(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	projectID := project.ID
+
+	policies, err := c.policySvc.GetPoliciesByProject(projectID)
 	if err != nil {
-		return userActivity, err
+		log.WithError(err).Error("Failed to get policies")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
 
-	for _, user := range users {
-		// Get user's recent events
-		userEvents, err := store.GetUserEvents(user.ID, db.RetrieveQueryParams{
-			Count: 1,
-		})
-		if err != nil {
-			continue
-		}
-
-		var lastActivity *time.Time
-		if len(userEvents) > 0 {
-			lastActivity = &userEvents[0].Created
-		}
-
-		// Count user's tasks in the date range
-		tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
-			SortBy: "created",
-			SortInverted: true,
-		})
-		if err != nil {
-			continue
-		}
-
-		taskCount := 0
-		for _, task := range tasks {
-			if task.Task.UserID != nil && *task.Task.UserID == user.ID {
-				if task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
-					taskCount++
-				}
-			}
-		}
-
-		// Determine if user is active (has activity in last 7 days)
-		active := false
-		if lastActivity != nil && lastActivity.After(time.Now().AddDate(0, 0, -7)) {
-			active = true
-		}
-
-		userData := UserActivityData{
-			UserID:       user.ID,
-			Username:     user.Username,
-			Name:         user.Name,
-			Email:        user.Email,
-			LastActivity: lastActivity,
-			TotalTasks:   taskCount,
-			Admin:        user.Admin,
-			External:     user.External,
-			Active:       active,
-		}
-
-		userActivity = append(userActivity, userData)
-	}
-
-	return userActivity, nil
+	helpers.WriteJSON(w, http.StatusOK, policies)
 }
 
-// getProjectComplianceData retrieves project-level compliance information
-func getProjectComplianceData(store db.Store, startDate, endDate time.Time) ([]ProjectComplianceData, error) {
-	var projectCompliance []ProjectComplianceData
-	
-	projects, err := store.GetAllProjects()
+// GetPolicy retrieves a specific policy
+func (c *ComplianceController) GetPolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	policyID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		return projectCompliance, err
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid policy ID"})
+		return
 	}
 
-	for _, project := range projects {
-		// Get all tasks for this project
-		tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
-			SortBy: "created",
-			SortInverted: true,
-		})
-		if err != nil {
-			continue
+	policy, err := c.policySvc.GetPolicy(policyID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Policy not found"})
+			return
 		}
-
-		var projectTasks []db.Task
-		var lastActivity *time.Time
-		
-		for _, task := range tasks {
-			if task.Task.ProjectID == project.ID && task.Task.Created.After(startDate) && task.Task.Created.Before(endDate) {
-				projectTasks = append(projectTasks, task.Task)
-				if lastActivity == nil || task.Task.Created.After(*lastActivity) {
-					lastActivity = &task.Task.Created
-				}
-			}
-		}
-
-		totalTasks := len(projectTasks)
-		successfulTasks := 0
-		failedTasks := 0
-
-		for _, task := range projectTasks {
-			if task.Status == "success" {
-				successfulTasks++
-			} else if task.Status == "failed" || task.Status == "stopped" {
-				failedTasks++
-			}
-		}
-
-		var successRate float64
-		if totalTasks > 0 {
-			successRate = float64(successfulTasks) / float64(totalTasks) * 100
-		}
-
-		// Calculate compliance score
-		complianceScore := 100
-		var issues []string
-
-		if successRate < 80 {
-			complianceScore -= 30
-			issues = append(issues, "Low success rate")
-		}
-
-		if totalTasks == 0 {
-			complianceScore -= 20
-			issues = append(issues, "No recent activity")
-		}
-
-		// Get team size
-		projectUsers, err := store.GetProjectUsers(project.ID, db.RetrieveQueryParams{})
-		if err != nil {
-			continue
-		}
-		teamSize := len(projectUsers)
-
-		projectData := ProjectComplianceData{
-			ProjectID:        project.ID,
-			ProjectName:      project.Name,
-			Created:          project.Created,
-			TotalTasks:       totalTasks,
-			SuccessfulTasks:  successfulTasks,
-			FailedTasks:      failedTasks,
-			SuccessRate:      successRate,
-			ComplianceScore:  complianceScore,
-			LastActivity:     lastActivity,
-			TeamSize:         teamSize,
-			Issues:           issues,
-		}
-
-		projectCompliance = append(projectCompliance, projectData)
+		log.WithError(err).Error("Failed to get policy")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
 
-	return projectCompliance, nil
+	helpers.WriteJSON(w, http.StatusOK, policy)
 }
 
-// getSecurityEventsData retrieves security-related events
-func getSecurityEventsData(store db.Store, startDate, endDate time.Time, projectID string) ([]SecurityEventData, error) {
-	var securityEvents []SecurityEventData
-	
-	// Get all events
-	events, err := store.GetEvents(0, db.RetrieveQueryParams{
-		SortBy: "created",
-		SortInverted: true,
-		Count: 200, // Limit to recent 200 events
-	})
+// UpdatePolicy updates an existing policy
+func (c *ComplianceController) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	policyID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		return securityEvents, err
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid policy ID"})
+		return
 	}
 
-	for _, event := range events {
-		if event.Created.After(startDate) && event.Created.Before(endDate) {
-			if projectID != "" && (event.ProjectID == nil || strconv.Itoa(*event.ProjectID) != projectID) {
-				continue
-			}
-
-			// Determine if this is a security-related event
-			isSecurityEvent := false
-			severity := "low"
-			
-			if event.ObjectType != nil {
-				switch *event.ObjectType {
-				case "task":
-					// Check if task failed (potential security concern)
-					if event.Description != nil && 
-						(strings.Contains(*event.Description, "failed") || 
-						 strings.Contains(*event.Description, "stopped")) {
-						isSecurityEvent = true
-						severity = "medium"
-					}
-				case "user":
-					// User-related events might be security relevant
-					if event.Description != nil && 
-						(strings.Contains(*event.Description, "login") || 
-						 strings.Contains(*event.Description, "access") ||
-						 strings.Contains(*event.Description, "permission")) {
-						isSecurityEvent = true
-						severity = "high"
-					}
-				}
-			}
-
-			if !isSecurityEvent {
-				continue
-			}
-
-			// Get username if available
-			var username *string
-			if event.UserID != nil {
-				user, err := store.GetUser(*event.UserID)
-				if err == nil {
-					username = &user.Username
-				}
-			}
-
-			// Get project name if available
-			var projectName *string
-			if event.ProjectID != nil {
-				project, err := store.GetProject(*event.ProjectID)
-				if err == nil {
-					projectName = &project.Name
-				}
-			}
-
-			securityEvent := SecurityEventData{
-				EventID:     event.ID,
-				EventType:   string(*event.ObjectType),
-				Description: *event.Description,
-				UserID:      event.UserID,
-				Username:    username,
-				ProjectID:   event.ProjectID,
-				ProjectName: projectName,
-				Created:     event.Created,
-				Severity:    severity,
-				Resolved:    false, // Simplified for now
-			}
-
-			securityEvents = append(securityEvents, securityEvent)
-		}
+	var policy db.CompliancePolicy
+	if err := json.NewDecoder(r.Body).Decode(&policy); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		return
 	}
 
-	return securityEvents, nil
+	policy.ID = policyID
+
+	err = c.policySvc.UpdatePolicy(&policy)
+	if err != nil {
+		log.WithError(err).Error("Failed to update policy")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, policy)
 }
 
-// getComplianceTrends retrieves compliance trends over time
-func getComplianceTrends(store db.Store, startDate, endDate time.Time, projectID string) (ComplianceTrendsData, error) {
-	var trends ComplianceTrendsData
-	
-	// Get daily task counts
-	for d := startDate; d.Before(endDate); d = d.AddDate(0, 0, 1) {
-		dayStart := d
-		dayEnd := d.AddDate(0, 0, 1)
-		
-		// Count tasks for this day
-		tasks, err := getAllTasksAcrossProjects(store, db.RetrieveQueryParams{
-			SortBy: "created",
-			SortInverted: true,
-		})
-		if err != nil {
-			continue
+// DeletePolicy deletes a policy
+func (c *ComplianceController) DeletePolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	policyID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid policy ID"})
+		return
+	}
+
+	err = c.policySvc.DeletePolicy(policyID)
+	if err != nil {
+		log.WithError(err).Error("Failed to delete policy")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusNoContent, nil)
+}
+
+// AssignPolicy assigns a policy to targets
+func (c *ComplianceController) AssignPolicy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	policyID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid policy ID"})
+		return
+	}
+
+	var request struct {
+		Assignments []compliance.PolicyAssignmentRequest `json:"assignments"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	err = c.policySvc.AssignPolicy(policyID, request.Assignments)
+	if err != nil {
+		log.WithError(err).Error("Failed to assign policy")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, map[string]string{"message": "Policy assigned successfully"})
+}
+
+// GetPolicyAssignments retrieves assignments for a policy
+func (c *ComplianceController) GetPolicyAssignments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	policyID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid policy ID"})
+		return
+	}
+
+	assignments, err := c.policySvc.GetPolicyAssignments(policyID)
+	if err != nil {
+		log.WithError(err).Error("Failed to get policy assignments")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, assignments)
+}
+
+// Scan endpoints
+
+// ScanPolicy initiates a compliance scan
+func (c *ComplianceController) ScanPolicy(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	user := helpers.GetFromContext(r, "user").(*db.User)
+	projectID := project.ID
+	userID := user.ID
+
+	vars := mux.Vars(r)
+	policyID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid policy ID"})
+		return
+	}
+
+	scan, err := c.scannerSvc.ScanPolicy(projectID, userID, policyID)
+	if err != nil {
+		log.WithError(err).Error("Failed to scan policy")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, scan)
+}
+
+// GetScans retrieves scans for a project
+func (c *ComplianceController) GetScans(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	projectID := project.ID
+
+	// Parse query parameters for pagination
+	limit := 50
+	offset := 0
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
 		}
-
-		taskCount := 0
-		successCount := 0
-		for _, task := range tasks {
-			if task.Task.Created.After(dayStart) && task.Task.Created.Before(dayEnd) {
-				if projectID == "" || strconv.Itoa(task.Task.ProjectID) == projectID {
-					taskCount++
-					if task.Task.Status == "success" {
-						successCount++
-					}
-				}
-			}
-		}
-
-		successRate := 0.0
-		if taskCount > 0 {
-			successRate = float64(successCount) / float64(taskCount) * 100
-		}
-
-		trends.DailyTasks = append(trends.DailyTasks, TrendDataPoint{
-			Date:  dayStart,
-			Value: float64(taskCount),
-			Count: taskCount,
-		})
-
-		trends.SuccessRates = append(trends.SuccessRates, TrendDataPoint{
-			Date:  dayStart,
-			Value: successRate,
-			Count: taskCount,
-		})
-
-		// Count active users for this day
-		users, err := store.GetUsers(db.RetrieveQueryParams{})
-		if err == nil {
-			activeUserCount := 0
-			for _, user := range users {
-				userEvents, err := store.GetUserEvents(user.ID, db.RetrieveQueryParams{
-					Count: 1,
-				})
-				if err == nil && len(userEvents) > 0 {
-					if userEvents[0].Created.After(dayStart) && userEvents[0].Created.Before(dayEnd) {
-						activeUserCount++
-					}
-				}
-			}
-
-			trends.DailyUsers = append(trends.DailyUsers, TrendDataPoint{
-				Date:  dayStart,
-				Value: float64(activeUserCount),
-				Count: activeUserCount,
-			})
-		}
-
-		// Count security events for this day
-		events, err := store.GetEvents(0, db.RetrieveQueryParams{
-			SortBy: "created",
-			SortInverted: true,
-		})
-		if err == nil {
-			securityEventCount := 0
-			for _, event := range events {
-				if event.Created.After(dayStart) && event.Created.Before(dayEnd) {
-					if event.ObjectType != nil && 
-						(*event.ObjectType == "task" || *event.ObjectType == "user") {
-						securityEventCount++
-					}
-				}
-			}
-
-			trends.SecurityEvents = append(trends.SecurityEvents, TrendDataPoint{
-				Date:  dayStart,
-				Value: float64(securityEventCount),
-				Count: securityEventCount,
-			})
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
 		}
 	}
 
-	return trends, nil
+	scans, err := c.scannerSvc.GetScansByProject(projectID, limit, offset)
+	if err != nil {
+		log.WithError(err).Error("Failed to get scans")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, scans)
+}
+
+// GetScan retrieves a specific scan
+func (c *ComplianceController) GetScan(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scanID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid scan ID"})
+		return
+	}
+
+	scan, err := c.scannerSvc.GetScan(scanID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Scan not found"})
+			return
+		}
+		log.WithError(err).Error("Failed to get scan")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, scan)
+}
+
+// CancelScan cancels a running scan
+func (c *ComplianceController) CancelScan(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scanID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid scan ID"})
+		return
+	}
+
+	err = c.scannerSvc.CancelScan(scanID)
+	if err != nil {
+		log.WithError(err).Error("Failed to cancel scan")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, map[string]string{"message": "Scan cancelled successfully"})
+}
+
+// GetScanReports retrieves reports for a scan
+func (c *ComplianceController) GetScanReports(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scanID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid scan ID"})
+		return
+	}
+
+	reports, err := c.scannerSvc.GetReportsByScan(scanID)
+	if err != nil {
+		log.WithError(err).Error("Failed to get scan reports")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, reports)
+}
+
+// Report endpoints
+
+// GetReports retrieves reports for a project with filters
+func (c *ComplianceController) GetReports(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	projectID := project.ID
+
+	// Parse query parameters for filters and pagination
+	filters := make(map[string]interface{})
+	if policyID := r.URL.Query().Get("policy_id"); policyID != "" {
+		if id, err := strconv.Atoi(policyID); err == nil {
+			filters["policy_id"] = id
+		}
+	}
+	if host := r.URL.Query().Get("host"); host != "" {
+		filters["host"] = host
+	}
+	if status := r.URL.Query().Get("status"); status != "" {
+		filters["status"] = status
+	}
+
+	limit := 50
+	offset := 0
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	reports, err := c.scannerSvc.GetReportsByProject(projectID, filters, limit, offset)
+	if err != nil {
+		log.WithError(err).Error("Failed to get reports")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, reports)
+}
+
+// GetReport retrieves a specific report
+func (c *ComplianceController) GetReport(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	reportID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid report ID"})
+		return
+	}
+
+	report, err := c.scannerSvc.GetReport(reportID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Report not found"})
+			return
+		}
+		log.WithError(err).Error("Failed to get report")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, report)
+}
+
+// DownloadArf downloads the ARF file for a report
+func (c *ComplianceController) DownloadArf(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	reportID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid report ID"})
+		return
+	}
+
+	report, err := c.scannerSvc.GetReport(reportID)
+	if err != nil {
+		if err == db.ErrNotFound {
+			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Report not found"})
+			return
+		}
+		log.WithError(err).Error("Failed to get report")
+		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if report.ArfPath == nil {
+		helpers.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "ARF file not available"})
+		return
+	}
+
+	// Set headers for file download
+	w.Header().Set("Content-Type", "application/xml")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.arf.xml\"", report.Host))
+
+	// Serve the file
+	http.ServeFile(w, r, *report.ArfPath)
 }

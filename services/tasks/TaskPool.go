@@ -149,6 +149,10 @@ func (p *TaskPool) GetTaskByAlias(alias string) (task *TaskRunner) {
 	return p.state.GetByAlias(alias)
 }
 
+func (p *TaskPool) GetStore() db.Store {
+	return p.store
+}
+
 // nolint: gocyclo
 func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)

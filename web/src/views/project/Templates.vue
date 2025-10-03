@@ -466,7 +466,7 @@ export default {
         path: this.viewId
           ? `/project/${this.projectId}/views/${this.viewId}/templates/${item.id}/details`
           : `/project/${this.projectId}/templates/${item.id}/details`,
-        query: { copy: 'true' }
+        query: { copy: 'true' },
       });
     },
 
@@ -475,7 +475,7 @@ export default {
       this.$router.push({
         path: this.viewId
           ? `/project/${this.projectId}/views/${this.viewId}/templates/${item.id}/details`
-          : `/project/${this.projectId}/templates/${item.id}/details`
+          : `/project/${this.projectId}/templates/${item.id}/details`,
       });
     },
 

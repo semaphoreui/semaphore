@@ -183,6 +183,17 @@ func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int,
 	return int(id), nil
 }
 
+// AddComplianceRunner adds a compliance schedule runner to the cron
+func (p *SchedulePool) AddComplianceRunner(runner interface{}, cronFormat string) (int, error) {
+	id, err := p.cron.AddJob(cronFormat, runner)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return int(id), nil
+}
+
 func (p *SchedulePool) Run() {
 	p.cron.Run()
 }

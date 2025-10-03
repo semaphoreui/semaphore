@@ -19,13 +19,13 @@ import (
 
 	"github.com/Digital-Data-Co/forge/pkg/tz"
 
-	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/go-ldap/ldap/v3"
-	"github.com/gorilla/mux"
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/pkg/random"
 	"github.com/Digital-Data-Co/forge/util"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-ldap/ldap/v3"
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -211,6 +211,9 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		Value:    encoded,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   util.Config.TLS != nil, // Only secure if TLS is enabled
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
 	})
 }
 

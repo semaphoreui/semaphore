@@ -2,11 +2,12 @@ package sockets
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/pkg/tz"
-	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -16,8 +17,48 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			// Allow requests without Origin header (same-origin)
+			return true
+		}
+
+		// Check if origin is allowed
+		host := r.Host
+		if isAllowedWebSocketOrigin(origin, host) {
+			return true
+		}
+
+		return false
 	},
+}
+
+// isAllowedWebSocketOrigin checks if an origin is allowed for WebSocket connections
+func isAllowedWebSocketOrigin(origin, host string) bool {
+	// Allow same origin
+	if origin == "https://"+host || origin == "http://"+host {
+		return true
+	}
+
+	// Allow localhost for development
+	if origin == "http://localhost:3000" || origin == "https://localhost:3000" {
+		return true
+	}
+
+	// Add your production domains here
+	allowedOrigins := []string{
+		// Add your production domains here
+		// "https://yourdomain.com",
+		// "https://app.yourdomain.com",
+	}
+
+	for _, allowed := range allowedOrigins {
+		if origin == allowed {
+			return true
+		}
+	}
+
+	return false
 }
 
 const (
