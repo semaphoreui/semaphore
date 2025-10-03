@@ -36,15 +36,6 @@
       persistent-hint
     ></v-textarea>
 
-    <v-switch
-      class="mt-0"
-      v-model="item.alert"
-      :label="$t('allowAlertsForThisProject')"
-      data-testid="newProject-alert"
-      inset
-      :value="true"
-      disabled
-    ></v-switch>
 
     <v-switch
       v-if="itemId === 'new'"
