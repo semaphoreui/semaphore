@@ -960,7 +960,7 @@ const PROJECT_COLORS = [
 
 const LANGUAGES = {
   en: {
-    title: 'English',
+    title: 'English (UK)',
   },
   es: {
     title: 'Español',
