@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Digital-Data-Co/forge/services/server"
+	"github.com/Digital-Data-Co/forge/services/lockdown"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
@@ -332,10 +333,31 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 
 	store := helpers.Store(r)
 
-	body, err := store.CreateProject(body)
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
+	var err error
+	
+	// Check if this is a compliance project
+	if body.ComplianceFramework != nil && body.ComplianceOS != nil {
+		// Use lockdown service to create compliance project
+		importService := lockdown.NewImportService(store)
+		createdProject, err := importService.CreateComplianceProject(
+			r.Context(),
+			body,
+			*body.ComplianceFramework,
+			*body.ComplianceOS,
+			body.EnableSTIG,
+		)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		body = *createdProject
+	} else {
+		// Create regular project
+		body, err = store.CreateProject(body)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
 	}
 
 	_, err = store.CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Role: db.ProjectOwner})

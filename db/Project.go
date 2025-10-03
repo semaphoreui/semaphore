@@ -17,4 +17,9 @@ type Project struct {
 	Import                 bool      `db:"import" json:"import,omitempty"`
 	Path                   *string   `db:"path" json:"path,omitempty"`
 	DefaultSecretStorageID *int      `db:"default_secret_storage_id" json:"default_secret_storage_id,omitempty" backup:"-"`
+	// Compliance framework fields
+	ComplianceFramework    *string   `db:"compliance_framework" json:"compliance_framework,omitempty"`
+	ComplianceOS           *string   `db:"compliance_os" json:"compliance_os,omitempty"`
+	ComplianceVersion      *string   `db:"compliance_version" json:"compliance_version,omitempty"`
+	EnableSTIG             bool      `db:"enable_stig" json:"enable_stig,omitempty"`
 }

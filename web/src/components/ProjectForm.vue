@@ -64,6 +64,81 @@
       hide-details
     />
 
+    <!-- Compliance Framework Section -->
+    <v-divider class="my-6"></v-divider>
+    <v-subheader class="px-0">
+      <v-icon class="mr-2">mdi-shield-check</v-icon>
+      Compliance Framework (Optional)
+    </v-subheader>
+
+    <v-switch
+      v-if="itemId === 'new'"
+      v-model="complianceEnabled"
+      label="Enable Compliance Framework"
+      class="mt-2"
+      hide-details
+      @change="onComplianceToggle"
+    />
+
+    <v-expand-transition>
+      <div v-if="complianceEnabled && itemId === 'new'">
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-select
+              v-model="complianceFramework"
+              :items="supportedFrameworks"
+              label="Compliance Framework"
+              :disabled="formSaving"
+              outlined
+              dense
+              hint="Select compliance framework (CIS or STIG)"
+              persistent-hint
+              @change="onFrameworkChange"
+            />
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-select
+              v-model="complianceOS"
+              :items="supportedOS"
+              label="Operating System"
+              :disabled="formSaving"
+              outlined
+              dense
+              hint="Select target operating system"
+              persistent-hint
+              @change="onOSChange"
+            />
+          </v-col>
+        </v-row>
+
+        <v-switch
+          v-model="enableSTIG"
+          label="Import STIG/CIS Ansible Tasks"
+          class="mt-2"
+          hide-details
+          hint="Automatically import compliance tasks from Ansible Lockdown repositories"
+          persistent-hint
+        />
+
+        <v-alert
+          v-if="complianceEnabled && complianceFramework && complianceOS"
+          type="info"
+          outlined
+          class="mt-4"
+        >
+          <div class="text-body-2">
+            <strong>Selected:</strong> {{ complianceFramework }} {{ complianceOS }}<br>
+            <span v-if="enableSTIG">
+              <strong>Tasks:</strong> Will import Ansible compliance tasks from
+              <a href="https://github.com/ansible-lockdown" target="_blank" rel="noopener">
+                Ansible Lockdown repositories
+              </a>
+            </span>
+          </div>
+        </v-alert>
+      </div>
+    </v-expand-transition>
+
   </v-form>
 </template>
 <script>
@@ -76,6 +151,23 @@ export default {
       type: String,
       default: 'projectName',
     },
+  },
+  data() {
+    return {
+      complianceEnabled: false,
+      complianceFramework: '',
+      complianceOS: '',
+      enableSTIG: false,
+      supportedFrameworks: ['CIS', 'STIG'],
+      supportedOS: [
+        'RHEL7', 'RHEL8', 'RHEL9',
+        'UBUNTU18', 'UBUNTU20', 'UBUNTU22', 'UBUNTU24',
+        'DEBIAN11', 'DEBIAN12',
+        'AMAZON2', 'AMAZON2023',
+        'SUSE15',
+        'WINDOWS10', 'WINDOWS11', 'WINDOWS2016', 'WINDOWS2019', 'WINDOWS2022',
+      ],
+    };
   },
   created() {
     // Set default values for new projects
@@ -106,6 +198,33 @@ export default {
     beforeSave() {
       // Always ensure alerts are enabled for all projects
       this.item.alert = true;
+
+      // Set compliance fields if enabled
+      if (this.complianceEnabled && this.itemId === 'new') {
+        this.item.compliance_framework = this.complianceFramework;
+        this.item.compliance_os = this.complianceOS;
+        this.item.enable_stig = this.enableSTIG;
+      }
+    },
+    onComplianceToggle() {
+      if (!this.complianceEnabled) {
+        // Reset compliance fields when disabled
+        this.complianceFramework = '';
+        this.complianceOS = '';
+        this.enableSTIG = false;
+      }
+    },
+    onFrameworkChange() {
+      // Auto-enable STIG import when framework is selected
+      if (this.complianceFramework && this.complianceOS) {
+        this.enableSTIG = true;
+      }
+    },
+    onOSChange() {
+      // Auto-enable STIG import when OS is selected
+      if (this.complianceFramework && this.complianceOS) {
+        this.enableSTIG = true;
+      }
     },
   },
 };

@@ -119,6 +119,9 @@ func Route(
 	policySvc := compliance.NewPolicyService(store)
 	scannerSvc := compliance.NewScannerService(store, contentSvc, policySvc, taskPool)
 	complianceController := NewComplianceController(store, contentSvc, policySvc, scannerSvc)
+	
+	// Initialize lockdown services
+	lockdownController := NewLockdownController(store)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -384,6 +387,20 @@ func Route(
 	complianceReportAPI := projectUserAPI.PathPrefix("/compliance/reports").Subrouter()
 	complianceReportAPI.Path("/{id}").HandlerFunc(complianceController.GetReport).Methods("GET", "HEAD")
 	complianceReportAPI.Path("/{id}/arf").HandlerFunc(complianceController.DownloadArf).Methods("GET", "HEAD")
+
+	// Lockdown integration routes
+	lockdownAPI := r.PathPrefix("/api/lockdown").Subrouter()
+	lockdownAPI.Use(StoreMiddleware, JSONMiddleware, RateLimitMiddleware(GeneralRateLimiter))
+	lockdownAPI.Path("/os").HandlerFunc(lockdownController.GetSupportedOS).Methods("GET", "HEAD")
+	lockdownAPI.Path("/frameworks").HandlerFunc(lockdownController.GetSupportedFrameworks).Methods("GET", "HEAD")
+	lockdownAPI.Path("/roles/{os}/{framework}").HandlerFunc(lockdownController.GetComplianceRoles).Methods("GET", "HEAD")
+	lockdownAPI.Path("/project").HandlerFunc(lockdownController.CreateComplianceProject).Methods("POST")
+	
+	// Project-specific lockdown routes
+	lockdownProjectAPI := projectUserAPI.PathPrefix("/lockdown").Subrouter()
+	lockdownProjectAPI.Use(authentication)
+	lockdownProjectAPI.Path("/templates").HandlerFunc(lockdownController.GetComplianceTemplates).Methods("GET", "HEAD")
+	lockdownProjectAPI.Path("/import").HandlerFunc(lockdownController.ImportComplianceTasks).Methods("POST")
 
 	projectRunnersAPI := projectUserAPI.PathPrefix("/runners").Subrouter()
 	projectRunnersAPI.Use(projectRunnerController.RunnerMiddleware)
