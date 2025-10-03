@@ -50,10 +50,10 @@
       v-if="itemId === 'new'"
       v-model="item.import"
       label="Import"
-      class="mt-0"
+      class="mt-4"
       data-testid="newProject-import"
-      inset
-    ></v-switch>
+      hide-details
+    />
 
     <v-text-field
       v-if="itemId === 'new' && item.import"
