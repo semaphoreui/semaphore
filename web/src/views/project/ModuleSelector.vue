@@ -9,7 +9,7 @@
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Module Selector</v-toolbar-title>
+      <v-toolbar-title>Environment Builder</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
@@ -24,12 +24,63 @@
       <v-form ref="form" v-model="isValid" lazy-validation>
         <!-- Tabbed Interface -->
         <v-tabs v-model="activeTab" class="mb-6">
-          <v-tab>Basic Configuration</v-tab>
+          <v-tab>Project</v-tab>
+          <v-tab>Cloud Provider</v-tab>
           <v-tab>Kubernetes Options</v-tab>
         </v-tabs>
 
         <v-tabs-items v-model="activeTab">
-          <!-- Basic Configuration Tab -->
+          <!-- Project Tab -->
+          <v-tab-item>
+        <v-row>
+          <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="form.projectName"
+                  label="Project Name"
+                  :rules="[rules.required]"
+                  filled
+                  dense
+                  hint="Name for your project"
+                />
+              </v-col>
+          <v-col cols="12" md="6">
+                <v-select
+                  :items="environments"
+                  v-model="form.environment"
+                  label="Environment"
+                  :rules="[rules.required]"
+                  filled
+                  dense
+                  hint="Target environment for deployment"
+                />
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="12">
+                <v-textarea
+                  v-model="form.projectDescription"
+                  label="Project Description"
+                  filled
+                  dense
+                  rows="3"
+                  auto-grow
+                  hint="Optional description for your project"
+                />
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="12">
+                <v-switch
+                  v-model="form.enableAlerts"
+                  inset
+                  label="Enable Alerts"
+                  hint="Enable alert notifications for this project"
+                />
+              </v-col>
+            </v-row>
+          </v-tab-item>
+
+          <!-- Cloud Provider Tab -->
           <v-tab-item>
             <!-- Line 1: Cloud Provider takes entire first line -->
         <v-row>
@@ -43,6 +94,157 @@
               dense
               clearable
             />
+          </v-col>
+        </v-row>
+
+        <!-- Cloud Provider Specific Fields -->
+        <v-row v-if="form.cloudProvider">
+          <v-col cols="12">
+            <v-card class="pa-4" outlined>
+              <v-card-title class="text-h6 pa-0 mb-4">
+                {{ form.cloudProvider }} Configuration
+              </v-card-title>
+
+              <!-- Azure Configuration -->
+              <template v-if="form.cloudProvider === 'Azure'">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.azure.subscriptionId"
+                      label="Subscription ID"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="Azure subscription ID"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.azure.resourceGroup"
+                      label="Resource Group"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="Existing resource group or 'new' to create"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-select
+                      :items="azureLocations"
+                      v-model="form.azure.location"
+                      label="Location/Region"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="Azure region for deployment"
+                    />
+                  </v-col>
+                </v-row>
+              </template>
+
+              <!-- AWS Configuration -->
+              <template v-if="form.cloudProvider === 'AWS'">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.aws.region"
+                      label="AWS Region"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="AWS region for deployment"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.aws.accountId"
+                      label="AWS Account ID"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="AWS account ID"
+                    />
+                  </v-col>
+                </v-row>
+              </template>
+
+              <!-- Google Cloud Configuration -->
+              <template v-if="form.cloudProvider === 'Google Cloud'">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.gcp.projectId"
+                      label="GCP Project ID"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="Google Cloud project ID"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-select
+                      :items="gcpRegions"
+                      v-model="form.gcp.region"
+                      label="GCP Region"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="Google Cloud region"
+                    />
+                  </v-col>
+                </v-row>
+              </template>
+
+              <!-- VMware VCF Configuration -->
+              <template v-if="form.cloudProvider === 'VMWare VCF'">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.vmware.vcenter"
+                      label="vCenter Server"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="vCenter server hostname or IP"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.vmware.datacenter"
+                      label="Datacenter"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="vCenter datacenter name"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.vmware.cluster"
+                      label="Cluster"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="vCenter cluster name"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="form.vmware.datastore"
+                      label="Datastore"
+                      :rules="[rules.required]"
+                      filled
+                      dense
+                      hint="vCenter datastore name"
+                    />
+                  </v-col>
+                </v-row>
+              </template>
+            </v-card>
           </v-col>
         </v-row>
 
@@ -177,18 +379,18 @@
             <v-row>
               <v-col cols="12">
                 <h3 class="text-h6 mb-4">Additional Software</h3>
-              </v-col>
+          </v-col>
             </v-row>
 
             <v-row>
               <v-col cols="12" md="6" class="pl-4">
-                <v-switch
+            <v-switch
                   v-model="form.additionalSoftware.observability"
-                  inset
-                  class="mt-0"
+              inset
+              class="mt-0"
                   label="Observability"
-                />
-              </v-col>
+            />
+          </v-col>
               <v-col cols="12" md="6" class="pl-2">
                 <v-switch
                   v-model="form.additionalSoftware.serviceMesh"
@@ -228,11 +430,34 @@
         <!-- Action Buttons -->
         <v-row class="mt-6">
           <v-col cols="12" class="d-flex">
+            <v-btn
+              v-if="activeTab > 0"
+              color="grey"
+              class="mr-2"
+              @click="previousTab"
+            >
+              <v-icon left>mdi-arrow-left</v-icon>
+              Back
+            </v-btn>
             <v-spacer></v-spacer>
-            <v-btn color="primary" class="mr-2" :disabled="!isValid" @click="onSubmit">
+            <v-btn
+              v-if="activeTab < totalTabs - 1"
+              color="primary"
+              class="mr-2"
+              :disabled="!isValid"
+              @click="nextTab"
+            >
+              Next
+              <v-icon right>mdi-arrow-right</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="activeTab === totalTabs - 1"
+              color="primary"
+              :disabled="!isValid"
+              @click="onSubmit"
+            >
               Generate
             </v-btn>
-            <v-btn text @click="onReset">Reset</v-btn>
           </v-col>
         </v-row>
 
@@ -244,8 +469,8 @@
           <v-card>
             <v-card-title class="d-flex justify-space-between align-center">
               <div class="d-flex align-center">
-                <v-icon class="mr-2">mdi-code-json</v-icon>
-                Generated JSON Output
+              <v-icon class="mr-2">mdi-code-json</v-icon>
+              Generated JSON Output
               </div>
               <v-btn
                 icon
@@ -305,7 +530,7 @@
           <v-card>
             <v-card-title class="d-flex justify-space-between align-center">
               <div class="d-flex align-center">
-                <v-icon class="mr-2">mdi-terraform</v-icon>
+              <v-icon class="mr-2">mdi-terraform</v-icon>
                 Generated Configuration Templates
               </div>
               <v-btn
@@ -336,21 +561,21 @@
                       v-for="filename in Object.keys(terraformOutput.terraform || {})"
                       :key="filename"
                     >
-                      {{ filename }}
-                    </v-tab>
+                  {{ filename }}
+                </v-tab>
                     <v-tab-item
                       v-for="filename in Object.keys(terraformOutput.terraform || {})"
                       :key="filename"
                     >
-                      <v-textarea
+                  <v-textarea
                         :value="terraformOutput.terraform[filename]"
-                        readonly
-                        auto-grow
-                        rows="15"
-                        class="terraform-output"
-                        outlined
-                        dense
-                      ></v-textarea>
+                    readonly
+                    auto-grow
+                    rows="15"
+                    class="terraform-output"
+                    outlined
+                    dense
+                  ></v-textarea>
                     </v-tab-item>
                   </v-tabs>
                 </v-tab-item>
@@ -471,9 +696,33 @@ export default {
     return {
       isValid: false,
       activeTab: 0,
+      totalTabs: 3,
       jsonOutput: null,
       terraformOutput: null,
+      environments: ['Development', 'Staging', 'Production', 'Testing', 'QA'],
       cloudProviders: ['AWS', 'Azure', 'Google Cloud', 'VMWare VCF'],
+      azureLocations: [
+        'East US', 'East US 2', 'West US', 'West US 2', 'Central US',
+        'North Central US', 'South Central US', 'West Central US',
+        'Canada East', 'Canada Central', 'Brazil South', 'Brazil Southeast',
+        'North Europe', 'West Europe', 'UK South', 'UK West',
+        'France Central', 'France South', 'Germany North', 'Germany West Central',
+        'Switzerland North', 'Switzerland West', 'Norway East', 'Norway West',
+        'Sweden Central', 'Sweden South', 'Poland Central', 'Poland North',
+        'Italy North', 'South Africa North', 'South Africa West',
+        'UAE North', 'UAE Central', 'Saudi Arabia North', 'Saudi Arabia Central',
+        'Japan East', 'Japan West', 'Korea Central', 'Korea South',
+        'India Central', 'India South', 'India West', 'India East',
+        'Southeast Asia', 'East Asia', 'Australia East', 'Australia Southeast',
+        'Australia Central', 'Australia Central 2', 'New Zealand North', 'New Zealand Central',
+      ],
+      gcpRegions: [
+        'us-central1', 'us-east1', 'us-east4', 'us-west1', 'us-west2', 'us-west3', 'us-west4',
+        'europe-north1', 'europe-west1', 'europe-west2', 'europe-west3', 'europe-west4',
+        'europe-west6', 'asia-east1', 'asia-east2', 'asia-northeast1', 'asia-northeast2',
+        'asia-south1', 'asia-southeast1', 'asia-southeast2', 'australia-southeast1',
+        'australia-southeast2', 'northamerica-northeast1', 'southamerica-east1',
+      ],
       kubernetesTypes: ['Self-Managed Kubernetes', 'Managed Kubernetes'],
       goldenImages: ['Red Hat Linux', 'Ubuntu Linux', 'SUSE Linux'],
       jumpboxOptions: ['None', 'Windows 11 Pro', 'Red Hat Workstation'],
@@ -491,6 +740,10 @@ export default {
         modules: false,
       },
       form: {
+        projectName: null,
+        projectDescription: null,
+        environment: null,
+        enableAlerts: true,
         cloudProvider: null,
         kubernetesType: null,
         instanceType: null,
@@ -507,6 +760,25 @@ export default {
           certificateManager: false,
           gatewayApi: false,
           nginxIngressProxy: false,
+        },
+        azure: {
+          subscriptionId: null,
+          resourceGroup: null,
+          location: null,
+        },
+        aws: {
+          region: null,
+          accountId: null,
+        },
+        gcp: {
+          projectId: null,
+          region: null,
+        },
+        vmware: {
+          vcenter: null,
+          datacenter: null,
+          cluster: null,
+          datastore: null,
         },
       },
       rules: {
@@ -952,6 +1224,18 @@ export default {
         this.$toast?.error(errorText);
       } finally {
         this.savingTerragruntTemplate = false;
+      }
+    },
+
+    nextTab() {
+      if (this.activeTab < this.totalTabs - 1) {
+        this.activeTab += 1;
+      }
+    },
+
+    previousTab() {
+      if (this.activeTab > 0) {
+        this.activeTab -= 1;
       }
     },
 
