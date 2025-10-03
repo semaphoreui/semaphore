@@ -183,7 +183,10 @@
             Task Compliance
           </v-card-title>
           <v-card-text>
-            <TaskComplianceTable :data="dashboardData.task_compliance" />
+            <TaskComplianceTable
+              :data="dashboardData.task_compliance"
+              @view-task="handleViewTask"
+            />
           </v-card-text>
         </v-card>
       </v-col>
@@ -366,6 +369,14 @@ export default {
 
     async returnToProjects() {
       EventBus.$emit('i-open-last-project');
+    },
+
+    handleViewTask(task) {
+      // Navigate to the task details screen using the t query parameter
+      const route = `/project/${task.project_id}/templates/${task.template_id}/tasks?t=${
+        task.task_id
+      }`;
+      this.$router.push(route);
     },
   },
 };
