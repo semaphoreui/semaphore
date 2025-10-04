@@ -163,60 +163,6 @@
                 </v-col>
               </v-row>
 
-              <!-- Enabled Integrations Display -->
-              <div v-if="hasEnabledIntegrations" class="mt-6">
-                <h4 class="text-subtitle-1 mb-3">Enabled Integrations</h4>
-                <v-row class="justify-center">
-                  <v-col
-                    v-if="alertConfig.integrations.slack"
-                    cols="auto"
-                    class="d-flex flex-column align-center"
-                  >
-                    <v-icon size="48" color="purple">mdi-slack</v-icon>
-                    <span class="text-caption mt-1">Slack</span>
-                  </v-col>
-                  <v-col
-                    v-if="alertConfig.integrations.teams"
-                    cols="auto"
-                    class="d-flex flex-column align-center"
-                  >
-                    <v-icon size="48" color="blue">mdi-microsoft-teams</v-icon>
-                    <span class="text-caption mt-1">Teams</span>
-                  </v-col>
-                  <v-col
-                    v-if="alertConfig.integrations.email"
-                    cols="auto"
-                    class="d-flex flex-column align-center"
-                  >
-                    <v-icon size="48" color="green">mdi-email</v-icon>
-                    <span class="text-caption mt-1">Email</span>
-                  </v-col>
-                  <v-col
-                    v-if="alertConfig.integrations.webhook"
-                    cols="auto"
-                    class="d-flex flex-column align-center"
-                  >
-                    <v-icon size="48" color="orange">mdi-webhook</v-icon>
-                    <span class="text-caption mt-1">Webhook</span>
-                  </v-col>
-                  <v-col
-                    v-if="alertConfig.integrations.discord"
-                    cols="auto"
-                    class="d-flex flex-column align-center"
-                  >
-                    <v-icon size="48" color="indigo">mdi-discord</v-icon>
-                    <span class="text-caption mt-1">Discord</span>
-                  </v-col>
-                  <v-col
-                    v-if="alertConfig.integrations.pagerduty"
-                    cols="auto"
-                    class="d-flex flex-column align-center"
-                  >
-                    <v-icon size="48" color="red">mdi-bell-alert</v-icon>
-                    <span class="text-caption mt-1">PagerDuty</span>
-                  </v-col>
-                </v-row>
-              </div>
 
               <!-- Integration Configuration -->
               <v-expansion-panels v-if="hasEnabledIntegrations" class="mt-6">

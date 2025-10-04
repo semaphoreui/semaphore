@@ -30,6 +30,7 @@ import (
 	"github.com/Digital-Data-Co/forge/api/tasks"
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/services/compliance"
+	"github.com/Digital-Data-Co/forge/services/scc"
 	"github.com/Digital-Data-Co/forge/util"
 	"github.com/gorilla/mux"
 )
@@ -119,9 +120,15 @@ func Route(
 	policySvc := compliance.NewPolicyService(store)
 	scannerSvc := compliance.NewScannerService(store, contentSvc, policySvc, taskPool)
 	complianceController := NewComplianceController(store, contentSvc, policySvc, scannerSvc)
-	
+
 	// Initialize lockdown services
 	lockdownController := NewLockdownController(store)
+
+	// Initialize SCC services
+	sccContentPath := util.Config.TmpPath + "/scc-content"
+	sccBinaryPath := "" // Will be auto-detected or can be configured
+	sccService := scc.NewSCCService(store, sccContentPath, sccBinaryPath)
+	sccController := NewSCCController(store, sccService)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -388,6 +395,23 @@ func Route(
 	complianceReportAPI.Path("/{id}").HandlerFunc(complianceController.GetReport).Methods("GET", "HEAD")
 	complianceReportAPI.Path("/{id}/arf").HandlerFunc(complianceController.DownloadArf).Methods("GET", "HEAD")
 
+	// SCC integration routes
+	sccAPI := r.PathPrefix("/api/scc").Subrouter()
+	sccAPI.Use(StoreMiddleware, JSONMiddleware, RateLimitMiddleware(GeneralRateLimiter))
+	sccAPI.Path("/benchmarks").HandlerFunc(sccController.GetAvailableBenchmarks).Methods("GET", "HEAD")
+	sccAPI.Path("/os").HandlerFunc(sccController.GetSupportedOS).Methods("GET", "HEAD")
+	sccAPI.Path("/os/{os}/benchmarks").HandlerFunc(sccController.GetBenchmarksByOS).Methods("GET", "HEAD")
+	sccAPI.Path("/benchmarks/download").HandlerFunc(sccController.DownloadBenchmark).Methods("POST")
+	sccAPI.Path("/benchmarks/{benchmarkPath}/profiles").HandlerFunc(sccController.GetBenchmarkProfiles).Methods("GET", "HEAD")
+	sccAPI.Path("/availability").HandlerFunc(sccController.CheckSCCAvailability).Methods("GET", "HEAD")
+
+	// Project-specific SCC routes
+	projectUserAPI.Path("/scc/status").HandlerFunc(sccController.GetSCCStatus).Methods("GET", "HEAD")
+	projectUserAPI.Path("/scc/scan").HandlerFunc(sccController.RunSCCScan).Methods("POST")
+	projectUserAPI.Path("/scc/scans").HandlerFunc(sccController.GetSCCScanHistory).Methods("GET", "HEAD")
+	projectUserAPI.Path("/scc/scans/{scanId}/results").HandlerFunc(sccController.GetSCCScanResults).Methods("GET", "HEAD")
+	projectUserAPI.Path("/scc/reports/{reportId}/rules").HandlerFunc(sccController.GetSCCRuleResults).Methods("GET", "HEAD")
+
 	// Lockdown integration routes
 	lockdownAPI := r.PathPrefix("/api/lockdown").Subrouter()
 	lockdownAPI.Use(StoreMiddleware, JSONMiddleware, RateLimitMiddleware(GeneralRateLimiter))
@@ -395,7 +419,7 @@ func Route(
 	lockdownAPI.Path("/frameworks").HandlerFunc(lockdownController.GetSupportedFrameworks).Methods("GET", "HEAD")
 	lockdownAPI.Path("/roles/{os}/{framework}").HandlerFunc(lockdownController.GetComplianceRoles).Methods("GET", "HEAD")
 	lockdownAPI.Path("/project").HandlerFunc(lockdownController.CreateComplianceProject).Methods("POST")
-	
+
 	// Project-specific lockdown routes
 	lockdownProjectAPI := projectUserAPI.PathPrefix("/lockdown").Subrouter()
 	lockdownProjectAPI.Use(authentication)

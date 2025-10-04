@@ -97,6 +97,27 @@
                 />
               </v-col>
             </v-row>
+
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-select
+                  :items="jumpboxOptions"
+                  v-model="form.jumpbox"
+                  label="Jumpbox"
+                  filled
+                  dense
+                  clearable
+                />
+              </v-col>
+              <v-col cols="12" md="6" class="d-flex align-center">
+                <v-switch
+                  v-model="form.jumpboxStigCompliant"
+                  inset
+                  class="mt-0"
+                  label="Jumpbox STIG Compliant"
+                />
+              </v-col>
+            </v-row>
           </v-tab-item>
 
           <!-- Cloud Provider Tab -->
@@ -352,39 +373,18 @@
             </v-row>
 
             <v-row>
-              <v-col cols="12" md="6">
-                <v-select
-                  :items="jumpboxOptions"
-                  v-model="form.jumpbox"
-                  label="Jumpbox"
-                  filled
-                  dense
-                  clearable
-                />
-              </v-col>
-              <v-col cols="12" md="6" class="d-flex align-center">
-                <v-switch
-                  v-model="form.jumpboxStigCompliant"
-                  inset
-                  class="mt-0"
-                  label="Jumpbox STIG Compliant"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row>
               <v-col cols="12">
                 <v-card class="pa-4" outlined>
                   <v-card-title class="text-h6 pa-0 mb-4">Additional Software</v-card-title>
                   <v-row>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="6" class="pl-4">
                       <v-switch
                         v-model="form.additionalSoftware.observability"
                         inset
                         label="Observability"
                       />
                     </v-col>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="6" class="pl-4">
                       <v-switch
                         v-model="form.additionalSoftware.serviceMesh"
                         inset
@@ -393,14 +393,14 @@
                     </v-col>
                   </v-row>
                   <v-row>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="6" class="pl-4">
                       <v-switch
                         v-model="form.additionalSoftware.certificateManager"
                         inset
                         label="Certificate Manager"
                       />
                     </v-col>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="6" class="pl-4">
                       <v-switch
                         v-model="form.additionalSoftware.gatewayApi"
                         inset
@@ -409,7 +409,7 @@
                     </v-col>
                   </v-row>
                   <v-row>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="6" class="pl-4">
                       <v-switch
                         v-model="form.additionalSoftware.nginxIngressProxy"
                         inset
@@ -496,7 +496,7 @@ export default {
         'asia-south1', 'asia-southeast1', 'asia-southeast2', 'australia-southeast1',
         'australia-southeast2', 'northamerica-northeast1', 'southamerica-east1',
       ],
-      kubernetesTypes: ['Self-Managed Kubernetes', 'Managed Kubernetes'],
+      kubernetesTypes: ['None', 'Self-Managed Kubernetes', 'Managed Kubernetes'],
       goldenImages: ['Red Hat Linux', 'Ubuntu Linux', 'SUSE Linux'],
       jumpboxOptions: ['None', 'Windows 11 Pro', 'Red Hat Workstation'],
       instanceTypesByProvider: {

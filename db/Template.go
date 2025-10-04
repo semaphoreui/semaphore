@@ -22,6 +22,7 @@ const (
 	AppBash       TemplateApp = "bash"
 	AppPowerShell TemplateApp = "powershell"
 	AppPython     TemplateApp = "python"
+	AppSCC        TemplateApp = "scc"
 	AppPulumi     TemplateApp = "pulumi"
 )
 
@@ -35,6 +36,8 @@ func (t TemplateApp) InventoryTypes() []InventoryType {
 		return []InventoryType{InventoryTofuWorkspace}
 	case AppTerragrunt:
 		return []InventoryType{InventoryTerragruntWorkspace}
+	case AppSCC:
+		return []InventoryType{InventoryStatic, InventoryStaticYaml}
 	default:
 		return []InventoryType{}
 	}
@@ -178,6 +181,9 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 			return
 		}
 		ok = params.AllowOverrideInventory
+	case AppSCC:
+		// SCC templates don't support inventory override
+		ok = false
 	}
 
 	return
@@ -189,6 +195,11 @@ func (tpl *Template) Validate() error {
 	}
 	switch tpl.App {
 	case AppAnsible:
+		if tpl.InventoryID == nil {
+			return &ValidationError{"template inventory can not be empty"}
+		}
+	case AppSCC:
+		// SCC templates require inventory for host targeting
 		if tpl.InventoryID == nil {
 			return &ValidationError{"template inventory can not be empty"}
 		}

@@ -166,6 +166,8 @@ func (task *Task) ValidateNewTask(template Template) error {
 		params = &AnsibleTaskParams{}
 	case AppTerraform, AppTofu, AppTerragrunt:
 		params = &TerraformTaskParams{}
+	case AppSCC:
+		params = &DefaultTaskParams{}
 	default:
 		params = &DefaultTaskParams{}
 	}

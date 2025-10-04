@@ -204,6 +204,11 @@ export default {
         this.item.compliance_framework = this.complianceFramework;
         this.item.compliance_os = this.complianceOS;
         this.item.enable_stig = this.enableSTIG;
+      } else if (this.itemId === 'new') {
+        // Clear compliance fields if not enabled
+        this.item.compliance_framework = null;
+        this.item.compliance_os = null;
+        this.item.enable_stig = false;
       }
     },
     onComplianceToggle() {
