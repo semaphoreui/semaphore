@@ -3,11 +3,12 @@ package helpers
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"runtime/debug"
+
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/pkg/common_errors"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"runtime/debug"
 )
 
 // WriteJSON writes object as JSON
@@ -34,12 +35,12 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 
 	if errors.Is(err, db.ErrNotFound) {
-		w.WriteHeader(http.StatusNotFound)
+		WriteErrorStatus(w, "Resource not found", http.StatusNotFound)
 		return
 	}
 
 	if errors.Is(err, db.ErrInvalidOperation) {
-		w.WriteHeader(http.StatusConflict)
+		WriteErrorStatus(w, "Invalid operation", http.StatusConflict)
 		return
 	}
 
@@ -50,6 +51,6 @@ func WriteError(w http.ResponseWriter, err error) {
 	default:
 		log.Error(err)
 		debug.PrintStack()
-		w.WriteHeader(http.StatusBadRequest)
+		WriteErrorStatus(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

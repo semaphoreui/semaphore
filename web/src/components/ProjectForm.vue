@@ -64,6 +64,22 @@
       hide-details
     />
 
+    <!-- Alert Settings Section -->
+    <v-divider class="my-6"></v-divider>
+    <v-subheader class="px-0">
+      <v-icon class="mr-2">mdi-bell</v-icon>
+      Alert Settings
+    </v-subheader>
+
+    <v-switch
+      v-model="item.alert"
+      label="Enable Alerts"
+      class="mt-2"
+      hide-details
+      hint="Enable alert notifications for this project"
+      persistent-hint
+    />
+
     <!-- Compliance Framework Section -->
     <v-divider class="my-6"></v-divider>
     <v-subheader class="px-0">
@@ -172,12 +188,8 @@ export default {
   created() {
     // Set default values for new projects
     if (this.itemId === 'new' && this.item) {
-      this.item.alert = true;
+      this.item.alert = true; // Default to enabled for new projects
       this.item.path = '/local/path';
-    }
-    // Always ensure alerts are enabled
-    if (this.item) {
-      this.item.alert = true;
     }
   },
   mounted() {
@@ -196,9 +208,6 @@ export default {
       return `/api/project/${this.itemId}`;
     },
     beforeSave() {
-      // Always ensure alerts are enabled for all projects
-      this.item.alert = true;
-
       // Set compliance fields if enabled
       if (this.complianceEnabled && this.itemId === 'new') {
         this.item.compliance_framework = this.complianceFramework;

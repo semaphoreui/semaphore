@@ -6,16 +6,19 @@
       <v-spacer></v-spacer>
     </v-toolbar>
 
-    <v-container>
-      <v-form ref="form" v-model="isValid" lazy-validation>
-        <!-- Tabbed Interface -->
-        <v-tabs v-model="activeTab" class="mb-6">
-          <v-tab>Project</v-tab>
-          <v-tab>Cloud Provider</v-tab>
-          <v-tab>Kubernetes Options</v-tab>
-        </v-tabs>
+    <v-container fluid class="pa-4">
+      <v-row justify="center">
+        <v-col cols="12" style="max-width: 80%;">
+          <v-card class="pa-8" elevation="3" rounded="lg">
+            <v-form ref="form" v-model="isValid" lazy-validation>
+              <!-- Tabbed Interface -->
+              <v-tabs v-model="activeTab" class="mb-6">
+                <v-tab>Project</v-tab>
+                <v-tab>Cloud Provider</v-tab>
+                <v-tab>Kubernetes Options</v-tab>
+              </v-tabs>
 
-        <v-tabs-items v-model="activeTab">
+              <v-tabs-items v-model="activeTab">
           <!-- Project Tab -->
           <v-tab-item>
             <v-row>
@@ -331,7 +334,8 @@
                   :items="filteredInstanceTypes"
                   v-model="form.instanceType"
                   label="Instance Type"
-                  :rules="[rules.required]"
+                  :rules="form.kubernetesType && form.kubernetesType !== 'None'
+                    ? [rules.required] : []"
                   filled
                   dense
                   clearable
@@ -339,7 +343,7 @@
               </v-col>
             </v-row>
 
-            <v-row>
+            <v-row v-if="form.kubernetesType && form.kubernetesType !== 'None'">
               <v-col cols="12" md="4">
                 <v-text-field
                   v-model.number="form.controlPlaneNodes"
@@ -372,7 +376,7 @@
               </v-col>
             </v-row>
 
-            <v-row>
+            <v-row v-if="form.kubernetesType && form.kubernetesType !== 'None'">
               <v-col cols="12">
                 <v-card class="pa-4" outlined>
                   <v-card-title class="text-h6 pa-0 mb-4">Additional Software</v-card-title>
@@ -465,6 +469,7 @@
 </style>
 <script>
 import EventBus from '@/event-bus';
+import axios from 'axios';
 
 export default {
   data() {
@@ -497,8 +502,22 @@ export default {
         'australia-southeast2', 'northamerica-northeast1', 'southamerica-east1',
       ],
       kubernetesTypes: ['None', 'Self-Managed Kubernetes', 'Managed Kubernetes'],
-      goldenImages: ['Red Hat Linux', 'Ubuntu Linux', 'SUSE Linux'],
-      jumpboxOptions: ['None', 'Windows 11 Pro', 'Red Hat Workstation'],
+      goldenImages: [
+        'RHEL7', 'RHEL8', 'RHEL9',
+        'UBUNTU18', 'UBUNTU20', 'UBUNTU22', 'UBUNTU24',
+        'DEBIAN11', 'DEBIAN12',
+        'AMAZON2', 'AMAZON2023',
+        'SUSE15',
+        'WINDOWS10', 'WINDOWS11', 'WINDOWS2016', 'WINDOWS2019', 'WINDOWS2022',
+      ],
+      jumpboxOptions: [
+        'None', 'RHEL7', 'RHEL8', 'RHEL9',
+        'UBUNTU18', 'UBUNTU20', 'UBUNTU22', 'UBUNTU24',
+        'DEBIAN11', 'DEBIAN12',
+        'AMAZON2', 'AMAZON2023',
+        'SUSE15',
+        'WINDOWS10', 'WINDOWS11', 'WINDOWS2016', 'WINDOWS2019', 'WINDOWS2022',
+      ],
       instanceTypesByProvider: {
         AWS: ['t3.medium', 'm5.large', 'c5.xlarge'],
         Azure: ['Standard_B2s', 'Standard_D2s_v3', 'Standard_D4s_v3'],
@@ -632,14 +651,21 @@ export default {
           },
         };
 
-        // Emit the project creation event
+        // Create the project via API
+        const response = await axios.post('/api/project', projectData);
+        const createdProject = response.data;
+
+        // Emit the project creation event to update the UI
         EventBus.$emit('i-project', {
           action: 'new',
-          item: projectData,
+          item: createdProject,
         });
 
         // Show success message
         this.$toast?.success('Project created successfully!');
+
+        // Redirect to the newly created project
+        this.$router.push(`/project/${createdProject.id}`);
       } catch (error) {
         console.error('Error creating project:', error);
         this.$toast?.error('Failed to create project. Please try again.');
