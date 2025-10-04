@@ -62,47 +62,6 @@
             </v-row>
             <v-row>
               <v-col cols="12" md="6">
-                <v-switch
-                  v-model="form.enableAlerts"
-                  inset
-                  label="Enable Alerts"
-                  hint="Enable alert notifications for this project"
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="form.demo"
-                  inset
-                  label="Demo"
-                  hint="Create a demo project with sample data"
-                />
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="12">
-                <v-switch
-                  v-model="form.import"
-                  inset
-                  label="Import"
-                  hint="Import existing project from path"
-                />
-              </v-col>
-            </v-row>
-            <v-row v-if="form.import">
-              <v-col cols="12">
-                <v-text-field
-                  v-model="form.path"
-                  label="Import Path"
-                  filled
-                  dense
-                  hint="Path to existing project"
-                  data-testid="newProject-path"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row>
-              <v-col cols="12" md="6">
                 <v-select
                   :items="jumpboxOptions"
                   v-model="form.jumpbox"
@@ -119,6 +78,55 @@
                   class="mt-0"
                   label="Jumpbox STIG Compliant"
                 />
+              </v-col>
+            </v-row>
+
+            <!-- Additional Options Section -->
+            <v-row class="mt-6">
+              <v-col cols="12">
+                <v-card class="pa-4" outlined>
+                  <v-card-title class="text-h6 pa-0 mb-4">Additional Options</v-card-title>
+                  <v-row>
+                    <v-col cols="12" md="6">
+                      <v-switch
+                        v-model="form.enableAlerts"
+                        inset
+                        label="Enable Alerts"
+                        hint="Enable alert notifications for this project"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <v-switch
+                        v-model="form.demo"
+                        inset
+                        label="Demo"
+                        hint="Create a demo project with sample data"
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-row>
+                    <v-col cols="12">
+                      <v-switch
+                        v-model="form.import"
+                        inset
+                        label="Import Scripts"
+                        hint="Import existing project scripts from path"
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-row v-if="form.import">
+                    <v-col cols="12">
+                      <v-text-field
+                        v-model="form.path"
+                        label="Import Path"
+                        filled
+                        dense
+                        hint="Path to existing project scripts"
+                        data-testid="newProject-path"
+                      />
+                    </v-col>
+                  </v-row>
+                </v-card>
               </v-col>
             </v-row>
           </v-tab-item>
