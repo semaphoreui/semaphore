@@ -1,7 +1,6 @@
 package bolt
 
 import (
-	"github.com/Digital-Data-Co/forge/db"
 	"go.etcd.io/bbolt"
 )
 
@@ -14,7 +13,7 @@ func (m migration_2_17_0) Apply() error {
 		// Create buckets for compliance entities
 		buckets := []string{
 			"scap_content",
-			"scap_profile", 
+			"scap_profile",
 			"compliance_policy",
 			"policy_assignment",
 			"compliance_scan",

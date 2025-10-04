@@ -8,10 +8,10 @@ import (
 	"github.com/Digital-Data-Co/forge/services/server"
 	"github.com/Digital-Data-Co/forge/util"
 
-	"github.com/robfig/cron/v3"
 	"github.com/Digital-Data-Co/forge/db"
 	"github.com/Digital-Data-Co/forge/db_lib"
 	"github.com/Digital-Data-Co/forge/services/tasks"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -184,7 +184,7 @@ func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int,
 }
 
 // AddComplianceRunner adds a compliance schedule runner to the cron
-func (p *SchedulePool) AddComplianceRunner(runner interface{}, cronFormat string) (int, error) {
+func (p *SchedulePool) AddComplianceRunner(runner cron.Job, cronFormat string) (int, error) {
 	id, err := p.cron.AddJob(cronFormat, runner)
 
 	if err != nil {

@@ -1,7 +1,6 @@
 package bolt
 
 import (
-	"github.com/Digital-Data-Co/forge/db"
 	"go.etcd.io/bbolt"
 )
 
