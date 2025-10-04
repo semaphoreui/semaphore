@@ -959,6 +959,9 @@ const PROJECT_COLORS = [
 ];
 
 const LANGUAGES = {
+  usa: {
+    title: 'English (US)',
+  },
   en: {
     title: 'English (UK)',
   },
@@ -1008,7 +1011,7 @@ function getLangInfo(locale) {
   }
 
   if (!res) {
-    lang = 'en';
+    lang = 'usa';
     res = LANGUAGES[lang];
   }
 
@@ -1020,7 +1023,7 @@ function getLangInfo(locale) {
 function getSystemLang() {
   const locale = navigator.language.replace('-', '_').toLocaleLowerCase();
 
-  return getLangInfo(locale || 'en');
+  return getLangInfo(locale || 'usa');
 }
 
 export default {
@@ -1128,7 +1131,7 @@ export default {
         return getSystemLang();
       }
 
-      return getLangInfo(locale || 'en');
+      return getLangInfo(locale || 'usa');
     },
 
     projectId() {
