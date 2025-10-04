@@ -555,16 +555,6 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="module-selector" to="/module-selector" v-if="user.admin">
-                <v-list-item-icon>
-                  <v-icon>mdi-cog</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  Module Selector
-                </v-list-item-content>
-              </v-list-item>
-
               <v-list-item key="alerts" to="/alerts" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-bell</v-icon>
