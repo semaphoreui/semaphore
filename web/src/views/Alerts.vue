@@ -163,7 +163,6 @@
                 </v-col>
               </v-row>
 
-
               <!-- Integration Configuration -->
               <v-expansion-panels v-if="hasEnabledIntegrations" class="mt-6">
                 <v-expansion-panel v-if="alertConfig.integrations.slack">
