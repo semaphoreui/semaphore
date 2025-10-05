@@ -378,7 +378,7 @@ export default {
   // Project Form Labels
   projectNameTitle: 'Project Name',
   projectDescription: 'Project Description',
-  environment: 'Environment',
+  projectEnvironment: 'Environment',
   cloudProvider: 'Cloud Provider',
   kubernetesType: 'Kubernetes Type',
   goldenImage: 'Golden Image',
