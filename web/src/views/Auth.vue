@@ -1,5 +1,6 @@
 <template>
-  <div class="auth">
+  <v-app :dark="false">
+    <div class="auth">
     <v-dialog v-model="loginHelpDialog" max-width="600">
       <v-card>
         <v-card-title>
@@ -316,7 +317,8 @@
         </v-card>
       </div>
     </v-container>
-  </div>
+    </div>
+  </v-app>
 </template>
 <style lang="scss">
 .auth__divider {
@@ -399,6 +401,44 @@
   background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Force light theme for all Vuetify components in login page */
+.auth .v-app {
+  color: #000000 !important;
+}
+
+.auth .v-card {
+  color: #000000 !important;
+}
+
+.auth .v-text-field {
+  color: #000000 !important;
+}
+
+.auth .v-text-field .v-input__control .v-input__slot {
+  background-color: #ffffff !important;
+}
+
+.auth .v-text-field .v-label {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+
+.auth .v-text-field .v-input__control .v-input__slot input {
+  color: #000000 !important;
+}
+
+.auth .v-btn {
+  color: #ffffff !important;
+}
+
+.auth .v-btn--outlined {
+  color: #1976d2 !important;
+  border-color: #1976d2 !important;
+}
+
+.auth .v-btn--outlined:hover {
+  background-color: rgba(25, 118, 210, 0.04) !important;
 }
 
 @media (max-width: 960px) {
