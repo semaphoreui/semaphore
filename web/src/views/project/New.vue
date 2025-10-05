@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div class="new-project-form">
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Project Builder</v-toolbar-title>
@@ -470,7 +470,127 @@
   </div>
 </template>
 <style lang="scss">
+// Dark mode compatibility for New Project form
+.theme--dark {
+  .new-project-form {
+    .v-card {
+      background-color: var(--v-theme-surface, #1e1e1e) !important;
+      color: var(--v-theme-on-surface, #ffffff) !important;
+    }
 
+    .v-tabs {
+      .v-tab {
+        color: var(--v-theme-on-surface, #ffffff) !important;
+
+        &.v-tab--active {
+          color: var(--v-theme-primary, #1976d2) !important;
+        }
+      }
+    }
+
+    .v-text-field {
+      .v-input__control {
+        .v-field {
+          background-color: var(--v-theme-surface-variant, #2d2d2d) !important;
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+
+        .v-field__input {
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+
+        .v-label {
+          color: var(--v-theme-on-surface-variant, #b3b3b3) !important;
+        }
+      }
+    }
+
+    .v-select {
+      .v-input__control {
+        .v-field {
+          background-color: var(--v-theme-surface-variant, #2d2d2d) !important;
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+
+        .v-field__input {
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+
+        .v-label {
+          color: var(--v-theme-on-surface-variant, #b3b3b3) !important;
+        }
+      }
+    }
+
+    .v-textarea {
+      .v-input__control {
+        .v-field {
+          background-color: var(--v-theme-surface-variant, #2d2d2d) !important;
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+
+        .v-field__input {
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+
+        .v-label {
+          color: var(--v-theme-on-surface-variant, #b3b3b3) !important;
+        }
+      }
+    }
+
+    .v-switch {
+      .v-input__control {
+        .v-label {
+          color: var(--v-theme-on-surface, #ffffff) !important;
+        }
+      }
+    }
+
+    .v-btn {
+      &.v-btn--variant-elevated {
+        background-color: var(--v-theme-primary, #1976d2) !important;
+        color: var(--v-theme-on-primary, #ffffff) !important;
+      }
+
+      &.v-btn--variant-outlined {
+        border-color: var(--v-theme-outline, #666666) !important;
+        color: var(--v-theme-on-surface, #ffffff) !important;
+      }
+    }
+
+    .v-subheader {
+      color: var(--v-theme-on-surface, #ffffff) !important;
+    }
+
+    .v-card-title {
+      color: var(--v-theme-on-surface, #ffffff) !important;
+    }
+
+    .v-toolbar {
+      background-color: var(--v-theme-surface, #1e1e1e) !important;
+      color: var(--v-theme-on-surface, #ffffff) !important;
+    }
+
+    .v-toolbar__title {
+      color: var(--v-theme-on-surface, #ffffff) !important;
+    }
+
+    .v-app-bar-nav-icon {
+      color: var(--v-theme-on-surface, #ffffff) !important;
+    }
+  }
+}
+
+// Light mode compatibility (ensure consistency)
+.theme--light {
+  .new-project-form {
+    .v-card {
+      background-color: var(--v-theme-surface, #ffffff) !important;
+      color: var(--v-theme-on-surface, #000000) !important;
+    }
+  }
+}
 </style>
 <script>
 import EventBus from '@/event-bus';
