@@ -951,6 +951,7 @@ const PROJECT_COLORS = [
 const LANGUAGES = {
   usa: {
     title: 'English (US)',
+    flag: 'usa',
   },
   en: {
     title: 'English (UK)',
