@@ -112,7 +112,7 @@ func Route(
 	subscriptionController := proApi.NewSubscriptionController(store, store)
 	projectRunnerController := proProjects.NewProjectRunnerController()
 	taskController := projects.NewTaskController(ansibleTaskRepo)
-	rolesController := NewRolesController(store)
+	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)
 
 	r := mux.NewRouter()

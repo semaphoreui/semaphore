@@ -569,7 +569,11 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="roles" to="/roles" v-if="user.admin">
+              <v-list-item
+                key="roles"
+                to="/roles"
+                v-if="isPro && user.admin"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-account-cog</v-icon>
                 </v-list-item-icon>

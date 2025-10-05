@@ -19,14 +19,14 @@ func NewRDMAccessKeyDeserializer(
 	return &RDMAccessKeyDeserializer{}
 }
 
-func (d *VaultAccessKeyDeserializer) DeleteSecret(key *db.AccessKey) error {
+func (d *RDMAccessKeyDeserializer) DeleteSecret(key *db.AccessKey) error {
 	return nil
 }
 
-func (d *VaultAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) (err error) {
+func (d *RDMAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) (err error) {
 	return
 }
 
-func (d *VaultAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
+func (d *RDMAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
 	return
 }
