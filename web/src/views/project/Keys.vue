@@ -34,7 +34,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('keyStore') }}</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -45,7 +45,7 @@
       >{{ $t('newKey') }}</v-btn>
     </v-toolbar>
 
-    <v-tabs class="pl-4">
+    <v-tabs class="pl-4" v-if="isPro">
       <v-tab
         key="keys"
         :to="`/project/${projectId}/keys`"
@@ -113,6 +113,12 @@ export default {
 
   props: {
     systemInfo: Object,
+  },
+
+  computed: {
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
   },
 
   methods: {
