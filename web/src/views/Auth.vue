@@ -271,7 +271,6 @@
                 >
                   <v-icon
                     left
-                    dark
                   >
                     mdi-email
                   </v-icon>
@@ -289,7 +288,6 @@
                 large
                 v-for="provider in oidcProviders"
                 :color="provider.color || 'secondary'"
-                dark
                 class="mt-3"
                 @click="oidcSignIn(provider.id)"
                 block
@@ -298,7 +296,6 @@
               >
                 <v-icon
                   left
-                  dark
                   v-if="provider.icon"
                 >
                   mdi-{{ provider.icon }}
