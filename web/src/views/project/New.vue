@@ -140,7 +140,6 @@
                   :items="cloudProviders"
                   v-model="form.cloudProvider"
                   label="Cloud Provider"
-                  :rules="[rules.required]"
                   filled
                   dense
                   clearable
@@ -306,7 +305,6 @@
                   :items="goldenImages"
                   v-model="form.goldenImage"
                   label="Golden Image"
-                  :rules="[rules.required]"
                   filled
                   dense
                   clearable
@@ -331,7 +329,6 @@
                   :items="kubernetesTypes"
                   v-model="form.kubernetesType"
                   label="Kubernetes Type"
-                  :rules="[rules.required]"
                   filled
                   dense
                   clearable
@@ -452,7 +449,7 @@
               v-if="activeTab < totalTabs - 1"
               color="primary"
               class="mr-2"
-              :disabled="!isValid"
+              :disabled="!isCurrentTabValid"
               @click="nextTab"
             >
               Next
@@ -461,7 +458,7 @@
             <v-btn
               v-if="activeTab === totalTabs - 1"
               color="primary"
-              :disabled="!isValid"
+              :disabled="!isCurrentTabValid"
               @click="createProject"
             >
               {{ $t('create') }}
@@ -591,6 +588,24 @@ export default {
       if (!this.form.cloudProvider) return [];
       return this.instanceTypesByProvider[this.form.cloudProvider] || [];
     },
+    isCurrentTabValid() {
+      // Only validate required fields on the current tab
+      if (this.activeTab === 0) { // Project tab
+        return !!(this.form.projectName && this.form.environment);
+      }
+      if (this.activeTab === 1) { // Cloud Provider tab
+        return !!(this.form.cloudProvider);
+      }
+      if (this.activeTab === 2) { // Kubernetes tab
+        // If None is selected, no validation needed
+        if (this.form.kubernetesType === 'None') {
+          return true;
+        }
+        // Otherwise require kubernetesType and instanceType
+        return !!(this.form.kubernetesType && this.form.instanceType);
+      }
+      return true;
+    },
   },
   watch: {
     'form.goldenImage': function onGoldenImageChange(newValue) {
@@ -623,8 +638,9 @@ export default {
 
     async createProject() {
       try {
-        // Validate the form
-        if (!this.$refs.form.validate()) {
+        // Only validate essential fields
+        if (!this.form.projectName || !this.form.environment) {
+          this.$toast?.error('Project Name and Environment are required.');
           return;
         }
 
