@@ -113,7 +113,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 
 	dbPrompt := `What database to use:
    1 - MySQL
-   2 - BoltDB (DEPRECATED!!!)
+   2 - BoltDB
    3 - PostgreSQL
    4 - SQLite
 `
