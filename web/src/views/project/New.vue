@@ -2,7 +2,7 @@
   <div class="new-project-form">
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Project Builder</v-toolbar-title>
+      <v-toolbar-title>{{ $t('projectBuilder') }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
@@ -65,7 +65,7 @@
                 <v-select
                   :items="jumpboxOptions"
                   v-model="form.jumpbox"
-                  label="Jumpbox"
+                  :label="$t('jumpbox')"
                   filled
                   dense
                   clearable
@@ -76,7 +76,7 @@
                   v-model="form.jumpboxStigCompliant"
                   inset
                   class="mt-0"
-                  label="Jumpbox STIG Compliant"
+                  :label="$t('jumpboxStigCompliant')"
                 />
               </v-col>
             </v-row>
@@ -85,13 +85,13 @@
             <v-row class="mt-6">
               <v-col cols="12">
                 <v-card class="pa-4" outlined>
-                  <v-card-title class="text-h6 pa-0 mb-4">Additional Options</v-card-title>
+                  <v-card-title class="text-h6 pa-0 mb-4">{{ $t('additionalOptions') }}</v-card-title>
                   <v-row>
                     <v-col cols="12" md="6">
                       <v-switch
                         v-model="form.enableAlerts"
                         inset
-                        label="Enable Alerts"
+                        :label="$t('enableAlerts')"
                         hint="Enable alert notifications for this project"
                       />
                     </v-col>
@@ -99,7 +99,7 @@
                       <v-switch
                         v-model="form.demo"
                         inset
-                        label="Demo"
+                        :label="$t('demo')"
                         hint="Create a demo project with sample data"
                       />
                     </v-col>
@@ -109,7 +109,7 @@
                       <v-switch
                         v-model="form.import"
                         inset
-                        label="Import Scripts"
+                        :label="$t('importScripts')"
                         hint="Import existing project scripts from path"
                       />
                     </v-col>
@@ -455,14 +455,14 @@
               Next
               <v-icon right>mdi-arrow-right</v-icon>
             </v-btn>
-            <v-btn
+          <v-btn
               v-if="activeTab === totalTabs - 1"
               color="primary"
               :disabled="!isCurrentTabValid"
               @click="createProject"
             >
               {{ $t('create') }}
-            </v-btn>
+          </v-btn>
           </v-col>
         </v-row>
       </v-form>

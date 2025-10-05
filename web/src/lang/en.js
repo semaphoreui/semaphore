@@ -356,4 +356,87 @@ export default {
   template_tasks: 'Tasks',
   template_details: 'Details',
   template_tf_workspaces: 'Workspaces',
+
+  // New Project Form
+  projectBuilder: 'Project Builder',
+  additionalOptions: 'Additional Options',
+  importScripts: 'Import Scripts',
+  jumpbox: 'Jumpbox',
+  jumpboxStigCompliant: 'Jumpbox STIG Compliant',
+  enableAlerts: 'Enable Alerts',
+  demo: 'Demo',
+
+  // Alert Settings
+  alertSettings: 'Alert Settings',
+
+  // Compliance Framework
+  complianceFramework: 'Compliance Framework',
+  enableComplianceFramework: 'Enable Compliance Framework',
+  enableStigImport: 'Enable STIG Import',
+  complianceFrameworkOptional: 'Compliance Framework (Optional)',
+
+  // Project Form Labels
+  projectNameTitle: 'Project Name',
+  projectDescription: 'Project Description',
+  environment: 'Environment',
+  cloudProvider: 'Cloud Provider',
+  kubernetesType: 'Kubernetes Type',
+  goldenImage: 'Golden Image',
+  isStigCompliant: 'STIG Compliant',
+  controlPlaneNodes: 'Control Plane Nodes',
+  minWorkers: 'Min Workers',
+  maxWorkers: 'Max Workers',
+  instanceType: 'Instance Type',
+  observability: 'Observability',
+  serviceMesh: 'Service Mesh',
+  certificateManager: 'Certificate Manager',
+  gatewayApi: 'Gateway API',
+  nginxIngressProxy: 'Nginx Ingress Proxy',
+
+  // Hints and Help Text
+  nameForYourProject: 'Name for your project',
+  targetEnvironmentForDeployment: 'Target environment for deployment',
+  optionalDescriptionForYourProject: 'Optional description for your project',
+  enableAlertNotificationsForThisProject: 'Enable alert notifications for this project',
+  createADemoProjectWithSampleData: 'Create a demo project with sample data',
+  importExistingProjectScriptsFromPath: 'Import existing project scripts from path',
+  pathToExistingProjectScripts: 'Path to existing project scripts',
+  enableAlertNotificationsForThisProjectHint: 'Enable alert notifications for this project',
+  importExistingProjectFromPath: 'Import existing project from path',
+  pathToExistingProject: 'Path to existing project',
+
+  // Cloud Provider Configuration
+  azureSubscriptionId: 'Subscription ID',
+  azureResourceGroup: 'Resource Group',
+  azureLocation: 'Location/Region',
+  awsRegion: 'AWS Region',
+  awsAccountId: 'AWS Account ID',
+  gcpProjectId: 'GCP Project ID',
+  gcpRegion: 'GCP Region',
+  vmwareVcenterServer: 'vCenter Server',
+  vmwareDatacenter: 'Datacenter',
+  vmwareCluster: 'Cluster',
+  vmwareDatastore: 'Datastore',
+
+  // Kubernetes Options
+  kubernetesOptions: 'Kubernetes Options',
+  additionalSoftware: 'Additional Software',
+
+  // Form Validation Messages
+  projectNameAndEnvironmentRequired: 'Project Name and Environment are required.',
+  mustBeAtLeast1: 'Must be at least 1.',
+  mustBeAnOddNumber: 'Must be an odd number.',
+  mustBeGteInitial: 'Must be >= initial',
+
+  // SCC Compliance (if needed)
+  sccCompliance: 'SCC Compliance',
+  sccStatus: 'SCC Status',
+  checkAvailability: 'Check Availability',
+  availability: 'Availability',
+  available: 'Available',
+  notAvailable: 'Not Available',
+  scanStatistics: 'Scan Statistics',
+  totalScans: 'Total Scans',
+  completed: 'Completed',
+  failed: 'Failed',
 };

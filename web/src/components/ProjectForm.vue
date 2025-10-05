@@ -68,12 +68,12 @@
     <v-divider class="my-6"></v-divider>
     <v-subheader class="px-0">
       <v-icon class="mr-2">mdi-bell</v-icon>
-      Alert Settings
+      {{ $t('alertSettings') }}
     </v-subheader>
 
     <v-switch
       v-model="item.alert"
-      label="Enable Alerts"
+      :label="$t('enableAlerts')"
       class="mt-2"
       hide-details
       hint="Enable alert notifications for this project"
@@ -84,13 +84,13 @@
     <v-divider class="my-6"></v-divider>
     <v-subheader class="px-0">
       <v-icon class="mr-2">mdi-shield-check</v-icon>
-      Compliance Framework (Optional)
+      {{ $t('complianceFrameworkOptional') }}
     </v-subheader>
 
     <v-switch
       v-if="itemId === 'new'"
       v-model="complianceEnabled"
-      label="Enable Compliance Framework"
+      :label="$t('enableComplianceFramework')"
       class="mt-2"
       hide-details
       @change="onComplianceToggle"
