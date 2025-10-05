@@ -361,7 +361,7 @@ export default {
   complianceFrameworkOptional: 'Cadre de Conformité (Optionnel)',
   projectNameTitle: 'Project Name',
   projectDescription: 'Project Description',
-  environment: 'Environment',
+  projectEnvironment: 'Environment',
   cloudProvider: 'Cloud Provider',
   kubernetesType: 'Kubernetes Type',
   goldenImage: 'Golden Image',

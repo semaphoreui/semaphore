@@ -37,7 +37,7 @@
                 <v-select
                   :items="environments"
                   v-model="form.environment"
-                  label="Environment"
+                  :label="$t('projectEnvironment')"
                   :rules="[rules.required]"
                   filled
                   dense

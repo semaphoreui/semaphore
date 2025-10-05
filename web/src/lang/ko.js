@@ -361,7 +361,7 @@ export default {
   complianceFrameworkOptional: '컴플라이언스 프레임워크 (선택사항)',
   projectNameTitle: 'Project Name',
   projectDescription: 'Project Description',
-  environment: 'Environment',
+  projectEnvironment: 'Environment',
   cloudProvider: 'Cloud Provider',
   kubernetesType: 'Kubernetes Type',
   goldenImage: 'Golden Image',

@@ -361,7 +361,7 @@ export default {
   complianceFrameworkOptional: '合规框架（可选）',
   projectNameTitle: 'Project Name',
   projectDescription: 'Project Description',
-  environment: 'Environment',
+  projectEnvironment: 'Environment',
   cloudProvider: 'Cloud Provider',
   kubernetesType: 'Kubernetes Type',
   goldenImage: 'Golden Image',
