@@ -110,11 +110,30 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, task)
 }
 
+func GetTaskPermissionsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := helpers.GetFromContext(r, "project").(db.Project)
+		user := helpers.GetFromContext(r, "user").(*db.User)
+		task := helpers.GetFromContext(r, "task").(db.Task)
+
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+
+		perm, err := helpers.Store(r).GetTemplatePermission(project.ID, task.TemplateID, user.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		permissions |= perm
+
+		r = helpers.SetContextValue(r, "permissions", permissions)
+		next.ServeHTTP(w, r)
+	})
+}
+
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		user := helpers.GetFromContext(r, "user").(*db.User)
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 
 		if err != nil {
@@ -130,16 +149,6 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
-
-		perm, err := helpers.Store(r).GetTemplatePermission(project.ID, task.TemplateID, user.ID)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-		}
-
-		permissions |= perm
-
-		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "task", task)
 		next.ServeHTTP(w, r)
 	})
@@ -148,8 +157,6 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func NewTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := helpers.GetFromContext(r, "project").(db.Project)
-		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		var taskObj db.Task
 
@@ -157,16 +164,6 @@ func NewTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
-
-		perm, err := helpers.Store(r).GetTemplatePermission(project.ID, taskObj.TemplateID, user.ID)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-		}
-
-		permissions |= perm
-
-		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "task", taskObj)
 		next.ServeHTTP(w, r)
 	})

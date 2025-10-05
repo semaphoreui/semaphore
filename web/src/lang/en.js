@@ -373,4 +373,6 @@ export default {
   askDeleteRole: 'Do you really want to delete this role?',
   Roles: 'Roles',
   role_required: 'Role is required',
+
+  templatePermission: 'Template permissions',
 };

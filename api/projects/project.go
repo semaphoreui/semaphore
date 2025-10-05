@@ -56,6 +56,23 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		if helpers.HasParam("template_id", r) {
+			var templateID int
+			templateID, err = helpers.GetIntParam("template_id", w, r)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+			var perm db.ProjectUserPermission
+			perm, err = helpers.Store(r).GetTemplatePermission(project.ID, templateID, user.ID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+
+			permissions |= perm
+		}
+
 		r = helpers.SetContextValue(r, "projectUserRole", roleSlug)
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
@@ -68,7 +85,6 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			me := helpers.GetFromContext(r, "user").(*db.User)
-			//myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
 			userPerms := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
 

@@ -123,6 +123,7 @@
         }/templates/${item.id}/details`">{{ $t('template_details') }}
       </v-tab>
       <v-tab
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/perms`">{{ $t('Permissions') }}

@@ -49,7 +49,12 @@ func NewTemplateController(
 // GetTemplate returns single template by ID
 func GetTemplate(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	helpers.WriteJSON(w, http.StatusOK, template)
+	permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+	res := db.TemplateWithPerms{
+		Template:    template,
+		Permissions: &permissions,
+	}
+	helpers.WriteJSON(w, http.StatusOK, res)
 }
 
 func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {

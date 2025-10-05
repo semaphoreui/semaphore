@@ -61,6 +61,7 @@
     >
       <template v-slot:item.active="{ item }">
         <v-switch
+          :disabled="!can(USER_PERMISSIONS.manageProjectResources)"
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"

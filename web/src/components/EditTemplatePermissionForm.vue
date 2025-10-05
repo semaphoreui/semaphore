@@ -42,6 +42,7 @@
     ></v-checkbox>
 
     <v-checkbox
+      v-if="templateId == null"
       class="mt-0"
       v-model="permissions.canUpdateProject"
       :label="$t('canUpdateProject')"
@@ -56,6 +57,7 @@
     ></v-checkbox>
 
     <v-checkbox
+      v-if="templateId == null"
       class="mt-0"
       v-model="permissions.canManageProjectUsers"
       :label="$t('canManageProjectUsers')"
