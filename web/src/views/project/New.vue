@@ -792,7 +792,7 @@ export default {
         };
 
         // Create the project via API
-        const response = await axios.post('/api/project', projectData);
+        const response = await axios.post('/api/projects', projectData);
         const createdProject = response.data;
 
         // Emit the project creation event to update the UI
