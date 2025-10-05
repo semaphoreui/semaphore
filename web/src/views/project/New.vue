@@ -710,19 +710,15 @@ export default {
     isCurrentTabValid() {
       // Only validate required fields on the current tab
       if (this.activeTab === 0) { // Project tab
-        return !!(this.form.projectName && this.form.environment);
+        return !!this.form.projectName;
       }
       if (this.activeTab === 1) { // Cloud Provider tab
         // Cloud provider is optional - always valid
         return true;
       }
       if (this.activeTab === 2) { // Kubernetes tab
-        // If None is selected, no validation needed
-        if (this.form.kubernetesType === 'None' || !this.form.kubernetesType) {
-          return true;
-        }
-        // Otherwise require kubernetesType and instanceType
-        return !!(this.form.kubernetesType && this.form.instanceType);
+        // Kubernetes is optional - always valid
+        return true;
       }
       return true;
     },
@@ -759,38 +755,38 @@ export default {
     async createProject() {
       try {
         // Only validate essential fields
-        if (!this.form.projectName || !this.form.environment) {
-          this.$toast?.error('Project Name and Environment are required.');
+        if (!this.form.projectName) {
+          this.$toast?.error('Project Name is required.');
           return;
         }
 
         // Create project data object
         const projectData = {
           name: this.form.projectName,
-          description: this.form.projectDescription,
-          alert: this.form.enableAlerts,
-          demo: this.form.demo,
-          import: this.form.import,
+          description: this.form.projectDescription || '',
+          alert: this.form.enableAlerts || false,
+          demo: this.form.demo || false,
+          import: this.form.import || false,
           path: this.form.import ? this.form.path : null,
-          // Include environment builder configuration
+          // Include environment builder configuration only if we have data
           environment_config: {
-            environment: this.form.environment,
-            cloudProvider: this.form.cloudProvider,
-            kubernetesType: this.form.kubernetesType,
-            instanceType: this.form.instanceType,
-            controlPlaneNodes: this.form.controlPlaneNodes,
-            minWorkers: this.form.minWorkers,
-            maxWorkers: this.form.maxWorkers,
-            goldenImage: this.form.goldenImage,
-            isStigCompliant: this.form.isStigCompliant,
-            jumpbox: this.form.jumpbox,
-            jumpboxStigCompliant: this.form.jumpboxStigCompliant,
-            additionalSoftware: this.form.additionalSoftware,
+            environment: this.form.environment || '',
+            cloudProvider: this.form.cloudProvider || null,
+            kubernetesType: this.form.kubernetesType || null,
+            instanceType: this.form.instanceType || null,
+            controlPlaneNodes: this.form.controlPlaneNodes || null,
+            minWorkers: this.form.minWorkers || null,
+            maxWorkers: this.form.maxWorkers || null,
+            goldenImage: this.form.goldenImage || null,
+            isStigCompliant: this.form.isStigCompliant || false,
+            jumpbox: this.form.jumpbox || false,
+            jumpboxStigCompliant: this.form.jumpboxStigCompliant || false,
+            additionalSoftware: this.form.additionalSoftware || {},
             cloudProviderConfig: {
-              azure: this.form.azure,
-              aws: this.form.aws,
-              gcp: this.form.gcp,
-              vmware: this.form.vmware,
+              azure: this.form.azure || {},
+              aws: this.form.aws || {},
+              gcp: this.form.gcp || {},
+              vmware: this.form.vmware || {},
             },
           },
         };
