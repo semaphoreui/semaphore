@@ -423,7 +423,7 @@
                   v-on="on"
                 >
                   <img
-                    style="border-radius: 30px; max-width: 100%;"
+                    style="border-radius: 50%; max-width: 100%; height: auto; width: 24px;"
                     :src="`flags/${lang.flag}.svg`"
                     alt=""
                   />
@@ -439,7 +439,7 @@
 
                   <v-list-item-icon>
                     <v-img
-                      style="border-radius: 20px; max-width: 24px;"
+                      style="border-radius: 50%; max-width: 24px; height: 24px;"
                       :src="`flags/${lang.flag}.svg`"
                       alt=""
                     />
@@ -1057,7 +1057,7 @@ export default {
       languages: [
         {
           id: '',
-          flag: 'us',
+          flag: 'usa',
           title: 'System',
         },
         ...Object.keys(LANGUAGES).map((lang) => ({
