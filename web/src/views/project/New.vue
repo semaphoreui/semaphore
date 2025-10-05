@@ -458,7 +458,7 @@
               v-if="activeTab === totalTabs - 1"
               color="primary"
               :disabled="!isCurrentTabValid"
-              @click="() => { console.log('Create button clicked!'); createProject(); }"
+              @click="createProject"
             >
               {{ $t('create') }}
           </v-btn>
@@ -757,23 +757,12 @@ export default {
     },
 
     async createProject() {
-      console.log('=== CREATE PROJECT DEBUG START ===');
-      console.log('Form validation state:', this.isValid);
-      console.log('Current tab:', this.activeTab);
-      console.log('Current tab valid:', this.isCurrentTabValid);
-      console.log('Form data:', JSON.stringify(this.form, null, 2));
-
       try {
         // Only validate essential fields
         if (!this.form.projectName || !this.form.environment) {
-          console.log('Validation failed: Missing projectName or environment');
-          console.log('projectName:', this.form.projectName);
-          console.log('environment:', this.form.environment);
           this.$toast?.error('Project Name and Environment are required.');
           return;
         }
-
-        console.log('Basic validation passed, creating project data...');
 
         // Create project data object
         const projectData = {
@@ -806,36 +795,22 @@ export default {
           },
         };
 
-        console.log('Project data to send:', JSON.stringify(projectData, null, 2));
-        console.log('Making API call to /api/project...');
-
         // Create the project via API
         const response = await axios.post('/api/project', projectData);
-        console.log('API response received:', response);
         const createdProject = response.data;
-        console.log('Created project:', createdProject);
 
         // Emit the project creation event to update the UI
-        console.log('Emitting i-project event...');
         EventBus.$emit('i-project', {
           action: 'new',
           item: createdProject,
         });
 
         // Show success message
-        console.log('Showing success message...');
         this.$toast?.success('Project created successfully!');
 
         // Redirect to the newly created project
-        console.log('Redirecting to project:', createdProject.id);
         this.$router.push(`/project/${createdProject.id}`);
-        console.log('=== CREATE PROJECT DEBUG END (SUCCESS) ===');
       } catch (error) {
-        console.log('=== CREATE PROJECT DEBUG END (ERROR) ===');
-        console.error('Error creating project:', error);
-        console.error('Error response:', error.response);
-        console.error('Error status:', error.response?.status);
-        console.error('Error data:', error.response?.data);
         this.$toast?.error('Failed to create project. Please try again.');
       }
     },
