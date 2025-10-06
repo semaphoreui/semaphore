@@ -280,7 +280,10 @@ export default {
     },
     async afterSave() {
       // Import compliance tasks after saving if compliance is enabled
-      if (this.complianceEnabled && this.complianceFramework && this.complianceOS && this.itemId !== 'new') {
+      if (this.complianceEnabled
+        && this.complianceFramework
+        && this.complianceOS
+        && this.itemId !== 'new') {
         try {
           await this.importComplianceTasks();
         } catch (error) {
