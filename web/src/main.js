@@ -2,6 +2,7 @@ import Vue from 'vue';
 import axios from 'axios';
 import { AnsiUp } from 'ansi_up';
 import { Line, Bar } from 'vue-chartjs/legacy';
+import Flag from 'vue-flagpack';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -107,6 +108,10 @@ Vue.filter('formatMilliseconds', (value) => {
 
 Vue.component('LineChartGenerator', Line);
 Vue.component('BarChartGenerator', Bar);
+
+Vue.use(Flag, {
+  name: 'Flag',
+});
 
 new Vue({
   router,

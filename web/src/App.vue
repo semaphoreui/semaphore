@@ -517,10 +517,11 @@
                   v-bind="attrs"
                   v-on="on"
                 >
-                  <img
-                    style="border-radius: 50%; max-width: 100%; height: auto; width: 24px;"
-                    :src="`flags/${this.lang.flag}.svg`"
-                    alt=""
+                  <Flag
+                    :code="this.lang.flag"
+                    size="S"
+                    :has-border="false"
+                    :has-border-radius="true"
                   />
                 </v-btn>
               </template>
@@ -533,10 +534,11 @@
                 >
 
                   <v-list-item-icon>
-                    <v-img
-                      style="border-radius: 50%; max-width: 24px; height: 24px;"
-                      :src="`flags/${lang.flag}.svg`"
-                      alt=""
+                    <Flag
+                      :code="lang.flag"
+                      size="S"
+                      :has-border="false"
+                      :has-border-radius="true"
                     />
                   </v-list-item-icon>
 
@@ -1046,55 +1048,55 @@ const PROJECT_COLORS = [
 const LANGUAGES = {
   usa: {
     title: 'English (US)',
-    flag: 'usa',
+    flag: 'US',
   },
   en: {
     title: 'English (UK)',
-    flag: 'en',
+    flag: 'GB',
   },
   es: {
     title: 'Español',
-    flag: 'es',
+    flag: 'ES',
   },
   ru: {
     title: 'Russian',
-    flag: 'ru',
+    flag: 'RU',
   },
   de: {
     title: 'German',
-    flag: 'de',
+    flag: 'DE',
   },
   nl: {
     title: 'Dutch (Netherlands)',
-    flag: 'nl',
+    flag: 'NL',
   },
   zh_cn: {
     title: '中文(大陆)',
-    flag: 'zh_cn',
+    flag: 'CN',
   },
   zh_tw: {
     title: '中文(台灣)',
-    flag: 'zh_tw',
+    flag: 'TW',
   },
   fr: {
     title: 'French',
-    flag: 'fr',
+    flag: 'FR',
   },
   it: {
     title: 'Italian',
-    flag: 'it',
+    flag: 'IT',
   },
   pl: {
     title: 'Polish',
-    flag: 'pl',
+    flag: 'PL',
   },
   pt: {
     title: 'Portuguese',
-    flag: 'pt',
+    flag: 'PT',
   },
   pt_br: {
     title: 'Português do Brasil',
-    flag: 'pt_br',
+    flag: 'BR',
   },
 };
 
