@@ -387,7 +387,7 @@ export default {
     },
 
     showDrawer() {
-      this.$emit('show-drawer');
+      this.$emit('i-show-drawer');
     },
 
     handleViewTask(task) {

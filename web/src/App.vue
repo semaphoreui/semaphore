@@ -518,7 +518,7 @@
                   v-on="on"
                 >
                   <Flag
-                    :code="this.lang.flag"
+                    :code="lang.flag"
                     size="S"
                     :has-border="false"
                     :has-border-radius="true"

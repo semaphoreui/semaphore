@@ -80,6 +80,19 @@
       persistent-hint
     />
 
+    <!-- Test Alerts Button -->
+    <div v-if="itemId !== 'new'" class="mt-4">
+      <v-btn
+        color="blue-grey"
+        @click="testAlerts"
+        :disabled="testNotificationProgress"
+        data-testid="settings-testAlerts"
+      >
+        <v-icon left>mdi-test-tube</v-icon>
+        Test Alerts
+      </v-btn>
+    </div>
+
     <!-- Compliance Framework Section -->
     <v-divider class="my-6"></v-divider>
     <v-subheader class="px-0">
@@ -96,7 +109,7 @@
     />
 
     <v-expand-transition>
-      <div v-if="complianceEnabled">
+      <div v-if="complianceEnabled || itemId !== 'new'">
         <v-row>
           <v-col cols="12" md="6">
             <v-select
@@ -216,6 +229,7 @@ export default {
       ],
       importingTasks: false,
       hasImportedTasks: false,
+      testNotificationProgress: false,
     };
   },
   created() {
@@ -321,7 +335,9 @@ export default {
       try {
         const response = await axios.get(`/api/project/${this.itemId}/folders/templates`);
         const folders = response.data.folders || [];
-        this.hasImportedTasks = folders.some((folder) => folder.name.includes('STIG') || folder.name.includes('CIS'));
+        this.hasImportedTasks = folders.some((folder) =>
+          folder.name.includes('STIG') || folder.name.includes('CIS')
+        );
       } catch (error) {
         console.error('Failed to check for imported tasks:', error);
         this.hasImportedTasks = false;
@@ -365,6 +381,23 @@ export default {
     viewImportedTasks() {
       // Navigate to the templates page to view imported tasks
       this.$router.push(`/project/${this.itemId}/templates`);
+    },
+
+    async testAlerts() {
+      this.testNotificationProgress = true;
+      try {
+        const response = await axios.post(`/api/project/${this.itemId}/test-notification`);
+        if (response.data.success) {
+          this.$emit('success', 'Test alert sent successfully!');
+        } else {
+          this.$emit('error', response.data.message || 'Failed to send test alert');
+        }
+      } catch (error) {
+        console.error('Failed to send test alert:', error);
+        this.$emit('error', 'Failed to send test alert. Please try again.');
+      } finally {
+        this.testNotificationProgress = false;
+      }
     },
   },
 };

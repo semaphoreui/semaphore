@@ -37,14 +37,7 @@
           />
         </div>
 
-        <div class="d-flex justify-space-between mt-4">
-          <v-btn
-            color="blue-grey"
-            @click="sendTestNotification()"
-            width="170"
-            :disabled="testNotificationProgress"
-            data-testid="settings-testAlerts"
-          >Test Alerts</v-btn>
+        <div class="d-flex justify-end mt-4">
           <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
         </div>
 

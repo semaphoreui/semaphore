@@ -149,6 +149,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 	}
 
 	desc = "Pings the website to provide a real-world example of using Forge."
+	demoFolder := "Demo"
 	_, err = store.CreateTemplate(db.Template{
 		Name:          "Ping digitaldata.co",
 		Playbook:      "ping.yml",
@@ -159,6 +160,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		RepositoryID:  demoRepo.ID,
 		App:           db.AppAnsible,
 		ViewID:        &toolsView.ID,
+		Folder:        &demoFolder,
 	})
 
 	if err != nil {
@@ -179,6 +181,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		StartVersion:  &startVersion,
 		App:           db.AppAnsible,
 		ViewID:        &buildView.ID,
+		Folder:        &demoFolder,
 	})
 
 	if err != nil {
@@ -198,6 +201,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Autorun:         true,
 		App:             db.AppAnsible,
 		ViewID:          &deployView.ID,
+		Folder:          &demoFolder,
 	})
 
 	if err != nil {
@@ -227,6 +231,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppAnsible,
 		ViewID:          &deployView.ID,
+		Folder:          &demoFolder,
 	})
 
 	if err != nil {
@@ -255,6 +260,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppTofu,
 		ViewID:          &buildView.ID,
+		Folder:          &demoFolder,
 	})
 
 	if err != nil {
@@ -271,6 +277,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppTerragrunt,
 		ViewID:          &buildView.ID,
+		Folder:          &demoFolder,
 	})
 
 	if err != nil {
@@ -288,6 +295,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppBash,
 		ViewID:          &toolsView.ID,
+		Folder:          &demoFolder,
 	})
 
 	if err != nil {
@@ -305,6 +313,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppPowerShell,
 		ViewID:          &toolsView.ID,
+		Folder:          &demoFolder,
 	})
 	return
 }

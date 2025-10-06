@@ -1,30 +1,35 @@
 <template>
   <div v-if="folders && folders.length > 0">
-    <v-expansion-panels
-      v-model="expandedFolders"
-      multiple
-      class="mt-4"
-    >
-      <v-expansion-panel
+    <div class="mt-4">
+      <v-card
         v-for="folder in folders"
         :key="folder.name"
-        class="template-folder"
+        class="template-folder mb-4"
+        elevation="2"
       >
-        <v-expansion-panel-header>
+        <v-card-title
+          @click="toggleFolder(folder.name)"
+          class="folder-header clickable"
+          :class="{ 'folder-expanded': expandedFolders.includes(folder.name) }"
+        >
           <div class="d-flex align-center">
             <v-icon class="mr-3" :color="getFolderColor(folder.name)">
               {{ getFolderIcon(folder.name) }}
             </v-icon>
-            <div>
+            <div class="flex-grow-1">
               <div class="text-h6">{{ folder.name }}</div>
               <div class="text-caption text--secondary">
                 {{ folder.count }} {{ folder.count === 1 ? 'template' : 'templates' }}
               </div>
             </div>
+            <v-icon class="folder-arrow">
+              {{ expandedFolders.includes(folder.name) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+            </v-icon>
           </div>
-        </v-expansion-panel-header>
+        </v-card-title>
 
-        <v-expansion-panel-content>
+        <v-expand-transition>
+          <div v-show="expandedFolders.includes(folder.name)">
           <v-data-table
             :headers="headers"
             :items="folder.templates"
@@ -121,9 +126,10 @@
               </div>
             </template>
           </v-data-table>
-        </v-expansion-panel-content>
-      </v-expansion-panel>
-    </v-expansion-panels>
+          </div>
+        </v-expand-transition>
+      </v-card>
+    </div>
   </div>
 
   <div v-else-if="!loading" class="text-center pa-8">
@@ -276,6 +282,15 @@ export default {
       // This should be passed from parent component
       return this.$parent.can ? this.$parent.can(permission) : true;
     },
+
+    toggleFolder(folderName) {
+      const index = this.expandedFolders.indexOf(folderName);
+      if (index > -1) {
+        this.expandedFolders.splice(index, 1);
+      } else {
+        this.expandedFolders.push(folderName);
+      }
+    },
   },
 };
 </script>
@@ -296,5 +311,26 @@ export default {
 
 .task-name-link:hover {
   text-decoration: underline;
+}
+
+.folder-header {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.folder-header:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.folder-header.folder-expanded {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.folder-arrow {
+  transition: transform 0.2s ease;
+}
+
+.clickable {
+  user-select: none;
 }
 </style>
