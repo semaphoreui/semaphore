@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Modelos de Tarefa',
   inventory: 'Inventário',
   environment: 'Grupos de Variáveis',
-  keyStore: 'Armazenamento de Chaves',
+  keyStore: 'Cofres',
   repositories: 'Repositórios',
   darkMode: 'Modo Escuro',
   team: 'Equipe',

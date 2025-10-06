@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Modèles de tâches',
   inventory: 'Inventaire',
   environment: 'Groupes de variables',
-  keyStore: 'Magasin de clés',
+  keyStore: 'Coffres-forts',
   repositories: 'Dépôts',
   darkMode: 'Mode sombre',
   team: 'Équipe',

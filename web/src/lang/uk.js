@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Шаблони завдань',
   inventory: 'Інвентар',
   environment: 'Змінні середовища',
-  keyStore: 'Сховище ключів',
+  keyStore: 'Сховища',
   repositories: 'Репозиторії',
   darkMode: 'Темний режим',
   team: 'Команда',

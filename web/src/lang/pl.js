@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Szablony zadań',
   inventory: 'Inwentarz',
   environment: 'Grupy zmiennych',
-  keyStore: 'Magazyn kluczy',
+  keyStore: 'Skarbce',
   repositories: 'Repozytoria',
   darkMode: 'Tryb ciemny',
   team: 'Zespół',

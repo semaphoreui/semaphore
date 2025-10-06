@@ -44,7 +44,7 @@ export default {
   taskTemplates: '任務範本',
   inventory: '庫存',
   environment: '變數群組',
-  keyStore: '金鑰儲存',
+  keyStore: '保險庫',
   repositories: '儲存庫',
   darkMode: '黑暗模式',
   team: '團隊',

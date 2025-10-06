@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Taak Sjablonen',
   inventory: 'Inventaris',
   environment: 'Variabele Groepen',
-  keyStore: 'Sleutel Opslag',
+  keyStore: 'Kluizen',
   repositories: 'Repositories',
   darkMode: 'Donkere Modus',
   team: 'Team',

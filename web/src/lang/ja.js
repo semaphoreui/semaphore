@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'タスクテンプレート',
   inventory: 'インベントリ',
   environment: '変数グループ',
-  keyStore: 'キーのストア',
+  keyStore: '金庫',
   repositories: 'リポジトリ',
   darkMode: 'ダークモード',
   team: 'チーム',

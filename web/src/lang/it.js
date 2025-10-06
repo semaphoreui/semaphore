@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Modelli di compito',
   inventory: 'Inventario',
   environment: 'Gruppi di variabili',
-  keyStore: 'Negozio chiavi',
+  keyStore: 'Casseforti',
   repositories: 'Repository',
   darkMode: 'Modalità scura',
   team: 'Team',

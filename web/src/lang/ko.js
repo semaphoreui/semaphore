@@ -44,7 +44,7 @@ export default {
   taskTemplates: '작업 템플릿',
   inventory: '인벤토리',
   environment: '변수 그룹',
-  keyStore: '키 저장소',
+  keyStore: '금고',
   repositories: '리포지토리',
   darkMode: '다크 모드',
   team: '팀',

@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Aufgaben',
   inventory: 'Inventar',
   environment: 'Variablengruppen',
-  keyStore: 'Schlüsselspeicher',
+  keyStore: 'Tresore',
   repositories: 'Repositories',
   darkMode: 'Dunkelmodus',
   team: 'Team',

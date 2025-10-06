@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Tasks',
   inventory: 'Inventories',
   environment: 'Variable Groups',
-  keyStore: 'Key Stores',
+  keyStore: 'Vaults',
   repositories: 'Repositories',
   darkMode: 'Dark Mode',
   team: 'Team',

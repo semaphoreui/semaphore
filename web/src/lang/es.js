@@ -44,7 +44,7 @@ export default {
   taskTemplates: 'Tareas',
   inventory: 'Inventario',
   environment: 'Grupos de Variables',
-  keyStore: 'Almacén de Claves',
+  keyStore: 'Bóvedas',
   repositories: 'Repositorios',
   darkMode: 'Modo Oscuro',
   team: 'Equipo',

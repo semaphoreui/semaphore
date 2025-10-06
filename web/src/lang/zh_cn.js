@@ -44,7 +44,7 @@ export default {
   taskTemplates: '任务模板',
   inventory: '库存',
   environment: '变量组',
-  keyStore: '密钥存储',
+  keyStore: '保险库',
   repositories: '仓库',
   darkMode: '黑暗模式',
   team: '团队',
