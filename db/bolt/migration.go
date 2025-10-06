@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"encoding/json"
+
 	"github.com/Digital-Data-Co/forge/db"
 	"go.etcd.io/bbolt"
 )
@@ -53,6 +54,8 @@ func (d *BoltDb) ApplyMigration(m db.Migration) (err error) {
 		err = migration_2_14_7{migration{d.db}}.Apply()
 	case "2.16.4":
 		err = migration_2_16_4{migration{d.db}}.Apply()
+	case "2.20.0":
+		err = d.migration_2_20_0()
 	}
 
 	if err != nil {

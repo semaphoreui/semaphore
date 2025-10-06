@@ -382,3 +382,68 @@ func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (out
 	_, err = d.selectAll(&output, query, args...)
 	return
 }
+
+func (d *SqlDb) CreateTaskFile(taskFile db.TaskFile) (db.TaskFile, error) {
+	err := taskFile.PreInsert(d.Sql())
+	if err != nil {
+		return db.TaskFile{}, err
+	}
+
+	insertID, err := d.insert(
+		"id",
+		"insert into task__file (task_id, project_id, filename, original_path, file_size, mime_type, checksum, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		taskFile.TaskID,
+		taskFile.ProjectID,
+		taskFile.Filename,
+		taskFile.OriginalPath,
+		taskFile.FileSize,
+		taskFile.MimeType,
+		taskFile.Checksum,
+		taskFile.Created.UTC())
+
+	taskFile.ID = insertID
+	return taskFile, err
+}
+
+func (d *SqlDb) GetTaskFiles(projectID int, taskID int) ([]db.TaskFile, error) {
+	var result []db.TaskFile
+	
+	query, args, err := squirrel.Select("id", "task_id", "project_id", "filename", "original_path", "file_size", "mime_type", "checksum", "created").
+		From("task__file").
+		Where("project_id = ? AND task_id = ?", projectID, taskID).
+		OrderBy("created DESC").
+		ToSql()
+	
+	if err != nil {
+		return result, err
+	}
+	
+	_, err = d.selectAll(&result, query, args...)
+	return result, err
+}
+
+func (d *SqlDb) GetTaskFile(projectID int, taskID int, fileID int) (db.TaskFile, error) {
+	var result db.TaskFile
+	
+	query, args, err := squirrel.Select("id", "task_id", "project_id", "filename", "original_path", "file_size", "mime_type", "checksum", "created").
+		From("task__file").
+		Where("project_id = ? AND task_id = ? AND id = ?", projectID, taskID, fileID).
+		ToSql()
+	
+	if err != nil {
+		return result, err
+	}
+	
+	err = d.selectOne(&result, query, args...)
+	return result, err
+}
+
+func (d *SqlDb) DeleteTaskFile(projectID int, taskID int, fileID int) error {
+	_, err := d.exec("DELETE FROM task__file WHERE project_id = ? AND task_id = ? AND id = ?", projectID, taskID, fileID)
+	return err
+}
+
+func (d *SqlDb) DeleteTaskFiles(projectID int, taskID int) error {
+	_, err := d.exec("DELETE FROM task__file WHERE project_id = ? AND task_id = ?", projectID, taskID)
+	return err
+}

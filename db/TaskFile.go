@@ -3,6 +3,7 @@ package db
 import (
 	"time"
 
+	"github.com/Digital-Data-Co/forge/pkg/tz"
 	"github.com/go-gorp/gorp/v3"
 )
 
@@ -22,7 +23,7 @@ type TaskFile struct {
 
 // PreInsert sets the created timestamp before inserting
 func (tf *TaskFile) PreInsert(s gorp.SqlExecutor) error {
-	tf.Created = time.Now()
+	tf.Created = tz.Now()
 	return nil
 }
 

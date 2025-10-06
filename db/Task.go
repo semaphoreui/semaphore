@@ -245,3 +245,4 @@ type TaskStageResult struct {
 	StageID int    `db:"stage_id" json:"stage_id"`
 	JSON    string `db:"json" json:"json"`
 }
+

@@ -712,6 +712,16 @@ var TaskStageResultProps = ObjectProps{
 	Type:      reflect.TypeOf(TaskStageResult{}),
 }
 
+var TaskFileProps = ObjectProps{
+	TableName:             "task__file",
+	Type:                  reflect.TypeOf(TaskFile{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "file_id",
+	SortableColumns:       []string{"filename", "created"},
+	DefaultSortingColumn:  "created",
+	SortInverted:          true,
+}
+
 var ViewProps = ObjectProps{
 	TableName:            "project__view",
 	Type:                 reflect.TypeOf(View{}),
