@@ -321,9 +321,7 @@ export default {
       try {
         const response = await axios.get(`/api/project/${this.itemId}/folders/templates`);
         const folders = response.data.folders || [];
-        this.hasImportedTasks = folders.some((folder) =>
-          folder.name.includes('STIG') || folder.name.includes('CIS')
-        );
+        this.hasImportedTasks = folders.some((folder) => folder.name.includes('STIG') || folder.name.includes('CIS'));
       } catch (error) {
         console.error('Failed to check for imported tasks:', error);
         this.hasImportedTasks = false;
