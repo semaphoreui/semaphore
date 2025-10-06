@@ -209,7 +209,7 @@
           <v-divider v-if="user.can_create_project"/>
 
           <v-list-item
-            @click="showNewProjectDialogue()"
+            :to="`/project/new`"
             v-if="user.can_create_project"
             data-testid="sidebar-newProject"
           >

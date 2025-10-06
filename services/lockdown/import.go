@@ -48,6 +48,30 @@ func (s *ImportService) ImportComplianceTasks(ctx context.Context, projectID int
 		defaultEnvID = &environments[0].ID
 	}
 
+	// Get or create default inventory
+	inventories, err := s.store.GetInventories(projectID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	if err != nil {
+		return fmt.Errorf("failed to get inventories: %w", err)
+	}
+
+	var defaultInventoryID *int
+	if len(inventories) > 0 {
+		defaultInventoryID = &inventories[0].ID
+	} else {
+		// Create a default inventory for compliance tasks
+		defaultInventory := db.Inventory{
+			Name:      "Default Compliance Inventory",
+			ProjectID: projectID,
+			Inventory: "localhost ansible_connection=local",
+			Type:      db.InventoryStatic,
+		}
+		createdInventory, err := s.store.CreateInventory(defaultInventory)
+		if err != nil {
+			return fmt.Errorf("failed to create default inventory: %w", err)
+		}
+		defaultInventoryID = &createdInventory.ID
+	}
+
 	// Get or create default repository
 	repositories, err := s.store.GetRepositories(projectID, db.RetrieveQueryParams{})
 	if err != nil {
@@ -106,6 +130,7 @@ func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role
 			Playbook:      s.generatePlaybook(task),
 			ProjectID:     projectID,
 			EnvironmentID: envID,
+			InventoryID:   defaultInventoryID,
 			RepositoryID:  *repoID,
 			App:           db.AppAnsible,
 			Description:   &task.Description,
