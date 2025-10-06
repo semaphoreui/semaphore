@@ -438,6 +438,15 @@
   background-color: rgba(25, 118, 210, 0.04) !important;
 }
 
+.auth h1,
+.auth h2,
+.auth h3,
+.auth h4,
+.auth h5,
+.auth h6 {
+  color: #000000 !important;
+}
+
 @media (max-width: 960px) {
   .brand-logo h1 {
     font-size: 2.5rem !important;

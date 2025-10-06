@@ -2,12 +2,13 @@ package db
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/forge/pkg/tz"
-	"github.com/Digital-Data-Co/forge/util"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Digital-Data-Co/forge/pkg/tz"
+	"github.com/Digital-Data-Co/forge/util"
 )
 
 // Migration represents sql schema version

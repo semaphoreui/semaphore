@@ -1050,39 +1050,51 @@ const LANGUAGES = {
   },
   en: {
     title: 'English (UK)',
+    flag: 'en',
   },
   es: {
     title: 'Español',
+    flag: 'es',
   },
   ru: {
     title: 'Russian',
+    flag: 'ru',
   },
   de: {
     title: 'German',
+    flag: 'de',
   },
   nl: {
     title: 'Dutch (Netherlands)',
+    flag: 'nl',
   },
   zh_cn: {
     title: '中文(大陆)',
+    flag: 'zh_cn',
   },
   zh_tw: {
     title: '中文(台灣)',
+    flag: 'zh_tw',
   },
   fr: {
     title: 'French',
+    flag: 'fr',
   },
   it: {
     title: 'Italian',
+    flag: 'it',
   },
   pl: {
     title: 'Polish',
+    flag: 'pl',
   },
   pt: {
     title: 'Portuguese',
+    flag: 'pt',
   },
   pt_br: {
     title: 'Português do Brasil',
+    flag: 'pt_br',
   },
 };
 
@@ -1101,7 +1113,10 @@ function getLangInfo(locale) {
     res = LANGUAGES[lang];
   }
 
-  res.flag = lang;
+  // Use the flag from LANGUAGES configuration
+  if (res && !res.flag) {
+    res.flag = lang;
+  }
 
   return res;
 }
@@ -1149,18 +1164,10 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
-      languages: [
-        {
-          id: '',
-          flag: 'usa',
-          title: 'System',
-        },
-        ...Object.keys(LANGUAGES).map((lang) => ({
-          id: lang,
-          flag: lang,
-          ...LANGUAGES[lang],
-        })),
-      ],
+      languages: Object.keys(LANGUAGES).map((lang) => ({
+        id: lang,
+        ...LANGUAGES[lang],
+      })),
     };
   },
 

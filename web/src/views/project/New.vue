@@ -886,8 +886,8 @@ export default {
           } catch (importError) {
             console.warn('Failed to import compliance tasks:', importError);
             this.$toast?.warning(
-              'Project created but failed to import compliance tasks. ' +
-              'You can import them manually later.'
+              'Project created but failed to import compliance tasks. '
+              + 'You can import them manually later.',
             );
           }
         }
