@@ -98,7 +98,7 @@ func (s *ImportService) ImportComplianceTasks(ctx context.Context, projectID int
 
 	// Import tasks for each role
 	for _, role := range roles {
-		if err := s.importRoleTasks(ctx, projectID, role, defaultEnvID, defaultRepoID, complianceFramework, complianceOS); err != nil {
+		if err := s.importRoleTasks(ctx, projectID, role, defaultEnvID, defaultRepoID, defaultInventoryID, complianceFramework, complianceOS); err != nil {
 			log.Errorf("Failed to import tasks for role %s: %v", role.Name, err)
 			continue
 		}
@@ -109,7 +109,7 @@ func (s *ImportService) ImportComplianceTasks(ctx context.Context, projectID int
 }
 
 // importRoleTasks imports tasks for a specific compliance role
-func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role LockdownRole, envID, repoID *int, complianceFramework, complianceOS string) error {
+func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role LockdownRole, envID, repoID, inventoryID *int, complianceFramework, complianceOS string) error {
 	log.Infof("Importing tasks for role: %s", role.Name)
 
 	// Get tasks from the role
@@ -130,7 +130,7 @@ func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role
 			Playbook:      s.generatePlaybook(task),
 			ProjectID:     projectID,
 			EnvironmentID: envID,
-			InventoryID:   defaultInventoryID,
+			InventoryID:   inventoryID,
 			RepositoryID:  *repoID,
 			App:           db.AppAnsible,
 			Description:   &task.Description,
