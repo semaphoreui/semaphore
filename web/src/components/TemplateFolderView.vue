@@ -8,7 +8,7 @@
         elevation="2"
       >
         <v-card-title
-          @click="toggleFolder(folder.name)"
+          @click.stop="toggleFolder(folder.name)"
           class="folder-header clickable"
           :class="{ 'folder-expanded': expandedFolders.includes(folder.name) }"
         >
@@ -29,7 +29,7 @@
         </v-card-title>
 
         <v-expand-transition>
-          <div v-show="expandedFolders.includes(folder.name)">
+          <div v-if="expandedFolders.includes(folder.name)">
           <v-data-table
             :headers="headers"
             :items="folder.templates"
@@ -178,6 +178,18 @@ export default {
     };
   },
 
+  watch: {
+    folders: {
+      handler(newFolders) {
+        console.log('Folders updated:', newFolders);
+        if (newFolders && newFolders.length > 0) {
+          console.log('First folder templates:', newFolders[0].templates);
+        }
+      },
+      immediate: true,
+    },
+  },
+
   computed: {
     headers() {
       return [
@@ -284,12 +296,17 @@ export default {
     },
 
     toggleFolder(folderName) {
+      console.log('Toggling folder:', folderName);
+      console.log('Current expanded folders:', this.expandedFolders);
       const index = this.expandedFolders.indexOf(folderName);
       if (index > -1) {
         this.expandedFolders.splice(index, 1);
+        console.log('Collapsed folder:', folderName);
       } else {
         this.expandedFolders.push(folderName);
+        console.log('Expanded folder:', folderName);
       }
+      console.log('New expanded folders:', this.expandedFolders);
     },
   },
 };

@@ -65,6 +65,8 @@ export default {
   forge: 'セマフォ',
   dontHaveAccountOrCantSignIn: 'アカウントがないか、サインインできませんか？',
   password2: 'パスワード',
+
+  confirmPassword: 'パスワード確認',
   cancel: 'キャンセル',
   noViews: 'ビューがありません',
   addView: 'ビューを追加',

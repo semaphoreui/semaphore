@@ -65,6 +65,8 @@ export default {
   forge: '세마포어',
   dontHaveAccountOrCantSignIn: '계정이 없거나 로그인할 수 없습니까?',
   password2: '비밀번호',
+
+  confirmPassword: '비밀번호 확인',
   cancel: '취소',
   noViews: '보기 없음',
   addView: '보기 추가',

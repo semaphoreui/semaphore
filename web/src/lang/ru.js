@@ -65,6 +65,8 @@ export default {
   forge: 'СИГНАЛ',
   dontHaveAccountOrCantSignIn: 'Нет аккаунта или не можете войти?',
   password2: 'Пароль',
+
+  confirmPassword: 'Подтвердить пароль',
   cancel: 'Отмена',
   noViews: 'Нет представлений',
   addView: 'Добавить представление',

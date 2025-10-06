@@ -65,6 +65,8 @@ export default {
   forge: 'SEMÁFORO',
   dontHaveAccountOrCantSignIn: '¿No tienes cuenta o no puedes iniciar sesión?',
   password2: 'Contraseña',
+
+  confirmPassword: 'Confirmar Contraseña',
   cancel: 'Cancelar',
   noViews: 'Sin vistas',
   addView: 'Agregar vista',

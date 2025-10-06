@@ -65,6 +65,8 @@ export default {
   forge: 'SEMAFOR',
   dontHaveAccountOrCantSignIn: 'Nie masz konta lub nie możesz się zalogować?',
   password2: 'Hasło',
+
+  confirmPassword: 'Potwierdź Hasło',
   cancel: 'Anuluj',
   noViews: 'Brak widoków',
   addView: 'Dodaj widok',

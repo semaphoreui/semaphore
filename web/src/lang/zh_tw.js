@@ -65,6 +65,8 @@ export default {
   forge: '信號燈',
   dontHaveAccountOrCantSignIn: '沒有帳戶或無法登入？',
   password2: '密碼',
+
+  confirmPassword: '確認密碼',
   cancel: '取消',
   noViews: '沒有視圖',
   addView: '新增視圖',

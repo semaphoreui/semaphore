@@ -65,6 +65,8 @@ export default {
   forge: 'SEMAFORO',
   dontHaveAccountOrCantSignIn: 'Não tem conta ou não consegue entrar?',
   password2: 'Senha',
+
+  confirmPassword: 'Confirmar Senha',
   cancel: 'Cancelar',
   noViews: 'Sem visualizações',
   addView: 'Adicionar visualização',

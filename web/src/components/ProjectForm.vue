@@ -103,7 +103,7 @@
     <v-switch
       v-model="complianceEnabled"
       :label="$t('enableComplianceFramework')"
-      class="mt-2"
+      class="mt-2 mb-4"
       hide-details
       @change="onComplianceToggle"
     />

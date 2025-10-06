@@ -244,6 +244,7 @@
 
 <script>
 import axios from 'axios';
+import EventBus from '@/lib/eventBus';
 import complianceService from '@/lib/complianceService';
 import ComplianceTrendsChart from '@/components/compliance/ComplianceTrendsChart.vue';
 import TaskComplianceTable from '@/components/compliance/TaskComplianceTable.vue';
@@ -387,7 +388,7 @@ export default {
     },
 
     showDrawer() {
-      this.$emit('i-show-drawer');
+      EventBus.$emit('i-show-drawer');
     },
 
     handleViewTask(task) {

@@ -493,58 +493,6 @@
       <template v-slot:append>
         <v-list class="pa-0">
 
-          <v-list-item>
-            <v-spacer/>
-
-            <v-menu
-              top
-              min-width="150"
-              max-width="235"
-              nudge-top="12"
-              :position-x="50"
-              absolute
-            >
-              <template v-slot:activator="{on, attrs}">
-                <v-btn
-                  icon
-                  v-bind="attrs"
-                  v-on="on"
-                >
-                  <Flag
-                    :code="lang.flag"
-                    size="S"
-                    :has-border="false"
-                    :has-border-radius="true"
-                  />
-                </v-btn>
-              </template>
-
-              <v-list dense>
-                <v-list-item
-                  v-for="lang in languages"
-                  :key="lang.id"
-                  @click="selectLanguage(lang.id)"
-                >
-
-                  <v-list-item-icon>
-                    <Flag
-                      :code="lang.flag"
-                      size="S"
-                      :has-border="false"
-                      :has-border-radius="true"
-                    />
-                  </v-list-item-icon>
-
-                  <v-list-item-content>
-                    <v-list-item-title>{{ lang.title }}</v-list-item-title>
-                  </v-list-item-content>
-
-                </v-list-item>
-              </v-list>
-            </v-menu>
-
-          </v-list-item>
-
           <v-menu top max-width="235" nudge-top="12">
             <template v-slot:activator="{ on, attrs }">
               <v-list-item
@@ -1159,10 +1107,6 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
-      languages: Object.keys(LANGUAGES).map((lang) => ({
-        id: lang,
-        ...LANGUAGES[lang],
-      })),
     };
   },
 
@@ -1418,11 +1362,6 @@ export default {
     showNewProjectDialogue(projectType = '') {
       this.newProjectDialog = true;
       this.newProjectType = projectType;
-    },
-
-    selectLanguage(lang) {
-      localStorage.setItem('lang', lang);
-      window.location.reload();
     },
 
     async onNewProjectDialogueClosed() {

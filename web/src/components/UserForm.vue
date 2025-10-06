@@ -138,8 +138,6 @@
             v-model="darkMode"
             :label="$t('darkMode')"
             class="mt-4"
-            prepend-icon="mdi-white-balance-sunny"
-            append-icon="mdi-weather-night"
             inset
             @change="onDarkModeChange"
           ></v-switch>

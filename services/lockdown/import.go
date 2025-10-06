@@ -121,6 +121,12 @@ func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role
 	// Create folder name based on framework and OS (matching logging format)
 	folderName := fmt.Sprintf("%s %s", complianceFramework, complianceOS)
 
+	// Get or create Compliance view
+	complianceViewID, err := s.getOrCreateComplianceView(projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get or create compliance view: %w", err)
+	}
+
 	// Create templates for each task
 	for _, task := range tasks {
 		template := db.Template{
@@ -134,6 +140,7 @@ func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role
 			RepositoryID:  *repoID,
 			App:           db.AppAnsible,
 			Description:   &task.Description,
+			ViewID:        &complianceViewID,
 		}
 
 		_, err := s.store.CreateTemplate(template)
@@ -223,4 +230,40 @@ func (s *ImportService) GetComplianceTemplates(projectID int) ([]db.Template, er
 	}
 
 	return complianceTemplates, nil
+}
+
+// getOrCreateComplianceView gets an existing Compliance view or creates a new one
+func (s *ImportService) getOrCreateComplianceView(projectID int) (int, error) {
+	// First, try to get existing views
+	views, err := s.store.GetViews(projectID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get views: %w", err)
+	}
+
+	// Look for existing Compliance view
+	for _, view := range views {
+		if view.Title == "Compliance" {
+			return view.ID, nil
+		}
+	}
+
+	// If no Compliance view exists, create one
+	// Find the highest position to place it after existing views
+	maxPosition := -1
+	for _, view := range views {
+		if view.Position > maxPosition {
+			maxPosition = view.Position
+		}
+	}
+
+	complianceView, err := s.store.CreateView(db.View{
+		ProjectID: projectID,
+		Title:     "Compliance",
+		Position:  maxPosition + 1,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to create compliance view: %w", err)
+	}
+
+	return complianceView.ID, nil
 }

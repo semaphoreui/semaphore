@@ -65,6 +65,8 @@ export default {
   forge: 'FORGE',
   dontHaveAccountOrCantSignIn: 'Haben Sie kein Konto oder können Sie sich nicht anmelden?',
   password2: 'Passwort',
+
+  confirmPassword: 'Passwort bestätigen',
   cancel: 'Abbrechen',
   noViews: 'Keine Ansichten',
   addView: 'Ansicht hinzufügen',

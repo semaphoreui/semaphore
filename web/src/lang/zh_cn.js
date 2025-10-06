@@ -65,6 +65,8 @@ export default {
   forge: '信号灯',
   dontHaveAccountOrCantSignIn: '没有账户或无法登录？',
   password2: '密码',
+
+  confirmPassword: '确认密码',
   cancel: '取消',
   noViews: '没有视图',
   addView: '添加视图',

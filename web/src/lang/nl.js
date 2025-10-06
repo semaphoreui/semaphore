@@ -65,6 +65,8 @@ export default {
   forge: 'FORGE',
   dontHaveAccountOrCantSignIn: 'Heeft u geen account of kunt u niet inloggen?',
   password2: 'Wachtwoord',
+
+  confirmPassword: 'Bevestig Wachtwoord',
   cancel: 'Annuleren',
   noViews: 'Geen weergaven',
   addView: 'Weergave Toevoegen',
