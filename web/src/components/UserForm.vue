@@ -94,6 +94,56 @@
             dense
           ></v-text-field>
 
+          <!-- Language Selection -->
+          <v-select
+            v-model="selectedLanguage"
+            :items="languageOptions"
+            label="Language"
+            outlined
+            dense
+            class="mt-4"
+            @change="onLanguageChange"
+          >
+            <template v-slot:item="{ item }">
+              <v-list-item>
+                <v-list-item-icon>
+                  <Flag
+                    :code="item.flag"
+                    size="S"
+                    :has-border="false"
+                    :has-border-radius="true"
+                  />
+                </v-list-item-icon>
+                <v-list-item-content>
+                  <v-list-item-title>{{ item.title }}</v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </template>
+            <template v-slot:selection="{ item }">
+              <div class="d-flex align-center">
+                <Flag
+                  :code="item.flag"
+                  size="S"
+                  :has-border="false"
+                  :has-border-radius="true"
+                  class="mr-2"
+                />
+                <span>{{ item.title }}</span>
+              </div>
+            </template>
+          </v-select>
+
+          <!-- Dark Mode Switch -->
+          <v-switch
+            v-model="darkMode"
+            :label="$t('darkMode')"
+            class="mt-4"
+            prepend-icon="mdi-white-balance-sunny"
+            append-icon="mdi-weather-night"
+            inset
+            @change="onDarkModeChange"
+          ></v-switch>
+
           <v-row class="pb-5 pt-2">
             <v-col cols="6">
               <v-switch
@@ -189,9 +239,75 @@ import axios from 'axios';
 import EditDialog from '@/components/EditDialog.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import Flag from 'vue-flagpack';
+
+// Language options (same as in App.vue)
+const LANGUAGES = {
+  usa: {
+    title: 'English (US)',
+    flag: 'US',
+  },
+  en: {
+    title: 'English (UK)',
+    flag: 'GB',
+  },
+  es: {
+    title: 'Español',
+    flag: 'ES',
+  },
+  ru: {
+    title: 'Russian',
+    flag: 'RU',
+  },
+  de: {
+    title: 'German',
+    flag: 'DE',
+  },
+  nl: {
+    title: 'Dutch (Netherlands)',
+    flag: 'NL',
+  },
+  zh_cn: {
+    title: '中文(大陆)',
+    flag: 'CN',
+  },
+  zh_tw: {
+    title: '中文(台灣)',
+    flag: 'TW',
+  },
+  fr: {
+    title: 'Français',
+    flag: 'FR',
+  },
+  it: {
+    title: 'Italiano',
+    flag: 'IT',
+  },
+  pt: {
+    title: 'Português',
+    flag: 'PT',
+  },
+  ja: {
+    title: '日本語',
+    flag: 'JP',
+  },
+  ko: {
+    title: '한국어',
+    flag: 'KR',
+  },
+  br: {
+    title: 'Português do Brasil',
+    flag: 'BR',
+  },
+};
 
 export default {
-  components: { CopyClipboardButton, ChangePasswordForm, EditDialog },
+  components: {
+    CopyClipboardButton,
+    ChangePasswordForm,
+    EditDialog,
+    Flag,
+  },
   props: {
     isAdmin: Boolean,
     authMethods: Object,
@@ -204,9 +320,16 @@ export default {
       passwordDialog: null,
       totpEnabled: false,
       totpQrUrl: null,
+      darkMode: false,
+      selectedLanguage: 'usa',
+      languageOptions: [],
 
       tab: null,
     };
+  },
+
+  created() {
+    this.loadUserSettings();
   },
 
   watch: {
@@ -268,6 +391,35 @@ export default {
 
     getSingleItemUrl() {
       return `/api/users/${this.itemId}`;
+    },
+
+    onDarkModeChange() {
+      this.$vuetify.theme.dark = this.darkMode;
+      if (this.darkMode) {
+        localStorage.setItem('darkMode', '1');
+      } else {
+        localStorage.removeItem('darkMode');
+      }
+    },
+
+    onLanguageChange() {
+      localStorage.setItem('lang', this.selectedLanguage);
+      window.location.reload();
+    },
+
+    loadUserSettings() {
+      // Load current dark mode setting
+      this.darkMode = localStorage.getItem('darkMode') === '1';
+
+      // Load current language setting
+      const currentLang = localStorage.getItem('lang') || 'usa';
+      this.selectedLanguage = currentLang;
+
+      // Initialize language options
+      this.languageOptions = Object.keys(LANGUAGES).map((lang) => ({
+        id: lang,
+        ...LANGUAGES[lang],
+      }));
     },
   },
 };

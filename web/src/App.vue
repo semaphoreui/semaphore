@@ -494,13 +494,6 @@
         <v-list class="pa-0">
 
           <v-list-item>
-            <v-switch
-              class="DarkModeSwitch"
-              v-model="darkMode"
-              prepend-icon="mdi-white-balance-sunny"
-              append-icon="mdi-weather-night"
-            ></v-switch>
-
             <v-spacer/>
 
             <v-menu

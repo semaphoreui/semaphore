@@ -3,8 +3,8 @@ package projects
 import (
 	"net/http"
 
-	"github.com/Digital-Data-Co/forge/services/server"
 	"github.com/Digital-Data-Co/forge/services/lockdown"
+	"github.com/Digital-Data-Co/forge/services/server"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
@@ -343,7 +343,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	store := helpers.Store(r)
 
 	var err error
-	
+
 	// Check if this is a compliance project
 	if body.ComplianceFramework != nil && body.ComplianceOS != nil {
 		// Use lockdown service to create compliance project

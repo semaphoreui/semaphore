@@ -16,9 +16,25 @@
       :type="showPassword ? 'text' : 'password'"
       :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
       @click:append="showPassword = !showPassword"
-      :rules="[v => !!v || $t('password_required')]"
+      :rules="passwordRules"
       required
       :disabled="formSaving"
+      outlined
+      dense
+    ></v-text-field>
+
+    <v-text-field
+      v-model="item.confirmPassword"
+      :label="$t('confirmPassword')"
+      :type="showConfirmPassword ? 'text' : 'password'"
+      :append-icon="showConfirmPassword ? 'mdi-eye' : 'mdi-eye-off'"
+      @click:append="showConfirmPassword = !showConfirmPassword"
+      :rules="confirmPasswordRules"
+      required
+      :disabled="formSaving"
+      outlined
+      dense
+      class="mt-2"
     ></v-text-field>
   </v-form>
 </template>
