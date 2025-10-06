@@ -37,7 +37,6 @@
     ></v-text-field>
 
     <v-autocomplete
-      v-if="premiumFeatures.project_runners"
       v-model="item.runner_tag"
       :items="runnerTags"
       :label="$t('runner_tag')"

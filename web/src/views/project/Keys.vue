@@ -15,7 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :support-storages="premiumFeatures.secret_storages"
+          :support-storages="true"
         />
       </template>
     </EditDialog>

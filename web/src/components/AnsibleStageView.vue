@@ -1,25 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div style="overflow: hidden;" class="pb-5">
-    <v-alert
-      type="info"
-      text
-      color="hsl(348deg, 86%, 61%)"
-      style="border-radius: 0;"
-      v-if="!premiumFeatures.task_summary"
-    >
-        <span class="mr-2">
-          This is <b>DEMO</b> data.
-          Task summary available only in <b>PRO</b> version.
-        </span>
-      <v-btn
-        color="hsl(348deg, 86%, 61%)"
-        target="_blank"
-        href="https://digitaldata.co/pro#task_result"
-      >
-        Learn more
-        <v-icon>mdi-chevron-right</v-icon>
-      </v-btn>
-    </v-alert>
 
     <div class="pl-5 pt-5 d-flex" style="column-gap: 10px;">
       <div class="AnsibleServerStatus AnsibleServerStatus--ok">
