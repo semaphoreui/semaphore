@@ -169,7 +169,13 @@
           <div class="text-body-2">
             <strong>Selected:</strong> {{ complianceFramework }} {{ complianceOS }}<br>
             <span v-if="enableSTIG">
-              <strong>Tasks:</strong> Will import Ansible compliance tasks from
+              <strong>Tasks:</strong>
+              <span v-if="hasImportedTasks">
+                ✅ Ansible compliance tasks have been imported from
+              </span>
+              <span v-else>
+                🔄 Will automatically import Ansible compliance tasks from
+              </span>
               <a href="https://github.com/ansible-lockdown" target="_blank" rel="noopener">
                 Ansible Lockdown repositories
               </a>
@@ -253,24 +259,48 @@ export default {
         this.item.enable_stig = false;
       }
     },
-    onComplianceToggle() {
+    async onComplianceToggle() {
       if (!this.complianceEnabled) {
         // Reset compliance fields when disabled
         this.complianceFramework = '';
         this.complianceOS = '';
         this.enableSTIG = false;
+      } else {
+        // When enabling compliance, set default values if not already set
+        if (!this.complianceFramework) {
+          this.complianceFramework = 'STIG'; // Default to STIG
+        }
+        if (!this.complianceOS) {
+          this.complianceOS = 'RHEL9'; // Default to RHEL9
+        }
+        this.enableSTIG = true;
+
+        // Auto-import compliance tasks if framework and OS are selected
+        if (this.complianceFramework && this.complianceOS && this.itemId !== 'new') {
+          await this.importComplianceTasks();
+        }
       }
     },
-    onFrameworkChange() {
+    async onFrameworkChange() {
       // Auto-enable STIG import when framework is selected
       if (this.complianceFramework && this.complianceOS) {
         this.enableSTIG = true;
+
+        // Auto-import compliance tasks if both framework and OS are selected
+        if (this.itemId !== 'new') {
+          await this.importComplianceTasks();
+        }
       }
     },
-    onOSChange() {
+    async onOSChange() {
       // Auto-enable STIG import when OS is selected
       if (this.complianceFramework && this.complianceOS) {
         this.enableSTIG = true;
+
+        // Auto-import compliance tasks if both framework and OS are selected
+        if (this.itemId !== 'new') {
+          await this.importComplianceTasks();
+        }
       }
     },
     loadExistingComplianceSettings() {
@@ -291,7 +321,9 @@ export default {
       try {
         const response = await axios.get(`/api/project/${this.itemId}/folders/templates`);
         const folders = response.data.folders || [];
-        this.hasImportedTasks = folders.some((folder) => folder.name.includes('STIG') || folder.name.includes('CIS'));
+        this.hasImportedTasks = folders.some((folder) =>
+          folder.name.includes('STIG') || folder.name.includes('CIS')
+        );
       } catch (error) {
         console.error('Failed to check for imported tasks:', error);
         this.hasImportedTasks = false;
