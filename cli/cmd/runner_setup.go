@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/Digital-Data-Co/forge/cli/setup"
 	"github.com/Digital-Data-Co/forge/util"
 	"github.com/spf13/cobra"
@@ -27,11 +28,11 @@ func doRunnerSetup() int {
 	resultConfigPath := setup.SaveConfig(config, "config.runner.json", persistentFlags.configPath)
 	util.ConfigInit(resultConfigPath, false)
 
-	if util.Config.Runner.RegistrationToken == "" && config.Runner.RegistrationToken != "" {
-		util.Config.Runner.RegistrationToken = config.Runner.RegistrationToken
+	if util.Config.Runner.APIToken == "" && config.Runner.APIToken != "" {
+		util.Config.Runner.APIToken = config.Runner.APIToken
 	}
 
-	if util.Config.Runner.RegistrationToken != "" {
+	if util.Config.Runner.APIToken != "" {
 		taskPool := createRunnerJobPool()
 		err := taskPool.Register(&resultConfigPath)
 		if err != nil {

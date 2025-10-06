@@ -7,8 +7,8 @@ services:
     environment:
       FORGE_WEB_ROOT: ${FORGE_WEB_ROOT:-http://server:3000}
       FORGE_RUNNER_API_URL: ${FORGE_RUNNER_API_URL:-http://server:3000/internal}
-      FORGE_RUNNER_REGISTRATION_TOKEN: ${FORGE_RUNNER_REGISTRATION_TOKEN:-H1wDyorbg6gTSwJlVwle2Fne}
+      FORGE_RUNNER_API_TOKEN: ${FORGE_RUNNER_API_TOKEN:-your-api-token-here}
 
   server:
     environment:
-      FORGE_RUNNER_REGISTRATION_TOKEN: ${FORGE_RUNNER_REGISTRATION_TOKEN:-H1wDyorbg6gTSwJlVwle2Fne}
+      # No longer needed - API tokens are managed through the web UI

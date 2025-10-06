@@ -142,7 +142,7 @@
 <script>
 import TaskLink from '@/components/TaskLink.vue';
 import TaskStatus from '@/components/TaskStatus.vue';
-import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
+import { TEMPLATE_TYPE_ICONS, USER_PERMISSIONS } from '@/lib/constants';
 
 export default {
   name: 'TemplateFolderView',
@@ -175,6 +175,7 @@ export default {
     return {
       expandedFolders: [],
       TEMPLATE_TYPE_ICONS,
+      USER_PERMISSIONS,
     };
   },
 

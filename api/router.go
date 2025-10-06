@@ -336,6 +336,11 @@ func Route(
 	projectUserAPI.Path("/folders/templates").HandlerFunc(projects.GetTemplatesByFolder).Methods("GET", "HEAD")
 	projectUserAPI.Path("/folders").HandlerFunc(projects.CreateFolder).Methods("POST")
 	projectUserAPI.Path("/folders/rename").HandlerFunc(projects.RenameFolder).Methods("PUT")
+
+	// Template tags and labels endpoints
+	projectUserAPI.Path("/templates/tags").HandlerFunc(projects.GetTemplateTags).Methods("GET", "HEAD")
+	projectUserAPI.Path("/templates/labels").HandlerFunc(projects.GetTemplateLabels).Methods("GET", "HEAD")
+	projectUserAPI.Path("/templates/search-suggestions").HandlerFunc(projects.GetTemplateSearchSuggestions).Methods("GET", "HEAD")
 	projectUserAPI.Path("/folders/delete").HandlerFunc(projects.DeleteFolder).Methods("DELETE")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")

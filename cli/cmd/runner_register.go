@@ -10,16 +10,16 @@ import (
 )
 
 var runnerRegisterArgs struct {
-	stdinRegistrationToken bool
+	stdinAPIToken bool
 }
 
 func init() {
-	runnerRegisterCmd.PersistentFlags().BoolVar(&runnerRegisterArgs.stdinRegistrationToken, "stdin-registration-token", false, "Read registration token from stdin")
+	runnerRegisterCmd.PersistentFlags().BoolVar(&runnerRegisterArgs.stdinAPIToken, "stdin-api-token", false, "Read API token from stdin")
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
 
-func initRunnerRegistrationToken() {
-	if !runnerRegisterArgs.stdinRegistrationToken {
+func initRunnerAPIToken() {
+	if !runnerRegisterArgs.stdinAPIToken {
 		return
 	}
 
@@ -32,14 +32,14 @@ func initRunnerRegistrationToken() {
 		panic("Empty token")
 	}
 
-	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
+	util.Config.Runner.APIToken = strings.TrimSpace(string(tokenBytes))
 }
 
 func registerRunner() {
 
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
-	initRunnerRegistrationToken()
+	initRunnerAPIToken()
 
 	taskPool := createRunnerJobPool()
 

@@ -106,6 +106,9 @@ type TemplateFilter struct {
 	BuildTemplateID *int
 	AutorunOnly     bool
 	App             *TemplateApp
+	Tags            []string
+	Labels          []string
+	Search          string // Full-text search across name, description, tags, and labels
 }
 
 // Template is a user defined model that is used to run a task
@@ -121,6 +124,10 @@ type Template struct {
 	Name string `db:"name" json:"name"`
 	// Folder for organizing templates
 	Folder *string `db:"folder" json:"folder,omitempty"`
+	// Tags for flexible categorization and filtering
+	Tags []string `db:"tags" json:"tags,omitempty"`
+	// Labels for hierarchical organization and color coding
+	Labels []string `db:"labels" json:"labels,omitempty"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
 	// to fit into []string

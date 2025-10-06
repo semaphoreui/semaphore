@@ -335,8 +335,8 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
 	log.Info("Registering a new runner")
 
-	if util.Config.Runner.RegistrationToken == "" {
-		logger.ActionError(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
+	if util.Config.Runner.APIToken == "" {
+		logger.ActionError(fmt.Errorf("API token cannot be empty"), "read input", "can not retrieve API token")
 		return
 	}
 
@@ -357,10 +357,11 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
-		RegistrationToken: util.Config.Runner.RegistrationToken,
-		Webhook:           util.Config.Runner.Webhook,
-		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
-		PublicKey:         &publicKey,
+		Webhook:          util.Config.Runner.Webhook,
+		MaxParallelTasks: util.Config.Runner.MaxParallelTasks,
+		PublicKey:        &publicKey,
+		Name:             util.Config.Runner.Name,
+		Tag:              util.Config.Runner.Tag,
 	})
 
 	if err != nil {
@@ -373,6 +374,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		logger.ActionError(err, "create request", "can not create request to the server")
 		return
 	}
+
+	// Add Authorization header with API token
+	req.Header.Set("Authorization", "Bearer "+util.Config.Runner.APIToken)
 
 	resp, err := client.Do(req)
 

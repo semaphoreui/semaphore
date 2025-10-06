@@ -25,7 +25,7 @@ func runRunner() {
 	// If --register is passed, try to register the runner if not already registered
 	if runnerStartArgs.register {
 
-		initRunnerRegistrationToken()
+		initRunnerAPIToken()
 
 		if util.Config.Runner.Token == "" {
 

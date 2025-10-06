@@ -74,20 +74,23 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 	needRegistration := false
 	askConfirmation("Do you want to register new runner on the server?", false, &needRegistration)
 	if needRegistration {
-		regToken := ""
+		apiToken := ""
 
 		for {
-			askValue("Enter runner registration token", "", &regToken)
+			askValue("Enter API token for runner registration", "", &apiToken)
 
-			if regToken == "" {
-				fmt.Println("Invalid registration token")
+			if apiToken == "" {
+				fmt.Println("Invalid API token")
 				continue
 			}
 
 			break
 		}
 
-		conf.Runner.RegistrationToken = regToken
+		conf.Runner.APIToken = apiToken
+
+		askValue("Enter runner name (optional)", "", &conf.Runner.Name)
+		askValue("Enter runner tag (optional)", "", &conf.Runner.Tag)
 
 		pkFile := ""
 		for {

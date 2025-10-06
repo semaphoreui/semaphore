@@ -162,6 +162,74 @@
           :disabled="formSaving"
         ></v-text-field>
 
+        <v-autocomplete
+          v-model="folderDisplayValue"
+          :label="$t('folder')"
+          :items="availableFolders"
+          outlined
+          dense
+          :disabled="formSaving"
+          hint="Folder to organize tasks created from this template"
+          persistent-hint
+          clearable
+          :loading="foldersLoading"
+        ></v-autocomplete>
+
+        <v-combobox
+          v-model="item.tags"
+          :label="$t('tags')"
+          :items="availableTags"
+          outlined
+          dense
+          :disabled="formSaving"
+          hint="Tags for flexible categorization and filtering"
+          persistent-hint
+          multiple
+          chips
+          closable-chips
+          :loading="tagsLoading"
+        ></v-combobox>
+
+        <v-combobox
+          v-model="item.labels"
+          :label="$t('labels')"
+          :items="availableLabels"
+          outlined
+          dense
+          :disabled="formSaving"
+          hint="Labels for hierarchical organization and color coding"
+          persistent-hint
+          multiple
+          chips
+          closable-chips
+          :loading="labelsLoading"
+        >
+          <template v-slot:selection="{ item, index }">
+            <v-chip
+              :key="index"
+              :color="getLabelColor(item)"
+              text-color="white"
+              small
+              close
+              @click:close="removeLabel(index)"
+            >
+              <v-icon left small>{{ getLabelIcon(item) }}</v-icon>
+              {{ item }}
+            </v-chip>
+          </template>
+          <template v-slot:item="{ item }">
+            <v-list-item>
+              <v-list-item-avatar>
+                <v-icon :color="getLabelColor(item)">{{ getLabelIcon(item) }}</v-icon>
+              </v-list-item-avatar>
+              <v-list-item-content>
+                <v-list-item-title>{{ item }}</v-list-item-title>
+                <v-list-item-subtitle>{{ getLabelDescription(item) }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </template>
+        </v-combobox>
+
         <v-text-field
           v-model="item.playbook"
           :label="fieldLabel('playbook')"
@@ -520,6 +588,7 @@ import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
 import RichEditor from '@/components/RichEditor.vue';
+import { getLabelConfig } from '@/lib/labelConfig';
 import SurveyVars from './SurveyVars';
 
 export default {
@@ -588,6 +657,12 @@ export default {
       runnerTags: null,
       branches: null,
       setBranch: false,
+      availableFolders: [],
+      foldersLoading: false,
+      availableTags: [],
+      tagsLoading: false,
+      availableLabels: [],
+      labelsLoading: false,
     };
   },
 
@@ -622,6 +697,9 @@ export default {
 
   async created() {
     await this.loadBranches();
+    await this.loadFolders();
+    await this.loadTags();
+    await this.loadLabels();
   },
 
   computed: {
@@ -685,6 +763,15 @@ export default {
       return ['', 'ansible', 'ansible', 'tofu', 'terraform'].includes(this.app);
     },
 
+    folderDisplayValue: {
+      get() {
+        return this.item.folder || 'No Folder';
+      },
+      set(value) {
+        this.item.folder = value === 'No Folder' ? null : value;
+      },
+    },
+
     surveyVars() {
       // if (this.sourceItemId != null && this.item.survey_vars === undefined) {
       //   throw new Error();
@@ -724,6 +811,64 @@ export default {
       this.branches = await this.loadProjectEndpoint(
         `/repositories/${this.repositoryId}/branches`,
       );
+    },
+
+    async loadFolders() {
+      this.foldersLoading = true;
+      try {
+        const response = await this.loadProjectEndpoint('/folders');
+        this.availableFolders = response.folders || [];
+      } catch (error) {
+        console.error('Failed to load folders:', error);
+        this.availableFolders = [];
+      } finally {
+        this.foldersLoading = false;
+      }
+    },
+
+    async loadTags() {
+      this.tagsLoading = true;
+      try {
+        const response = await this.loadProjectEndpoint('/templates/tags');
+        this.availableTags = response.tags || [];
+      } catch (error) {
+        console.error('Failed to load tags:', error);
+        this.availableTags = [];
+      } finally {
+        this.tagsLoading = false;
+      }
+    },
+
+    async loadLabels() {
+      this.labelsLoading = true;
+      try {
+        const response = await this.loadProjectEndpoint('/templates/labels');
+        this.availableLabels = response.labels || [];
+      } catch (error) {
+        console.error('Failed to load labels:', error);
+        this.availableLabels = [];
+      } finally {
+        this.labelsLoading = false;
+      }
+    },
+
+    getLabelColor(labelName) {
+      const config = getLabelConfig(labelName);
+      return config.color;
+    },
+
+    getLabelIcon(labelName) {
+      const config = getLabelConfig(labelName);
+      return config.categoryIcon;
+    },
+
+    getLabelDescription(labelName) {
+      const config = getLabelConfig(labelName);
+      return config.description;
+    },
+
+    removeLabel(index) {
+      this.item.labels.splice(index, 1);
     },
 
     validateBackendFilename(v) {

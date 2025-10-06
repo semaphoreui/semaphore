@@ -128,6 +128,8 @@ export default {
   clear_cache_message: 'Delete all cache files related to this project. This action is irreversible.',
 
   name2: 'Name *',
+  folder: 'Folder',
+  labels: 'Labels',
   title: 'Title *',
   description: 'Description',
   required: 'Required',

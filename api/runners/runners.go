@@ -7,8 +7,10 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
@@ -16,7 +18,6 @@ import (
 	"github.com/Digital-Data-Co/forge/services/runners"
 	"github.com/Digital-Data-Co/forge/services/server"
 	"github.com/Digital-Data-Co/forge/services/tasks"
-	"github.com/Digital-Data-Co/forge/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -298,9 +299,51 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if util.Config.RunnerRegistrationToken == "" || register.RegistrationToken != util.Config.RunnerRegistrationToken {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid registration token",
+	// Authenticate using API token from Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "Authorization header required",
+		})
+		return
+	}
+
+	// Extract Bearer token
+	if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "Invalid authorization format. Expected 'Bearer <token>'",
+		})
+		return
+	}
+
+	tokenID := strings.TrimSpace(authHeader[7:]) // Remove "Bearer " prefix
+	if tokenID == "" {
+		helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "API token required",
+		})
+		return
+	}
+
+	// Validate API token
+	apiToken, err := helpers.Store(r).GetAPIToken(tokenID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+				"error": "Invalid API token",
+			})
+		} else {
+			log.Error("Error validating API token:", err)
+			helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Internal server error",
+			})
+		}
+		return
+	}
+
+	// Check if token is expired
+	if apiToken.Expired {
+		helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "API token has expired",
 		})
 		return
 	}
@@ -309,9 +352,13 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		Webhook:          register.Webhook,
 		MaxParallelTasks: register.MaxParallelTasks,
 		PublicKey:        register.PublicKey,
+		Name:             register.Name,
+		Tag:              register.Tag,
+		Active:           true,
 	})
 
 	if err != nil {
+		log.Error("Error creating runner:", err)
 		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Unexpected error",
 		})
@@ -320,8 +367,9 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 
 	log.WithFields(log.Fields{
 		"runner_id": runner.ID,
+		"user_id":   apiToken.UserID,
 		"context":   "runner",
-	}).Info("New runner registered")
+	}).Info("New runner registered with API token")
 
 	var res struct {
 		Token string `json:"token"`

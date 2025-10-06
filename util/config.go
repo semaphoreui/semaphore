@@ -106,10 +106,10 @@ const (
 // */
 
 type RunnerConfig struct {
-	RegistrationToken string `json:"-" env:"FORGE_RUNNER_REGISTRATION_TOKEN"`
-	Token             string `json:"token,omitempty" env:"FORGE_RUNNER_TOKEN"`
-	TokenFile         string `json:"token_file,omitempty" env:"FORGE_RUNNER_TOKEN_FILE"`
-	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"FORGE_RUNNER_PRIVATE_KEY_FILE"`
+	APIToken       string `json:"api_token,omitempty" env:"FORGE_RUNNER_API_TOKEN"`
+	Token          string `json:"token,omitempty" env:"FORGE_RUNNER_TOKEN"`
+	TokenFile      string `json:"token_file,omitempty" env:"FORGE_RUNNER_TOKEN_FILE"`
+	PrivateKeyFile string `json:"private_key_file,omitempty" env:"FORGE_RUNNER_PRIVATE_KEY_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -122,7 +122,9 @@ type RunnerConfig struct {
 
 	Webhook string `json:"webhook,omitempty" env:"FORGE_RUNNER_WEBHOOK"`
 
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"FORGE_RUNNER_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int    `json:"max_parallel_tasks,omitempty" default:"1" env:"FORGE_RUNNER_MAX_PARALLEL_TASKS"`
+	Name             string `json:"name,omitempty" env:"FORGE_RUNNER_NAME"`
+	Tag              string `json:"tag,omitempty" env:"FORGE_RUNNER_TAG"`
 }
 
 type TLSConfig struct {
@@ -290,8 +292,6 @@ type ConfigType struct {
 
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"FORGE_MAX_PARALLEL_TASKS"`
-
-	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"FORGE_RUNNER_REGISTRATION_TOKEN"`
 
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"FORGE_PASSWORD_LOGIN_DISABLED"`

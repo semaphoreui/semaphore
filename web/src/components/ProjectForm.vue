@@ -139,39 +139,42 @@
           </v-col>
         </v-row>
 
-        <v-switch
-          v-model="enableSTIG"
-          label="Import STIG/CIS Ansible Tasks"
-          class="mt-2"
-          hide-details
-          hint="Automatically import compliance tasks from Ansible Lockdown repositories"
-          persistent-hint
-        />
+        <!-- Only show import options when compliance is NOT enabled -->
+        <template v-if="!complianceEnabled">
+          <v-switch
+            v-model="enableSTIG"
+            label="Import STIG/CIS Ansible Tasks"
+            class="mt-2"
+            hide-details
+            hint="Automatically import compliance tasks from Ansible Lockdown repositories"
+            persistent-hint
+          />
 
-        <!-- Import Button for Existing Projects -->
-        <div v-if="itemId !== 'new' && complianceFramework && complianceOS" class="mt-4">
-          <v-btn
-            color="primary"
-            :loading="importingTasks"
-            :disabled="formSaving || importingTasks"
-            @click="importComplianceTasks"
-            outlined
-          >
-            <v-icon left>mdi-download</v-icon>
-            Import {{ complianceFramework }} {{ complianceOS }} Tasks
-          </v-btn>
+          <!-- Import Button for Existing Projects -->
+          <div v-if="itemId !== 'new' && complianceFramework && complianceOS" class="mt-4">
+            <v-btn
+              color="primary"
+              :loading="importingTasks"
+              :disabled="formSaving || importingTasks"
+              @click="importComplianceTasks"
+              outlined
+            >
+              <v-icon left>mdi-download</v-icon>
+              Import {{ complianceFramework }} {{ complianceOS }} Tasks
+            </v-btn>
 
-          <v-btn
-            v-if="hasImportedTasks"
-            color="success"
-            @click="viewImportedTasks"
-            class="ml-2"
-            outlined
-          >
-            <v-icon left>mdi-eye</v-icon>
-            View Imported Tasks
-          </v-btn>
-        </div>
+            <v-btn
+              v-if="hasImportedTasks"
+              color="success"
+              @click="viewImportedTasks"
+              class="ml-2"
+              outlined
+            >
+              <v-icon left>mdi-eye</v-icon>
+              View Imported Tasks
+            </v-btn>
+          </div>
+        </template>
 
         <v-alert
           v-if="complianceEnabled && complianceFramework && complianceOS"
@@ -181,18 +184,20 @@
         >
           <div class="text-body-2">
             <strong>Selected:</strong> {{ complianceFramework }} {{ complianceOS }}<br>
-            <span v-if="enableSTIG">
-              <strong>Tasks:</strong>
-              <span v-if="hasImportedTasks">
-                ✅ Ansible compliance tasks have been imported from
-              </span>
-              <span v-else>
-                🔄 Will automatically import Ansible compliance tasks from
-              </span>
-              <a href="https://github.com/ansible-lockdown" target="_blank" rel="noopener">
-                Ansible Lockdown repositories
-              </a>
+            <strong>Tasks:</strong>
+            <span v-if="hasImportedTasks">
+              ✅ Ansible compliance tasks have been imported from
             </span>
+            <span v-else>
+              🔄 Will automatically import Ansible compliance tasks from
+            </span>
+            <a href="https://github.com/ansible-lockdown" target="_blank" rel="noopener">
+              Ansible Lockdown repositories
+            </a>
+            <br>
+            <small class="text--secondary">
+              Tasks will be imported when you click <strong>Save</strong>
+            </small>
           </div>
         </v-alert>
       </div>
@@ -273,6 +278,17 @@ export default {
         this.item.enable_stig = false;
       }
     },
+    async afterSave() {
+      // Import compliance tasks after saving if compliance is enabled
+      if (this.complianceEnabled && this.complianceFramework && this.complianceOS && this.itemId !== 'new') {
+        try {
+          await this.importComplianceTasks();
+        } catch (error) {
+          console.error('Failed to import compliance tasks after save:', error);
+          // Don't show error to user as the project was saved successfully
+        }
+      }
+    },
     async onComplianceToggle() {
       if (!this.complianceEnabled) {
         // Reset compliance fields when disabled
@@ -288,33 +304,21 @@ export default {
           this.complianceOS = 'RHEL9'; // Default to RHEL9
         }
         this.enableSTIG = true;
-
-        // Auto-import compliance tasks if framework and OS are selected
-        if (this.complianceFramework && this.complianceOS && this.itemId !== 'new') {
-          await this.importComplianceTasks();
-        }
+        // Note: Tasks will be imported when user clicks Save
       }
     },
     async onFrameworkChange() {
       // Auto-enable STIG import when framework is selected
       if (this.complianceFramework && this.complianceOS) {
         this.enableSTIG = true;
-
-        // Auto-import compliance tasks if both framework and OS are selected
-        if (this.itemId !== 'new') {
-          await this.importComplianceTasks();
-        }
+        // Note: Tasks will be imported when user clicks Save
       }
     },
     async onOSChange() {
       // Auto-enable STIG import when OS is selected
       if (this.complianceFramework && this.complianceOS) {
         this.enableSTIG = true;
-
-        // Auto-import compliance tasks if both framework and OS are selected
-        if (this.itemId !== 'new') {
-          await this.importComplianceTasks();
-        }
+        // Note: Tasks will be imported when user clicks Save
       }
     },
     loadExistingComplianceSettings() {

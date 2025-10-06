@@ -128,6 +128,13 @@
 
     <v-divider style="margin-top: -1px;"/>
 
+    <!-- Advanced Filters -->
+    <TemplateFilters
+      :available-tags="availableTags"
+      :available-labels="availableLabels"
+      @filter-change="onFilterChange"
+    />
+
     <!-- Folder-based template view -->
     <TemplateFolderView
       v-if="showFolderView"
@@ -311,6 +318,7 @@ import NewTaskDialog from '@/components/NewTaskDialog.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import TemplateFolderView from '@/components/TemplateFolderView.vue';
+import TemplateFilters from '@/components/TemplateFilters.vue';
 import AppsMixin from '@/components/AppsMixin';
 
 export default {
@@ -323,6 +331,7 @@ export default {
     EditViewsForm,
     NewTaskDialog,
     TemplateFolderView,
+    TemplateFilters,
   },
   props: {
     premiumFeatures: Object,
@@ -333,6 +342,8 @@ export default {
 
     await this.loadData();
     await this.loadFolderData();
+    await this.loadTags();
+    await this.loadLabels();
   },
   data() {
     return {
@@ -353,6 +364,9 @@ export default {
       itemApp: '',
       showFolderView: true,
       folderData: [],
+      availableTags: [],
+      availableLabels: [],
+      currentFilters: {},
     };
   },
   computed: {
@@ -385,6 +399,7 @@ export default {
       try {
         this.viewItemsLoading = true;
         await this.loadItems();
+        await this.loadFolderData();
         if (this.viewId) {
           localStorage.setItem(`project${this.projectId}__lastVisitedViewId`, this.viewId);
         } else {
@@ -409,6 +424,34 @@ export default {
         return `/project/${this.projectId}/templates`;
       }
       return `/project/${this.projectId}/views/${viewId}/templates`;
+    },
+
+    getItemsUrl() {
+      let url = this.viewId == null
+        ? `/api/project/${this.projectId}/templates`
+        : `/api/project/${this.projectId}/views/${this.viewId}/templates`;
+
+      const params = new URLSearchParams();
+
+      // Apply current filters
+      if (this.currentFilters.search) {
+        params.append('search', this.currentFilters.search);
+      }
+      if (this.currentFilters.app) {
+        params.append('app', this.currentFilters.app);
+      }
+      if (this.currentFilters.tags && this.currentFilters.tags.length > 0) {
+        params.append('tags', this.currentFilters.tags.join(','));
+      }
+      if (this.currentFilters.labels && this.currentFilters.labels.length > 0) {
+        params.append('labels', this.currentFilters.labels.join(','));
+      }
+
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      return url;
     },
 
     async loadViews() {
@@ -551,12 +594,6 @@ export default {
       ];
     },
 
-    getItemsUrl() {
-      return this.viewId == null
-        ? `/api/project/${this.projectId}/templates`
-        : `/api/project/${this.projectId}/views/${this.viewId}/templates`;
-    },
-
     async loadData() {
       [
         this.inventory,
@@ -575,7 +612,11 @@ export default {
 
     async loadFolderData() {
       try {
-        const response = await axios.get(`/api/project/${this.projectId}/folders/templates`);
+        let url = `/api/project/${this.projectId}/folders/templates`;
+        if (this.viewId != null) {
+          url += `?view_id=${this.viewId}`;
+        }
+        const response = await axios.get(url);
         console.log('Folder data response:', response.data);
         this.folderData = response.data.folders;
         console.log('Folder data set:', this.folderData);
@@ -583,6 +624,31 @@ export default {
         console.error('Failed to load folder data:', error);
         this.showFolderView = false; // Fallback to table view
       }
+    },
+
+    async loadTags() {
+      try {
+        const response = await axios.get(`/api/project/${this.projectId}/templates/tags`);
+        this.availableTags = response.data.tags || [];
+      } catch (error) {
+        console.error('Failed to load tags:', error);
+        this.availableTags = [];
+      }
+    },
+
+    async loadLabels() {
+      try {
+        const response = await axios.get(`/api/project/${this.projectId}/templates/labels`);
+        this.availableLabels = response.data.labels || [];
+      } catch (error) {
+        console.error('Failed to load labels:', error);
+        this.availableLabels = [];
+      }
+    },
+
+    onFilterChange(filters) {
+      this.currentFilters = filters;
+      this.loadData();
     },
 
     runTask(template) {

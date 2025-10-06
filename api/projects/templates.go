@@ -2,8 +2,11 @@ package projects
 
 import (
 	"fmt"
-	"github.com/Digital-Data-Co/forge/util"
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/Digital-Data-Co/forge/util"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
 	"github.com/Digital-Data-Co/forge/db"
@@ -51,10 +54,35 @@ func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	filter := db.TemplateFilter{}
+	
+	// Filter by app
 	if r.URL.Query().Get("app") != "" {
 		app := db.TemplateApp(r.URL.Query().Get("app"))
 		filter.App = &app
 	}
+	
+	// Filter by view
+	if r.URL.Query().Get("view_id") != "" {
+		if viewID, err := strconv.Atoi(r.URL.Query().Get("view_id")); err == nil {
+			filter.ViewID = &viewID
+		}
+	}
+	
+	// Filter by tags
+	if tags := r.URL.Query().Get("tags"); tags != "" {
+		filter.Tags = strings.Split(tags, ",")
+	}
+	
+	// Filter by labels
+	if labels := r.URL.Query().Get("labels"); labels != "" {
+		filter.Labels = strings.Split(labels, ",")
+	}
+	
+	// Search across name, description, tags, and labels
+	if search := r.URL.Query().Get("search"); search != "" {
+		filter.Search = search
+	}
+	
 	templates, err := helpers.Store(r).GetTemplates(project.ID, filter, helpers.QueryParams(r.URL))
 
 	if err != nil {
@@ -77,6 +105,12 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	template.ProjectID = project.ID
+
+	// Set folder to project name if no folder is specified
+	if template.Folder == nil || *template.Folder == "" {
+		template.Folder = &project.Name
+	}
+
 	newTemplate, err := helpers.Store(r).CreateTemplate(template)
 
 	if err != nil {

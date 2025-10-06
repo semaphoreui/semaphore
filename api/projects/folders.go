@@ -3,6 +3,7 @@ package projects
 import (
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Digital-Data-Co/forge/api/helpers"
@@ -12,14 +13,14 @@ import (
 // GetFolders returns all unique folders for a project
 func GetFolders(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	
+
 	// Get all templates for the project
 	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{}, helpers.QueryParams(r.URL))
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-	
+
 	// Extract unique folders
 	folderMap := make(map[string]bool)
 	for _, template := range templates {
@@ -27,17 +28,17 @@ func GetFolders(w http.ResponseWriter, r *http.Request) {
 			folderMap[*template.Folder] = true
 		}
 	}
-	
+
 	// Convert to slice and sort
 	var folders []string
 	for folder := range folderMap {
 		folders = append(folders, folder)
 	}
 	sort.Strings(folders)
-	
+
 	// Add "No Folder" option for templates without folders
 	folders = append([]string{"No Folder"}, folders...)
-	
+
 	helpers.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"folders": folders,
 	})
@@ -46,17 +47,28 @@ func GetFolders(w http.ResponseWriter, r *http.Request) {
 // GetTemplatesByFolder returns templates grouped by folder
 func GetTemplatesByFolder(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	
-	// Get all templates for the project
-	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{}, helpers.QueryParams(r.URL))
+
+	// Create template filter
+	filter := db.TemplateFilter{}
+
+	// Check if we're filtering by view
+	viewID := r.URL.Query().Get("view_id")
+	if viewID != "" {
+		if viewIDInt, err := strconv.Atoi(viewID); err == nil {
+			filter.ViewID = &viewIDInt
+		}
+	}
+
+	// Get templates for the project (optionally filtered by view)
+	templates, err := helpers.Store(r).GetTemplates(project.ID, filter, helpers.QueryParams(r.URL))
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-	
+
 	// Group templates by folder
 	folderMap := make(map[string][]db.Template)
-	
+
 	for _, template := range templates {
 		folderName := "No Folder"
 		if template.Folder != nil && *template.Folder != "" {
@@ -64,7 +76,7 @@ func GetTemplatesByFolder(w http.ResponseWriter, r *http.Request) {
 		}
 		folderMap[folderName] = append(folderMap[folderName], template)
 	}
-	
+
 	// Convert to slice of folder objects
 	var folders []map[string]interface{}
 	for folderName, templates := range folderMap {
@@ -74,12 +86,12 @@ func GetTemplatesByFolder(w http.ResponseWriter, r *http.Request) {
 			"count":     len(templates),
 		})
 	}
-	
+
 	// Sort folders (No Folder first, then alphabetically)
 	sort.Slice(folders, func(i, j int) bool {
 		nameI := folders[i]["name"].(string)
 		nameJ := folders[j]["name"].(string)
-		
+
 		if nameI == "No Folder" {
 			return true
 		}
@@ -88,7 +100,7 @@ func GetTemplatesByFolder(w http.ResponseWriter, r *http.Request) {
 		}
 		return nameI < nameJ
 	})
-	
+
 	helpers.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"folders": folders,
 	})
@@ -106,29 +118,29 @@ func CreateFolder(w http.ResponseWriter, r *http.Request) {
 // DeleteFolder deletes a folder by moving all templates to "No Folder"
 func DeleteFolder(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	
+
 	var request struct {
 		FolderName string `json:"folder_name" binding:"required"`
 	}
-	
+
 	if !helpers.Bind(w, r, &request) {
 		return
 	}
-	
+
 	if request.FolderName == "No Folder" {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Cannot delete 'No Folder'",
 		})
 		return
 	}
-	
+
 	// Get all templates in the folder
 	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{}, helpers.QueryParams(r.URL))
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-	
+
 	// Move templates from the folder to "No Folder"
 	for _, template := range templates {
 		if template.Folder != nil && *template.Folder == request.FolderName {
@@ -140,7 +152,7 @@ func DeleteFolder(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	helpers.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "Folder deleted successfully",
 	})
@@ -149,37 +161,37 @@ func DeleteFolder(w http.ResponseWriter, r *http.Request) {
 // RenameFolder renames a folder by updating all templates in that folder
 func RenameFolder(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	
+
 	var request struct {
 		OldName string `json:"old_name" binding:"required"`
 		NewName string `json:"new_name" binding:"required"`
 	}
-	
+
 	if !helpers.Bind(w, r, &request) {
 		return
 	}
-	
+
 	if request.OldName == "No Folder" {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Cannot rename 'No Folder'",
 		})
 		return
 	}
-	
+
 	if strings.TrimSpace(request.NewName) == "" {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "New folder name cannot be empty",
 		})
 		return
 	}
-	
+
 	// Get all templates in the old folder
 	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{}, helpers.QueryParams(r.URL))
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-	
+
 	// Rename the folder for all templates
 	for _, template := range templates {
 		if template.Folder != nil && *template.Folder == request.OldName {
@@ -191,7 +203,7 @@ func RenameFolder(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	helpers.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "Folder renamed successfully",
 	})

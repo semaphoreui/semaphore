@@ -76,6 +76,11 @@ type Task struct {
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 
+	// Tags for flexible categorization and filtering (inherited from template)
+	Tags []string `db:"tags" json:"tags,omitempty"`
+	// Labels for hierarchical organization and color coding (inherited from template)
+	Labels []string `db:"labels" json:"labels,omitempty"`
+
 	// Limit is deprecated, use Params.Limit instead
 	Limit string `db:"-" json:"limit"`
 }

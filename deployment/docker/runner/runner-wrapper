@@ -15,7 +15,7 @@ fi
 
 echoerr "Starting forge runner"
 if test "$#" -ne 1; then
-    if [ -n "${FORGE_RUNNER_REGISTRATION_TOKEN:-}" ]; then
+    if [ -n "${FORGE_RUNNER_API_TOKEN:-}" ]; then
 
       if [ -z "${FORGE_RUNNER_TOKEN:-}" ] && [ -z "${FORGE_RUNNER_TOKEN_FILE:-}" ]; then
         export FORGE_RUNNER_TOKEN_FILE="${FORGE_TMP_PATH}/runner_token.txt"

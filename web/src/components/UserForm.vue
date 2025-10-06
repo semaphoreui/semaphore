@@ -98,6 +98,8 @@
           <v-select
             v-model="selectedLanguage"
             :items="languageOptions"
+            item-text="title"
+            item-value="id"
             label="Language"
             outlined
             dense
