@@ -139,7 +139,7 @@
                   <v-card-title class="text-h6 pa-0 mb-4">
                     {{ $t('complianceFramework') }}
                   </v-card-title>
-                  
+
                   <v-row>
                     <v-col cols="12" md="6">
                       <v-switch
@@ -689,7 +689,8 @@ export default {
         'Debian 11', 'Debian 12',
         'Amazon Linux 2', 'Amazon Linux 2023',
         'SUSE 15',
-        'Windows 10', 'Windows 11', 'Windows Server 2016', 'Windows Server 2019', 'Windows Server 2022',
+        'Windows 10', 'Windows 11', 'Windows Server 2016',
+        'Windows Server 2019', 'Windows Server 2022',
       ],
       goldenImages: [
         'RHEL7', 'RHEL8', 'RHEL9',
@@ -838,9 +839,12 @@ export default {
           import: this.form.import || false,
           path: this.form.import ? this.form.path : null,
           // Compliance framework settings
-          complianceFramework: this.form.enableComplianceFramework ? this.form.complianceFramework : null,
-          complianceOS: this.form.enableComplianceFramework ? this.form.complianceOS : null,
-          enableSTIG: this.form.enableComplianceFramework && this.form.complianceFramework === 'STIG',
+          complianceFramework: this.form.enableComplianceFramework
+            ? this.form.complianceFramework : null,
+          complianceOS: this.form.enableComplianceFramework
+            ? this.form.complianceOS : null,
+          enableSTIG: this.form.enableComplianceFramework
+            && this.form.complianceFramework === 'STIG',
           // Include environment builder configuration only if we have data
           environment_config: {
             environment: this.form.environment || '',
@@ -869,7 +873,10 @@ export default {
         const createdProject = response.data;
 
         // Import compliance tasks if requested
-        if (this.form.enableComplianceFramework && this.form.importComplianceTasks && this.form.complianceFramework && this.form.complianceOS) {
+        if (this.form.enableComplianceFramework
+          && this.form.importComplianceTasks
+          && this.form.complianceFramework
+          && this.form.complianceOS) {
           try {
             await axios.post(`/api/project/${createdProject.id}/lockdown/import`, {
               framework: this.form.complianceFramework,
@@ -878,7 +885,10 @@ export default {
             this.$toast?.success('Compliance tasks imported successfully!');
           } catch (importError) {
             console.warn('Failed to import compliance tasks:', importError);
-            this.$toast?.warning('Project created but failed to import compliance tasks. You can import them manually later.');
+            this.$toast?.warning(
+              'Project created but failed to import compliance tasks. ' +
+              'You can import them manually later.'
+            );
           }
         }
 

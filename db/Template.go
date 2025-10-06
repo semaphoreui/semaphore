@@ -119,6 +119,8 @@ type Template struct {
 
 	// Name as described in https://github.com/Digital-Data-Co/forge/issues/188
 	Name string `db:"name" json:"name"`
+	// Folder for organizing templates
+	Folder *string `db:"folder" json:"folder,omitempty"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
 	// to fit into []string

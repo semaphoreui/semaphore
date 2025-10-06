@@ -331,6 +331,13 @@ func Route(
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
+	// Folder management endpoints
+	projectUserAPI.Path("/folders").HandlerFunc(projects.GetFolders).Methods("GET", "HEAD")
+	projectUserAPI.Path("/folders/templates").HandlerFunc(projects.GetTemplatesByFolder).Methods("GET", "HEAD")
+	projectUserAPI.Path("/folders").HandlerFunc(projects.CreateFolder).Methods("POST")
+	projectUserAPI.Path("/folders/rename").HandlerFunc(projects.RenameFolder).Methods("PUT")
+	projectUserAPI.Path("/folders/delete").HandlerFunc(projects.DeleteFolder).Methods("DELETE")
+
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")

@@ -128,7 +128,21 @@
 
     <v-divider style="margin-top: -1px;"/>
 
+    <!-- Folder-based template view -->
+    <TemplateFolderView
+      v-if="showFolderView"
+      :folders="folderData"
+      :loading="viewItemsLoading"
+      :project-id="projectId"
+      :view-id="viewId"
+      @run-task="runTask"
+      @edit-template="editTemplate"
+      @delete-template="deleteTemplate"
+    />
+
+    <!-- Original table view (fallback) -->
     <v-data-table
+      v-else
       hide-default-footer
       class="mt-4 templates-table"
       single-expand
@@ -296,6 +310,7 @@ import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
+import TemplateFolderView from '@/components/TemplateFolderView.vue';
 import AppsMixin from '@/components/AppsMixin';
 
 export default {
@@ -307,6 +322,7 @@ export default {
     TaskList,
     EditViewsForm,
     NewTaskDialog,
+    TemplateFolderView,
   },
   props: {
     premiumFeatures: Object,
@@ -316,6 +332,7 @@ export default {
     socket.addListener((data) => this.onWebsocketDataReceived(data));
 
     await this.loadData();
+    await this.loadFolderData();
   },
   data() {
     return {
@@ -334,6 +351,8 @@ export default {
       viewTab: null,
       apps: null,
       itemApp: '',
+      showFolderView: true,
+      folderData: [],
     };
   },
   computed: {
@@ -552,6 +571,32 @@ export default {
 
     onTableSettingsChange({ headers }) {
       this.filteredHeaders = headers;
+    },
+
+    async loadFolderData() {
+      try {
+        const response = await axios.get(`/api/project/${this.projectId}/folders/templates`);
+        this.folderData = response.data.folders;
+      } catch (error) {
+        console.error('Failed to load folder data:', error);
+        this.showFolderView = false; // Fallback to table view
+      }
+    },
+
+    runTask(template) {
+      this.itemId = template.id;
+      this.newTaskDialog = true;
+    },
+
+    editTemplate(template) {
+      this.itemId = template.id;
+      this.itemApp = template.app;
+      this.editDialog = true;
+    },
+
+    deleteTemplate(template) {
+      this.itemId = template.id;
+      this.deleteItem(template.id);
     },
   },
 };

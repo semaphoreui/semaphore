@@ -94,10 +94,14 @@ func (s *ImportService) importRoleTasks(ctx context.Context, projectID int, role
 		return fmt.Errorf("failed to get role tasks: %w", err)
 	}
 	
+	// Create folder name based on OS and framework
+	folderName := fmt.Sprintf("%s %s", complianceOS, complianceFramework)
+	
 	// Create templates for each task
 	for _, task := range tasks {
 		template := db.Template{
 			Name:         fmt.Sprintf("%s - %s", role.Name, task.Name),
+			Folder:       &folderName,
 			Type:         db.TemplateTask,
 			Playbook:     s.generatePlaybook(task),
 			ProjectID:    projectID,

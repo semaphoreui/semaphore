@@ -262,7 +262,7 @@
         <v-divider class="my-2"></v-divider>
 
         <v-subheader class="text-uppercase">{{ $t('cloudProviders') }}</v-subheader>
-        
+
         <v-list-item key="new_aws_project" @click="createQuickProject('AWS')">
           <v-list-item-icon>
             <v-icon color="orange">mdi-aws</v-icon>
@@ -306,8 +306,11 @@
         <v-divider class="my-2"></v-divider>
 
         <v-subheader class="text-uppercase">{{ $t('kubernetesOptions') }}</v-subheader>
-        
-        <v-list-item key="new_k8s_self_managed" @click="createQuickProject(null, 'Self-Managed Kubernetes')">
+
+        <v-list-item
+          key="new_k8s_self_managed"
+          @click="createQuickProject(null, 'Self-Managed Kubernetes')"
+        >
           <v-list-item-icon>
             <v-icon color="blue">mdi-kubernetes</v-icon>
           </v-list-item-icon>
@@ -330,7 +333,7 @@
         <v-divider class="my-2"></v-divider>
 
         <v-subheader class="text-uppercase">{{ $t('complianceOptions') }}</v-subheader>
-        
+
         <v-list-item key="new_stig_project" @click="createComplianceProject('STIG', 'Ubuntu')">
           <v-list-item-icon>
             <v-icon color="red">mdi-shield-check</v-icon>
@@ -1518,8 +1521,8 @@ export default {
           name: `${cloudProvider || 'New'} Project`,
           environment: 'production',
           description: `Quick project for ${cloudProvider || 'general use'}`,
-          cloudProvider: cloudProvider,
-          kubernetesType: kubernetesType,
+          cloudProvider,
+          kubernetesType,
           alert: true,
           demo: false,
           importScripts: false,
@@ -1583,8 +1586,8 @@ export default {
         // Import compliance tasks
         try {
           await axios.post(`/api/project/${createdProject.id}/lockdown/import`, {
-            framework: framework,
-            os: os,
+            framework,
+            os,
           });
         } catch (importError) {
           console.warn('Failed to import compliance tasks:', importError);
@@ -1604,7 +1607,9 @@ export default {
       } catch (error) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
-          text: `Failed to create compliance project: ${error.response?.data?.error || error.message}`,
+          text: `Failed to create compliance project: ${
+            error.response?.data?.error || error.message
+          }`,
         });
       }
     },
