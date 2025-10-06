@@ -1530,6 +1530,46 @@ paths:
             enum:
               - asc
               - desc
+        - name: app
+          in: query
+          description: Filter by application type
+          required: false
+          schema:
+            type: string
+            enum:
+              - ansible
+              - terraform
+              - tofu
+              - terragrunt
+              - bash
+              - powershell
+              - python
+              - scc
+              - pulumi
+        - name: view_id
+          in: query
+          description: Filter by view ID
+          required: false
+          schema:
+            type: integer
+        - name: tags
+          in: query
+          description: Filter by tags (comma-separated)
+          required: false
+          schema:
+            type: string
+        - name: labels
+          in: query
+          description: Filter by labels (comma-separated)
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search across names, descriptions, tags, and labels
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: template
@@ -1612,6 +1652,104 @@ paths:
     parameters:
       - "$ref": "#/components/parameters/project_id"
       - "$ref": "#/components/parameters/template_id"
+  "/project/{project_id}/templates/tags":
+    get:
+      operationId: getProjectByIdTemplatesTags
+      tags:
+        - project
+      summary: Get template tags
+      description: Returns all unique tags used in templates for a project
+      responses:
+        '200':
+          description: List of unique tags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                    description: Array of unique tag names
+            text/plain; charset=utf-8:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+      parameters:
+        - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/templates/labels":
+    get:
+      operationId: getProjectByIdTemplatesLabels
+      tags:
+        - project
+      summary: Get template labels
+      description: Returns all unique labels used in templates for a project
+      responses:
+        '200':
+          description: List of unique labels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: string
+                    description: Array of unique label names
+            text/plain; charset=utf-8:
+              schema:
+                type: object
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: string
+      parameters:
+        - "$ref": "#/components/parameters/project_id"
+  "/project/{project_id}/templates/search-suggestions":
+    get:
+      operationId: getProjectByIdTemplatesSearchSuggestions
+      tags:
+        - project
+      summary: Get template search suggestions
+      description: Returns search suggestions based on template names, descriptions, tags, and labels
+      parameters:
+        - name: q
+          in: query
+          description: Search query string
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: List of search suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+                    description: Array of search suggestion strings
+            text/plain; charset=utf-8:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+      parameters:
+        - "$ref": "#/components/parameters/project_id"
   "/project/{project_id}/schedules/{schedule_id}":
     get:
       operationId: getProjectByIdScheduleById
@@ -2889,6 +3027,22 @@ components:
           type: array
           items:
             "$ref": "#/components/schemas/TemplateVault"
+        folder:
+          type: string
+          description: Folder for organizing templates
+          example: "Infrastructure"
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for flexible categorization and filtering
+          example: ["ansible", "security", "compliance"]
+        labels:
+          type: array
+          items:
+            type: string
+          description: Labels for hierarchical organization and color coding
+          example: ["priority:high", "environment:production", "type:security"]
     TemplateSurveyVar:
       type: object
       properties:
