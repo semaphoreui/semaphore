@@ -42,7 +42,7 @@
 
       <v-menu
         offset-y
-        v-if="false"
+        v-if="can(USER_PERMISSIONS.manageProjectResources) && premiumFeatures.secret_storages"
       >
         <template v-slot:activator="{ on, attrs }">
 
