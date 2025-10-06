@@ -426,7 +426,6 @@ export default {
   vmwareDatastore: 'Datastore',
 
   // Kubernetes Options
-  kubernetesOptions: 'Kubernetes Options',
   additionalSoftware: 'Additional Software',
 
   // Form Validation Messages
