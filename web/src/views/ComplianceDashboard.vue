@@ -303,7 +303,7 @@ export default {
     // Set default project filter based on context
     if (this.currentProjectId) {
       // If accessed from project context, default to current project
-      this.selectedProject = this.currentProjectId;
+      this.selectedProject = this.currentProjectId.toString();
     } else {
       // If accessed from global context, default to "All Projects"
       this.selectedProject = null;
