@@ -238,7 +238,7 @@
         </v-list>
       </v-menu>
 
-      <v-list class="pt-0" v-if="!project">
+      <v-list class="pt-0" v-if="!project && $route.path === '/project/new'">
         <v-list-item key="new_project" :to="`/project/new`">
           <v-list-item-icon>
             <v-icon>mdi-plus</v-icon>
@@ -519,7 +519,7 @@
                 >
                   <img
                     style="border-radius: 50%; max-width: 100%; height: auto; width: 24px;"
-                    :src="`flags/${lang.flag}.svg`"
+                    :src="`flags/${this.lang.flag}.svg`"
                     alt=""
                   />
                 </v-btn>

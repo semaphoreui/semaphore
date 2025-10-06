@@ -174,16 +174,6 @@
                     </v-col>
                   </v-row>
 
-                  <v-row v-if="form.enableComplianceFramework && form.complianceFramework">
-                    <v-col cols="12">
-                      <v-switch
-                        v-model="form.importComplianceTasks"
-                        inset
-                        :label="$t('importComplianceTasks')"
-                        hint="Import Ansible Lockdown compliance tasks automatically"
-                      />
-                    </v-col>
-                  </v-row>
                 </v-card>
               </v-col>
             </v-row>
@@ -735,7 +725,6 @@ export default {
         enableComplianceFramework: false,
         complianceFramework: null,
         complianceOS: null,
-        importComplianceTasks: false,
         additionalSoftware: {
           observability: false,
           serviceMesh: false,
@@ -872,9 +861,8 @@ export default {
         const response = await axios.post('/api/projects', projectData);
         const createdProject = response.data;
 
-        // Import compliance tasks if requested
+        // Import compliance tasks if compliance framework is enabled
         if (this.form.enableComplianceFramework
-          && this.form.importComplianceTasks
           && this.form.complianceFramework
           && this.form.complianceOS) {
           try {
