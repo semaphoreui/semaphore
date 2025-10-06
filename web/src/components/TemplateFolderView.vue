@@ -1,5 +1,14 @@
 <template>
   <div v-if="folders && folders.length > 0">
+    <!-- Debug info -->
+    <div
+      v-if="true"
+      style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px;"
+    >
+      <strong>Debug Info:</strong><br>
+      Folders count: {{ folders ? folders.length : 'null' }}<br>
+      Folders: {{ JSON.stringify(folders, null, 2) }}
+    </div>
     <v-expansion-panels
       v-model="expandedFolders"
       multiple

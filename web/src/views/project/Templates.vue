@@ -575,8 +575,11 @@ export default {
 
     async loadFolderData() {
       try {
+        console.log('Loading folder data for project:', this.projectId);
         const response = await axios.get(`/api/project/${this.projectId}/folders/templates`);
+        console.log('Folder data response:', response.data);
         this.folderData = response.data.folders;
+        console.log('Folder data set:', this.folderData);
       } catch (error) {
         console.error('Failed to load folder data:', error);
         this.showFolderView = false; // Fallback to table view
