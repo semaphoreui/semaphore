@@ -1248,6 +1248,13 @@ export default {
       }
       return `/project/${this.projectId}/templates`;
     },
+
+    shouldShowProjectDrawer() {
+      // Show drawer if we have projects and we're not on auth/login pages
+      return this.projects && this.projects.length > 0 &&
+             !this.$route.path.startsWith('/auth/') &&
+             this.state === 'success';
+    },
   },
 
   async created() {
