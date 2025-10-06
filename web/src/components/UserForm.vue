@@ -242,12 +242,8 @@ import Flag from 'vue-flagpack';
 // Language options (same as in App.vue)
 const LANGUAGES = {
   usa: {
-    title: 'English (US)',
+    title: 'English',
     flag: 'US',
-  },
-  en: {
-    title: 'English (UK)',
-    flag: 'GB',
   },
   es: {
     title: 'Español',

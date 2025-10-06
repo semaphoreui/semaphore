@@ -988,12 +988,8 @@ const PROJECT_COLORS = [
 
 const LANGUAGES = {
   usa: {
-    title: 'English (US)',
+    title: 'English',
     flag: 'US',
-  },
-  en: {
-    title: 'English (UK)',
-    flag: 'GB',
   },
   es: {
     title: 'Español',

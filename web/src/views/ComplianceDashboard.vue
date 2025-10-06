@@ -244,7 +244,7 @@
 
 <script>
 import axios from 'axios';
-import EventBus from '@/lib/eventBus';
+import EventBus from '@/event-bus';
 import complianceService from '@/lib/complianceService';
 import ComplianceTrendsChart from '@/components/compliance/ComplianceTrendsChart.vue';
 import TaskComplianceTable from '@/components/compliance/TaskComplianceTable.vue';
