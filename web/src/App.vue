@@ -151,7 +151,7 @@
       width="260"
       v-model="drawer"
       mobile-breakpoint="960"
-      v-if="$route.path.startsWith('/project/')"
+      v-if="shouldShowProjectDrawer"
     >
       <v-menu bottom max-width="235" max-height="100%" v-if="project">
         <template v-slot:activator="{ on, attrs }">
@@ -256,6 +256,98 @@
 
           <v-list-item-content>
             <v-list-item-title>{{ $t('restoreProject') }}</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-divider class="my-2"></v-divider>
+
+        <v-subheader class="text-uppercase">{{ $t('cloudProviders') }}</v-subheader>
+        
+        <v-list-item key="new_aws_project" @click="createQuickProject('AWS')">
+          <v-list-item-icon>
+            <v-icon color="orange">mdi-aws</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>AWS Project</v-list-item-title>
+            <v-list-item-subtitle>Amazon Web Services</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="new_azure_project" @click="createQuickProject('Azure')">
+          <v-list-item-icon>
+            <v-icon color="blue">mdi-microsoft-azure</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Azure Project</v-list-item-title>
+            <v-list-item-subtitle>Microsoft Azure</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="new_gcp_project" @click="createQuickProject('Google Cloud')">
+          <v-list-item-icon>
+            <v-icon color="green">mdi-google-cloud</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>GCP Project</v-list-item-title>
+            <v-list-item-subtitle>Google Cloud Platform</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="new_vmware_project" @click="createQuickProject('VMWare VCF')">
+          <v-list-item-icon>
+            <v-icon color="purple">mdi-vmware</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>VMware Project</v-list-item-title>
+            <v-list-item-subtitle>VMware VCF</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-divider class="my-2"></v-divider>
+
+        <v-subheader class="text-uppercase">{{ $t('kubernetesOptions') }}</v-subheader>
+        
+        <v-list-item key="new_k8s_self_managed" @click="createQuickProject(null, 'Self-Managed Kubernetes')">
+          <v-list-item-icon>
+            <v-icon color="blue">mdi-kubernetes</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Self-Managed K8s</v-list-item-title>
+            <v-list-item-subtitle>Self-managed Kubernetes</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="new_k8s_managed" @click="createQuickProject(null, 'Managed Kubernetes')">
+          <v-list-item-icon>
+            <v-icon color="blue">mdi-kubernetes</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>Managed K8s</v-list-item-title>
+            <v-list-item-subtitle>Managed Kubernetes</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-divider class="my-2"></v-divider>
+
+        <v-subheader class="text-uppercase">{{ $t('complianceOptions') }}</v-subheader>
+        
+        <v-list-item key="new_stig_project" @click="createComplianceProject('STIG', 'Ubuntu')">
+          <v-list-item-icon>
+            <v-icon color="red">mdi-shield-check</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>STIG Compliance</v-list-item-title>
+            <v-list-item-subtitle>Security Technical Implementation Guide</v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+
+        <v-list-item key="new_cis_project" @click="createComplianceProject('CIS', 'Ubuntu')">
+          <v-list-item-icon>
+            <v-icon color="green">mdi-shield-check</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>CIS Compliance</v-list-item-title>
+            <v-list-item-subtitle>Center for Internet Security</v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>
       </v-list>
@@ -1418,6 +1510,103 @@ export default {
         path: `/project/${projectId}${window.location.search}`,
         query,
       });
+    },
+
+    async createQuickProject(cloudProvider = null, kubernetesType = null) {
+      try {
+        const projectData = {
+          name: `${cloudProvider || 'New'} Project`,
+          environment: 'production',
+          description: `Quick project for ${cloudProvider || 'general use'}`,
+          cloudProvider: cloudProvider,
+          kubernetesType: kubernetesType,
+          alert: true,
+          demo: false,
+          importScripts: false,
+          importPath: '',
+          jumpbox: false,
+          jumpboxStigCompliant: false,
+          goldenImage: 'Ubuntu 20.04',
+          isStigCompliant: false,
+          cloudProviderConfig: {},
+          kubernetesConfig: {},
+        };
+
+        const response = await axios.post('/api/projects', projectData);
+        const createdProject = response.data;
+
+        EventBus.$emit('i-project', {
+          action: 'new',
+          item: createdProject,
+        });
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: `Project "${createdProject.name}" created successfully`,
+        });
+
+        await this.$router.push(`/project/${createdProject.id}`);
+      } catch (error) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Failed to create project: ${error.response?.data?.error || error.message}`,
+        });
+      }
+    },
+
+    async createComplianceProject(framework, os) {
+      try {
+        const projectData = {
+          name: `${framework} ${os} Compliance Project`,
+          environment: 'production',
+          description: `Compliance project for ${framework} on ${os}`,
+          cloudProvider: null,
+          kubernetesType: null,
+          alert: true,
+          demo: false,
+          importScripts: true,
+          importPath: '',
+          jumpbox: false,
+          jumpboxStigCompliant: false,
+          goldenImage: os,
+          isStigCompliant: framework === 'STIG',
+          complianceFramework: framework,
+          complianceOS: os,
+          enableSTIG: framework === 'STIG',
+          cloudProviderConfig: {},
+          kubernetesConfig: {},
+        };
+
+        const response = await axios.post('/api/projects', projectData);
+        const createdProject = response.data;
+
+        // Import compliance tasks
+        try {
+          await axios.post(`/api/project/${createdProject.id}/lockdown/import`, {
+            framework: framework,
+            os: os,
+          });
+        } catch (importError) {
+          console.warn('Failed to import compliance tasks:', importError);
+        }
+
+        EventBus.$emit('i-project', {
+          action: 'new',
+          item: createdProject,
+        });
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: `Compliance project "${createdProject.name}" created successfully`,
+        });
+
+        await this.$router.push(`/project/${createdProject.id}`);
+      } catch (error) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Failed to create compliance project: ${error.response?.data?.error || error.message}`,
+        });
+      }
     },
 
     async loadProjects() {

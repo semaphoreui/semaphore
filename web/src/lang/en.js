@@ -393,6 +393,13 @@ export default {
   gatewayApi: 'Gateway API',
   nginxIngressProxy: 'Nginx Ingress Proxy',
 
+  // Left Menu Options
+  cloudProviders: 'Cloud Providers',
+  kubernetesOptions: 'Kubernetes Options',
+  complianceOptions: 'Compliance Options',
+  complianceOS: 'Compliance OS',
+  importComplianceTasks: 'Import Compliance Tasks',
+
   // Hints and Help Text
   nameForYourProject: 'Name for your project',
   targetEnvironmentForDeployment: 'Target environment for deployment',

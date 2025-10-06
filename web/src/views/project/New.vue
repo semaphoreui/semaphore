@@ -131,6 +131,62 @@
                 </v-card>
               </v-col>
             </v-row>
+
+            <!-- Compliance Framework Section -->
+            <v-row>
+              <v-col cols="12">
+                <v-card class="pa-4" elevation="1" rounded="lg">
+                  <v-card-title class="text-h6 pa-0 mb-4">
+                    {{ $t('complianceFramework') }}
+                  </v-card-title>
+                  
+                  <v-row>
+                    <v-col cols="12" md="6">
+                      <v-switch
+                        v-model="form.enableComplianceFramework"
+                        inset
+                        :label="$t('enableComplianceFramework')"
+                        hint="Enable compliance framework integration"
+                      />
+                    </v-col>
+                  </v-row>
+
+                  <v-row v-if="form.enableComplianceFramework">
+                    <v-col cols="12" md="6">
+                      <v-select
+                        :items="complianceFrameworks"
+                        v-model="form.complianceFramework"
+                        :label="$t('complianceFramework')"
+                        filled
+                        dense
+                        hint="Select compliance framework"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <v-select
+                        :items="complianceOS"
+                        v-model="form.complianceOS"
+                        :label="$t('complianceOS')"
+                        filled
+                        dense
+                        hint="Select target operating system"
+                      />
+                    </v-col>
+                  </v-row>
+
+                  <v-row v-if="form.enableComplianceFramework && form.complianceFramework">
+                    <v-col cols="12">
+                      <v-switch
+                        v-model="form.importComplianceTasks"
+                        inset
+                        :label="$t('importComplianceTasks')"
+                        hint="Import Ansible Lockdown compliance tasks automatically"
+                      />
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-tab-item>
 
           <!-- Cloud Provider Tab -->
@@ -626,6 +682,15 @@ export default {
         'australia-southeast2', 'northamerica-northeast1', 'southamerica-east1',
       ],
       kubernetesTypes: ['None', 'Self-Managed Kubernetes', 'Managed Kubernetes'],
+      complianceFrameworks: ['STIG', 'CIS'],
+      complianceOS: [
+        'Ubuntu 18.04', 'Ubuntu 20.04', 'Ubuntu 22.04', 'Ubuntu 24.04',
+        'RHEL 7', 'RHEL 8', 'RHEL 9',
+        'Debian 11', 'Debian 12',
+        'Amazon Linux 2', 'Amazon Linux 2023',
+        'SUSE 15',
+        'Windows 10', 'Windows 11', 'Windows Server 2016', 'Windows Server 2019', 'Windows Server 2022',
+      ],
       goldenImages: [
         'RHEL7', 'RHEL8', 'RHEL9',
         'UBUNTU18', 'UBUNTU20', 'UBUNTU22', 'UBUNTU24',
@@ -666,6 +731,10 @@ export default {
         isStigCompliant: true,
         jumpbox: null,
         jumpboxStigCompliant: true,
+        enableComplianceFramework: false,
+        complianceFramework: null,
+        complianceOS: null,
+        importComplianceTasks: false,
         additionalSoftware: {
           observability: false,
           serviceMesh: false,
@@ -768,6 +837,10 @@ export default {
           demo: this.form.demo || false,
           import: this.form.import || false,
           path: this.form.import ? this.form.path : null,
+          // Compliance framework settings
+          complianceFramework: this.form.enableComplianceFramework ? this.form.complianceFramework : null,
+          complianceOS: this.form.enableComplianceFramework ? this.form.complianceOS : null,
+          enableSTIG: this.form.enableComplianceFramework && this.form.complianceFramework === 'STIG',
           // Include environment builder configuration only if we have data
           environment_config: {
             environment: this.form.environment || '',
@@ -794,6 +867,20 @@ export default {
         // Create the project via API
         const response = await axios.post('/api/projects', projectData);
         const createdProject = response.data;
+
+        // Import compliance tasks if requested
+        if (this.form.enableComplianceFramework && this.form.importComplianceTasks && this.form.complianceFramework && this.form.complianceOS) {
+          try {
+            await axios.post(`/api/project/${createdProject.id}/lockdown/import`, {
+              framework: this.form.complianceFramework,
+              os: this.form.complianceOS,
+            });
+            this.$toast?.success('Compliance tasks imported successfully!');
+          } catch (importError) {
+            console.warn('Failed to import compliance tasks:', importError);
+            this.$toast?.warning('Project created but failed to import compliance tasks. You can import them manually later.');
+          }
+        }
 
         // Emit the project creation event to update the UI
         EventBus.$emit('i-project', {
