@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Digital-Data-Co/forge/db"
-	"github.com/Digital-Data-Co/forge/util"
 )
 
 func main() {

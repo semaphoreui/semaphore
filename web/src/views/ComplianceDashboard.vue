@@ -244,7 +244,6 @@
 
 <script>
 import axios from 'axios';
-import EventBus from '@/event-bus';
 import complianceService from '@/lib/complianceService';
 import ComplianceTrendsChart from '@/components/compliance/ComplianceTrendsChart.vue';
 import TaskComplianceTable from '@/components/compliance/TaskComplianceTable.vue';
@@ -279,6 +278,7 @@ export default {
       projectOptions: [
         { text: 'All Projects', value: null },
       ],
+      currentProjectId: null,
     };
   },
 
@@ -295,7 +295,20 @@ export default {
   },
 
   async created() {
+    // Check if we're in a project context
+    this.currentProjectId = this.$route.params.projectId || null;
+
     await this.loadProjects();
+
+    // Set default project filter based on context
+    if (this.currentProjectId) {
+      // If accessed from project context, default to current project
+      this.selectedProject = this.currentProjectId;
+    } else {
+      // If accessed from global context, default to "All Projects"
+      this.selectedProject = null;
+    }
+
     await this.refreshData();
   },
 
@@ -363,12 +376,18 @@ export default {
       return new Date(dateString).toLocaleString();
     },
 
-    showDrawer() {
-      this.$emit('show-drawer');
+    returnToProjects() {
+      if (this.currentProjectId) {
+        // If accessed from project context, go back to project dashboard
+        this.$router.push(`/project/${this.currentProjectId}`);
+      } else {
+        // If accessed from global context, go to main page
+        this.$router.push('/');
+      }
     },
 
-    async returnToProjects() {
-      EventBus.$emit('i-open-last-project');
+    showDrawer() {
+      this.$emit('show-drawer');
     },
 
     handleViewTask(task) {

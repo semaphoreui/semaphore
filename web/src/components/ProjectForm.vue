@@ -88,7 +88,6 @@
     </v-subheader>
 
     <v-switch
-      v-if="itemId === 'new'"
       v-model="complianceEnabled"
       :label="$t('enableComplianceFramework')"
       class="mt-2"
@@ -97,7 +96,7 @@
     />
 
     <v-expand-transition>
-      <div v-if="complianceEnabled && itemId === 'new'">
+      <div v-if="complianceEnabled">
         <v-row>
           <v-col cols="12" md="6">
             <v-select
@@ -136,6 +135,31 @@
           persistent-hint
         />
 
+        <!-- Import Button for Existing Projects -->
+        <div v-if="itemId !== 'new' && complianceFramework && complianceOS" class="mt-4">
+          <v-btn
+            color="primary"
+            :loading="importingTasks"
+            :disabled="formSaving || importingTasks"
+            @click="importComplianceTasks"
+            outlined
+          >
+            <v-icon left>mdi-download</v-icon>
+            Import {{ complianceFramework }} {{ complianceOS }} Tasks
+          </v-btn>
+
+          <v-btn
+            v-if="hasImportedTasks"
+            color="success"
+            @click="viewImportedTasks"
+            class="ml-2"
+            outlined
+          >
+            <v-icon left>mdi-eye</v-icon>
+            View Imported Tasks
+          </v-btn>
+        </div>
+
         <v-alert
           v-if="complianceEnabled && complianceFramework && complianceOS"
           type="info"
@@ -159,6 +183,7 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import axios from 'axios';
 
 export default {
   mixins: [ItemFormBase],
@@ -183,6 +208,8 @@ export default {
         'SUSE15',
         'WINDOWS10', 'WINDOWS11', 'WINDOWS2016', 'WINDOWS2019', 'WINDOWS2022',
       ],
+      importingTasks: false,
+      hasImportedTasks: false,
     };
   },
   created() {
@@ -192,7 +219,13 @@ export default {
       this.item.path = '/local/path';
     }
   },
-  mounted() {
+  async mounted() {
+    // Load existing compliance settings for existing projects
+    if (this.itemId !== 'new' && this.item) {
+      this.loadExistingComplianceSettings();
+      await this.checkForImportedTasks();
+    }
+
     // Focus the project name field when component is mounted
     this.$nextTick(() => {
       if (this.$refs.projectNameField) {
@@ -209,11 +242,11 @@ export default {
     },
     beforeSave() {
       // Set compliance fields if enabled
-      if (this.complianceEnabled && this.itemId === 'new') {
+      if (this.complianceEnabled) {
         this.item.compliance_framework = this.complianceFramework;
         this.item.compliance_os = this.complianceOS;
         this.item.enable_stig = this.enableSTIG;
-      } else if (this.itemId === 'new') {
+      } else {
         // Clear compliance fields if not enabled
         this.item.compliance_framework = null;
         this.item.compliance_os = null;
@@ -239,6 +272,71 @@ export default {
       if (this.complianceFramework && this.complianceOS) {
         this.enableSTIG = true;
       }
+    },
+    loadExistingComplianceSettings() {
+      // Load existing compliance settings from the project
+      if (this.item.compliance_framework) {
+        this.complianceEnabled = true;
+        this.complianceFramework = this.item.compliance_framework;
+      }
+      if (this.item.compliance_os) {
+        this.complianceOS = this.item.compliance_os;
+      }
+      if (this.item.enable_stig) {
+        this.enableSTIG = this.item.enable_stig;
+      }
+    },
+    async checkForImportedTasks() {
+      // Check if there are already imported compliance tasks for this project
+      try {
+        const response = await axios.get(`/api/project/${this.itemId}/folders/templates`);
+        const folders = response.data.folders || [];
+        this.hasImportedTasks = folders.some((folder) =>
+          folder.name.includes('STIG') || folder.name.includes('CIS')
+        );
+      } catch (error) {
+        console.error('Failed to check for imported tasks:', error);
+        this.hasImportedTasks = false;
+      }
+    },
+    async importComplianceTasks() {
+      if (!this.complianceFramework || !this.complianceOS) {
+        this.$emit('error', 'Please select both compliance framework and operating system');
+        return;
+      }
+
+      this.importingTasks = true;
+      try {
+        const response = await axios.post(`/api/project/${this.itemId}/lockdown/import`, {
+          framework: this.complianceFramework,
+          os: this.complianceOS,
+        });
+
+        if (response.data.success) {
+          this.$emit(
+            'success',
+            `Successfully imported ${this.complianceFramework} `
+            + `${this.complianceOS} compliance tasks`,
+          );
+          this.hasImportedTasks = true;
+
+          // Update the project with compliance settings
+          this.item.compliance_framework = this.complianceFramework;
+          this.item.compliance_os = this.complianceOS;
+          this.item.enable_stig = true;
+        } else {
+          this.$emit('error', response.data.message || 'Failed to import compliance tasks');
+        }
+      } catch (error) {
+        console.error('Failed to import compliance tasks:', error);
+        this.$emit('error', 'Failed to import compliance tasks. Please try again.');
+      } finally {
+        this.importingTasks = false;
+      }
+    },
+    viewImportedTasks() {
+      // Navigate to the templates page to view imported tasks
+      this.$router.push(`/project/${this.itemId}/templates`);
     },
   },
 };

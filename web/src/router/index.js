@@ -148,6 +148,10 @@ const routes = [
     component: Team,
   },
   {
+    path: '/project/:projectId/compliance',
+    component: ComplianceDashboard,
+  },
+  {
     path: '/project/:projectId/invites',
     component: Invites,
   },

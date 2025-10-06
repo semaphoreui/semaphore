@@ -28,7 +28,7 @@
 
       <v-tab
         key="compliance-dashboard"
-        :to="`/compliance`"
+        :to="`/project/${projectId}/compliance`"
       >{{ $t('Compliance Dashboard') }}</v-tab>
     </v-tabs>
 
