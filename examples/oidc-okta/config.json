@@ -1,0 +1,24 @@
+{
+  "bolt": {
+    "host": "/path/to/database.boltdb"
+  },
+  "dialect": "bolt",
+  "cookie_hash": "YOUR_COOKIE_HASH_HERE",
+  "cookie_encryption": "YOUR_COOKIE_ENCRYPTION_HERE",
+  "web_host": "https://your-semaphore-instance.com",
+  "oidc_providers": {
+    "okta": {
+      "display_name": "Okta",
+      "provider_url": "https://your-domain.okta.com",
+      "client_id": "YOUR_CLIENT_ID",
+      "client_secret": "YOUR_CLIENT_SECRET",
+      "redirect_url": "https://your-semaphore-instance.com/api/auth/oidc/okta/redirect",
+      "scopes": ["openid", "profile", "email"],
+      "token_endpoint_auth_method": "client_secret_post",
+      "username_claim": "preferred_username",
+      "name_claim": "name",
+      "email_claim": "email",
+      "order": 0
+    }
+  }
+}
