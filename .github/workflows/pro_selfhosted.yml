@@ -93,7 +93,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
           MYSQL_USER: semaphore
@@ -301,7 +301,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: p455w0rd
           MYSQL_USER: semaphore
