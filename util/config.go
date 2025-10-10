@@ -293,8 +293,8 @@ type ConfigType struct {
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
- DiscordAlert        bool   `json:"discord_alert,omitempty" env:"SEMAPHORE_DISCORD_ALERT"`
- DiscordUrl          string `json:"discord_url,omitempty" env:"SEMAPHORE_DISCORD_URL"`
+	DiscordAlert        bool   `json:"discord_alert,omitempty" env:"SEMAPHORE_DISCORD_ALERT"`
+	DiscordUrl          string `json:"discord_url,omitempty" env:"SEMAPHORE_DISCORD_URL"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
