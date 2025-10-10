@@ -21,6 +21,9 @@ type BackupDB struct {
 	integrationExtractValues map[int][]db.IntegrationExtractValue
 
 	secretStorages []db.SecretStorage
+	globalRoles    []db.Role
+	roles          []db.Role
+	templateRoles  map[int][]db.TemplateRolePerm
 }
 
 type BackupFormat struct {
@@ -35,6 +38,7 @@ type BackupFormat struct {
 	IntegrationAliases []string              `backup:"integration_aliases"`
 	Schedules          []BackupSchedule      `backup:"schedules"`
 	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
+	Roles              []BackupRole          `backup:"roles"`
 }
 
 type BackupMeta struct {
@@ -53,7 +57,8 @@ type BackupAccessKey struct {
 
 type BackupSchedule struct {
 	db.Schedule
-	Template string `backup:"template"`
+	Template            string  `backup:"template"`
+	CheckableRepository *string `backup:"checkable_repository"`
 }
 
 type BackupView struct {
@@ -71,6 +76,12 @@ type BackupRepository struct {
 	SSHKey *string `backup:"ssh_key"`
 }
 
+type BackupTemplateRole struct {
+	Role        string                   `backup:"role"`
+	IsGlobal    bool                     `backup:"is_global"`
+	Permissions db.ProjectUserPermission `backup:"permissions"`
+}
+
 type BackupTemplate struct {
 	db.Template
 
@@ -80,10 +91,12 @@ type BackupTemplate struct {
 	BuildTemplate *string               `backup:"build_template"`
 	View          *string               `backup:"view"`
 	Vaults        []BackupTemplateVault `backup:"vaults"`
-	Cron          *string               `backup:"cron"`
+	//Cron          *string               `backup:"cron"`
 
 	// Deprecated: Left here for compatibility with old backups
 	VaultKey *string `json:"vault_key"`
+
+	Roles []BackupTemplateRole `backup:"roles"`
 }
 
 type BackupTemplateVault struct {
@@ -102,6 +115,10 @@ type BackupIntegration struct {
 
 type BackupSecretStorage struct {
 	db.SecretStorage
+}
+
+type BackupRole struct {
+	db.Role
 }
 
 type BackupEntry interface {
@@ -135,5 +152,9 @@ func (e BackupTemplate) GetName() string {
 }
 
 func (e BackupSecretStorage) GetName() string {
+	return e.Name
+}
+
+func (e BackupRole) GetName() string {
 	return e.Name
 }

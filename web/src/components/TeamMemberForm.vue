@@ -27,8 +27,17 @@
       </v-btn-toggle>
     </div>
 
+    <v-text-field
+      v-if="selectedInviteType === 'email'"
+      type="email"
+      :label="$t('email')"
+      v-model="item.email"
+      outlined
+      dense
+    />
+
     <v-autocomplete
-      v-if="selectedInviteType === 'username'"
+      v-else
       v-model="item.user_id"
       :label="$t('user')"
       :items="users"
@@ -41,21 +50,12 @@
       dense
     ></v-autocomplete>
 
-    <v-text-field
-      type="email"
-      v-else
-      :label="$t('email')"
-      v-model="item.email"
-      outlined
-      dense
-    />
-
     <v-select
       v-model="item.role"
       :label="$t('role')"
-      :items="USER_ROLES"
+      :items="userRoles"
       item-value="slug"
-      item-text="title"
+      item-text="name"
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"
@@ -75,6 +75,13 @@ export default {
   props: {
     invitesEnabled: Boolean,
     inviteType: String,
+    roles: Array,
+  },
+
+  computed: {
+    userRoles() {
+      return [...USER_ROLES, ...(this.roles || [])];
+    },
   },
 
   data() {

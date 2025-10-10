@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/syslog"
 	"net/http"
 	"net/url"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/services/server"
+	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
@@ -71,8 +73,22 @@ func Execute() {
 	}
 }
 
+func initSyslog(conf *util.SyslogConfig) {
+	if conf.Enabled {
+		hook, err := lSyslog.NewSyslogHook(conf.Network, conf.Address, syslog.LOG_DEBUG, conf.Tag)
+		if err == nil {
+			log.AddHook(hook)
+		} else {
+			log.WithError(err).Fatal("Failed to create syslog hook")
+		}
+	}
+}
+
 func runService() {
 	store := createStore("root")
+
+	initSyslog(util.Config.Log.Channels.Syslog)
+
 	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)

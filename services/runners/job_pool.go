@@ -150,6 +150,8 @@ func (p *JobPool) Unregister() (err error) {
 func (p *JobPool) Run() {
 	logger := JobLogger{Context: "running"}
 
+	launched := false
+
 	if util.Config.Runner.Token == "" {
 		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
 	}
@@ -197,6 +199,9 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
+					logger.ActionError(err, "launch job", "job failed")
+					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+
 					if runningJob.status == task_logger.TaskStoppingStatus {
 						runningJob.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
@@ -223,7 +228,12 @@ func (p *JobPool) Run() {
 
 				defer atomic.StoreInt32(&p.processing, 0)
 
-				p.sendProgress()
+				ok := p.sendProgress()
+
+				if ok && !launched {
+					launched = true
+					fmt.Println("Runner connected")
+				}
 
 				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
 					os.Exit(0)
@@ -236,7 +246,7 @@ func (p *JobPool) Run() {
 	}
 }
 
-func (p *JobPool) sendProgress() {
+func (p *JobPool) sendProgress() (ok bool) {
 
 	logger := JobLogger{Context: "sending_progress"}
 
@@ -288,9 +298,13 @@ func (p *JobPool) sendProgress() {
 
 	if resp.StatusCode >= 400 {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+	} else {
+		ok = true
 	}
 
 	defer resp.Body.Close() //nolint:errcheck
+
+	return
 }
 
 func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {

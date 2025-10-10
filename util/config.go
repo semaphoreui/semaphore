@@ -157,9 +157,21 @@ type TaskLogType struct {
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
 }
 
+type ConfigLogChannels struct {
+	Syslog *SyslogConfig `json:"syslog,omitempty"`
+}
+
 type ConfigLog struct {
-	Events *EventLogType `json:"events,omitempty"`
-	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+	Events   *EventLogType      `json:"events,omitempty"`
+	Tasks    *TaskLogType       `json:"tasks,omitempty"`
+	Channels *ConfigLogChannels `json:"channels,omitempty"`
+}
+
+type SyslogConfig struct {
+	Enabled bool   `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
+	Network string `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
+	Address string `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
+	Tag     string `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
 }
 
 type ConfigProcess struct {

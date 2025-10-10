@@ -18,3 +18,4 @@ create table project__task_params
 alter table project__integration drop task_params;
 alter table project__schedule add task_params_id int references `project__task_params`(`id`);
 alter table project__integration add task_params_id int references `project__task_params`(`id`);
+

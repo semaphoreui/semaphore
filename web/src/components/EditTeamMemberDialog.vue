@@ -19,6 +19,7 @@
         :need-reset="needReset"
         :invites-enabled="invitesEnabled"
         :invite-type="inviteType"
+        :roles="roles"
       />
     </template>
   </EditDialog>
@@ -44,6 +45,7 @@ export default {
     itemId: [String, Number],
     invitesEnabled: Boolean,
     inviteType: String,
+    roles: Array,
   },
 
   data() {

@@ -569,6 +569,20 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item
+                key="roles"
+                to="/roles"
+                v-if="isPro && user.admin"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-account-cog</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('Roles') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="edit" @click="userDialog = true">
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>

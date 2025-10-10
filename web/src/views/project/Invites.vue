@@ -30,23 +30,7 @@
       </v-btn>
     </v-toolbar>
 
-    <v-tabs class="pl-4" v-if="systemInfo.teams.invites_enabled">
-      <v-tab
-        key="team"
-        :to="`/project/${projectId}/team`"
-        data-testid="team-members"
-      >
-        Members
-      </v-tab>
-
-      <v-tab
-        key="invites"
-        :to="`/project/${projectId}/invites`"
-        data-testid="team-invites"
-      >
-        Invites
-      </v-tab>
-    </v-tabs>
+    <TeamMenu :project-id="projectId" :system-info="systemInfo" />
 
     <v-divider style="margin-top: -1px;"/>
 
@@ -63,7 +47,7 @@
       </template>
 
       <template v-slot:item.role="{ item }">
-        {{ USER_ROLES.find(r => r.slug === item.role).title }}
+        {{ USER_ROLES.find(r => r.slug === item.role).name }}
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -82,9 +66,10 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import axios from 'axios';
 import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
+import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
-  components: { EditTeamMemberDialog },
+  components: { TeamMenu, EditTeamMemberDialog },
   mixins: [ItemListPageBase],
 
   props: {

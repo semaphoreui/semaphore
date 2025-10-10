@@ -200,10 +200,11 @@ type TaskWithTpl struct {
 
 // TaskOutput is the ansible log output from the task
 type TaskOutput struct {
-	ID     int       `db:"id" json:"id"`
-	TaskID int       `db:"task_id" json:"task_id"`
-	Time   time.Time `db:"time" json:"time"`
-	Output string    `db:"output" json:"output"`
+	ID      int       `db:"id" json:"id"`
+	TaskID  int       `db:"task_id" json:"task_id"`
+	Time    time.Time `db:"time" json:"time"`
+	Output  string    `db:"output" json:"output"`
+	StageID *int      `db:"stage_id" json:"stage_id"`
 }
 
 type TaskStageType string
@@ -216,13 +217,11 @@ const (
 )
 
 type TaskStage struct {
-	ID            int           `db:"id" json:"id"`
-	TaskID        int           `db:"task_id" json:"task_id"`
-	Start         *time.Time    `db:"start" json:"start"`
-	End           *time.Time    `db:"end" json:"end"`
-	StartOutputID *int          `db:"start_output_id" json:"start_output_id"`
-	EndOutputID   *int          `db:"end_output_id" json:"end_output_id"`
-	Type          TaskStageType `db:"type" json:"type"`
+	ID     int           `db:"id" json:"id"`
+	TaskID int           `db:"task_id" json:"task_id"`
+	Start  *time.Time    `db:"start" json:"start"`
+	End    *time.Time    `db:"end" json:"end"`
+	Type   TaskStageType `db:"type" json:"type"`
 }
 
 type TaskStageWithResult struct {

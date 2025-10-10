@@ -22,9 +22,10 @@ import (
 )
 
 type logRecord struct {
-	task   *TaskRunner
-	output string
-	time   time.Time
+	task         *TaskRunner
+	output       string
+	time         time.Time
+	currentStage *db.TaskStage
 }
 
 type EventType uint
@@ -34,6 +35,11 @@ const (
 	EventTypeFinished EventType = 1
 	EventTypeFailed   EventType = 2
 	EventTypeEmpty    EventType = 3
+)
+
+const (
+	TaskOutputBatchSize        = 500
+	TaskOutputInsertIntervalMs = 500
 )
 
 type PoolEvent struct {
@@ -153,9 +159,7 @@ func (p *TaskPool) GetTaskByAlias(alias string) (task *TaskRunner) {
 func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)
 
-	defer func() {
-		ticker.Stop()
-	}()
+	defer ticker.Stop()
 
 	go p.handleQueue()
 	go p.handleLogs()
@@ -166,7 +170,7 @@ func (p *TaskPool) Run() {
 
 			db.StoreSession(p.store, "new task", func() {
 				//p.Queue = append(p.Queue, task)
-				msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
+				msg := "Task " + getTaskName(task) + " added to queue"
 				task.Log(msg)
 				log.Info(msg)
 				task.saveStatus()
@@ -178,6 +182,10 @@ func (p *TaskPool) Run() {
 
 		}
 	}
+}
+
+func getTaskName(t *TaskRunner) string {
+	return t.Template.Name + " " + strconv.Itoa(t.Task.ID)
 }
 
 func (p *TaskPool) handleQueue() {
@@ -204,7 +212,7 @@ func (p *TaskPool) handleQueue() {
 			if curr.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				_ = p.state.DequeueAt(i)
-				log.Info("Task " + strconv.Itoa(curr.Task.ID) + " removed from queue")
+				log.Info("Task " + getTaskName(curr) + " removed from queue")
 				continue
 			}
 
@@ -226,23 +234,49 @@ func (p *TaskPool) handleQueue() {
 }
 
 func (p *TaskPool) handleLogs() {
+	logTicker := time.NewTicker(TaskOutputInsertIntervalMs * time.Millisecond)
 
-	for record := range p.logger {
-		db.StoreSession(p.store, "logger", func() {
+	defer logTicker.Stop()
 
-			newOutput, err := p.store.CreateTaskOutput(db.TaskOutput{
-				TaskID: record.task.Task.ID,
-				Output: record.output,
-				Time:   record.time,
-			})
+	logs := make([]logRecord, 0)
 
-			if err != nil {
-				log.Error(err)
-				return
+	for {
+
+		select {
+		case record := <-p.logger:
+			logs = append(logs, record)
+
+			if len(logs) >= TaskOutputBatchSize {
+				p.flushLogs(&logs)
 			}
+		case <-logTicker.C:
+			p.flushLogs(&logs)
+		}
+	}
+}
 
-			currentOutput := record.task.currentOutput
-			record.task.currentOutput = &newOutput
+func (p *TaskPool) flushLogs(logs *[]logRecord) {
+	if len(*logs) > 0 {
+		p.writeLogs(*logs)
+		*logs = (*logs)[:0]
+	}
+}
+
+func (p *TaskPool) writeLogs(logs []logRecord) {
+
+	taskOutput := make([]db.TaskOutput, 0)
+
+	for _, record := range logs {
+		newOutput := db.TaskOutput{
+			TaskID: record.task.Task.ID,
+			Output: record.output,
+			Time:   record.time,
+		}
+
+		currentOutput := record.task.currentOutput
+		record.task.currentOutput = &newOutput
+
+		db.StoreSession(p.store, "logger", func() {
 
 			newStage, newState, err := stage_parsers.MoveToNextStage(
 				p.store,
@@ -265,16 +299,32 @@ func (p *TaskPool) handleLogs() {
 			if newStage != nil {
 				record.task.currentStage = newStage
 			}
+
+			if record.task.currentStage != nil {
+				newOutput.StageID = &record.task.currentStage.ID
+			}
 		})
+		taskOutput = append(taskOutput, newOutput)
 	}
+
+	db.StoreSession(p.store, "logger", func() {
+		err := p.store.InsertTaskOutputBatch(taskOutput)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+	})
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
-	log.Info("Set resource locker with TaskRunner " + strconv.Itoa(task.Task.ID))
+	log.Info("Set resource locker with TaskRunner " + getTaskName(task))
 	p.onTaskRun(task)
 
-	log.Info("Task " + strconv.Itoa(task.Task.ID) + " started")
-	go task.run()
+	log.Info("Task " + getTaskName(task) + " started")
+	go func() {
+		time.Sleep(1 * time.Second)
+		task.run()
+	}()
 }
 
 func (p *TaskPool) onTaskRun(t *TaskRunner) {
@@ -420,6 +470,81 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	}
 
 	return nil
+}
+
+// StopTasksByTemplate stops all active (queued or running) tasks that belong to
+// the specified project and template. If forceStop is true, tasks are marked as
+// stopped immediately and running tasks are killed; otherwise tasks are marked
+// as stopping and will gracefully transition to stopped.
+func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
+	// Handle queued tasks
+	for _, t := range p.state.QueueRange() {
+		if t == nil {
+			continue
+		}
+		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			continue
+		}
+		if t.Task.Status.IsFinished() {
+			continue
+		}
+		if forceStop {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			t.SetStatus(task_logger.TaskStoppingStatus)
+		}
+		// Queued tasks will be dequeued and immediately finalize to Stopped in run()
+	}
+
+	// Handle running tasks
+	for _, t := range p.state.RunningRange() {
+		if t == nil {
+			continue
+		}
+		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			continue
+		}
+		if t.Task.Status.IsFinished() {
+			continue
+		}
+		prevStatus := t.Task.Status
+		if forceStop {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			t.SetStatus(task_logger.TaskStoppingStatus)
+		}
+		if prevStatus == task_logger.TaskRunningStatus {
+			t.kill()
+		}
+	}
+
+	// Update tasks in DB that are neither queued nor running but still active
+	// (e.g., created but not present in this instance's memory state).
+	if tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
+		TaskFilter: &db.TaskFilter{
+			Status: task_logger.UnfinishedTaskStatuses(),
+		},
+	}); err == nil {
+		for _, twt := range tasks {
+
+			// if task is managed locally (queued/running), it was handled above
+			if p.GetTask(twt.Task.ID) != nil {
+				continue
+			}
+
+			// mark non-local task as stopped and write event for history
+			tr := NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if err := tr.populateDetails(); err != nil {
+				log.Error(err)
+				continue
+			}
+
+			tr.SetStatus(task_logger.TaskStoppedStatus)
+			tr.createTaskEvent()
+		}
+	} else {
+		log.Error(err)
+	}
 }
 
 // GetQueuedTasks returns a snapshot of tasks currently queued

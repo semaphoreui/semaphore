@@ -27,7 +27,7 @@
       </v-tab>
 
       <v-tab
-        v-if="projectType === ''"
+        v-if="canUpdateProject && projectType === ''"
         key="runners"
         :to="`/project/${projectId}/runners`"
         data-testid="dashboard-runners"

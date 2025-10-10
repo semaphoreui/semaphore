@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -16,7 +18,6 @@ import (
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 func RunnerMiddleware(next http.Handler) http.Handler {
@@ -316,6 +317,11 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"runner_id": runner.ID,
+		"context":   "runner",
+	}).Info("New runner registered")
 
 	var res struct {
 		Token string `json:"token"`

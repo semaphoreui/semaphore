@@ -2,9 +2,10 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 // GetStrParam fetches a parameter from the route variables as an integer
@@ -23,6 +24,11 @@ func GetStrParam(name string, w http.ResponseWriter, r *http.Request) (string, e
 	}
 
 	return strParam, nil
+}
+
+func HasParam(name string, r *http.Request) bool {
+	_, ok := mux.Vars(r)[name]
+	return ok
 }
 
 // GetIntParam fetches a parameter from the route variables as an integer

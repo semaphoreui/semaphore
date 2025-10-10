@@ -18,22 +18,28 @@ func init() {
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
 
+func initRunnerRegistrationToken() {
+	if !runnerRegisterArgs.stdinRegistrationToken {
+		return
+	}
+
+	tokenBytes, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(tokenBytes) == 0 {
+		panic("Empty token")
+	}
+
+	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
+}
+
 func registerRunner() {
 
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
-	if runnerRegisterArgs.stdinRegistrationToken {
-		tokenBytes, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			panic(err)
-		}
-
-		if len(tokenBytes) == 0 {
-			panic("Empty token")
-		}
-
-		util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
-	}
+	initRunnerRegistrationToken()
 
 	taskPool := createRunnerJobPool()
 

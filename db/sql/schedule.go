@@ -144,11 +144,19 @@ func (d *SqlDb) GetSchedules() (schedules []db.Schedule, err error) {
 	return
 }
 
-func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool) (schedules []db.ScheduleWithTpl, err error) {
+func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) (schedules []db.ScheduleWithTpl, err error) {
+
+	repoFilter := ""
+	if !includeCommitCheckers {
+		repoFilter = "ps.repository_id IS NULL AND "
+	}
+
 	_, err = d.selectAll(&schedules,
 		"SELECT ps.*, pt.name as tpl_name FROM project__schedule ps "+
 			"JOIN project__template pt ON pt.id = ps.template_id "+
-			"WHERE ps.repository_id IS NULL AND ps.project_id=?",
+			"WHERE "+
+			repoFilter+
+			"ps.project_id=?",
 		projectID)
 
 	if includeTaskParams {

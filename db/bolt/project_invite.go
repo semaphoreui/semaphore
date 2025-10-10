@@ -5,6 +5,8 @@ import (
 )
 
 func (d *BoltDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) (invites []db.ProjectInviteWithUser, err error) {
+	invites = make([]db.ProjectInviteWithUser, 0)
+
 	var projectInvites []db.ProjectInvite
 	err = d.getObjects(projectID, db.ProjectInviteProps, params, nil, &projectInvites)
 	if err != nil {

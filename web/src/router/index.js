@@ -6,6 +6,8 @@ import TaskList from '@/components/TaskList.vue';
 import TemplateDetails from '@/views/project/template/TemplateDetails.vue';
 import TemplateTerraformState from '@/views/project/template/TemplateTerraformState.vue';
 import Invites from '@/views/project/Invites.vue';
+import TemplatePerms from '@/views/project/template/TemplatePerms.vue';
+import Roles from '@/views/Roles.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -91,6 +93,9 @@ const routes = [
       path: 'details',
       component: TemplateDetails,
     }, {
+      path: 'perms',
+      component: TemplatePerms,
+    }, {
       path: 'state',
       component: TemplateTerraformState,
     }],
@@ -105,6 +110,9 @@ const routes = [
     }, {
       path: 'details',
       component: TemplateDetails,
+    }, {
+      path: 'perms',
+      component: TemplatePerms,
     }, {
       path: 'state',
       component: TemplateTerraformState,
@@ -143,12 +151,20 @@ const routes = [
     component: Invites,
   },
   {
+    path: '/project/:projectId/roles',
+    component: Roles,
+  },
+  {
     path: '/auth/login',
     component: Auth,
   },
   {
     path: '/users',
     component: Users,
+  },
+  {
+    path: '/roles',
+    component: Roles,
   },
   {
     path: '/runners',

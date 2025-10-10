@@ -9,6 +9,7 @@ web/.nyc_output
 api/public/**/*
 /server.json
 /config.json
+/config-secondary.json
 /config.runner.json
 /config.runner.token
 /config.runner.key
@@ -21,6 +22,7 @@ api/public/**/*
 /database.boltdb.lock
 /database_test.boltdb
 .DS_Store
+/backup.json
 node_modules/
 
 /.idea/

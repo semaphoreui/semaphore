@@ -197,6 +197,7 @@
                   :rules="[v => !!v || $t('username_required')]"
                   required
                   :disabled="signInProcess"
+                  id="auth-username"
                   data-testid="auth-username"
                 ></v-text-field>
 
@@ -209,6 +210,7 @@
                   :disabled="signInProcess"
                   @keyup.enter.native="signIn"
                   style="margin-bottom: 20px;"
+                  id="auth-password"
                   data-testid="auth-password"
                 ></v-text-field>
 

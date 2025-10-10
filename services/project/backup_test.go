@@ -2,8 +2,9 @@ package project
 
 import (
 	"encoding/json"
-	"github.com/semaphoreui/semaphore/db/sql"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db/sql"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -70,12 +71,13 @@ func TestBackupProject(t *testing.T) {
 
 	str, err := backup.Marshal()
 	assert.NoError(t, err)
-	//assert.Equal(t, "{\"environments\":[{\"json\":\"{\\\"author\\\": \\\"Denis\\\", \\\"comment\\\": \\\"Hello, World!\\\"}\",\"name\":\"test\"}],\"integration_aliases\":[],\"integrations\":[],\"inventories\":[{\"inventory\":\"\",\"name\":\"\",\"type\":\"\"}],\"keys\":[{\"name\":\"\",\"type\":\"none\"}],\"meta\":{\"alert\":false,\"max_parallel_tasks\":0,\"name\":\"Test 123\",\"type\":\"\"},\"repositories\":[{\"git_branch\":\"master\",\"git_url\":\"git@example.com:test/test\",\"name\":\"Test\",\"ssh_key\":\"\"}],\"templates\":[{\"allow_override_args_in_task\":false,\"app\":\"\",\"autorun\":false,\"environment\":\"test\",\"inventory\":\"\",\"name\":\"Test\",\"playbook\":\"test.yml\",\"repository\":\"Test\",\"suppress_success_alerts\":false,\"survey_vars\":[],\"task_params\":{},\"type\":\"\",\"vaults\":[]}],\"views\":[]}", str)
 
 	restoredBackup := &BackupFormat{}
 	err = restoredBackup.Unmarshal(str)
 	assert.NoError(t, err)
-	assert.Equal(t, proj.Name, restoredBackup.Meta.Name)
+	assert.Equal(t, restoredBackup.Meta.Name, "Test 123")
+
+	restoredBackup.Meta.Name = "Test 1234"
 
 	user, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "3412341234123",
@@ -90,7 +92,7 @@ func TestBackupProject(t *testing.T) {
 
 	restoredProj, err := restoredBackup.Restore(user, store)
 	assert.NoError(t, err)
-	assert.Equal(t, proj.Name, restoredProj.Name)
+	assert.Equal(t, restoredProj.Name, "Test 1234")
 }
 
 func TestBackup_BackupSecretStorage(t *testing.T) {
@@ -124,6 +126,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	backup, err := GetBackup(proj.ID, store)
 	assert.NoError(t, err)
 	assert.Equal(t, proj.ID, backup.Meta.ID)
+	backup.Meta.Name = "Test 1234"
 
 	str, err := backup.Marshal()
 	assert.NoError(t, err)
@@ -147,10 +150,11 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
   "meta": {
     "alert": false,
     "max_parallel_tasks": 0,
-    "name": "Test 123",
+    "name": "Test 1234",
     "type": ""
   },
   "repositories": [],
+  "roles": [],
   "schedules": [],
   "secret_storages": [
     {
@@ -167,7 +171,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	restoredBackup := &BackupFormat{}
 	err = restoredBackup.Unmarshal(str)
 	assert.NoError(t, err)
-	assert.Equal(t, proj.Name, restoredBackup.Meta.Name)
+	assert.Equal(t, restoredBackup.Meta.Name, "Test 1234")
 
 	user, err := store.CreateUser(db.UserWithPwd{
 		Pwd: "3412341234123",

@@ -160,6 +160,11 @@ type Template struct {
 	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
 }
 
+type TemplateWithPerms struct {
+	Template
+	Permissions *ProjectUserPermission `db:"permissions" json:"permissions"`
+}
+
 func (tpl *Template) FillParams(target any) error {
 	content, err := json.Marshal(tpl.TaskParams)
 	if err != nil {

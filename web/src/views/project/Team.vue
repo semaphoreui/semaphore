@@ -6,6 +6,7 @@
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
+      :roles="systemInfo.roles"
       @save="openInvites()"
     />
 
@@ -36,23 +37,7 @@
       </v-btn>
     </v-toolbar>
 
-    <v-tabs class="pl-4" v-if="systemInfo.teams.invites_enabled">
-      <v-tab
-        key="team"
-        :to="`/project/${projectId}/team`"
-        data-testid="team-members"
-      >
-        Members
-      </v-tab>
-
-      <v-tab
-        key="invites"
-        :to="`/project/${projectId}/invites`"
-        data-testid="team-invites"
-      >
-        Invites
-      </v-tab>
-    </v-tabs>
+    <TeamMenu :project-id="projectId" :system-info="systemInfo" />
 
     <v-divider style="margin-top: -1px;"/>
 
@@ -68,15 +53,15 @@
         <v-select
           hide-details
           v-model="item.role"
-          :items="USER_ROLES"
+          :items="userRoles"
           item-value="slug"
-          item-text="title"
+          item-text="name"
           :style="{width: '200px'}"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ USER_ROLES.find(r => r.slug === item.role).title }}</div>
+        <div v-else>{{ userRoles.find(r => r.slug === item.role).name }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -95,19 +80,20 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
+import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
-  components: { EditTeamMemberDialog },
+  components: { TeamMenu, EditTeamMemberDialog },
   mixins: [ItemListPageBase],
 
   props: {
     systemInfo: Object,
   },
 
-  data() {
-    return {
-      USER_ROLES,
-    };
+  computed: {
+    userRoles() {
+      return [...USER_ROLES, ...this.systemInfo.roles];
+    },
   },
 
   methods: {

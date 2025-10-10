@@ -1084,6 +1084,16 @@ definitions:
         type: integer
       position:
         type: integer
+      hidden:
+        type: boolean
+      type:
+        type: string
+        enum: ["", all]
+      sort_column:
+        type: string
+        enum: [name]
+      sort_reverse:
+        type: boolean
 
   Runner:
     type: object
@@ -2403,6 +2413,19 @@ paths:
           description: template created
           schema:
             $ref: "#/definitions/Template"
+
+  /project/{project_id}/templates/{template_id}/stop_all_tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    post:
+      tags:
+        - template
+      summary: Stop all active tasks of template
+      responses:
+        204:
+          description: tasks stopped
+
   /project/{project_id}/templates/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2436,7 +2459,6 @@ paths:
       responses:
         204:
           description: template removed
-
 
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:

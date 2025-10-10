@@ -1,12 +1,17 @@
 package sql
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/go-gorp/gorp/v3"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"path"
 	"regexp"
 	"strings"
+
+	"text/template"
+
+	"github.com/go-gorp/gorp/v3"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
@@ -35,7 +40,7 @@ func getVersionErrPath(version db.Migration) string {
 
 // getVersionSQL takes a path to an SQL file and returns it from embed.FS
 // a slice of strings separated by newlines
-func getVersionSQL(name string, ignoreErrors bool) (queries []string) {
+func getVersionSQL(dialect string, name string, ignoreErrors bool) (queries []string) {
 	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
 	if err != nil {
 		if ignoreErrors {
@@ -45,11 +50,54 @@ func getVersionSQL(name string, ignoreErrors bool) (queries []string) {
 			panic(err)
 		}
 	}
-	queries = strings.Split(strings.ReplaceAll(string(sql), ";\r\n", ";\n"), ";\n")
+
+	processedSql, err := preprocessSqlDialect(dialect, string(sql))
+
+	if err != nil {
+		panic(err)
+	}
+
+	queries = strings.Split(strings.ReplaceAll(processedSql, ";\r\n", ";\n"), ";\n")
 	for i := range queries {
 		queries[i] = strings.Trim(queries[i], "\r\n\t ")
 	}
 	return
+}
+
+func getDialectConfig(dialect string) interface{} {
+	type Config struct {
+		Sqlite     bool
+		Mysql      bool
+		Postgresql bool
+	}
+
+	conf := Config{}
+
+	switch dialect {
+	case util.DbDriverSQLite:
+		conf.Sqlite = true
+	case "mysql":
+		conf.Mysql = true
+	case "postgres":
+		conf.Postgresql = true
+	}
+
+	return conf
+}
+
+func preprocessSqlDialect(dialect string, sql string) (string, error) {
+
+	tmpl, err := template.New("sql").Parse(sql)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, getDialectConfig(dialect))
+	if err != nil {
+		panic(err)
+	}
+	return buf.String(), nil
 }
 
 // prepareMigration converts migration SQLite-query to current dialect.
@@ -157,7 +205,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	queries := getVersionSQL(getVersionPath(migration), false)
+	queries := getVersionSQL(d.GetDialect(), getVersionPath(migration), false)
 	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
@@ -226,7 +274,7 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 		}
 	}()
 
-	queries := getVersionSQL(getVersionErrPath(version), true)
+	queries := getVersionSQL(d.GetDialect(), getVersionErrPath(version), true)
 
 	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)

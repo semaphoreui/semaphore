@@ -146,10 +146,12 @@ export default {
 
       const task = this.items.find((item) => item.id === data.task_id);
 
-      Object.assign(task, {
-        ...data,
-        type: undefined,
-      });
+      if (task) {
+        Object.assign(task, {
+          ...data,
+          type: undefined,
+        });
+      }
     },
 
     getHeaders() {

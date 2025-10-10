@@ -2,23 +2,22 @@ package sql
 
 import (
 	"encoding/json"
-	"github.com/Masterminds/squirrel"
-	"github.com/semaphoreui/semaphore/db"
 	"math/rand"
 	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
 	insertID, err := d.insert(
 		"id",
 		"insert into task__stage "+
-			"(task_id, `start`, `end`, start_output_id, end_output_id, `type`) VALUES "+
-			"(?, ?, ?, ?, ?, ?)",
+			"(task_id, `start`, `end`, `type`) VALUES "+
+			"(?, ?, ?, ?)",
 		stage.TaskID,
 		stage.Start,
 		stage.End,
-		stage.StartOutputID,
-		stage.EndOutputID,
 		stage.Type)
 
 	if err != nil {
@@ -30,11 +29,10 @@ func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error
 	return
 }
 
-func (d *SqlDb) EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) (err error) {
+func (d *SqlDb) EndTaskStage(taskID int, stageID int, end time.Time) (err error) {
 	_, err = d.exec(
-		"update task__stage set `end`=?, end_output_id=? where task_id=? and id=?",
+		"update task__stage set `end`=? where task_id=? and id=?",
 		end,
-		endOutputID,
 		taskID,
 		stageID)
 
@@ -229,6 +227,28 @@ func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return output, err
 }
 
+func (d *SqlDb) InsertTaskOutputBatch(output []db.TaskOutput) error {
+
+	if len(output) == 0 {
+		return nil
+	}
+
+	q := squirrel.Insert("task__output").
+		Columns("task_id", "output", "time", "stage_id")
+
+	for _, item := range output {
+		q = q.Values(item.TaskID, item.Output, item.Time.UTC(), item.StageID)
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(query, args...)
+	return err
+}
+
 func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
@@ -242,6 +262,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("id desc")
+
+	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
+		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
+	}
 
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)
@@ -347,27 +371,10 @@ func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (out
 		return
 	}
 
-	stage, err := d.getTaskStage(taskID, stageID)
-
-	if err != nil {
-		return
-	}
-
 	q := squirrel.Select("id", "task_id", "time", "output").
 		From("task__output").
-		Where("task_id=?", taskID)
-
-	if stage.StartOutputID != nil {
-		q = q.Where(squirrel.GtOrEq{"id": stage.StartOutputID})
-	} else {
-		q = q.Where(squirrel.GtOrEq{"created": stage.Start})
-	}
-
-	if stage.EndOutputID != nil {
-		q = q.Where(squirrel.LtOrEq{"id": stage.EndOutputID})
-	} else {
-		q = q.Where(squirrel.LtOrEq{"created": stage.End})
-	}
+		Where("task_id=?", taskID).
+		Where("stage_id=?", stageID)
 
 	query, args, err := q.ToSql()
 	if err != nil {

@@ -2,12 +2,13 @@ package db
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/util"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 // Migration represents sql schema version
@@ -23,91 +24,88 @@ func (m Migration) HumanoidVersion() string {
 }
 
 func GetMigrations(dialect string) []Migration {
+
+	var initScripts []Migration
 	if dialect == util.DbDriverSQLite {
-		return []Migration{
-			{Version: "2.15.1.sqlite"},
-			{Version: "2.15.2"},
-			{Version: "2.15.3"},
-			{Version: "2.15.4"},
-			{Version: "2.16.0"},
-			{Version: "2.16.1"},
-			{Version: "2.16.2"},
-			{Version: "2.16.3"},
+		initScripts = []Migration{{Version: "2.15.1.sqlite"}}
+	} else {
+		initScripts = []Migration{
+			{Version: "0.0.0"},
+			{Version: "1.0.0"},
+			{Version: "1.2.0"},
+			{Version: "1.3.0"},
+			{Version: "1.4.0"},
+			{Version: "1.5.0"},
+			{Version: "1.6.0"},
+			{Version: "1.7.0"},
+			{Version: "1.8.0"},
+			{Version: "1.9.0"},
+			{Version: "2.2.1"},
+			{Version: "2.3.0"},
+			{Version: "2.3.1"},
+			{Version: "2.3.2"},
+			{Version: "2.4.0"},
+			{Version: "2.5.0"},
+			{Version: "2.5.2"},
+			{Version: "2.7.1"},
+			{Version: "2.7.4"},
+			{Version: "2.7.6"},
+			{Version: "2.7.8"},
+			{Version: "2.7.9"},
+			{Version: "2.7.10"},
+			{Version: "2.7.12"},
+			{Version: "2.7.13"},
+			{Version: "2.8.0"},
+			{Version: "2.8.1"},
+			{Version: "2.8.7"},
+			{Version: "2.8.8"},
+			{Version: "2.8.20"},
+			{Version: "2.8.25"},
+			{Version: "2.8.26"},
+			{Version: "2.8.36"},
+			{Version: "2.8.38"},
+			{Version: "2.8.39"},
+			{Version: "2.8.40"},
+			{Version: "2.8.42"},
+			{Version: "2.8.51"},
+			{Version: "2.8.57"},
+			{Version: "2.8.58"},
+			{Version: "2.8.91"},
+			{Version: "2.9.6"},
+			{Version: "2.9.46"},
+			{Version: "2.9.60"},
+			{Version: "2.9.61"},
+			{Version: "2.9.62"},
+			{Version: "2.9.70"},
+			{Version: "2.9.97"},
+			{Version: "2.9.100"},
+			{Version: "2.10.12"},
+			{Version: "2.10.15"},
+			{Version: "2.10.16"},
+			{Version: "2.10.24"},
+			{Version: "2.10.26"},
+			{Version: "2.10.28"},
+			{Version: "2.10.33"},
+			{Version: "2.10.46"},
+			{Version: "2.11.5"},
+			{Version: "2.12.0"},
+			{Version: "2.12.3"},
+			{Version: "2.12.4"},
+			{Version: "2.12.5"},
+			{Version: "2.12.15"},
+			{Version: "2.13.0"},
+			{Version: "2.14.0"},
+			{Version: "2.14.1"},
+			{Version: "2.14.5"},
+			{Version: "2.14.7"},
+			{Version: "2.14.12"},
+			{Version: "2.15.0"},
+			{Version: "2.15.1"},
 		}
 	}
 
-	return []Migration{
-		{Version: "0.0.0"},
-		{Version: "1.0.0"},
-		{Version: "1.2.0"},
-		{Version: "1.3.0"},
-		{Version: "1.4.0"},
-		{Version: "1.5.0"},
-		{Version: "1.6.0"},
-		{Version: "1.7.0"},
-		{Version: "1.8.0"},
-		{Version: "1.9.0"},
-		{Version: "2.2.1"},
-		{Version: "2.3.0"},
-		{Version: "2.3.1"},
-		{Version: "2.3.2"},
-		{Version: "2.4.0"},
-		{Version: "2.5.0"},
-		{Version: "2.5.2"},
-		{Version: "2.7.1"},
-		{Version: "2.7.4"},
-		{Version: "2.7.6"},
-		{Version: "2.7.8"},
-		{Version: "2.7.9"},
-		{Version: "2.7.10"},
-		{Version: "2.7.12"},
-		{Version: "2.7.13"},
-		{Version: "2.8.0"},
-		{Version: "2.8.1"},
-		{Version: "2.8.7"},
-		{Version: "2.8.8"},
-		{Version: "2.8.20"},
-		{Version: "2.8.25"},
-		{Version: "2.8.26"},
-		{Version: "2.8.36"},
-		{Version: "2.8.38"},
-		{Version: "2.8.39"},
-		{Version: "2.8.40"},
-		{Version: "2.8.42"},
-		{Version: "2.8.51"},
-		{Version: "2.8.57"},
-		{Version: "2.8.58"},
-		{Version: "2.8.91"},
-		{Version: "2.9.6"},
-		{Version: "2.9.46"},
-		{Version: "2.9.60"},
-		{Version: "2.9.61"},
-		{Version: "2.9.62"},
-		{Version: "2.9.70"},
-		{Version: "2.9.97"},
-		{Version: "2.9.100"},
-		{Version: "2.10.12"},
-		{Version: "2.10.15"},
-		{Version: "2.10.16"},
-		{Version: "2.10.24"},
-		{Version: "2.10.26"},
-		{Version: "2.10.28"},
-		{Version: "2.10.33"},
-		{Version: "2.10.46"},
-		{Version: "2.11.5"},
-		{Version: "2.12.0"},
-		{Version: "2.12.3"},
-		{Version: "2.12.4"},
-		{Version: "2.12.5"},
-		{Version: "2.12.15"},
-		{Version: "2.13.0"},
-		{Version: "2.14.0"},
-		{Version: "2.14.1"},
-		{Version: "2.14.5"},
-		{Version: "2.14.7"},
-		{Version: "2.14.12"},
-		{Version: "2.15.0"},
-		{Version: "2.15.1"},
+	// add any new scripts here
+	commonScripts := []Migration{
 		{Version: "2.15.2"},
 		{Version: "2.15.3"},
 		{Version: "2.15.4"},
@@ -115,7 +113,12 @@ func GetMigrations(dialect string) []Migration {
 		{Version: "2.16.1"},
 		{Version: "2.16.2"},
 		{Version: "2.16.3"},
+		{Version: "2.16.8"},
+		{Version: "2.17.0"},
+		{Version: "2.17.1"},
 	}
+
+	return append(initScripts, commonScripts...)
 }
 
 func (m Migration) Validate() error {

@@ -3,11 +3,12 @@ package helpers
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"runtime/debug"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"runtime/debug"
 )
 
 // WriteJSON writes object as JSON
@@ -39,7 +40,7 @@ func WriteError(w http.ResponseWriter, err error) {
 	}
 
 	if errors.Is(err, db.ErrInvalidOperation) {
-		w.WriteHeader(http.StatusConflict)
+		WriteErrorStatus(w, err.Error(), http.StatusConflict)
 		return
 	}
 
