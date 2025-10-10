@@ -270,12 +270,23 @@ else
 fi
 
 
+# Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
+if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; then
+    echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
+    if test "$#" -ne 1; then
+        /usr/local/bin/semaphore project import --file "${SEMAPHORE_IMPORT_PROJECT_FILE}" || echoerr "Project import failed"
+    else
+        "$1" project import --file "${SEMAPHORE_IMPORT_PROJECT_FILE}" || echoerr "Project import failed"
+    fi
+fi
+
+
 #
 # Start Semaphore server
 #
 echoerr "Starting semaphore server"
 if test "$#" -ne 1; then
-    exec /usr/local/bin/semaphore server  --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+    exec /usr/local/bin/semaphore server --config "${SEMAPHORE_CONFIG_PATH}/config.json"
 else
     exec "$@"
 fi

@@ -44,6 +44,7 @@ builds:
 archives:
   - files:
       - LICENSE
+    name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
@@ -52,11 +53,11 @@ signs:
   -
     artifacts: checksum
     args: [
-      "-u", "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA", 
-      "--pinentry-mode", "loopback", 
-      "--yes", 
-      "--batch", 
-      "--output", "${signature}", 
+      "-u", "{{ .Env.GPG_KEY_ID }}",
+      "--pinentry-mode", "loopback",
+      "--yes",
+      "--batch",
+      "--output", "${signature}",
       "--detach-sign", "${artifact}"
     ]
 
@@ -64,7 +65,8 @@ snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
 
 nfpms:
-  - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - file_name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    package_name: "{{ .Env.PROJECT_NAME }}"
     description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
     homepage: https://github.com/semaphoreui/semaphore
     vendor: Semaphore UI

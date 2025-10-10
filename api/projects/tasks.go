@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type TaskController struct {
@@ -33,12 +34,7 @@ func taskPool(r *http.Request) *tasks.TaskPool {
 func AddTask(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.GetFromContext(r, "user").(*db.User)
-
-	var taskObj db.Task
-
-	if !helpers.Bind(w, r, &taskObj) {
-		return
-	}
+	taskObj := helpers.GetFromContext(r, "task").(db.Task)
 
 	tpl, err := helpers.Store(r).GetTemplate(project.ID, taskObj.TemplateID)
 	if err != nil {
@@ -114,6 +110,26 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, task)
 }
 
+func GetTaskPermissionsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := helpers.GetFromContext(r, "project").(db.Project)
+		user := helpers.GetFromContext(r, "user").(*db.User)
+		task := helpers.GetFromContext(r, "task").(db.Task)
+
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+
+		perm, err := helpers.Store(r).GetTemplatePermission(project.ID, task.TemplateID, user.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		permissions |= perm
+
+		r = helpers.SetContextValue(r, "permissions", permissions)
+		next.ServeHTTP(w, r)
+	})
+}
+
 // GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
 func GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -138,16 +154,20 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-//type ansibleTaskResult struct {
-//	App        string              `json:"app"`
-//	TemplateID int                 `json:"template_id"`
-//	Hosts      db.AnsibleTaskHost  `json:"hosts"`
-//	Errors     db.AnsibleTaskError `json:"errors"`
-//}
+// GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
+func NewTaskMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-//func GetAnsibleTaskResult() (res ansibleTaskResult, err error) {
-//	return
-//}
+		var taskObj db.Task
+
+		if !helpers.Bind(w, r, &taskObj) {
+			return
+		}
+
+		r = helpers.SetContextValue(r, "task", taskObj)
+		next.ServeHTTP(w, r)
+	})
+}
 
 func (c *TaskController) GetAnsibleTaskHosts(w http.ResponseWriter, r *http.Request) {
 	task := helpers.GetFromContext(r, "task").(db.Task)
@@ -412,5 +432,19 @@ func GetTaskStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *TaskController) StopAllTasks(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	tpl := helpers.GetFromContext(r, "template").(db.Template)
+
+	var stopObj struct {
+		Force bool `json:"force"`
+	}
+
+	// optional body; ignore bind error and default Force=false
+	if ok := helpers.Bind(w, r, &stopObj); !ok {
+		helpers.WriteErrorStatus(w, "Not allowed", http.StatusBadRequest)
+		return
+	}
+
+	taskPool(r).StopTasksByTemplate(project.ID, tpl.ID, stopObj.Force)
 	w.WriteHeader(http.StatusNoContent)
 }

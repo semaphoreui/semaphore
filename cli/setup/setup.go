@@ -296,7 +296,8 @@ func askValue(prompt string, defaultValue string, item any) {
 
 	_, _ = fmt.Sscanln(defaultValue, item)
 
-	scanErrorChecker(fmt.Scanln(item))
+	n, err := fmt.Scanln(item)
+	scanErrorChecker(n, err)
 
 	// Empty line after prompt
 	fmt.Println("")
@@ -312,7 +313,8 @@ func askConfirmation(prompt string, defaultValue bool, item *bool) {
 
 	var answer string
 
-	scanErrorChecker(fmt.Scanln(&answer))
+	n, err := fmt.Scanln(&answer)
+	scanErrorChecker(n, err)
 
 	switch strings.ToLower(answer) {
 	case "y", "yes":

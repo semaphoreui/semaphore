@@ -52,6 +52,7 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 	Filter       string
 	Ownership    OwnershipFilter
+	TaskFilter   *TaskFilter
 }
 
 type ObjectReferrer struct {
@@ -157,6 +158,10 @@ type ValidationError struct {
 	Message string
 }
 
+func NewValidationError(message string) *ValidationError {
+	return &ValidationError{Message: message}
+}
+
 func (e *ValidationError) Error() string {
 	return e.Message
 }
@@ -171,6 +176,7 @@ type TaskFilter struct {
 	Start  *time.Time `json:"start"`
 	End    *time.Time `json:"end"`
 	UserID *int       `json:"user_id"`
+	Status []task_logger.TaskStatus
 }
 
 type TaskStat struct {
@@ -252,9 +258,20 @@ type ProjectStore interface {
 	UpdateProjectUser(projectUser ProjectUser) error
 }
 
+type ProjectInviteRepository interface {
+	// Project invites
+	GetProjectInvites(projectID int, params RetrieveQueryParams) ([]ProjectInviteWithUser, error)
+	CreateProjectInvite(invite ProjectInvite) (ProjectInvite, error)
+	GetProjectInvite(projectID int, inviteID int) (ProjectInvite, error)
+	GetProjectInviteByToken(token string) (ProjectInvite, error)
+	UpdateProjectInvite(invite ProjectInvite) error
+	DeleteProjectInvite(projectID int, inviteID int) error
+}
+
 // TemplateManager handles template-related operations
 type TemplateManager interface {
 	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplatesWithPermissions(projectID int, userID int, filter TemplateFilter, params RetrieveQueryParams) ([]TemplateWithPerms, error)
 	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
@@ -264,6 +281,13 @@ type TemplateManager interface {
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
+
+	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
+	GetTemplateRoles(projectID int, templateID int) ([]TemplateRolePerm, error)
+	CreateTemplateRole(role TemplateRolePerm) (TemplateRolePerm, error)
+	DeleteTemplateRole(projectID int, templateID int, permID int) error
+	UpdateTemplateRole(role TemplateRolePerm) error
+	GetTemplateRole(projectID int, templateID int, permID int) (TemplateRolePerm, error)
 }
 
 // InventoryManager handles inventory-related operations
@@ -373,8 +397,9 @@ type TaskManager interface {
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+	InsertTaskOutputBatch(output []TaskOutput) error
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
-	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
+	EndTaskStage(taskID int, stageID int, end time.Time) error
 	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
 	GetTaskStages(projectID int, taskID int) ([]TaskStageWithResult, error)
 	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
@@ -392,7 +417,7 @@ type AnsibleTaskRepository interface {
 // ScheduleManager handles schedule-related operations
 type ScheduleManager interface {
 	GetSchedules() ([]Schedule, error)
-	GetProjectSchedules(projectID int, includeTaskParams bool) ([]ScheduleWithTpl, error)
+	GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) ([]ScheduleWithTpl, error)
 	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
@@ -444,6 +469,17 @@ type SecretStorageRepository interface {
 	DeleteSecretStorage(projectID int, storageID int) error
 }
 
+type RoleRepository interface {
+	GetGlobalRoleBySlug(slug string) (Role, error)
+	GetProjectOrGlobalRoleBySlug(projectID int, slug string) (Role, error)
+	GetProjectRole(projectID int, slug string) (Role, error)
+	GetProjectRoles(projectID int) ([]Role, error)
+	GetGlobalRoles() ([]Role, error)
+	UpdateRole(role Role) error
+	CreateRole(role Role) (Role, error)
+	DeleteRole(slug string) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -451,6 +487,7 @@ type Store interface {
 	OptionsManager
 	UserManager
 	ProjectStore
+	ProjectInviteRepository
 	TemplateManager
 	InventoryManager
 	RepositoryManager
@@ -465,6 +502,7 @@ type Store interface {
 	RunnerManager
 	EventManager
 	SecretStorageRepository
+	RoleRepository
 }
 
 var AccessKeyProps = ObjectProps{
@@ -556,6 +594,15 @@ var ProjectUserProps = ObjectProps{
 	PrimaryColumnName: "user_id",
 }
 
+var ProjectInviteProps = ObjectProps{
+	TableName:             "project__invite",
+	Type:                  reflect.TypeOf(ProjectInvite{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "invite_id",
+	SortableColumns:       []string{"created", "status", "role"},
+	DefaultSortingColumn:  "created",
+}
+
 var ProjectProps = ObjectProps{
 	TableName:             "project",
 	Type:                  reflect.TypeOf(Project{}),
@@ -578,6 +625,14 @@ var SecretStorageProps = ObjectProps{
 	Type:                  reflect.TypeOf(SecretStorage{}),
 	PrimaryColumnName:     "id",
 	Ownerships:            []*ObjectProps{&ProjectProps},
+}
+
+var RoleProps = ObjectProps{
+	TableName:         "role",
+	Type:              reflect.TypeOf(Role{}),
+	PrimaryColumnName: "slug",
+	IsGlobal:          true,
+	SortableColumns:   []string{"name"},
 }
 
 var UserProps = ObjectProps{

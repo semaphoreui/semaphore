@@ -103,6 +103,10 @@ func (t *TaskRunner) saveStatus() {
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
 	}
+	// persist runtime fields in HA store
+	if t.pool != nil && t.pool.state != nil {
+		t.pool.state.UpdateRuntimeFields(t)
+	}
 }
 
 func (t *TaskRunner) kill() {

@@ -83,7 +83,8 @@
 
     <EditDialog
       v-model="subscriptionDialog"
-      :save-button-text="user.admin && !user.has_active_subscription ? 'Activate' : 'Reactivate'"
+      :save-button-text="null"
+      :cancel-button-text="$t('close')"
       v-if="user"
       event-name="i-user"
       dont-close-on-save
@@ -186,6 +187,7 @@
           </v-list>
         </template>
         <v-list>
+
           <v-list-item
             v-for="(item, i) in projects"
             :key="i"
@@ -396,25 +398,6 @@
       <template v-slot:append>
         <v-list class="pa-0">
 
-          <v-list-item
-            key="premium"
-            v-if="isPro && user.admin && !user.has_active_subscription"
-            @click="subscriptionDialog = true"
-            class="ActivatePremiumSubscriptionButton"
-          >
-            <v-list-item-content>
-              <v-list-item-title
-              style="font-weight: bold; color: white; font-size: 18px; text-align: center;"
-              >
-                <v-icon
-                  color="white"
-                  x-large
-                >mdi-professional-hexagon</v-icon>
-                Activate Subscription
-              </v-list-item-title>
-            </v-list-item-content>
-          </v-list-item>
-
           <v-list-item>
             <v-switch
               class="DarkModeSwitch"
@@ -480,7 +463,13 @@
                 v-on="on"
               >
                 <v-list-item-icon>
-                  <v-icon>mdi-account</v-icon>
+                  <v-icon
+                    color="#f14668"
+                    v-if="user.pro"
+                  >
+                    mdi-professional-hexagon
+                  </v-icon>
+                  <v-icon v-else>mdi-account</v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
@@ -580,6 +569,20 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item
+                key="roles"
+                to="/roles"
+                v-if="isPro && user.admin"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-account-cog</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('Roles') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="edit" @click="userDialog = true">
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>
@@ -604,6 +607,24 @@
             </v-list>
           </v-menu>
 
+          <v-list-item
+            key="premium"
+            v-if="isPro && user.admin && !user.has_active_subscription"
+            @click="subscriptionDialog = true"
+            class="ActivatePremiumSubscriptionButton"
+          >
+            <v-list-item-icon>
+              <v-icon
+                color="white"
+              >mdi-professional-hexagon</v-icon>
+            </v-list-item-icon>
+            <v-list-item-content>
+              <v-list-item-title
+              >
+                Activate Subscription
+              </v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
         </v-list>
 
       </template>
@@ -693,12 +714,10 @@
 }
 .ActivatePremiumSubscriptionButton {
   background: hsl(348deg, 86%, 61%);
-  transform: rotate(-5deg) scale(0.95);
-  border-radius: 6px;
-  transition: 0.2s transform;
-  &:hover {
-    transform: rotate(-5deg) scale(1);
-  }
+  //transform: scale(0.9);
+  //border-radius: 6px;
+  //transition: 0.2s transform;
+  //margin-bottom: 10px;
 }
 
 .theme--dark {
@@ -706,7 +725,7 @@
 }
 
 .theme--light {
-  --highlighted-card-bg-color: white;
+  --highlighted-card-bg-color: #F3F3F3;
 }
 
 .DarkModeSwitch {
@@ -1144,7 +1163,10 @@ export default {
     } catch (err) {
       if (err.response && err.response.status === 401) {
         if (this.$route.path !== '/auth/login') {
-          await this.$router.push({ path: '/auth/login' });
+          await this.$router.push({
+            path: '/auth/login',
+            query: { redirect: this.$route.fullPath },
+          });
         }
         this.state = 'success';
         return;

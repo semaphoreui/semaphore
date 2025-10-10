@@ -34,10 +34,13 @@ func (d *BoltDb) getProjectSchedules(projectID int, filter func(referringObj db.
 	return
 }
 
-func (d *BoltDb) GetProjectSchedules(projectID int, includeTaskParams bool) (schedules []db.ScheduleWithTpl, err error) {
+func (d *BoltDb) GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) (schedules []db.ScheduleWithTpl, err error) {
 	schedules = []db.ScheduleWithTpl{}
 
 	orig, err := d.getProjectSchedules(projectID, func(s db.Schedule) bool {
+		if includeCommitCheckers {
+			return true
+		}
 		return s.RepositoryID == nil
 	})
 

@@ -37,9 +37,26 @@
           />
         </div>
 
-        <div class="text-right">
+        <div class="d-flex justify-space-between mt-4">
+          <v-btn
+            color="blue-grey"
+            @click="sendTestNotification()"
+            width="170"
+            :disabled="testNotificationProgress"
+            data-testid="settings-testAlerts"
+          >Test Alerts</v-btn>
           <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
         </div>
+
+        <v-progress-linear
+          v-if="testNotificationProgress"
+          color="blue-grey darken-1"
+          indeterminate
+          rounded
+          width="170"
+          height="36"
+          style="margin-top: -36px; width: 170px;"
+        ></v-progress-linear>
       </div>
 
       <h2 class="mt-8 mb-1">{{ $t('danger_zone_settings') }}</h2>
@@ -167,10 +184,40 @@ export default {
       deleteProjectDialog: null,
       backupProgress: false,
       clearCacheProgress: false,
+      testNotificationProgress: false,
     };
   },
 
   methods: {
+    async sendTestNotification() {
+      this.testNotificationProgress = true;
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/notifications/test`,
+          responseType: 'json',
+        });
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Test notification sent.',
+        });
+      } catch (err) {
+        let msg;
+        if (err.response.status === 409) {
+          msg = 'Please allow alerts for the project and save it.';
+        } else {
+          msg = getErrorMessage(err);
+        }
+
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: msg,
+        });
+      } finally {
+        this.testNotificationProgress = false;
+      }
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },

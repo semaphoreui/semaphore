@@ -118,5 +118,8 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 		return err
 	}
 	args.Callback(cmd.Process)
-	return cmd.Wait()
+	err = cmd.Wait()
+	// Wait for all log processing to complete before returning
+	t.Logger.WaitLog()
+	return err
 }

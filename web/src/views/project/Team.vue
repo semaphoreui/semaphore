@@ -1,22 +1,14 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <EditDialog
+    <EditTeamMemberDialog
       v-model="editDialog"
-      :save-button-text="(this.itemId === 'new' ? 'Link' : $t('save'))"
-      :title="$t('teamMember', {expr: this.itemId === 'new' ? $t('nnew') : $t('edit')})"
-      @save="loadItems()"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <TeamMemberForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
+      :project-id="projectId"
+      :item-id="itemId"
+      :invites-enabled="systemInfo.teams.invites_enabled"
+      :invite-type="systemInfo.teams.invite_type"
+      :roles="systemInfo.roles"
+      @save="openInvites()"
+    />
 
     <YesNoDialog
       :title="$t('deleteTeamMember')"
@@ -30,6 +22,7 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="systemInfo.teams.memebers_can_leave"
         color="error"
         @click="leftProject()"
         class="mr-2"
@@ -44,7 +37,9 @@
       </v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <TeamMenu :project-id="projectId" :system-info="systemInfo" />
+
+    <v-divider style="margin-top: -1px;"/>
 
     <v-data-table
       :headers="headers"
@@ -58,15 +53,15 @@
         <v-select
           hide-details
           v-model="item.role"
-          :items="USER_ROLES"
+          :items="userRoles"
           item-value="slug"
-          item-text="title"
+          item-text="name"
           :style="{width: '200px'}"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ USER_ROLES.find(r => r.slug === item.role).title }}</div>
+        <div v-else>{{ userRoles.find(r => r.slug === item.role).name }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -82,20 +77,34 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import TeamMemberForm from '@/components/TeamMemberForm.vue';
+import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
+import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
-  components: { TeamMemberForm },
+  components: { TeamMenu, EditTeamMemberDialog },
   mixins: [ItemListPageBase],
-  data() {
-    return {
-      USER_ROLES,
-    };
+
+  props: {
+    systemInfo: Object,
+  },
+
+  computed: {
+    userRoles() {
+      return [...USER_ROLES, ...this.systemInfo.roles];
+    },
   },
 
   methods: {
+    openInvites() {
+      if (this.systemInfo.teams.invites_enabled) {
+        this.$router.push(`/project/${this.projectId}/invites`);
+        return;
+      }
+      this.loadItems();
+    },
+
     async leftProject() {
       await axios({
         method: 'delete',

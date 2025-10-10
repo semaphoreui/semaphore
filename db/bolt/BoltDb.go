@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -484,6 +485,10 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 		objectsValue.Set(newObjectValues)
 		return nil
 	})
+
+	if err != nil {
+		return
+	}
 
 	sortable := false
 

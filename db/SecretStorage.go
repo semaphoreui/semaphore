@@ -1,7 +1,5 @@
 package db
 
-import "encoding/json"
-
 type SecretStorageType string
 
 const (
@@ -18,25 +16,4 @@ type SecretStorage struct {
 	ReadOnly  bool              `db:"readonly" json:"readonly"`
 
 	VaultToken string `db:"-" json:"vault_token,omitempty" backup:"-"`
-}
-
-type VaultSecretStorageParams struct {
-	URL string `json:"url"`
-}
-
-func (s *SecretStorage) ExtractParams(target any) (err error) {
-	content, err := json.Marshal(s.Params)
-	if err != nil {
-		return
-	}
-
-	switch target.(type) {
-	case *VaultSecretStorageParams:
-	default:
-		err = &ValidationError{"invalid target type for extracting VaultSecretStorageParams"}
-		return
-	}
-
-	err = json.Unmarshal(content, target)
-	return
 }

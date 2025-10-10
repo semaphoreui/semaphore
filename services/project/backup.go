@@ -9,6 +9,16 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
+func findNameBySlug[T db.BackupSluggedEntity](slug string, items []T) (*string, error) {
+	for _, o := range items {
+		if o.GetSlug() == slug {
+			name := o.GetName()
+			return &name, nil
+		}
+	}
+	return nil, fmt.Errorf("item %s does not exist", slug)
+}
+
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	for _, o := range items {
 		if o.GetID() == ID {
@@ -18,6 +28,7 @@ func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	}
 	return nil, fmt.Errorf("item %d does not exist", ID)
 }
+
 func findEntityByName[T db.BackupEntity](name *string, items []T) *T {
 	if name == nil {
 		return nil
@@ -121,6 +132,12 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
+	makeUniqueNames(b.roles, func(item *db.Role) string {
+		return item.Name
+	}, func(item *db.Role, name string) {
+		item.Name = name
+	})
+
 }
 
 func (b *BackupDB) load(projectID int, store db.Store) (err error) {
@@ -164,7 +181,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	schedules, err := store.GetProjectSchedules(projectID, true)
+	schedules, err := store.GetProjectSchedules(projectID, true, true)
 	if err != nil {
 		return
 	}
@@ -172,9 +189,18 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	for _, s := range schedules {
 		b.schedules = append(b.schedules, s.Schedule)
 	}
-	//b.schedules = getSchedulesByProject(projectID, schedules)
 
 	b.secretStorages, err = store.GetSecretStorages(projectID)
+	if err != nil {
+		return
+	}
+
+	b.roles, err = store.GetProjectRoles(projectID)
+	if err != nil {
+		return
+	}
+
+	b.globalRoles, err = store.GetGlobalRoles()
 	if err != nil {
 		return
 	}
@@ -213,6 +239,14 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		}
 	}
 
+	b.templateRoles = make(map[int][]db.TemplateRolePerm)
+	for _, t := range b.templates {
+		b.templateRoles[t.ID], err = store.GetTemplateRoles(projectID, t.ID)
+		if err != nil {
+			return
+		}
+	}
+
 	b.makeUniqueNames()
 
 	return
@@ -220,10 +254,21 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 
 func (b *BackupDB) format() (*BackupFormat, error) {
 
+	roles := make([]BackupRole, len(b.roles))
+	for i, r := range b.roles {
+		roles[i] = BackupRole{
+			r,
+		}
+	}
+
 	schedules := make([]BackupSchedule, len(b.schedules))
 	for i, o := range b.schedules {
 
 		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+		var repoName *string
+		if o.RepositoryID != nil {
+			repoName, _ = findNameByID[db.Repository](*o.RepositoryID, b.repositories)
+		}
 
 		if tplName == nil {
 			continue
@@ -232,6 +277,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		schedules[i] = BackupSchedule{
 			o,
 			*tplName,
+			repoName,
 		}
 
 		if o.TaskParams.InventoryID != nil {
@@ -344,6 +390,30 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			o.SurveyVars = surveyVars
 		}
 
+		var roles []BackupTemplateRole
+		for _, r := range b.templateRoles[o.ID] {
+			name, err := findNameBySlug[db.Role](r.RoleSlug, b.roles)
+			if err == nil {
+				roles = append(roles, BackupTemplateRole{
+					Role:        *name,
+					IsGlobal:    false,
+					Permissions: r.Permissions,
+				})
+			} else {
+				// Try to find in Global
+				name, err = findNameBySlug[db.Role](r.RoleSlug, b.globalRoles)
+				if err != nil {
+					continue
+				}
+
+				roles = append(roles, BackupTemplateRole{
+					Role:        *name,
+					IsGlobal:    true,
+					Permissions: r.Permissions,
+				})
+			}
+		}
+
 		templates[i] = BackupTemplate{
 			Template:      o,
 			View:          View,
@@ -351,8 +421,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Inventory:     Inventory,
 			Environment:   Environment,
 			BuildTemplate: BuildTemplate,
-			Cron:          getScheduleByTemplate(o.ID, b.schedules),
 			Vaults:        vaults,
+			Roles:         roles,
 		}
 	}
 
@@ -411,6 +481,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		IntegrationAliases: integrationAliases,
 		Schedules:          schedules,
 		SecretStorages:     secretStorages,
+		Roles:              roles,
 	}, nil
 }
 

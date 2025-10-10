@@ -19,7 +19,7 @@ func (d *TerraformStoreImpl) GetTerraformInventoryAliasByAlias(alias string) (re
 	return
 }
 
-func (d *TerraformStoreImpl) GetTerraformInventoryAlias(projectID, inventoryID int, aliasID int) (res db.TerraformInventoryAlias, err error) {
+func (d *TerraformStoreImpl) GetTerraformInventoryAlias(projectID, inventoryID int, aliasID string) (res db.TerraformInventoryAlias, err error) {
 	return
 }
 
@@ -27,7 +27,7 @@ func (d *TerraformStoreImpl) GetTerraformInventoryAliases(projectID, inventoryID
 	return
 }
 
-func (d *TerraformStoreImpl) DeleteTerraformInventoryAlias(projectID int, inventoryID int, aliasID int) (err error) {
+func (d *TerraformStoreImpl) DeleteTerraformInventoryAlias(projectID int, inventoryID int, aliasID string) (err error) {
 	return
 }
 

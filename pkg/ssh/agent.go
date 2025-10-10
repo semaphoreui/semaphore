@@ -102,7 +102,10 @@ func (a *Agent) Close() error {
 	if a.done != nil {
 		close(a.done)
 	}
-	return a.listener.Close()
+	if a.listener != nil {
+		return a.listener.Close()
+	}
+	return nil
 }
 
 func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
@@ -141,7 +144,7 @@ type AccessKeyInstallation struct {
 func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 	env = make([]string, 0)
 
-	env = append(env, fmt.Sprintln("GIT_TERMINAL_PROMPT=0"))
+	env = append(env, "GIT_TERMINAL_PROMPT=0")
 	if key.SSHAgent != nil {
 		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
 		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"

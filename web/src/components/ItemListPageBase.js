@@ -25,6 +25,12 @@ export default {
     user: Object,
   },
 
+  computed: {
+    IDFieldName() {
+      return 'id';
+    },
+  },
+
   data() {
     const allowActions = this.allowActions();
 
@@ -108,7 +114,7 @@ export default {
       this.itemId = itemId;
 
       try {
-        const item = this.items.find((x) => x.id === itemId);
+        const item = this.items.find((x) => x[this.IDFieldName] === itemId);
 
         await axios({
           method: 'delete',

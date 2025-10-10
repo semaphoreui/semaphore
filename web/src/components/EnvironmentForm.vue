@@ -3,7 +3,7 @@
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="item != null && secretStorages != null"
+    v-if="item != null && (!supportStorages || secretStorages != null)"
     class="pb-3"
   >
     <v-alert

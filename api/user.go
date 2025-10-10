@@ -3,14 +3,15 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
-	"io"
-	"net/http"
-	"strings"
 )
 
 type UserController struct {
@@ -38,7 +39,9 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 	user.User = *helpers.GetFromContext(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
 	user.HasActiveSubscription = c.subscriptionService.HasActiveSubscription()
-
+	if !user.HasActiveSubscription {
+		user.Pro = false
+	}
 	helpers.WriteJSON(w, http.StatusOK, user)
 }
 
@@ -52,7 +55,10 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range tokens {
-		tokens[i].ID = tokens[i].ID[:8]
+		if len(tokens[i].ID) >= 8 {
+			tokens[i].ID = tokens[i].ID[:8]
+		}
+		// If ID is shorter than 8 chars, leave it as-is
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, tokens)

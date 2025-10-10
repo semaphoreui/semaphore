@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"io"
 	"os/exec"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -180,7 +181,6 @@ func (t *TaskRunner) logPipe(reader io.Reader) {
 			return // it is ok
 		case "bufio.Scanner: token too long":
 			msg = "TaskRunner output exceeds the maximum allowed size of 10MB"
-			break
 		}
 
 		t.kill() // kill the job because stdout cannot be read.

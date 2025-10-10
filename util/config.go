@@ -157,9 +157,21 @@ type TaskLogType struct {
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
 }
 
+type ConfigLogChannels struct {
+	Syslog *SyslogConfig `json:"syslog,omitempty"`
+}
+
 type ConfigLog struct {
-	Events *EventLogType `json:"events,omitempty"`
-	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+	Events   *EventLogType      `json:"events,omitempty"`
+	Tasks    *TaskLogType       `json:"tasks,omitempty"`
+	Channels *ConfigLogChannels `json:"channels,omitempty"`
+}
+
+type SyslogConfig struct {
+	Enabled bool   `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
+	Network string `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
+	Address string `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
+	Tag     string `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
 }
 
 type ConfigProcess struct {
@@ -176,6 +188,34 @@ type ScheduleConfig struct {
 type DebuggingConfig struct {
 	ApiDelay     string `json:"api_delay,omitempty" env:"SEMAPHORE_API_DELAY"`
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
+}
+
+type HARedisConfig struct {
+	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
+	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
+	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
+	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
+	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+}
+
+type HAConfig struct {
+	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	Redis   *HARedisConfig `json:"redis,omitempty"`
+}
+
+type TeamInviteType string
+
+const (
+	TeamInviteEmail    TeamInviteType = "email"
+	TeamInviteUsername TeamInviteType = "username"
+	TeamInviteBoth     TeamInviteType = "both"
+)
+
+type TeamsConfig struct {
+	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
+	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
+	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -281,6 +321,8 @@ type ConfigType struct {
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
+	Teams *TeamsConfig `json:"teams,omitempty"`
+
 	Log *ConfigLog `json:"log,omitempty"`
 
 	Process *ConfigProcess `json:"process,omitempty"`
@@ -288,6 +330,8 @@ type ConfigType struct {
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
+
+	HA *HAConfig `json:"ha,omitempty"`
 }
 
 func NewConfigType() *ConfigType {

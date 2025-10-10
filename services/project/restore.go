@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -44,6 +44,22 @@ func (e BackupSecretStorage) Restore(store db.Store, b *BackupDB) error {
 		return err
 	}
 	b.secretStorages = append(b.secretStorages, newStorage)
+	return nil
+}
+
+func (e BackupRole) Verify(backup *BackupFormat) error {
+	return verifyDuplicate[BackupRole](e.Name, backup.Roles)
+}
+
+func (e BackupRole) Restore(store db.Store, b *BackupDB) error {
+	role := e.Role
+	role.ProjectID = &b.meta.ID
+	role.Slug = random.String(16)
+	newRole, err := store.CreateRole(role)
+	if err != nil {
+		return err
+	}
+	b.roles = append(b.roles, newRole)
 	return nil
 }
 
@@ -91,12 +107,18 @@ func (e BackupSchedule) Restore(store db.Store, b *BackupDB) error {
 	}
 	v.TemplateID = tpl.ID
 
-	//if v.TaskParams != nil {
+	if e.CheckableRepository != nil {
+		repo := findEntityByName[db.Repository](e.CheckableRepository, b.repositories)
+		if repo == nil {
+			return fmt.Errorf("repo does not exist in repositories[].name")
+		}
+		v.RepositoryID = &repo.ID
+	}
+
 	inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
 	if inv != nil {
 		v.TaskParams.InventoryID = &inv.ID
 	}
-	//}
 
 	newSchedule, err := store.CreateSchedule(v)
 	if err != nil {
@@ -125,11 +147,11 @@ func (e BackupAccessKey) Restore(store db.Store, b *BackupDB) error {
 	}
 
 	if e.SourceStorage != nil {
-		storage := findEntityByName[db.SecretStorage](e.SourceStorage, b.secretStorages)
-		if storage == nil {
+		sourceStorage := findEntityByName[db.SecretStorage](e.SourceStorage, b.secretStorages)
+		if sourceStorage == nil {
 			return fmt.Errorf("secret storage does not exist in secret_storage[].name")
 		}
-		key.StorageID = &storage.ID
+		key.SourceStorageID = &sourceStorage.ID
 	}
 
 	newKey, err := store.CreateAccessKey(key)
@@ -250,12 +272,6 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
 
-	if e.Cron != nil {
-		if err := schedules.ValidateCronFormat(*e.Cron); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -316,19 +332,6 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		return err
 	}
 	b.templates = append(b.templates, newTemplate)
-	if e.Cron != nil {
-		_, err := store.CreateSchedule(
-			db.Schedule{
-				ProjectID:    b.meta.ID,
-				TemplateID:   newTemplate.ID,
-				CronFormat:   *e.Cron,
-				RepositoryID: &RepositoryID,
-			},
-		)
-		if err != nil {
-			return err
-		}
-	}
 
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
@@ -353,6 +356,44 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 			}
 		}
 	}
+
+	if e.Roles != nil {
+		for _, role := range e.Roles {
+			if role.IsGlobal {
+				r, err := store.GetGlobalRoleBySlug(role.Role)
+				if err != nil {
+					return fmt.Errorf("global role does not exist: %s", role.Role)
+				}
+
+				_, err = store.CreateTemplateRole(db.TemplateRolePerm{
+					TemplateID:  newTemplate.ID,
+					RoleSlug:    r.Slug,
+					ProjectID:   b.meta.ID,
+					Permissions: role.Permissions,
+				})
+
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+			if k := findEntityByName[db.Role](&role.Role, b.roles); k == nil {
+				return fmt.Errorf("roles[].role does not exist in roles[].name")
+			} else {
+				_, err = store.CreateTemplateRole(db.TemplateRolePerm{
+					TemplateID:  newTemplate.ID,
+					RoleSlug:    k.Slug,
+					ProjectID:   b.meta.ID,
+					Permissions: role.Permissions,
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -453,6 +494,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Roles {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at roles[%d]: %s", i, err.Error())
+		}
+	}
 
 	return nil
 }
@@ -460,6 +506,16 @@ func (backup *BackupFormat) Verify() error {
 func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, error) {
 	var b = BackupDB{}
 	project := backup.Meta.Project
+
+	// Prevent importing a project with a name that already exists
+	existingProjects, err := store.GetAllProjects()
+	if err == nil {
+		for _, p := range existingProjects {
+			if p.Name == project.Name { // exact name match
+				return nil, db.NewValidationError(fmt.Sprintf("project with name '%s' already exists", project.Name))
+			}
+		}
+	}
 
 	newProject, err := store.CreateProject(project)
 
@@ -480,6 +536,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(store, &b); err != nil {
 			return nil, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.Roles {
+		if err := o.Restore(store, &b); err != nil {
+			return nil, fmt.Errorf("error at roles[%d]: %s", i, err.Error())
 		}
 	}
 

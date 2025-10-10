@@ -190,7 +190,7 @@ export default {
   vaultPassword2: 'Vault Password',
   view: 'View',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'I want to run a task by the cron only for for new commits of some repository',
+  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'I want to run a task by the cron only for new commits of some repository',
   repository2: 'Repository',
   cronChecksNewCommitBeforeRun: 'Cron checks new commit before run',
   readThe: 'Read the',
@@ -356,4 +356,23 @@ export default {
   template_tasks: 'Tasks',
   template_details: 'Details',
   template_tf_workspaces: 'Workspaces',
+
+  // Role-related translations
+  slug: 'Slug',
+  slug_required: 'Slug is required',
+  slugHint: 'Unique identifier (lowercase, alphanumeric, underscores and hyphens only)',
+  invalidSlugFormat: 'Slug must be lowercase, alphanumeric with underscores/hyphens only',
+  permissions: 'Permissions',
+  canRunProjectTasks: 'Can run project tasks',
+  canUpdateProject: 'Can update project',
+  canManageProjectResources: 'Can manage project resources',
+  canManageProjectUsers: 'Can manage project users',
+  newRole: 'New Role',
+  editRole: 'Edit Role',
+  deleteRole: 'Delete Role',
+  askDeleteRole: 'Do you really want to delete this role?',
+  Roles: 'Roles',
+  role_required: 'Role is required',
+
+  templatePermission: 'Template permissions',
 };

@@ -195,8 +195,8 @@ func (p *SchedulePool) clear() {
 }
 
 func (p *SchedulePool) Destroy() {
-	defer p.locker.Unlock()
 	p.locker.Lock()
+	defer p.locker.Unlock()
 	p.cron.Stop()
 	p.clear()
 	p.cron = nil
