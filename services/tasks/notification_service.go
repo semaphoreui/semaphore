@@ -24,40 +24,75 @@ type NotificationService struct {
 	notifiers []Notifier
 }
 
+func fillNotificationConfig(src map[string]any, target any) error {
+	content, err := json.Marshal(src)
+	if err != nil {
+		return nil
+	}
+	err = json.Unmarshal(content, target)
+	return err
+}
 func NewNotificationService() *NotificationService {
 	var notifiers []Notifier
 
-	cfg := util.Config.Notifications
-	if cfg != nil {
-		if cfg.Telegram != nil {
-			n := &TelegramNotifier{}
-			n.token = cfg.Telegram.Token
-			n.chatID = cfg.Telegram.Chat
-			notifiers = append(notifiers, n)
+	//cfg := util.Config.Notifications
+
+	for _, v := range util.Config.Notifications {
+		var enabled bool
+		var ok bool
+		if enabled, ok = v["enabled"].(bool); !ok || !enabled {
+			continue
 		}
-		if cfg.Slack != nil {
-			n := &SlackNotifier{}
-			n.token = cfg.Slack.Token
-			n.channel = cfg.Slack.Channel
-			notifiers = append(notifiers, n)
-		}
-		if cfg.Gotify != nil {
-			n := &GotifyNotifier{}
-			n.server = cfg.Gotify.Server
-			n.token = cfg.Gotify.Token
-			n.title = cfg.Gotify.Title
-			if cfg.Gotify.Priority != nil {
-				n.priority = *cfg.Gotify.Priority
+
+		switch v["type"].(util.NotificationType) {
+		case util.NotificationWebhook:
+
+		case util.NotificationTelegram:
+			var tgConfig util.TelegramNotifConfig
+			fillNotificationConfig(v, &tgConfig)
+			n := &TelegramNotifier{
+				token:        tgConfig.Token,
+				chatID:       tgConfig.Chat,
+				templateFile: tgConfig.Template,
 			}
-			notifiers = append(notifiers, n)
-		}
-		if cfg.DingTalk != nil {
-			n := &DingTalkNotifier{}
-			n.token = cfg.DingTalk.Token
-			n.channel = cfg.DingTalk.Channel
+
+			n.token = tgConfig.Token
+			n.chatID = tgConfig.Chat
 			notifiers = append(notifiers, n)
 		}
 	}
+
+	//if cfg == nil {
+	//
+	//	if cfg.Telegram != nil {
+	//		n := &TelegramNotifier{}
+	//		n.token = cfg.Telegram.Token
+	//		n.chatID = cfg.Telegram.Chat
+	//		notifiers = append(notifiers, n)
+	//	}
+	//	if cfg.Slack != nil {
+	//		n := &SlackNotifier{}
+	//		n.token = cfg.Slack.Token
+	//		n.channel = cfg.Slack.Channel
+	//		notifiers = append(notifiers, n)
+	//	}
+	//	if cfg.Gotify != nil {
+	//		n := &GotifyNotifier{}
+	//		n.server = cfg.Gotify.Server
+	//		n.token = cfg.Gotify.Token
+	//		n.title = cfg.Gotify.Title
+	//		if cfg.Gotify.Priority != nil {
+	//			n.priority = *cfg.Gotify.Priority
+	//		}
+	//		notifiers = append(notifiers, n)
+	//	}
+	//	if cfg.DingTalk != nil {
+	//		n := &DingTalkNotifier{}
+	//		n.token = cfg.DingTalk.Token
+	//		n.channel = cfg.DingTalk.Channel
+	//		notifiers = append(notifiers, n)
+	//	}
+	//}
 
 	return &NotificationService{notifiers: notifiers}
 }
@@ -85,8 +120,9 @@ func (s *NotificationService) Notifiers() []Notifier {
 // and Enabled() should reflect availability of credentials
 
 type TelegramNotifier struct {
-	token  string
-	chatID string
+	token        string
+	chatID       string
+	templateFile string
 }
 
 func (t *TelegramNotifier) Name() string { return "telegram" }
@@ -160,9 +196,15 @@ func (s *SlackNotifier) Send(alert Alert) error {
 		// Use Slack API chat.postMessage
 		body := bytes.NewBufferString("")
 		tpl, err := templateFor("slack")
-		if err != nil { return err }
-		if err := tpl.Execute(body, alert); err != nil { return err }
-		if body.Len() == 0 { return nil }
+		if err != nil {
+			return err
+		}
+		if err := tpl.Execute(body, alert); err != nil {
+			return err
+		}
+		if body.Len() == 0 {
+			return nil
+		}
 
 		// Attempt to interpret template JSON and add channel
 		var payload map[string]any
@@ -174,31 +216,49 @@ func (s *SlackNotifier) Send(alert Alert) error {
 		_ = json.NewEncoder(buf).Encode(payload)
 
 		req, err := http.NewRequest("POST", "https://slack.com/api/chat.postMessage", buf)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+s.token)
 		resp, err := http.DefaultClient.Do(req)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("slack returned status %d", resp.StatusCode)
 		}
 		// Optionally, inspect ok field from JSON
-		var r struct{ OK bool `json:"ok"` }
+		var r struct {
+			OK bool `json:"ok"`
+		}
 		_ = json.NewDecoder(resp.Body).Decode(&r)
-		if !r.OK { return fmt.Errorf("slack api reported failure") }
+		if !r.OK {
+			return fmt.Errorf("slack api reported failure")
+		}
 		return nil
 	}
 	// fallback: old webhook URL implementation
 	if util.Config.SlackAlert && util.Config.SlackUrl != "" {
 		body := bytes.NewBufferString("")
 		tpl, err := templateFor("slack")
-		if err != nil { return err }
-		if err := tpl.Execute(body, alert); err != nil { return err }
-		if body.Len() == 0 { return nil }
+		if err != nil {
+			return err
+		}
+		if err := tpl.Execute(body, alert); err != nil {
+			return err
+		}
+		if body.Len() == 0 {
+			return nil
+		}
 		resp, err := http.Post(util.Config.SlackUrl, "application/json", body)
-		if err != nil { return err }
-		if resp.StatusCode != 200 { return fmt.Errorf("slack webhook returned status %d", resp.StatusCode) }
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("slack webhook returned status %d", resp.StatusCode)
+		}
 		return nil
 	}
 	return nil
@@ -230,26 +290,42 @@ func (g *GotifyNotifier) Send(alert Alert) error {
 	}
 	body := bytes.NewBufferString("")
 	tpl, err := templateFor("gotify")
-	if err != nil { return err }
-	if err := tpl.Execute(body, alert); err != nil { return err }
-	if body.Len() == 0 { return nil }
+	if err != nil {
+		return err
+	}
+	if err := tpl.Execute(body, alert); err != nil {
+		return err
+	}
+	if body.Len() == 0 {
+		return nil
+	}
 
 	// Construct Gotify payload
 	payload := map[string]any{
 		"message": body.String(),
 	}
-	if g.title != "" { payload["title"] = g.title }
-	if g.priority != 0 { payload["priority"] = g.priority }
+	if g.title != "" {
+		payload["title"] = g.title
+	}
+	if g.priority != 0 {
+		payload["priority"] = g.priority
+	}
 	buf := new(bytes.Buffer)
 	_ = json.NewEncoder(buf).Encode(payload)
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/message", g.server), buf)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Gotify-Key", g.token)
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil { return err }
-	if resp.StatusCode != 200 { return fmt.Errorf("gotify returned status %d", resp.StatusCode) }
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("gotify returned status %d", resp.StatusCode)
+	}
 	return nil
 }
 
@@ -274,18 +350,30 @@ func (d *DingTalkNotifier) Send(alert Alert) error {
 	if d.token != "" {
 		body := bytes.NewBufferString("")
 		tpl, err := templateFor("dingtalk")
-		if err != nil { return err }
-		if err := tpl.Execute(body, alert); err != nil { return err }
-		if body.Len() == 0 { return nil }
+		if err != nil {
+			return err
+		}
+		if err := tpl.Execute(body, alert); err != nil {
+			return err
+		}
+		if body.Len() == 0 {
+			return nil
+		}
 		// Example DingTalk bot token-based endpoint could differ; using common webhook with token param in header or path
 		req, err := http.NewRequest("POST", fmt.Sprintf("https://oapi.dingtalk.com/robot/send"), body)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		req.Header.Set("Content-Type", "application/json")
 		// Some setups expect access token as query (?access_token=..). We avoid embedding token in URL as per requirement.
 		req.Header.Set("X-Dingtalk-Token", d.token)
 		resp, err := http.DefaultClient.Do(req)
-		if err != nil { return err }
-		if resp.StatusCode != 200 { return fmt.Errorf("dingtalk returned status %d", resp.StatusCode) }
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("dingtalk returned status %d", resp.StatusCode)
+		}
 		return nil
 	}
 	// Fallback to legacy URL-based approach handled by existing sendDingTalkAlert in TaskRunner
