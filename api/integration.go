@@ -296,7 +296,7 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 		}
 	}
 
-	// Add extracted environment variables only if they don't conflict with 
+	// Add extracted environment variables only if they don't conflict with
 	// existing task definition variables (task definition has higher priority)
 	for k, v := range extractedEnvResults {
 		if _, exists := env[k]; !exists {

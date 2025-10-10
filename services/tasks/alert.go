@@ -182,6 +182,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 	} else {
 		t.Log("Sent successfully telegram alert")
 	}
+
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
@@ -244,6 +245,7 @@ func (t *TaskRunner) sendSlackAlert() {
 	} else {
 		t.Log("Sent successfully slack alert")
 	}
+
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
@@ -430,6 +432,7 @@ func (t *TaskRunner) sendDingTalkAlert() {
 	} else {
 		t.Log("Sent successfully dingtalk alert")
 	}
+
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
@@ -495,6 +498,7 @@ func (t *TaskRunner) sendGotifyAlert() {
 	} else {
 		t.Log("Sent successfully gotify alert")
 	}
+
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
