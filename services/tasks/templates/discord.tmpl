@@ -1,0 +1,24 @@
+{
+    "username": "Semaphore",
+    "content": "",
+    "embeds": [{
+        "title": "Task: {{ .Name }}",
+        "url": "{{ .Task.URL }}",
+        "description": "execution #{{ .Task.ID }}, status: {{ .Task.Result }}!",
+        "color": "{{ .Color }}",
+        "fields": [
+            {
+                "name": "Author",
+                "value": "{{ .Author }}",
+                "inline": true
+            {{ if .Task.Version }}
+            },
+            {
+                "name": "Version",
+                "value": "{{ .Task.Version }}",
+                "inline": true
+            {{ end }}
+            }
+        ]
+    }]
+}

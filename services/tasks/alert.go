@@ -504,6 +504,69 @@ func (t *TaskRunner) sendGotifyAlert() {
 	}
 }
 
+func (t *TaskRunner) sendDiscordAlert() {
+	if !util.Config.DiscordAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("discord"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/discord.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse discord alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate discord alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for discord alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send discord alert")
+
+	resp, err := http.Post(
+		util.Config.DiscordUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send discord alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send discord alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully discord alert")
+	}
+
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
+}
+
 func (t *TaskRunner) alertInfos() (string, string) {
 	version := ""
 
