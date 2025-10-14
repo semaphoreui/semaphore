@@ -27,7 +27,6 @@
   </v-tabs>
 </template>
 
-
 <script>
 export default {
 

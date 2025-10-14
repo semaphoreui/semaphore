@@ -70,10 +70,39 @@ func (d *BoltDb) DeleteRunner(projectID int, runnerID int) error {
 }
 
 func (d *BoltDb) GetRunnerTags(projectID int) ([]db.RunnerTag, error) {
-	return []db.RunnerTag{
-		{
-			Tag:             "tag1",
-			NumberOfRunners: 1,
-		},
-	}, nil
+	runners, err := d.GetRunners(projectID, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tagMap := make(map[string]int)
+	for _, runner := range runners {
+		if runner.Tag != "" {
+			tagMap[runner.Tag]++
+		}
+	}
+
+	res := make([]db.RunnerTag, 0, len(tagMap))
+	for tag, count := range tagMap {
+		res = append(res, db.RunnerTag{
+			Tag:             tag,
+			NumberOfRunners: count,
+		})
+	}
+
+	return res, nil
+}
+
+func (d *BoltDb) GetRunnerCount() (res int, err error) {
+	runners := make([]db.Runner, 0)
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		runner := i.(db.Runner)
+		return runner.ProjectID != nil
+	}, &runners)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return len(runners), nil
 }

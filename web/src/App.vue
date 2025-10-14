@@ -496,6 +496,29 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item
+                key="subscription"
+                v-if="isPro && user.admin"
+                @click="subscriptionDialog = true"
+              >
+                <v-list-item-icon>
+                  <v-icon
+                    color="#f14668"
+                    style="transform: scale(1.4)"
+                  >
+                    mdi-professional-hexagon
+                  </v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{
+                    user.has_active_subscription
+                      ? 'Subscription details'
+                      : 'Activate subscription'
+                  }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-divider/>
 
               <v-list-item
@@ -523,25 +546,6 @@
 
                 <v-list-item-content>
                   {{ $t('activeTasks') }}
-                </v-list-item-content>
-              </v-list-item>
-
-              <v-list-item
-                key="subscription"
-                v-if="isPro && user.admin"
-                @click="subscriptionDialog = true"
-              >
-                <v-list-item-icon>
-                  <v-icon
-                    color="#f14668"
-                    style="transform: scale(1.4)"
-                  >
-                    mdi-professional-hexagon
-                  </v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  Subscription details
                 </v-list-item-content>
               </v-list-item>
 
@@ -609,7 +613,7 @@
 
           <v-list-item
             key="premium"
-            v-if="isPro && user.admin && !user.has_active_subscription"
+            v-if="false && isPro && user.admin && !user.has_active_subscription"
             @click="subscriptionDialog = true"
             class="ActivatePremiumSubscriptionButton"
           >

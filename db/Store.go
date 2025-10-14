@@ -451,6 +451,7 @@ type RunnerManager interface {
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)
+	GetRunnerCount() (int, error)
 }
 
 // EventManager handles event-related operations

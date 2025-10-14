@@ -27,7 +27,7 @@
       </v-tab>
 
       <v-tab
-        v-if="canUpdateProject && projectType === ''"
+        v-if="isPro && canUpdateProject && projectType === ''"
         key="runners"
         :to="`/project/${projectId}/runners`"
         data-testid="dashboard-runners"
@@ -47,6 +47,12 @@ export default {
     projectId: Number,
     projectType: String,
     canUpdateProject: Boolean,
+  },
+
+  computed: {
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
   },
 
   data() {

@@ -45,25 +45,8 @@
       >{{ $t('newKey') }}</v-btn>
     </v-toolbar>
 
-    <v-tabs class="pl-4">
-      <v-tab
-        key="keys"
-        :to="`/project/${projectId}/keys`"
-        data-testid="keystore-keys"
-      >
-        Keys
-      </v-tab>
-
-      <v-tab
-        key="storages"
-        :to="`/project/${projectId}/secret_storages`"
-        data-testid="keystore-storages"
-      >
-        Storages
-      </v-tab>
-    </v-tabs>
-
-    <v-divider style="margin-top: -1px;" />
+    <KeyStoreMenu v-if="isPro" :project-id="projectId" />
+    <v-divider v-else />
 
     <v-data-table
       :headers="headers"
@@ -105,14 +88,21 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
 import PageMixin from '@/components/PageMixin';
+import KeyStoreMenu from '@/components/KeyStoreMenu.vue';
 
 export default {
-  components: { KeyForm },
+  components: { KeyStoreMenu, KeyForm },
 
   mixins: [ItemListPageBase, PageMixin],
 
   props: {
     systemInfo: Object,
+  },
+
+  computed: {
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
   },
 
   methods: {

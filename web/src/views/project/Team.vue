@@ -37,7 +37,11 @@
       </v-btn>
     </v-toolbar>
 
-    <TeamMenu :project-id="projectId" :system-info="systemInfo" />
+    <TeamMenu
+      v-if="isPro"
+      :project-id="projectId"
+      :system-info="systemInfo"
+    />
 
     <v-divider style="margin-top: -1px;"/>
 
@@ -93,6 +97,10 @@ export default {
   computed: {
     userRoles() {
       return [...USER_ROLES, ...this.systemInfo.roles];
+    },
+
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
   },
 

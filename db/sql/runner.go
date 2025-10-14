@@ -54,6 +54,23 @@ func (d *SqlDb) DeleteRunner(projectID int, runnerID int) (err error) {
 	return
 }
 
+func (d *SqlDb) GetRunnerCount() (res int, err error) {
+	query, args, err := squirrel.Select("count(*)").
+		From("runner").
+		Where(squirrel.NotEq{"project_id": nil}).
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	cnt, err := d.Sql().SelectInt(query, args...)
+
+	res = int(cnt)
+
+	return
+}
+
 func (d *SqlDb) GetRunnerTags(projectID int) (res []db.RunnerTag, err error) {
 	query, args, err := squirrel.Select("tag").
 		From("runner as r").

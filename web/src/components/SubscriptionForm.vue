@@ -97,16 +97,26 @@
                   <v-list-item-subtitle>{{ item.expiresAt }}</v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
+              <v-list-item class="pa-0" v-if="item.nodes">
+                <v-list-item-content>
+                  <v-list-item-title>Nodes</v-list-item-title>
+                  <v-list-item-subtitle>
+                    {{ item.nodes }}
+                  </v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
+              <v-list-item class="pa-0">
+                <v-list-item-content>
+                  <v-list-item-title>Project runners</v-list-item-title>
+                  <v-list-item-subtitle>
+                    {{ item.runners_used }} / {{ item.runners }}
+                  </v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
             </v-list>
           </v-col>
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset;">
-              <v-list-item class="pa-0">
-                <v-list-item-content>
-                  <v-list-item-title>Pro users</v-list-item-title>
-                  <v-list-item-subtitle>{{ item.users }} / {{ item.used }}</v-list-item-subtitle>
-                </v-list-item-content>
-              </v-list-item>
               <v-list-item class="pa-0">
                 <v-list-item-content>
                   <v-list-item-title>Status</v-list-item-title>
@@ -122,6 +132,20 @@
                       "
                     ></div>
                     <div>{{ item.state }}</div>
+                  </v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
+              <v-list-item class="pa-0">
+                <v-list-item-content>
+                  <v-list-item-title>Pro users</v-list-item-title>
+                  <v-list-item-subtitle>{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
+              <v-list-item class="pa-0">
+                <v-list-item-content>
+                  <v-list-item-title>Terraform backends</v-list-item-title>
+                  <v-list-item-subtitle>
+                    {{ item.terraform_backends_used }} / {{ item.terraform_backends }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
