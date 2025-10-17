@@ -110,7 +110,7 @@ func Route(
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store)
-	projectRunnerController := proProjects.NewProjectRunnerController()
+	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService)
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)
