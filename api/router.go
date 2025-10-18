@@ -14,7 +14,6 @@ import (
 
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	proProjects "github.com/semaphoreui/semaphore/pro/api/projects"
-	proFeatures "github.com/semaphoreui/semaphore/pro/pkg/features"
 	"github.com/semaphoreui/semaphore/services/server"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
@@ -114,6 +113,7 @@ func Route(
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)
+	systmInfoController := NewSystemInfoController()
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -185,7 +185,7 @@ func Route(
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
 
-	authenticatedAPI.Path("/info").HandlerFunc(getSystemInfo).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/info").HandlerFunc(systmInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.Activate).Methods("POST")
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.GetSubscription).Methods("GET")
@@ -656,48 +656,4 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 			res,
 		),
 	)
-}
-
-func getSystemInfo(w http.ResponseWriter, r *http.Request) {
-	user := helpers.GetFromContext(r, "user").(*db.User)
-
-	var authMethods LoginAuthMethods
-
-	if util.Config.Auth.Totp.Enabled {
-		authMethods.Totp = &LoginTotpAuthMethod{
-			AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
-		}
-	}
-
-	if util.Config.Auth.Email.Enabled {
-		authMethods.Email = &LoginEmailAuthMethod{}
-	}
-
-	timezone := util.Config.Schedule.Timezone
-
-	if timezone == "" {
-		timezone = "UTC"
-	}
-
-	roles, err := helpers.Store(r).GetGlobalRoles()
-	if err != nil {
-		log.WithError(err).Error("Failed to get roles")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	body := map[string]any{
-		"version":           util.Version(),
-		"ansible":           util.AnsibleVersion(),
-		"web_host":          util.Config.WebHost,
-		"use_remote_runner": util.Config.UseRemoteRunner,
-		"auth_methods":      authMethods,
-		"premium_features":  proFeatures.GetFeatures(user),
-		"git_client":        util.Config.GitClientId,
-		"schedule_timezone": timezone,
-		"teams":             util.Config.Teams,
-		"roles":             roles,
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, body)
 }

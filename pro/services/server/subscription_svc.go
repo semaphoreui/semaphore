@@ -23,3 +23,19 @@ func (s *SubscriptionServiceImpl) CanAddProUser() (ok bool, err error) {
 func (s *SubscriptionServiceImpl) StartValidationCron() {
 
 }
+
+func (s *SubscriptionServiceImpl) CanAddRole() (ok bool, err error) {
+	return
+}
+
+func (s *SubscriptionServiceImpl) CanAddRunner() (ok bool, err error) {
+	return
+}
+
+func (s *SubscriptionServiceImpl) CanAddTerraformHTTPBackend() (ok bool, err error) {
+	return
+}
+
+func (s *SubscriptionServiceImpl) GetPlan() (plan string, err error) {
+	return
+}
