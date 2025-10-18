@@ -101,7 +101,7 @@
       color="hsl(348deg, 86%, 61%)"
       style="border-radius: 0;"
     >
-      <span v-html="$t('foss_runners_limited')"></span>
+      <span v-html="$t('secret_storage_only_pro')"></span>
 
       <v-btn
         class="ml-2 pr-2"
