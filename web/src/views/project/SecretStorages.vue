@@ -104,12 +104,11 @@
       <span v-html="$t('secret_storage_only_pro')"></span>
 
       <v-btn
-        class="ml-2 pr-2"
+        class="ml-2"
         color="hsl(348deg, 86%, 61%)"
         href="https://semaphoreui.com/pro#secret_storages"
       >
-        {{ $t('learn_more_about_pro') }}
-        <v-icon>mdi-chevron-right</v-icon>
+        {{ $t('upgrade_to_pro') }}
       </v-btn>
     </v-alert>
 

@@ -239,13 +239,18 @@
       <span v-html="$t('project_runners_only_pro')"></span>
 
       <v-btn
-        class="ml-2 pr-2"
+        v-if="isAdmin"
+        class="ml-2"
         color="hsl(348deg, 86%, 61%)"
         href="https://semaphoreui.com/pro#runners"
       >
-        {{ $t('learn_more_about_pro') }}
-        <v-icon>mdi-chevron-right</v-icon>
+        {{ $t('upgrade_to_pro') }}
       </v-btn>
+      <v-else>
+        <span>
+          {{ $t('contact_admin_to_upgrade') }}
+        </span>
+      </v-else>
     </v-alert>
 
     <v-alert
