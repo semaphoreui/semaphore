@@ -1,8 +1,12 @@
 package features
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+)
 
-func GetFeatures(user *db.User) map[string]bool {
+func GetFeatures(user *db.User, plan string) map[string]bool {
+
 	return map[string]bool{
 		"project_runners":   false,
 		"terraform_backend": false,

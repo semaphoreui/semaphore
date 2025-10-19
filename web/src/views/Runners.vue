@@ -230,24 +230,27 @@
     <v-divider v-if="!projectId" />
 
     <v-alert
-      v-if="!premiumFeatures.project_runners"
+      v-if="projectId && !premiumFeatures.project_runners"
       type="info"
       text
       color="hsl(348deg, 86%, 61%)"
       style="border-radius: 0;"
     >
-      <span v-if="projectId" v-html="$t('project_runners_only_pro')"></span>
-
-      <span v-else v-html="$t('foss_runners_limited')"></span>
+      <span v-html="$t('project_runners_only_pro')"></span>
 
       <v-btn
-        class="ml-2 pr-2"
+        v-if="isAdmin"
+        class="ml-2"
         color="hsl(348deg, 86%, 61%)"
         href="https://semaphoreui.com/pro#runners"
       >
-        {{ $t('learn_more_about_pro') }}
-        <v-icon>mdi-chevron-right</v-icon>
+        {{ $t('upgrade_to_pro') }}
       </v-btn>
+      <v-else>
+        <span>
+          {{ $t('contact_admin_to_upgrade') }}
+        </span>
+      </v-else>
     </v-alert>
 
     <v-alert
