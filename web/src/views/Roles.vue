@@ -37,6 +37,7 @@
       <v-toolbar-title>{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        :disabled="!premiumFeatures.custom_roles_management"
         color="primary"
         @click="editItem('new')"
       >{{ $t('newRole') }}</v-btn>
@@ -45,6 +46,29 @@
     <TeamMenu v-if="projectId" :project-id="projectId" :system-info="systemInfo" />
 
     <v-divider style="margin-top: -1px;"/>
+
+    <v-alert
+      v-if="!premiumFeatures.custom_roles_management"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+    >
+      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+
+      <v-btn
+        dark
+        depressed
+        v-if="isAdmin"
+        color="amber darken-3"
+        href="https://semaphoreui.com/pro#secret_storages"
+      >
+        {{ $t('upgrade_to_pro') }}
+      </v-btn>
+
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade') }}
+      </span>
+    </v-alert>
 
     <v-data-table
       :headers="headers"
@@ -101,6 +125,7 @@ export default {
   mixins: [ItemListPageBase],
 
   props: {
+    premiumFeatures: Object,
     projectId: Number,
     systemInfo: Object,
   },

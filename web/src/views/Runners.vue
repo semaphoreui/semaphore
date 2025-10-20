@@ -65,7 +65,7 @@
               <code
                 class="px-2 py-3 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px;"
-              >{{ (newRunner || {private_key: ''}).private_key.substring(0, 90) + '...' }}</code>
+              >{{ (newRunner || { private_key: '' }).private_key.substring(0, 90) + '...' }}</code>
 
               <v-btn
                 style="position: absolute; right: 10px; top: 2px;"
@@ -95,7 +95,7 @@
             <v-tab key="docker">Docker</v-tab>
           </v-tabs>
 
-          <v-divider style="margin-top: -1px;"/>
+          <v-divider style="margin-top: -1px;" />
 
           <v-tabs-items v-model="usageTab">
             <v-tab-item key="config">
@@ -220,7 +220,7 @@
     </v-toolbar>
 
     <v-btn
-      v-else-if="premiumFeatures.project_runners"
+      :disabled="!premiumFeatures.project_runners"
       style="position: absolute; right: 15px; top: 15px;"
       color="primary"
       @click="editItem('new')"
@@ -231,14 +231,13 @@
 
     <v-alert
       v-if="projectId && !premiumFeatures.project_runners"
-      type="info"
       text
       color="hsl(348deg, 86%, 61%)"
-      style="border-radius: 0;"
+      class="PageAlert"
     >
       <span v-html="$t('project_runners_only_pro')"></span>
-
       <v-btn
+        dark
         v-if="isAdmin"
         class="ml-2"
         color="hsl(348deg, 86%, 61%)"
@@ -246,11 +245,9 @@
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
-      <v-else>
-        <span>
-          {{ $t('contact_admin_to_upgrade') }}
-        </span>
-      </v-else>
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade') }}
+      </span>
     </v-alert>
 
     <v-alert

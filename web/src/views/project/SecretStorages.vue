@@ -96,20 +96,24 @@
 
     <v-alert
       v-if="!premiumFeatures.secret_storage_management"
-      type="info"
       text
       color="hsl(348deg, 86%, 61%)"
-      style="border-radius: 0;"
+      class="PageAlert"
     >
-      <span v-html="$t('secret_storage_only_pro')"></span>
+      <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
       <v-btn
-        class="ml-2"
+        dark
+        v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
         href="https://semaphoreui.com/pro#secret_storages"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
+
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade') }}
+      </span>
     </v-alert>
 
     <v-data-table

@@ -113,7 +113,7 @@ func Route(
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)
-	systmInfoController := NewSystemInfoController()
+	systemInfoController := NewSystemInfoController(subscriptionService)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -185,7 +185,7 @@ func Route(
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
 	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
 
-	authenticatedAPI.Path("/info").HandlerFunc(systmInfoController.GetSystemInfo).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.Activate).Methods("POST")
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.GetSubscription).Methods("GET")
