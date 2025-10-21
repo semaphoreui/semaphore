@@ -76,21 +76,12 @@
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
-      <template v-slot:item.external="{ item }">
-        <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+      <template v-slot:item.permissions="{ item }">
+        <TemplatePermissionsChips
+          class="py-1"
+          :permissions="item.permissions"
+        />
       </template>
-
-      <template v-slot:item.alert="{ item }">
-        <v-icon v-if="item.alert">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
-
-      <template v-slot:item.admin="{ item }">
-        <v-icon v-if="item.admin">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
-
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -120,6 +111,7 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RoleForm from '@/components/EditRoleForm.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
+import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 
 export default {
   mixins: [ItemListPageBase],
@@ -135,6 +127,7 @@ export default {
     YesNoDialog,
     RoleForm,
     EditDialog,
+    TemplatePermissionsChips,
   },
 
   data() {
