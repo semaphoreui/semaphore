@@ -248,3 +248,38 @@ export const APP_FIELDS = {
   tofu: TERRAFORM_FIELDS,
   terragrunt: TERRAFORM_FIELDS,
 };
+
+export const ROLE_PERMISSIONS = {
+  default: [{
+    permission: 1,
+    label: 'canRunProjectTasks',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: 2,
+    label: 'canUpdateProject',
+    color: 'green',
+    textColor: 'white',
+  }, {
+    permission: 4,
+    label: 'canManageProjectResources',
+    color: 'orange',
+    textColor: 'white',
+  }, {
+    permission: 8,
+    label: 'canManageProjectUsers',
+    color: 'red',
+    textColor: 'white',
+  }],
+  template: [{
+    permission: 1,
+    label: 'Can run tasks',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: 4,
+    label: 'Can update the template',
+    color: 'orange',
+    textColor: 'white',
+  }],
+};

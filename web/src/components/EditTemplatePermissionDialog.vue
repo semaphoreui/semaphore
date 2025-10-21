@@ -10,6 +10,7 @@
         :project-id="projectId"
         :template-id="templateId"
         :item-id="itemId"
+        scope="template"
         @save="onSave"
         @error="onError"
         :need-save="needSave"

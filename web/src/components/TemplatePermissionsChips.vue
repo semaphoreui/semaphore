@@ -1,7 +1,7 @@
 <template>
   <div class="permissions-list">
     <v-chip
-      v-for="p in PERMISSIONS[scope].filter(x => permissions & x.permission)"
+      v-for="p in ROLE_PERMISSIONS[scope].filter(x => permissions & x.permission)"
       :key="p.permission"
       small
       :color="p.color"
@@ -15,40 +15,8 @@
 </template>
 
 <script>
-const PERMISSIONS = {
-  default: [{
-    permission: 1,
-    label: 'canRunProjectTasks',
-    color: 'blue',
-    textColor: 'white',
-  }, {
-    permission: 2,
-    label: 'canUpdateProject',
-    color: 'green',
-    textColor: 'white',
-  }, {
-    permission: 4,
-    label: 'canManageProjectResources',
-    color: 'orange',
-    textColor: 'white',
-  }, {
-    permission: 8,
-    label: 'canManageProjectUsers',
-    color: 'red',
-    textColor: 'white',
-  }],
-  template: [{
-    permission: 1,
-    label: 'Can run tasks',
-    color: 'blue',
-    textColor: 'white',
-  }, {
-    permission: 4,
-    label: 'Can update the template',
-    color: 'orange',
-    textColor: 'white',
-  }],
-};
+import { ROLE_PERMISSIONS } from '@/lib/constants';
+
 export default {
   props: {
     permissions: {
@@ -62,7 +30,7 @@ export default {
   },
   data() {
     return {
-      PERMISSIONS,
+      ROLE_PERMISSIONS,
     };
   },
 };
