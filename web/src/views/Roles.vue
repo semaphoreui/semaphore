@@ -66,7 +66,7 @@
       </v-btn>
 
       <span v-else style="font-weight: bold;">
-        {{ $t('contact_admin_to_upgrade') }}
+        {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
 
