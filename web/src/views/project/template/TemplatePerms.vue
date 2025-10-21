@@ -15,7 +15,31 @@
       @yes="deleteItem(itemId)"
     />
 
+    <v-alert
+      v-if="!premiumFeatures.custom_roles_management"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+    >
+      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+
+      <v-btn
+        dark
+        depressed
+        v-if="isAdmin"
+        color="amber darken-3"
+        href="https://semaphoreui.com/pro#secret_storages"
+      >
+        {{ $t('upgrade_to_pro') }}
+      </v-btn>
+
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade') }}
+      </span>
+    </v-alert>
+
     <v-btn
+      :disabled="!premiumFeatures.custom_roles_management"
       color="primary"
       @click="editItem('new')"
       style="position: absolute; right: 16px;"
@@ -80,6 +104,7 @@ export default {
     repositories: Array,
     inventory: Array,
     environment: Array,
+    premiumFeatures: Object,
   },
 
   data() {

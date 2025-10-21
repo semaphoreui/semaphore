@@ -1,5 +1,5 @@
 <template>
-  <div v-if="inventories != null && states != null">
+  <div v-if="inventories != null && states != null" class="mt-8">
 
     <EditDialog
       v-model="editDialog"
