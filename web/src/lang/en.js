@@ -304,7 +304,8 @@ export default {
   foss_runners_limited: 'The open-source version has limited functionality; full functionality is in the <b>PRO</b> version.',
   learn_more_about_pro: 'Learn more',
   upgrade_to_pro: 'Upgrade',
-  contact_admin_to_upgrade: 'Contact your Semaphore administrator to upgrade to PRO.',
+  contact_admin_to_upgrade: 'Contact your admin to activate PRO features.',
+  contact_admin_to_upgrade_enterprise: 'Contact your admin to activate Enterprise features.',
 
   projectRestoreResult: 'Project restore results',
   projectWithNameRestored: 'Project {projectName} successfully restored.',

@@ -37,6 +37,7 @@
       <v-toolbar-title>{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        :disabled="!premiumFeatures.custom_roles_management"
         color="primary"
         @click="editItem('new')"
       >{{ $t('newRole') }}</v-btn>
@@ -46,27 +47,41 @@
 
     <v-divider style="margin-top: -1px;"/>
 
+    <v-alert
+      v-if="!premiumFeatures.custom_roles_management"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+    >
+      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+
+      <v-btn
+        dark
+        depressed
+        v-if="isAdmin"
+        color="amber darken-3"
+        href="https://semaphoreui.com/pro#secret_storages"
+      >
+        {{ $t('upgrade_to_pro') }}
+      </v-btn>
+
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade_enterprise') }}
+      </span>
+    </v-alert>
+
     <v-data-table
       :headers="headers"
       :items="items"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
-      <template v-slot:item.external="{ item }">
-        <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+      <template v-slot:item.permissions="{ item }">
+        <TemplatePermissionsChips
+          class="py-1"
+          :permissions="item.permissions"
+        />
       </template>
-
-      <template v-slot:item.alert="{ item }">
-        <v-icon v-if="item.alert">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
-
-      <template v-slot:item.admin="{ item }">
-        <v-icon v-if="item.admin">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
-      </template>
-
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -96,11 +111,13 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RoleForm from '@/components/EditRoleForm.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
+import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   props: {
+    premiumFeatures: Object,
     projectId: Number,
     systemInfo: Object,
   },
@@ -110,6 +127,7 @@ export default {
     YesNoDialog,
     RoleForm,
     EditDialog,
+    TemplatePermissionsChips,
   },
 
   data() {

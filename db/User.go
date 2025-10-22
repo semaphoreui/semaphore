@@ -1,8 +1,9 @@
 package db
 
 import (
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 // User is the model for an entity which has access to the API

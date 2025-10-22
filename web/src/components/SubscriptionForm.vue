@@ -59,20 +59,32 @@
         dense
       ></v-textarea>
 
-      <v-btn
-        @click="save"
-        style="width: 100%; margin-top: -5px;"
-        color="primary"
-        :disabled="formSaving"
-      >
-        <v-progress-circular
-          v-if="formSaving"
-          indeterminate
-          color="white"
-          :size="24"
-        ></v-progress-circular>
-        <span v-else>Activate new key</span>
-      </v-btn>
+      <v-row>
+        <v-col>
+          <v-btn
+            @click="save"
+            style="width: 100%;"
+            color="primary"
+            :disabled="formSaving"
+          >
+            <v-progress-circular
+              v-if="formSaving"
+              indeterminate
+              color="white"
+              :size="24"
+            ></v-progress-circular>
+            <span v-else>Activate key</span>
+          </v-btn>
+        </v-col>
+        <v-col>
+          <v-btn
+            style="width: 100%;"
+            color="primary"
+            :disabled="formSaving"
+          >Buy Pro</v-btn>
+        </v-col>
+      </v-row>
+
     </div>
 
     <v-card

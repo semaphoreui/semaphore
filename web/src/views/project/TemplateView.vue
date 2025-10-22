@@ -141,7 +141,6 @@
     <v-divider style="margin-top: -1px;" />
 
     <router-view
-      class="mt-8"
       :project-id="projectId"
       :template="item"
       :inventory="inventory"

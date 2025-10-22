@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -15,8 +16,10 @@ type SystemInfoController struct {
 	subscriptionService pro_interfaces.SubscriptionService
 }
 
-func NewSystemInfoController() *SystemInfoController {
-	return &SystemInfoController{}
+func NewSystemInfoController(subscriptionService pro_interfaces.SubscriptionService) *SystemInfoController {
+	return &SystemInfoController{
+		subscriptionService,
+	}
 }
 
 func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Request) {
@@ -47,11 +50,30 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	var plan string
+
 	token, err := c.subscriptionService.GetToken()
+
+	if errors.Is(err, db.ErrNotFound) {
+		err = nil
+	}
+
 	if err != nil {
 		log.WithError(err).Error("Failed to get subscription plan")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
+	}
+
+	switch {
+	case errors.Is(err, db.ErrNotFound):
+		err = nil
+		plan = ""
+	case err != nil:
+		log.WithError(err).Error("Failed to get subscription plan")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	default:
+		plan = token.Plan
 	}
 
 	body := map[string]any{
@@ -60,7 +82,7 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		"web_host":          util.Config.WebHost,
 		"use_remote_runner": util.Config.UseRemoteRunner,
 		"auth_methods":      authMethods,
-		"premium_features":  proFeatures.GetFeatures(user, token.Plan),
+		"premium_features":  proFeatures.GetFeatures(user, plan),
 		"git_client":        util.Config.GitClientId,
 		"schedule_timezone": timezone,
 		"teams":             util.Config.Teams,

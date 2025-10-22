@@ -21,3 +21,13 @@
 .CodeMirror {
   border-radius: 5px !important;
 }
+
+.PageAlert {
+  border-radius: 0;
+  .v-alert__content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+}

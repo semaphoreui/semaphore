@@ -15,7 +15,31 @@
       @yes="deleteItem(itemId)"
     />
 
+    <v-alert
+      v-if="!premiumFeatures.custom_roles_management"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+    >
+      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+
+      <v-btn
+        dark
+        depressed
+        v-if="isAdmin"
+        color="amber darken-3"
+        href="https://semaphoreui.com/pro#secret_storages"
+      >
+        {{ $t('upgrade_to_pro') }}
+      </v-btn>
+
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade_enterprise') }}
+      </span>
+    </v-alert>
+
     <v-btn
+      :disabled="!premiumFeatures.custom_roles_management"
       color="primary"
       @click="editItem('new')"
       style="position: absolute; right: 16px;"
@@ -34,47 +58,10 @@
       </template>
 
       <template v-slot:item.permissions="{ item }">
-        <div class="permissions-list">
-          <v-chip
-            v-if="item.permissions & 1"
-            small
-            color="blue"
-            text-color="white"
-            class="mr-1 mb-1"
-          >
-            {{ $t('canRunProjectTasks') }}
-          </v-chip>
-          <v-chip
-            v-if="item.permissions & 2"
-            small
-            color="green"
-            text-color="white"
-            class="mr-1 mb-1"
-          >
-            {{ $t('canUpdateProject') }}
-          </v-chip>
-          <v-chip
-            v-if="item.permissions & 4"
-            small
-            color="orange"
-            text-color="white"
-            class="mr-1 mb-1"
-          >
-            {{ $t('canManageProjectResources') }}
-          </v-chip>
-          <v-chip
-            v-if="item.permissions & 8"
-            small
-            color="red"
-            text-color="white"
-            class="mr-1 mb-1"
-          >
-            {{ $t('canManageProjectUsers') }}
-          </v-chip>
-          <span v-if="item.permissions === 0" class="text--secondary">
-            {{ $t('noPermissions') }}
-          </span>
-        </div>
+        <TemplatePermissionsChips
+          :permissions="item.permissions"
+          scope="template"
+        />
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -99,6 +86,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTemplatePermissionDialog from '@/components/EditTemplatePermissionDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
 
@@ -106,6 +94,7 @@ export default {
   components: {
     EditTemplatePermissionDialog,
     YesNoDialog,
+    TemplatePermissionsChips,
   },
   mixins: [ItemListPageBase],
 
@@ -115,6 +104,7 @@ export default {
     repositories: Array,
     inventory: Array,
     environment: Array,
+    premiumFeatures: Object,
   },
 
   data() {
@@ -202,11 +192,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.permissions-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-</style>
