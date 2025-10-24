@@ -105,6 +105,7 @@ export default {
     inventory: Array,
     environment: Array,
     premiumFeatures: Object,
+    isAdmin: Boolean,
   },
 
   data() {

@@ -147,6 +147,7 @@
       :environment="environment"
       :repositories="repositories"
       :premium-features="premiumFeatures"
+      :is-admin="isAdmin"
       @update-template="loadData"
     ></router-view>
   </div>
