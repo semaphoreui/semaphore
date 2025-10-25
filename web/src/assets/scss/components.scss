@@ -31,3 +31,17 @@
     flex-wrap: wrap;
   }
 }
+
+.TextInput {
+
+}
+
+.TextInput--no-legend {
+  legend {
+    width: 0 !important;
+  }
+
+  .v-label.v-label--active {
+    display: none;
+  }
+}

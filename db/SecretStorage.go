@@ -5,6 +5,7 @@ type SecretStorageType string
 const (
 	SecretStorageTypeLocal SecretStorageType = "local"
 	SecretStorageTypeVault SecretStorageType = "vault"
+	SecretStorageTypeDvls  SecretStorageType = "dvls"
 )
 
 type SecretStorage struct {
@@ -15,5 +16,5 @@ type SecretStorage struct {
 	Params    MapStringAnyField `db:"params" json:"params"`
 	ReadOnly  bool              `db:"readonly" json:"readonly"`
 
-	VaultToken string `db:"-" json:"vault_token,omitempty" backup:"-"`
+	Secret string `db:"-" json:"secret,omitempty" backup:"-"`
 }

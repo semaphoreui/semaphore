@@ -18,7 +18,7 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Hashicorp Vault Storage`"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemType} Storage`"
       :max-width="450"
       @save="loadItems()"
     >
