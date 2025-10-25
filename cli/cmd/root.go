@@ -2,18 +2,14 @@ package cmd
 
 import (
 	"fmt"
-	"log/syslog"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/services/server"
-	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
-
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
@@ -21,6 +17,7 @@ import (
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
 	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -70,17 +67,6 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
-	}
-}
-
-func initSyslog(conf *util.SyslogConfig) {
-	if conf.Enabled {
-		hook, err := lSyslog.NewSyslogHook(conf.Network, conf.Address, syslog.LOG_DEBUG, conf.Tag)
-		if err == nil {
-			log.AddHook(hook)
-		} else {
-			log.WithError(err).Fatal("Failed to create syslog hook")
-		}
 	}
 }
 

@@ -12,6 +12,11 @@ func NewSubscriptionService(userRepo db.UserManager, optionsRepo db.OptionsManag
 type SubscriptionServiceImpl struct {
 }
 
+func (s *SubscriptionServiceImpl) GetToken() (res pro_interfaces.SubscriptionToken, err error) {
+	err = db.ErrNotFound
+	return
+}
+
 func (s *SubscriptionServiceImpl) HasActiveSubscription() bool {
 	return false
 }
