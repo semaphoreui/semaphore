@@ -1,72 +1,75 @@
 <template>
   <div>
     <v-dialog
-      v-model="envEditorDialog"
-      max-width="800"
-      persistent
-      :transition="false"
+        v-model="envEditorDialog"
+        persistent
+        :fullscreen="true"
+        :transition="false"
     >
-      <div style="position: relative;">
+      <div style="position: relative; height: 100%;">
         <codemirror
-          v-if="envEditorDialog"
-          class="EnvironmentMaximizedEditor"
-          :style="{ border: '1px solid lightgray' }"
-          v-model="text"
-          :options="cmOptions"
-          :placeholder="$t('enterExtraVariablesJson')"
+            v-if="envEditorDialog"
+            class="EnvironmentMaximizedEditor"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="text"
+            :options="cmOptions"
+            :placeholder="$t('enterExtraVariablesJson')"
         />
 
         <v-btn
-          dark
-          fab
-          small
-          color="success"
-          style="
+            v-if="validatable"
+            dark
+            fab
+            small
+            color="success"
+            style="
             position: absolute;
-            right: 50px;
+            right: 70px;
             top: 0;
             margin: 10px;
           "
-          @click="save()"
+            @click="spellcheck()"
         >
-          <v-icon>mdi-check</v-icon>
+          <v-icon>mdi-spellcheck</v-icon>
         </v-btn>
 
         <v-btn
-          dark
-          fab
-          small
-          color="error"
-          style="
+            dark
+            fab
+            small
+            color="blue-grey"
+            style="
             position: absolute;
-            right: 0;
+            right: 20px;
             top: 0;
             margin: 10px;
           "
-          @click="cancel()"
+            @click="save()"
         >
-          <v-icon>mdi-close</v-icon>
+          <v-icon>mdi-arrow-collapse</v-icon>
         </v-btn>
 
         <v-alert
-          v-model="hasError"
-          dismissible
-          style="
+            v-model="showAlert"
+            :color="errorMessage ? 'error' : 'success'"
+            dismissible
+            style="
             position: absolute;
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
           "
-        >{{ errorMessage }}</v-alert>
+        >{{ errorMessage || validationSuccessMessage }}
+        </v-alert>
       </div>
     </v-dialog>
 
     <v-btn
-      dark
-      fab
-      small
-      color="blue-grey"
-      @click="envEditorDialog = true"
+        dark
+        fab
+        small
+        color="blue-grey"
+        @click="envEditorDialog = true"
     >
       <v-icon>mdi-arrow-expand</v-icon>
     </v-btn>
@@ -80,7 +83,8 @@ import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
-import { getErrorMessage } from '@/lib/error';
+import { getErrorMessage } from '../lib/error';
+// import { getErrorMessage } from '@/lib/error';
 
 export default {
   props: {
@@ -113,20 +117,11 @@ export default {
       text: null,
       envEditorDialog: false,
       errorMessage: null,
+      showAlert: false,
     };
   },
 
   computed: {
-    hasError: {
-      get() {
-        return this.errorMessage != null;
-      },
-      set(value) {
-        if (!value) {
-          this.errorMessage = null;
-        }
-      },
-    },
 
     cmOptions() {
       return {
@@ -138,6 +133,21 @@ export default {
         indentWithTabs: false,
       };
     },
+
+    validatable() {
+      return ['json', 'json_array'].includes(this.type);
+    },
+
+    validationSuccessMessage() {
+      switch (this.type) {
+        case 'json':
+          return 'Valid JSON format.';
+        case 'json_array':
+          return 'Valid JSON array format.';
+        default:
+          return 'Validation passed successfully.';
+      }
+    },
   },
 
   methods: {
@@ -146,7 +156,7 @@ export default {
       this.text = this.value;
       this.envEditorDialog = false;
     },
-    save() {
+    spellcheck() {
       this.errorMessage = null;
       switch (this.type) {
         case 'json':
@@ -154,7 +164,6 @@ export default {
             JSON.parse(this.text);
           } catch (e) {
             this.errorMessage = getErrorMessage(e);
-            return;
           }
           break;
         case 'json_array':
@@ -165,11 +174,36 @@ export default {
             }
           } catch (e) {
             this.errorMessage = getErrorMessage(e);
-            return;
           }
           break;
         default:
       }
+      this.showAlert = true;
+    },
+    save() {
+      // this.errorMessage = null;
+      // switch (this.type) {
+      //   case 'json':
+      //     try {
+      //       JSON.parse(this.text);
+      //     } catch (e) {
+      //       this.errorMessage = getErrorMessage(e);
+      //       return;
+      //     }
+      //     break;
+      //   case 'json_array':
+      //     try {
+      //       const res = JSON.parse(this.text);
+      //       if (!Array.isArray(res)) {
+      //         throw new Error('Must be JSON array');
+      //       }
+      //     } catch (e) {
+      //       this.errorMessage = getErrorMessage(e);
+      //       return;
+      //     }
+      //     break;
+      //   default:
+      // }
       if (this.text !== this.value) {
         this.$emit('input', this.text);
       }
@@ -179,10 +213,14 @@ export default {
 };
 </script>
 <style lang="scss">
-.EnvironmentMaximizedEditor {
+.vue-codemirror.EnvironmentMaximizedEditor {
+  height: 100% !important;
+  border-radius: 0 !important;
+
   .CodeMirror {
+    height: 100% !important;
     font-size: 14px;
-    height: 600px !important;
+    border-radius: 0 !important;
   }
 }
 </style>
