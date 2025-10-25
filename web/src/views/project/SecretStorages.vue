@@ -42,7 +42,6 @@
 
       <v-menu
         offset-y
-        v-if="premiumFeatures.secret_storage_management"
       >
         <template v-slot:activator="{ on, attrs }">
 
@@ -61,6 +60,7 @@
           <v-list-item
             link
             @click="editItem('new'); itemType = 'vault';"
+            :disabled="!premiumFeatures.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon
@@ -68,6 +68,19 @@
               </v-icon>
             </v-list-item-icon>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
+          </v-list-item>
+
+          <v-list-item
+              link
+              @click="editItem('new'); itemType = 'dvls';"
+              :disabled="!premiumFeatures.secret_storage_management"
+          >
+            <v-list-item-icon>
+              <v-icon
+              >$vuetify.icons.dvls
+              </v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Devolutions Server</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
