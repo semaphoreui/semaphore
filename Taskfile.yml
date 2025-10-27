@@ -91,14 +91,14 @@ tasks:
       - ../api/public/favicon.ico
     cmds:
       - >-
-        env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}
+        {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
         npm run build
 
   build:be:
     desc: Build server binary
     cmds:
       - >-
-        env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
+        {{ if eq OS "windows" }}set CGO_ENABLED=0 && GOOS={{ .GOOS }} && GOARCH={{ .GOARCH }} && {{ else }}env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}{{ end }}
         go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
         -tags "netgo"
         -ldflags "-s -w -X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli

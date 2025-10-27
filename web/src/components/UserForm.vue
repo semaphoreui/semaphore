@@ -111,7 +111,7 @@
                 :label="$t('adminUser')"
               ></v-checkbox>
             </v-col>
-            <v-col cols="6">
+            <v-col cols="6" v-if="isPro">
               <v-checkbox
                 :disabled="!isAdmin"
                 dense
@@ -253,6 +253,14 @@ export default {
         this.totpQrUrl = null;
       }
     },
+  },
+
+  computed: {
+
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
   },
 
   methods: {
