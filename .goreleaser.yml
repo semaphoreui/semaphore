@@ -1,3 +1,4 @@
+version: 2
 dist: bin
 
 before:
@@ -52,6 +53,8 @@ archives:
 signs:
   -
     artifacts: checksum
+    signature: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt.sig"
+    cmd: gpg
     args: [
       "-u", "{{ .Env.GPG_KEY_ID }}",
       "--pinentry-mode", "loopback",
@@ -61,12 +64,15 @@ signs:
       "--detach-sign", "${artifact}"
     ]
 
+checksum:
+  name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt"
+
 snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
 
 nfpms:
   - file_name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    package_name: "{{ .Env.PROJECT_NAME }}"
+    package_name: "semaphore"
     description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
     homepage: https://github.com/semaphoreui/semaphore
     vendor: Semaphore UI
@@ -87,4 +93,5 @@ nfpms:
 
 release:
   draft: true
+  use_existing_draft: true
   name_template: "{{.Tag}}"

@@ -59,7 +59,7 @@ jobs:
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
-          PROJECT_NAME=semaphorepro \
+          PROJECT_NAME=semaphore \
             task release:prod
 
   deploy-prod:
@@ -88,6 +88,13 @@ jobs:
         env:
           AWS_REGION: us-east-1
 
+      - name: Docker Hub login
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
 
 
       - name: Server meta
@@ -97,6 +104,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
             public.ecr.aws/semaphore/pro/server
+            public.ecr.aws/semaphore/server
+            semaphoreui/semaphore
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
@@ -118,6 +127,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Server build with Ansible 2.16.5
         uses: docker/build-push-action@v5
@@ -132,7 +144,13 @@ jobs:
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-ansible2.16.5
+          tags: |
+            public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-ansible2.16.5
+            public.ecr.aws/semaphore/server:${{ github.ref_name }}-ansible2.16.5
+            semaphoreui/semaphore:${{ github.ref_name }}-ansible2.16.5
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Server build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -141,7 +159,7 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=public.ecr.aws/semaphore/pro/server
+            SEMAPHORE_IMAGE=public.ecr.aws/semaphore/server
             SEMAPHORE_VERSION=${{ github.ref_name }}
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
@@ -149,7 +167,13 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-powershell7.5.0
+          tags: |
+            public.ecr.aws/semaphore/pro/server:${{ github.ref_name }}-powershell7.5.0
+            public.ecr.aws/semaphore/server:${{ github.ref_name }}-powershell7.5.0
+            semaphoreui/semaphore:${{ github.ref_name }}-powershell7.5.0
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
 
 
@@ -160,6 +184,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
             public.ecr.aws/semaphore/pro/runner
+            public.ecr.aws/semaphore/runner
+            semaphoreui/runner
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
@@ -180,6 +206,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Runner build with Ansible 2.16.5
         uses: docker/build-push-action@v5
@@ -193,7 +222,13 @@ jobs:
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-ansible2.16.5
+          tags: |
+            public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-ansible2.16.5
+            public.ecr.aws/semaphore/runner:${{ github.ref_name }}-ansible2.16.5
+            semaphoreui/runner:${{ github.ref_name }}-ansible2.16.5
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Runner build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -202,11 +237,17 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=public.ecr.aws/semaphore/pro/runner
+            SEMAPHORE_IMAGE=public.ecr.aws/semaphore/runner
             SEMAPHORE_VERSION=${{ github.ref_name }}
             GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-powershell7.5.0
+          tags: |
+            public.ecr.aws/semaphore/pro/runner:${{ github.ref_name }}-powershell7.5.0
+            public.ecr.aws/semaphore/runner:${{ github.ref_name }}-powershell7.5.0
+            semaphoreui/runner:${{ github.ref_name }}-powershell7.5.0
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
