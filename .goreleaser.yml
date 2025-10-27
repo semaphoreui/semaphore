@@ -59,8 +59,8 @@ signs:
       "--pinentry-mode", "loopback",
       "--yes",
       "--batch",
-      "--output", "{{ .Signature }}",
-      "--detach-sign", "{{ .ArtifactPath }}"
+      "--output", "${signature}",
+      "--detach-sign", "${artifact}"
     ]
 
 snapshot:
