@@ -1,3 +1,4 @@
+version: 2
 dist: bin
 
 before:
@@ -52,13 +53,14 @@ archives:
 signs:
   -
     artifacts: checksum
+    cmd: gpg
     args: [
       "-u", "{{ .Env.GPG_KEY_ID }}",
       "--pinentry-mode", "loopback",
       "--yes",
       "--batch",
-      "--output", "${signature}",
-      "--detach-sign", "${artifact}"
+      "--output", "{{ .Signature }}",
+      "--detach-sign", "{{ .ArtifactPath }}"
     ]
 
 snapshot:
