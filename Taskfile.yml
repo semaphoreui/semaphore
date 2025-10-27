@@ -33,7 +33,7 @@ tasks:
       GOLINTER_VERSION: v1.57.2
     cmds:
 #      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
-      - go install github.com/goreleaser/goreleaser@{{ .GORELEASER_VERSION }}
+      - go install github.com/goreleaser/goreleaser/v2/cmd/goreleaser@{{ .GORELEASER_VERSION }}
 #      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
     dir: /tmp
 
