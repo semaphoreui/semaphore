@@ -89,4 +89,5 @@ nfpms:
 
 release:
   draft: true
+  use_existing_draft: true
   name_template: "{{.Tag}}"
