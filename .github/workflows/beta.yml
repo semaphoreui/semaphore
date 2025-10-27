@@ -50,7 +50,7 @@ jobs:
       - name: Run release
         run: |
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          PROJECT_NAME=semaphore-community \
+          PROJECT_NAME=semaphore_community \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           task release:prod
 
