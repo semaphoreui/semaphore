@@ -29,7 +29,7 @@ tasks:
     desc: Installs required tools to build and publish
     vars:
       SWAGGER_VERSION: v0.30.5
-      GORELEASER_VERSION: v2.12.7
+      GORELEASER_VERSION: v2.11.2
       GOLINTER_VERSION: v1.57.2
     cmds:
 #      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
