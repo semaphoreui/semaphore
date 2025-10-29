@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/semaphoreui/semaphore/db"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
-	"strings"
 )
 
 const RekeyBatchSize = 100
@@ -56,24 +57,48 @@ type accessKeyEncryptionServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
 }
 
-func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) AccessKeyDeserializer {
+func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (AccessKeyDeserializer, error) {
 	if key.SourceStorageID == nil {
-		return &LocalAccessKeyDeserializer{}
+		return &LocalAccessKeyDeserializer{}, nil
 	}
 
-	return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s)
+	storage, err := s.secretStorageRepo.GetSecretStorage(*key.ProjectID, *key.SourceStorageID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch storage.Type {
+	case db.SecretStorageTypeVault:
+		return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), nil
+	case db.SecretStorageTypeDvls:
+		return pro.NewDvlsAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), nil
+	}
+
+	return nil, fmt.Errorf("unsupported secret storage type '%s'", storage.Type)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeleteSecret(key *db.AccessKey) error {
-	return s.getDeserializer(key).DeleteSecret(key)
+	d, err := s.getDeserializer(key)
+	if err != nil {
+		return err
+	}
+	return d.DeleteSecret(key)
 }
 
 func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) error {
-	return s.getDeserializer(key).SerializeSecret(key)
+	d, err := s.getDeserializer(key)
+	if err != nil {
+		return err
+	}
+	return d.SerializeSecret(key)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
-	ciphertext, err := s.getDeserializer(key).DeserializeSecret(key)
+	d, err := s.getDeserializer(key)
+	if err != nil {
+		return err
+	}
+	ciphertext, err := d.DeserializeSecret(key)
 	if err != nil {
 		return err
 	}

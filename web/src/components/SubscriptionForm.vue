@@ -73,16 +73,16 @@
               color="white"
               :size="24"
             ></v-progress-circular>
-            <span v-else>Activate key</span>
+            <span v-else>Activate New key</span>
           </v-btn>
         </v-col>
-        <v-col>
-          <v-btn
-            style="width: 100%;"
-            color="primary"
-            :disabled="formSaving"
-          >Buy Pro</v-btn>
-        </v-col>
+<!--        <v-col>-->
+<!--          <v-btn-->
+<!--            style="width: 100%;"-->
+<!--            color="primary"-->
+<!--            :disabled="formSaving"-->
+<!--          >Buy Pro</v-btn>-->
+<!--        </v-col>-->
       </v-row>
 
     </div>

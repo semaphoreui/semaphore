@@ -50,7 +50,7 @@ jobs:
       - name: Run release
         run: |
           GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          PROJECT_NAME=semaphore \
+          PROJECT_NAME=semaphore_community \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           task release:prod
 
@@ -83,7 +83,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            semaphoreui/semaphore-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
@@ -110,7 +110,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/runner
+            semaphoreui/runner-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>

@@ -66,7 +66,7 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 		Name:      random.String(10),
 		Type:      db.AccessKeyString,
 		ProjectID: &storage.ProjectID,
-		String:    storage.VaultToken,
+		String:    storage.Secret,
 		Owner:     db.AccessKeyVault,
 		StorageID: &res.ID,
 	}
@@ -92,12 +92,12 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 	}
 
 	if len(keys) == 0 {
-		if storage.VaultToken != "" {
+		if storage.Secret != "" {
 			_, err = s.accessKeyService.Create(db.AccessKey{
 				Name:      random.String(10),
 				Type:      db.AccessKeyString,
 				ProjectID: &storage.ProjectID,
-				String:    storage.VaultToken,
+				String:    storage.Secret,
 				Owner:     db.AccessKeyVault,
 				StorageID: &storage.ID,
 			})
@@ -107,14 +107,14 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 		}
 	} else {
 		vault := keys[0]
-		if storage.VaultToken == "" {
+		if storage.Secret == "" {
 			// Do nothing if the vault token is empty,
 			// as it means the user haven't set a new token.
 
 			//err = s.keyRepo.DeleteAccessKey(storage.ProjectID, vault.ID)
 		} else {
 			vault.OverrideSecret = true
-			vault.String = storage.VaultToken
+			vault.String = storage.Secret
 			err = s.accessKeyService.Update(vault)
 		}
 	}
