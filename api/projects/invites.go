@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"regexp"
+	"strings"
 	"text/template"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -17,6 +19,17 @@ import (
 	"github.com/semaphoreui/semaphore/util/mailer"
 	log "github.com/sirupsen/logrus"
 )
+
+// isValidEmail performs rudimentary email validation to avoid header/content injection
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+func isValidEmail(email string) bool {
+	// Must not contain newlines or percent-encoded variants
+	if strings.ContainsAny(email, "\r\n") || strings.Contains(email, "%0a") || strings.Contains(email, "%0d") {
+		return false
+	}
+	// Must match standard email regex (simple)
+	return emailRegex.MatchString(email)
+}
 
 // InviteMiddleware ensures an invite exists and loads it to the context
 func InviteMiddleware(next http.Handler) http.Handler {
@@ -67,6 +80,14 @@ func CreateInvite(w http.ResponseWriter, r *http.Request) {
 		Email     *string            `json:"email,omitempty"`
 		Role      db.ProjectUserRole `json:"role" binding:"required"`
 		ExpiresAt *time.Time         `json:"expires_at,omitempty"`
+	}
+
+	// Validate email if provided
+	if request.Email != nil {
+		if !isValidEmail(*request.Email) {
+			helpers.WriteErrorStatus(w, "Invalid email address", http.StatusBadRequest)
+			return
+		}
 	}
 
 	if !helpers.Bind(w, r, &request) {
