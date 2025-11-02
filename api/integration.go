@@ -255,12 +255,17 @@ func MatchCompare(value any, method db.IntegrationMatchMethodType, expected stri
 	}
 }
 
-func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Request) (taskDefinition db.Task, err error) {
+func GetTaskDefinition(
+	integration db.Integration,
+	payload []byte,
+	h http.Header,
+	extractorCreator func(projectID, integrationID int) ([]db.IntegrationExtractValue, error),
+) (taskDefinition db.Task, err error) {
 
 	var envValues = make([]db.IntegrationExtractValue, 0)
 	var taskValues = make([]db.IntegrationExtractValue, 0)
 
-	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
+	extractValuesForExtractor, err := extractorCreator(integration.ProjectID, integration.ID)
 	if err != nil {
 		return
 	}
@@ -274,7 +279,7 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 		}
 	}
 
-	var extractedEnvResults = Extract(envValues, r, payload)
+	var extractedEnvResults = Extract(envValues, h, payload)
 
 	if integration.TaskParams != nil {
 		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
@@ -282,6 +287,7 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 		taskDefinition = db.Task{
 			ProjectID:  integration.ProjectID,
 			TemplateID: integration.TemplateID,
+			Params:     make(db.MapStringAnyField),
 		}
 	}
 
@@ -311,7 +317,7 @@ func GetTaskDefinition(integration db.Integration, payload []byte, r *http.Reque
 
 	taskDefinition.Environment = string(envStr)
 
-	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, r, payload)
+	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, h, payload)
 	for k, v := range extractedTaskResults {
 		taskDefinition.Params[k] = v
 	}
@@ -323,7 +329,10 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
-	taskDefinition, err := GetTaskDefinition(integration, payload, r)
+	taskDefinition, err := GetTaskDefinition(
+		integration, payload, r.Header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+			return helpers.Store(r).GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
+		})
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"context":        "integrations",
@@ -347,13 +356,13 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 	}
 }
 
-func Extract(extractValues []db.IntegrationExtractValue, r *http.Request, payload []byte) (result map[string]string) {
+func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]string) {
 	result = make(map[string]string)
 
 	for _, extractValue := range extractValues {
 		switch extractValue.ValueSource {
 		case db.IntegrationExtractHeaderValue:
-			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
+			result[extractValue.Variable] = h.Get(extractValue.Key)
 		case db.IntegrationExtractBodyValue:
 			switch extractValue.BodyDataType {
 			case db.IntegrationBodyDataJSON:
@@ -367,7 +376,7 @@ func Extract(extractValues []db.IntegrationExtractValue, r *http.Request, payloa
 	return
 }
 
-func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, r *http.Request, payload []byte) db.MapStringAnyField {
+func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) db.MapStringAnyField {
 	// Create a result map that accepts any type
 	result := make(db.MapStringAnyField)
 
@@ -375,7 +384,7 @@ func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, r *ht
 		switch extractValue.ValueSource {
 		case db.IntegrationExtractHeaderValue:
 			// Extract the header value
-			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
+			result[extractValue.Variable] = h.Get(extractValue.Key)
 
 		case db.IntegrationExtractBodyValue:
 			switch extractValue.BodyDataType {
