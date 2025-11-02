@@ -31,11 +31,14 @@ func (c CmdGitClient) makeCmd(
 		// Ensure the tmp directory exists for git commands
 		// This is particularly important for commands like ls-remote
 		// that don't require a repository but need a working directory
-		if err := os.MkdirAll(tmpDir, 0755); err == nil {
+		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+			// Log the error but continue - git will use current directory if cmd.Dir is empty
+			if r.Logger != nil {
+				r.Logger.Log(fmt.Sprintf("Warning: failed to create tmp directory %s: %v", tmpDir, err))
+			}
+		} else {
 			cmd.Dir = tmpDir
 		}
-		// If directory creation fails, cmd.Dir will remain empty
-		// and git will use the current directory
 	case GitRepositoryFullPath:
 		cmd.Dir = r.GetFullPath()
 	default:
