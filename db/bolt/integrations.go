@@ -21,6 +21,26 @@ func (d *BoltDb) CreateIntegration(integration db.Integration) (db.Integration, 
 
 func (d *BoltDb) GetIntegrations(projectID int, params db.RetrieveQueryParams, includeTaskParams bool) (integrations []db.Integration, err error) {
 	err = d.getObjects(projectID, db.IntegrationProps, params, nil, &integrations)
+	
+	if err != nil {
+		return integrations, err
+	}
+	
+	if includeTaskParams {
+		for i := range integrations {
+			if integrations[i].TaskParamsID == nil {
+				continue
+			}
+			
+			var taskParams db.TaskParams
+			err = d.getObject(projectID, db.TaskParamsProps, intObjectID(*integrations[i].TaskParamsID), &taskParams)
+			if err != nil {
+				return nil, err
+			}
+			integrations[i].TaskParams = &taskParams
+		}
+	}
+	
 	return integrations, err
 }
 
@@ -28,6 +48,16 @@ func (d *BoltDb) GetIntegration(projectID int, integrationID int) (integration d
 	err = d.getObject(projectID, db.IntegrationProps, intObjectID(integrationID), &integration)
 	if err != nil {
 		return
+	}
+	
+	if integration.TaskParamsID != nil {
+		var taskParams db.TaskParams
+		err = d.getObject(projectID, db.TaskParamsProps, intObjectID(*integration.TaskParamsID), &taskParams)
+		if err != nil {
+			return
+		}
+		
+		integration.TaskParams = &taskParams
 	}
 
 	return

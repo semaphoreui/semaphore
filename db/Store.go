@@ -822,8 +822,18 @@ func (m *MapStringAnyField) Scan(value any) error {
 
 	switch v := value.(type) {
 	case []byte:
+		// Handle empty byte slices
+		if len(v) == 0 {
+			*m = make(MapStringAnyField)
+			return nil
+		}
 		return json.Unmarshal(v, m)
 	case string:
+		// Handle empty strings
+		if v == "" {
+			*m = make(MapStringAnyField)
+			return nil
+		}
 		return json.Unmarshal([]byte(v), m)
 	default:
 		return errors.New("unsupported type for MapStringAnyField")
