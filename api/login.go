@@ -158,21 +158,6 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 	switch {
 	case user.Totp != nil && util.Config.Auth.Totp.Enabled:
 		verificationMethod = db.SessionVerificationTotp
-
-	case util.Config.Auth.Email.Enabled && (!util.Config.Auth.Email.DisableForOidc || !oidc):
-
-		err = newEmailOtp(user.ID, user.Email, helpers.Store(r))
-
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"user_id": user.ID,
-				"context": "session",
-			}).Error("Failed to add email otp verification")
-			helpers.WriteErrorStatus(w, "Failed to create email OTP verification", http.StatusInternalServerError)
-			return
-		}
-
-		verificationMethod = db.SessionVerificationEmail
 	default:
 		verificationMethod = db.SessionVerificationNone
 		verified = true
