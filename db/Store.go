@@ -822,14 +822,18 @@ func (m *MapStringAnyField) Scan(value any) error {
 
 	switch v := value.(type) {
 	case []byte:
-		// Handle empty byte slices
+		// Handle empty byte slices by initializing an empty map instead of nil.
+		// This prevents "unexpected end of JSON input" errors and provides a usable empty map
+		// for subsequent operations, which is more intuitive than nil for empty data.
 		if len(v) == 0 {
 			*m = make(MapStringAnyField)
 			return nil
 		}
 		return json.Unmarshal(v, m)
 	case string:
-		// Handle empty strings
+		// Handle empty strings by initializing an empty map instead of nil.
+		// This prevents "unexpected end of JSON input" errors and provides a usable empty map
+		// for subsequent operations, which is more intuitive than nil for empty data.
 		if v == "" {
 			*m = make(MapStringAnyField)
 			return nil
