@@ -7,9 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
-	"io"
 )
 
 type LocalAccessKeyDeserializer struct {
@@ -109,6 +111,9 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res s
 
 func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
 	if key.Secret == nil || *key.Secret == "" {
+		if key.SourceStorageKey != nil {
+			res = os.Getenv(*key.SourceStorageKey)
+		}
 		return
 	}
 

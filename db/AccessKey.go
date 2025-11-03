@@ -2,10 +2,6 @@ package db
 
 import (
 	"fmt"
-	//"github.com/semaphoreui/semaphore/pkg/ssh"
-	//"github.com/semaphoreui/semaphore/pkg/random"
-	//"github.com/semaphoreui/semaphore/pkg/ssh"
-	//"path"
 )
 
 type AccessKeyType string
