@@ -3,8 +3,9 @@ package projects
 import (
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/services/server"
 	"net/http"
+
+	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -91,12 +92,12 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := key.Validate(true); err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": err.Error(),
-		})
-		return
-	}
+	//if err := key.Validate(true); err != nil {
+	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
 
 	newKey, err := c.accessKeyService.Create(key)
 

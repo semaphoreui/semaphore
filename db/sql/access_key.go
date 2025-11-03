@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -58,12 +59,6 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	if err != nil {
 		return err
 	}
-
-	//err = key.SerializeSecret()
-	//
-	//if err != nil {
-	//	return err
-	//}
 
 	var res sql.Result
 
