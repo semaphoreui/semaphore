@@ -2,10 +2,11 @@ package projects
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/server"
-	"net/http"
 )
 
 type SecretStorageController struct {
@@ -21,14 +22,33 @@ func SecretStorageMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		key, err := helpers.Store(r).GetSecretStorage(project.ID, storageID)
+		storage, err := helpers.Store(r).GetSecretStorage(project.ID, storageID)
 
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
 
-		r = helpers.SetContextValue(r, "secretStorage", key)
+		keys, err := helpers.Store(r).GetAccessKeys(project.ID, db.GetAccessKeyOptions{
+			Owner:     db.AccessKeySecretStorage,
+			StorageID: &storage.ID,
+		}, db.RetrieveQueryParams{})
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		if len(keys) == 0 {
+			helpers.WriteErrorStatus(w, "Access key not found", http.StatusNotFound)
+			return
+		}
+
+		if keys[0].SourceStorageKey != nil {
+			storage.SecretEnvironmentVariable = *keys[0].SourceStorageKey
+		}
+
+		r = helpers.SetContextValue(r, "secretStorage", storage)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -157,5 +177,5 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }
