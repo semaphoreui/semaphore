@@ -30,6 +30,163 @@ servers:
     description: local development
 
 paths:
+#  "/project/{project_id}/invites":
+#    get:
+#      operationId: getProjectByIdInvites
+#      tags:
+#        - project
+#      summary: Get invitations for project
+#      parameters:
+#        - name: sort
+#          in: query
+#          required: false
+#          schema:
+#            type: string
+#            enum:
+#              - created
+#              - status
+#              - role
+#          description: sorting field
+#          example: created
+#        - name: order
+#          in: query
+#          required: false
+#          schema:
+#            type: string
+#            enum:
+#              - asc
+#              - desc
+#          description: ordering manner
+#          example: desc
+#      responses:
+#        '200':
+#          description: Project invitations
+#          content:
+#            application/json:
+#              schema:
+#                type: array
+#                items:
+#                  "$ref": "#/components/schemas/ProjectInvite"
+#            text/plain; charset=utf-8:
+#              schema:
+#                type: array
+#                items:
+#                  "$ref": "#/components/schemas/ProjectInvite"
+#    post:
+#      operationId: postProjectByIdInvites
+#      tags:
+#        - project
+#      summary: Create project invitation
+#      requestBody:
+#        content:
+#          application/json:
+#            schema:
+#              "$ref": "#/components/schemas/ProjectInviteRequest"
+#        required: true
+#      responses:
+#        '201':
+#          description: Invitation created
+#          content:
+#            application/json:
+#              schema:
+#                "$ref": "#/components/schemas/ProjectInvite"
+#            text/plain; charset=utf-8:
+#              schema:
+#                "$ref": "#/components/schemas/ProjectInvite"
+#        '400':
+#          description: Bad request (invalid role, missing user_id/email, or both provided)
+#          content: {}
+#        '409':
+#          description: User already a member or invitation already exists
+#          content: {}
+#      x-codegen-request-body-name: Invite
+#    parameters:
+#      - "$ref": "#/components/parameters/project_id"
+#  "/project/{project_id}/invites/{invite_id}":
+#    get:
+#      operationId: getProjectByIdInviteById
+#      tags:
+#        - project
+#      summary: Get specific project invitation
+#      responses:
+#        '200':
+#          description: Project invitation
+#          content:
+#            application/json:
+#              schema:
+#                "$ref": "#/components/schemas/ProjectInvite"
+#            text/plain; charset=utf-8:
+#              schema:
+#                "$ref": "#/components/schemas/ProjectInvite"
+#        '404':
+#          description: Invitation not found
+#          content: {}
+#    put:
+#      operationId: putProjectByIdInviteById
+#      tags:
+#        - project
+#      summary: Update project invitation status
+#      requestBody:
+#        content:
+#          application/json:
+#            schema:
+#              type: object
+#              properties:
+#                status:
+#                  type: string
+#                  enum:
+#                    - pending
+#                    - declined
+#                    - expired
+#                  example: declined
+#        required: true
+#      responses:
+#        '204':
+#          description: Invitation updated
+#          content: {}
+#        '400':
+#          description: Invalid status or status transition
+#          content: {}
+#      x-codegen-request-body-name: Invite Update
+#    delete:
+#      operationId: deleteProjectByIdInviteById
+#      tags:
+#        - project
+#      summary: Delete project invitation
+#      responses:
+#        '204':
+#          description: Invitation deleted
+#          content: {}
+#    parameters:
+#      - "$ref": "#/components/parameters/project_id"
+#      - "$ref": "#/components/parameters/invite_id"
+#  "/invites/accept":
+#    post:
+#      operationId: postInvitesAccept
+#      tags:
+#        - project
+#      summary: Accept project invitation
+#      requestBody:
+#        content:
+#          application/json:
+#            schema:
+#              "$ref": "#/components/schemas/AcceptInviteRequest"
+#        required: true
+#      responses:
+#        '204':
+#          description: Invitation accepted successfully
+#          content: {}
+#        '400':
+#          description: Invalid token, invitation expired, or user already a member
+#          content: {}
+#        '403':
+#          description: Invitation not for this user
+#          content: {}
+#        '404':
+#          description: Invitation not found
+#          content: {}
+#      x-codegen-request-body-name: Accept Invite
+#
   /debug/gc:
     post:
       operationId: postDebugGc
@@ -688,162 +845,6 @@ paths:
     parameters:
       - "$ref": "#/components/parameters/project_id"
       - "$ref": "#/components/parameters/user_id"
-  "/project/{project_id}/invites":
-    get:
-      operationId: getProjectByIdInvites
-      tags:
-        - project
-      summary: Get invitations for project
-      parameters:
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - created
-              - status
-              - role
-          description: sorting field
-          example: created
-        - name: order
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - asc
-              - desc
-          description: ordering manner
-          example: desc
-      responses:
-        '200':
-          description: Project invitations
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/ProjectInvite"
-            text/plain; charset=utf-8:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/ProjectInvite"
-    post:
-      operationId: postProjectByIdInvites
-      tags:
-        - project
-      summary: Create project invitation
-      requestBody:
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/ProjectInviteRequest"
-        required: true
-      responses:
-        '201':
-          description: Invitation created
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ProjectInvite"
-            text/plain; charset=utf-8:
-              schema:
-                "$ref": "#/components/schemas/ProjectInvite"
-        '400':
-          description: Bad request (invalid role, missing user_id/email, or both provided)
-          content: {}
-        '409':
-          description: User already a member or invitation already exists
-          content: {}
-      x-codegen-request-body-name: Invite
-    parameters:
-      - "$ref": "#/components/parameters/project_id"
-  "/project/{project_id}/invites/{invite_id}":
-    get:
-      operationId: getProjectByIdInviteById
-      tags:
-        - project
-      summary: Get specific project invitation
-      responses:
-        '200':
-          description: Project invitation
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ProjectInvite"
-            text/plain; charset=utf-8:
-              schema:
-                "$ref": "#/components/schemas/ProjectInvite"
-        '404':
-          description: Invitation not found
-          content: {}
-    put:
-      operationId: putProjectByIdInviteById
-      tags:
-        - project
-      summary: Update project invitation status
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum:
-                    - pending
-                    - declined
-                    - expired
-                  example: declined
-        required: true
-      responses:
-        '204':
-          description: Invitation updated
-          content: {}
-        '400':
-          description: Invalid status or status transition
-          content: {}
-      x-codegen-request-body-name: Invite Update
-    delete:
-      operationId: deleteProjectByIdInviteById
-      tags:
-        - project
-      summary: Delete project invitation
-      responses:
-        '204':
-          description: Invitation deleted
-          content: {}
-    parameters:
-      - "$ref": "#/components/parameters/project_id"
-      - "$ref": "#/components/parameters/invite_id"
-  "/invites/accept":
-    post:
-      operationId: postInvitesAccept
-      tags:
-        - project
-      summary: Accept project invitation
-      requestBody:
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/AcceptInviteRequest"
-        required: true
-      responses:
-        '204':
-          description: Invitation accepted successfully
-          content: {}
-        '400':
-          description: Invalid token, invitation expired, or user already a member
-          content: {}
-        '403':
-          description: Invitation not for this user
-          content: {}
-        '404':
-          description: Invitation not found
-          content: {}
-      x-codegen-request-body-name: Accept Invite
   "/project/{project_id}/integrations":
     get:
       operationId: getProjectByIdIntegrations
