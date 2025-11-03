@@ -2,10 +2,11 @@ package projects
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/server"
-	"net/http"
 )
 
 type SecretStorageController struct {
@@ -157,5 +158,5 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }

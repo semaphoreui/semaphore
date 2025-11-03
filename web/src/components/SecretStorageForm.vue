@@ -114,12 +114,12 @@
       <v-text-field
           v-else
           class="TextInput TextInput--no-legend"
-          v-model="item.source_storage_key"
+          v-model="item.secret_environment_variable"
           :label="$t('Env var name')"
           :disabled="formSaving"
           :rules="[v => !!v || itemId !== 'new' || $t('envvar_required')]"
           required
-          data-testid="secretStorage-dvlsSecret"
+          data-testid="secretStorage-dvlsEnv"
           outlined
           dense
       ></v-text-field>
@@ -164,6 +164,10 @@ export default {
 
       if (this.itemId === 'new') {
         this.item.type = this.itemType;
+      }
+
+      if (this.item.secret_environment_variable) {
+        this.secretStorage = 'env';
       }
     },
 
