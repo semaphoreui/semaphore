@@ -168,6 +168,8 @@ export default {
 
       if (this.item.secret_environment_variable) {
         this.secretStorage = 'env';
+      } else {
+        this.secretStorage = 'database';
       }
     },
 

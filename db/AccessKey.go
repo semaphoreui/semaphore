@@ -14,10 +14,10 @@ const (
 	AccessKeyString        AccessKeyType = "string"
 )
 const (
-	AccessKeyEnvironment AccessKeyOwner = "environment"
-	AccessKeyVariable    AccessKeyOwner = "variable"
-	AccessKeyVault       AccessKeyOwner = "vault"
-	AccessKeyShared      AccessKeyOwner = ""
+	AccessKeyEnvironment   AccessKeyOwner = "environment"
+	AccessKeyVariable      AccessKeyOwner = "variable"
+	AccessKeySecretStorage AccessKeyOwner = "vault"
+	AccessKeyShared        AccessKeyOwner = ""
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -101,4 +101,8 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 	}
 
 	return nil
+}
+
+func (key *AccessKey) IsEnvironmentVariable() bool {
+	return key.SourceStorageID == nil && key.SourceStorageKey != nil
 }

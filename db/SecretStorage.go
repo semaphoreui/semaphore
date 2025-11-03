@@ -17,5 +17,5 @@ type SecretStorage struct {
 	ReadOnly  bool              `db:"readonly" json:"readonly"`
 
 	Secret                    string `db:"-" json:"secret,omitempty" backup:"-"`
-	SecretEnvironmentVariable string `db:"-" json:"secret_environment_variable,omitempty" backup:"env"`
+	SecretEnvironmentVariable string `db:"-" json:"secret_environment_variable,omitempty" backup:"-"`
 }

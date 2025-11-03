@@ -38,7 +38,7 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 	}
 
 	keys, err := s.accessKeyService.GetAll(projectID, db.GetAccessKeyOptions{
-		Owner:     db.AccessKeyVault,
+		Owner:     db.AccessKeySecretStorage,
 		StorageID: &storageID,
 	}, db.RetrieveQueryParams{})
 
@@ -80,7 +80,7 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 		Type:      db.AccessKeyString,
 		ProjectID: &storage.ProjectID,
 		String:    storage.Secret,
-		Owner:     db.AccessKeyVault,
+		Owner:     db.AccessKeySecretStorage,
 		StorageID: &res.ID,
 	}
 
@@ -100,7 +100,7 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 	}
 
 	keys, err := s.accessKeyService.GetAll(storage.ProjectID, db.GetAccessKeyOptions{
-		Owner:     db.AccessKeyVault,
+		Owner:     db.AccessKeySecretStorage,
 		StorageID: &storage.ID,
 	}, db.RetrieveQueryParams{})
 
@@ -115,7 +115,7 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 				Type:      db.AccessKeyString,
 				ProjectID: &storage.ProjectID,
 				String:    storage.Secret,
-				Owner:     db.AccessKeyVault,
+				Owner:     db.AccessKeySecretStorage,
 				StorageID: &storage.ID,
 			})
 		} else {
