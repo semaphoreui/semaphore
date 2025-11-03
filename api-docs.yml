@@ -1753,70 +1753,70 @@ paths:
           description: User updated
 
   # Invite management
-  /project/{project_id}/invites:
-    parameters:
-      - $ref: "#/parameters/project_id"
-    get:
-      tags:
-        - project
-      summary: Get invitations for project
-      parameters:
-        - name: sort
-          in: query
-          required: false
-          type: string
-          enum: [created, status, role]
-          description: sorting field
-          x-example: created
-        - name: order
-          in: query
-          required: false
-          type: string
-          enum: [asc, desc]
-          description: ordering manner
-          x-example: desc
-      responses:
-        200:
-          description: Project invitations
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/ProjectInvite"
-    post:
-      tags:
-        - project
-      summary: Create project invitation
-      parameters:
-        - name: Invite
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/ProjectInviteRequest"
-      responses:
-        201:
-          description: Invitation created
-          schema:
-            $ref: "#/definitions/ProjectInvite"
-        400:
-          description: Bad request (invalid role, missing user_id/email, or both provided)
-        409:
-          description: User already a member or invitation already exists
-
-  /project/{project_id}/invites/{invite_id}:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/invite_id"
-    get:
-      tags:
-        - project
-      summary: Get specific project invitation
-      responses:
-        200:
-          description: Project invitation
-          schema:
-            $ref: "#/definitions/ProjectInvite"
-        404:
-          description: Invitation not found
+#  /project/{project_id}/invites:
+#    parameters:
+#      - $ref: "#/parameters/project_id"
+#    get:
+#      tags:
+#        - project
+#      summary: Get invitations for project
+#      parameters:
+#        - name: sort
+#          in: query
+#          required: false
+#          type: string
+#          enum: [created, status, role]
+#          description: sorting field
+#          x-example: created
+#        - name: order
+#          in: query
+#          required: false
+#          type: string
+#          enum: [asc, desc]
+#          description: ordering manner
+#          x-example: desc
+#      responses:
+#        200:
+#          description: Project invitations
+#          schema:
+#            type: array
+#            items:
+#              $ref: "#/definitions/ProjectInvite"
+#    post:
+#      tags:
+#        - project
+#      summary: Create project invitation
+#      parameters:
+#        - name: Invite
+#          in: body
+#          required: true
+#          schema:
+#            $ref: "#/definitions/ProjectInviteRequest"
+#      responses:
+#        201:
+#          description: Invitation created
+#          schema:
+#            $ref: "#/definitions/ProjectInvite"
+#        400:
+#          description: Bad request (invalid role, missing user_id/email, or both provided)
+#        409:
+#          description: User already a member or invitation already exists
+#
+#  /project/{project_id}/invites/{invite_id}:
+#    parameters:
+#      - $ref: "#/parameters/project_id"
+#      - $ref: "#/parameters/invite_id"
+#    get:
+#      tags:
+#        - project
+#      summary: Get specific project invitation
+#      responses:
+#        200:
+#          description: Project invitation
+#          schema:
+#            $ref: "#/definitions/ProjectInvite"
+#        404:
+#          description: Invitation not found
 #    put:
 #      tags:
 #        - project
