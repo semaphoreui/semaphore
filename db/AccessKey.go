@@ -55,7 +55,12 @@ type AccessKey struct {
 
 	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty"`
 
-	SourceStorageID  *int    `db:"source_storage_id" json:"source_storage_id,omitempty" backup:"-"`
+	// SourceStorageID represents the ID of the source storage associated with the access key, used for reference purposes.
+	SourceStorageID *int `db:"source_storage_id" json:"source_storage_id,omitempty" backup:"-"`
+
+	// SourceStorageKey is an optional reference to a specific storage key associated with the source storage.
+	// For example for Hashicorp vault this is the path to the secret.
+	// If SourceStorageID is nil, this field is references to an environment variable.
 	SourceStorageKey *string `db:"source_storage_key" json:"source_storage_key,omitempty"`
 }
 
