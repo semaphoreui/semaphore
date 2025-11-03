@@ -12,6 +12,8 @@ import (
 
 const RekeyBatchSize = 100
 
+var ErrReadOnlyStorage = errors.New("cannot modify secret in read-only storage")
+
 type AccessKeyEncryptionService interface {
 	SerializeSecret(key *db.AccessKey) error
 	DeserializeSecret(key *db.AccessKey) error
@@ -57,28 +59,28 @@ type accessKeyEncryptionServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
 }
 
-func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (AccessKeyDeserializer, error) {
+func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (AccessKeyDeserializer, bool, error) {
 	if key.SourceStorageID == nil {
-		return &LocalAccessKeyDeserializer{}, nil
+		return &LocalAccessKeyDeserializer{}, false, nil
 	}
 
 	storage, err := s.secretStorageRepo.GetSecretStorage(*key.ProjectID, *key.SourceStorageID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	switch storage.Type {
 	case db.SecretStorageTypeVault:
-		return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), nil
+		return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	case db.SecretStorageTypeDvls:
-		return pro.NewDvlsAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), nil
+		return pro.NewDvlsAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	}
 
-	return nil, fmt.Errorf("unsupported secret storage type '%s'", storage.Type)
+	return nil, false, fmt.Errorf("unsupported secret storage type '%s'", storage.Type)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeleteSecret(key *db.AccessKey) error {
-	d, err := s.getDeserializer(key)
+	d, _, err := s.getDeserializer(key)
 	if err != nil {
 		return err
 	}
@@ -86,15 +88,24 @@ func (s *accessKeyEncryptionServiceImpl) DeleteSecret(key *db.AccessKey) error {
 }
 
 func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) error {
-	d, err := s.getDeserializer(key)
+	d, readonly, err := s.getDeserializer(key)
 	if err != nil {
 		return err
 	}
+	if readonly {
+		return ErrReadOnlyStorage
+	}
+
+	err = key.Validate(true)
+	if err != nil {
+		return err
+	}
+
 	return d.SerializeSecret(key)
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
-	d, err := s.getDeserializer(key)
+	d, _, err := s.getDeserializer(key)
 	if err != nil {
 		return err
 	}

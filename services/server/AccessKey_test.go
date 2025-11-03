@@ -2,14 +2,16 @@ package server
 
 import (
 	"encoding/base64"
+	"testing"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
-	"testing"
 )
 
 func TestSetSecret(t *testing.T) {
 	accessKey := db.AccessKey{
 		Type: db.AccessKeySSH,
+		Name: "test",
 		SshKey: db.SshKey{
 			PrivateKey: "qerphqeruqoweurqwerqqeuiqwpavqr",
 		},
@@ -21,7 +23,7 @@ func TestSetSecret(t *testing.T) {
 	err := encryptionService.SerializeSecret(&accessKey)
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	secret, err := base64.StdEncoding.DecodeString(*accessKey.Secret)
@@ -69,6 +71,7 @@ func TestSetGetSecretWithEncryption(t *testing.T) {
 	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
 
 	accessKey := db.AccessKey{
+		Name: "test",
 		Type: db.AccessKeySSH,
 		SshKey: db.SshKey{
 			PrivateKey: "qerphqeruqoweurqwerqqeuiqwpavqr",

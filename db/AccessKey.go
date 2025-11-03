@@ -2,10 +2,6 @@ package db
 
 import (
 	"fmt"
-	//"github.com/semaphoreui/semaphore/pkg/ssh"
-	//"github.com/semaphoreui/semaphore/pkg/random"
-	//"github.com/semaphoreui/semaphore/pkg/ssh"
-	//"path"
 )
 
 type AccessKeyType string
@@ -18,10 +14,10 @@ const (
 	AccessKeyString        AccessKeyType = "string"
 )
 const (
-	AccessKeyEnvironment AccessKeyOwner = "environment"
-	AccessKeyVariable    AccessKeyOwner = "variable"
-	AccessKeyVault       AccessKeyOwner = "vault"
-	AccessKeyShared      AccessKeyOwner = ""
+	AccessKeyEnvironment   AccessKeyOwner = "environment"
+	AccessKeyVariable      AccessKeyOwner = "variable"
+	AccessKeySecretStorage AccessKeyOwner = "vault"
+	AccessKeyShared        AccessKeyOwner = ""
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -55,7 +51,12 @@ type AccessKey struct {
 
 	Owner AccessKeyOwner `db:"owner" json:"owner,omitempty"`
 
-	SourceStorageID  *int    `db:"source_storage_id" json:"source_storage_id,omitempty" backup:"-"`
+	// SourceStorageID represents the ID of the source storage associated with the access key, used for reference purposes.
+	SourceStorageID *int `db:"source_storage_id" json:"source_storage_id,omitempty" backup:"-"`
+
+	// SourceStorageKey is an optional reference to a specific storage key associated with the source storage.
+	// For example for Hashicorp vault this is the path to the secret.
+	// If SourceStorageID is nil, this field is references to an environment variable.
 	SourceStorageKey *string `db:"source_storage_key" json:"source_storage_key,omitempty"`
 }
 
@@ -100,4 +101,8 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 	}
 
 	return nil
+}
+
+func (key *AccessKey) IsEnvironmentVariable() bool {
+	return key.SourceStorageID == nil && key.SourceStorageKey != nil
 }
